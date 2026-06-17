@@ -23,6 +23,8 @@ interface AutocompleteEmailProps extends Omit<React.InputHTMLAttributes<HTMLInpu
   footerMessage?: string;
   /** Disallow free-form input — clears field on blur if no matching option was selected */
   strictMatch?: boolean;
+  /** When provided, replaces local filtering with an async backend search */
+  onAsyncSearch?: (query: string) => Promise<Option[]>;
 }
 
 export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
@@ -36,11 +38,14 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
   displayOnlyLabel = false,
   footerMessage,
   strictMatch = false,
+  onAsyncSearch,
   ...rest
 }) => {
   const [inputValue, setInputValue] = useState(value);
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const [asyncResults, setAsyncResults] = useState<Option[]>([]);
+  const [asyncLoading, setAsyncLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const [debouncedValue] = useDebounce(inputValue, 300);
 
@@ -53,6 +58,27 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
       setInputValue(value);
     }
   }, [value, options, searchByLabel]);
+
+  // Async search: fire when debounced input changes (empty = show all when showAllOnFocus)
+  useEffect(() => {
+    if (!onAsyncSearch) return;
+    // If empty and not showing all on focus, clear results without a fetch
+    if (!debouncedValue && !showAllOnFocus) {
+      setAsyncResults([]);
+      return;
+    }
+    let cancelled = false;
+    setAsyncLoading(true);
+    onAsyncSearch(debouncedValue).then((results) => {
+      if (!cancelled) {
+        setAsyncResults(results);
+        setAsyncLoading(false);
+      }
+    }).catch(() => {
+      if (!cancelled) setAsyncLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [debouncedValue, onAsyncSearch, showAllOnFocus]);
 
   // Close on outside click
   useEffect(() => {
@@ -90,6 +116,7 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
   }, [isOpen]);
 
   const filteredOptions = useMemo(() => {
+    if (onAsyncSearch) return asyncResults;
     if (!debouncedValue && !showAllOnFocus) return [];
     const searchStr = debouncedValue.toLowerCase();
     const filtered = searchStr
@@ -100,18 +127,22 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
     return filtered.sort((a, b) =>
       (searchByLabel ? a.label : a.value).localeCompare(searchByLabel ? b.label : b.value)
     );
-  }, [debouncedValue, options, searchByLabel, showAllOnFocus]);
+  }, [debouncedValue, options, searchByLabel, showAllOnFocus, onAsyncSearch, asyncResults]);
 
-  const showNoResults = strictMatch && isOpen && debouncedValue.length > 0 && filteredOptions.length === 0;
+  const showNoResults = !asyncLoading && strictMatch && isOpen && debouncedValue.length > 0 && filteredOptions.length === 0;
 
-  const dropdown = isOpen && (filteredOptions.length > 0 || footerMessage || showNoResults) ? (
+  const dropdown = isOpen && (asyncLoading || filteredOptions.length > 0 || footerMessage || showNoResults) ? (
     <ul
       style={dropdownStyle}
       className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl max-h-60 overflow-y-auto min-w-[200px]"
     >
-      {showNoResults ? (
+      {asyncLoading ? (
         <li className="px-4 py-2.5 text-sm text-zinc-400 dark:text-zinc-500 italic select-none">
-          No matching user found
+          Searching…
+        </li>
+      ) : showNoResults ? (
+        <li className="px-4 py-2.5 text-sm text-zinc-400 dark:text-zinc-500 italic select-none">
+          No results found
         </li>
       ) : filteredOptions.map((opt, index) => (
         <li

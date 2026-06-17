@@ -1,1791 +1,8 @@
-// import React, { useEffect, useState } from "react";
-// import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-// import { AppSidebar } from "../../components/RndSidebar";
-// import {
-//     useFrappePostCall,
-//     useFrappeGetCall,
-//     useFrappeGetDoc,
-//     useFrappeAuth,
-// } from "frappe-react-sdk";
-// import { useUserRoles } from "@/components/UserRole";
-// import { cn } from "@/lib/utils";
-// import {
-//     CalendarIcon,
-//     UserIcon,
-//     EditIcon,
-//     FileTextIcon,
-//     ClipboardListIcon,
-//     ShoppingCartIcon,
-//     LayoutGridIcon,
-//     FileIcon,
-//     ExternalLinkIcon,
-//     CheckCircle2Icon,
-//     XCircleIcon,
-//     Printer,
-// } from "lucide-react";
-// import { PageHeader } from "@/components/common/PageHeader";
-// import { GlobalLoader } from "@/components/ui/global-loader";
-// import { Textarea } from "@/components/ui/textarea";
-// import {
-//     directPurchaseAPI,
-//     p11FormAPI,
-//     sanctionSheetAPI,
-// } from "@/services/apiService";
-// import { DepartmentName } from "@/components/DepartmentName";
-// import { BudgetHeadName } from "@/components/BudgetHeadName";
-// import { generateP11Html } from "@/utils/p11Print";
-// import { generateSanctionSheetHtml } from "@/utils/sanctionSheetPrint";
-// import { P11PrintModal } from "@/components/P11PrintModal";
-// import { POEditor } from "@/components/POEditor";
-// import { DeclarationFields } from "@/components/DeclarationFields";
-// import { useProjectBudget } from "@/hooks/useProjectBudget";
-// import { CommitPayment } from "@/components/CommitPayment";
-
-// // --- TYPE DEFINITIONS ---
-// interface DirectPurchaseData {
-//     name: string;
-//     owner: string;
-//     creation: string;
-//     modified: string;
-//     workflow_state: string;
-//     project_name?: string;
-//     applicant_name?: string;
-//     applicant_department?: string;
-//     applicant_designation?: string;
-//     account_head?: string;
-//     [key: string]: any;
-// }
-
-// interface ActivityItem {
-//     owner: string;
-//     creation: string;
-//     content: string;
-//     comment_type: string;
-// }
-
-// type TabId = "details" | "p11" | "sanction" | "po";
-
-// // --- SHARED CONSTANTS ---
-// const EXCLUDED_FIELDS = [
-//     "doctype",
-//     "docstatus",
-//     "idx",
-//     "owner",
-//     "creation",
-//     "modified",
-//     "modified_by",
-//     "_user_tags",
-//     "_comments",
-//     "_assign",
-//     "_liked_by",
-//     "name",
-//     "workflow_state",
-//     "_seen",
-//     "parent",
-//     "parenttype",
-//     "parentfield",
-// ];
-
-// // --- HELPERS ---
-// const formatFieldName = (key: string) =>
-//     key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
-
-// const formatDate = (val: string, format: "long" | "short" = "long") =>
-//     new Date(val).toLocaleDateString(
-//         "en-IN",
-//         format === "long"
-//             ? {
-//                 day: "numeric",
-//                 month: "long",
-//                 year: "numeric",
-//                 hour: "2-digit",
-//                 minute: "2-digit",
-//             }
-//             : { day: "numeric", month: "short", year: "numeric" },
-//     );
-
-// // --- REUSABLE UI PRIMITIVES ---
-
-// const ClaudeCard = ({
-//     title,
-//     children,
-//     className = "",
-//     accentTop = false,
-// }: {
-//     title?: string;
-//     children: React.ReactNode;
-//     className?: string;
-//     accentTop?: boolean;
-// }) => (
-//     <div
-//         className={cn(
-//             "rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm",
-//             accentTop && "border-t-[3px] border-t-[#D97757]",
-//             className,
-//         )}
-//     >
-//         {title && (
-//             <div className="px-6 py-4 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
-//                 <h3 className="font-serif text-base font-medium tracking-tight text-[#3F3F46] dark:text-[#E4E4E7] uppercase">
-//                     {title}
-//                 </h3>
-//             </div>
-//         )}
-//         <div className="p-6">{children}</div>
-//     </div>
-// );
-
-// const ClaudeButton = ({
-//     children,
-//     onClick,
-//     disabled,
-//     className,
-//     variant = "outline",
-// }: {
-//     children: React.ReactNode;
-//     onClick?: () => void;
-//     disabled?: boolean;
-//     className?: string;
-//     variant?: "primary" | "outline" | "ghost" | "action";
-// }) => (
-//     <button
-//         onClick={onClick}
-//         disabled={disabled}
-//         className={cn(
-//             "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150",
-//             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-200 dark:focus-visible:ring-zinc-700",
-//             "disabled:opacity-50 disabled:cursor-not-allowed",
-//             variant === "primary" &&
-//             "bg-[#D97757] text-white hover:opacity-90 shadow-sm",
-//             variant === "action" &&
-//             "bg-[#D97757] text-white hover:opacity-90 shadow-sm border border-[#C66A4E]",
-//             variant === "outline" &&
-//             "border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-transparent text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-800",
-//             variant === "ghost" &&
-//             "text-[#71717A] dark:text-[#A1A1AA] hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[#3F3F46] dark:hover:text-[#E4E4E7]",
-//             className,
-//         )}
-//     >
-//         {children}
-//     </button>
-// );
-
-// // --- FIELD TYPE HELPERS ---
-// const isFilePath = (val: any): boolean => {
-//     if (typeof val !== "string") return false;
-//     return (
-//         val.startsWith("/private/files/") ||
-//         val.startsWith("/files/") ||
-//         /\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx|zip)$/i.test(val)
-//     );
-// };
-
-// const isAmountField = (key: string): boolean =>
-//     /amount|total|price|estimate|budget|salary|fee|cost/i.test(key);
-
-// const isBoolCheck = (key: string, val: any): boolean =>
-//     (val === 0 || val === 1) &&
-//     (key.startsWith("dec_") ||
-//         key.startsWith("is_") ||
-//         key.startsWith("has_") ||
-//         key.startsWith("declaration_"));
-
-// const formatINR = (val: any): string =>
-//     Number(val).toLocaleString("en-IN", {
-//         style: "currency",
-//         currency: "INR",
-//         maximumFractionDigits: 0,
-//     });
-
-// const getFileName = (path: string): string => path.split("/").pop() || path;
-
-// // --- DOCUMENT VIEWER ---
-// // Renders any Frappe document with smart field-type detection, a financial KPI strip,
-// // sectioned layout (Info / Declarations / Attachments) and enhanced child tables.
-// const DocumentViewer = ({ data }: { data: Record<string, any> }) => {
-//     const allScalar = Object.entries(data).filter(([key, value]) => {
-//         if (EXCLUDED_FIELDS.includes(key)) return false;
-//         if (key.startsWith("_")) return false;
-//         if (Array.isArray(value)) return false;
-//         if (value === null || value === undefined || value === "") return false;
-//         return true;
-//     });
-
-//     const childTables = Object.entries(data).filter(
-//         ([, value]) => Array.isArray(value) && (value as any[]).length > 0,
-//     );
-
-//     // Partition scalar fields into logical groups
-//     const fileFields = allScalar.filter(
-//         ([k, v]) => isFilePath(v) || k.startsWith("upload_"),
-//     );
-//     const boolFields = allScalar.filter(([k, v]) => isBoolCheck(k, v));
-//     const amountFields = allScalar.filter(
-//         ([k, v]) => isAmountField(k) && !isFilePath(v) && !isBoolCheck(k, v),
-//     );
-//     const infoFields = allScalar.filter(
-//         ([k, v]) =>
-//             !isFilePath(v) &&
-//             !isBoolCheck(k, v) &&
-//             !isAmountField(k) &&
-//             !k.startsWith("upload_"),
-//     );
-
-//     const renderValue = (key: string, value: any): React.ReactNode => {
-//         if (value === null || value === undefined || value === "")
-//             return (
-//                 <span className="text-[#71717A] dark:text-[#A1A1AA]">—</span>
-//             );
-
-//         if (isFilePath(value)) {
-//             return (
-//                 <a
-//                     href={String(value)}
-//                     target="_blank"
-//                     rel="noopener noreferrer"
-//                     className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50 dark:bg-zinc-800 text-[#D97757] hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-sm font-medium max-w-full"
-//                 >
-//                     <FileIcon className="h-3.5 w-3.5 flex-shrink-0" />
-//                     <span className="truncate">
-//                         {getFileName(String(value))}
-//                     </span>
-//                     <ExternalLinkIcon className="h-3 w-3 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-//                 </a>
-//             );
-//         }
-
-//         if (isBoolCheck(key, value)) {
-//             return value === 1 ? (
-//                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-//                     <CheckCircle2Icon className="w-3.5 h-3.5" />
-//                     Yes
-//                 </span>
-//             ) : (
-//                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 text-[#71717A] dark:text-[#A1A1AA] border border-[#E4E4E7] dark:border-[#3F3F46]">
-//                     <XCircleIcon className="w-3.5 h-3.5" />
-//                     No
-//                 </span>
-//             );
-//         }
-
-//         if (isAmountField(key) && !isNaN(Number(value))) {
-//             return (
-//                 <span className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
-//                     {formatINR(value)}
-//                 </span>
-//             );
-//         }
-
-//         if (
-//             key === "applicant_department" ||
-//             key === "applying_for_department"
-//         ) {
-//             return <DepartmentName name={value} />;
-//         }
-//         if (key === "account_head") {
-//             return <BudgetHeadName id={value} />;
-//         }
-//         if (typeof value === "object") return JSON.stringify(value);
-//         return String(value);
-//     };
-
-//     if (allScalar.length === 0 && childTables.length === 0) {
-//         return (
-//             <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] italic">
-//                 No data to display.
-//             </p>
-//         );
-//     }
-
-//     // KPI strip — show if any amount fields exist
-//     const kpiAmounts = amountFields.slice(0, 3);
-
-//     return (
-//         <div className="space-y-8">
-//             {/* Financial KPI strip */}
-//             {kpiAmounts.length > 0 && (
-//                 <div
-//                     className={cn(
-//                         "grid gap-4",
-//                         kpiAmounts.length === 1 && "grid-cols-1 max-w-xs",
-//                         kpiAmounts.length === 2 && "grid-cols-2",
-//                         kpiAmounts.length >= 3 && "grid-cols-3",
-//                     )}
-//                 >
-//                     {kpiAmounts.map(([key, value]) => (
-//                         <div
-//                             key={key}
-//                             className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-zinc-800/50 px-5 py-4"
-//                         >
-//                             <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1.5">
-//                                 {formatFieldName(key)}
-//                             </p>
-//                             <p className="text-xl font-serif font-medium text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
-//                                 {!isNaN(Number(value))
-//                                     ? formatINR(value)
-//                                     : String(value)}
-//                             </p>
-//                         </div>
-//                     ))}
-//                 </div>
-//             )}
-
-//             {/* Main info fields */}
-//             {infoFields.length > 0 && (
-//                 <div>
-//                     <h4 className="text-xs font-semibold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] mb-4 pb-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
-//                         Information
-//                     </h4>
-//                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-5">
-//                         {infoFields.map(([key, value]) => (
-//                             <div key={key} className="flex flex-col gap-1">
-//                                 <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">
-//                                     {formatFieldName(key)}
-//                                 </p>
-//                                 <p className="text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] break-words leading-relaxed">
-//                                     {renderValue(key, value)}
-//                                 </p>
-//                             </div>
-//                         ))}
-//                     </div>
-//                 </div>
-//             )}
-
-//             {/* Declarations */}
-//             <DeclarationFields doctype="Direct Purchase" />
-
-//             {/* Attachments */}
-//             {fileFields.length > 0 && (
-//                 <div>
-//                     <h4 className="text-xs font-semibold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] mb-4 pb-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
-//                         Attachments
-//                     </h4>
-//                     <div className="flex flex-col gap-2">
-//                         {fileFields.map(([key, value]) => (
-//                             <div key={key} className="flex items-center gap-3">
-//                                 <span className="text-xs text-[#71717A] dark:text-[#A1A1AA] w-36 shrink-0 font-medium uppercase tracking-wider">
-//                                     {formatFieldName(key)}
-//                                 </span>
-//                                 {renderValue(key, value)}
-//                             </div>
-//                         ))}
-//                     </div>
-//                 </div>
-//             )}
-
-//             {/* Child tables */}
-//             {childTables.map(([key, rows]) => {
-//                 const cols = Object.keys((rows as any[])[0] || {}).filter(
-//                     (k) => !k.startsWith("_") && !EXCLUDED_FIELDS.includes(k),
-//                 );
-//                 const hasAmountCols = cols.some((c) => isAmountField(c));
-//                 const colTotals: Record<string, number> = {};
-//                 if (hasAmountCols) {
-//                     cols.forEach((c) => {
-//                         if (isAmountField(c)) {
-//                             colTotals[c] = (rows as any[]).reduce(
-//                                 (s, r) => s + (parseFloat(r[c]) || 0),
-//                                 0,
-//                             );
-//                         }
-//                     });
-//                 }
-
-//                 return (
-//                     <div key={key}>
-//                         <h4 className="text-xs font-semibold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] mb-3 pb-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
-//                             {formatFieldName(key)}
-//                         </h4>
-//                         <div className="overflow-x-auto rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
-//                             <table className="w-full text-sm">
-//                                 <thead>
-//                                     <tr className="border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50/80 dark:bg-zinc-800/50">
-//                                         <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] w-10">
-//                                             #
-//                                         </th>
-//                                         {cols.map((col) => (
-//                                             <th
-//                                                 key={col}
-//                                                 className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]"
-//                                             >
-//                                                 {formatFieldName(col)}
-//                                             </th>
-//                                         ))}
-//                                     </tr>
-//                                 </thead>
-//                                 <tbody>
-//                                     {(rows as any[]).map((row, idx) => (
-//                                         <tr
-//                                             key={idx}
-//                                             className={cn(
-//                                                 "border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors",
-//                                                 idx % 2 === 1 &&
-//                                                 "bg-[#FAFAF9]/60 dark:bg-zinc-800/20",
-//                                             )}
-//                                         >
-//                                             <td className="px-4 py-3 text-xs text-[#71717A] dark:text-[#A1A1AA] font-mono">
-//                                                 {idx + 1}
-//                                             </td>
-//                                             {cols.map((k) => (
-//                                                 <td
-//                                                     key={k}
-//                                                     className="px-4 py-3 text-[#3F3F46] dark:text-[#E4E4E7]"
-//                                                 >
-//                                                     {isAmountField(k) &&
-//                                                         !isNaN(Number(row[k])) ? (
-//                                                         <span className="font-medium">
-//                                                             {formatINR(row[k])}
-//                                                         </span>
-//                                                     ) : row[k] !== null &&
-//                                                         row[k] !== undefined ? (
-//                                                         String(row[k])
-//                                                     ) : (
-//                                                         "—"
-//                                                     )}
-//                                                 </td>
-//                                             ))}
-//                                         </tr>
-//                                     ))}
-//                                     {hasAmountCols && (
-//                                         <tr className="border-t-2 border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50 dark:bg-zinc-800/60 font-semibold">
-//                                             <td className="px-4 py-3 text-xs text-[#71717A] dark:text-[#A1A1AA]" />
-//                                             {cols.map((c) => (
-//                                                 <td
-//                                                     key={c}
-//                                                     className="px-4 py-3 text-[#3F3F46] dark:text-[#E4E4E7]"
-//                                                 >
-//                                                     {colTotals[c] != null ? (
-//                                                         <span className="font-semibold text-[#D97757]">
-//                                                             {formatINR(
-//                                                                 colTotals[c],
-//                                                             )}
-//                                                         </span>
-//                                                     ) : (
-//                                                         ""
-//                                                     )}
-//                                                 </td>
-//                                             ))}
-//                                         </tr>
-//                                     )}
-//                                 </tbody>
-//                             </table>
-//                         </div>
-//                     </div>
-//                 );
-//             })}
-//         </div>
-//     );
-// };
-
-// // --- ACTIVITY STREAM ---
-// const ActivityStream = ({
-//     doctype,
-//     docname,
-// }: {
-//     doctype: string;
-//     docname: string;
-// }) => {
-//     const { data: activityData, mutate: refetchActivity } = useFrappeGetCall<{
-//         message: ActivityItem[];
-//     }>("rndopsapp.rndopsapp.api.get_project_activity", { doctype, docname });
-
-//     useEffect(() => {
-//         refetchActivity();
-//     }, [docname]);
-
-//     return (
-//         <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-//             {activityData?.message?.length ? (
-//                 activityData.message.map((activity, idx) => (
-//                     <div key={idx} className="flex items-start gap-3">
-//                         <div className="flex-shrink-0 h-7 w-7 rounded-full bg-[#FAFAF9] dark:bg-zinc-800 border border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-center font-semibold text-[#D97757] text-xs">
-//                             {activity.owner?.charAt(0).toUpperCase() || "U"}
-//                         </div>
-//                         <div className="min-w-0 flex-1">
-//                             <div
-//                                 className="text-sm text-[#3F3F46] dark:text-[#E4E4E7] line-clamp-2 prose prose-sm max-w-none"
-//                                 dangerouslySetInnerHTML={{
-//                                     __html: activity.content,
-//                                 }}
-//                             />
-//                             <p className="text-xs text-[#71717A] dark:text-[#A1A1AA] mt-0.5">
-//                                 {activity.owner} ·{" "}
-//                                 {activity.creation
-//                                     ? formatDate(activity.creation, "long")
-//                                     : ""}
-//                             </p>
-//                         </div>
-//                     </div>
-//                 ))
-//             ) : (
-//                 <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] italic">
-//                     No recent activity.
-//                 </p>
-//             )}
-//         </div>
-//     );
-// };
-
-// // --- WORKFLOW ACTION BUTTONS ---
-// const DirectPurchaseActionButtons = ({
-//     docname,
-//     onActionComplete,
-//     commitRequired = false,
-// }: {
-//     docname: string;
-//     onActionComplete: () => void;
-//     commitRequired?: boolean;
-// }) => {
-//     const [actions, setActions] = useState<string[]>([]);
-//     const [isPerforming, setIsPerforming] = useState(false);
-//     const { call: fetchActions } = useFrappePostCall<{ message: string[] }>(
-//         directPurchaseAPI.getWorkflowActions,
-//     );
-//     const { call: performAction } = useFrappePostCall(
-//         directPurchaseAPI.performAction,
-//     );
-
-//     useEffect(() => {
-//         fetchActions({ docname })
-//             .then((res) => {
-//                 if (res?.message)
-//                     setActions(Array.isArray(res.message) ? res.message : []);
-//             })
-//             .catch((err) =>
-//                 console.error("Error fetching workflow actions:", err),
-//             );
-//     }, [docname]);
-
-//     const handleAction = async (action: string) => {
-//         if (!confirm(`Are you sure you want to perform "${action}"?`)) return;
-//         setIsPerforming(true);
-//         try {
-//             const result: any = await performAction({ docname, action });
-//             if (result?.message?.status === "success") {
-//                 alert(
-//                     result.message.message || `Action "${action}" completed.`,
-//                 );
-//                 onActionComplete();
-//             } else if (result?.message?.status === "error") {
-//                 alert(`Error: ${result.message.message}`);
-//             } else {
-//                 alert(`Action "${action}" completed.`);
-//                 onActionComplete();
-//             }
-//         } catch (err: any) {
-//             alert(`Action failed: ${err.message || "Unknown error"}`);
-//         } finally {
-//             setIsPerforming(false);
-//         }
-//     };
-
-//     if (!actions.length) return null;
-
-//     return (
-//         <div className="flex flex-col gap-2">
-//             {commitRequired && (
-//                 <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300 font-medium">
-//                     A commitment must be submitted before forwarding this application.
-//                 </div>
-//             )}
-//             <div className="flex flex-wrap gap-2">
-//                 {actions.map((action) => (
-//                     <ClaudeButton
-//                         key={action}
-//                         variant={commitRequired ? "outline" : "action"}
-//                         onClick={() => handleAction(action)}
-//                         disabled={isPerforming || commitRequired}
-//                         className={commitRequired ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed border-0" : ""}
-//                     >
-//                         {isPerforming ? "Processing…" : action}
-//                     </ClaudeButton>
-//                 ))}
-//             </div>
-//         </div>
-//     );
-// };
-
-// // --- P11 FORM WORKFLOW ACTION BUTTONS ---
-// const P11FormActionButtons = ({
-//     docname,
-//     onActionComplete,
-// }: {
-//     docname: string;
-//     onActionComplete: () => void;
-// }) => {
-//     const [actions, setActions] = useState<string[]>([]);
-//     const [isPerforming, setIsPerforming] = useState(false);
-//     const [showCommentModal, setShowCommentModal] = useState(false);
-//     const [selectedAction, setSelectedAction] = useState("");
-//     const [comment, setComment] = useState("");
-
-//     const { call: fetchActions } = useFrappePostCall<{ message: string[] }>(
-//         p11FormAPI.getWorkflowActions,
-//     );
-//     const { call: performAction } = useFrappePostCall(p11FormAPI.performAction);
-
-//     useEffect(() => {
-//         if (docname) {
-//             fetchActions({ docname })
-//                 .then((res) => {
-//                     if (res?.message) {
-//                         setActions(
-//                             Array.isArray(res.message) ? res.message : [],
-//                         );
-//                     }
-//                 })
-//                 .catch((err) =>
-//                     console.error("Error fetching P11 workflow actions:", err),
-//                 );
-//         }
-//     }, [docname]);
-
-//     const handleActionClick = (action: string) => {
-//         // Actions that need comment/confirmation
-//         const needsComment =
-//             action.toLowerCase().includes("reject") ||
-//             action.toLowerCase().includes("put back");
-
-//         if (needsComment) {
-//             setSelectedAction(action);
-//             setShowCommentModal(true);
-//         } else {
-//             handleActionConfirm(action, "");
-//         }
-//     };
-
-//     const handleActionConfirm = async (
-//         action: string,
-//         actionComment: string,
-//     ) => {
-//         setIsPerforming(true);
-//         setShowCommentModal(false);
-
-//         try {
-//             const result: any = await performAction({
-//                 docname,
-//                 action,
-//                 comment: actionComment,
-//             });
-
-//             if (result?.message?.status === "success") {
-//                 alert(
-//                     result.message.message ||
-//                     `Action "${action}" completed successfully.`,
-//                 );
-//                 onActionComplete();
-//             } else if (result?.message?.status === "error") {
-//                 alert(`Error: ${result.message.message}`);
-//             } else {
-//                 alert(`Action "${action}" completed.`);
-//                 onActionComplete();
-//             }
-//         } catch (err: any) {
-//             alert(`Action failed: ${err.message || "Unknown error"}`);
-//         } finally {
-//             setIsPerforming(false);
-//             setComment("");
-//         }
-//     };
-
-//     const getActionButtonClass = (action: string): string => {
-//         const actionLower = action.toLowerCase();
-//         if (actionLower.includes("reject")) {
-//             return "bg-red-600 hover:bg-red-700 text-white border-red-700";
-//         }
-//         if (actionLower.includes("approve") || actionLower.includes("verify")) {
-//             return "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700";
-//         }
-//         if (actionLower.includes("generate")) {
-//             return "bg-blue-600 hover:bg-blue-700 text-white border-blue-700";
-//         }
-//         return "";
-//     };
-
-//     if (!actions.length) return null;
-
-//     return (
-//         <>
-//             <div className="mt-6 pt-6 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-//                 <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-3">
-//                     Workflow Actions
-//                 </p>
-//                 <div className="flex flex-wrap gap-2">
-//                     {actions.map((action) => (
-//                         <ClaudeButton
-//                             key={action}
-//                             variant="action"
-//                             className={getActionButtonClass(action)}
-//                             onClick={() => handleActionClick(action)}
-//                             disabled={isPerforming}
-//                         >
-//                             {isPerforming ? "Processing…" : action}
-//                         </ClaudeButton>
-//                     ))}
-//                 </div>
-//             </div>
-
-//             {/* Comment Modal */}
-//             {showCommentModal && (
-//                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-//                     <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-6 rounded-xl shadow-lg w-full max-w-md">
-//                         <h3 className="text-lg font-semibold text-[#3F3F46] dark:text-[#E4E4E7] mb-4">
-//                             Confirm: {selectedAction}
-//                         </h3>
-//                         <Textarea
-//                             rows={4}
-//                             placeholder="Add a comment (optional)..."
-//                             value={comment}
-//                             onChange={(e) => setComment(e.target.value)}
-//                             className="w-full text-sm resize-none border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg mb-4"
-//                         />
-//                         <div className="flex justify-end gap-2">
-//                             <ClaudeButton
-//                                 variant="outline"
-//                                 onClick={() => {
-//                                     setShowCommentModal(false);
-//                                     setComment("");
-//                                 }}
-//                             >
-//                                 Cancel
-//                             </ClaudeButton>
-//                             <ClaudeButton
-//                                 variant="action"
-//                                 onClick={() =>
-//                                     handleActionConfirm(selectedAction, comment)
-//                                 }
-//                             >
-//                                 Confirm
-//                             </ClaudeButton>
-//                         </div>
-//                     </div>
-//                 </div>
-//             )}
-//         </>
-//     );
-// };
-
-// // --- SANCTION SHEET WORKFLOW ACTION BUTTONS ---
-// const SanctionSheetActionButtons = ({
-//     docname,
-//     onActionComplete,
-// }: {
-//     docname: string;
-//     onActionComplete: () => void;
-// }) => {
-//     const [actions, setActions] = useState<string[]>([]);
-//     const [isPerforming, setIsPerforming] = useState(false);
-//     const [showCommentModal, setShowCommentModal] = useState(false);
-//     const [selectedAction, setSelectedAction] = useState("");
-//     const [comment, setComment] = useState("");
-
-//     const { call: fetchActions } = useFrappePostCall<{ message: string[] }>(
-//         sanctionSheetAPI.getWorkflowActions,
-//     );
-//     const { call: performAction } = useFrappePostCall(
-//         sanctionSheetAPI.performAction,
-//     );
-
-//     useEffect(() => {
-//         if (docname) {
-//             fetchActions({ docname })
-//                 .then((res) => {
-//                     if (res?.message) {
-//                         setActions(
-//                             Array.isArray(res.message) ? res.message : [],
-//                         );
-//                     }
-//                 })
-//                 .catch((err) =>
-//                     console.error(
-//                         "Error fetching Sanction Sheet workflow actions:",
-//                         err,
-//                     ),
-//                 );
-//         }
-//     }, [docname]);
-
-//     const handleActionClick = (action: string) => {
-//         const needsComment =
-//             action.toLowerCase().includes("reject") ||
-//             action.toLowerCase().includes("put back");
-
-//         if (needsComment) {
-//             setSelectedAction(action);
-//             setShowCommentModal(true);
-//         } else {
-//             handleActionConfirm(action, "");
-//         }
-//     };
-
-//     const handleActionConfirm = async (
-//         action: string,
-//         actionComment: string,
-//     ) => {
-//         setIsPerforming(true);
-//         setShowCommentModal(false);
-
-//         try {
-//             const result: any = await performAction({
-//                 docname,
-//                 action,
-//                 comment: actionComment,
-//             });
-
-//             if (result?.message?.status === "success") {
-//                 alert(
-//                     result.message.message ||
-//                     `Action "${action}" completed successfully.`,
-//                 );
-//                 onActionComplete();
-//             } else if (result?.message?.status === "error") {
-//                 alert(`Error: ${result.message.message}`);
-//             } else {
-//                 alert(`Action "${action}" completed.`);
-//                 onActionComplete();
-//             }
-//         } catch (err: any) {
-//             alert(`Action failed: ${err.message || "Unknown error"}`);
-//         } finally {
-//             setIsPerforming(false);
-//             setComment("");
-//         }
-//     };
-
-//     const getActionButtonClass = (action: string): string => {
-//         const actionLower = action.toLowerCase();
-//         if (actionLower.includes("reject")) {
-//             return "bg-red-600 hover:bg-red-700 text-white border-red-700";
-//         }
-//         if (actionLower.includes("verify") || actionLower.includes("print")) {
-//             return "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700";
-//         }
-//         if (actionLower.includes("generate")) {
-//             return "bg-blue-600 hover:bg-blue-700 text-white border-blue-700";
-//         }
-//         return "";
-//     };
-
-//     if (!actions.length) return null;
-
-//     return (
-//         <>
-//             <div className="mt-6 pt-6 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-//                 <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-3">
-//                     Workflow Actions
-//                 </p>
-//                 <div className="flex flex-wrap gap-2">
-//                     {actions.map((action) => (
-//                         <ClaudeButton
-//                             key={action}
-//                             variant="action"
-//                             className={getActionButtonClass(action)}
-//                             onClick={() => handleActionClick(action)}
-//                             disabled={isPerforming}
-//                         >
-//                             {isPerforming ? "Processing…" : action}
-//                         </ClaudeButton>
-//                     ))}
-//                 </div>
-//             </div>
-
-//             {/* Comment Modal */}
-//             {showCommentModal && (
-//                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-//                     <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-6 rounded-xl shadow-lg w-full max-w-md">
-//                         <h3 className="text-lg font-semibold text-[#3F3F46] dark:text-[#E4E4E7] mb-4">
-//                             Confirm: {selectedAction}
-//                         </h3>
-//                         <Textarea
-//                             rows={4}
-//                             placeholder="Add a comment (optional)..."
-//                             value={comment}
-//                             onChange={(e) => setComment(e.target.value)}
-//                             className="w-full text-sm resize-none border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg mb-4"
-//                         />
-//                         <div className="flex justify-end gap-2">
-//                             <ClaudeButton
-//                                 variant="outline"
-//                                 onClick={() => {
-//                                     setShowCommentModal(false);
-//                                     setComment("");
-//                                 }}
-//                             >
-//                                 Cancel
-//                             </ClaudeButton>
-//                             <ClaudeButton
-//                                 variant="action"
-//                                 onClick={() =>
-//                                     handleActionConfirm(selectedAction, comment)
-//                                 }
-//                             >
-//                                 Confirm
-//                             </ClaudeButton>
-//                         </div>
-//                     </div>
-//                 </div>
-//             )}
-//         </>
-//     );
-// };
-
-// // --- LINKED DOCUMENT TAB ---
-// // Fetches a single linked Frappe document via get_list + get_doc, then renders it.
-// const LinkedDocTab = ({
-//     doctype,
-//     filterField,
-//     filterValue,
-//     emptyTitle,
-//     emptyDescription,
-//     onDataReload,
-// }: {
-//     doctype: string;
-//     filterField: string;
-//     filterValue: string;
-//     emptyTitle: string;
-//     emptyDescription: string;
-//     onDataReload?: () => void;
-// }) => {
-//     const {
-//         data: listData,
-//         isLoading: listLoading,
-//         mutate: reloadList,
-//     } = useFrappeGetCall<{ message: { name: string }[] }>(
-//         "frappe.client.get_list",
-//         {
-//             doctype,
-//             filters: JSON.stringify([[filterField, "=", filterValue]]),
-//             fields: JSON.stringify(["name"]),
-//             limit: 1,
-//         },
-//     );
-
-//     const docName = listData?.message?.[0]?.name || "";
-
-//     const {
-//         data: docData,
-//         isLoading: docLoading,
-//         mutate: reloadDoc,
-//     } = useFrappeGetDoc<Record<string, any>>(doctype, docName);
-
-//     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
-
-//     // Reload handler
-//     const handleReload = () => {
-//         reloadList();
-//         reloadDoc();
-//         if (onDataReload) onDataReload();
-//     };
-
-//     if (listLoading || docLoading) {
-//         return (
-//             <div className="flex items-center justify-center py-16">
-//                 <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#D97757] border-t-transparent" />
-//             </div>
-//         );
-//     }
-
-//     if (!docName || !docData) {
-//         return (
-//             <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
-//                 <FileTextIcon className="h-10 w-10 text-[#E4E4E7] dark:text-[#3F3F46]" />
-//                 <p className="font-serif text-base font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
-//                     {emptyTitle}
-//                 </p>
-//                 <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] max-w-xs">
-//                     {emptyDescription}
-//                 </p>
-//             </div>
-//         );
-//     }
-
-//     return (
-//         <div className="space-y-2">
-//             <div className="flex items-center justify-between mb-5">
-//                 <div className="flex items-center gap-2">
-//                     <span className="text-xs font-mono bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded text-[#71717A] dark:text-[#A1A1AA] border border-[#E4E4E7] dark:border-[#3F3F46]">
-//                         {docName}
-//                     </span>
-//                     {docData.workflow_state && (
-//                         <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-//                             {docData.workflow_state}
-//                         </span>
-//                     )}
-//                 </div>
-//                 {doctype === "P_11 Form" && (
-//                     <button
-//                         onClick={() => setIsPrintModalOpen(true)}
-//                         className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-//                     >
-//                         <Printer className="w-4 h-4" /> Print / PDF
-//                     </button>
-//                 )}
-//                 {doctype === "sanction_sheet" && (
-//                     <button
-//                         onClick={() => setIsPrintModalOpen(true)}
-//                         className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-//                     >
-//                         <Printer className="w-4 h-4" /> Print / PDF
-//                     </button>
-//                 )}
-//             </div>
-
-//             <DocumentViewer data={docData} />
-
-//             {/* Render workflow actions based on doctype */}
-//             {doctype === "P_11 Form" && (
-//                 <>
-//                     <P11FormActionButtons
-//                         docname={docName}
-//                         onActionComplete={handleReload}
-//                     />
-//                     <P11PrintModal
-//                         isOpen={isPrintModalOpen}
-//                         onClose={() => setIsPrintModalOpen(false)}
-//                         htmlContent={
-//                             isPrintModalOpen ? generateP11Html(docData) : ""
-//                         }
-//                         docName={docName}
-//                     />
-//                 </>
-//             )}
-
-//             {doctype === "sanction_sheet" && (
-//                 <>
-//                     <SanctionSheetActionButtons
-//                         docname={docName}
-//                         onActionComplete={handleReload}
-//                     />
-//                     <P11PrintModal
-//                         isOpen={isPrintModalOpen}
-//                         onClose={() => setIsPrintModalOpen(false)}
-//                         htmlContent={
-//                             isPrintModalOpen
-//                                 ? generateSanctionSheetHtml(docData)
-//                                 : ""
-//                         }
-//                         docName={docName}
-//                     />
-//                 </>
-//             )}
-//         </div>
-//     );
-// };
-
-// // --- TABS ---
-// interface Tab {
-//     id: TabId;
-//     label: string;
-//     icon: React.ReactNode;
-// }
-
-// const TABS: Tab[] = [
-//     {
-//         id: "details",
-//         label: "Details",
-//         icon: <LayoutGridIcon className="w-4 h-4" />,
-//     },
-//     {
-//         id: "p11",
-//         label: "P-11 Form",
-//         icon: <ClipboardListIcon className="w-4 h-4" />,
-//     },
-//     {
-//         id: "sanction",
-//         label: "Sanction Sheet",
-//         icon: <FileTextIcon className="w-4 h-4" />,
-//     },
-//     {
-//         id: "po",
-//         label: "Purchase Order",
-//         icon: <ShoppingCartIcon className="w-4 h-4" />,
-//     },
-// ];
-
-// // --- MAIN COMPONENT ---
-// const DirectPurchaseDetails: React.FC = () => {
-//     const navigate = useNavigate();
-//     const { id } = useParams<{ id: string }>();
-//     const [searchParams] = useSearchParams();
-
-//     const {
-//         data,
-//         error,
-//         isLoading: loading,
-//         mutate: reloadData,
-//     } = useFrappeGetDoc<DirectPurchaseData>("Direct Purchase", id || "");
-
-//     const { currentUser } = useFrappeAuth();
-//     const { roles } = useUserRoles(currentUser ?? null);
-//     const isStaffRnD = roles.some((r) =>
-//         ["staff, RnD", "Staff RnD", "RnD Staff", "System Manager"].includes(r),
-//     );
-//     const isPermanentEmployee = roles.some((r) => r === "Permanent Employee");
-
-//     const [activeTab, setActiveTab] = useState<TabId>(
-//         (searchParams.get("tab") as TabId) || "details",
-//     );
-//     const [sidebarComment, setSidebarComment] = useState("");
-//     const [isAddingComment, setIsAddingComment] = useState(false);
-//     const [isGeneratingPO, setIsGeneratingPO] = useState(false);
-//     const [isGeneratingP11, setIsGeneratingP11] = useState(false);
-//     const [isOpeningSanctionSheet, setIsOpeningSanctionSheet] = useState(false);
-//     const [poSanctionData, setPoSanctionData] = useState<Record<
-//         string,
-//         any
-//     > | null>(null);
-//     const [isLoadingPOData, setIsLoadingPOData] = useState(false);
-
-//     const { call: addComment } = useFrappePostCall(
-//         "rndopsapp.rndopsapp.api.add_project_comment",
-//     );
-//     const { call: generatePO } = useFrappePostCall(
-//         directPurchaseAPI.generatePurchaseOrder,
-//     );
-//     const { call: generateP11 } = useFrappePostCall(
-//         directPurchaseAPI.generateP11Form,
-//     );
-
-//     // Commit Payment state
-//     const [commitHead, setCommitHead] = useState("");
-//     const [paymentAmount, setPaymentAmount] = useState("");
-//     const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
-
-//     // submitCommit moved to CommitPayment component
-//     const { call: submitPayment, loading: isPaying } = useFrappePostCall(
-//         "rndopsapp.rndopsapp.commitPayment.submit_payment_data",
-//     );
-
-//     const projectTitle = data?.project_name || "";
-//     const {
-//         budgetData,
-//         heads: budgetHeads,
-//         actualBalance,
-//     } = useProjectBudget(projectTitle);
-
-//     const linkedCommitment = budgetData.find(
-//         (e) =>
-//             (e.ref === (id || "") || e.frapAppId === (id || "")) &&
-//             e.type === "commitment",
-//     );
-//     const isCommitted = !!linkedCommitment;
-
-//     useEffect(() => {
-//         if (budgetHeads.length > 0 && !commitHead)
-//             setCommitHead(budgetHeads[0]);
-//     }, [budgetHeads]);
-
-//     useEffect(() => {
-//         if (linkedCommitment) {
-//             setCommitHead(linkedCommitment.head || "");
-//             if (!paymentAmount)
-//                 setPaymentAmount(String(linkedCommitment.committed));
-//         }
-//     }, [linkedCommitment]);
-
-//     const loadData = () => {
-//         if (id) reloadData();
-//     };
-
-//     // Fetch sanction sheet data for PO editor (on load and after re-fetch triggers)
-//     useEffect(() => {
-//         if (!id) return;
-//         if (poSanctionData) return; // already fetched
-
-//         const fetchSSData = async () => {
-//             setIsLoadingPOData(true);
-//             try {
-//                 const filters = JSON.stringify([["app_id", "=", id]]);
-//                 const listRes = await fetch(
-//                     `/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`,
-//                     {
-//                         credentials: "include",
-//                         headers: { Accept: "application/json" },
-//                     },
-//                 )
-//                     .then((r) => r.json())
-//                     .catch(() => ({ data: [] }));
-
-//                 const ssName = listRes?.data?.[0]?.name;
-//                 if (ssName) {
-//                     const docRes = await fetch(
-//                         `/api/method/frappe.client.get`,
-//                         {
-//                             method: "POST",
-//                             credentials: "include",
-//                             headers: {
-//                                 "Content-Type": "application/json",
-//                                 Accept: "application/json",
-//                                 "X-Frappe-CSRF-Token":
-//                                     (window as any).csrf_token || "",
-//                             },
-//                             body: JSON.stringify({
-//                                 doctype: "sanction_sheet",
-//                                 name: ssName,
-//                             }),
-//                         },
-//                     )
-//                         .then((r) => r.json())
-//                         .catch(() => null);
-//                     if (docRes?.message) {
-//                         setPoSanctionData(docRes.message);
-//                     }
-//                 }
-//             } catch (err) {
-//                 console.error("Error fetching sanction sheet for PO:", err);
-//             } finally {
-//                 setIsLoadingPOData(false);
-//             }
-//         };
-//         fetchSSData();
-//     }, [activeTab, id, data?.workflow_state, poSanctionData]);
-
-//     const handleSidebarCommentSubmit = async () => {
-//         if (!sidebarComment.trim() || !id) return;
-//         setIsAddingComment(true);
-//         try {
-//             await addComment({
-//                 reference_doctype: "Direct Purchase",
-//                 reference_name: id,
-//                 content: sidebarComment,
-//                 comment_type: "Comment",
-//             });
-//             setSidebarComment("");
-//             loadData();
-//         } catch (err) {
-//             console.error("Error adding comment:", err);
-//         } finally {
-//             setIsAddingComment(false);
-//         }
-//     };
-
-//     const handlePayment = async () => {
-//         if (!paymentAmount || !id || !data) {
-//             alert("Please enter an amount.");
-//             return;
-//         }
-//         try {
-//             await submitPayment({
-//                 doctype: "Direct Purchase",
-//                 name: id,
-//                 project_name: data.project_name,
-//                 payment_amount: parseFloat(paymentAmount),
-//                 budget_head: linkedCommitment?.head || "",
-//                 bmr: "",
-//             });
-//             alert("Payment recorded successfully!");
-//             setPaymentAmount("");
-//             window.location.reload();
-//         } catch (error: any) {
-//             console.error("Payment failed:", error);
-//             alert(`Payment failed: ${error.message || "Unknown error"}`);
-//         }
-//     };
-
-//     const handleGeneratePO = async () => {
-//         if (!id) return;
-//         setIsGeneratingPO(true);
-//         try {
-//             const res = await generatePO({ docname: id });
-//             if (res?.message?.status === "success") {
-//                 alert("Purchase Order generated successfully!");
-//                 loadData();
-//             } else {
-//                 throw new Error(
-//                     res?.message?.message || "Failed to generate PO",
-//                 );
-//             }
-//         } catch (err: any) {
-//             alert(
-//                 `Error: ${err.message || "Could not generate Purchase Order."}`,
-//             );
-//         } finally {
-//             setIsGeneratingPO(false);
-//         }
-//     };
-
-//     const handleGenerateP11 = async () => {
-//         if (!id) return;
-//         setIsGeneratingP11(true);
-//         try {
-//             const res = await generateP11({ docname: id });
-//             if (res?.message?.status === "success") {
-//                 alert("P-11 Form generated successfully!");
-//                 loadData();
-//             } else {
-//                 throw new Error(
-//                     res?.message?.message || "Failed to generate P-11 Form",
-//                 );
-//             }
-//         } catch (err: any) {
-//             alert(`Error: ${err.message || "Could not generate P-11 Form."}`);
-//         } finally {
-//             setIsGeneratingP11(false);
-//         }
-//     };
-
-//     const handleOpenSanctionSheet = async () => {
-//         if (!id) return;
-//         setIsOpeningSanctionSheet(true);
-//         try {
-//             const filters = JSON.stringify([["app_id", "=", id]]);
-//             const res = await fetch(
-//                 `/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=["name"]`,
-//                 {
-//                     credentials: "include",
-//                     headers: { Accept: "application/json" },
-//                 },
-//             );
-//             if (res.ok) {
-//                 const result = await res.json();
-//                 const existing = result.data?.[0];
-//                 if (existing?.name) {
-//                     navigate(`/sanction-sheet?edit=${existing.name}`);
-//                     return;
-//                 }
-//             }
-//             navigate(
-//                 `/sanction-sheet?app_id=${id}&project_no=${encodeURIComponent(data?.project_name || "")}`,
-//             );
-//         } catch {
-//             navigate(
-//                 `/sanction-sheet?app_id=${id}&project_no=${encodeURIComponent(data?.project_name || "")}`,
-//             );
-//         } finally {
-//             setIsOpeningSanctionSheet(false);
-//         }
-//     };
-
-//     if (loading) return <GlobalLoader isLoading={true} />;
-
-//     if (error || !data) {
-//         return (
-//             <div className="flex h-screen items-center justify-center bg-[#FAFAF9] dark:bg-[#18181B]">
-//                 <div className="text-center space-y-2">
-//                     <h2 className="font-serif text-xl font-medium text-red-600">
-//                         Unable to load document
-//                     </h2>
-//                     <p className="text-sm text-[#71717A] dark:text-[#A1A1AA]">
-//                         {error
-//                             ? (error as any).message ||
-//                             "Failed to load document"
-//                             : "Document not found"}
-//                     </p>
-//                     <button
-//                         onClick={() => navigate(-1)}
-//                         className="mt-4 text-sm text-[#D97757] hover:underline"
-//                     >
-//                         Go Back
-//                     </button>
-//                 </div>
-//             </div>
-//         );
-//     }
-
-//     return (
-//         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
-//             <AppSidebar />
-
-//             <main className="transition-all duration-300 ease-in-out p-6 md:p-10">
-//                 {/* Page Header */}
-//                 <PageHeader
-//                     title={data.name}
-//                     status={data.workflow_state}
-//                     projectName={data.project_name}
-//                 >
-//                     <div className="flex items-center gap-2 flex-wrap">
-//                         {data.workflow_state === "Draft" && id && (
-//                             <ClaudeButton
-//                                 variant="outline"
-//                                 onClick={() =>
-//                                     navigate(`/direct-purchase?edit=${id}`)
-//                                 }
-//                             >
-//                                 <EditIcon className="w-3.5 h-3.5" />
-//                                 Edit
-//                             </ClaudeButton>
-//                         )}
-//                         {data.workflow_state === "Sanction Approved" &&
-//                             id &&
-//                             isStaffRnD &&
-//                             poSanctionData?.file_path && (
-//                                 <ClaudeButton
-//                                     variant="primary"
-//                                     onClick={handleGeneratePO}
-//                                     disabled={isGeneratingPO}
-//                                 >
-//                                     {isGeneratingPO
-//                                         ? "Generating…"
-//                                         : "Generate Purchase Order"}
-//                                 </ClaudeButton>
-//                             )}
-//                         {id && (
-//                             <DirectPurchaseActionButtons
-//                                 docname={id}
-//                                 onActionComplete={loadData}
-//                                 commitRequired={isStaffRnD && isCommittedForGate === false && data?.workflow_state === "Pending Staff Approval"}
-//                             />
-//                         )}
-//                     </div>
-//                 </PageHeader>
-
-//                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-//                     {/* Main content column */}
-//                     <div className="lg:col-span-2 space-y-0">
-//                         {/* Tab navigation */}
-//                         <div className="flex items-center border-b border-[#E4E4E7] dark:border-[#3F3F46] mb-6 overflow-x-auto">
-//                             {TABS.map((tab) => (
-//                                 <button
-//                                     key={tab.id}
-//                                     onClick={() => setActiveTab(tab.id)}
-//                                     className={cn(
-//                                         "inline-flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-all duration-150",
-//                                         activeTab === tab.id
-//                                             ? "border-[#D97757] text-[#D97757]"
-//                                             : "border-transparent text-[#71717A] dark:text-[#A1A1AA] hover:text-[#3F3F46] dark:hover:text-[#E4E4E7] hover:border-[#E4E4E7] dark:hover:border-[#3F3F46]",
-//                                     )}
-//                                 >
-//                                     {tab.icon}
-//                                     {tab.label}
-//                                 </button>
-//                             ))}
-//                         </div>
-
-//                         {/* Tab content */}
-//                         <ClaudeCard
-//                             title={TABS.find((t) => t.id === activeTab)?.label}
-//                             accentTop={activeTab === "details"}
-//                         >
-//                             {activeTab === "details" && (
-//                                 <DocumentViewer data={data} />
-//                             )}
-
-//                             {activeTab === "p11" && id && (
-//                                 <>
-//                                     <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-sm">
-//                                         <svg
-//                                             className="w-5 h-5 shrink-0 mt-0.5"
-//                                             fill="none"
-//                                             stroke="currentColor"
-//                                             strokeWidth="2"
-//                                             viewBox="0 0 24 24"
-//                                         >
-//                                             <path
-//                                                 strokeLinecap="round"
-//                                                 strokeLinejoin="round"
-//                                                 d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"
-//                                             />
-//                                         </svg>
-//                                         <span>
-//                                             <strong>Important:</strong> A
-//                                             printed hard copy of the P-11 Form
-//                                             must be submitted to the R&amp;D
-//                                             Office for further processing.
-//                                         </span>
-//                                     </div>
-//                                     <LinkedDocTab
-//                                         doctype="P_11 Form"
-//                                         filterField="app_id"
-//                                         filterValue={id}
-//                                         emptyTitle="No P-11 Form Generated Yet"
-//                                         emptyDescription="The P-11 Form is generated after the Direct Purchase is approved."
-//                                         onDataReload={loadData}
-//                                     />
-//                                 </>
-//                             )}
-
-//                             {activeTab === "sanction" && id && (
-//                                 <>
-//                                     {data?.workflow_state ===
-//                                         "RDP-11 Verified" &&
-//                                         isStaffRnD && (
-//                                             <div className="mb-5">
-//                                                 <button
-//                                                     onClick={
-//                                                         handleOpenSanctionSheet
-//                                                     }
-//                                                     disabled={
-//                                                         isOpeningSanctionSheet
-//                                                     }
-//                                                     className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-[#D97757] hover:bg-[#c66a4e] text-white disabled:opacity-60"
-//                                                 >
-//                                                     {isOpeningSanctionSheet
-//                                                         ? "Opening…"
-//                                                         : "Sanction Sheet"}
-//                                                 </button>
-//                                             </div>
-//                                         )}
-//                                     <LinkedDocTab
-//                                         doctype="sanction_sheet"
-//                                         filterField="app_id"
-//                                         filterValue={id}
-//                                         emptyTitle="No Sanction Sheet Generated Yet"
-//                                         emptyDescription="The Sanction Sheet is created by RnD Staff after the P-11 Form is verified and approved."
-//                                         onDataReload={loadData}
-//                                     />
-//                                 </>
-//                             )}
-
-//                             {activeTab === "po" && (
-//                                 <>
-//                                     {isLoadingPOData ? (
-//                                         <div className="flex items-center justify-center py-16">
-//                                             <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#D97757] border-t-transparent" />
-//                                         </div>
-//                                     ) : poSanctionData &&
-//                                         (isStaffRnD ||
-//                                             data?.workflow_state ===
-//                                             "POGenerated") ? (
-//                                         <POEditor
-//                                             ssData={poSanctionData}
-//                                             dpId={id || ""}
-//                                             isStaffRnD={isStaffRnD}
-//                                             isPIReadOnly={
-//                                                 isPermanentEmployee &&
-//                                                 !isStaffRnD
-//                                             }
-//                                             onUploadSignedPO={async (
-//                                                 file: File,
-//                                             ) => {
-//                                                 const formData = new FormData();
-//                                                 formData.append(
-//                                                     "file",
-//                                                     file,
-//                                                     file.name,
-//                                                 );
-//                                                 formData.append(
-//                                                     "docname",
-//                                                     poSanctionData.name,
-//                                                 );
-//                                                 formData.append(
-//                                                     "app_id",
-//                                                     id || "",
-//                                                 );
-//                                                 formData.append(
-//                                                     "project_no",
-//                                                     poSanctionData.project_no ||
-//                                                     "",
-//                                                 );
-//                                                 const res = await fetch(
-//                                                     "/api/method/rndopsapp.rndopsapp.doctype.direct_purchase.direct_purchase.upload_po_document",
-//                                                     {
-//                                                         method: "POST",
-//                                                         body: formData,
-//                                                         credentials: "include",
-//                                                         headers: {
-//                                                             "X-Frappe-CSRF-Token":
-//                                                                 (window as any)
-//                                                                     .csrf_token ||
-//                                                                 "",
-//                                                         },
-//                                                     },
-//                                                 );
-//                                                 const json = await res
-//                                                     .json()
-//                                                     .catch(() => ({}));
-//                                                 if (
-//                                                     !res.ok ||
-//                                                     json?.message?.status ===
-//                                                     false
-//                                                 )
-//                                                     throw new Error(
-//                                                         json?.message
-//                                                             ?.message ||
-//                                                         "Upload failed",
-//                                                     );
-//                                                 // Reset so the effect re-fetches with updated file_path
-//                                                 setPoSanctionData(null);
-//                                             }}
-//                                         />
-//                                     ) : poSanctionData ? (
-//                                         <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
-//                                             <ShoppingCartIcon className="h-10 w-10 text-[#E4E4E7] dark:text-[#3F3F46]" />
-//                                             <p className="font-serif text-base font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
-//                                                 Purchase Order Not Yet Generated
-//                                             </p>
-//                                             <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] max-w-xs">
-//                                                 The Purchase Order has not been
-//                                                 generated by staff yet. Please
-//                                                 check back later.
-//                                             </p>
-//                                         </div>
-//                                     ) : (
-//                                         <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
-//                                             <ShoppingCartIcon className="h-10 w-10 text-[#E4E4E7] dark:text-[#3F3F46]" />
-//                                             <p className="font-serif text-base font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
-//                                                 No Sanction Sheet Available
-//                                             </p>
-//                                             <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] max-w-xs">
-//                                                 The Purchase Order editor
-//                                                 requires a Sanction Sheet to be
-//                                                 created first.
-//                                             </p>
-//                                         </div>
-//                                     )}
-//                                 </>
-//                             )}
-//                         </ClaudeCard>
-//                     </div>
-
-//                     {/* Sidebar */}
-//                     <div className="space-y-5">
-//                         {/* Meta Info */}
-//                         <ClaudeCard>
-//                             <div className="space-y-4">
-//                                 <div>
-//                                     <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
-//                                         Created By
-//                                     </p>
-//                                     <div className="flex items-center gap-2 text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
-//                                         <UserIcon className="w-3.5 h-3.5 text-[#71717A] dark:text-[#A1A1AA]" />
-//                                         {data.owner || "—"}
-//                                     </div>
-//                                 </div>
-//                                 <div>
-//                                     <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
-//                                         Created On
-//                                     </p>
-//                                     <div className="flex items-center gap-2 text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
-//                                         <CalendarIcon className="w-3.5 h-3.5 text-[#71717A] dark:text-[#A1A1AA]" />
-//                                         {data.creation
-//                                             ? formatDate(data.creation, "long")
-//                                             : "—"}
-//                                     </div>
-//                                 </div>
-//                                 <div>
-//                                     <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
-//                                         Last Modified
-//                                     </p>
-//                                     <div className="flex items-center gap-2 text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
-//                                         <CalendarIcon className="w-3.5 h-3.5 text-[#71717A] dark:text-[#A1A1AA]" />
-//                                         {data.modified
-//                                             ? formatDate(data.modified, "short")
-//                                             : "—"}
-//                                     </div>
-//                                 </div>
-//                             </div>
-//                         </ClaudeCard>
-
-//                         {/* Activity Stream */}
-//                         <ClaudeCard title="Activity">
-//                             {id && (
-//                                 <ActivityStream
-//                                     doctype="Direct Purchase"
-//                                     docname={id}
-//                                 />
-//                             )}
-//                         </ClaudeCard>
-
-//                         {/* Make a Commitment via CommitPayment component */}
-//                         {isStaffRnD &&
-//                             data.workflow_state === "Pending Staff Approval" && (
-//                                 <CommitPayment
-//                                     doctype="Direct Purchase"
-//                                     docName={id || ""}
-//                                     projectName={projectTitle}
-//                                     budgetHeads={budgetHeads}
-//                                     actualBalance={actualBalance}
-//                                     onCommitSuccess={() => reloadData()}
-//                                     onStagingStatusChange={(status) => setIsCommittedForGate(status)}
-//                                 />
-//                             )}
-
-//                         {/* Committed state display + Payment */}
-//                         {isStaffRnD &&
-//                             data.workflow_state === "Pending Staff Approval" &&
-//                             isCommitted && (
-//                                 <ClaudeCard
-//                                     title="Commitment Details"
-//                                     accentTop
-//                                 >
-//                                     <div className="space-y-4">
-//                                         <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
-//                                             <p className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1">
-//                                                 Commitment Initiated
-//                                             </p>
-//                                             <div className="flex justify-between items-end">
-//                                                 <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
-//                                                     {linkedCommitment?.head}
-//                                                 </p>
-//                                                 <p className="text-lg font-bold text-blue-700 dark:text-blue-300">
-//                                                     ₹{" "}
-//                                                     {Number(
-//                                                         linkedCommitment?.committed ||
-//                                                         0,
-//                                                     ).toLocaleString("en-IN")}
-//                                                 </p>
-//                                             </div>
-//                                         </div>
-//                                         <div>
-//                                             <label className="block text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
-//                                                 Payment Amount (₹)
-//                                             </label>
-//                                             <input
-//                                                 type="number"
-//                                                 className="w-full px-3 py-2 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg text-sm bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
-//                                                 placeholder="Enter payment amount"
-//                                                 value={paymentAmount}
-//                                                 onChange={(e) =>
-//                                                     setPaymentAmount(
-//                                                         e.target.value,
-//                                                     )
-//                                                 }
-//                                                 onWheel={(e) =>
-//                                                     e.currentTarget.blur()
-//                                                 }
-//                                             />
-//                                         </div>
-//                                         <ClaudeButton
-//                                             variant="primary"
-//                                             className="w-full"
-//                                             onClick={handlePayment}
-//                                             disabled={isPaying}
-//                                         >
-//                                             {isPaying
-//                                                 ? "Recording…"
-//                                                 : "Record Payment"}
-//                                         </ClaudeButton>
-//                                     </div>
-//                                 </ClaudeCard>
-//                             )}
-
-//                         {/* Add Comment */}
-//                         <ClaudeCard title="Add Comment">
-//                             <Textarea
-//                                 rows={3}
-//                                 placeholder="Type your comment…"
-//                                 value={sidebarComment}
-//                                 onChange={(e) =>
-//                                     setSidebarComment(e.target.value)
-//                                 }
-//                                 className="w-full text-sm resize-none border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#71717A] dark:placeholder:text-[#A1A1AA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-100 dark:focus-visible:ring-zinc-800 focus-visible:border-zinc-400 dark:focus-visible:border-zinc-500 transition-all duration-200 mb-3"
-//                             />
-//                             <ClaudeButton
-//                                 variant="primary"
-//                                 className="w-full"
-//                                 onClick={handleSidebarCommentSubmit}
-//                                 disabled={
-//                                     isAddingComment || !sidebarComment.trim()
-//                                 }
-//                             >
-//                                 {isAddingComment
-//                                     ? "Submitting…"
-//                                     : "Submit Comment"}
-//                             </ClaudeButton>
-//                         </ClaudeCard>
-//                     </div>
-//                 </div>
-//             </main>
-//         </div>
-//     );
-// };
-
-// export default DirectPurchaseDetails;
 
 
 // -=-=-=======================================================================================
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AppSidebar } from "../../components/RndSidebar";
 import {
@@ -1810,6 +27,14 @@ import {
     XCircleIcon,
     Printer,
     PaperclipIcon,
+    ReceiptIcon,
+    PlusIcon,
+    Trash2Icon,
+    SaveIcon,
+    AlertCircleIcon,
+    ActivityIcon,
+    Clock,
+    ChevronRight,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlobalLoader } from "@/components/ui/global-loader";
@@ -1830,6 +55,7 @@ import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { ActivityLog, clearActivityLogCache } from "@/components/ActivityLog";
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { CommitPayment } from "@/components/CommitPayment";
+import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 
 // --- TYPE DEFINITIONS ---
 interface DirectPurchaseData {
@@ -1848,7 +74,410 @@ interface DirectPurchaseData {
     [key: string]: any;
 }
 
-type TabId = "details" | "p11" | "sanction" | "po";
+type TabId = "details" | "p11" | "sanction" | "po" | "settlement";
+
+// ---------------------------------------------------------------------------
+// Direct Purchase Workflow Timeline
+// ---------------------------------------------------------------------------
+type DPStageStatus = "completed" | "in-progress" | "pending" | "rejected";
+
+interface DPStage {
+    label: string;
+    sublabel?: string;
+    description: string;
+    status: DPStageStatus;
+    conditional?: boolean;
+    nextAction?: string;
+}
+
+const DP_FIRST_APPROVAL_STATES = [
+    "Pending PI Approval",
+    "Pending Mentor Approval",
+    "Pending Head Approval",
+];
+
+const DP_PHASE1_ORDER = [
+    "Draft",               // 0
+    "__first__",           // 1 — any of DP_FIRST_APPROVAL_STATES
+    "Pending Staff Approval",     // 2
+    "Pending HoS Approval",       // 3
+    "Pending Dean Approval",      // 4
+    "Pending Director Approval",  // 5
+    "Approved",                   // 6
+];
+
+const DP_PHASE2_ORDER = [
+    "Pending Staff Verification",
+    "RDP-11 Verified",
+    "Sanction Sheet Generated",
+    "Sanction Sheet Printed",
+    "Sanction Approved",
+    "POGenerated",
+];
+
+function dpP1Idx(state: string): number {
+    if (DP_FIRST_APPROVAL_STATES.includes(state)) return 1;
+    return DP_PHASE1_ORDER.indexOf(state);
+}
+
+const DP_PHASE2_LABELS: Record<string, { label: string; description: string; nextAction?: string }> = {
+    "Pending Staff Verification": {
+        label: "P-11 Submitted",
+        description: "Applicant submits the P-11 form. Items from the purchase list are mapped into the P-11 document for staff to verify.",
+        nextAction: "Verify Hardcopy",
+    },
+    "RDP-11 Verified": {
+        label: "P-11 Verified",
+        description: "R&D Staff verifies the physical hardcopy of the RDP-11 document against the system record.",
+        nextAction: "Generate Sanction Sheet",
+    },
+    "Sanction Sheet Generated": {
+        label: "Sanction Created",
+        description: "R&D Staff generates the Sanction Sheet from the verified P-11. Rates, GST, make/model details are filled in.",
+        nextAction: "Mark Print Taken",
+    },
+    "Sanction Sheet Printed": {
+        label: "Print Taken",
+        description: "The applicant (Permanent Employee) acknowledges that a physical print of the Sanction Sheet has been taken.",
+        nextAction: "Verify Sanction Sheet",
+    },
+    "Sanction Approved": {
+        label: "Sanction OK",
+        description: "R&D Staff verifies the signed Sanction Sheet and marks it as approved before generating the Purchase Order.",
+        nextAction: "Generate PO",
+    },
+    "POGenerated": {
+        label: "PO Generated",
+        description: "R&D Staff generates the Purchase Order. Final value = Basic Value + Packing & Forwarding + Freight. Document is submitted (finalised).",
+    },
+};
+
+function buildDPWorkflow(
+    workflowState: string,
+    accountHead?: string,
+    totalEstimate?: number,
+): { phase1: DPStage[]; phase2: DPStage[] } {
+    const isRejected = workflowState === "Rejected";
+    const isInPhase2 = DP_PHASE2_ORDER.includes(workflowState);
+    const isApprovedOrBeyond = workflowState === "Approved" || isInPhase2;
+
+    const needsDirector =
+        (accountHead === "Consumable" || accountHead === "Contingency") &&
+        (totalEstimate ?? 0) > 300000;
+    const showDirector = needsDirector || workflowState === "Pending Director Approval";
+
+    const currentP1 = isApprovedOrBeyond ? 99 : dpP1Idx(workflowState);
+
+    const p1Status = (stageIdx: number): DPStageStatus => {
+        if (isRejected) return stageIdx === 0 ? "completed" : "rejected";
+        if (isApprovedOrBeyond) return "completed";
+        if (currentP1 === -1) return "pending";
+        if (stageIdx < currentP1) return "completed";
+        if (stageIdx === currentP1) return "in-progress";
+        return "pending";
+    };
+
+    const firstLabel =
+        workflowState === "Pending PI Approval" ? "PI Review" :
+        workflowState === "Pending Mentor Approval" ? "Mentor Review" :
+        workflowState === "Pending Head Approval" ? "Head Review" :
+        "Initial Review";
+
+    const firstDesc =
+        workflowState === "Pending PI Approval"
+            ? "Submitted by project staff. The Principal Investigator reviews and forwards the application to R&D Staff."
+            : workflowState === "Pending Mentor Approval"
+            ? "Submitted by an Independent Researcher. The Mentor reviews and forwards the application to R&D Staff."
+            : workflowState === "Pending Head Approval"
+            ? "Submitted by Inspired Faculty. The Head approver reviews and forwards the application to R&D Staff."
+            : "Application is reviewed by PI, Mentor, or Head — determined by the applicant's role at submission time.";
+
+    const phase1: DPStage[] = [
+        {
+            label: "Draft",
+            description: "Applicant fills in item details, quantities, and estimated prices. If total estimate exceeds ₹2,00,000 a Purchase Committee with at least 3 members is required.",
+            status: p1Status(0),
+            nextAction: "Submit",
+        },
+        {
+            label: firstLabel,
+            sublabel: "PI / Mentor / Head",
+            description: firstDesc,
+            status: p1Status(1),
+            nextAction: "Forward",
+        },
+        {
+            label: "R&D Staff",
+            description: "R&D Staff verifies the application, commits the budget head and payment amount, then forwards the application to the Head of Section.",
+            status: p1Status(2),
+            nextAction: "Forward",
+        },
+        {
+            label: "HoS R&D",
+            description: "The Head of Section (R&D) reviews the application and forwards it to the Dean for approval.",
+            status: p1Status(3),
+            nextAction: "Forward",
+        },
+        {
+            label: "Dean",
+            description: needsDirector
+                ? "Dean reviews but must escalate to Director — account head is Consumable/Contingency and total estimate exceeds ₹3,00,000."
+                : "Dean approves directly. Account head is non-consumable/contingency, or total estimate is within the ₹3,00,000 threshold.",
+            status: p1Status(4),
+            nextAction: showDirector ? "Forward" : "Approve",
+        },
+    ];
+
+    if (showDirector) {
+        phase1.push({
+            label: "Director",
+            sublabel: needsDirector ? "> ₹3 L" : undefined,
+            description: "Director approval is required because the account head is Consumable or Contingency and the total estimate exceeds ₹3,00,000.",
+            conditional: !needsDirector,
+            status: p1Status(5),
+            nextAction: "Approve",
+        });
+        phase1.push({
+            label: "Approved",
+            description: "The application is fully approved. A Kafka budget-commit notification is published. The applicant can now submit the P-11 form to proceed.",
+            status: isRejected ? "rejected" : isApprovedOrBeyond ? "completed" : p1Status(6),
+        });
+    } else {
+        phase1.push({
+            label: "Approved",
+            description: "The application is fully approved. A Kafka budget-commit notification is published. The applicant can now submit the P-11 form to proceed.",
+            status: isRejected ? "rejected" : isApprovedOrBeyond ? "completed" : p1Status(5),
+        });
+    }
+
+    const currentP2 = DP_PHASE2_ORDER.indexOf(workflowState);
+    const isPODone = workflowState === "POGenerated";
+
+    const phase2: DPStage[] = DP_PHASE2_ORDER.map((state, idx) => {
+        const meta = DP_PHASE2_LABELS[state];
+        let status: DPStageStatus = "pending";
+        if (!isInPhase2) {
+            status = "pending";
+        } else if (isPODone) {
+            status = "completed";
+        } else if (idx < currentP2) {
+            status = "completed";
+        } else if (idx === currentP2) {
+            status = "in-progress";
+        }
+        return { label: meta.label, description: meta.description, nextAction: meta.nextAction, status };
+    });
+
+    return { phase1, phase2 };
+}
+
+const DPWorkflowTimeline: React.FC<{
+    workflowState: string;
+    accountHead?: string;
+    totalEstimate?: number;
+}> = ({ workflowState, accountHead, totalEstimate }) => {
+    const { phase1, phase2 } = buildDPWorkflow(workflowState, accountHead, totalEstimate);
+    const [hoveredP1, setHoveredP1] = useState<DPStage | null>(null);
+    const [hoveredP2, setHoveredP2] = useState<DPStage | null>(null);
+    const isInPhase2 = DP_PHASE2_ORDER.includes(workflowState) || workflowState === "POGenerated";
+    const [phase2Open, setPhase2Open] = useState(isInPhase2);
+    const [open, setOpen] = useState(false);
+
+    const nodeIcon = (status: DPStageStatus, conditional?: boolean) => {
+        if (conditional && status === "pending")
+            return <span className="text-[10px] font-bold text-zinc-400">?</span>;
+        if (status === "completed") return <CheckCircle2Icon className="w-3.5 h-3.5 text-white" />;
+        if (status === "in-progress") return <Clock className="w-3.5 h-3.5 text-white" />;
+        if (status === "rejected") return <XCircleIcon className="w-3.5 h-3.5 text-white" />;
+        return <span className="w-2 h-2 rounded-full bg-white/50" />;
+    };
+
+    const nodeBg = (status: DPStageStatus, conditional?: boolean) => {
+        if (conditional && status === "pending")
+            return "bg-transparent border-2 border-dashed border-zinc-300 dark:border-zinc-600";
+        if (status === "completed") return "bg-emerald-500";
+        if (status === "in-progress") return "bg-[#D97757]";
+        if (status === "rejected") return "bg-red-500";
+        return "bg-zinc-300 dark:bg-zinc-600";
+    };
+
+    const connectorCls = (fromStatus: DPStageStatus) =>
+        fromStatus === "completed" ? "bg-emerald-400" : "bg-zinc-200 dark:bg-zinc-700";
+
+    const renderStages = (
+        stages: DPStage[],
+        hovered: DPStage | null,
+        setHovered: (s: DPStage | null) => void,
+    ) => (
+        <div>
+            <div className="flex items-start overflow-x-auto pb-1">
+                {stages.map((stage, idx) => (
+                    <React.Fragment key={`${stage.label}-${idx}`}>
+                        <div
+                            className="flex flex-col items-center min-w-[72px] max-w-[96px] cursor-default"
+                            onMouseEnter={() => setHovered(stage)}
+                            onMouseLeave={() => setHovered(null)}
+                        >
+                            <div className={cn(
+                                "w-7 h-7 rounded-full flex items-center justify-center shadow-sm flex-shrink-0 transition-transform duration-150",
+                                nodeBg(stage.status, stage.conditional),
+                                hovered?.label === stage.label && "scale-110 ring-2 ring-offset-1 ring-zinc-300 dark:ring-zinc-600",
+                            )}>
+                                {nodeIcon(stage.status, stage.conditional)}
+                            </div>
+                            <p className={cn(
+                                "mt-1.5 text-center text-[10px] leading-tight px-1 font-medium",
+                                stage.status === "in-progress" && "font-bold text-[#D97757]",
+                                stage.status === "completed" && "text-emerald-600 dark:text-emerald-400",
+                                stage.status === "pending" && "text-zinc-400 dark:text-zinc-500",
+                                stage.status === "rejected" && "text-red-500 font-bold",
+                            )}>
+                                {stage.label}
+                            </p>
+                            {stage.sublabel && (
+                                <p className="text-[9px] text-zinc-400 dark:text-zinc-600 text-center px-1 leading-tight mt-0.5">
+                                    {stage.sublabel}
+                                </p>
+                            )}
+                            {stage.status === "in-progress" && (
+                                <span className="mt-1 text-[9px] font-bold text-white bg-[#D97757] px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                                    Here
+                                </span>
+                            )}
+                        </div>
+                        {idx < stages.length - 1 && (
+                            <div className="flex flex-col items-center min-w-[12px] flex-1">
+                                <div className="flex items-center w-full pt-3.5">
+                                    <div className={cn("h-0.5 w-full rounded", connectorCls(stage.status))} />
+                                    <ChevronRight className="w-3 h-3 text-zinc-400 flex-shrink-0 -ml-1" />
+                                </div>
+                                {stage.nextAction && (
+                                    <span className="text-[8px] text-zinc-400 dark:text-zinc-500 text-center leading-none mt-1 px-0.5 italic whitespace-nowrap">
+                                        {stage.nextAction}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                    </React.Fragment>
+                ))}
+            </div>
+            {/* Hover description */}
+            <div className={cn(
+                "mt-2.5 rounded-lg px-3 py-2 text-[11px] leading-relaxed transition-all duration-200",
+                hovered
+                    ? "bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 opacity-100"
+                    : "opacity-0 pointer-events-none h-0 mt-0 overflow-hidden border-0 p-0",
+            )}>
+                {hovered && (
+                    <>
+                        <span className="font-semibold text-zinc-800 dark:text-zinc-100">{hovered.label}: </span>
+                        <span className="text-zinc-600 dark:text-zinc-300">{hovered.description}</span>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+
+    const summaryLabel =
+        workflowState === "Rejected" ? "Rejected" :
+        workflowState === "POGenerated" ? "Complete" :
+        workflowState === "Approved" ? "Awaiting P-11" :
+        "In Progress";
+
+    const p2CompletedCount = phase2.filter(s => s.status === "completed").length;
+    const p2ActiveLabel = isInPhase2
+        ? `${p2CompletedCount}/${phase2.length} steps done`
+        : "Starts after approval";
+
+    return (
+        <div className="rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A] mb-5">
+            {/* Collapsible header — click to toggle entire panel */}
+            <button
+                type="button"
+                onClick={() => setOpen(o => !o)}
+                className="w-full flex items-center gap-2.5 px-5 py-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors rounded-2xl"
+            >
+                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-50 text-[#2563EB] dark:bg-blue-950/30 dark:text-blue-300 shrink-0">
+                    <ActivityIcon className="h-3.5 w-3.5" />
+                </span>
+                <h3 className="text-[12px] font-extrabold uppercase tracking-[0.1em] text-[#71717A] dark:text-[#A1A1AA]">
+                    Workflow Progress
+                </h3>
+                <span className="h-px flex-1 bg-[#E4E4E7] dark:bg-[#3F3F46]" />
+                <span className={cn(
+                    "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0",
+                    workflowState === "Rejected" && "text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400",
+                    workflowState === "POGenerated" && "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 dark:text-emerald-400",
+                    workflowState === "Approved" && "text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400",
+                    !["Rejected", "POGenerated", "Approved"].includes(workflowState) && "text-zinc-500 bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-400",
+                )}>
+                    {summaryLabel}
+                </span>
+                {!open && (
+                    <span className="text-[10px] text-zinc-400 dark:text-zinc-500 shrink-0 italic">
+                        click to see details
+                    </span>
+                )}
+                <ChevronRight
+                    className={cn(
+                        "w-4 h-4 text-zinc-400 dark:text-zinc-500 shrink-0 transition-transform duration-200",
+                        open && "rotate-90",
+                    )}
+                />
+            </button>
+
+            {/* Expandable body */}
+            {open && (
+                <div className="px-5 pb-5">
+                    <div className="h-px bg-[#E4E4E7] dark:bg-[#3F3F46] mb-4" />
+
+                    {/* Phase 1: Approval Chain */}
+                    <div className="mb-3">
+                        <p className="text-[9px] font-extrabold uppercase tracking-[0.14em] text-[#2563EB] dark:text-blue-400 mb-2.5 flex items-center gap-2">
+                            <span className="inline-block w-4 h-px bg-[#2563EB]/50" />
+                            Approval Chain
+                            <span className="flex-1 h-px bg-[#2563EB]/20" />
+                        </p>
+                        {renderStages(phase1, hoveredP1, setHoveredP1)}
+                    </div>
+
+                    {/* Phase 2: Post-Approval Pipeline — collapsible */}
+                    <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-3">
+                        <button
+                            type="button"
+                            onClick={() => setPhase2Open(o => !o)}
+                            className="w-full flex items-center gap-2 mb-2.5"
+                        >
+                            <span className="text-[9px] font-extrabold uppercase tracking-[0.14em] text-emerald-600 dark:text-emerald-400 flex items-center gap-2 flex-1">
+                                <span className="inline-block w-4 h-px bg-emerald-600/50" />
+                                Post-Approval Pipeline
+                                <span className="flex-1 h-px bg-emerald-600/20" />
+                            </span>
+                            <span className="text-[9px] text-zinc-400 dark:text-zinc-500 shrink-0 mr-1">{p2ActiveLabel}</span>
+                            <ChevronRight
+                                className={cn(
+                                    "w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 shrink-0 transition-transform duration-200",
+                                    phase2Open && "rotate-90",
+                                )}
+                            />
+                        </button>
+
+                        {phase2Open && renderStages(phase2, hoveredP2, setHoveredP2)}
+                    </div>
+
+                    {!["Draft", "Approved", "POGenerated", "Rejected"].includes(workflowState) && (
+                        <div className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                                Pending at:{" "}
+                                <span className="font-semibold text-[#D97757]">{workflowState}</span>
+                            </p>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
 
 // --- SHARED CONSTANTS ---
 const EXCLUDED_FIELDS = [
@@ -2033,6 +662,13 @@ const TAB_TONES: Record<
         icon: "bg-orange-50 text-[#D97757] dark:bg-orange-950/25 dark:text-orange-300",
         header: "from-orange-50 via-white to-white dark:from-orange-950/20 dark:via-[#27272A] dark:to-[#27272A]",
         border: "border-t-[#D97757]",
+    },
+    settlement: {
+        active: "border-violet-500 bg-violet-50 text-violet-700 shadow-sm dark:border-violet-500/50 dark:bg-violet-950/25 dark:text-violet-300",
+        accentText: "text-violet-700 dark:text-violet-300",
+        icon: "bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-300",
+        header: "from-violet-50 via-white to-white dark:from-violet-950/20 dark:via-[#27272A] dark:to-[#27272A]",
+        border: "border-t-violet-500",
     },
 };
 
@@ -2450,12 +1086,16 @@ const DirectPurchaseActionButtons = ({
     p11DocName,
     onP11Missing,
     commitRequired = false,
+    sanctionRequired = false,
+    onSanctionMissing,
 }: {
     docname: string;
     onActionComplete: () => void;
     p11DocName?: string;
     onP11Missing?: () => void;
     commitRequired?: boolean;
+    sanctionRequired?: boolean;
+    onSanctionMissing?: () => void;
 }) => {
     const [actions, setActions] = useState<string[]>([]);
     const [isPerforming, setIsPerforming] = useState(false);
@@ -2499,6 +1139,10 @@ const DirectPurchaseActionButtons = ({
             onP11Missing?.();
             return;
         }
+        if (sanctionRequired) {
+            onSanctionMissing?.();
+            return;
+        }
         setSelectedAction(action);
         setShowCommentModal(true);
     };
@@ -2535,7 +1179,12 @@ const DirectPurchaseActionButtons = ({
     return (
         <>
             <div className="flex flex-col gap-2">
-                {commitRequired && (
+                {sanctionRequired && (
+                    <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300 font-medium">
+                        Create the Sanction Sheet first — go to the <strong>Sanction Sheet</strong> tab.
+                    </div>
+                )}
+                {commitRequired && !sanctionRequired && (
                     <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300 font-medium">
                         A commitment must be submitted before forwarding this application.
                     </div>
@@ -2546,14 +1195,20 @@ const DirectPurchaseActionButtons = ({
                             key={action}
                             variant="action"
                             onClick={() => handleActionClick(action)}
-                            disabled={isPerforming || commitRequired}
+                            disabled={isPerforming || commitRequired || sanctionRequired}
                             className={cn(
                                 action === "Submit P-11" && !p11DocName
                                     ? "opacity-60 cursor-not-allowed"
                                     : undefined,
-                                commitRequired && "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed border-0"
+                                (commitRequired || sanctionRequired) && "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed border-0"
                             )}
-                            title={commitRequired ? "Submit a commitment first" : undefined}
+                            title={
+                                sanctionRequired
+                                    ? "Create the Sanction Sheet first"
+                                    : commitRequired
+                                    ? "Submit a commitment first"
+                                    : undefined
+                            }
                         >
                             {isPerforming ? "Processing…" : action}
                         </ClaudeButton>
@@ -3074,6 +1729,685 @@ const LinkedDocTab = ({
     );
 };
 
+// --- FINAL SETTLEMENT TAB ---
+const FS_FIELDS_API =
+    "rndopsapp.rndopsapp.doctype.final_settlement.final_settlement.get_final_settlement_fields";
+const FS_SAVE_API =
+    "rndopsapp.rndopsapp.doctype.final_settlement.final_settlement.save_final_settlement_data";
+
+interface FSChildRow {
+    name?: string;
+    account_head: string;
+    amount: number | string;
+    particulars: string;
+}
+
+interface FSFormData {
+    name?: string;
+    purchase_order_number: string;
+    po_total_value: number | string;
+    total_committed_till_now: number | string;
+    account_head: string;
+    purchase_settlement_amount: number | string;
+    customer_delivery: string;
+    settlement_accounts: FSChildRow[];
+    upload_attachments: { file_name: string; file_data: string } | string | null;
+}
+
+const INIT_FS: FSFormData = {
+    purchase_order_number: "",
+    po_total_value: "",
+    total_committed_till_now: "",
+    account_head: "",
+    purchase_settlement_amount: "",
+    customer_delivery: "",
+    settlement_accounts: [],
+    upload_attachments: null,
+};
+
+type FSLoadState = "loading" | "ready" | "saving" | "load_error";
+
+const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
+    const [loadState, setLoadState] = useState<FSLoadState>("loading");
+    const [linkOptions, setLinkOptions] = useState<Record<string, Array<Record<string, any>>>>({});
+    const [formData, setFormData] = useState<FSFormData>(INIT_FS);
+    const [errors, setErrors] = useState<string[]>([]);
+    const [saveSuccess, setSaveSuccess] = useState(false);
+    const rowIdx = useRef(0);
+
+    const csrfToken = () => (window as any).csrf_token || "";
+
+    const postApi = async (method: string, bodyParams: Record<string, string>) => {
+        const body = new URLSearchParams(bodyParams);
+        const res = await fetch(`/api/method/${method}`, {
+            method: "POST",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "X-Frappe-CSRF-Token": csrfToken(),
+            },
+            body,
+        });
+        const json = await res.json().catch(() => ({}));
+        return { res, json };
+    };
+
+    const loadFormFields = async (docName?: string) => {
+        const params: Record<string, string> = {};
+        if (docName) params.doc_name = docName;
+        const { res, json } = await postApi(FS_FIELDS_API, params);
+        if (!res.ok) throw new Error("Failed to load form fields");
+        return json?.message as {
+            fields: any[];
+            link_options: Record<string, Array<Record<string, any>>>;
+            doc_data: Record<string, any>;
+        };
+    };
+
+    const applyDocData = (doc: Record<string, any>) => {
+        setFormData({
+            name: doc.name,
+            purchase_order_number: doc.purchase_order_number || "",
+            po_total_value: doc.po_total_value ?? "",
+            total_committed_till_now: doc.total_committed_till_now ?? "",
+            account_head: doc.account_head || "",
+            purchase_settlement_amount: doc.purchase_settlement_amount ?? "",
+            customer_delivery: doc.customer_delivery || "",
+            settlement_accounts: (doc.settlement_accounts ?? []).map((r: any) => ({
+                name: r.name,
+                account_head: r.account_head || "",
+                amount: r.amount ?? "",
+                particulars: r.particulars || "",
+            })),
+            upload_attachments: doc.upload_attachments ?? null,
+        });
+    };
+
+    useEffect(() => {
+        if (!dpId) return;
+        let cancelled = false;
+
+        const init = async () => {
+            setLoadState("loading");
+            setSaveSuccess(false);
+            try {
+                // Find sanction sheet for this DP
+                const ssFilters = JSON.stringify([["app_id", "=", dpId]]);
+                const ssRes = await fetch(
+                    `/api/v2/document/sanction_sheet?filters=${encodeURIComponent(ssFilters)}&fields=${encodeURIComponent('["name"]')}&limit=1`,
+                    { credentials: "include", headers: { Accept: "application/json" } },
+                ).then((r) => r.json()).catch(() => ({ data: [] }));
+                const ssName: string = ssRes?.data?.[0]?.name || "";
+
+                // Find existing Final Settlement linked to that sanction sheet
+                let existingFS = "";
+                if (ssName) {
+                    const fsFilters = JSON.stringify([["purchase_order_number", "=", ssName]]);
+                    const fsRes = await fetch(
+                        `/api/v2/document/Final%20Settlement?filters=${encodeURIComponent(fsFilters)}&fields=${encodeURIComponent('["name"]')}&limit=1`,
+                        { credentials: "include", headers: { Accept: "application/json" } },
+                    ).then((r) => r.json()).catch(() => ({ data: [] }));
+                    existingFS = fsRes?.data?.[0]?.name || "";
+                }
+
+                const data = await loadFormFields(existingFS || undefined);
+                if (cancelled) return;
+
+                setLinkOptions(data.link_options || {});
+
+                if (data.doc_data && Object.keys(data.doc_data).length > 0) {
+                    applyDocData(data.doc_data);
+                } else {
+                    // Auto-select the PO matching this direct purchase
+                    const poOpts = data.link_options?.purchase_order_number || [];
+                    const matched = poOpts.find((o) => o.app_id === dpId);
+                    setFormData({
+                        ...INIT_FS,
+                        purchase_order_number: matched?.value || "",
+                        po_total_value: matched?.ss_grand_total ?? "",
+                    });
+                }
+                setLoadState("ready");
+            } catch {
+                if (!cancelled) setLoadState("load_error");
+            }
+        };
+        init();
+        return () => { cancelled = true; };
+    }, [dpId]);
+
+    const setField = <K extends keyof FSFormData>(fieldname: K, value: FSFormData[K]) => {
+        setFormData((prev) => {
+            const next = { ...prev, [fieldname]: value };
+            if (fieldname === "purchase_order_number") {
+                const po = (linkOptions.purchase_order_number || []).find(
+                    (o) => o.value === value,
+                );
+                next.po_total_value = po?.ss_grand_total ?? "";
+            }
+            return next;
+        });
+    };
+
+    const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            const b64 = (reader.result as string).split(",")[1];
+            setFormData((prev) => ({
+                ...prev,
+                upload_attachments: { file_name: file.name, file_data: b64 },
+            }));
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const addRow = () => {
+        rowIdx.current += 1;
+        setFormData((prev) => ({
+            ...prev,
+            settlement_accounts: [
+                ...prev.settlement_accounts,
+                {
+                    name: `new-row-${rowIdx.current}`,
+                    account_head: "",
+                    amount: "",
+                    particulars: "",
+                },
+            ],
+        }));
+    };
+
+    const updateRow = (i: number, field: keyof FSChildRow, value: string | number) => {
+        setFormData((prev) => {
+            const rows = [...prev.settlement_accounts];
+            rows[i] = { ...rows[i], [field]: value };
+            return { ...prev, settlement_accounts: rows };
+        });
+    };
+
+    const removeRow = (i: number) => {
+        setFormData((prev) => ({
+            ...prev,
+            settlement_accounts: prev.settlement_accounts.filter((_, idx) => idx !== i),
+        }));
+    };
+
+    const validate = (): string[] => {
+        const errs: string[] = [];
+        if (!formData.purchase_order_number) errs.push("Purchase Order Number is required.");
+        if (!formData.account_head) errs.push("Account Head is required.");
+        const amt = parseFloat(String(formData.purchase_settlement_amount));
+        if (!formData.purchase_settlement_amount || isNaN(amt) || amt <= 0)
+            errs.push("Purchase Settlement Amount must be greater than 0.");
+        for (const [i, row] of formData.settlement_accounts.entries()) {
+            if (!row.account_head) errs.push(`Row ${i + 1}: Account Head is required.`);
+            const rowAmt = parseFloat(String(row.amount));
+            if (!row.amount || isNaN(rowAmt) || rowAmt <= 0)
+                errs.push(`Row ${i + 1}: Amount must be greater than 0.`);
+        }
+        if (formData.settlement_accounts.length > 0 && !isNaN(amt)) {
+            const childSum = formData.settlement_accounts.reduce(
+                (s, r) => s + (parseFloat(String(r.amount)) || 0),
+                0,
+            );
+            if (Math.abs(childSum - amt) > 0.01) {
+                errs.push(
+                    `Sum of Settlement Accounts (${childSum.toLocaleString("en-IN")}) must equal Purchase Settlement Amount (${amt.toLocaleString("en-IN")}).`,
+                );
+            }
+        }
+        return errs;
+    };
+
+    const handleSave = async () => {
+        const errs = validate();
+        if (errs.length) {
+            setErrors(errs);
+            setSaveSuccess(false);
+            return;
+        }
+        setErrors([]);
+        setLoadState("saving");
+        setSaveSuccess(false);
+
+        try {
+            const payload: Record<string, any> = {
+                purchase_order_number: formData.purchase_order_number,
+                account_head: formData.account_head,
+                purchase_settlement_amount: Number(formData.purchase_settlement_amount),
+                customer_delivery: formData.customer_delivery || "",
+                settlement_accounts: formData.settlement_accounts.map((r) => ({
+                    name: r.name,
+                    account_head: r.account_head,
+                    amount: Number(r.amount),
+                    particulars: r.particulars || "",
+                })),
+                upload_attachments:
+                    typeof formData.upload_attachments === "string"
+                        ? formData.upload_attachments
+                        : formData.upload_attachments || null,
+            };
+            if (formData.name) payload.name = formData.name;
+
+            const { res, json } = await postApi(FS_SAVE_API, {
+                data: JSON.stringify(payload),
+            });
+
+            if (!res.ok) {
+                const raw = json?._server_messages;
+                let msgs: string[] = [];
+                if (raw) {
+                    try {
+                        msgs = JSON.parse(raw).map((m: any) => JSON.parse(m).message);
+                    } catch {
+                        msgs = ["Server error. Please try again."];
+                    }
+                } else {
+                    msgs = [json?.exc_type || "Save failed."];
+                }
+                setErrors(msgs);
+                setLoadState("ready");
+                return;
+            }
+
+            const { status, docname } = json?.message || {};
+            if (status === "success" && docname) {
+                setSaveSuccess(true);
+                try {
+                    const refreshed = await loadFormFields(docname);
+                    setLinkOptions(refreshed.link_options || linkOptions);
+                    if (refreshed.doc_data && Object.keys(refreshed.doc_data).length > 0) {
+                        applyDocData(refreshed.doc_data);
+                    } else {
+                        setFormData((prev) => ({ ...prev, name: docname }));
+                    }
+                } catch {
+                    setFormData((prev) => ({ ...prev, name: docname }));
+                }
+                setLoadState("ready");
+            } else {
+                setErrors(["Save failed. Please try again."]);
+                setLoadState("ready");
+            }
+        } catch (err: any) {
+            setErrors([err.message || "An unexpected error occurred."]);
+            setLoadState("ready");
+        }
+    };
+
+    const inputCls =
+        "w-full rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#18181B] px-3 py-2 text-[13px] font-medium text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] focus:outline-none focus:ring-2 focus:ring-violet-400/30 focus:border-violet-400 transition-colors disabled:opacity-60 disabled:cursor-not-allowed";
+    const labelCls =
+        "block text-[10px] font-extrabold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1";
+
+    const selectOpts = (opts: Array<Record<string, any>>) =>
+        opts.map((o) => (
+            <option key={o.value} value={o.value}>
+                {o.label}
+            </option>
+        ));
+
+    const isSaving = loadState === "saving";
+    const childAccountOpts =
+        linkOptions.settlement_accounts_account_head || linkOptions.account_head || [];
+
+    const amtStr = (v: number | string) =>
+        v !== "" && !isNaN(Number(v))
+            ? Number(v).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })
+            : "—";
+
+    if (loadState === "loading") {
+        return (
+            <div className="flex items-center justify-center py-20">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-violet-500 border-t-transparent" />
+            </div>
+        );
+    }
+
+    if (loadState === "load_error") {
+        return (
+            <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+                <AlertCircleIcon className="h-9 w-9 text-red-400" />
+                <p className="text-[14px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
+                    Failed to load Final Settlement
+                </p>
+                <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
+                    Check your connection and reload the page.
+                </p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-5">
+            {/* Doc badge */}
+            {formData.name && (
+                <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-mono bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-300 px-2.5 py-1 rounded-md border border-violet-200 dark:border-violet-800">
+                        {formData.name}
+                    </span>
+                    {saveSuccess && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                            <CheckCircle2Icon className="h-3.5 w-3.5" /> Saved
+                        </span>
+                    )}
+                </div>
+            )}
+
+            {/* Validation errors */}
+            {errors.length > 0 && (
+                <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20 px-4 py-3 space-y-1">
+                    <p className="text-[11px] font-extrabold uppercase tracking-wider text-red-600 dark:text-red-400 mb-1">
+                        Please fix the following errors
+                    </p>
+                    {errors.map((e, i) => (
+                        <p key={i} className="text-[12px] font-semibold text-red-700 dark:text-red-300">
+                            • {e}
+                        </p>
+                    ))}
+                </div>
+            )}
+
+            {/* Main scalar fields */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label className={labelCls}>
+                        Purchase Order Number <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                        className={inputCls}
+                        value={formData.purchase_order_number}
+                        onChange={(e) => setField("purchase_order_number", e.target.value)}
+                        disabled={isSaving}
+                    >
+                        <option value="">— Select Sanction Sheet —</option>
+                        {(linkOptions.purchase_order_number || []).map((o) => (
+                            <option key={o.value} value={o.value}>
+                                {o.value}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                <div>
+                    <label className={labelCls}>PO Total Value</label>
+                    <div className="flex items-center h-[38px] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] px-3 text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
+                        {amtStr(formData.po_total_value)}
+                    </div>
+                </div>
+
+                <div>
+                    <label className={labelCls}>
+                        Account Head <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                        className={inputCls}
+                        value={formData.account_head}
+                        onChange={(e) => setField("account_head", e.target.value)}
+                        disabled={isSaving}
+                    >
+                        <option value="">— Select —</option>
+                        {selectOpts(linkOptions.account_head || [])}
+                    </select>
+                </div>
+
+                <div>
+                    <label className={labelCls}>
+                        Purchase Settlement Amount <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className={inputCls}
+                        placeholder="0.00"
+                        value={formData.purchase_settlement_amount}
+                        onChange={(e) =>
+                            setField("purchase_settlement_amount", e.target.value as any)
+                        }
+                        onWheel={(e) => e.currentTarget.blur()}
+                        disabled={isSaving}
+                    />
+                </div>
+
+                <div>
+                    <label className={labelCls}>Total Committed Till Now</label>
+                    <div className="flex items-center h-[38px] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] px-3 text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
+                        {amtStr(formData.total_committed_till_now)}
+                    </div>
+                </div>
+
+                <div>
+                    <label className={labelCls}>Customer / Delivery</label>
+                    <input
+                        type="text"
+                        className={inputCls}
+                        placeholder="Vendor name or delivery info"
+                        value={formData.customer_delivery}
+                        onChange={(e) => setField("customer_delivery", e.target.value)}
+                        disabled={isSaving}
+                    />
+                </div>
+            </div>
+
+            {/* Settlement Accounts child table */}
+            <div>
+                <HighlightHeading
+                    icon={<ReceiptIcon />}
+                    title="Settlement Accounts"
+                    tone="settlement"
+                />
+                <div className="overflow-hidden rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46]">
+                    {formData.settlement_accounts.length > 0 ? (
+                        <table className="w-full text-[12px]">
+                            <thead>
+                                <tr className="border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-violet-50/80 dark:bg-violet-950/20">
+                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] w-8">
+                                        #
+                                    </th>
+                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">
+                                        Account Head <span className="text-red-400">*</span>
+                                    </th>
+                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] w-36">
+                                        Amount <span className="text-red-400">*</span>
+                                    </th>
+                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">
+                                        Particulars
+                                    </th>
+                                    <th className="px-3 py-2 w-9" />
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {formData.settlement_accounts.map((row, i) => (
+                                    <tr
+                                        key={row.name || i}
+                                        className={cn(
+                                            "border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0",
+                                            i % 2 === 1 && "bg-[#FAFAF9]/60 dark:bg-zinc-800/20",
+                                        )}
+                                    >
+                                        <td className="px-3 py-2 text-[#71717A] dark:text-[#A1A1AA] font-mono">
+                                            {i + 1}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            <select
+                                                className={inputCls}
+                                                value={row.account_head}
+                                                onChange={(e) =>
+                                                    updateRow(i, "account_head", e.target.value)
+                                                }
+                                                disabled={isSaving}
+                                            >
+                                                <option value="">— Select —</option>
+                                                {selectOpts(childAccountOpts)}
+                                            </select>
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                className={inputCls}
+                                                placeholder="0.00"
+                                                value={row.amount}
+                                                onChange={(e) =>
+                                                    updateRow(i, "amount", e.target.value)
+                                                }
+                                                onWheel={(e) => e.currentTarget.blur()}
+                                                disabled={isSaving}
+                                            />
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            <input
+                                                type="text"
+                                                className={inputCls}
+                                                placeholder="Description…"
+                                                value={row.particulars}
+                                                onChange={(e) =>
+                                                    updateRow(i, "particulars", e.target.value)
+                                                }
+                                                disabled={isSaving}
+                                            />
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => removeRow(i)}
+                                                disabled={isSaving}
+                                                className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20 transition-colors disabled:opacity-50"
+                                            >
+                                                <Trash2Icon className="h-3.5 w-3.5" />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                                <tr className="border-t-2 border-[#E4E4E7] dark:border-[#3F3F46] bg-violet-50/60 dark:bg-violet-950/10">
+                                    <td className="px-3 py-2" />
+                                    <td className="px-3 py-2 text-[10px] font-extrabold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">
+                                        Total
+                                    </td>
+                                    <td className="px-3 py-2 text-[13px] font-extrabold text-violet-700 dark:text-violet-300">
+                                        {amtStr(
+                                            formData.settlement_accounts.reduce(
+                                                (s, r) => s + (parseFloat(String(r.amount)) || 0),
+                                                0,
+                                            ),
+                                        )}
+                                    </td>
+                                    <td colSpan={2} />
+                                </tr>
+                            </tbody>
+                        </table>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-8 text-center gap-2">
+                            <ReceiptIcon className="h-7 w-7 text-[#E4E4E7] dark:text-[#3F3F46]" />
+                            <p className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">
+                                No settlement accounts added yet.
+                            </p>
+                        </div>
+                    )}
+                </div>
+                <button
+                    type="button"
+                    onClick={addRow}
+                    disabled={isSaving}
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-dashed border-violet-300 dark:border-violet-700 px-3 py-1.5 text-[11px] font-bold text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950/20 transition-colors disabled:opacity-50"
+                >
+                    <PlusIcon className="h-3.5 w-3.5" /> Add Row
+                </button>
+            </div>
+
+            {/* Attachments */}
+            <div>
+                <HighlightHeading icon={<PaperclipIcon />} title="Attachments" tone="po" />
+                {typeof formData.upload_attachments === "string" &&
+                formData.upload_attachments ? (
+                    <div className="flex items-center gap-3">
+                        <a
+                            href={formData.upload_attachments}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50 dark:bg-zinc-800 text-[#D97757] hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-[12px] font-medium"
+                        >
+                            <FileIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                            <span className="truncate max-w-[220px]">
+                                {(formData.upload_attachments as string).split("/").pop()}
+                            </span>
+                            <ExternalLinkIcon className="h-3 w-3 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </a>
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setFormData((prev) => ({ ...prev, upload_attachments: null }))
+                            }
+                            className="text-[11px] font-semibold text-red-500 hover:underline"
+                        >
+                            Remove
+                        </button>
+                    </div>
+                ) : typeof formData.upload_attachments === "object" &&
+                  formData.upload_attachments?.file_name ? (
+                    <div className="flex items-center gap-3">
+                        <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
+                            <FileIcon className="h-3.5 w-3.5 text-violet-500" />
+                            {formData.upload_attachments.file_name}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setFormData((prev) => ({ ...prev, upload_attachments: null }))
+                            }
+                            className="text-[11px] font-semibold text-red-500 hover:underline"
+                        >
+                            Remove
+                        </button>
+                    </div>
+                ) : (
+                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-[#E4E4E7] dark:border-[#3F3F46] px-4 py-2.5 text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA] hover:border-violet-300 hover:text-violet-700 dark:hover:border-violet-700 dark:hover:text-violet-300 transition-colors">
+                        <PaperclipIcon className="h-4 w-4" />
+                        Choose file…
+                        <input
+                            type="file"
+                            className="hidden"
+                            onChange={handleFile}
+                            disabled={isSaving}
+                        />
+                    </label>
+                )}
+            </div>
+
+            {/* Save */}
+            <div className="pt-2 flex items-center gap-3 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-[12px] font-extrabold text-white hover:bg-violet-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-sm mt-4"
+                >
+                    {isSaving ? (
+                        <>
+                            <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                            Saving…
+                        </>
+                    ) : (
+                        <>
+                            <SaveIcon className="h-3.5 w-3.5" />
+                            {formData.name ? "Update Final Settlement" : "Save Final Settlement"}
+                        </>
+                    )}
+                </button>
+                {saveSuccess && !isSaving && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400 mt-4">
+                        <CheckCircle2Icon className="h-3.5 w-3.5" /> Saved successfully
+                    </span>
+                )}
+            </div>
+        </div>
+    );
+};
+
 // --- TABS ---
 interface Tab {
     id: TabId;
@@ -3112,6 +2446,13 @@ const TABS: Tab[] = [
         eyebrow: "Order",
         description: "PO documents",
     },
+    {
+        id: "settlement",
+        label: "Final Settlement",
+        icon: <ReceiptIcon className="w-4 h-4" />,
+        eyebrow: "Settlement",
+        description: "Final settlement",
+    },
 ];
 
 // --- MAIN COMPONENT ---
@@ -3137,9 +2478,6 @@ const DirectPurchaseDetails: React.FC = () => {
     const [activeTab, setActiveTab] = useState<TabId>(
         (searchParams.get("tab") as TabId) || "details",
     );
-    const [sidebarComment, setSidebarComment] = useState("");
-    const [isAddingComment, setIsAddingComment] = useState(false);
-    const [activityRefreshKey, setActivityRefreshKey] = useState(0);
     const [isGeneratingPO, setIsGeneratingPO] = useState(false);
     const [isGeneratingP11, setIsGeneratingP11] = useState(false);
     const [isOpeningSanctionSheet, setIsOpeningSanctionSheet] = useState(false);
@@ -3169,6 +2507,18 @@ const DirectPurchaseDetails: React.FC = () => {
         limit: 1,
     });
     const p11DocName = p11ListData?.message?.[0]?.name ?? "";
+
+    // Check if Sanction Sheet exists for this Direct Purchase
+    const { data: ssListData, mutate: reloadSsCheck } = useFrappeGetCall<{
+        message: { name: string }[];
+    }>("frappe.client.get_list", {
+        doctype: "sanction_sheet",
+        filters: JSON.stringify([["app_id", "=", id || ""]]),
+        fields: JSON.stringify(["name"]),
+        limit: 1,
+    });
+    const ssDocName = ssListData?.message?.[0]?.name ?? "";
+    const ssExists = !!ssDocName;
 
     // Commit Payment state
     const [resolvedProjectNo, setResolvedProjectNo] = useState<string>("");
@@ -3256,6 +2606,11 @@ const DirectPurchaseDetails: React.FC = () => {
         isStaffRnD &&
         isCommittedForGate === false;
 
+    const sanctionRequired =
+        data?.workflow_state === "RDP-11 Verified" &&
+        isStaffRnD &&
+        !ssExists;
+
     useEffect(() => {
         if (budgetHeads.length > 0 && !commitHead)
             setCommitHead(budgetHeads[0]);
@@ -3272,8 +2627,8 @@ const DirectPurchaseDetails: React.FC = () => {
     const loadData = () => {
         if (id) {
             reloadData();
+            reloadSsCheck();
             clearActivityLogCache("Direct Purchase", id);
-            setActivityRefreshKey((k) => k + 1);
         }
     };
 
@@ -3330,24 +2685,6 @@ const DirectPurchaseDetails: React.FC = () => {
         fetchSSData();
     }, [activeTab, id, data?.workflow_state, poSanctionData]);
 
-    const handleSidebarCommentSubmit = async () => {
-        if (!sidebarComment.trim() || !id) return;
-        setIsAddingComment(true);
-        try {
-            await addComment({
-                doctype: "Direct Purchase",
-                docname: id,
-                content: sidebarComment,
-            });
-            setSidebarComment("");
-            clearActivityLogCache("Direct Purchase", id);
-            setActivityRefreshKey((k) => k + 1);
-        } catch (err) {
-            console.error("Error adding comment:", err);
-        } finally {
-            setIsAddingComment(false);
-        }
-    };
 
 
 
@@ -3576,39 +2913,62 @@ const DirectPurchaseDetails: React.FC = () => {
                                 p11DocName={p11DocName}
                                 onP11Missing={() => setActiveTab("p11")}
                                 commitRequired={commitRequired}
+                                sanctionRequired={sanctionRequired}
+                                onSanctionMissing={() => setActiveTab("sanction")}
                             />
                         )}
                     </div>
                 </PageHeader>
 
-                <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-5">
-                    {/* Main content column */}
-                    <div className="min-w-0 space-y-0">
+                <DPWorkflowTimeline
+                    workflowState={data.workflow_state}
+                    accountHead={data.account_head}
+                    totalEstimate={data.total_estimate}
+                />
+
+                <div className="min-w-0 space-y-0">
                         {/* Tab navigation */}
-                        <div className="mb-4 grid grid-cols-1 gap-2 rounded-2xl border border-[#E4E4E7] bg-white p-2 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A] sm:grid-cols-2 lg:grid-cols-4">
-                            {TABS.map((tab) => (
+                        <div className={cn("mb-4 grid grid-cols-1 gap-2 rounded-2xl border border-[#E4E4E7] bg-white p-2 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A] sm:grid-cols-2", isStaffRnD ? "lg:grid-cols-5" : "lg:grid-cols-4")}>
+                            {TABS.filter((tab) => tab.id !== "settlement" || isStaffRnD).map((tab) => {
+                                const showSanctionPulse =
+                                    tab.id === "sanction" &&
+                                    sanctionRequired &&
+                                    activeTab !== "sanction";
+                                return (
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
                                     className={cn(
-                                        "group inline-flex min-w-0 items-center gap-2 rounded-xl border px-3 py-2.5 text-left transition-all duration-150",
+                                        "group relative inline-flex min-w-0 items-center gap-2 rounded-xl border px-3 py-2.5 text-left transition-all duration-150",
                                         activeTab === tab.id
                                             ? TAB_TONES[tab.id].active
                                             : "border-transparent text-[#71717A] hover:border-[#E4E4E7] hover:bg-[#FAFAF9] hover:text-[#3F3F46] dark:text-[#A1A1AA] dark:hover:border-[#3F3F46] dark:hover:bg-[#18181B] dark:hover:text-[#E4E4E7]",
+                                        showSanctionPulse && "border-amber-300 dark:border-amber-700",
                                     )}
                                 >
+                                    {/* Pulse dot tutorial indicator */}
+                                    {showSanctionPulse && (
+                                        <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+                                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                                            <span className="relative inline-flex h-3.5 w-3.5 rounded-full bg-amber-500" />
+                                        </span>
+                                    )}
                                     <span
                                         className={cn(
                                             "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors [&_svg]:h-3.5 [&_svg]:w-3.5",
                                             activeTab === tab.id
                                                 ? "bg-white/70 text-current dark:bg-white/10"
                                                 : TAB_TONES[tab.id].icon,
+                                            showSanctionPulse && "bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400",
                                         )}
                                     >
                                         {tab.icon}
                                     </span>
                                     <span className="min-w-0">
-                                        <span className="block truncate text-[11px] font-extrabold uppercase tracking-wide">
+                                        <span className={cn(
+                                            "block truncate text-[11px] font-extrabold uppercase tracking-wide",
+                                            showSanctionPulse && "text-amber-700 dark:text-amber-400",
+                                        )}>
                                             {tab.label}
                                         </span>
                                         <span className="mt-0.5 block truncate text-[10px] font-semibold normal-case tracking-normal opacity-75">
@@ -3616,7 +2976,8 @@ const DirectPurchaseDetails: React.FC = () => {
                                         </span>
                                     </span>
                                 </button>
-                            ))}
+                                );
+                            })}
                         </div>
 
                         {/* Tab content */}
@@ -3687,21 +3048,49 @@ const DirectPurchaseDetails: React.FC = () => {
                                         action={
                                             data?.workflow_state === "RDP-11 Verified" && isStaffRnD ? (
                                                 <button
-                                                    onClick={
-                                                        handleOpenSanctionSheet
-                                                    }
-                                                    disabled={
-                                                        isOpeningSanctionSheet
-                                                    }
-                                                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#D97757] px-3 py-2 text-[12px] font-bold text-white hover:bg-[#c66a4e] disabled:opacity-60"
+                                                    onClick={handleOpenSanctionSheet}
+                                                    disabled={isOpeningSanctionSheet}
+                                                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-[12px] font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
                                                 >
                                                     {isOpeningSanctionSheet
                                                         ? "Opening…"
-                                                        : "Sanction Sheet"}
+                                                        : ssExists
+                                                        ? "Edit Sanction Sheet"
+                                                        : "Create Sanction Sheet"}
                                                 </button>
                                             ) : undefined
                                         }
                                     />
+
+                                    {/* Step guidance for RDP-11 Verified state */}
+                                    {data?.workflow_state === "RDP-11 Verified" && isStaffRnD && (
+                                        ssExists ? (
+                                            <div className="mb-4 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-800 dark:bg-emerald-950/20">
+                                                <CheckCircle2Icon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                                <div>
+                                                    <p className="text-[12px] font-extrabold text-emerald-800 dark:text-emerald-300">
+                                                        Sanction Sheet created
+                                                    </p>
+                                                    <p className="mt-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                                                        Now click the workflow action button at the top of the page to proceed.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-900/20">
+                                                <AlertCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                                                <div>
+                                                    <p className="text-[12px] font-extrabold text-amber-800 dark:text-amber-300">
+                                                        Action required — create the Sanction Sheet first
+                                                    </p>
+                                                    <p className="mt-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-400">
+                                                        Click <strong>Create Sanction Sheet</strong> above to fill in and save the sanction sheet. The workflow action button will unlock once the sanction sheet is saved.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )
+                                    )}
+
                                     <LinkedDocTab
                                         doctype="sanction_sheet"
                                         filterField="app_id"
@@ -3822,137 +3211,72 @@ const DirectPurchaseDetails: React.FC = () => {
                                     )}
                                 </>
                             )}
-                        </ClaudeCard>
-                    </div>
 
-                    {/* Sidebar */}
-                    <div className="min-w-0 space-y-4">
-                        {/* Meta Info */}
-                        <ClaudeCard>
-                            <div className="space-y-4">
-                                <div>
-                                    <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
-                                        Created By
-                                    </p>
-                                    <div className="flex items-center gap-2 text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
-                                        <UserIcon className="w-3.5 h-3.5 text-[#71717A] dark:text-[#A1A1AA]" />
-                                        {data.owner || "—"}
-                                    </div>
-                                </div>
-                                <div>
-                                    <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
-                                        Created On
-                                    </p>
-                                    <div className="flex items-center gap-2 text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
-                                        <CalendarIcon className="w-3.5 h-3.5 text-[#71717A] dark:text-[#A1A1AA]" />
-                                        {data.creation
-                                            ? formatDate(data.creation, "long")
-                                            : "—"}
-                                    </div>
-                                </div>
-                                <div>
-                                    <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
-                                        Last Modified
-                                    </p>
-                                    <div className="flex items-center gap-2 text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
-                                        <CalendarIcon className="w-3.5 h-3.5 text-[#71717A] dark:text-[#A1A1AA]" />
-                                        {data.modified
-                                            ? formatDate(data.modified, "short")
-                                            : "—"}
-                                    </div>
-                                </div>
-                            </div>
+                            {activeTab === "settlement" && id && isStaffRnD && (
+                                <>
+                                    <TabSectionHeader
+                                        icon={<ReceiptIcon />}
+                                        eyebrow="Settlement"
+                                        title="Final Settlement"
+                                        description="Submit the final settlement for this direct purchase after the PO is fulfilled."
+                                        tone="settlement"
+                                    />
+                                    <FinalSettlementTab dpId={id} />
+                                </>
+                            )}
                         </ClaudeCard>
 
-                        {/* Activity Log (new endpoint) */}
-                        {id && (
-                            <ClaudeCard title="Activity Log">
-                                <ActivityLog key={activityRefreshKey} doctype="Direct Purchase" docname={id} />
-                            </ClaudeCard>
-                        )}
-
-                        {/* Commit Payment — centralised component handles staging check + form/display card */}
+                        {/* Commit Payment */}
                         {isStaffRnD &&
                             ["Pending Staff Approval", "Sanction Approved"].includes(data.workflow_state) && (
-                                <CommitPayment
-                                    doctype="Direct Purchase"
-                                    docName={id || ""}
-                                    projectName={projectTitle}
-                                    budgetHeads={budgetHeads}
-                                    actualBalance={actualBalance}
-                                    onCommitSuccess={() => loadData()}
-                                    onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
-                                />
+                                <div className="mt-4">
+                                    <CommitPayment
+                                        doctype="Direct Purchase"
+                                        docName={id || ""}
+                                        projectName={projectTitle}
+                                        budgetHeads={budgetHeads}
+                                        actualBalance={actualBalance}
+                                        onCommitSuccess={() => loadData()}
+                                        onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
+                                    />
+                                </div>
                             )}
 
                         {/* Record Payment */}
                         {isStaffRnD &&
                             data.workflow_state === "Pending Staff Approval" &&
                             isCommitted && (
-                                <ClaudeCard
-                                    title="Record Payment"
-                                    accentTop
-                                >
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
-                                                Payment Amount (₹)
-                                            </label>
-                                            <input
-                                                type="number"
-                                                className="w-full px-3 py-2 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg text-sm bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
-                                                placeholder="Enter payment amount"
-                                                value={paymentAmount}
-                                                onChange={(e) =>
-                                                    setPaymentAmount(
-                                                        e.target.value,
-                                                    )
-                                                }
-                                                onWheel={(e) =>
-                                                    e.currentTarget.blur()
-                                                }
-                                            />
+                                <div className="mt-4">
+                                    <ClaudeCard title="Record Payment" accentTop>
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="block text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
+                                                    Payment Amount (₹)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    className="w-full px-3 py-2 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg text-sm bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
+                                                    placeholder="Enter payment amount"
+                                                    value={paymentAmount}
+                                                    onChange={(e) => setPaymentAmount(e.target.value)}
+                                                    onWheel={(e) => e.currentTarget.blur()}
+                                                />
+                                            </div>
+                                            <ClaudeButton
+                                                variant="primary"
+                                                className="w-full"
+                                                onClick={handlePayment}
+                                                disabled={isPaying}
+                                            >
+                                                {isPaying ? "Recording…" : "Record Payment"}
+                                            </ClaudeButton>
                                         </div>
-                                        <ClaudeButton
-                                            variant="primary"
-                                            className="w-full"
-                                            onClick={handlePayment}
-                                            disabled={isPaying}
-                                        >
-                                            {isPaying
-                                                ? "Recording…"
-                                                : "Record Payment"}
-                                        </ClaudeButton>
-                                    </div>
-                                </ClaudeCard>
+                                    </ClaudeCard>
+                                </div>
                             )}
-
-                        {/* Add Comment */}
-                        <ClaudeCard title="Add Comment">
-                            <Textarea
-                                rows={3}
-                                placeholder="Type your comment…"
-                                value={sidebarComment}
-                                onChange={(e) =>
-                                    setSidebarComment(e.target.value)
-                                }
-                                className="w-full text-sm resize-none border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#71717A] dark:placeholder:text-[#A1A1AA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-100 dark:focus-visible:ring-zinc-800 focus-visible:border-zinc-400 dark:focus-visible:border-zinc-500 transition-all duration-200 mb-3"
-                            />
-                            <ClaudeButton
-                                variant="primary"
-                                className="w-full"
-                                onClick={handleSidebarCommentSubmit}
-                                disabled={
-                                    isAddingComment || !sidebarComment.trim()
-                                }
-                            >
-                                {isAddingComment
-                                    ? "Submitting…"
-                                    : "Submit Comment"}
-                            </ClaudeButton>
-                        </ClaudeCard>
                     </div>
-                </div>
+
+                    {id && <FloatingActivityLogButton doctype="Direct Purchase" docname={id} />}
             </main>
         </div>
     );

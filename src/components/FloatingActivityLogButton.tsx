@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { MessageSquare, X } from "lucide-react";
-import { ActivityLog } from "@/components/ActivityLog";
+import { MessageSquare, X, Send } from "lucide-react";
+import { ActivityLog, clearActivityLogCache } from "@/components/ActivityLog";
+import { useFrappePostCall } from "frappe-react-sdk";
 
 interface FloatingActivityLogButtonProps {
   doctype: string;
@@ -12,6 +13,28 @@ export const FloatingActivityLogButton: React.FC<FloatingActivityLogButtonProps>
   docname,
 }) => {
   const [open, setOpen] = useState(false);
+  const [comment, setComment] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const { call: addComment } = useFrappePostCall(
+    "rndopsapp.rndopsapp.api.add_project_comment"
+  );
+
+  const handleSubmit = async () => {
+    if (!comment.trim() || !docname) return;
+    setIsSubmitting(true);
+    try {
+      await addComment({ doctype, docname, content: comment.trim() });
+      setComment("");
+      clearActivityLogCache(doctype, docname);
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      console.error("Error adding comment:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <>
@@ -38,6 +61,7 @@ export const FloatingActivityLogButton: React.FC<FloatingActivityLogButtonProps>
             aria-label="Close Activity Log"
           />
           <aside className="relative flex h-full w-full max-w-md animate-in slide-in-from-right duration-300 flex-col overflow-hidden bg-white shadow-2xl dark:bg-[#27272A]">
+            {/* Header */}
             <div className="flex items-center justify-between border-b border-[#E4E4E7] bg-[#FAFAF9] p-4 dark:border-[#3F3F46] dark:bg-[#18181B]">
               <div className="flex items-center gap-2">
                 <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-[#2563EB] dark:bg-blue-950/30 dark:text-blue-300">
@@ -56,8 +80,40 @@ export const FloatingActivityLogButton: React.FC<FloatingActivityLogButtonProps>
                 <X className="h-5 w-5" />
               </button>
             </div>
+
+            {/* Activity list */}
             <div className="flex-1 overflow-y-auto bg-[#FAFAF9] p-4 dark:bg-[#18181B]">
-              <ActivityLog doctype={doctype} docname={docname} maxHeight="100%" />
+              <ActivityLog key={refreshKey} doctype={doctype} docname={docname} maxHeight="100%" />
+            </div>
+
+            {/* Add comment */}
+            <div className="border-t border-[#E4E4E7] bg-white p-4 dark:border-[#3F3F46] dark:bg-[#27272A]">
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-2">
+                Add Comment
+              </p>
+              <textarea
+                rows={3}
+                placeholder="Type your comment…"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleSubmit();
+                }}
+                disabled={isSubmitting}
+                className="w-full resize-none rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] px-3 py-2 text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/25 focus:border-[#4A6CF7] transition-colors disabled:opacity-60 mb-2"
+              />
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={isSubmitting || !comment.trim()}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-[#4A6CF7] px-4 py-2 text-[12px] font-bold text-white transition-colors hover:bg-[#3B5CF5] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Send className="h-3.5 w-3.5" />
+                {isSubmitting ? "Submitting…" : "Submit Comment"}
+              </button>
+              <p className="mt-1.5 text-center text-[10px] text-zinc-400 dark:text-zinc-600">
+                Ctrl + Enter to submit
+              </p>
             </div>
           </aside>
         </div>

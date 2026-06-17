@@ -74,6 +74,8 @@ export interface DynamicFormRendererProps {
   readOnly?: boolean;
   /** Fieldnames that should render as searchable autocomplete instead of a plain select dropdown */
   autocompleteFields?: string[];
+  /** Per-field async search functions — when provided for a field, enables real-time backend search */
+  asyncSearchFields?: Record<string, (query: string) => Promise<LinkOption[]>>;
   /** Field-level validation messages to display below specific fields */
   fieldMessages?: Record<string, FieldMessage>;
   /** Hide section-break headers when this renderer is embedded inside an already titled card */
@@ -169,6 +171,7 @@ const MemoizedFormField = memo(
     onFileChange,
     onFieldChangeWithSideEffects,
     isAutocomplete,
+    asyncSearchFn,
   }: {
     field: FormField;
     value: any;
@@ -179,6 +182,7 @@ const MemoizedFormField = memo(
     onFileChange: (fieldname: string, file: File | null) => void;
     onFieldChangeWithSideEffects?: (fieldname: string, value: any) => void;
     isAutocomplete?: boolean;
+    asyncSearchFn?: (query: string) => Promise<LinkOption[]>;
   }) => {
     if (
       !field.label &&
@@ -239,18 +243,20 @@ const MemoizedFormField = memo(
             );
           }
 
-          // Render searchable autocomplete for fields marked via autocompleteFields prop
-          if (isAutocomplete && options && options.length > 0) {
+          // Render searchable autocomplete — async (real-time) or static
+          if (asyncSearchFn || (isAutocomplete && options && options.length > 0)) {
             return (
               <div className="relative flex flex-col pt-1">
                 <AutocompleteEmail
                   className={inputClasses}
                   value={value ?? ""}
                   onChange={(val) => handleChange(field.fieldname, val)}
-                  options={options}
+                  options={options ?? []}
                   searchByLabel
-                  placeholder={`Enter ${displayLabel}...`}
+                  showAllOnFocus
+                  placeholder={`Search ${displayLabel}...`}
                   disabled={isReadOnly}
+                  onAsyncSearch={asyncSearchFn}
                 />
               </div>
             );
@@ -819,6 +825,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   onTableLinkChange,
   readOnly = false,
   autocompleteFields,
+  asyncSearchFields,
   fieldMessages,
   hideSectionHeaders = false,
   hideTableLabels = false,
@@ -994,6 +1001,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
           onFileChange={onFileChange}
           onFieldChangeWithSideEffects={onFieldChangeWithSideEffects}
           isAutocomplete={autocompleteFields?.includes(field.fieldname)}
+          asyncSearchFn={asyncSearchFields?.[field.fieldname]}
         />
         {fieldMsg && (
           <div
