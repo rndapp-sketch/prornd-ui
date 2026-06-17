@@ -106,6 +106,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
     const [fundReceived, setFundReceived] = useState<any>(null);
     const [fundLoading, setFundLoading] = useState(true);
     const [fundError, setFundError] = useState<any>(null);
+    const [prjregProjectNo, setPrjregProjectNo] = useState<string>("");
 
     // Replace useFrappeGetDoc with manual fetch for better control and debugging
     useEffect(() => {
@@ -152,6 +153,21 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
 
         fetchFundReceived();
     }, [fundReceivedName]);
+
+    // Fetch project_no from Project Registration once fundReceived is available
+    useEffect(() => {
+        const prjregName = fundReceived?.prjreg_title || fundReceived?.project_reference;
+        if (!prjregName) return;
+        fetch(`/api/v2/document/Project%20Registration/${encodeURIComponent(prjregName)}?fields=["project_no"]`, {
+            credentials: "include",
+        })
+            .then((r) => r.ok ? r.json() : null)
+            .then((json) => {
+                const no = json?.data?.project_no;
+                if (no) setPrjregProjectNo(no);
+            })
+            .catch(() => {});
+    }, [fundReceived]);
 
     // Fetch deposit slip by searching across all doctypes for fund_received_ref
     useEffect(() => {
@@ -207,63 +223,26 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
         fetchDepositSlip();
     }, [fundReceivedName]);
 
-    // Resolve budget head names from account_head IDs
+    // Resolve budget head names from account_head IDs (numeric id field)
     useEffect(() => {
         const resolveBudgetHeadNames = async () => {
             if (!fundReceived?.received_amt_breakup) return;
-
-            const breakup = fundReceived.received_amt_breakup;
-            const uniqueHeadIds = [
-                ...new Set(breakup.map((row: any) => row.account_head).filter(Boolean)),
-            ];
-
-            const nameMap: Record<string, string> = {}; // { id: name }
-
-            for (const headId of uniqueHeadIds) {
-                try {
-                    // Optimized: Check if we can get it from v2 API first (simpler)
-                    const response = await fetch(
-                        `/api/v2/document/Budget%20Head/${headId}`,
-                        {
-                            credentials: "include",
-                        },
-                    );
-
-                    if (response.ok) {
-                        const json = await response.json();
-                        if (json.data) {
-                            nameMap[headId as string] =
-                                json.data.budget_head || json.data.name;
-                            continue;
-                        }
-                    }
-
-                    // Fallback to get_list for robust search
-                    const listResp = await fetch("/api/method/frappe.client.get_list", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        credentials: "include",
-                        body: JSON.stringify({
-                            doctype: "Budget Head",
-                            filters: { name: headId },
-                            fields: ["name", "budget_head"],
-                            limit_page_length: 1,
-                        }),
-                    });
-
-                    if (listResp.ok) {
-                        const result = await listResp.json();
-                        const list = result.message;
-                        if (list && list.length > 0) {
-                            const d = list[0];
-                            nameMap[headId as string] = d.budget_head || d.name;
-                        }
-                    }
-                } catch (err) {
-                    console.error(`Failed to resolve budget head: ${headId}`, err);
+            try {
+                const response = await fetch(
+                    '/api/v2/document/Budget%20Head?fields=["budget_head","id"]&limit_page_length=0',
+                    { credentials: "include" },
+                );
+                if (!response.ok) return;
+                const json = await response.json();
+                const nameMap: Record<string, string> = {};
+                for (const bh of json.data || []) {
+                    if (bh.id != null) nameMap[String(bh.id)] = bh.budget_head;
+                    if (bh.name) nameMap[bh.name] = bh.budget_head;
                 }
+                setResolvedHeadNames(nameMap);
+            } catch (err) {
+                console.error("Failed to resolve budget head names", err);
             }
-            setResolvedHeadNames(nameMap);
         };
         resolveBudgetHeadNames();
     }, [fundReceived]);
@@ -468,7 +447,12 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                     {/* Deposit Slip Document */}
                     <div className="deposit-slip-print-area">
                         <DepositSlipDocument
-                            depositSlip={depositSlip}
+                            depositSlip={{
+                                ...depositSlip,
+                                project_no: depositSlip.project_no
+                                    || prjregProjectNo
+                                    || depositSlip.project_registration,
+                            }}
                             type={(() => {
                                 // Detect deposit type from the actual doctype that was found
                                 switch (depositSlipDoctype) {

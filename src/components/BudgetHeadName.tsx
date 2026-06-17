@@ -9,16 +9,11 @@ interface BudgetHeadNameProps {
     id?: string | number;
 }
 
-const isNumericId = (v: string | number) =>
-    typeof v === "number" || (typeof v === "string" && /^\d+$/.test(v.trim()));
 
 export const BudgetHeadName = ({ value, ID, id }: BudgetHeadNameProps) => {
     const resolved = value ?? ID ?? id;
     const hasValue = resolved != null && resolved !== "";
-    const numeric = hasValue && isNumericId(resolved!);
-    const filters = numeric
-        ? [["id", "=", Number(resolved)]]
-        : [["name", "=", resolved]];
+    const filters = [["name", "=", String(resolved)]];
     const fallback = String(resolved ?? "");
 
     const { data, isLoading, error } = useFrappeGetCall<{ message: { budget_head: string }[] }>(

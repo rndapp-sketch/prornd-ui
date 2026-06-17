@@ -31,7 +31,6 @@ import { useFrappeClientScript } from "../hooks/useFrappeClientScript";
 import { useDepositSlipCalculations } from "../hooks/useDepositSlipCalculations";
 import { useFrappeFetchFrom } from "../hooks/useFrappeFetchFrom";
 import { HoSApprovalView } from "./HoSApprovalView";
-import { BudgetHeadName } from "@/components/BudgetHeadName";
 import { ActivityLog } from "@/components/ActivityLog";
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { getFileUrl } from "@/utils/fileUtils";
@@ -438,13 +437,23 @@ const FundReceivedDetails = () => {
         { revalidateOnFocus: false },
     );
     const sanctionDetails = sanctionDoc || fallbackSanction;
-    const { data: budgetHeadsData } = useFrappeGetCall<{ message: { name: string; budget_head: string }[] }>(
+    const { data: budgetHeadsData } = useFrappeGetCall<{ message: { name: string; budget_head: string; id?: number | string }[] }>(
         "frappe.client.get_list",
-        { doctype: "Budget Head", fields: ["name", "budget_head"], limit_page_length: 0, order_by: "budget_head asc" },
+        { doctype: "Budget Head", fields: ["name", "budget_head", "id"], limit_page_length: 0, order_by: "budget_head asc" },
         "budget-head-list",
         { revalidateOnFocus: false },
     );
     const budgetHeadOptions = budgetHeadsData?.message ?? [];
+    // Map numeric id → display name (budget_head field)
+    const budgetHeadById = React.useMemo(() => {
+        const m: Record<string, string> = {};
+        for (const bh of budgetHeadOptions) {
+            if (bh.id != null) m[String(bh.id)] = bh.budget_head;
+            m[bh.name] = bh.budget_head;
+        }
+        return m;
+    }, [budgetHeadOptions]);
+    const resolveBudgetHead = (v: any) => budgetHeadById[String(v ?? "")] || String(v ?? "—");
     const isLoading = docLoading || (effectivePrjregTitle ? listLoading : false);
     const error = docError || (effectivePrjregTitle ? listError : null);
     const showDepositSlip = isRndMiscellaneous && !optimisticWorkflowState && !linkedDepositSlip && (
@@ -1153,7 +1162,7 @@ const FundReceivedDetails = () => {
                                             </>
                                         ) : received_amt_breakup?.length > 0 ? received_amt_breakup.map((item: any, idx: number) => (
                                             <tr key={item.name || idx} className="hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40 transition-colors">
-                                                <td className="px-4 py-3 text-[13px] text-[#3F3F46] dark:text-[#D4D4D8] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80"><BudgetHeadName value={item.account_head} /></td>
+                                                <td className="px-4 py-3 text-[13px] text-[#3F3F46] dark:text-[#D4D4D8] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">{resolveBudgetHead(item.account_head)}</td>
                                                 <td className="px-4 py-3 text-[13px] text-right font-bold text-[#D97757] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">{item.amount_received?.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</td>
                                                 <td className="px-4 py-3 text-[13px] text-[#71717A] dark:text-[#A1A1AA]">{item.remarks || "—"}</td>
                                             </tr>
@@ -1375,7 +1384,7 @@ const FundReceivedDetails = () => {
                                         <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
                                             {received_amt_breakup?.length > 0 ? received_amt_breakup.map((item: any, idx: number) => (
                                                 <tr key={idx} className="hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40">
-                                                    <td className="px-4 py-2 text-[12px] text-[#3F3F46] dark:text-[#D4D4D8] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80"><BudgetHeadName value={item.account_head} /></td>
+                                                    <td className="px-4 py-2 text-[12px] text-[#3F3F46] dark:text-[#D4D4D8] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">{resolveBudgetHead(item.account_head)}</td>
                                                     <td className="px-4 py-2 text-[12px] text-right font-bold text-[#D97757]">{item.amount_received?.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</td>
                                                 </tr>
                                             )) : <tr><td colSpan={2} className="px-4 py-6 text-center text-[12px] text-[#A1A1AA]">No breakup.</td></tr>}
