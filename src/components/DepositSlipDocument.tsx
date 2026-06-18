@@ -199,6 +199,14 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                 amount: depositSlip.project_account_balance
             });
         }
+
+        // additional_project_credits child table (used by Other Event Deposit Slip)
+        if (Array.isArray(depositSlip.additional_project_credits) && depositSlip.additional_project_credits.length > 0) {
+            depositSlip.additional_project_credits.forEach((item: any) => {
+                const label = item.project_no || item.project_name || item.label || 'Project Credit';
+                items.push({ label, amount: parseFloat(item.amount) || 0 });
+            });
+        }
         console.log("depositSlip:", depositSlip)
         return items.map((item, idx) => (
             <tr key={idx}>
@@ -497,7 +505,9 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                 [
                                     ...(depositSlip.credit_distribution || []),
                                     ...(depositSlip.pdf_credit_distribution || []),
+                                    ...(depositSlip.additional_project_credits || []),
                                 ].reduce((s: number, r: any) => s + (parseFloat(r.amount) || 0), 0) ||
+                                depositSlip.total ||
                                 depositSlip.overhead_amount
                             )}
                         </th>
