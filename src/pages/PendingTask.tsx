@@ -66,6 +66,7 @@ interface FlattenedTask {
     id: string;
     title: string;
     "Project Number": string;
+    projectNo: string;
     status: string;
     priority: string;
     creation: string;
@@ -402,10 +403,23 @@ const PendingTask: React.FC = () => {
                 if (isAdoRnd && !isHosRnd && record.status === "Pending HoS Approval") {
                     return;
                 }
+                const projectNo =
+                    record.project_no ||
+                    record.project_number ||
+                    record.project_ref_number ||
+                    record.project_code ||
+                    record.project_id ||
+                    record.prj_num ||
+                    record.travel_project_number ||
+                    record.igf_project_code ||
+                    record.upfa_project_code ||
+                    "";
+
                 tasks.push({
                     id: record.name,
                     title: record.title,
                     "Project Number": record.name,
+                    projectNo,
                     status: record.status,
                     priority: 'Medium',
                     creation: record.creation,
@@ -515,12 +529,17 @@ const PendingTask: React.FC = () => {
         }
         if (searchQuery.trim()) {
             const q = searchQuery.toLowerCase().trim();
-            tasks = tasks.filter(task =>
-                task.title?.toLowerCase().includes(q) ||
-                task["Project Number"]?.toLowerCase().includes(q) ||
-                task.owner?.toLowerCase().includes(q) ||
-                task.doctype?.toLowerCase().includes(q)
-            );
+            tasks = tasks.filter(task => {
+                const ownerUsername = task.owner?.split("@")[0]?.toLowerCase() ?? "";
+                return (
+                    task.title?.toLowerCase().includes(q) ||
+                    task["Project Number"]?.toLowerCase().includes(q) ||
+                    task.projectNo?.toLowerCase().includes(q) ||
+                    task.owner?.toLowerCase().includes(q) ||
+                    ownerUsername.includes(q) ||
+                    task.doctype?.toLowerCase().includes(q)
+                );
+            });
         }
         return tasks;
     }, [visibleTasks, selectedProjectType, selectedModule, searchQuery]);
@@ -720,7 +739,7 @@ const PendingTask: React.FC = () => {
                                 ref={searchInputRef}
                                 type="text"
                                 id="task-search"
-                                placeholder="Search tasks..."
+                                placeholder="Search by title, project no., owner…"
                                 value={searchQuery}
                                 onChange={handleSearchChange}
                                 className="h-10 pl-9 pr-9 w-56 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-200 shadow-sm transition-all"
