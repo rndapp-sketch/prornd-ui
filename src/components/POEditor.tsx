@@ -505,17 +505,20 @@ export const POEditor: React.FC<POEditorProps> = ({
     // Initialize PO data from sanction sheet — only once per document identity
     useEffect(() => {
         if (!ssData || Object.keys(ssData).length === 0) return;
-        const initKey = ssData.name || ssData.icss_number || dpId || "";
+        const initKey = ssData._icss_po_name || ssData.name || ssData.icss_number || dpId || "";
         if (initKey && initKey === lastInitKeyRef.current) return;
         lastInitKeyRef.current = initKey;
         setPoData({
             ...ssData,
             po_number: ssData.po_number || ssData.name || "",
-            po_date: ssData.po_date || new Date().toLocaleDateString("en-IN", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-            }),
+            po_date: (() => {
+                const raw = ssData.po_date;
+                if (!raw) return new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" });
+                // Convert YYYY-MM-DD → DD/MM/YYYY
+                const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+                if (isoMatch) return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]}`;
+                return raw;
+            })(),
             vendor_address: ssData.vendor_address || ssData.ss_name_of_firms || "",
             quotation_no: ssData.quotation_no || "",
             signee_name: ssData.signee_name || "",

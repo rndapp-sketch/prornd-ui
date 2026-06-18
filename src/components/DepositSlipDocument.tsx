@@ -207,6 +207,15 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                 items.push({ label, amount: parseFloat(item.amount) || 0 });
             });
         }
+
+        // Other Event Deposit Slip — license fee + GST breakdown
+        if (type === 'other_event' && items.length === 0) {
+            const licenseFee = parseFloat(depositSlip.training_fee) || 0;
+            const gst = parseFloat(depositSlip.gst_final) || parseFloat(depositSlip.gst_amount) || 0;
+            if (licenseFee > 0) items.push({ label: 'License Fee', amount: licenseFee });
+            if (gst > 0) items.push({ label: 'GST Amount', amount: gst });
+        }
+
         console.log("depositSlip:", depositSlip)
         return items.map((item, idx) => (
             <tr key={idx}>
@@ -535,7 +544,11 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
             {/* Copy To (if not already in signature) */}
             {type !== 'consultancy_t' && (
                 <div className="text-sm mt-4">
-                    Copy to: {depositSlip.principal_investigator || '-'}
+                    Copy to: {
+                        type === 'other_event'
+                            ? (depositSlip.principal_organizer || '-')
+                            : (depositSlip.principal_investigator || '-')
+                    }
                 </div>
             )}
         </div>
