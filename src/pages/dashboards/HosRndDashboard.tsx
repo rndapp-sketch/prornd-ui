@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetDoc, useFrappeGetCall } from "frappe-react-sdk";
+import { useUserRoles } from "@/components/UserRole";
 import { AnalyticsCard, CurrentTime } from "../../components/DashboardCards";
 import { cn } from "@/lib/utils";
 import {
@@ -73,6 +74,8 @@ const formatRelativeTime = (dateStr: string) => {
 export function HosRndDashboard() {
   const navigate = useNavigate();
   const { currentUser } = useFrappeAuth();
+  const { roles } = useUserRoles(currentUser ?? null);
+  const isAdoRnd = roles?.includes("Ado_RnD") ?? false;
   const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", {
     fields: ["full_name"],
     enabled: !!currentUser,
@@ -95,12 +98,18 @@ export function HosRndDashboard() {
     if (!pendingData?.message?.results) return [];
     const tasks: (TaskRecord & { doctype: string })[] = [];
     pendingData.message.results.forEach((group) => {
-      if (group.mod_vis || group.doctype === "Advance Settlement") {
-        group.records.forEach((r) => tasks.push({ ...r, doctype: group.doctype }));
-      }
+      const shouldIncludeGroup = group.mod_vis || group.doctype === "Advance Settlement";
+      group.records.forEach((r) => {
+        const isHosPending = r.status === "Pending HoS Approval";
+        if (!shouldIncludeGroup && !isHosPending) return;
+        // HoS dashboard: filter out Associate Dean tasks; ADO should not see HoS-only tasks
+        if (!isAdoRnd && r.status === "Pending Associate Dean") return;
+        if (isAdoRnd && r.status === "Pending HoS Approval") return;
+        tasks.push({ ...r, doctype: group.doctype });
+      });
     });
     return tasks.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
-  }, [pendingData]);
+  }, [pendingData, isAdoRnd]);
 
   const registryTasks = React.useMemo(() => {
     if (!registryData?.message?.results) return [];
