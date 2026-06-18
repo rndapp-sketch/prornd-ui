@@ -89,6 +89,8 @@ export function AppSidebar() {
     const isHeadApprover = roles?.includes("head_approver_1") ?? false;
     const isPermanentEmployee = roles?.includes("Permanent Employee") ?? false;
     const canUploadDirectorPdf = roles?.includes("staff, RnD") ?? false;
+    const isHosRnd = roles?.includes("Hos, RnD (Head of Section, RnD)") ?? false;
+    const isAdoRnd = roles?.includes("Ado_RnD") ?? false;
 
     // Fetch projects assigned to current user as head_approver (same filter as PendingTask.tsx)
     const { data: headApproverProjects } = useFrappeGetDocList("Project Registration", {
@@ -136,22 +138,21 @@ export function AppSidebar() {
         if (!pendingTaskData?.message?.results) return 0;
         let count = 0;
         pendingTaskData.message.results.forEach((group) => {
-            if (group.mod_vis || group.doctype === "Advance Settlement") {
-                group.records.forEach((record) => {
-                    if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name)) {
-                        return;
-                    }
-                    if (isPermanentEmployee && group.doctype === "Leave Module" && allowedLeaveNames) {
-                        if (record.status === "Pending PI Approval" && !allowedLeaveNames.has(record.name)) {
-                            return;
-                        }
-                    }
-                    count++;
-                });
-            }
+            const shouldIncludeGroup = group.mod_vis || group.doctype === "Advance Settlement";
+            group.records.forEach((record) => {
+                const isHosPending = record.status === "Pending HoS Approval";
+                if (!shouldIncludeGroup && !(isHosRnd && isHosPending)) return;
+                if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name)) return;
+                if (isPermanentEmployee && group.doctype === "Leave Module" && allowedLeaveNames) {
+                    if (record.status === "Pending PI Approval" && !allowedLeaveNames.has(record.name)) return;
+                }
+                if (isHosRnd && !isAdoRnd && record.status === "Pending Associate Dean") return;
+                if (isAdoRnd && !isHosRnd && record.status === "Pending HoS Approval") return;
+                count++;
+            });
         });
         return count;
-    }, [pendingTaskData, isHeadApprover, allowedProjectNames, isPermanentEmployee, allowedLeaveNames]);
+    }, [pendingTaskData, isHeadApprover, allowedProjectNames, isPermanentEmployee, allowedLeaveNames, isHosRnd, isAdoRnd]);
 
     const pendingDirectorPdfCount = pendingDirectorPdfData?.message?.data?.length ?? 0;
 

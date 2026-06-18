@@ -1919,6 +1919,10 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     name: string;
     designation: string;
   }>({ name: "", designation: "" });
+  const [rndAdminSignatory, setRndAdminSignatory] = useState<{
+    name: string;
+    designation: string;
+  }>({ name: "", designation: "" });
   const poEditorRef = React.useRef<HTMLDivElement | null>(null);
   const signedPoInputRef = React.useRef<HTMLInputElement | null>(null);
 
@@ -2267,8 +2271,25 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       }
     };
 
+    const fetchRndAdminSignatory = async () => {
+      try {
+        const detailsResponse = await getICSSUserDetails({
+          user_email: "rndadmin@iitg.ac.in",
+        });
+        const details = detailsResponse?.message || {};
+        if (isCancelled) return;
+        setRndAdminSignatory({
+          name: details.full_name || details.applicant_name || details.name || "rndadmin",
+          designation: details.designation_name || details.designation || "",
+        });
+      } catch (error) {
+        console.error("Failed to fetch rndadmin signatory details:", error);
+      }
+    };
+
     fetchCheckedByUser();
     fetchHosRndSignatory();
+    fetchRndAdminSignatory();
 
     return () => {
       isCancelled = true;
@@ -4491,9 +4512,9 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           vendorDetails.vendorEmail ||
           "",
         quotation_no: savedDraft.quotation_no || "",
-        signee_name: savedDraft.signee_name || hosRndSignatory?.name || "",
+        signee_name: savedDraft.signee_name || rndAdminSignatory.name || checkedByUser.name || hosRndSignatory?.name || "",
         signee_designation:
-          savedDraft.signee_designation || hosRndSignatory?.designation || "",
+          savedDraft.signee_designation || rndAdminSignatory.designation || checkedByUser.designation || hosRndSignatory?.designation || "",
         amount_in_words:
           savedDraft.amount_in_words ||
           convertAmountToWords(totalAmount) ||
@@ -4577,6 +4598,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       getBudgetHeadDisplayName,
       getLinkOptionLabel,
       hosRndSignatory,
+      rndAdminSignatory,
       selectedIndentType,
     ],
   );

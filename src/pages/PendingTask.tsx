@@ -230,6 +230,8 @@ const PendingTask: React.FC = () => {
     const isHeadApprover = roles?.includes("head_approver_1") ?? false;
     const isStaffRnD = roles?.includes("staff, RnD") ?? false;
     const isPermanentEmployee = roles?.includes("Permanent Employee") ?? false;
+    const isHosRnd = roles?.includes("Hos, RnD (Head of Section, RnD)") ?? false;
+    const isAdoRnd = roles?.includes("Ado_RnD") ?? false;
     const [orderModal, setOrderModal] = useState<{
         open: boolean;
         loading: boolean;
@@ -373,42 +375,54 @@ const PendingTask: React.FC = () => {
 
         const tasks: FlattenedTask[] = [];
         data.message.results.forEach((group) => {
-            if (group.mod_vis || group.doctype === "Advance Settlement") {
-                group.records.forEach((record) => {
-                    if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name)) {
-                        return;
-                    }
-                    if (isPermanentEmployee && group.doctype === "Leave Module" && record.status === "Pending PI Approval" && allowedLeaveNames && !allowedLeaveNames.has(record.name)) {
-                        return;
-                    }
-                    if (
-                        record.status === "Endorsement Approved" ||
-                        record.status === "Sanction Approved"
-                    ) {
-                        return;
-                    }
-                    tasks.push({
-                        id: record.name,
-                        title: record.title,
-                        "Project Number": record.name,
-                        status: record.status,
-                        priority: 'Medium',
-                        creation: record.creation,
-                        modified: record.modified,
-                        owner: record.owner,
-                        doctype: group.doctype,
-                        project_type: resolveProjectCategory(
-                            record as unknown as Record<string, unknown>,
-                            group.doctype,
-                            prNameToType,
-                            prNoToType,
-                        ),
-                    });
+            // HoS users: also include records from mod_vis=0 groups if status is "Pending HoS Approval"
+            const shouldIncludeGroup = group.mod_vis || group.doctype === "Advance Settlement";
+            group.records.forEach((record) => {
+                const isHosPendingRecord = record.status === "Pending HoS Approval";
+                // Include if: normal group OR HoS user with a HoS-specific record
+                if (!shouldIncludeGroup && !(isHosRnd && isHosPendingRecord)) return;
+
+                if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name)) {
+                    return;
+                }
+                if (isPermanentEmployee && group.doctype === "Leave Module" && record.status === "Pending PI Approval" && allowedLeaveNames && !allowedLeaveNames.has(record.name)) {
+                    return;
+                }
+                if (
+                    record.status === "Endorsement Approved" ||
+                    record.status === "Sanction Approved"
+                ) {
+                    return;
+                }
+                // HoS users should not see Associate Dean tasks
+                if (isHosRnd && !isAdoRnd && record.status === "Pending Associate Dean") {
+                    return;
+                }
+                // ADO users should not see HoS-only tasks
+                if (isAdoRnd && !isHosRnd && record.status === "Pending HoS Approval") {
+                    return;
+                }
+                tasks.push({
+                    id: record.name,
+                    title: record.title,
+                    "Project Number": record.name,
+                    status: record.status,
+                    priority: 'Medium',
+                    creation: record.creation,
+                    modified: record.modified,
+                    owner: record.owner,
+                    doctype: group.doctype,
+                    project_type: resolveProjectCategory(
+                        record as unknown as Record<string, unknown>,
+                        group.doctype,
+                        prNameToType,
+                        prNoToType,
+                    ),
                 });
-            }
+            });
         });
         return tasks;
-    }, [data, isHeadApprover, allowedProjectNames, prNameToType, prNoToType, isPermanentEmployee, allowedLeaveNames]);
+    }, [data, isHeadApprover, allowedProjectNames, prNameToType, prNoToType, isPermanentEmployee, allowedLeaveNames, isHosRnd, isAdoRnd]);
 
     // Phase-2: secondary fetch to resolve project_type from each doctype's actual link fields.
     // The pending-task API only returns basic fields (name, title, status…), so link fields

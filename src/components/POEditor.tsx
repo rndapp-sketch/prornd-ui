@@ -492,6 +492,8 @@ export const POEditor: React.FC<POEditorProps> = ({
     const [isUploading, setIsUploading] = useState(false);
     const [uploadedFile, setUploadedFile] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    // Track which doc we've already initialized so onChange-driven ssData updates don't reset user input
+    const lastInitKeyRef = useRef<string>("");
 
     // Sync uploadedFile from ssData.file_path
     useEffect(() => {
@@ -500,27 +502,29 @@ export const POEditor: React.FC<POEditorProps> = ({
         }
     }, [ssData?.file_path]);
 
-    // Initialize PO data from sanction sheet
+    // Initialize PO data from sanction sheet — only once per document identity
     useEffect(() => {
-        if (ssData && Object.keys(ssData).length > 0) {
-            setPoData({
-                ...ssData,
-                po_number: ssData.name || "",
-                po_date: new Date().toLocaleDateString("en-IN", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                }),
-                vendor_address: ssData.ss_name_of_firms || "",
-                quotation_no: "",
-                signee_name: "",
-                signee_designation: "",
-                amount_in_words: "",
-                terms_and_conditions:
-                    ssData.terms_and_conditions || DEFAULT_TERMS,
-            });
-        }
-    }, [ssData]);
+        if (!ssData || Object.keys(ssData).length === 0) return;
+        const initKey = ssData.name || ssData.icss_number || dpId || "";
+        if (initKey && initKey === lastInitKeyRef.current) return;
+        lastInitKeyRef.current = initKey;
+        setPoData({
+            ...ssData,
+            po_number: ssData.po_number || ssData.name || "",
+            po_date: ssData.po_date || new Date().toLocaleDateString("en-IN", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+            }),
+            vendor_address: ssData.vendor_address || ssData.ss_name_of_firms || "",
+            quotation_no: ssData.quotation_no || "",
+            signee_name: ssData.signee_name || "",
+            signee_designation: ssData.signee_designation || "",
+            amount_in_words: ssData.amount_in_words || "",
+            terms_and_conditions:
+                ssData.terms_and_conditions || DEFAULT_TERMS,
+        });
+    }, [ssData, dpId]);
 
     const handleFieldChange = useCallback((field: string, value: string) => {
         setPoData((prev) => {
@@ -578,7 +582,7 @@ export const POEditor: React.FC<POEditorProps> = ({
         }
     };
 
-    // Editable fields config
+    // PO header fields — amount_in_words and signee fields rendered separately after prefilled section
     const editableFields = [
         {
             key: "vendor_address",
@@ -590,17 +594,6 @@ export const POEditor: React.FC<POEditorProps> = ({
         {
             key: "quotation_no",
             label: "Quotation Reference No.",
-            type: "text" as const,
-        },
-        {
-            key: "amount_in_words",
-            label: "Amount in Words",
-            type: "text" as const,
-        },
-        { key: "signee_name", label: "Signee Name", type: "text" as const },
-        {
-            key: "signee_designation",
-            label: "Signee Designation",
             type: "text" as const,
         },
     ];
@@ -766,9 +759,7 @@ export const POEditor: React.FC<POEditorProps> = ({
                     {editableFields.map(({ key, label, type }) => (
                         <div
                             key={key}
-                            className={
-                                type === "textarea" ? "md:col-span-2" : ""
-                            }
+                            className={type === "textarea" ? "md:col-span-2" : ""}
                         >
                             <label className="block text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
                                 {label}
@@ -776,12 +767,8 @@ export const POEditor: React.FC<POEditorProps> = ({
                             {type === "textarea" ? (
                                 <textarea
                                     value={poData[key] || ""}
-                                    onChange={(e) =>
-                                        handleFieldChange(key, e.target.value)
-                                    }
-                                    rows={
-                                        key === "terms_and_conditions" ? 6 : 3
-                                    }
+                                    onChange={(e) => handleFieldChange(key, e.target.value)}
+                                    rows={3}
                                     disabled={isPIReadOnly}
                                     className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-[12px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] resize-y disabled:bg-zinc-50 dark:disabled:bg-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-500"
                                 />
@@ -789,9 +776,7 @@ export const POEditor: React.FC<POEditorProps> = ({
                                 <input
                                     type="text"
                                     value={poData[key] || ""}
-                                    onChange={(e) =>
-                                        handleFieldChange(key, e.target.value)
-                                    }
+                                    onChange={(e) => handleFieldChange(key, e.target.value)}
                                     disabled={isPIReadOnly}
                                     className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-[12px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] disabled:bg-zinc-50 dark:disabled:bg-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-500"
                                 />
@@ -831,78 +816,58 @@ export const POEditor: React.FC<POEditorProps> = ({
                 </div>
 
                 {/* Items table */}
-                {Array.isArray(poData.table_bttk) &&
-                    poData.table_bttk.length > 0 && (
-                        <div className="px-4 pb-4">
-                            <p className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">
-                                Items
-                            </p>
-                            <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
-                                <table className="w-full table-fixed text-[11px]">
-                                    <thead className="bg-zinc-50 dark:bg-zinc-800">
-                                        <tr>
-                                            {[
-                                                "#",
-                                                "Item",
-                                                "Make",
-                                                "Model",
-                                                "Qty",
-                                                "Unit Price",
-                                                "Discount",
-                                                "GST",
-                                                "Total",
-                                            ].map((h) => (
-                                                <th
-                                                    key={h}
-                                                    className="px-2 py-2 text-left text-[10px] font-extrabold uppercase text-zinc-500 dark:text-zinc-400 break-words"
-                                                >
-                                                    {h}
-                                                </th>
-                                            ))}
+                {Array.isArray(poData.table_bttk) && poData.table_bttk.length > 0 && (
+                    <div className="px-4 pb-4">
+                        <p className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">
+                            Items
+                        </p>
+                        <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
+                            <table className="w-full table-fixed text-[11px]">
+                                <thead className="bg-zinc-50 dark:bg-zinc-800">
+                                    <tr>
+                                        {["#", "Item", "Make", "Model", "Qty", "Unit Price", "Discount", "GST", "Total"].map((h) => (
+                                            <th key={h} className="px-2 py-2 text-left text-[10px] font-extrabold uppercase text-zinc-500 dark:text-zinc-400 break-words">
+                                                {h}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {poData.table_bttk.map((row: any, i: number) => (
+                                        <tr key={i} className="border-t border-zinc-100 dark:border-zinc-800">
+                                            <td className="px-2 py-2 align-top text-zinc-500">{i + 1}</td>
+                                            <td className="px-2 py-2 align-top break-words">{row.item_name}</td>
+                                            <td className="px-2 py-2 align-top break-words">{row.item_make}</td>
+                                            <td className="px-2 py-2 align-top break-words">{row.item_model}</td>
+                                            <td className="px-2 py-2 align-top break-words">{row.item_quantity}</td>
+                                            <td className="px-2 py-2 align-top break-words">{row.item_unit_price}</td>
+                                            <td className="px-2 py-2 align-top break-words">{row.item_discount}</td>
+                                            <td className="px-2 py-2 align-top break-words">{row.item_gst}</td>
+                                            <td className="px-2 py-2 align-top font-medium break-words">{row.dp_total_price}</td>
                                         </tr>
-                                    </thead>
-                                    <tbody>
-                                        {poData.table_bttk.map(
-                                            (row: any, i: number) => (
-                                                <tr
-                                                    key={i}
-                                                    className="border-t border-zinc-100 dark:border-zinc-800"
-                                                >
-                                                    <td className="px-2 py-2 align-top text-zinc-500">
-                                                        {i + 1}
-                                                    </td>
-                                                    <td className="px-2 py-2 align-top break-words">
-                                                        {row.item_name}
-                                                    </td>
-                                                    <td className="px-2 py-2 align-top break-words">
-                                                        {row.item_make}
-                                                    </td>
-                                                    <td className="px-2 py-2 align-top break-words">
-                                                        {row.item_model}
-                                                    </td>
-                                                    <td className="px-2 py-2 align-top break-words">
-                                                        {row.item_quantity}
-                                                    </td>
-                                                    <td className="px-2 py-2 align-top break-words">
-                                                        {row.item_unit_price}
-                                                    </td>
-                                                    <td className="px-2 py-2 align-top break-words">
-                                                        {row.item_discount}
-                                                    </td>
-                                                    <td className="px-2 py-2 align-top break-words">
-                                                        {row.item_gst}
-                                                    </td>
-                                                    <td className="px-2 py-2 align-top font-medium break-words">
-                                                        {row.dp_total_price}
-                                                    </td>
-                                                </tr>
-                                            ),
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
-                    )}
+                    </div>
+                )}
+            </div>
+
+            {/* Amount in Words — after prefilled/items, before Terms — read-only */}
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+                <div className="px-5 py-3 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
+                    <h4 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
+                        Amount in Words
+                    </h4>
+                </div>
+                <div className="p-4">
+                    <p className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
+                        Grand Total Amount in Words
+                    </p>
+                    <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 break-words">
+                        {poData.amount_in_words || "—"}
+                    </p>
+                </div>
             </div>
 
             {/* Terms & Conditions */}
@@ -922,10 +887,33 @@ export const POEditor: React.FC<POEditorProps> = ({
                 </div>
                 <div
                     className="p-5 text-sm text-zinc-900 dark:text-zinc-100 prose dark:prose-invert max-w-none [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
-                    dangerouslySetInnerHTML={{
-                        __html: poData.terms_and_conditions || DEFAULT_TERMS,
-                    }}
+                    dangerouslySetInnerHTML={{ __html: poData.terms_and_conditions || DEFAULT_TERMS }}
                 />
+            </div>
+
+            {/* Signatory Details — last */}
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+                <div className="px-5 py-3 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
+                    <h4 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
+                        Signatory Details
+                    </h4>
+                </div>
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {(["signee_name", "signee_designation"] as const).map((key) => (
+                        <div key={key}>
+                            <label className="block text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
+                                {key === "signee_name" ? "Signee Name" : "Signee Designation"}
+                            </label>
+                            <input
+                                type="text"
+                                value={poData[key] || ""}
+                                onChange={(e) => handleFieldChange(key, e.target.value)}
+                                disabled={isPIReadOnly}
+                                className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-[12px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] disabled:bg-zinc-50 dark:disabled:bg-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-500"
+                            />
+                        </div>
+                    ))}
+                </div>
             </div>
 
             {/* Terms Editor Modal */}
