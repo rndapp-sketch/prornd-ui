@@ -4674,6 +4674,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           snapshot?.grand_total ??
           poDoc.grand_total ??
           "",
+        _icss_po_name: poDocName,
       };
     } catch (error) {
       console.error("Failed to fetch saved ICSS PO draft:", error);
