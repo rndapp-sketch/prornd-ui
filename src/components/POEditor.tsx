@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { generatePOHtml, DEFAULT_TERMS } from "@/utils/poPrint";
+import { generatePOHtml, DEFAULT_TERMS, getFormattedTerms } from "@/utils/poPrint";
 
 // ── Terms Editor Modal ──────────────────────────────────────────────────────
 const icons = {
@@ -525,7 +525,7 @@ export const POEditor: React.FC<POEditorProps> = ({
             signee_designation: ssData.signee_designation || "",
             amount_in_words: ssData.amount_in_words || "",
             terms_and_conditions:
-                ssData.terms_and_conditions || DEFAULT_TERMS,
+                ssData.terms_and_conditions || getFormattedTerms(DEFAULT_TERMS, ssData),
         });
     }, [ssData, dpId]);
 
@@ -890,7 +890,7 @@ export const POEditor: React.FC<POEditorProps> = ({
                 </div>
                 <div
                     className="p-5 text-sm text-zinc-900 dark:text-zinc-100 prose dark:prose-invert max-w-none [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
-                    dangerouslySetInnerHTML={{ __html: poData.terms_and_conditions || DEFAULT_TERMS }}
+                    dangerouslySetInnerHTML={{ __html: poData.terms_and_conditions || getFormattedTerms(DEFAULT_TERMS, poData) }}
                 />
             </div>
 
@@ -922,7 +922,7 @@ export const POEditor: React.FC<POEditorProps> = ({
             {/* Terms Editor Modal */}
             <TermsEditorModal
                 isOpen={isTermsEditorOpen}
-                initialHtml={poData.terms_and_conditions || DEFAULT_TERMS}
+                initialHtml={poData.terms_and_conditions || getFormattedTerms(DEFAULT_TERMS, poData)}
                 onClose={() => setIsTermsEditorOpen(false)}
                 onSave={(html) =>
                     handleFieldChange("terms_and_conditions", html)
