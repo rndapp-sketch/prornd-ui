@@ -59,7 +59,7 @@ import {
   getPoIndentTypeDisplayName,
   getPoVariantCopy,
   isAnnualMaintenanceContractIndent,
-} from "@/utils/poPrint";
+} from "@/utils/IcssPoPrint";
 
 // --- CLAUDE UI WRAPPERS ---
 const FrappeCard = ({ children, className }: any) => (

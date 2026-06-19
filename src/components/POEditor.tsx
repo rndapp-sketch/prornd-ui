@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { generatePOHtml, DEFAULT_TERMS, getFormattedTerms } from "@/utils/poPrint";
+import { generatePOHtml, DEFAULT_TERMS, getFormattedTerms } from "@/utils/DpPoPrint";
 
 // ── Terms Editor Modal ──────────────────────────────────────────────────────
 const icons = {
