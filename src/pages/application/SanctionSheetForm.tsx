@@ -491,16 +491,22 @@ const SanctionSheetForm: React.FC = () => {
                 const docname = res.message.docname || editDocName;
                 setSavedDocName(docname);
 
+                const dpRef = appId || formData.direct_purchase || formData.app_id || "";
+
                 if (editDocName) {
-                    // If editing, go back
                     alert("Sanction Sheet updated successfully!");
-                    navigate(-1);
+                    if (dpRef) {
+                        navigate(`/direct-purchase/${dpRef}?tab=sanction`);
+                    } else {
+                        navigate(-1);
+                    }
                 } else {
-                    // If creating new, redirect to edit mode to show workflow actions
-                    alert(
-                        "Sanction sheet saved successfully. Please wait for the staff to generate the Purchase Order.",
-                    );
-                    navigate(`/sanction-sheet/${docname}`);
+                    alert("Sanction sheet saved successfully!");
+                    if (dpRef) {
+                        navigate(`/direct-purchase/${dpRef}?tab=sanction&highlight_action=1`);
+                    } else {
+                        navigate(`/sanction-sheet/${docname}`);
+                    }
                 }
             } else {
                 throw new Error(res?.message?.message || "Save failed");

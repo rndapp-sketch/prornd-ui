@@ -477,7 +477,7 @@ export const POEditor: React.FC<POEditorProps> = ({
     isStaffRnD = false,
     isPIReadOnly = false,
     sourceLabel: _sourceLabel,
-    isSaved: _isSaved,
+    isSaved: isSavedProp = false,
     isDirty: _isDirty,
     onChange,
     onSave,
@@ -489,11 +489,17 @@ export const POEditor: React.FC<POEditorProps> = ({
     const [isTermsEditorOpen, setIsTermsEditorOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
+    const [hasSaved, setHasSaved] = useState(isSavedProp);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadedFile, setUploadedFile] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     // Track which doc we've already initialized so onChange-driven ssData updates don't reset user input
     const lastInitKeyRef = useRef<string>("");
+
+    // Sync hasSaved if parent signals the PO is already saved (e.g., on re-load)
+    useEffect(() => {
+        if (isSavedProp) setHasSaved(true);
+    }, [isSavedProp]);
 
     // Sync uploadedFile from ssData.file_path
     useEffect(() => {
@@ -544,6 +550,7 @@ export const POEditor: React.FC<POEditorProps> = ({
         try {
             await onSave(poData);
             setSaveSuccess(true);
+            setHasSaved(true);
             setTimeout(() => setSaveSuccess(false), 3000);
         } catch (err) {
             console.error("Save failed:", err);
@@ -617,6 +624,11 @@ export const POEditor: React.FC<POEditorProps> = ({
                 </div>
                 {isStaffRnD && (
                     <div className="flex items-center gap-2 flex-wrap">
+                        {hasSaved && !saveSuccess && (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Saved
+                            </span>
+                        )}
                         {onSave && (
                             <button
                                 onClick={handleSave}
@@ -638,8 +650,10 @@ export const POEditor: React.FC<POEditorProps> = ({
                             </button>
                         )}
                         <button
-                            onClick={() => setIsPreviewOpen(true)}
-                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-bold bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
+                            onClick={() => hasSaved && setIsPreviewOpen(true)}
+                            disabled={!hasSaved}
+                            title={!hasSaved ? "Save the PO first to enable preview" : undefined}
+                            className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-bold ${hasSaved ? "bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed opacity-50"}`}
                         >
                             <FileText className="w-4 h-4" /> Preview & Print
                         </button>
@@ -690,9 +704,10 @@ export const POEditor: React.FC<POEditorProps> = ({
                                 className="hidden"
                             />
                             <button
-                                onClick={handleUploadClick}
-                                disabled={isUploading}
-                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60"
+                                onClick={hasSaved ? handleUploadClick : undefined}
+                                disabled={isUploading || !hasSaved}
+                                title={!hasSaved ? "Save the PO first to enable upload" : undefined}
+                                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-bold ${hasSaved ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-emerald-200 dark:bg-emerald-900/30 text-emerald-400 dark:text-emerald-600 cursor-not-allowed"} disabled:opacity-60`}
                             >
                                 {isUploading ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />

@@ -41,6 +41,7 @@ import { GlobalLoader } from "@/components/ui/global-loader";
 import { Textarea } from "@/components/ui/textarea";
 import {
     directPurchaseAPI,
+    dpPoAPI,
     p11FormAPI,
     sanctionSheetAPI,
 } from "@/services/apiService";
@@ -1088,6 +1089,7 @@ const DirectPurchaseActionButtons = ({
     commitRequired = false,
     sanctionRequired = false,
     onSanctionMissing,
+    highlight = false,
 }: {
     docname: string;
     onActionComplete: () => void;
@@ -1096,6 +1098,7 @@ const DirectPurchaseActionButtons = ({
     commitRequired?: boolean;
     sanctionRequired?: boolean;
     onSanctionMissing?: () => void;
+    highlight?: boolean;
 }) => {
     const [actions, setActions] = useState<string[]>([]);
     const [isPerforming, setIsPerforming] = useState(false);
@@ -1200,7 +1203,8 @@ const DirectPurchaseActionButtons = ({
                                 action === "Submit P-11" && !p11DocName
                                     ? "opacity-60 cursor-not-allowed"
                                     : undefined,
-                                (commitRequired || sanctionRequired) && "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed border-0"
+                                (commitRequired || sanctionRequired) && "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed border-0",
+                                highlight && !commitRequired && !sanctionRequired && "animate-pulse ring-2 ring-offset-2 ring-amber-400"
                             )}
                             title={
                                 sanctionRequired
@@ -2501,6 +2505,7 @@ const DirectPurchaseDetails: React.FC = () => {
     const [activeTab, setActiveTab] = useState<TabId>(
         (searchParams.get("tab") as TabId) || "details",
     );
+    const highlightAction = searchParams.get("highlight_action") === "1";
     const [isGeneratingPO, setIsGeneratingPO] = useState(false);
     const [isGeneratingP11, setIsGeneratingP11] = useState(false);
     const [isOpeningSanctionSheet, setIsOpeningSanctionSheet] = useState(false);
@@ -2509,6 +2514,7 @@ const DirectPurchaseDetails: React.FC = () => {
         any
     > | null>(null);
     const [isLoadingPOData, setIsLoadingPOData] = useState(false);
+    const [dpPoDocname, setDpPoDocname] = useState<string | null>(null);
 
     const { call: addComment } = useFrappePostCall(
         "rndopsapp.rndopsapp.api.add_project_comment",
@@ -2655,57 +2661,135 @@ const DirectPurchaseDetails: React.FC = () => {
         }
     };
 
-    // Fetch sanction sheet data for PO editor (on load and after re-fetch triggers)
+    // Fetch sanction sheet + dp_po data for PO editor
     useEffect(() => {
         if (!id) return;
         if (poSanctionData) return; // already fetched
 
-        const fetchSSData = async () => {
+        const fetchSSAndDpPo = async () => {
             setIsLoadingPOData(true);
             try {
+                // ── 1. Fetch Sanction Sheet ────────────────────────────────────
                 const filters = JSON.stringify([["app_id", "=", id]]);
                 const listRes = await fetch(
                     `/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`,
-                    {
-                        credentials: "include",
-                        headers: { Accept: "application/json" },
-                    },
+                    { credentials: "include", headers: { Accept: "application/json" } },
                 )
                     .then((r) => r.json())
                     .catch(() => ({ data: [] }));
 
                 const ssName = listRes?.data?.[0]?.name;
-                if (ssName) {
-                    const docRes = await fetch(
-                        `/api/method/frappe.client.get`,
+                if (!ssName) return;
+
+                const ssRes = await fetch("/api/method/frappe.client.get", {
+                    method: "POST",
+                    credentials: "include",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Accept: "application/json",
+                        "X-Frappe-CSRF-Token": (window as any).csrf_token || "",
+                    },
+                    body: JSON.stringify({ doctype: "sanction_sheet", name: ssName }),
+                })
+                    .then((r) => r.json())
+                    .catch(() => null);
+
+                const ssDoc = ssRes?.message;
+                if (!ssDoc) return;
+
+                // ── 2. Look up existing dp_po for this Direct Purchase ─────────
+                const dpPoRes = await fetch(
+                    `/api/method/${dpPoAPI.getByDirectPurchase}`,
+                    {
+                        method: "POST",
+                        credentials: "include",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Accept: "application/json",
+                            "X-Frappe-CSRF-Token": (window as any).csrf_token || "",
+                        },
+                        body: JSON.stringify({ dp_docname: id }),
+                    },
+                )
+                    .then((r) => r.json())
+                    .catch(() => null);
+
+                let dpPoData = dpPoRes?.message?.data ?? null;
+                let dpPoName = dpPoRes?.message?.docname ?? null;
+
+                // ── 3. Auto-create dp_po if it doesn't exist yet ──────────────
+                if (!dpPoName) {
+                    const genRes = await fetch(
+                        `/api/method/${dpPoAPI.generateFromSS}`,
                         {
                             method: "POST",
                             credentials: "include",
                             headers: {
                                 "Content-Type": "application/json",
                                 Accept: "application/json",
-                                "X-Frappe-CSRF-Token":
-                                    (window as any).csrf_token || "",
+                                "X-Frappe-CSRF-Token": (window as any).csrf_token || "",
                             },
                             body: JSON.stringify({
-                                doctype: "sanction_sheet",
-                                name: ssName,
+                                dp_docname: id,
+                                sanction_sheet_name: ssName,
                             }),
                         },
                     )
                         .then((r) => r.json())
                         .catch(() => null);
-                    if (docRes?.message) {
-                        setPoSanctionData(docRes.message);
+
+                    dpPoName = genRes?.message?.docname ?? null;
+
+                    if (dpPoName) {
+                        const freshRes = await fetch(
+                            `/api/method/${dpPoAPI.getByDirectPurchase}`,
+                            {
+                                method: "POST",
+                                credentials: "include",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    Accept: "application/json",
+                                    "X-Frappe-CSRF-Token": (window as any).csrf_token || "",
+                                },
+                                body: JSON.stringify({ dp_docname: id }),
+                            },
+                        )
+                            .then((r) => r.json())
+                            .catch(() => null);
+                        dpPoData = freshRes?.message?.data ?? null;
                     }
                 }
+
+                // ── 4. Merge: SS doc is the base; dp_po fields override ────────
+                const merged = {
+                    ...ssDoc,
+                    ...(dpPoData
+                        ? {
+                              vendor_address:       dpPoData.vendor_name_address || ssDoc.ss_name_of_firms || "",
+                              po_number:            dpPoData.po_number            || ssDoc.name || "",
+                              po_date:              dpPoData.po_date               || "",
+                              quotation_no:         dpPoData.quotation_ref_no      || "",
+                              signee_name:          dpPoData.signee_name           || "",
+                              signee_designation:   dpPoData.signee_designation    || "",
+                              amount_in_words:      dpPoData.amount_in_words       || "",
+                              terms_and_conditions: dpPoData.terms_and_conditions  || "",
+                              _dp_po_items:         dpPoData.items || [],
+                          }
+                        : {}),
+                    _dp_po_name: dpPoName,
+                    dp_indent_value: data?.total_estimate ?? "",
+                };
+
+                setDpPoDocname(dpPoName);
+                setPoSanctionData(merged);
             } catch (err) {
-                console.error("Error fetching sanction sheet for PO:", err);
+                console.error("Error fetching PO data:", err);
             } finally {
                 setIsLoadingPOData(false);
             }
         };
-        fetchSSData();
+
+        fetchSSAndDpPo();
     }, [activeTab, id, data?.workflow_state, poSanctionData]);
 
 
@@ -2731,6 +2815,57 @@ const DirectPurchaseDetails: React.FC = () => {
         } catch (error: any) {
             console.error("Payment failed:", error);
             alert(`Payment failed: ${error.message || "Unknown error"}`);
+        }
+    };
+
+    const handleSaveDpPo = async (poData: Record<string, any>) => {
+        const csrf = (window as any).csrf_token || "";
+        const payload: Record<string, any> = {
+            name:                dpPoDocname || undefined,
+            direct_purchase_ref: id,
+            sanction_sheet_ref:  poSanctionData?.name || "",
+            vendor_name_address: poData.vendor_address || "",
+            po_number:           poData.po_number || "",
+            po_date:             (() => {
+                const raw = poData.po_date || "";
+                const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(raw);
+                return m ? `${m[3]}-${m[2]}-${m[1]}` : raw;
+            })(),
+            quotation_ref_no:    poData.quotation_no || "",
+            signee_name:         poData.signee_name || "",
+            signee_designation:  poData.signee_designation || "",
+            amount_in_words:     poData.amount_in_words || "",
+            terms_and_conditions: poData.terms_and_conditions || "",
+            items: Array.isArray(poData.table_bttk)
+                ? poData.table_bttk.map((row: any) => ({
+                      item_name:  row.item_name       || "",
+                      make:       row.item_make        || "",
+                      model:      row.item_model       || "",
+                      qty:        row.item_quantity    || 0,
+                      unit_price: row.item_unit_price  || 0,
+                      discount:   row.item_discount    || 0,
+                      gst:        row.item_gst         || 0,
+                      total:      row.dp_total_price   || 0,
+                  }))
+                : [],
+        };
+
+        const res = await fetch(`/api/method/${dpPoAPI.save}`, {
+            method: "POST",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+                "X-Frappe-CSRF-Token": csrf,
+            },
+            body: JSON.stringify({ data: JSON.stringify(payload) }),
+        }).then((r) => r.json());
+
+        if (res?.message?.status !== "success") {
+            throw new Error(res?.message?.message || "Save failed");
+        }
+        if (res.message.docname && !dpPoDocname) {
+            setDpPoDocname(res.message.docname);
         }
     };
 
@@ -2938,6 +3073,7 @@ const DirectPurchaseDetails: React.FC = () => {
                                 commitRequired={commitRequired}
                                 sanctionRequired={sanctionRequired}
                                 onSanctionMissing={() => setActiveTab("sanction")}
+                                highlight={highlightAction}
                             />
                         )}
                     </div>
@@ -3199,6 +3335,8 @@ const DirectPurchaseDetails: React.FC = () => {
                                             isPermanentEmployee &&
                                             !isStaffRnD
                                         }
+                                        isSaved={!!dpPoDocname}
+                                        onSave={isStaffRnD ? handleSaveDpPo : undefined}
                                         onUploadSignedPO={async (
                                             file: File,
                                         ) => {
@@ -3250,6 +3388,7 @@ const DirectPurchaseDetails: React.FC = () => {
                                                 );
                                             // Reset so the effect re-fetches with updated file_path
                                             setPoSanctionData(null);
+                                            setDpPoDocname(null);
                                         }}
                                     />
                                 ) : poSanctionData ? (

@@ -139,6 +139,21 @@ export function generatePOHtml(poData: Record<string, any>): string {
             : "",
     ].join("");
 
+    // Build Account Head with IV (Indent Value) and SV (Sanction Value)
+    // IV = Total Estimated Basic Value from sanction sheet (ss_total_es_basic_value)
+    // SV = Grand Total from sanction sheet (ss_grand_total)
+    const ivRaw = poData.dp_indent_value || poData.ss_total_es_basic_value;
+    const ivStr = ivRaw !== undefined && ivRaw !== "" && Number(ivRaw) !== 0
+        ? `IV: ₹${fmt(ivRaw)}`
+        : "";
+    const svStr = poData.ss_grand_total !== undefined && poData.ss_grand_total !== "" && Number(poData.ss_grand_total) !== 0
+        ? `SV: ₹${fmt(poData.ss_grand_total)}`
+        : "";
+    const ivSvPart = [ivStr, svStr].filter(Boolean).join(", ");
+    const accountHeadStr = poData.ss_account_head
+        ? `${poData.ss_account_head}${ivSvPart ? ` (${ivSvPart})` : ""}`
+        : "";
+
     return poTemplate
         .replace("{{VENDOR_ADDRESS}}", poData.vendor_address || poData.ss_name_of_firms || "")
         .replace("{{PO_NUMBER}}", poData.po_number || poData.name || "")
@@ -147,8 +162,9 @@ export function generatePOHtml(poData: Record<string, any>): string {
         .replace("{{ITEM_ROWS}}", itemRows)
         .replace("{{SUMMARY_ROWS}}", summaryRows)
         .replace("{{AMOUNT_IN_WORDS}}", poData.amount_in_words || (poData.ss_grand_total ? toWords.convert(Number(poData.ss_grand_total)) : ""))
-        .replace("{{ACCOUNT_HEAD}}", poData.ss_account_head || "")
+        .replace("{{ACCOUNT_HEAD}}", accountHeadStr)
         .replace("{{FILE_NUMBER}}", poData.ss_file_number || "")
+        .replace("{{PO_CREATED_BY}}", poData.owner || "")
         .replace("{{SIGNEE_NAME}}", poData.signee_name || "")
         .replace("{{SIGNEE_DESIGNATION}}", poData.signee_designation || "")
         .replace("{{TERMS_AND_CONDITIONS}}", getFormattedTerms(poData.terms_and_conditions || DEFAULT_TERMS, poData));
