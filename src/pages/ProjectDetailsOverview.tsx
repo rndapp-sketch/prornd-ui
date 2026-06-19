@@ -2625,103 +2625,7 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
             }
         };
 
-        return (
-            <div className="space-y-5">
-                <Card className="border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm rounded-2xl overflow-hidden">
-                    <div className="flex items-center gap-2 px-4 py-3 border-b border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20">
-                        <div className="w-1 h-5 rounded-full bg-[#4A6CF7]" />
-                        <label
-                            htmlFor="comment-textarea"
-                            className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200"
-                        >
-                            Add a comment
-                        </label>
-                    </div>
-                    <CardContent className="p-4">
-                        <Textarea
-                            id="comment-textarea"
-                            placeholder="Type here... (Ctrl+Enter to submit)"
-                            value={newComment}
-                            onChange={(e) => setNewComment(e.target.value)}
-                            onKeyDown={handleKeyPress}
-                            disabled={isSubmitting}
-                            className="min-h-[110px] rounded-xl border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#18181B] text-[13px] font-medium text-[#3F3F46] dark:text-[#E4E4E7] focus:border-[#4A6CF7] focus:ring-[#4A6CF7]/20"
-                            rows={4}
-                        />
-                        <div className="flex items-center justify-between mt-4">
-                            <span className="text-[11px] font-bold text-[#A1A1AA] dark:text-zinc-500">
-                                {newComment.length}/1000
-                            </span>
-                            <FrappeButton
-                                onClick={handleCommentSubmit}
-                                disabled={isSubmitting || !newComment.trim()}
-                            >
-                                {isSubmitting ? "Submitting..." : "Submit"}
-                            </FrappeButton>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm rounded-2xl overflow-hidden">
-                    <div className="flex items-center gap-2 px-4 py-3 border-b border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20">
-                        <div className="w-1 h-5 rounded-full bg-[#4A6CF7]" />
-                        <h2 className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200">
-                            Activity Timeline
-                        </h2>
-                        <span className="ml-auto rounded-full bg-white/80 dark:bg-[#27272A] px-2 py-0.5 text-[10px] font-extrabold text-[#1E3A8A] dark:text-blue-200">
-                            {activityData?.message?.length ?? 0}
-                        </span>
-                    </div>
-
-                    <div className="p-4">
-                        {!activityData?.message?.length ? (
-                            <div className="rounded-xl border border-dashed border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] py-10 text-center">
-                                <p className="text-[13px] font-bold text-[#71717A] dark:text-[#A1A1AA]">
-                                    No activity yet.
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="relative">
-                                <div className="absolute left-5 top-0 bottom-0 w-px bg-[#E4E4E7] dark:bg-[#3F3F46]" />
-                                <div className="space-y-3">
-                                    {activityData.message.map((item, index) => (
-                                        <div
-                                            key={`${item.creation} -${index} `}
-                                            className="relative flex items-start gap-4 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-4 ml-0"
-                                        >
-                                            <div className="relative z-10 flex-shrink-0 h-10 w-10 rounded-xl bg-[#EEF2FF] dark:bg-blue-950/20 border border-[#C7D2FE] dark:border-blue-900/40 flex items-center justify-center font-extrabold text-[#1E3A8A] dark:text-blue-200 text-sm">
-                                                {item.owner?.charAt(0).toUpperCase() || "U"}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 mb-2">
-                                                    <p className="inline-flex w-fit items-center rounded-md border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#3F3F46] dark:text-[#E4E4E7]">
-                                                        {item.owner || "Unknown User"}
-                                                    </p>
-                                                    <p className="text-[11px] font-bold text-[#A1A1AA] dark:text-zinc-500 flex items-center gap-1">
-                                                        <ClockIcon className="h-3.5 w-3.5" />
-                                                        {item.creation
-                                                            ? new Date(
-                                                                item.creation,
-                                                            ).toLocaleString()
-                                                            : "N/A"}
-                                                    </p>
-                                                </div>
-                                                <div
-                                                    className="rounded-xl bg-[#FAFAF9] dark:bg-[#18181B] border border-[#F4F4F5] dark:border-[#3F3F46] px-3 py-2 text-[13px] font-medium text-[#3F3F46] dark:text-[#E4E4E7] prose prose-sm max-w-none leading-relaxed dark:prose-invert"
-                                                    dangerouslySetInnerHTML={{
-                                                        __html: item.content || "No content",
-                                                    }}
-                                                />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </Card>
-            </div>
-        );
+        return null;
     },
 );
 ActivityStream.displayName = "ActivityStream";
@@ -2935,6 +2839,20 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
     const [sidebarComment, setSidebarComment] = useState("");
     const [selectedSanctionIndex, setSelectedSanctionIndex] = useState(0);
     const [activeLedgerTab, setActiveLedgerTab] = useState("All"); // Tab filter for ledger by head
+
+    const sanctionActivityDocname = (() => {
+        const sanctions = normalizeResponse(sanctionData);
+        return sanctions[selectedSanctionIndex]?.name || null;
+    })();
+
+    const { data: sanctionActivityData } = useFrappeGetCall<{
+        message: ActivityItem[];
+    }>(
+        "rndopsapp.rndopsapp.api.get_project_activity",
+        sanctionActivityDocname
+            ? { doctype: "Fund Sanction", docname: sanctionActivityDocname }
+            : undefined,
+    );
 
     // --- Modal State for Sanction Submit ---
     const [sanctionModalOpen, setSanctionModalOpen] = useState(false);
@@ -6224,6 +6142,16 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                             }
                                                         />
                                                     </div>
+
+                                                    {/* Fund Sanction Activity Log */}
+                                                    {sanctions[selectedSanctionIndex]?.name && (
+                                                        <div className="mt-8">
+                                                            <ActivityStream
+                                                                doctype="Fund Sanction"
+                                                                docname={sanctions[selectedSanctionIndex].name}
+                                                            />
+                                                        </div>
+                                                    )}
                                                 </>
                                             ) : (
                                                 <div className="text-center py-16 text-[#6B7280] dark:text-zinc-400 rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900">
@@ -6478,68 +6406,78 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                             <div className="flex items-center gap-2 px-4 py-3 border-b border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20">
                                 <div className="w-1 h-5 rounded-full bg-[#4A6CF7]" />
                                 <h3 className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200">
-                                    Latest Activity (Project)
+                                    {activeTab === "sanction-details"
+                                        ? "Latest Activity (Sanction)"
+                                        : "Latest Activity (Project)"}
                                 </h3>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setActiveTab("activity");
-                                        setProjectTabParam("activity");
-                                    }}
-                                    className="ml-auto text-[10px] font-extrabold uppercase tracking-widest text-[#2563EB] hover:text-[#D97757]"
-                                >
-                                    View All
-                                </button>
+                                {activeTab !== "sanction-details" && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setActiveTab("activity");
+                                            setProjectTabParam("activity");
+                                        }}
+                                        className="ml-auto text-[10px] font-extrabold uppercase tracking-widest text-[#2563EB] hover:text-[#D97757]"
+                                    >
+                                        View All
+                                    </button>
+                                )}
                             </div>
                             <div className="p-4">
-                                {activityData?.message?.length ? (
-                                    <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
-                                        {activityData.message
-                                            .slice(0, 4)
-                                            .map((activity, idx) => (
-                                                <div
-                                                    key={`${activity.creation}-${idx}`}
-                                                    className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] p-3"
-                                                >
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <div className="h-7 w-7 rounded-lg bg-[#EEF2FF] dark:bg-blue-950/20 border border-[#C7D2FE] dark:border-blue-900/40 flex items-center justify-center text-[11px] font-extrabold text-[#1E3A8A] dark:text-blue-200">
-                                                            {activity.owner
-                                                                ?.charAt(0)
-                                                                .toUpperCase() ||
-                                                                "U"}
-                                                        </div>
-                                                        <div className="min-w-0">
-                                                            <p className="truncate text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
-                                                                {activity.owner ||
-                                                                    "Unknown User"}
-                                                            </p>
-                                                            <p className="text-[10px] font-medium text-[#A1A1AA]">
-                                                                {activity.creation
-                                                                    ? new Date(
-                                                                        activity.creation,
-                                                                    ).toLocaleString()
-                                                                    : ""}
-                                                            </p>
-                                                        </div>
-                                                    </div>
+                                {(() => {
+                                    const displayActivity =
+                                        activeTab === "sanction-details"
+                                            ? sanctionActivityData?.message
+                                            : activityData?.message;
+                                    return displayActivity?.length ? (
+                                        <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
+                                            {displayActivity
+                                                .slice(0, 4)
+                                                .map((activity, idx) => (
                                                     <div
-                                                        className="line-clamp-2 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA] prose prose-sm max-w-none dark:prose-invert"
-                                                        dangerouslySetInnerHTML={{
-                                                            __html:
-                                                                activity.content ||
-                                                                "",
-                                                        }}
-                                                    />
-                                                </div>
-                                            ))}
-                                    </div>
-                                ) : (
-                                    <div className="rounded-xl border border-dashed border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] p-5 text-center">
-                                        <p className="text-[12px] font-bold text-[#71717A] dark:text-[#A1A1AA]">
-                                            No recent activity.
-                                        </p>
-                                    </div>
-                                )}
+                                                        key={`${activity.creation}-${idx}`}
+                                                        className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] p-3"
+                                                    >
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <div className="h-7 w-7 rounded-lg bg-[#EEF2FF] dark:bg-blue-950/20 border border-[#C7D2FE] dark:border-blue-900/40 flex items-center justify-center text-[11px] font-extrabold text-[#1E3A8A] dark:text-blue-200">
+                                                                {activity.owner
+                                                                    ?.charAt(0)
+                                                                    .toUpperCase() ||
+                                                                    "U"}
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <p className="truncate text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                                                    {activity.owner ||
+                                                                        "Unknown User"}
+                                                                </p>
+                                                                <p className="text-[10px] font-medium text-[#A1A1AA]">
+                                                                    {activity.creation
+                                                                        ? new Date(
+                                                                            activity.creation,
+                                                                        ).toLocaleString()
+                                                                        : ""}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div
+                                                            className="line-clamp-2 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA] prose prose-sm max-w-none dark:prose-invert"
+                                                            dangerouslySetInnerHTML={{
+                                                                __html:
+                                                                    activity.content ||
+                                                                    "",
+                                                            }}
+                                                        />
+                                                    </div>
+                                                ))}
+                                        </div>
+                                    ) : (
+                                        <div className="rounded-xl border border-dashed border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] p-5 text-center">
+                                            <p className="text-[12px] font-bold text-[#71717A] dark:text-[#A1A1AA]">
+                                                No recent activity.
+                                            </p>
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </div>
 

@@ -2760,7 +2760,40 @@ const DirectPurchaseDetails: React.FC = () => {
                     }
                 }
 
-                // ── 4. Merge: SS doc is the base; dp_po fields override ────────
+                // ── 4. Fetch signatory details (HoS RnD → fallback rndadmin) ──
+                let signeeName = dpPoData?.signee_name || "";
+                let signeeDesignation = dpPoData?.signee_designation || "";
+
+                if (!signeeName) {
+                    try {
+                        const csrf = (window as any).csrf_token || "";
+                        // Find who holds the HoS RnD role
+                        const roleRes = await fetch("/api/method/frappe.client.get_list", {
+                            method: "POST",
+                            credentials: "include",
+                            headers: { "Content-Type": "application/json", Accept: "application/json", "X-Frappe-CSRF-Token": csrf },
+                            body: JSON.stringify({ doctype: "Has Role", filters: [["role", "=", "Hos, RnD (Head of Section, RnD)"], ["parenttype", "=", "User"]], fields: ["parent"], limit_page_length: 1 }),
+                        }).then((r) => r.json()).catch(() => null);
+
+                        const hosEmail = roleRes?.message?.[0]?.parent || "";
+                        const targetEmail = hosEmail || "rndadmin@iitg.ac.in";
+
+                        const detailsRes = await fetch(`/api/method/${directPurchaseAPI.getUserDetails}`, {
+                            method: "POST",
+                            credentials: "include",
+                            headers: { "Content-Type": "application/json", Accept: "application/json", "X-Frappe-CSRF-Token": csrf },
+                            body: JSON.stringify({ user_email: targetEmail }),
+                        }).then((r) => r.json()).catch(() => null);
+
+                        const details = detailsRes?.message || {};
+                        signeeName = details.full_name || details.applicant_name || details.name || targetEmail;
+                        signeeDesignation = details.designation_name || details.designation || "";
+                    } catch {
+                        // signatory fetch failed — leave blank, user can fill manually
+                    }
+                }
+
+                // ── 5. Merge: SS doc is the base; dp_po fields override ────────
                 const merged = {
                     ...ssDoc,
                     ...(dpPoData
@@ -2769,13 +2802,13 @@ const DirectPurchaseDetails: React.FC = () => {
                               po_number:            dpPoData.po_number            || ssDoc.name || "",
                               po_date:              dpPoData.po_date               || "",
                               quotation_no:         dpPoData.quotation_ref_no      || "",
-                              signee_name:          dpPoData.signee_name           || "",
-                              signee_designation:   dpPoData.signee_designation    || "",
                               amount_in_words:      dpPoData.amount_in_words       || "",
                               terms_and_conditions: dpPoData.terms_and_conditions  || "",
                               _dp_po_items:         dpPoData.items || [],
                           }
                         : {}),
+                    signee_name:        signeeName,
+                    signee_designation: signeeDesignation,
                     _dp_po_name: dpPoName,
                     dp_indent_value: data?.total_estimate ?? "",
                 };

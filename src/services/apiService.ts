@@ -89,6 +89,13 @@ export const directPurchaseAPI = {
     generatePurchaseOrder: `${API_BASE}.direct_purchase.direct_purchase.generate_purchase_order`,
 };
 
+// Direct Purchase PO (dp_po) API endpoints — Stage 4
+export const dpPoAPI = {
+    getByDirectPurchase: `${API_BASE}.dp_po.dp_po.get_dp_po_by_direct_purchase`,
+    generateFromSS:      `${API_BASE}.dp_po.dp_po.generate_dp_po_from_sanction_sheet`,
+    save:                `${API_BASE}.dp_po.dp_po.save_dp_po_data`,
+};
+
 // P_11 Form API endpoints (Stage 2)
 export const p11FormAPI = {
     getFields: `${API_BASE}.p_11_form.p_11_form.get_p_11_form_fields`,
