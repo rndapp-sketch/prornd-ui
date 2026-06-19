@@ -4,7 +4,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { AppSidebar } from "../../components/RndSidebar";
+
 import {
     useFrappePostCall,
     useFrappeGetCall,
@@ -179,18 +179,18 @@ function buildDPWorkflow(
 
     const firstLabel =
         workflowState === "Pending PI Approval" ? "PI Review" :
-        workflowState === "Pending Mentor Approval" ? "Mentor Review" :
-        workflowState === "Pending Head Approval" ? "Head Review" :
-        "Initial Review";
+            workflowState === "Pending Mentor Approval" ? "Mentor Review" :
+                workflowState === "Pending Head Approval" ? "Head Review" :
+                    "Initial Review";
 
     const firstDesc =
         workflowState === "Pending PI Approval"
             ? "Submitted by project staff. The Principal Investigator reviews and forwards the application to R&D Staff."
             : workflowState === "Pending Mentor Approval"
-            ? "Submitted by an Independent Researcher. The Mentor reviews and forwards the application to R&D Staff."
-            : workflowState === "Pending Head Approval"
-            ? "Submitted by Inspired Faculty. The Head approver reviews and forwards the application to R&D Staff."
-            : "Application is reviewed by PI, Mentor, or Head — determined by the applicant's role at submission time.";
+                ? "Submitted by an Independent Researcher. The Mentor reviews and forwards the application to R&D Staff."
+                : workflowState === "Pending Head Approval"
+                    ? "Submitted by Inspired Faculty. The Head approver reviews and forwards the application to R&D Staff."
+                    : "Application is reviewed by PI, Mentor, or Head — determined by the applicant's role at submission time.";
 
     const phase1: DPStage[] = [
         {
@@ -380,9 +380,9 @@ const DPWorkflowTimeline: React.FC<{
 
     const summaryLabel =
         workflowState === "Rejected" ? "Rejected" :
-        workflowState === "POGenerated" ? "Complete" :
-        workflowState === "Approved" ? "Awaiting P-11" :
-        "In Progress";
+            workflowState === "POGenerated" ? "Complete" :
+                workflowState === "Approved" ? "Awaiting P-11" :
+                    "In Progress";
 
     const p2CompletedCount = phase2.filter(s => s.status === "completed").length;
     const p2ActiveLabel = isInPhase2
@@ -1206,8 +1206,8 @@ const DirectPurchaseActionButtons = ({
                                 sanctionRequired
                                     ? "Create the Sanction Sheet first"
                                     : commitRequired
-                                    ? "Submit a commitment first"
-                                    : undefined
+                                        ? "Submit a commitment first"
+                                        : undefined
                             }
                         >
                             {isPerforming ? "Processing…" : action}
@@ -1849,10 +1849,10 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
                 // Find existing PO Commit Adjustment linked to this DP
                 const fsFilters = JSON.stringify([["frap_app_id", "=", dpId]]);
                 const fsRes = await fetch(
-                    `/api/v2/document/po_commit_adjustment?filters=${encodeURIComponent(fsFilters)}&fields=${encodeURIComponent('["name"]')}&limit=1`,
+                    `/api/method/frappe.client.get_list?doctype=PO Commit Adjustment&filters=${encodeURIComponent(fsFilters)}&fields=${encodeURIComponent('["name"]')}&limit=1`,
                     { credentials: "include", headers: { Accept: "application/json" } },
-                ).then((r) => r.json()).catch(() => ({ data: [] }));
-                const existingDoc: string = fsRes?.data?.[0]?.name || "";
+                ).then((r) => r.json()).catch(() => ({ message: [] }));
+                const existingDoc: string = fsRes?.message?.[0]?.name || "";
 
                 const data = await loadFormFields(existingDoc || undefined);
                 if (cancelled) return;
@@ -2346,7 +2346,7 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
             {formData.other_expenses === "Yes" && <div>
                 <HighlightHeading icon={<PaperclipIcon />} title="Attachments" tone="po" />
                 {typeof formData.upload_attachments === "string" &&
-                formData.upload_attachments ? (
+                    formData.upload_attachments ? (
                     <div className="flex items-center gap-3">
                         <a
                             href={formData.upload_attachments}
@@ -2371,7 +2371,7 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
                         </button>
                     </div>
                 ) : typeof formData.upload_attachments === "object" &&
-                  formData.upload_attachments?.file_name ? (
+                    formData.upload_attachments?.file_name ? (
                     <div className="flex items-center gap-3">
                         <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
                             <FileIcon className="h-3.5 w-3.5 text-violet-500" />
@@ -2889,7 +2889,7 @@ const DirectPurchaseDetails: React.FC = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans overflow-x-hidden">
-            <AppSidebar />
+
 
             <main className="transition-all duration-300 ease-in-out px-5 py-6 md:px-8 md:py-7 overflow-x-hidden">
                 {/* Page Header */}
@@ -2950,14 +2950,14 @@ const DirectPurchaseDetails: React.FC = () => {
                 />
 
                 <div className="min-w-0 space-y-0">
-                        {/* Tab navigation */}
-                        <div className={cn("mb-4 grid grid-cols-1 gap-2 rounded-2xl border border-[#E4E4E7] bg-white p-2 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A] sm:grid-cols-2", isStaffRnD ? "lg:grid-cols-5" : "lg:grid-cols-4")}>
-                            {TABS.filter((tab) => tab.id !== "settlement" || isStaffRnD).map((tab) => {
-                                const showSanctionPulse =
-                                    tab.id === "sanction" &&
-                                    sanctionRequired &&
-                                    activeTab !== "sanction";
-                                return (
+                    {/* Tab navigation */}
+                    <div className={cn("mb-4 grid grid-cols-1 gap-2 rounded-2xl border border-[#E4E4E7] bg-white p-2 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A] sm:grid-cols-2", isStaffRnD ? "lg:grid-cols-5" : "lg:grid-cols-4")}>
+                        {TABS.filter((tab) => tab.id !== "settlement" || isStaffRnD).map((tab) => {
+                            const showSanctionPulse =
+                                tab.id === "sanction" &&
+                                sanctionRequired &&
+                                activeTab !== "sanction";
+                            return (
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
@@ -2999,308 +2999,308 @@ const DirectPurchaseDetails: React.FC = () => {
                                         </span>
                                     </span>
                                 </button>
-                                );
-                            })}
-                        </div>
-
-                        {/* Tab content */}
-                        <ClaudeCard
-                            className={cn(
-                                "border-t-[3px]",
-                                TAB_TONES[activeTab].border,
-                            )}
-                        >
-                            {activeTab === "details" && (
-                                <>
-                                    <TabSectionHeader
-                                        icon={<LayoutGridIcon />}
-                                        eyebrow="Application Details"
-                                        title="Direct Purchase Request"
-                                        description="Key financials, applicant information, declarations, attachments, and purchase tables for this request."
-                                        tone="details"
-                                    />
-                                    <DocumentViewer data={data} />
-
-                                    {/* Commit Payment — details tab only */}
-                                    {isStaffRnD &&
-                                        ["Pending Staff Approval", "Sanction Approved"].includes(data.workflow_state) && (
-                                            <div className="mt-4">
-                                                <CommitPayment
-                                                    doctype="Direct Purchase"
-                                                    docName={id || ""}
-                                                    projectName={projectTitle}
-                                                    budgetHeads={budgetHeads}
-                                                    actualBalance={actualBalance}
-                                                    onCommitSuccess={() => loadData()}
-                                                    onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
-                                                />
-                                            </div>
-                                        )}
-
-                                    {/* Record Payment — details tab only */}
-                                    {isStaffRnD &&
-                                        data.workflow_state === "Pending Staff Approval" &&
-                                        isCommitted && (
-                                            <div className="mt-4">
-                                                <ClaudeCard title="Record Payment" accentTop>
-                                                    <div className="space-y-4">
-                                                        <div>
-                                                            <label className="block text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
-                                                                Payment Amount (₹)
-                                                            </label>
-                                                            <input
-                                                                type="number"
-                                                                className="w-full px-3 py-2 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg text-sm bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
-                                                                placeholder="Enter payment amount"
-                                                                value={paymentAmount}
-                                                                onChange={(e) => setPaymentAmount(e.target.value)}
-                                                                onWheel={(e) => e.currentTarget.blur()}
-                                                            />
-                                                        </div>
-                                                        <ClaudeButton
-                                                            variant="primary"
-                                                            className="w-full"
-                                                            onClick={handlePayment}
-                                                            disabled={isPaying}
-                                                        >
-                                                            {isPaying ? "Recording…" : "Record Payment"}
-                                                        </ClaudeButton>
-                                                    </div>
-                                                </ClaudeCard>
-                                            </div>
-                                        )}
-                                </>
-                            )}
-
-                            {activeTab === "p11" && id && (
-                                <>
-                                    <TabSectionHeader
-                                        icon={<ClipboardListIcon />}
-                                        eyebrow=""
-                                        title="P-11 Form"
-                                        description="Fill, review, print, and submit the P-11 form linked to this Direct Purchase application."
-                                        tone="p11"
-                                        action={data.workflow_state === "Approved" ? (
-                                            <button
-                                                onClick={() =>
-                                                    p11DocName
-                                                        ? navigate(`/p11-form?edit=${p11DocName}&app_id=${id}`)
-                                                        : navigate(`/p11-form?app_id=${id}`)
-                                                }
-                                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#D97757] px-3 py-2 text-[12px] font-bold text-white hover:bg-[#c66a4e]"
-                                            >
-                                                <ClipboardListIcon className="h-3.5 w-3.5" />
-                                                {p11DocName ? "Edit P-11 Form" : "Fill P-11 Form"}
-                                            </button>
-                                        ) : undefined}
-                                    />
-                                    <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] font-semibold leading-5 text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
-                                        A printed hard copy of the P-11 Form must be submitted to the R&amp;D Office for further processing.
-                                    </div>
-                                    <LinkedDocTab
-                                        doctype="P_11 Form"
-                                        filterField="app_id"
-                                        filterValue={id}
-                                        emptyTitle="No P-11 Form Filled Yet"
-                                        emptyDescription={'Click "Fill P-11 Form" above to create and submit the P-11 Form. You must fill and submit P-11 before the "Submit P-11" workflow action becomes available.'}
-                                        onDataReload={loadData}
-                                        parentData={data ?? undefined}
-                                    />
-                                </>
-                            )}
-
-                            {activeTab === "sanction" && id && (
-                                <>
-                                    <TabSectionHeader
-                                        icon={<FileTextIcon />}
-                                        eyebrow="Approval Document"
-                                        title="Sanction Sheet"
-                                        description="Create or review the sanction sheet after the P-11 form has been verified by R&D."
-                                        tone="sanction"
-                                        action={
-                                            data?.workflow_state === "RDP-11 Verified" && isStaffRnD ? (
-                                                <button
-                                                    onClick={handleOpenSanctionSheet}
-                                                    disabled={isOpeningSanctionSheet}
-                                                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-[12px] font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
-                                                >
-                                                    {isOpeningSanctionSheet
-                                                        ? "Opening…"
-                                                        : ssExists
-                                                        ? "Edit Sanction Sheet"
-                                                        : "Create Sanction Sheet"}
-                                                </button>
-                                            ) : undefined
-                                        }
-                                    />
-
-                                    {/* Step guidance for RDP-11 Verified state */}
-                                    {data?.workflow_state === "RDP-11 Verified" && isStaffRnD && (
-                                        ssExists ? (
-                                            <div className="mb-4 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-800 dark:bg-emerald-950/20">
-                                                <CheckCircle2Icon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                                                <div>
-                                                    <p className="text-[12px] font-extrabold text-emerald-800 dark:text-emerald-300">
-                                                        Sanction Sheet created
-                                                    </p>
-                                                    <p className="mt-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
-                                                        Now click the workflow action button at the top of the page to proceed.
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-900/20">
-                                                <AlertCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                                                <div>
-                                                    <p className="text-[12px] font-extrabold text-amber-800 dark:text-amber-300">
-                                                        Action required — create the Sanction Sheet first
-                                                    </p>
-                                                    <p className="mt-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-400">
-                                                        Click <strong>Create Sanction Sheet</strong> above to fill in and save the sanction sheet. The workflow action button will unlock once the sanction sheet is saved.
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )
-                                    )}
-
-                                    <LinkedDocTab
-                                        doctype="sanction_sheet"
-                                        filterField="app_id"
-                                        filterValue={id}
-                                        emptyTitle="No Sanction Sheet Generated Yet"
-                                        emptyDescription="The Sanction Sheet is created by RnD Staff after the P-11 Form is verified and approved."
-                                        onDataReload={loadData}
-                                    />
-                                </>
-                            )}
-
-                            {activeTab === "po" && (
-                                <>
-                                    <TabSectionHeader
-                                        icon={<ShoppingCartIcon />}
-                                        eyebrow="Purchase Order"
-                                        title="Purchase Order"
-                                        description="Prepare, preview, print, and upload the signed purchase order generated from the sanction sheet."
-                                        tone="po"
-                                    />
-                                    {isLoadingPOData ? (
-                                        <div className="flex items-center justify-center rounded-xl border border-dashed border-[#E4E4E7] bg-[#FAFAF9] py-12 dark:border-[#3F3F46] dark:bg-[#18181B]">
-                                            <div className="animate-spin rounded-full h-7 w-7 border-2 border-[#D97757] border-t-transparent" />
-                                        </div>
-                                    ) : poSanctionData &&
-                                        (isStaffRnD ||
-                                            data?.workflow_state ===
-                                            "POGenerated") ? (
-                                        <POEditor
-                                            ssData={poSanctionData}
-                                            dpId={id || ""}
-                                            isStaffRnD={isStaffRnD}
-                                            isPIReadOnly={
-                                                isPermanentEmployee &&
-                                                !isStaffRnD
-                                            }
-                                            onUploadSignedPO={async (
-                                                file: File,
-                                            ) => {
-                                                const formData = new FormData();
-                                                formData.append(
-                                                    "file",
-                                                    file,
-                                                    file.name,
-                                                );
-                                                formData.append(
-                                                    "docname",
-                                                    poSanctionData.name,
-                                                );
-                                                formData.append(
-                                                    "app_id",
-                                                    id || "",
-                                                );
-                                                formData.append(
-                                                    "project_no",
-                                                    poSanctionData.project_no ||
-                                                    "",
-                                                );
-                                                const res = await fetch(
-                                                    "/api/method/rndopsapp.rndopsapp.doctype.direct_purchase.direct_purchase.upload_po_document",
-                                                    {
-                                                        method: "POST",
-                                                        body: formData,
-                                                        credentials: "include",
-                                                        headers: {
-                                                            "X-Frappe-CSRF-Token":
-                                                                (window as any)
-                                                                    .csrf_token ||
-                                                                "",
-                                                        },
-                                                    },
-                                                );
-                                                const json = await res
-                                                    .json()
-                                                    .catch(() => ({}));
-                                                if (
-                                                    !res.ok ||
-                                                    json?.message?.status ===
-                                                    false
-                                                )
-                                                    throw new Error(
-                                                        json?.message
-                                                            ?.message ||
-                                                        "Upload failed",
-                                                    );
-                                                // Reset so the effect re-fetches with updated file_path
-                                                setPoSanctionData(null);
-                                            }}
-                                        />
-                                    ) : poSanctionData ? (
-                                        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#E4E4E7] bg-[#FAFAF9] px-5 py-12 text-center gap-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
-                                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-[#A1A1AA] shadow-sm dark:bg-[#27272A] dark:text-[#71717A]">
-                                                <ShoppingCartIcon className="h-5 w-5" />
-                                            </div>
-                                            <p className="text-[15px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
-                                                Purchase Order Not Yet Generated
-                                            </p>
-                                            <p className="max-w-md text-[12px] font-medium leading-5 text-[#71717A] dark:text-[#A1A1AA]">
-                                                The Purchase Order has not been
-                                                generated by staff yet. Please
-                                                check back later.
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#E4E4E7] bg-[#FAFAF9] px-5 py-12 text-center gap-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
-                                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-[#A1A1AA] shadow-sm dark:bg-[#27272A] dark:text-[#71717A]">
-                                                <ShoppingCartIcon className="h-5 w-5" />
-                                            </div>
-                                            <p className="text-[15px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
-                                                No Sanction Sheet Available
-                                            </p>
-                                            <p className="max-w-md text-[12px] font-medium leading-5 text-[#71717A] dark:text-[#A1A1AA]">
-                                                The Purchase Order editor
-                                                requires a Sanction Sheet to be
-                                                created first.
-                                            </p>
-                                        </div>
-                                    )}
-                                </>
-                            )}
-
-                            {activeTab === "settlement" && id && isStaffRnD && (
-                                <>
-                                    <TabSectionHeader
-                                        icon={<ReceiptIcon />}
-                                        eyebrow="Settlement"
-                                        title="PO Commit Adjustment"
-                                        description="Submit the PO Commit Adjustment for this direct purchase after the PO is fulfilled."
-                                        tone="settlement"
-                                    />
-                                    <FinalSettlementTab dpId={id} />
-                                </>
-                            )}
-                        </ClaudeCard>
-
+                            );
+                        })}
                     </div>
 
-                    {id && <FloatingActivityLogButton doctype="Direct Purchase" docname={id} />}
+                    {/* Tab content */}
+                    <ClaudeCard
+                        className={cn(
+                            "border-t-[3px]",
+                            TAB_TONES[activeTab].border,
+                        )}
+                    >
+                        {activeTab === "details" && (
+                            <>
+                                <TabSectionHeader
+                                    icon={<LayoutGridIcon />}
+                                    eyebrow="Application Details"
+                                    title="Direct Purchase Request"
+                                    description="Key financials, applicant information, declarations, attachments, and purchase tables for this request."
+                                    tone="details"
+                                />
+                                <DocumentViewer data={data} />
+
+                                {/* Commit Payment — details tab only */}
+                                {isStaffRnD &&
+                                    ["Pending Staff Approval", "Sanction Approved"].includes(data.workflow_state) && (
+                                        <div className="mt-4">
+                                            <CommitPayment
+                                                doctype="Direct Purchase"
+                                                docName={id || ""}
+                                                projectName={projectTitle}
+                                                budgetHeads={budgetHeads}
+                                                actualBalance={actualBalance}
+                                                onCommitSuccess={() => loadData()}
+                                                onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
+                                            />
+                                        </div>
+                                    )}
+
+                                {/* Record Payment — details tab only */}
+                                {isStaffRnD &&
+                                    data.workflow_state === "Pending Staff Approval" &&
+                                    isCommitted && (
+                                        <div className="mt-4">
+                                            <ClaudeCard title="Record Payment" accentTop>
+                                                <div className="space-y-4">
+                                                    <div>
+                                                        <label className="block text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
+                                                            Payment Amount (₹)
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            className="w-full px-3 py-2 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg text-sm bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
+                                                            placeholder="Enter payment amount"
+                                                            value={paymentAmount}
+                                                            onChange={(e) => setPaymentAmount(e.target.value)}
+                                                            onWheel={(e) => e.currentTarget.blur()}
+                                                        />
+                                                    </div>
+                                                    <ClaudeButton
+                                                        variant="primary"
+                                                        className="w-full"
+                                                        onClick={handlePayment}
+                                                        disabled={isPaying}
+                                                    >
+                                                        {isPaying ? "Recording…" : "Record Payment"}
+                                                    </ClaudeButton>
+                                                </div>
+                                            </ClaudeCard>
+                                        </div>
+                                    )}
+                            </>
+                        )}
+
+                        {activeTab === "p11" && id && (
+                            <>
+                                <TabSectionHeader
+                                    icon={<ClipboardListIcon />}
+                                    eyebrow=""
+                                    title="P-11 Form"
+                                    description="Fill, review, print, and submit the P-11 form linked to this Direct Purchase application."
+                                    tone="p11"
+                                    action={data.workflow_state === "Approved" ? (
+                                        <button
+                                            onClick={() =>
+                                                p11DocName
+                                                    ? navigate(`/p11-form?edit=${p11DocName}&app_id=${id}`)
+                                                    : navigate(`/p11-form?app_id=${id}`)
+                                            }
+                                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#D97757] px-3 py-2 text-[12px] font-bold text-white hover:bg-[#c66a4e]"
+                                        >
+                                            <ClipboardListIcon className="h-3.5 w-3.5" />
+                                            {p11DocName ? "Edit P-11 Form" : "Fill P-11 Form"}
+                                        </button>
+                                    ) : undefined}
+                                />
+                                <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] font-semibold leading-5 text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+                                    A printed hard copy of the P-11 Form must be submitted to the R&amp;D Office for further processing.
+                                </div>
+                                <LinkedDocTab
+                                    doctype="P_11 Form"
+                                    filterField="app_id"
+                                    filterValue={id}
+                                    emptyTitle="No P-11 Form Filled Yet"
+                                    emptyDescription={'Click "Fill P-11 Form" above to create and submit the P-11 Form. You must fill and submit P-11 before the "Submit P-11" workflow action becomes available.'}
+                                    onDataReload={loadData}
+                                    parentData={data ?? undefined}
+                                />
+                            </>
+                        )}
+
+                        {activeTab === "sanction" && id && (
+                            <>
+                                <TabSectionHeader
+                                    icon={<FileTextIcon />}
+                                    eyebrow="Approval Document"
+                                    title="Sanction Sheet"
+                                    description="Create or review the sanction sheet after the P-11 form has been verified by R&D."
+                                    tone="sanction"
+                                    action={
+                                        data?.workflow_state === "RDP-11 Verified" && isStaffRnD ? (
+                                            <button
+                                                onClick={handleOpenSanctionSheet}
+                                                disabled={isOpeningSanctionSheet}
+                                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-[12px] font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
+                                            >
+                                                {isOpeningSanctionSheet
+                                                    ? "Opening…"
+                                                    : ssExists
+                                                        ? "Edit Sanction Sheet"
+                                                        : "Create Sanction Sheet"}
+                                            </button>
+                                        ) : undefined
+                                    }
+                                />
+
+                                {/* Step guidance for RDP-11 Verified state */}
+                                {data?.workflow_state === "RDP-11 Verified" && isStaffRnD && (
+                                    ssExists ? (
+                                        <div className="mb-4 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-800 dark:bg-emerald-950/20">
+                                            <CheckCircle2Icon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                            <div>
+                                                <p className="text-[12px] font-extrabold text-emerald-800 dark:text-emerald-300">
+                                                    Sanction Sheet created
+                                                </p>
+                                                <p className="mt-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                                                    Now click the workflow action button at the top of the page to proceed.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-900/20">
+                                            <AlertCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                                            <div>
+                                                <p className="text-[12px] font-extrabold text-amber-800 dark:text-amber-300">
+                                                    Action required — create the Sanction Sheet first
+                                                </p>
+                                                <p className="mt-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-400">
+                                                    Click <strong>Create Sanction Sheet</strong> above to fill in and save the sanction sheet. The workflow action button will unlock once the sanction sheet is saved.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )
+                                )}
+
+                                <LinkedDocTab
+                                    doctype="sanction_sheet"
+                                    filterField="app_id"
+                                    filterValue={id}
+                                    emptyTitle="No Sanction Sheet Generated Yet"
+                                    emptyDescription="The Sanction Sheet is created by RnD Staff after the P-11 Form is verified and approved."
+                                    onDataReload={loadData}
+                                />
+                            </>
+                        )}
+
+                        {activeTab === "po" && (
+                            <>
+                                <TabSectionHeader
+                                    icon={<ShoppingCartIcon />}
+                                    eyebrow="Purchase Order"
+                                    title="Purchase Order"
+                                    description="Prepare, preview, print, and upload the signed purchase order generated from the sanction sheet."
+                                    tone="po"
+                                />
+                                {isLoadingPOData ? (
+                                    <div className="flex items-center justify-center rounded-xl border border-dashed border-[#E4E4E7] bg-[#FAFAF9] py-12 dark:border-[#3F3F46] dark:bg-[#18181B]">
+                                        <div className="animate-spin rounded-full h-7 w-7 border-2 border-[#D97757] border-t-transparent" />
+                                    </div>
+                                ) : poSanctionData &&
+                                    (isStaffRnD ||
+                                        data?.workflow_state ===
+                                        "POGenerated") ? (
+                                    <POEditor
+                                        ssData={poSanctionData}
+                                        dpId={id || ""}
+                                        isStaffRnD={isStaffRnD}
+                                        isPIReadOnly={
+                                            isPermanentEmployee &&
+                                            !isStaffRnD
+                                        }
+                                        onUploadSignedPO={async (
+                                            file: File,
+                                        ) => {
+                                            const formData = new FormData();
+                                            formData.append(
+                                                "file",
+                                                file,
+                                                file.name,
+                                            );
+                                            formData.append(
+                                                "docname",
+                                                poSanctionData.name,
+                                            );
+                                            formData.append(
+                                                "app_id",
+                                                id || "",
+                                            );
+                                            formData.append(
+                                                "project_no",
+                                                poSanctionData.project_no ||
+                                                "",
+                                            );
+                                            const res = await fetch(
+                                                "/api/method/rndopsapp.rndopsapp.doctype.direct_purchase.direct_purchase.upload_po_document",
+                                                {
+                                                    method: "POST",
+                                                    body: formData,
+                                                    credentials: "include",
+                                                    headers: {
+                                                        "X-Frappe-CSRF-Token":
+                                                            (window as any)
+                                                                .csrf_token ||
+                                                            "",
+                                                    },
+                                                },
+                                            );
+                                            const json = await res
+                                                .json()
+                                                .catch(() => ({}));
+                                            if (
+                                                !res.ok ||
+                                                json?.message?.status ===
+                                                false
+                                            )
+                                                throw new Error(
+                                                    json?.message
+                                                        ?.message ||
+                                                    "Upload failed",
+                                                );
+                                            // Reset so the effect re-fetches with updated file_path
+                                            setPoSanctionData(null);
+                                        }}
+                                    />
+                                ) : poSanctionData ? (
+                                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#E4E4E7] bg-[#FAFAF9] px-5 py-12 text-center gap-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
+                                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-[#A1A1AA] shadow-sm dark:bg-[#27272A] dark:text-[#71717A]">
+                                            <ShoppingCartIcon className="h-5 w-5" />
+                                        </div>
+                                        <p className="text-[15px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                            Purchase Order Not Yet Generated
+                                        </p>
+                                        <p className="max-w-md text-[12px] font-medium leading-5 text-[#71717A] dark:text-[#A1A1AA]">
+                                            The Purchase Order has not been
+                                            generated by staff yet. Please
+                                            check back later.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#E4E4E7] bg-[#FAFAF9] px-5 py-12 text-center gap-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
+                                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-[#A1A1AA] shadow-sm dark:bg-[#27272A] dark:text-[#71717A]">
+                                            <ShoppingCartIcon className="h-5 w-5" />
+                                        </div>
+                                        <p className="text-[15px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                            No Sanction Sheet Available
+                                        </p>
+                                        <p className="max-w-md text-[12px] font-medium leading-5 text-[#71717A] dark:text-[#A1A1AA]">
+                                            The Purchase Order editor
+                                            requires a Sanction Sheet to be
+                                            created first.
+                                        </p>
+                                    </div>
+                                )}
+                            </>
+                        )}
+
+                        {activeTab === "settlement" && id && isStaffRnD && (
+                            <>
+                                <TabSectionHeader
+                                    icon={<ReceiptIcon />}
+                                    eyebrow="Settlement"
+                                    title="PO Commit Adjustment"
+                                    description="Submit the PO Commit Adjustment for this direct purchase after the PO is fulfilled."
+                                    tone="settlement"
+                                />
+                                <FinalSettlementTab dpId={id} />
+                            </>
+                        )}
+                    </ClaudeCard>
+
+                </div>
+
+                {id && <FloatingActivityLogButton doctype="Direct Purchase" docname={id} />}
             </main>
         </div>
     );
