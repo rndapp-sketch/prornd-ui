@@ -3160,6 +3160,30 @@ const IndentCumSanctionSheetForm: React.FC = () => {
 
           setBaseFields(filteredFields);
           setLinkOptions(link_options || {});
+
+          // Load all active principal suppliers so the dropdown isn't limited
+          // to whatever subset the backend pre-packages in link_options.
+          try {
+            const principalRes = await getListCall({
+              doctype: "Principal Supplier",
+              fields: ["name", "principal_supplier_name"],
+              filters: [["status", "=", "Active"]],
+              limit_page_length: 0,
+            });
+            if (principalRes?.message?.length) {
+              const allPrincipals = principalRes.message.map((r: any) => ({
+                value: r.name,
+                label: r.principal_supplier_name || r.name,
+              }));
+              setLinkOptions((prev) => ({
+                ...prev,
+                principal_supplier: mergeLinkOptionLists(prev.principal_supplier, allPrincipals),
+              }));
+            }
+          } catch (e) {
+            console.error("Failed to load all principal suppliers:", e);
+          }
+
           if (response.message.computation_rules) {
             setComputationRules(response.message.computation_rules);
           }
@@ -3835,19 +3859,53 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                 fetchPrincipalSupplierDetails({ principal_supplier: value }),
                 fetchLocalSuppliersByPrincipal({ principal_supplier: value }),
               ]);
+
+              // Set principal fields immediately so they always populate even if
+              // the local supplier fetch below fails.
               setFormData((prev) =>
                 applyComputations({
                   ...prev,
                   [fieldname]: value,
                   principal_address: details?.message?.principal_address || "",
                   agreement_no: details?.message?.agreement_no || "",
+                  local_supplier: "",
+                  local_address: "",
+                  local_email: "",
                 }),
               );
-              if (locals?.message)
-                setLinkOptions((prev) => ({
-                  ...prev,
-                  local_supplier: locals.message,
-                }));
+
+              const localList = normalizeLinkOptionList(locals?.message || []);
+              // Always replace local_supplier options — clears stale options from
+              // a previously selected principal that had local suppliers.
+              setLinkOptions((prev) => ({ ...prev, local_supplier: localList }));
+
+              // Auto-select first local supplier. Done in a separate try so any
+              // failure here doesn't wipe out the principal fields set above.
+              const firstLocalId = localList[0]?.value || "";
+              if (firstLocalId) {
+                try {
+                  const localRes = await fetchLocalSupplierDetails({
+                    local_supplier: firstLocalId,
+                  });
+                  const localDoc = localRes?.message || {};
+                  // local_supplier is a Data field — store the human-readable name.
+                  // getLocalSuppliersByPrincipal returns label = local_supplier_name.
+                  const localSupplierName =
+                    localList[0]?.label && localList[0].label !== firstLocalId
+                      ? localList[0].label
+                      : localDoc.local_supplier_name || firstLocalId;
+                  setFormData((prev) =>
+                    applyComputations({
+                      ...prev,
+                      local_supplier: localSupplierName,
+                      local_address: localDoc.local_address || "",
+                      local_email: localDoc.local_email || "",
+                    }),
+                  );
+                } catch (localErr) {
+                  console.error("Failed to auto-fetch local supplier details:", localErr);
+                }
+              }
             } else {
               setFormData((prev) =>
                 applyComputations({
@@ -3865,18 +3923,34 @@ const IndentCumSanctionSheetForm: React.FC = () => {
 
           case "local_supplier":
             if (value) {
-              const res = await fetchLocalSupplierDetails({
-                local_supplier: value,
-              });
-              if (res?.message) {
+              // value is the Frappe doc ID; resolve the human-readable name
+              // from linkOptions so the Data field stores the proper name.
+              const localOpt = (linkOptions.local_supplier || []).find(
+                (o) => o.value === value,
+              );
+              const localName = localOpt?.label && localOpt.label !== value
+                ? localOpt.label
+                : value;
+
+              // Set name immediately so the field isn't blank while fetching.
+              setFormData((prev) =>
+                applyComputations({ ...prev, [fieldname]: localName }),
+              );
+              try {
+                const res = await fetchLocalSupplierDetails({
+                  local_supplier: value,
+                });
+                const details = res?.message || {};
                 setFormData((prev) =>
                   applyComputations({
                     ...prev,
-                    [fieldname]: value,
-                    local_address: res.message.local_address || "",
-                    local_email: res.message.local_email || "",
+                    [fieldname]: localName,
+                    local_address: details.local_address || "",
+                    local_email: details.local_email || "",
                   }),
                 );
+              } catch {
+                // name already set above; address/email stay blank
               }
             } else {
               setFormData((prev) =>
@@ -3987,6 +4061,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       fetchLocalSupplierDetails,
       fetchVendorDetails,
       fetchVendorsByP4ItemType,
+      fetchFrappeValue,
+      linkOptions,
     ],
   );
 

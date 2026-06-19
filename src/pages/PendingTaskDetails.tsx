@@ -1744,6 +1744,9 @@ const PendingTaskDetails: React.FC = () => {
             r === "Hos, RnD (Head of Section, RnD)",
     );
     const isDoRnd = roles.includes("Dean, RnD");
+    const canEditFsAccountDetails = roles.some(
+        (r) => r === "staff, RnD" || r === "System Manager",
+    );
 
     // Fund Sanction — editable account details
     const [fsAcctPfms, setFsAcctPfms] = useState('');
@@ -3192,7 +3195,7 @@ const PendingTaskDetails: React.FC = () => {
                                         <h3 className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-[0.1em]">Account Details</h3>
                                     </div>
                                     <div className="p-6 space-y-4">
-                                        {isRnDStaff ? (
+                                        {canEditFsAccountDetails ? (
                                             <>
                                                 <div className="space-y-1.5">
                                                     <label className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">

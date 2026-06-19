@@ -383,7 +383,7 @@ const PendingTask: React.FC = () => {
                 // Include if: normal group OR HoS user with a HoS-specific record
                 if (!shouldIncludeGroup && !(isHosRnd && isHosPendingRecord)) return;
 
-                if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name)) {
+                if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name) && !(isHosRnd && isHosPendingRecord)) {
                     return;
                 }
                 if (isPermanentEmployee && group.doctype === "Leave Module" && record.status === "Pending PI Approval" && allowedLeaveNames && !allowedLeaveNames.has(record.name)) {

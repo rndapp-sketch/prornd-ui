@@ -85,6 +85,7 @@ const RateContractForm: React.FC = () => {
     const { call: fetchVendorDetails } = useFrappePostCall<{ message: any }>(rateContractAPI.getVendorDetails);
     const { call: fetchVendorsByP4ItemType } = useFrappePostCall<{ message: LinkOption[] }>(rateContractAPI.getVendorsByP4ItemType);
     const { call: fetchUserDetails } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
+    const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>('frappe.client.get_value');
 
     // --- DATA FETCHING ---
     useEffect(() => {
@@ -211,22 +212,44 @@ const RateContractForm: React.FC = () => {
                 case 'principal_supplier':
                     // P3: On principal_supplier change - fetch details & filter local suppliers
                     if (value) {
-                        // Fetch principal supplier details
-                        const detailsResult = await fetchPrincipalSupplierDetails({ principal_supplier: value });
-                        if (detailsResult?.message) {
-                            setFormData(prev => ({
-                                ...prev,
-                                [fieldname]: value,
-                                principal_address: detailsResult.message.principal_address || '',
-                                agreement_no: detailsResult.message.agreement_no || ''
-                            }));
+                        // Fetch principal supplier details and local suppliers in parallel
+                        const [detailsResult, localsResult] = await Promise.all([
+                            fetchPrincipalSupplierDetails({ principal_supplier: value }),
+                            fetchLocalSuppliersByPrincipal({ principal_supplier: value })
+                        ]);
+
+                        const locals = localsResult?.message || [];
+                        setLinkOptions(prev => ({ ...prev, local_supplier: locals }));
+
+                        // local_supplier is a Data field — stores the human-readable name, not Frappe ID.
+                        // Fetch the name via get_value using the Frappe doc ID.
+                        const firstLocalId = locals[0]?.value || '';
+                        let localDetails: any = null;
+                        let localSupplierName = locals[0]?.label || '';
+
+                        if (firstLocalId) {
+                            const [localResult, localDocRes] = await Promise.all([
+                                fetchLocalSupplierDetails({ local_supplier: firstLocalId }),
+                                fetchFrappeValue({
+                                    doctype: 'Local Supplier Detail',
+                                    filters: { name: firstLocalId },
+                                    fieldname: ['local_supplier_name'],
+                                }),
+                            ]);
+                            localDetails = localResult?.message || null;
+                            localSupplierName =
+                                localDocRes?.message?.local_supplier_name || localSupplierName || firstLocalId;
                         }
 
-                        // Fetch local suppliers filtered by principal
-                        const localsResult = await fetchLocalSuppliersByPrincipal({ principal_supplier: value });
-                        if (localsResult?.message) {
-                            setLinkOptions(prev => ({ ...prev, local_supplier: localsResult.message }));
-                        }
+                        setFormData(prev => ({
+                            ...prev,
+                            [fieldname]: value,
+                            principal_address: detailsResult?.message?.principal_address || '',
+                            agreement_no: detailsResult?.message?.agreement_no || '',
+                            local_supplier: localSupplierName,
+                            local_address: localDetails?.local_address || '',
+                            local_email: localDetails?.local_email || ''
+                        }));
                     } else {
                         setFormData(prev => ({
                             ...prev,
@@ -344,7 +367,7 @@ const RateContractForm: React.FC = () => {
         } catch (error) {
             console.error(`Error handling field change for ${fieldname}:`, error);
         }
-    }, [handleChange, fetchPrincipalSuppliersByItemType, fetchPrincipalSupplierDetails, fetchLocalSuppliersByPrincipal, fetchLocalSupplierDetails, fetchVendorDetails, fetchVendorsByP4ItemType, fetchUserDetails]);
+    }, [handleChange, fetchPrincipalSuppliersByItemType, fetchPrincipalSupplierDetails, fetchLocalSuppliersByPrincipal, fetchLocalSupplierDetails, fetchVendorDetails, fetchVendorsByP4ItemType, fetchUserDetails, fetchFrappeValue]);
 
     const handleTableRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: any) => {
         setFormData(prev => {
