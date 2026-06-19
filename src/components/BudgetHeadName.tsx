@@ -1,26 +1,25 @@
 import { useFrappeGetCall } from "frappe-react-sdk";
 
 interface BudgetHeadNameProps {
-    /** Preferred: any account_head value — numeric uses id filter, hash string uses name filter */
+    /** The account_head value — stored as Frappe Budget Head document name */
     value?: string | number | null;
-    /** Legacy alias for value (string name) */
+    /** Legacy alias */
     ID?: string;
-    /** Legacy alias for value (any) */
+    /** Legacy alias */
     id?: string | number;
+    className?: string;
 }
 
-
-export const BudgetHeadName = ({ value, ID, id }: BudgetHeadNameProps) => {
+export const BudgetHeadName = ({ value, ID, id, className }: BudgetHeadNameProps) => {
     const resolved = value ?? ID ?? id;
     const hasValue = resolved != null && resolved !== "";
-    const filters = [["name", "=", String(resolved)]];
     const fallback = String(resolved ?? "");
 
-    const { data, isLoading, error } = useFrappeGetCall<{ message: { budget_head: string }[] }>(
+    const { data, isLoading } = useFrappeGetCall<{ message: Record<string, any>[] }>(
         "frappe.client.get_list",
         {
             doctype: "Budget Head",
-            filters,
+            filters: [["name", "=", String(resolved)]],
             fields: ["budget_head"],
             limit_page_length: 1,
         },
@@ -29,9 +28,8 @@ export const BudgetHeadName = ({ value, ID, id }: BudgetHeadNameProps) => {
     );
 
     if (!hasValue) return null;
-    if (isLoading) return <span className="text-zinc-400">Loading...</span>;
-    if (error) return <span>{fallback}</span>;
+    if (isLoading) return <span className={className}>…</span>;
 
-    const name = (data?.message as any)?.[0]?.budget_head;
-    return <span>{name || fallback}</span>;
+    const displayName = data?.message?.[0]?.budget_head;
+    return <span className={className}>{displayName || fallback}</span>;
 };

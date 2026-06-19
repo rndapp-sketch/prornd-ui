@@ -705,6 +705,30 @@ const MemoizedFormField = memo(
               />
             );
           }
+          // If linkOptions are available for this Data field (e.g. local_supplier),
+          // render as a select dropdown so the user can choose from the list.
+          if (options && options.length > 1) {
+            // formData stores the human-readable name; find the matching option
+            // by label so the <select> controlled value reflects the selection.
+            const selectedId =
+              options.find((o) => o.label === value || o.value === value)?.value ?? "";
+            return (
+              <div className="relative flex flex-col pt-1">
+                <select
+                  {...commonProps}
+                  value={selectedId}
+                  onChange={(e) => handleChange(field.fieldname, e.target.value)}
+                >
+                  <option value="">Select...</option>
+                  {options.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label ?? opt.value}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            );
+          }
           return (
             <div className="relative flex flex-col pt-1">
               <div className="relative">

@@ -142,7 +142,7 @@ export function AppSidebar() {
             group.records.forEach((record) => {
                 const isHosPending = record.status === "Pending HoS Approval";
                 if (!shouldIncludeGroup && !(isHosRnd && isHosPending)) return;
-                if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name)) return;
+                if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name) && !(isHosRnd && isHosPending)) return;
                 if (isPermanentEmployee && group.doctype === "Leave Module" && allowedLeaveNames) {
                     if (record.status === "Pending PI Approval" && !allowedLeaveNames.has(record.name)) return;
                 }
