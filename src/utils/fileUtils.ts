@@ -19,6 +19,7 @@ const MINIO_PATH_PREFIXES = [
     "/Project_Registration/",
     "/indent_general_form/",
     "/indent_cum_sanction_sheet/",
+    "/proprietary_purchase/",
 ];
 
 export function getFileUrl(path: string | null | undefined): string {
