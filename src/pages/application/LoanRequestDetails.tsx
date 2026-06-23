@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppSidebar } from '@/components/RndSidebar';
-import { useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
 import { useUserRoles } from '@/components/UserRole';
 import { cn } from '@/lib/utils';
 import {
     CalendarIcon, EditIcon, Send, ChevronRight,
     CheckCircle2, XCircle, Clock, UserIcon, IndianRupeeIcon,
-    TableIcon, FileTextIcon, ActivityIcon, MessageSquare, AlertCircle,
+    TableIcon, FileTextIcon, AlertCircle,
 } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { GlobalLoader } from '@/components/ui/global-loader';
@@ -15,7 +15,7 @@ import { DynamicFormRenderer, type FormField, type LinkOption } from '@/componen
 import { loanRequestAPI, prepareFormDataForApi } from '@/services/apiService';
 import { DepartmentName } from '@/components/DepartmentName';
 import LoanRequestActionButtons from '@/components/LoanRequestActionButtons';
-import { ActivityLog } from '@/components/ActivityLog';
+import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButton';
 
 // --- FIELD GROUP DEFINITIONS (same as form) ---
 const GROUP_A_FIELDS = new Set([
@@ -73,13 +73,6 @@ interface FormDataResponse {
         prefill_data: Record<string, any>;
         child_table_fields?: Record<string, any[]>;
     };
-}
-
-interface ActivityItem {
-    owner: string;
-    creation: string;
-    content: string;
-    comment_type: string;
 }
 
 // --- UI COMPONENTS ---
@@ -197,115 +190,6 @@ const WorkflowTimeline: React.FC<{ currentState: string }> = ({ currentState }) 
 };
 
 
-// --- ACTIVITY STREAM ---
-const ActivityStream: React.FC<{ doctype: string; docname: string; onRefresh?: () => void }> = ({ doctype, docname, onRefresh }) => {
-    const [newComment, setNewComment] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const {
-        data: activityData,
-        mutate: refetchActivity,
-        isLoading: isActivityLoading,
-        error: activityError,
-    } = useFrappeGetCall<{ message: ActivityItem[] }>(
-        'rndopsapp.rndopsapp.api.get_project_activity',
-        { doctype, docname },
-        docname ? undefined : null,
-    );
-
-    const { call: addComment } = useFrappePostCall('rndopsapp.rndopsapp.api.add_project_comment');
-
-    const handleCommentSubmit = async () => {
-        if (!newComment.trim()) return;
-        setIsSubmitting(true);
-        try {
-            await addComment({ doctype, docname, content: newComment.trim() });
-            setNewComment('');
-            await refetchActivity();
-            onRefresh?.();
-        } catch (err: any) {
-            console.error('Failed to add comment:', err);
-            alert('Error: Could not post comment.');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const items = activityData?.message || [];
-
-    return (
-        <div className="space-y-4">
-            {/* Add Comment */}
-            <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-lg">
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                    Add a comment
-                </label>
-                <textarea
-                    placeholder="Type here... (Ctrl+Enter to submit)"
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleCommentSubmit(); }}
-                    disabled={isSubmitting}
-                    className="w-full resize-none bg-white dark:bg-zinc-900 p-3 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] text-sm"
-                    rows={3}
-                />
-                <div className="flex items-center justify-between mt-2">
-                    <span className="text-xs text-zinc-400">{newComment.length}/1000</span>
-                    <button
-                        onClick={handleCommentSubmit}
-                        disabled={isSubmitting || !newComment.trim()}
-                        className="px-4 py-1.5 rounded-lg text-xs font-medium bg-[#D97757] text-white hover:bg-[#c66a4e] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                    >
-                        {isSubmitting ? 'Posting...' : 'Post Comment'}
-                    </button>
-                </div>
-            </div>
-
-            {/* Activity List */}
-            <div className="space-y-3">
-                {isActivityLoading && (
-                    <div className="flex justify-center py-4">
-                        <div className="animate-spin rounded-full h-6 w-6 border-2 border-[#D97757] border-t-transparent" />
-                    </div>
-                )}
-                {activityError && (
-                    <div className="text-center p-3 text-red-700 border border-red-200 rounded-lg bg-red-50 text-xs">
-                        Failed to load activity
-                    </div>
-                )}
-                {items.length > 0
-                    ? items.map((item, idx) => (
-                        <div key={`${item.creation}-${idx}`} className="flex items-start gap-3 p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg">
-                            <div className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center font-semibold text-[#D97757] text-xs">
-                                {item.owner?.charAt(0).toUpperCase() || 'U'}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <div className="flex justify-between items-center mb-1">
-                                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">{item.owner || 'Unknown'}</p>
-                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1 flex-shrink-0">
-                                        <Clock className="h-3 w-3" />
-                                        {item.creation ? new Date(item.creation).toLocaleString() : 'N/A'}
-                                    </p>
-                                </div>
-                                <div
-                                    className="text-sm text-zinc-700 dark:text-zinc-300 prose prose-sm max-w-none leading-relaxed"
-                                    dangerouslySetInnerHTML={{ __html: item.content || 'No content' }}
-                                />
-                            </div>
-                        </div>
-                    ))
-                    : !isActivityLoading && (
-                        <div className="text-center py-6 text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900">
-                            <MessageSquare className="h-8 w-8 text-zinc-300 dark:text-zinc-600 mx-auto mb-2" />
-                            <p className="text-sm font-medium">No activity yet.</p>
-                            <p className="text-xs mt-1">Be the first to add a comment.</p>
-                        </div>
-                    )
-                }
-            </div>
-        </div>
-    );
-};
 
 // --- STATUS BADGE ---
 const StateBadge = ({ state }: { state: string }) => {
@@ -660,24 +544,10 @@ const LoanRequestDetails: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Activity Log + Add Comment (self-contained) */}
-                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <div className="flex items-center gap-2 mb-4">
-                                <ActivityIcon className="w-4 h-4 text-zinc-400" />
-                                <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                                    Activity Log
-                                </h3>
-                            </div>
-                            {id && <ActivityStream doctype="Loan Request" docname={id} onRefresh={handleRefresh} />}
-                        </div>
-
-                        {/* Document Activity Log (new endpoint) */}
-                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            {id && <ActivityLog doctype="Loan Request" docname={id} />}
-                        </div>
                     </aside>
                 </div>
             </main>
+            {id && <FloatingActivityLogButton doctype="Loan Request" docname={id} />}
         </div>
     );
 };

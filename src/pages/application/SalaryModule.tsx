@@ -1,3 +1,8 @@
+
+
+// -===========================================
+
+
 // import React, { useState, useEffect, useCallback, useMemo } from "react";
 // import { useNavigate } from "react-router-dom";
 // import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
@@ -7,7 +12,8 @@
 //     User, IndianRupee, AlertCircle, ChevronUp, ChevronDown,
 //     Printer, Eye, Calendar, Building2, UserCheck, X,
 //     ChevronRight, Briefcase, Edit3, RotateCcw,
-//     TrendingDown, CalendarClock, Lock, Unlock, ExternalLink
+//     TrendingDown, CalendarClock, Lock, Unlock, ExternalLink,
+//     FolderKanban, Tags, CheckCircle2, Clock
 // } from "lucide-react";
 // import { Card, CardContent } from "@/components/ui/card";
 // import { DepartmentName } from "@/components/DepartmentName";
@@ -26,6 +32,7 @@
 //     term_completion_date: string;
 //     basic_salary: number;
 //     hra: number;
+//     hra_percent: number;
 //     medical_allowance: number;
 //     hostel: number;
 //     workflow_state: string;
@@ -244,6 +251,7 @@
 //         term_completion_date: row.ps_term_completion_date || "",
 //         basic_salary: basic,
 //         hra: hraAmount,
+//         hra_percent: hraPercent,
 //         medical_allowance: maAmount,
 //         hostel: hostelAmount,
 //         workflow_state: row.workflow_state || "Approved",
@@ -276,7 +284,10 @@
 //     // Filter states
 //     const [deptFilter, setDeptFilter] = useState<string>("All");
 //     const [desigFilter, setDesigFilter] = useState<string>("All");
+//     const [projectFilter, setProjectFilter] = useState<string>("All");
+//     const [schemeFilter, setSchemeFilter] = useState<string>("All");
 //     const [departmentLabels, setDepartmentLabels] = useState<Record<string, string>>({});
+//     const [schemeMap, setSchemeMap] = useState<Record<string, string>>({});
 
 //     // Pay slip modal state
 //     const [selectedSlipRecord, setSelectedSlipRecord] = useState<StaffRecord | null>(null);
@@ -309,6 +320,45 @@
 
 //     const cycleKey = `${selectedYear}-${selectedMonth}`;
 //     const isPrepared = !!preparedCycles[cycleKey];
+
+//     // ─── Salary Processing Status ─────────────────────────────────────────
+//     const [activeTab, setActiveTab] = useState<"pending" | "processed">("pending");
+//     const [processedEmployees, setProcessedEmployees] = useState<Set<string>>(() => {
+//         const saved = localStorage.getItem(`rnd_processed_salaries_${new Date().getFullYear()}-${new Date().getMonth()}`);
+//         if (saved) {
+//             try { return new Set(JSON.parse(saved)); } catch { }
+//         }
+//         return new Set();
+//     });
+//     const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+
+//     // Persist processed employees to localStorage whenever they change
+//     useEffect(() => {
+//         localStorage.setItem(
+//             `rnd_processed_salaries_${selectedYear}-${selectedMonth}`,
+//             JSON.stringify(Array.from(processedEmployees))
+//         );
+//     }, [processedEmployees, selectedYear, selectedMonth]);
+
+//     // Load processed employees from localStorage when cycle changes
+//     useEffect(() => {
+//         const saved = localStorage.getItem(`rnd_processed_salaries_${selectedYear}-${selectedMonth}`);
+//         if (saved) {
+//             try { setProcessedEmployees(new Set(JSON.parse(saved))); } catch { setProcessedEmployees(new Set()); }
+//         } else {
+//             setProcessedEmployees(new Set());
+//         }
+//         setActiveTab("pending");
+//     }, [selectedYear, selectedMonth]);
+
+//     // Mark an employee as processed
+//     const markAsProcessed = useCallback((empId: string) => {
+//         setProcessedEmployees(prev => {
+//             const next = new Set(prev);
+//             next.add(empId);
+//             return next;
+//         });
+//     }, []);
 
 //     // eslint-disable-next-line @typescript-eslint/no-explicit-any
 //     const { call: getList } = useFrappePostCall<{ message: any[] }>("frappe.client.get_list");
@@ -463,6 +513,86 @@
 
 //     useEffect(() => { if (currentUser) fetchData(); }, [fetchData, currentUser]);
 
+//     // Batch check salary processing status for all employees
+//     const checkSalaryStatuses = useCallback(async () => {
+//         if (records.length === 0 || !isPrepared) return;
+//         setIsCheckingStatus(true);
+//         const monthLabel = MONTHS[selectedMonth].label.toLowerCase();
+//         const salary_year_month = `${selectedYear}_${monthLabel}`;
+//         const alreadyProcessed = new Set<string>(processedEmployees);
+//         let changed = false;
+//         try {
+//             // Check each employee in parallel (batch of 5 at a time)
+//             const empIds = records.map(r => r.employee_id).filter(id => id && id !== "—" && !alreadyProcessed.has(id));
+//             const batchSize = 5;
+//             for (let i = 0; i < empIds.length; i += batchSize) {
+//                 const batch = empIds.slice(i, i + batchSize);
+//                 const results = await Promise.allSettled(
+//                     batch.map(empId =>
+//                         fetch(`/api/method/rndopsapp.rndopsapp.commitPayment.salary_payment_data?ps_emp_id=${empId}&salary_year_month=${salary_year_month}`, { credentials: 'include' })
+//                             .then(res => res.ok ? res.json() : null)
+//                             .then(json => ({ empId, json }))
+//                     )
+//                 );
+//                 results.forEach(result => {
+//                     if (result.status === 'fulfilled' && result.value?.json?.message) {
+//                         const msg = result.value.json.message;
+//                         if (!Array.isArray(msg) && (msg.message === "Salary already initiated" || msg.status)) {
+//                             // Verify that this status is for the selected month/year
+//                             const isSameMonth = !msg.salary_year_month || msg.salary_year_month === salary_year_month;
+//                             if (isSameMonth) {
+//                                 alreadyProcessed.add(result.value.empId);
+//                                 changed = true;
+//                             }
+//                         }
+//                     }
+//                 });
+//             }
+//             if (changed) {
+//                 setProcessedEmployees(new Set(alreadyProcessed));
+//             }
+//         } catch (err) {
+//             console.error("Batch salary status check failed:", err);
+//         } finally {
+//             setIsCheckingStatus(false);
+//         }
+//     }, [records, isPrepared, processedEmployees, selectedYear, selectedMonth]);
+
+
+
+//     // Fetch Scheme mapping from Project Registration doctype
+//     const fetchSchemeMap = useCallback(async () => {
+//         const projectNos = Array.from(new Set(
+//             records.map(r => r.project_no).filter(p => p && p !== "—")
+//         )) as string[];
+//         if (projectNos.length === 0) {
+//             setSchemeMap({});
+//             return;
+//         }
+//         try {
+//             const res = await getList({
+//                 doctype: "Project Registration",
+//                 filters: [["project_no", "in", projectNos]],
+//                 fields: ["project_no", "funding_agency_schemes"],
+//                 limit_page_length: projectNos.length,
+//             });
+//             const map: Record<string, string> = {};
+//             (res?.message || []).forEach((row: any) => {
+//                 if (row.project_no && row.funding_agency_schemes) {
+//                     map[row.project_no] = row.funding_agency_schemes;
+//                 }
+//             });
+//             setSchemeMap(map);
+//         } catch (err) {
+//             console.error("Failed to fetch scheme mapping:", err);
+//             setSchemeMap({});
+//         }
+//     }, [records, getList]);
+
+//     useEffect(() => {
+//         if (records.length > 0) fetchSchemeMap();
+//     }, [records, fetchSchemeMap]);
+
 //     // Fetch Budget Heads for mapping
 //     const fetchBudgetHeads = useCallback(async () => {
 //         try {
@@ -488,21 +618,30 @@
 //     }, [fetchBudgetHeads]);
 
 //     const handlePayClick = async (r: StaffRecord, rawNetPay: number) => {
+//         const confirm = window.confirm(`Are you sure you want to process the salary for ${r.first_name}?`);
+//         if (!confirm) return;
+
 //         const netPay = Math.round(rawNetPay);
 //         setLoadingEmpId(r.employee_id);
+//         const monthLabel = MONTHS[selectedMonth].label.toLowerCase();
+//         const salary_year_month = `${selectedYear}_${monthLabel}`;
 //         try {
 //             // 1. Fetch salary payment data (this returns a list containing the matched commit directly!)
 //             let commitFromApi: any = null;
 //             try {
-//                 const response = await fetch(`/api/method/rndopsapp.rndopsapp.commitPayment.salary_payment_data?ps_emp_id=${r.employee_id}`, { credentials: 'include' });
+//                 const response = await fetch(`/api/method/rndopsapp.rndopsapp.commitPayment.salary_payment_data?ps_emp_id=${r.employee_id}&salary_year_month=${salary_year_month}`, { credentials: 'include' });
 //                 if (response.ok) {
 //                     const json = await response.json();
 //                     if (json?.message) {
 //                         if (!Array.isArray(json.message)) {
 //                             // Check if salary payment has already been initiated
 //                             if (json.message.message === "Salary already initiated" || json.message.status) {
-//                                 alert(`${json.message.message || "Salary already initiated"}\n\nStatus: ${json.message.status || "Pending Approval"}`);
-//                                 return; // abort modal presentation!
+//                                 const isSameMonth = !json.message.salary_year_month || json.message.salary_year_month === salary_year_month;
+//                                 if (isSameMonth) {
+//                                     markAsProcessed(r.employee_id);
+//                                     alert(`Salary successfully processed.\n\nStatus: ${json.message.status || "Pending Approval"}`);
+//                                     return; // abort modal presentation!
+//                                 }
 //                             }
 //                         } else if (json.message.length > 0) {
 //                             commitFromApi = json.message[0];
@@ -524,9 +663,6 @@
 //             const pTax = calcPTax(r.basic_salary);
 //             const hraDed = getHRADeduction(r, proRataHRA);
 //             const totalDed = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
-
-//             const monthLabel = MONTHS[selectedMonth].label.toLowerCase();
-//             const salary_year_month = `${selectedYear}_${monthLabel}`;
 
 //             const salary_user_details = {
 //                 employee_id: r.employee_id,
@@ -592,7 +728,7 @@
 //                     if (ledgerRes.ok) {
 //                         const commits = await ledgerRes.json();
 //                         // Try matching by project_no AND interview_id AND moduleId === 11 (Recruitment Adhoc Contractual)
-//                         let match = commits.find((c: any) => 
+//                         let match = commits.find((c: any) =>
 //                             String(c.projectNumber).toLowerCase() === String(r.department || '').toLowerCase() &&
 //                             String(c.moduleId) === '11' &&
 //                             String(c.frapAppId).toLowerCase() === String(r.employee_id).toLowerCase()
@@ -600,14 +736,14 @@
 
 //                         // Fallback 1: match by moduleId === 11
 //                         if (!match) {
-//                             match = commits.find((c: any) => 
+//                             match = commits.find((c: any) =>
 //                                 String(c.moduleId) === '11'
 //                             );
 //                         }
 
 //                         // Fallback 2: match by project number
 //                         if (!match) {
-//                             match = commits.find((c: any) => 
+//                             match = commits.find((c: any) =>
 //                                 String(c.projectNumber).toLowerCase() === String(r.department || '').toLowerCase()
 //                             );
 //                         }
@@ -721,6 +857,18 @@
 //         return ["All", ...Array.from(set)].sort();
 //     }, [records]);
 
+//     const projectsList = useMemo(() => {
+//         const set = new Set<string>();
+//         records.forEach(r => { if (r.project_no && r.project_no !== "—") set.add(r.project_no); });
+//         return ["All", ...Array.from(set)].sort();
+//     }, [records]);
+
+//     const schemesList = useMemo(() => {
+//         const set = new Set<string>();
+//         Object.values(schemeMap).forEach(s => { if (s) set.add(s); });
+//         return ["All", ...Array.from(set)].sort();
+//     }, [schemeMap]);
+
 //     // Sort & filter
 //     const filtered = useMemo(() => {
 //         const q = search.toLowerCase();
@@ -750,6 +898,12 @@
 //         if (desigFilter !== "All") {
 //             list = list.filter(r => r.designation === desigFilter);
 //         }
+//         if (projectFilter !== "All") {
+//             list = list.filter(r => r.project_no === projectFilter);
+//         }
+//         if (schemeFilter !== "All") {
+//             list = list.filter(r => schemeMap[r.project_no || ""] === schemeFilter);
+//         }
 
 //         // Apply Sorting
 //         return [...list].sort((a, b) => {
@@ -768,7 +922,18 @@
 //             }
 //             return sortDir === "asc" ? cmp : -cmp;
 //         });
-//     }, [records, search, deptFilter, desigFilter, sortKey, sortDir, selectedMonth, selectedYear, departmentLabels]);
+//     }, [records, search, deptFilter, desigFilter, projectFilter, schemeFilter, schemeMap, sortKey, sortDir, selectedMonth, selectedYear, departmentLabels]);
+
+//     // Split filtered into pending vs processed
+//     const pendingRecords = useMemo(() =>
+//         filtered.filter(r => !processedEmployees.has(r.employee_id)),
+//         [filtered, processedEmployees]);
+
+//     const processedRecords = useMemo(() =>
+//         filtered.filter(r => processedEmployees.has(r.employee_id)),
+//         [filtered, processedEmployees]);
+
+//     const displayedRecords = activeTab === "pending" ? pendingRecords : processedRecords;
 
 //     const handleSort = (k: SortKey) => {
 //         if (sortKey === k) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -852,8 +1017,8 @@
 //         const monthLabel = MONTHS.find(m => m.value === selectedMonth)?.label || "Month";
 //         const headers = [
 //             "Sl.No", "Employee Id", "First Name", "Email Id", "Department",
-//             "Designation", "Project No", "Bank Account Number", "Joining Date", "Term Completion Date",
-//             "Basic Salary", "HRA", "Total Working Days", "Amount (Working Days)",
+//             "Designation", "Project No", "Bank Account Number", "Hostel", "Joining Date", "Term Completion Date",
+//             "Basic Salary", "HRA", "HRA (%)", "Total Working Days", "Amount (Working Days)",
 //             "HRA amt (W.Days)", "Medical amt (W.Days)", "Arrear", "Gross Pay",
 //             "HRA Ded", "Medical Ded.", "P-Tax", "TA", "ID Card Charge", "Electricity Bill", "Other Deduction",
 //             "Total Deduction", "Net Pay", "Comment", "Remarks"
@@ -869,10 +1034,15 @@
 //             const hraDed = getHRADeduction(r, proRataHRA);
 //             const deductions = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
 //             const netPay = grossPay - deductions;
+//             const hostelStatus = (() => {
+//                 if (!r.ps_hostel) return "No";
+//                 const raw = String(r.ps_hostel).trim().toLowerCase();
+//                 return (raw === "0" || raw === "no" || raw === "false" || raw === "") ? "No" : "Yes";
+//             })();
 //             return [
 //                 i + 1, r.employee_id, r.first_name, r.email_id, r.department,
-//                 r.designation, r.project_no || "—", r.bank_account_number || "—", r.joining_date, r.term_completion_date,
-//                 r.basic_salary, r.hra, workingDays, proRataBasic,
+//                 r.designation, r.project_no || "—", r.bank_account_number || "—", hostelStatus, r.joining_date, r.term_completion_date,
+//                 r.basic_salary, r.hra, `${r.hra_percent}%`, workingDays, proRataBasic,
 //                 proRataHRA, proRataMedical, inputs.arrear, grossPay,
 //                 hraDed, inputs.medicalDeduction, pTax, inputs.ta, inputs.idCardCharge, inputs.electricityBill, inputs.otherDeduction,
 //                 deductions, netPay, inputs.comment, inputs.remarks
@@ -977,7 +1147,7 @@
 //                             {isPrepared && (
 //                                 <button
 //                                     onClick={() => {
-//                                         const confirm = window.confirm(`Are you sure you want to unlock the salary cycle for ${MONTHS[selectedMonth].label} ${selectedYear}? This will revert it to draft mode.`);
+//                                         const confirm = window.confirm(`Are you sure you want to unlock the salary cycle for ${MONTHS[selectedMonth].label} ${selectedYear}? This will revert it to draft mode and reset any processed salaries for this cycle.`);
 //                                         if (!confirm) return;
 //                                         setPreparedCycles(prev => {
 //                                             const next = { ...prev };
@@ -985,6 +1155,8 @@
 //                                             localStorage.setItem("rnd_prepared_salary_cycles", JSON.stringify(next));
 //                                             return next;
 //                                         });
+//                                         localStorage.removeItem(`rnd_processed_salaries_${selectedYear}-${selectedMonth}`);
+//                                         setProcessedEmployees(new Set());
 //                                     }}
 //                                     className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-[#E4E4E7] bg-white px-3 text-[12px] font-bold text-[#3F3F46] transition-all hover:bg-[#FAFAF9] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8] dark:hover:bg-[#3F3F46]"
 //                                 >
@@ -1088,6 +1260,73 @@
 //                 {/* Filter Toolbar & Main Table (Conditional on isPrepared) */}
 //                 {!isLoading && !error && filtered.length > 0 && isPrepared && (
 //                     <>
+//                         {/* Tab Switcher & Progress Bar */}
+//                         <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+//                             <div className="flex items-center justify-between">
+//                                 <div className="flex">
+//                                     <button
+//                                         onClick={() => setActiveTab("pending")}
+//                                         className={cn(
+//                                             "relative flex items-center gap-2 px-5 py-3.5 text-[13px] font-bold transition-all border-b-2",
+//                                             activeTab === "pending"
+//                                                 ? "text-[#D97757] border-[#D97757] bg-white dark:bg-[#27272A]"
+//                                                 : "text-[#71717A] border-transparent hover:text-[#3F3F46] hover:bg-[#FAFAF9] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] dark:hover:bg-[#3F3F46]/50"
+//                                         )}
+//                                     >
+//                                         <Clock className="h-4 w-4" />
+//                                         Salary To Be Processed
+//                                         <span className={cn(
+//                                             "inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
+//                                             activeTab === "pending"
+//                                                 ? "bg-[#D97757]/10 text-[#D97757]"
+//                                                 : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+//                                         )}>
+//                                             {pendingRecords.length}
+//                                         </span>
+//                                     </button>
+//                                     <button
+//                                         onClick={() => setActiveTab("processed")}
+//                                         className={cn(
+//                                             "relative flex items-center gap-2 px-5 py-3.5 text-[13px] font-bold transition-all border-b-2",
+//                                             activeTab === "processed"
+//                                                 ? "text-emerald-600 border-emerald-500 bg-white dark:bg-[#27272A] dark:text-emerald-400"
+//                                                 : "text-[#71717A] border-transparent hover:text-[#3F3F46] hover:bg-[#FAFAF9] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] dark:hover:bg-[#3F3F46]/50"
+//                                         )}
+//                                     >
+//                                         <CheckCircle2 className="h-4 w-4" />
+//                                         Salary Processed
+//                                         <span className={cn(
+//                                             "inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
+//                                             activeTab === "processed"
+//                                                 ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400"
+//                                                 : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+//                                         )}>
+//                                             {processedRecords.length}
+//                                         </span>
+//                                     </button>
+//                                 </div>
+//                                 <div className="flex items-center gap-3 px-4">
+//                                     {isCheckingStatus && (
+//                                         <span className="flex items-center gap-1.5 text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+//                                             <Loader2 className="h-3 w-3 animate-spin" />
+//                                             Checking statuses...
+//                                         </span>
+//                                     )}
+//                                     <div className="flex items-center gap-2">
+//                                         <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA]">
+//                                             {processedRecords.length}/{filtered.length} processed
+//                                         </span>
+//                                         <div className="h-2 w-24 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+//                                             <div
+//                                                 className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all duration-500"
+//                                                 style={{ width: `${filtered.length > 0 ? (processedRecords.length / filtered.length) * 100 : 0}%` }}
+//                                             />
+//                                         </div>
+//                                     </div>
+//                                 </div>
+//                             </div>
+//                         </div>
+
 //                         {/* Filter Toolbar */}
 //                         <div className="flex flex-col items-stretch gap-3 rounded-2xl border border-[#E4E4E7] bg-white p-3.5 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A] lg:flex-row lg:items-center">
 //                             {/* Search */}
@@ -1103,9 +1342,9 @@
 //                             </div>
 
 //                             {/* Department Dropdown */}
-//                             <div className="flex h-10 shrink-0 items-center gap-2 rounded-lg border border-[#E4E4E7] bg-[#FAFAF9] px-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
-//                                 <Building2 className="h-4 w-4 text-[#71717A] dark:text-[#A1A1AA]" />
-//                                 <span className="whitespace-nowrap text-[11px] font-bold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">Dept</span>
+//                             <div className={cn("flex h-10 shrink-0 items-center gap-2 rounded-lg border px-3 transition-all", deptFilter !== "All" ? "border-[#4A6CF7] bg-[#EEF2FF] dark:border-[#4A6CF7]/60 dark:bg-[#4A6CF7]/10 ring-2 ring-[#4A6CF7]/10" : "border-[#E4E4E7] bg-[#FAFAF9] dark:border-[#3F3F46] dark:bg-[#18181B]")}>
+//                                 <Building2 className={cn("h-4 w-4", deptFilter !== "All" ? "text-[#4A6CF7]" : "text-[#71717A] dark:text-[#A1A1AA]")} />
+//                                 <span className={cn("whitespace-nowrap text-[11px] font-bold uppercase tracking-widest", deptFilter !== "All" ? "text-[#4A6CF7]" : "text-[#71717A] dark:text-[#A1A1AA]")}>Dept</span>
 //                                 <select
 //                                     value={deptFilter}
 //                                     onChange={e => setDeptFilter(e.target.value)}
@@ -1124,9 +1363,9 @@
 //                             </div>
 
 //                             {/* Designation Dropdown */}
-//                             <div className="flex h-10 shrink-0 items-center gap-2 rounded-lg border border-[#E4E4E7] bg-[#FAFAF9] px-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
-//                                 <Briefcase className="h-4 w-4 text-[#71717A] dark:text-[#A1A1AA]" />
-//                                 <span className="whitespace-nowrap text-[11px] font-bold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">Role</span>
+//                             <div className={cn("flex h-10 shrink-0 items-center gap-2 rounded-lg border px-3 transition-all", desigFilter !== "All" ? "border-[#4A6CF7] bg-[#EEF2FF] dark:border-[#4A6CF7]/60 dark:bg-[#4A6CF7]/10 ring-2 ring-[#4A6CF7]/10" : "border-[#E4E4E7] bg-[#FAFAF9] dark:border-[#3F3F46] dark:bg-[#18181B]")}>
+//                                 <Briefcase className={cn("h-4 w-4", desigFilter !== "All" ? "text-[#4A6CF7]" : "text-[#71717A] dark:text-[#A1A1AA]")} />
+//                                 <span className={cn("whitespace-nowrap text-[11px] font-bold uppercase tracking-widest", desigFilter !== "All" ? "text-[#4A6CF7]" : "text-[#71717A] dark:text-[#A1A1AA]")}>Role</span>
 //                                 <select
 //                                     value={desigFilter}
 //                                     onChange={e => setDesigFilter(e.target.value)}
@@ -1136,25 +1375,60 @@
 //                                 </select>
 //                             </div>
 
-//                             {/* Clear button */}
-//                             {(search || deptFilter !== "All" || desigFilter !== "All") && (
-//                                 <button
-//                                     onClick={() => { setSearch(""); setDeptFilter("All"); setDesigFilter("All"); }}
-//                                     className="h-10 shrink-0 rounded-lg border border-[#E4E4E7] bg-white px-4 text-[12px] font-bold text-[#3F3F46] transition-all hover:bg-[#FAFAF9] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8] dark:hover:bg-[#3F3F46]"
+//                             {/* Project Dropdown */}
+//                             <div className={cn("flex h-10 shrink-0 items-center gap-2 rounded-lg border px-3 transition-all", projectFilter !== "All" ? "border-[#4A6CF7] bg-[#EEF2FF] dark:border-[#4A6CF7]/60 dark:bg-[#4A6CF7]/10 ring-2 ring-[#4A6CF7]/10" : "border-[#E4E4E7] bg-[#FAFAF9] dark:border-[#3F3F46] dark:bg-[#18181B]")}>
+//                                 <FolderKanban className={cn("h-4 w-4", projectFilter !== "All" ? "text-[#4A6CF7]" : "text-[#71717A] dark:text-[#A1A1AA]")} />
+//                                 <span className={cn("whitespace-nowrap text-[11px] font-bold uppercase tracking-widest", projectFilter !== "All" ? "text-[#4A6CF7]" : "text-[#71717A] dark:text-[#A1A1AA]")}>Project</span>
+//                                 <select
+//                                     value={projectFilter}
+//                                     onChange={e => setProjectFilter(e.target.value)}
+//                                     className="max-w-[180px] bg-transparent py-0.5 pr-7 text-[12px] font-semibold text-[#3F3F46] outline-none dark:text-[#E4E4E7]"
 //                                 >
-//                                     Clear Filters
-//                                 </button>
-//                             )}
+//                                     {projectsList.map(pn => <option key={pn} value={pn} className="dark:bg-[#27272A]">{pn}</option>)}
+//                                 </select>
+//                             </div>
+
+//                             {/* Scheme Dropdown */}
+//                             <div className={cn("flex h-10 shrink-0 items-center gap-2 rounded-lg border px-3 transition-all", schemeFilter !== "All" ? "border-[#4A6CF7] bg-[#EEF2FF] dark:border-[#4A6CF7]/60 dark:bg-[#4A6CF7]/10 ring-2 ring-[#4A6CF7]/10" : "border-[#E4E4E7] bg-[#FAFAF9] dark:border-[#3F3F46] dark:bg-[#18181B]")}>
+//                                 <Tags className={cn("h-4 w-4", schemeFilter !== "All" ? "text-[#4A6CF7]" : "text-[#71717A] dark:text-[#A1A1AA]")} />
+//                                 <span className={cn("whitespace-nowrap text-[11px] font-bold uppercase tracking-widest", schemeFilter !== "All" ? "text-[#4A6CF7]" : "text-[#71717A] dark:text-[#A1A1AA]")}>Scheme</span>
+//                                 <select
+//                                     value={schemeFilter}
+//                                     onChange={e => setSchemeFilter(e.target.value)}
+//                                     className="max-w-[200px] bg-transparent py-0.5 pr-7 text-[12px] font-semibold text-[#3F3F46] outline-none dark:text-[#E4E4E7]"
+//                                 >
+//                                     {schemesList.map(s => <option key={s} value={s} className="dark:bg-[#27272A]">{s}</option>)}
+//                                 </select>
+//                             </div>
+
+//                             {/* Clear button with filter count */}
+//                             {(() => {
+//                                 const activeCount = [search, deptFilter !== "All", desigFilter !== "All", projectFilter !== "All", schemeFilter !== "All"].filter(Boolean).length;
+//                                 if (activeCount === 0) return null;
+//                                 return (
+//                                     <button
+//                                         onClick={() => { setSearch(""); setDeptFilter("All"); setDesigFilter("All"); setProjectFilter("All"); setSchemeFilter("All"); }}
+//                                         className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 text-[12px] font-bold text-red-700 transition-all hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400 dark:hover:bg-red-950/30"
+//                                     >
+//                                         <X className="h-3.5 w-3.5" />
+//                                         Clear
+//                                         <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">{activeCount}</span>
+//                                     </button>
+//                                 );
+//                             })()}
 //                         </div>
 
 //                         {/* Table Container */}
 //                         <Card className="overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
 //                             <div className="flex items-center justify-between border-b border-[#E4E4E7] bg-[#FAFAF9] px-[22px] py-[14px] dark:border-[#3F3F46] dark:bg-[#27272A]">
-//                                 <div className="flex items-center gap-2 text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
+//                                 <div className="flex items-center gap-3 text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
 //                                     <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-50 text-[#2563EB] dark:bg-blue-950/20">
 //                                         <IndianRupee className="h-3.5 w-3.5" />
 //                                     </div>
 //                                     Salary Register
+//                                     <span className="ml-1 inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/30 px-2.5 py-0.5 text-[11px] font-bold text-blue-700 dark:text-blue-300">
+//                                         {displayedRecords.length} {displayedRecords.length === 1 ? 'record' : 'records'}
+//                                     </span>
 //                                 </div>
 //                                 <div className="flex items-center gap-2">
 //                                     <span className="text-[11px] font-bold uppercase tracking-wide text-[#71717A] dark:text-[#A1A1AA]">
@@ -1184,24 +1458,44 @@
 //                                         <p className="text-xs text-red-400 max-w-md mx-auto break-all bg-red-50 dark:bg-red-950/20 p-3 rounded-lg border border-red-200 dark:border-red-900/30">{error}</p>
 //                                         <button onClick={fetchData} className="mt-5 text-sm text-[#D97757] hover:underline font-bold">Try again</button>
 //                                     </div>
-//                                 ) : filtered.length === 0 ? (
+//                                 ) : displayedRecords.length === 0 ? (
 //                                     <div className="py-24 text-center">
-//                                         <User className="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
-//                                         <p className="text-base font-bold text-zinc-900 dark:text-white mb-1">No approved staff found</p>
-//                                         <p className="text-sm text-zinc-400 dark:text-zinc-500 max-w-md mx-auto">
-//                                             {search || deptFilter !== "All" || desigFilter !== "All"
-//                                                 ? "No staff matches the specified filters. Try clearing your parameters."
-//                                                 : `No approved Project Staff Details records found for ${currentUser || "your account"} in the selected period.`}
-//                                         </p>
+//                                         {activeTab === "processed" ? (
+//                                             <>
+//                                                 <CheckCircle2 className="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
+//                                                 <p className="text-base font-bold text-zinc-900 dark:text-white mb-1">No processed salaries yet</p>
+//                                                 <p className="text-sm text-zinc-400 dark:text-zinc-500 max-w-md mx-auto">
+//                                                     No salary payments have been processed for this period. Switch to the &ldquo;Salary To Be Processed&rdquo; tab to process payments.
+//                                                 </p>
+//                                             </>
+//                                         ) : pendingRecords.length === 0 && processedRecords.length > 0 ? (
+//                                             <>
+//                                                 <CheckCircle2 className="w-12 h-12 text-emerald-400 dark:text-emerald-500 mx-auto mb-3" />
+//                                                 <p className="text-base font-bold text-emerald-700 dark:text-emerald-400 mb-1">All salaries processed!</p>
+//                                                 <p className="text-sm text-zinc-400 dark:text-zinc-500 max-w-md mx-auto">
+//                                                     All {processedRecords.length} salary payments have been processed. Switch to the &ldquo;Salary Processed&rdquo; tab to review.
+//                                                 </p>
+//                                             </>
+//                                         ) : (
+//                                             <>
+//                                                 <User className="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
+//                                                 <p className="text-base font-bold text-zinc-900 dark:text-white mb-1">No staff found</p>
+//                                                 <p className="text-sm text-zinc-400 dark:text-zinc-500 max-w-md mx-auto">
+//                                                     {search || deptFilter !== "All" || desigFilter !== "All" || projectFilter !== "All" || schemeFilter !== "All"
+//                                                         ? "No staff matches the specified filters. Try clearing your parameters."
+//                                                         : `No approved Project Staff Details records found for ${currentUser || "your account"} in the selected period.`}
+//                                                 </p>
+//                                             </>
+//                                         )}
 //                                     </div>
 //                                 ) : (
-//                                     <div className="overflow-x-auto max-h-[640px] overflow-y-auto">
+//                                     <div className="overflow-x-auto max-h-[calc(100vh-280px)] overflow-y-auto scroll-smooth">
 //                                         <table className="min-w-[2400px] table-auto border-collapse divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
 //                                             <thead className="sticky top-0 z-20 bg-[#EEF2FF] text-[10px] font-extrabold uppercase tracking-wider text-[#1E3A8A] dark:bg-[#1E3A8A]/18 dark:text-[#C7D2FE]">
 //                                                 <tr className="border-b border-[#C7D2FE]/70 bg-[#EEF2FF] dark:border-[#4A6CF7]/25 dark:bg-[#1E3A8A]/18">
-//                                                     <th rowSpan={2} className="w-10 border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25">#</th>
-//                                                     <th rowSpan={2} className="border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25">Emp ID</th>
-//                                                     <th rowSpan={2} className="border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25">Full Name</th>
+//                                                     <th rowSpan={2} className="w-[48px] min-w-[48px] border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25 sticky left-0 z-30 bg-[#EEF2FF] dark:bg-[#1e293b]">#</th>
+//                                                     <th rowSpan={2} className="w-[120px] min-w-[120px] border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25 sticky left-[48px] z-30 bg-[#EEF2FF] dark:bg-[#1e293b]">Emp ID</th>
+//                                                     <th rowSpan={2} className="w-[200px] min-w-[200px] border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25 sticky left-[168px] z-30 bg-[#EEF2FF] dark:bg-[#1e293b] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.1)]">Full Name</th>
 //                                                     <th rowSpan={2} className="px-3 py-4 text-left">Email ID</th>
 //                                                     <th rowSpan={2} className="px-3 py-4 text-left">Department</th>
 //                                                     <th rowSpan={2} className="px-3 py-4 text-left">Role</th>
@@ -1209,9 +1503,10 @@
 //                                                     <th rowSpan={2} className="px-3 py-4 text-left">Exit Date</th>
 //                                                     <th rowSpan={2} className="px-3 py-4 text-left">Project No</th>
 //                                                     <th rowSpan={2} className="px-3 py-4 text-left">Bank A/C No</th>
+//                                                     <th rowSpan={2} className="px-3 py-4 text-center">Hostel</th>
 
 //                                                     {/* Earnings section */}
-//                                                     <th colSpan={8} className="px-3 py-2 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-400 text-center border-b border-zinc-200 dark:border-zinc-800">Earnings Details (₹)</th>
+//                                                     <th colSpan={9} className="px-3 py-2 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-400 text-center border-b border-zinc-200 dark:border-zinc-800">Earnings Details (₹)</th>
 
 //                                                     {/* Deductions section */}
 //                                                     <th colSpan={8} className="px-3 py-2 bg-red-50/50 dark:bg-red-950/20 text-red-800 dark:text-red-400 text-center border-b border-zinc-200 dark:border-zinc-800">Deductions Details (₹)</th>
@@ -1225,6 +1520,7 @@
 //                                                     {/* Earnings sub-headers */}
 //                                                     <TH label="Basic" align="right" className="bg-emerald-50/10 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400" />
 //                                                     <TH label="HRA" align="right" className="bg-emerald-50/10 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400" />
+//                                                     <TH label="HRA (%)" align="center" className="bg-emerald-50/10 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400" />
 //                                                     <TH label="Days" align="center" className="bg-emerald-50/10 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400" />
 //                                                     <TH label="Amt (Days)" align="right" className="bg-emerald-50/10 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400" />
 //                                                     <TH label="HRA (Days)" align="right" className="bg-emerald-50/10 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400" />
@@ -1244,7 +1540,7 @@
 //                                                 </tr>
 //                                             </thead>
 //                                             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/80 text-sm">
-//                                                 {filtered.map((r, i) => {
+//                                                 {displayedRecords.map((r, i) => {
 //                                                     const { inputs, isEdited } = getRowInputs(r.docName);
 //                                                     const workingDays = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
 //                                                     const proRataBasic = calcProRataBasic(r.basic_salary, workingDays, daysInMonth);
@@ -1257,19 +1553,19 @@
 //                                                     const netPay = grossPay - totalDed;
 
 //                                                     return (
-//                                                         <tr key={r.docName || i} className="hover:bg-zinc-50 dark:hover:bg-[#27272A] transition-colors group">
+//                                                         <tr key={r.docName || i} className={cn("transition-colors group", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50/80 dark:bg-zinc-900/60", "hover:bg-blue-50/50 dark:hover:bg-[#27272A]")}>
 //                                                             {/* # */}
-//                                                             <td className="px-3 py-3 text-xs text-zinc-400 bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-[#27272A] border-r border-zinc-200 dark:border-zinc-800">{i + 1}</td>
+//                                                             <td className={cn("px-3 py-3 text-xs font-semibold text-zinc-400 border-r border-zinc-200 dark:border-zinc-800 sticky left-0 z-10 w-[48px] min-w-[48px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]")}>{i + 1}</td>
 
 //                                                             {/* Emp ID */}
-//                                                             <td className="px-3 py-3 bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-[#27272A] border-r border-zinc-200 dark:border-zinc-800">
+//                                                             <td className={cn("px-3 py-3 border-r border-zinc-200 dark:border-zinc-800 sticky left-[48px] z-10 w-[120px] min-w-[120px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]")}>
 //                                                                 <span className="text-xs font-mono font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-2 py-0.5 rounded border border-zinc-200/50 dark:border-zinc-700/50">
 //                                                                     {r.employee_id}
 //                                                                 </span>
 //                                                             </td>
 
 //                                                             {/* Full Name */}
-//                                                             <td className="px-3 py-3 bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-[#27272A] border-r border-zinc-200 dark:border-zinc-800">
+//                                                             <td className={cn("px-3 py-3 border-r border-zinc-200 dark:border-zinc-800 sticky left-[168px] z-10 w-[200px] min-w-[200px] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.07)]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]")}>
 //                                                                 <div className="flex items-center gap-2">
 //                                                                     <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#D97757]/20 to-orange-200/50 dark:from-[#D97757]/30 dark:to-orange-950/30 flex items-center justify-center shrink-0 border border-orange-500/10">
 //                                                                         <span className="text-[10px] font-bold text-[#D97757]">
@@ -1297,10 +1593,25 @@
 //                                                             <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.term_completion_date ? fmtDate(r.term_completion_date) : "—"}</td>
 //                                                             <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.project_no || "—"}</td>
 //                                                             <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.bank_account_number || "—"}</td>
+//                                                             <td className="px-3 py-3 text-center whitespace-nowrap">
+//                                                                 {(() => {
+//                                                                     if (!r.ps_hostel) return <span className="text-[10px] font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-zinc-200/50 dark:border-zinc-700/50 px-2 py-0.5 rounded-full">No</span>;
+//                                                                     const raw = String(r.ps_hostel).trim().toLowerCase();
+//                                                                     const isHostel = !(raw === "0" || raw === "no" || raw === "false" || raw === "");
+//                                                                     return isHostel
+//                                                                         ? <span className="text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-900/40 px-2 py-0.5 rounded-full">Yes</span>
+//                                                                         : <span className="text-[10px] font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-zinc-200/50 dark:border-zinc-700/50 px-2 py-0.5 rounded-full">No</span>;
+//                                                                 })()}
+//                                                             </td>
 
 //                                                             {/* Earnings values */}
 //                                                             <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5 border-l border-zinc-100 dark:border-zinc-800">{fmt(r.basic_salary)}</td>
 //                                                             <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">{fmt(r.hra)}</td>
+//                                                             <td className="px-3 py-3 text-center tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">
+//                                                                 <span className="text-[10px] font-bold bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 border border-violet-200/50 dark:border-violet-900/40 px-2 py-0.5 rounded-full">
+//                                                                     {r.hra_percent}%
+//                                                                 </span>
+//                                                             </td>
 //                                                             <td className="px-3 py-3 text-center tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">
 //                                                                 <span className={cn(
 //                                                                     "text-xs font-bold px-2 py-0.5 rounded-full border",
@@ -1327,7 +1638,7 @@
 //                                                                         value={inputs.arrear || ""}
 //                                                                         onChange={e => handleInputChange(r.docName, "arrear", parseInt(e.target.value, 10) || 0)}
 //                                                                         className={cn(
-//                                                                             "w-20 px-2 py-1 text-xs text-right bg-white dark:bg-zinc-800 border rounded focus:ring-2 focus:ring-[#D97757]/30 focus:outline-none transition-all tabular-nums",
+//                                                                             "w-24 px-2.5 py-1.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
 //                                                                             isEdited.arrear
 //                                                                                 ? "border-amber-400 dark:border-amber-600 bg-amber-50/20 dark:bg-amber-900/10 text-amber-900 dark:text-amber-200 font-bold"
 //                                                                                 : "border-zinc-200 dark:border-zinc-700"
@@ -1354,7 +1665,7 @@
 //                                                                     value={inputs.medicalDeduction || ""}
 //                                                                     onChange={e => handleInputChange(r.docName, "medicalDeduction", parseInt(e.target.value, 10) || 0)}
 //                                                                     className={cn(
-//                                                                         "w-16 px-2 py-1 text-xs text-right bg-white dark:bg-zinc-800 border rounded focus:ring-2 focus:ring-[#D97757]/30 focus:outline-none transition-all tabular-nums",
+//                                                                         "w-24 px-2.5 py-1.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
 //                                                                         isEdited.medicalDeduction
 //                                                                             ? "border-amber-400 dark:border-amber-600 bg-amber-50/20 dark:bg-amber-900/10 text-amber-900 dark:text-amber-200 font-bold"
 //                                                                             : "border-zinc-200 dark:border-zinc-700"
@@ -1373,7 +1684,7 @@
 //                                                                     value={inputs.ta || ""}
 //                                                                     onChange={e => handleInputChange(r.docName, "ta", parseInt(e.target.value, 10) || 0)}
 //                                                                     className={cn(
-//                                                                         "w-16 px-2 py-1 text-xs text-right bg-white dark:bg-zinc-800 border rounded focus:ring-2 focus:ring-[#D97757]/30 focus:outline-none transition-all tabular-nums",
+//                                                                         "w-24 px-2.5 py-1.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
 //                                                                         isEdited.ta
 //                                                                             ? "border-amber-400 dark:border-amber-600 bg-amber-50/20 dark:bg-amber-900/10 text-amber-900 dark:text-amber-200 font-bold"
 //                                                                             : "border-zinc-200 dark:border-zinc-700"
@@ -1391,7 +1702,7 @@
 //                                                                     value={inputs.idCardCharge || ""}
 //                                                                     onChange={e => handleInputChange(r.docName, "idCardCharge", parseInt(e.target.value, 10) || 0)}
 //                                                                     className={cn(
-//                                                                         "w-16 px-2 py-1 text-xs text-right bg-white dark:bg-zinc-800 border rounded focus:ring-2 focus:ring-[#D97757]/30 focus:outline-none transition-all tabular-nums",
+//                                                                         "w-24 px-2.5 py-1.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
 //                                                                         isEdited.idCardCharge
 //                                                                             ? "border-amber-400 dark:border-amber-600 bg-amber-50/20 dark:bg-amber-900/10 text-amber-900 dark:text-amber-200 font-bold"
 //                                                                             : "border-zinc-200 dark:border-zinc-700"
@@ -1409,7 +1720,7 @@
 //                                                                     value={inputs.electricityBill || ""}
 //                                                                     onChange={e => handleInputChange(r.docName, "electricityBill", parseInt(e.target.value, 10) || 0)}
 //                                                                     className={cn(
-//                                                                         "w-16 px-2 py-1 text-xs text-right bg-white dark:bg-zinc-800 border rounded focus:ring-2 focus:ring-[#D97757]/30 focus:outline-none transition-all tabular-nums",
+//                                                                         "w-24 px-2.5 py-1.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
 //                                                                         isEdited.electricityBill
 //                                                                             ? "border-amber-400 dark:border-amber-600 bg-amber-50/20 dark:bg-amber-900/10 text-amber-900 dark:text-amber-200 font-bold"
 //                                                                             : "border-zinc-200 dark:border-zinc-700"
@@ -1427,7 +1738,7 @@
 //                                                                     value={inputs.otherDeduction || ""}
 //                                                                     onChange={e => handleInputChange(r.docName, "otherDeduction", parseInt(e.target.value, 10) || 0)}
 //                                                                     className={cn(
-//                                                                         "w-16 px-2 py-1 text-xs text-right bg-white dark:bg-zinc-800 border rounded focus:ring-2 focus:ring-[#D97757]/30 focus:outline-none transition-all tabular-nums",
+//                                                                         "w-24 px-2.5 py-1.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
 //                                                                         isEdited.otherDeduction
 //                                                                             ? "border-amber-400 dark:border-amber-600 bg-amber-50/20 dark:bg-amber-900/10 text-amber-900 dark:text-amber-200 font-bold"
 //                                                                             : "border-zinc-200 dark:border-zinc-700"
@@ -1455,7 +1766,7 @@
 //                                                                     value={inputs.comment}
 //                                                                     onChange={e => handleInputChange(r.docName, "comment", e.target.value)}
 //                                                                     className={cn(
-//                                                                         "w-28 px-2 py-1 text-xs bg-white dark:bg-zinc-800 border rounded focus:ring-2 focus:ring-[#D97757]/30 focus:outline-none transition-all",
+//                                                                         "w-32 px-2.5 py-1.5 text-xs bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all",
 //                                                                         isEdited.comment ? "border-amber-400 bg-amber-50/10" : "border-zinc-200 dark:border-zinc-700"
 //                                                                     )}
 //                                                                     placeholder="Note..."
@@ -1467,7 +1778,7 @@
 //                                                                     value={inputs.remarks}
 //                                                                     onChange={e => handleInputChange(r.docName, "remarks", e.target.value)}
 //                                                                     className={cn(
-//                                                                         "w-28 px-2 py-1 text-xs bg-white dark:bg-zinc-800 border rounded focus:ring-2 focus:ring-[#D97757]/30 focus:outline-none transition-all",
+//                                                                         "w-32 px-2.5 py-1.5 text-xs bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all",
 //                                                                         isEdited.remarks ? "border-amber-400 bg-amber-50/10" : "border-zinc-200 dark:border-zinc-700"
 //                                                                     )}
 //                                                                     placeholder="Remarks..."
@@ -1475,26 +1786,28 @@
 //                                                             </td>
 
 //                                                             {/* Payslip Action Button */}
-//                                                             <td className="px-3 py-3 text-center bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-[#27272A]">
+//                                                             <td className="px-3 py-3 text-center bg-white group-hover:bg-blue-50/50 dark:bg-zinc-900 dark:group-hover:bg-[#27272A]">
 //                                                                 <div className="flex items-center justify-center gap-1.5">
 //                                                                     <button
 //                                                                         onClick={() => setSelectedSlipRecord(r)}
 //                                                                         title="Generate Pay Slip"
-//                                                                         className="p-1.5 rounded-lg border border-orange-200 dark:border-orange-900/50 bg-orange-50/40 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 hover:bg-[#D97757] hover:text-white dark:hover:bg-[#D97757] dark:hover:text-white transition-all shadow-sm active:scale-90"
+//                                                                         className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-orange-200 dark:border-orange-900/50 bg-orange-50/40 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 hover:bg-[#D97757] hover:text-white dark:hover:bg-[#D97757] dark:hover:text-white transition-all shadow-sm active:scale-95 text-[10px] font-bold"
 //                                                                     >
-//                                                                         <Eye className="w-3.5 h-3.5" />
+//                                                                         <Eye className="w-3 h-3" />
+//                                                                         Slip
 //                                                                     </button>
 //                                                                     <button
 //                                                                         onClick={() => handlePayClick(r, netPay)}
 //                                                                         disabled={loadingEmpId !== null}
 //                                                                         title="Process Payment"
-//                                                                         className="p-1.5 rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 dark:hover:text-white transition-all shadow-sm active:scale-90 disabled:opacity-50"
+//                                                                         className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 dark:hover:text-white transition-all shadow-sm active:scale-95 disabled:opacity-50 text-[10px] font-bold"
 //                                                                     >
 //                                                                         {loadingEmpId === r.employee_id ? (
-//                                                                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
+//                                                                             <Loader2 className="w-3 h-3 animate-spin" />
 //                                                                         ) : (
-//                                                                             <IndianRupee className="w-3.5 h-3.5" />
+//                                                                             <IndianRupee className="w-3 h-3" />
 //                                                                         )}
+//                                                                         Pay
 //                                                                     </button>
 //                                                                 </div>
 //                                                             </td>
@@ -1506,13 +1819,15 @@
 //                                             {/* FOOTER */}
 //                                             <tfoot className="bg-zinc-50 dark:bg-zinc-955 sticky bottom-0 z-20 border-t-2 border-zinc-200 dark:border-zinc-700 font-bold text-xs uppercase tracking-wide">
 //                                                 <tr className="bg-zinc-50 dark:bg-zinc-950">
-//                                                     <td colSpan={10} className="px-3 py-4 text-sm font-serif font-bold text-zinc-900 dark:text-white bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 shadow-sm">
-//                                                         Total ({filtered.length} Staff Profiled)
-//                                                     </td>
+//                                                     <td className="px-3 py-4 text-sm font-serif font-bold text-zinc-900 dark:text-white bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 sticky left-0 z-30 w-[48px] min-w-[48px]"></td>
+//                                                     <td className="px-3 py-4 text-sm font-serif font-bold text-zinc-900 dark:text-white bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 sticky left-[48px] z-30 w-[120px] min-w-[120px] whitespace-nowrap">Total</td>
+//                                                     <td className="px-3 py-4 text-sm font-serif font-bold text-zinc-900 dark:text-white bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 sticky left-[168px] z-30 w-[200px] min-w-[200px] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.1)] whitespace-nowrap">({displayedRecords.length} Staff)</td>
+//                                                     <td colSpan={8} className="px-3 py-4 bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800"></td>
 
 //                                                     {/* Earnings totals */}
 //                                                     <td className="px-3 py-4 text-right text-emerald-800 dark:text-emerald-400 tabular-nums whitespace-nowrap bg-emerald-50/10 dark:bg-emerald-950/10 border-l border-zinc-200 dark:border-zinc-800">{fmt(totalBasic)}</td>
 //                                                     <td className="px-3 py-4 text-right text-zinc-500 dark:text-zinc-400 tabular-nums whitespace-nowrap bg-emerald-50/10 dark:bg-emerald-950/10">{fmt(totalOriginalHRA)}</td>
+//                                                     <td className="px-3 py-4 text-center text-zinc-400 dark:text-zinc-500 tabular-nums whitespace-nowrap bg-emerald-50/10 dark:bg-emerald-950/10">—</td>
 //                                                     <td className="px-3 py-4 text-center text-zinc-600 dark:text-zinc-400 tabular-nums whitespace-nowrap bg-emerald-50/10 dark:bg-emerald-950/10">{totalWorkingDays}</td>
 //                                                     <td className="px-3 py-4 text-right text-emerald-800 dark:text-emerald-400 tabular-nums whitespace-nowrap bg-emerald-50/10 dark:bg-emerald-950/10">{fmt(totalProRataBasic)}</td>
 //                                                     <td className="px-3 py-4 text-right text-zinc-500 dark:text-zinc-400 tabular-nums whitespace-nowrap bg-emerald-50/10 dark:bg-emerald-950/10">{fmt(totalHRA)}</td>
@@ -1897,6 +2212,9 @@
 //                                 resolvedBudgetHead={selectedCommit ? budgetHeadMap[String(selectedCommit.accountHeadId)] : undefined}
 //                                 onSuccess={() => {
 //                                     setPaymentModalOpen(false);
+//                                     if (selectedCommit?.salary_user_details?.employee_id) {
+//                                         markAsProcessed(selectedCommit.salary_user_details.employee_id);
+//                                     }
 //                                     fetchData();
 //                                 }}
 //                                 onCancel={() => setPaymentModalOpen(false)}
@@ -1913,8 +2231,7 @@
 
 
 
-
-// -===========================================
+// -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
@@ -2202,6 +2519,7 @@ const SalaryModule: React.FC = () => {
     const [schemeFilter, setSchemeFilter] = useState<string>("All");
     const [departmentLabels, setDepartmentLabels] = useState<Record<string, string>>({});
     const [schemeMap, setSchemeMap] = useState<Record<string, string>>({});
+    const [schemeNumberMap, setSchemeNumberMap] = useState<Record<string, string>>({});
 
     // Pay slip modal state
     const [selectedSlipRecord, setSelectedSlipRecord] = useState<StaffRecord | null>(null);
@@ -2487,19 +2805,25 @@ const SalaryModule: React.FC = () => {
             const res = await getList({
                 doctype: "Project Registration",
                 filters: [["project_no", "in", projectNos]],
-                fields: ["project_no", "funding_agency_schemes"],
+                fields: ["project_no", "funding_agency_schemes", "enter_scheme_number"],
                 limit_page_length: projectNos.length,
             });
             const map: Record<string, string> = {};
+            const numberMap: Record<string, string> = {};
             (res?.message || []).forEach((row: any) => {
                 if (row.project_no && row.funding_agency_schemes) {
                     map[row.project_no] = row.funding_agency_schemes;
                 }
+                if (row.project_no && row.enter_scheme_number) {
+                    numberMap[row.project_no] = row.enter_scheme_number;
+                }
             });
             setSchemeMap(map);
+            setSchemeNumberMap(numberMap);
         } catch (err) {
             console.error("Failed to fetch scheme mapping:", err);
             setSchemeMap({});
+            setSchemeNumberMap({});
         }
     }, [records, getList]);
 
@@ -2779,9 +3103,9 @@ const SalaryModule: React.FC = () => {
 
     const schemesList = useMemo(() => {
         const set = new Set<string>();
-        Object.values(schemeMap).forEach(s => { if (s) set.add(s); });
+        Object.values(schemeNumberMap).forEach(s => { if (s) set.add(s); });
         return ["All", ...Array.from(set)].sort();
-    }, [schemeMap]);
+    }, [schemeNumberMap]);
 
     // Sort & filter
     const filtered = useMemo(() => {
@@ -2816,7 +3140,7 @@ const SalaryModule: React.FC = () => {
             list = list.filter(r => r.project_no === projectFilter);
         }
         if (schemeFilter !== "All") {
-            list = list.filter(r => schemeMap[r.project_no || ""] === schemeFilter);
+            list = list.filter(r => schemeNumberMap[r.project_no || ""] === schemeFilter);
         }
 
         // Apply Sorting
@@ -2931,7 +3255,7 @@ const SalaryModule: React.FC = () => {
         const monthLabel = MONTHS.find(m => m.value === selectedMonth)?.label || "Month";
         const headers = [
             "Sl.No", "Employee Id", "First Name", "Email Id", "Department",
-            "Designation", "Project No", "Bank Account Number", "Hostel", "Joining Date", "Term Completion Date",
+            "Designation", "Project No", "Scheme", "Bank Account Number", "Hostel", "Joining Date", "Term Completion Date",
             "Basic Salary", "HRA", "HRA (%)", "Total Working Days", "Amount (Working Days)",
             "HRA amt (W.Days)", "Medical amt (W.Days)", "Arrear", "Gross Pay",
             "HRA Ded", "Medical Ded.", "P-Tax", "TA", "ID Card Charge", "Electricity Bill", "Other Deduction",
@@ -2955,7 +3279,7 @@ const SalaryModule: React.FC = () => {
             })();
             return [
                 i + 1, r.employee_id, r.first_name, r.email_id, r.department,
-                r.designation, r.project_no || "—", r.bank_account_number || "—", hostelStatus, r.joining_date, r.term_completion_date,
+                r.designation, r.project_no || "—", schemeNumberMap[r.project_no || ""] || "—", r.bank_account_number || "—", hostelStatus, r.joining_date, r.term_completion_date,
                 r.basic_salary, r.hra, `${r.hra_percent}%`, workingDays, proRataBasic,
                 proRataHRA, proRataMedical, inputs.arrear, grossPay,
                 hraDed, inputs.medicalDeduction, pTax, inputs.ta, inputs.idCardCharge, inputs.electricityBill, inputs.otherDeduction,
@@ -3416,6 +3740,7 @@ const SalaryModule: React.FC = () => {
                                                     <th rowSpan={2} className="px-3 py-4 text-left">Joining</th>
                                                     <th rowSpan={2} className="px-3 py-4 text-left">Exit Date</th>
                                                     <th rowSpan={2} className="px-3 py-4 text-left">Project No</th>
+                                                    <th rowSpan={2} className="px-3 py-4 text-left">Scheme</th>
                                                     <th rowSpan={2} className="px-3 py-4 text-left">Bank A/C No</th>
                                                     <th rowSpan={2} className="px-3 py-4 text-center">Hostel</th>
 
@@ -3506,6 +3831,15 @@ const SalaryModule: React.FC = () => {
                                                             <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap">{fmtDate(r.joining_date)}</td>
                                                             <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.term_completion_date ? fmtDate(r.term_completion_date) : "—"}</td>
                                                             <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.project_no || "—"}</td>
+                                                            <td className="px-3 py-3 text-xs whitespace-nowrap">
+                                                                {schemeNumberMap[r.project_no || ""] ? (
+                                                                    <span className="text-[10px] font-semibold bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 border border-violet-100 dark:border-violet-900/50 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                                                        {schemeNumberMap[r.project_no || ""]}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-zinc-400">—</span>
+                                                                )}
+                                                            </td>
                                                             <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.bank_account_number || "—"}</td>
                                                             <td className="px-3 py-3 text-center whitespace-nowrap">
                                                                 {(() => {
@@ -3961,6 +4295,10 @@ const SalaryModule: React.FC = () => {
                                     <span className="font-semibold text-zinc-900">{selectedSlipRecord.project_no || "—"}</span>
                                 </div>
                                 <div className="flex justify-between border-b border-zinc-100 py-1">
+                                    <span className="text-zinc-500 font-medium">Scheme:</span>
+                                    <span className="font-semibold text-violet-700">{schemeMap[selectedSlipRecord.project_no || ""] || "—"}</span>
+                                </div>
+                                <div className="flex justify-between border-b border-zinc-100 py-1">
                                     <span className="text-zinc-500 font-medium">Bank Account Number:</span>
                                     <span className="font-mono font-bold text-zinc-950">{selectedSlipRecord.bank_account_number || "—"}</span>
                                 </div>
@@ -4085,21 +4423,7 @@ const SalaryModule: React.FC = () => {
                                             </div>
                                         )}
 
-                                        {/* Signature Pad Details */}
-                                        <div className="grid grid-cols-3 gap-4 pt-16 text-center text-xs font-bold">
-                                            <div className="space-y-4">
-                                                <div className="border-b border-zinc-400 max-w-[180px] mx-auto"></div>
-                                                <p className="text-zinc-500">Prepared / Checked By</p>
-                                            </div>
-                                            <div className="space-y-4">
-                                                <div className="border-b border-zinc-400 max-w-[180px] mx-auto"></div>
-                                                <p className="text-zinc-500">Principal Investigator (PI)</p>
-                                            </div>
-                                            <div className="space-y-4">
-                                                <div className="border-b border-zinc-400 max-w-[180px] mx-auto"></div>
-                                                <p className="text-zinc-500">Associate Dean / Dean (R&D)</p>
-                                            </div>
-                                        </div>
+
                                     </div>
                                 );
                             })()}
