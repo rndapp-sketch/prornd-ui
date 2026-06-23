@@ -100,9 +100,13 @@ const AdminLogin: React.FC = () => {
     try {
       const params = new URLSearchParams({
         filters: JSON.stringify([['enabled', '=', 1]]),
+        or_filters: JSON.stringify([
+          ['name', 'like', `%${query}%`],
+          ['full_name', 'like', `%${query}%`],
+          ['username', 'like', `%${query}%`],
+        ]),
         fields: JSON.stringify(['name', 'full_name', 'username']),
         limit: '10',
-        search_term: query,
       });
       const res = await fetch(`/api/resource/User?${params}`, {
         credentials: 'include',
@@ -110,7 +114,9 @@ const AdminLogin: React.FC = () => {
       });
       if (res.ok) {
         const data = await res.json();
-        setSuggestions((data.data as UserSuggestion[]) ?? []);
+        const results = (data.data as UserSuggestion[]) ?? [];
+        setSuggestions(results);
+        setShowSuggestions(results.length > 0);
       }
     } catch {
       // silently fail — autocomplete is optional
