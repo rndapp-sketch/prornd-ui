@@ -4406,6 +4406,50 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                         </div>
                                     </SectionWrapper>
 
+                                    {/* Account Details */}
+                                    {data?.is_the_account_type_pfms && (
+                                        <SectionWrapper
+                                            title="Account Details"
+                                            icon={CreditCardIcon}
+                                        >
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
+                                                <FieldDisplay
+                                                    label="Account Type"
+                                                    value={data.is_the_account_type_pfms === "Yes" ? "PFMS" : "Bank Account"}
+                                                    icon={CreditCardIcon}
+                                                />
+                                                {data.is_the_account_type_pfms === "Yes" && (
+                                                    <>
+                                                        <FieldDisplay
+                                                            label="Scheme Name"
+                                                            value={data.scheme_name}
+                                                            icon={FileTextIcon}
+                                                        />
+                                                        <FieldDisplay
+                                                            label="Scheme Number"
+                                                            value={data.enter_scheme_number}
+                                                            icon={FileTextIcon}
+                                                        />
+                                                    </>
+                                                )}
+                                                {data.is_the_account_type_pfms === "No" && (
+                                                    <>
+                                                        <FieldDisplay
+                                                            label="Account Number"
+                                                            value={data.account_number}
+                                                            icon={CreditCardIcon}
+                                                        />
+                                                        <FieldDisplay
+                                                            label="Bank Name"
+                                                            value={data.bank_name}
+                                                            icon={BuildingIcon}
+                                                        />
+                                                    </>
+                                                )}
+                                            </div>
+                                        </SectionWrapper>
+                                    )}
+
                                     <SectionWrapper
                                         title="Investigators"
                                         icon={UsersIcon}

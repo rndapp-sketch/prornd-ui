@@ -58,24 +58,6 @@ function formatTimestamp(ts: string): string {
     }
 }
 
-function timeAgo(ts: string): string {
-    if (!ts) return "";
-    try {
-        const date = new Date(ts);
-        const diff = Date.now() - date.getTime();
-        const mins = Math.floor(diff / 60000);
-        if (mins < 1) return "just now";
-        if (mins < 60) return `${mins}m ago`;
-        const hours = Math.floor(mins / 60);
-        if (hours < 24) return `${hours}h ago`;
-        const days = Math.floor(hours / 24);
-        if (days < 30) return `${days}d ago`;
-        return formatTimestamp(ts);
-    } catch {
-        return ts;
-    }
-}
-
 // ─── Icon / colour per type ───────────────────────────────────────────────────
 
 function typeConfig(type: string) {
@@ -136,7 +118,7 @@ const LogItem: React.FC<{ entry: ActivityLogEntry; isLast: boolean }> = ({
     entry,
     isLast,
 }) => {
-    const { Icon, dot, iconColor, badge } = typeConfig(entry.type);
+    const { Icon, dot, badge } = typeConfig(entry.type);
     const initials = (entry.user || entry.user_email || "?")
         .charAt(0)
         .toUpperCase();
@@ -187,9 +169,8 @@ const LogItem: React.FC<{ entry: ActivityLogEntry; isLast: boolean }> = ({
                 {/* Timestamp */}
                 <p
                     className="text-[11px] text-zinc-400 dark:text-zinc-500 mb-1"
-                    title={formatTimestamp(entry.timestamp)}
                 >
-                    {timeAgo(entry.timestamp)}
+                    {formatTimestamp(entry.timestamp)}
                 </p>
 
                 {/* Comment content */}
