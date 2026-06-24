@@ -13,6 +13,8 @@
  */
 
 const MINIO_BASE = "http://172.16.135.118:9000/prod-rnd-files";
+const MINIO_HOST_8081 = "http://172.16.135.118:8081/";
+const MINIO_BUCKET = "prod-rnd-files";
 
 // Path prefixes that indicate a MinIO-stored file
 const MINIO_PATH_PREFIXES = [
@@ -25,7 +27,18 @@ const MINIO_PATH_PREFIXES = [
 export function getFileUrl(path: string | null | undefined): string {
     if (!path) return "";
 
-    // Already a full URL — return as-is
+    // Port-8081 URL that already contains the bucket — serve as-is
+    if (path.startsWith(`${MINIO_HOST_8081}${MINIO_BUCKET}/`)) {
+        return path;
+    }
+
+    // Port-8081 URL missing the bucket prefix — insert it
+    if (path.startsWith(MINIO_HOST_8081)) {
+        const objectPath = path.slice(MINIO_HOST_8081.length);
+        return `${MINIO_HOST_8081}${MINIO_BUCKET}/${objectPath}`;
+    }
+
+    // Already a full URL (other origins) — return as-is
     if (path.startsWith("http://") || path.startsWith("https://")) {
         return path;
     }

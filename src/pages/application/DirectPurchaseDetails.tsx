@@ -757,6 +757,7 @@ const isFilePath = (val: any): boolean => {
     return (
         val.startsWith("/private/files/") ||
         val.startsWith("/files/") ||
+        val.startsWith("http://172.16.135.118:8081/") ||
         /\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx|zip)$/i.test(val)
     );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useSWRConfig } from "swr";
 import { useParams, useNavigate } from "react-router-dom";
@@ -60,6 +60,7 @@ import { useUserRoles } from "@/components/UserRole";
 import { POEditor } from "@/components/POEditor";
 import { DeclarationFields } from "@/components/DeclarationFields";
 import { AutocompleteEmail } from "@/components/AutocompleteEmail";
+import { getFileUrl } from "@/utils/fileUtils";
 
 // Fields to hide from the overview
 const HIDDEN_FIELDS = [
@@ -1024,6 +1025,7 @@ const isFilePath = (value: string) => {
     return (
         value.startsWith("/private/files/") ||
         value.startsWith("/files/") ||
+        value.startsWith("http://172.16.135.118:8081/") ||
         value.match(/\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx)$/i)
     );
 };
@@ -1098,7 +1100,6 @@ const DPDocumentViewer = ({
     const fileFields = allScalar.filter(
         ([k, v]) => isFilePath(String(v)) || k.startsWith("upload_"),
     );
-    const boolFields = allScalar.filter(([k, v]) => dpIsBoolCheck(k, v));
     const amountFields = allScalar.filter(
         ([k, v]) =>
             dpIsAmountField(k) &&
@@ -1756,6 +1757,20 @@ const PendingTaskDetails: React.FC = () => {
     const [fsAcctBankName, setFsAcctBankName] = useState('');
     const [isSavingAcctDetails, setIsSavingAcctDetails] = useState(false);
 
+    // Fund Sanction — sanction_related_files management (staff, RnD only)
+    type FsFileRow = {
+        _key: string;
+        description: string;
+        sanction_file: string;
+        filename?: string;
+        content?: string;
+        is_new: boolean;
+    };
+    const [fsFiles, setFsFiles] = useState<FsFileRow[]>([]);
+    const [isSavingFsFiles, setIsSavingFsFiles] = useState(false);
+    const [fsFilesMsg, setFsFilesMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const fsFileInputRef = useRef<HTMLInputElement>(null);
+
     useEffect(() => {
         if (doctype !== 'Fund Sanction') return;
         if (!fsProjectRegData) return;
@@ -1808,6 +1823,95 @@ const PendingTaskDetails: React.FC = () => {
             alert('Failed to save account details: ' + (e?.message || 'Unknown error'));
         } finally {
             setIsSavingAcctDetails(false);
+        }
+    };
+
+    // Sync sanction_related_files from doc into local editable state
+    useEffect(() => {
+        if (doctype !== 'Fund Sanction') return;
+        const rows: any[] = (data as any)?.sanction_related_files || [];
+        setFsFiles(rows.map((r: any, i: number) => ({
+            _key: `existing-${i}-${r.sanction_file || i}`,
+            description: r.description || '',
+            sanction_file: r.sanction_file || '',
+            is_new: false,
+        })));
+    }, [doctype, (data as any)?.sanction_related_files]);
+
+    const handleFsFileAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (file.size > 10 * 1024 * 1024) {
+            setFsFilesMsg({ type: 'error', text: `"${file.name}" exceeds the 10 MB limit.` });
+            e.target.value = '';
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+            const dataUrl = reader.result as string;
+            const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+            setFsFiles(prev => [...prev, {
+                _key: `new-${Date.now()}-${file.name}`,
+                description: '',
+                sanction_file: '',
+                filename: file.name,
+                content: base64,
+                is_new: true,
+            }]);
+            setFsFilesMsg(null);
+        };
+        reader.onerror = () => setFsFilesMsg({ type: 'error', text: 'Failed to read file.' });
+        reader.readAsDataURL(file);
+        e.target.value = '';
+    };
+
+    const handleSaveFsFiles = async () => {
+        if (!name) return;
+        setIsSavingFsFiles(true);
+        setFsFilesMsg(null);
+        try {
+            const existingFiles = fsFiles
+                .filter(f => !f.is_new)
+                .map(f => ({ sanction_file: f.sanction_file, description: f.description }));
+            const newFiles = fsFiles
+                .filter(f => f.is_new)
+                .map(f => ({
+                    filename: f.filename || 'file',
+                    content: f.content || '',
+                    description: f.description,
+                    is_private: 1,
+                    fieldname: '',
+                }));
+            const res = await fetch(
+                '/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.update_fund_sanction_files',
+                {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-Frappe-CSRF-Token': (window as any).csrf_token || '',
+                    },
+                    body: JSON.stringify({
+                        docname: name,
+                        files: newFiles,
+                        existing_files: existingFiles,
+                        project_reg: (data as any)?.project_proposal || undefined,
+                        replace: true,
+                    }),
+                },
+            );
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || json?.message?.status === 'error') {
+                throw new Error(json?.message?.message || json?.exception || `HTTP ${res.status}`);
+            }
+            await mutate();
+            const total = json?.message?.total_file_rows ?? fsFiles.length;
+            setFsFilesMsg({ type: 'success', text: `Saved successfully. ${total} file${total !== 1 ? 's' : ''} on record.` });
+        } catch (e: any) {
+            setFsFilesMsg({ type: 'error', text: e?.message || 'Failed to save files.' });
+        } finally {
+            setIsSavingFsFiles(false);
         }
     };
 
@@ -3273,6 +3377,93 @@ const PendingTaskDetails: React.FC = () => {
                                         )}
                                     </div>
                                 </div>
+
+                                {/* Sanction Files — editable only for staff, RnD */}
+                                {canEditFsAccountDetails && (
+                                    <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl shadow-sm overflow-hidden">
+                                        <div className="px-5 py-3 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] flex items-center justify-between">
+                                            <h3 className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-[0.1em]">Sanction Files</h3>
+                                            <button
+                                                type="button"
+                                                onClick={() => fsFileInputRef.current?.click()}
+                                                className="inline-flex items-center gap-1.5 h-8 px-3 text-[11px] font-bold uppercase tracking-wide rounded-lg bg-[#D97757]/10 hover:bg-[#D97757]/20 text-[#D97757] border border-[#D97757]/30 transition-colors"
+                                            >
+                                                <PencilIcon className="h-3 w-3" />
+                                                Add File
+                                            </button>
+                                            <input
+                                                ref={fsFileInputRef}
+                                                type="file"
+                                                className="hidden"
+                                                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+                                                onChange={handleFsFileAdd}
+                                            />
+                                        </div>
+                                        <div className="p-5 space-y-3">
+                                            {fsFilesMsg && (
+                                                <div className={cn(
+                                                    "flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-medium",
+                                                    fsFilesMsg.type === 'success'
+                                                        ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                                                        : "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800",
+                                                )}>
+                                                    {fsFilesMsg.text}
+                                                </div>
+                                            )}
+                                            {fsFiles.length === 0 ? (
+                                                <p className="text-[12px] text-zinc-400 dark:text-zinc-500 py-2">No sanction files attached. Click "Add File" to upload.</p>
+                                            ) : (
+                                                <div className="space-y-2">
+                                                    {fsFiles.map((row, idx) => (
+                                                        <div key={row._key} className="flex items-start gap-2 p-3 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
+                                                            <FileIcon className="h-4 w-4 text-[#D97757] mt-0.5 shrink-0" />
+                                                            <div className="flex-1 min-w-0 space-y-1">
+                                                                {row.is_new ? (
+                                                                    <p className="text-[12px] font-mono text-zinc-600 dark:text-zinc-300 truncate">{row.filename}</p>
+                                                                ) : (
+                                                                    <a
+                                                                        href={getFileUrl(row.sanction_file)}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="inline-flex items-center gap-1 text-[12px] font-medium text-[#D97757] hover:underline truncate"
+                                                                    >
+                                                                        {row.sanction_file.split('/').pop() || row.sanction_file}
+                                                                        <ExternalLinkIcon className="h-3 w-3 opacity-60 shrink-0" />
+                                                                    </a>
+                                                                )}
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder="Description (optional)"
+                                                                    value={row.description}
+                                                                    onChange={e => setFsFiles(prev => prev.map((f, i) => i === idx ? { ...f, description: e.target.value } : f))}
+                                                                    className="w-full h-7 px-2 text-[12px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md text-zinc-700 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-[#D97757]/30 focus:border-[#D97757]"
+                                                                />
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setFsFiles(prev => prev.filter((_, i) => i !== idx))}
+                                                                className="p-1 rounded-md text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shrink-0"
+                                                                title="Remove file"
+                                                            >
+                                                                <XIcon className="h-3.5 w-3.5" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <div className="flex justify-end pt-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={handleSaveFsFiles}
+                                                    disabled={isSavingFsFiles}
+                                                    className="h-9 px-5 bg-[#D97757] hover:bg-[#c5684a] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-[12px] uppercase tracking-wide rounded-lg transition-colors"
+                                                >
+                                                    {isSavingFsFiles ? 'Saving…' : 'Save Files'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         ) : doctype === "Cancellation Request" && data ? (
                             <div className="space-y-5">
