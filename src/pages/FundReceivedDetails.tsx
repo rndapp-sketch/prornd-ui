@@ -1153,7 +1153,7 @@ const FundReceivedDetails = () => {
                                             </>
                                         ) : received_amt_breakup?.length > 0 ? received_amt_breakup.map((item: any, idx: number) => (
                                             <tr key={item.name || idx} className="hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40 transition-colors">
-                                                <td className="px-4 py-3 text-[13px] text-[#3F3F46] dark:text-[#D4D4D8] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80"><BudgetHeadName value={item.account_head} /></td>
+                                                <td className="px-4 py-3 text-[13px] text-[#3F3F46] dark:text-[#D4D4D8] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80"><BudgetHeadName value={item.account_head} options={budgetHeadOptions} /></td>
                                                 <td className="px-4 py-3 text-[13px] text-right font-bold text-[#D97757] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">{item.amount_received?.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</td>
                                                 <td className="px-4 py-3 text-[13px] text-[#71717A] dark:text-[#A1A1AA]">{item.remarks || "—"}</td>
                                             </tr>
@@ -1375,7 +1375,7 @@ const FundReceivedDetails = () => {
                                         <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
                                             {received_amt_breakup?.length > 0 ? received_amt_breakup.map((item: any, idx: number) => (
                                                 <tr key={idx} className="hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40">
-                                                    <td className="px-4 py-2 text-[12px] text-[#3F3F46] dark:text-[#D4D4D8] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80"><BudgetHeadName value={item.account_head} /></td>
+                                                    <td className="px-4 py-2 text-[12px] text-[#3F3F46] dark:text-[#D4D4D8] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80"><BudgetHeadName value={item.account_head} options={budgetHeadOptions} /></td>
                                                     <td className="px-4 py-2 text-[12px] text-right font-bold text-[#D97757]">{item.amount_received?.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</td>
                                                 </tr>
                                             )) : <tr><td colSpan={2} className="px-4 py-6 text-center text-[12px] text-[#A1A1AA]">No breakup.</td></tr>}

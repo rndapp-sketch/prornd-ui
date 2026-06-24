@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFrappeGetDoc, useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
 import {
@@ -12,6 +12,7 @@ import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButto
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { travelAPI, advanceSettlementAPI, temporaryAdvanceAPI, tadaAPI, recruitmentAdhocContractualAPI, selectionCommitteeReportAPI } from '@/services/apiService';
 import { useUserRoles } from '@/components/UserRole';
+import { getFileUrl } from '@/utils/fileUtils';
 import { POEditor } from '@/components/POEditor';
 import { DeclarationFields } from '@/components/DeclarationFields';
 import TravelApplicantSummary from '@/components/TravelApplicantSummary';
@@ -22,6 +23,7 @@ const isFilePath = (value: string) => {
     if (typeof value !== 'string') return false;
     return value.startsWith('/private/files/') ||
         value.startsWith('/files/') ||
+        value.startsWith('http://172.16.135.118:8081/') ||
         !!value.match(/\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx)$/i);
 };
 const getFileName = (path: string) => path.split('/').pop() || path;
@@ -465,13 +467,314 @@ const RegistryPanel = ({ title, children }: { title: string; children: React.Rea
     </div>
 );
 
+// ── FundSanctionView ──────────────────────────────────────────────────────────
+const FundSanctionView = ({ data, docname, canEdit, onRefresh }: {
+    data: Record<string, any>;
+    docname: string;
+    canEdit: boolean;
+    onRefresh: () => void;
+}) => {
+    type FsFileRow = {
+        _key: string;
+        description: string;
+        sanction_file: string;
+        filename?: string;
+        content?: string;
+        is_new: boolean;
+    };
+    const [fsFiles, setFsFiles] = useState<FsFileRow[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
+    const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        const rows: any[] = data?.sanction_related_files || [];
+        setFsFiles(rows.map((r: any, i: number) => ({
+            _key: `existing-${i}-${r.sanction_file || i}`,
+            description: r.description || '',
+            sanction_file: r.sanction_file || '',
+            is_new: false,
+        })));
+    }, [data?.sanction_related_files]);
+
+    const handleFileAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (file.size > 10 * 1024 * 1024) {
+            setMsg({ type: 'error', text: `"${file.name}" exceeds the 10 MB limit.` });
+            e.target.value = '';
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+            const dataUrl = reader.result as string;
+            const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+            setFsFiles(prev => [...prev, {
+                _key: `new-${Date.now()}-${file.name}`,
+                description: '',
+                sanction_file: '',
+                filename: file.name,
+                content: base64,
+                is_new: true,
+            }]);
+            setMsg(null);
+        };
+        reader.onerror = () => setMsg({ type: 'error', text: 'Failed to read file.' });
+        reader.readAsDataURL(file);
+        e.target.value = '';
+    };
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        setMsg(null);
+        try {
+            const existingFiles = fsFiles.filter(f => !f.is_new).map(f => ({ sanction_file: f.sanction_file, description: f.description }));
+            const newFiles = fsFiles.filter(f => f.is_new).map(f => ({
+                filename: f.filename || 'file',
+                content: f.content || '',
+                description: f.description,
+                is_private: 1,
+                fieldname: '',
+            }));
+            const res = await fetch(
+                '/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.update_fund_sanction_files',
+                {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-Frappe-CSRF-Token': (window as any).csrf_token || '',
+                    },
+                    body: JSON.stringify({
+                        docname,
+                        files: newFiles,
+                        existing_files: existingFiles,
+                        project_reg: data?.project_proposal || undefined,
+                        replace: true,
+                    }),
+                },
+            );
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || json?.message?.status === 'error') {
+                throw new Error(json?.message?.message || json?.exception || `HTTP ${res.status}`);
+            }
+            onRefresh();
+            const total = json?.message?.total_file_rows ?? fsFiles.length;
+            setMsg({ type: 'success', text: `Saved. ${total} file${total !== 1 ? 's' : ''} on record.` });
+        } catch (e: any) {
+            setMsg({ type: 'error', text: e?.message || 'Failed to save files.' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const years = ['first_year_budget', 'second_year_budget', 'third_year_budget', 'fourth_year_budget', 'fifth_year_budget'];
+
+    return (
+        <div className="space-y-4">
+            {/* Summary cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {[
+                    { label: 'Total Sanctioned', value: data.total_sanctioned_amount != null ? Number(data.total_sanctioned_amount).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }) : '—' },
+                    { label: 'Letter No', value: data.sanctioned_letter_no || '—' },
+                    { label: 'Letter Date', value: data.sanctioned_letter_date || '—' },
+                ].map(({ label, value }) => (
+                    <div key={label} className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] px-4 py-3">
+                        <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#71717A] dark:text-[#A1A1AA] mb-1">{label}</p>
+                        <p className={label === 'Total Sanctioned' ? 'text-xl font-bold text-[#D97757]' : 'text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7]'}>{value}</p>
+                    </div>
+                ))}
+            </div>
+
+            {/* Sanction details */}
+            <RegistryPanel title="Sanction Details">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {[
+                        { label: 'Project', value: data.project_proposal || data.refnum_prj_num },
+                        { label: 'Project Title', value: data.project_title },
+                        { label: 'Funding Agency', value: data.funding_agency },
+                        { label: 'Sanction Order No', value: data.sanction_order_no || data.sanctioned_letter_no },
+                        { label: 'Date of Sanction', value: data.date_of_sanction || data.sanctioned_letter_date },
+                        { label: 'Duration (Months)', value: data.duration_of_project },
+                        { label: 'Start Date', value: data.start_date },
+                        { label: 'End Date', value: data.end_date },
+                        { label: 'Principal Investigator', value: data.principal_investigator || data.pi_name },
+                        { label: 'Department', value: data.department },
+                        { label: 'Remarks', value: data.remarks },
+                    ].filter(f => f.value != null && f.value !== '').map(({ label, value }) => (
+                        <div key={label} className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] px-3.5 py-3">
+                            <div className="inline-flex w-fit items-center rounded-md bg-white dark:bg-[#27272A] px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#2563EB] dark:text-blue-300 ring-1 ring-[#E4E4E7] dark:ring-[#3F3F46]">
+                                {label}
+                            </div>
+                            <p className="text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] break-words leading-snug">{String(value)}</p>
+                        </div>
+                    ))}
+                </div>
+            </RegistryPanel>
+
+            {/* Budget breakup */}
+            {data.sanctioned_budget_breakup?.length > 0 && (
+                <RegistryPanel title="Sanctioned Budget Breakup">
+                    <div className="overflow-x-auto">
+                        <table className="w-full table-fixed text-[11px]">
+                            <thead>
+                                <tr className="border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                                    <th className="px-3 py-2.5 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#1E3A8A] dark:text-[#C7D2FE]">Account Head</th>
+                                    {['Yr 1', 'Yr 2', 'Yr 3', 'Yr 4', 'Yr 5', 'Total'].map(h => (
+                                        <th key={h} className="px-3 py-2.5 text-right text-[10px] font-extrabold uppercase tracking-wider text-[#1E3A8A] dark:text-[#C7D2FE]">{h}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data.sanctioned_budget_breakup.map((row: any, i: number) => {
+                                    const rowTotal = years.reduce((s, k) => s + (parseFloat(row[k]) || 0), 0);
+                                    return (
+                                        <tr key={i} className="border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30">
+                                            <td className="px-3 py-2 font-mono text-xs text-zinc-800 dark:text-zinc-100">{row.account_head}</td>
+                                            {years.map(k => (
+                                                <td key={k} className="px-3 py-2 text-right tabular-nums text-zinc-600 dark:text-zinc-300">
+                                                    {parseFloat(row[k]) ? Number(row[k]).toLocaleString('en-IN') : '—'}
+                                                </td>
+                                            ))}
+                                            <td className="px-3 py-2 text-right tabular-nums font-bold text-zinc-900 dark:text-zinc-100">
+                                                {rowTotal ? rowTotal.toLocaleString('en-IN') : '—'}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                            <tfoot className="border-t-2 border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
+                                <tr>
+                                    <td className="px-3 py-2.5 text-[10px] font-bold uppercase text-zinc-700 dark:text-zinc-300">Total</td>
+                                    {years.map(k => {
+                                        const t = data.sanctioned_budget_breakup.reduce((s: number, r: any) => s + (parseFloat(r[k]) || 0), 0);
+                                        return <td key={k} className="px-3 py-2.5 text-right tabular-nums font-bold text-zinc-800 dark:text-zinc-100">{t ? t.toLocaleString('en-IN') : '—'}</td>;
+                                    })}
+                                    <td className="px-3 py-2.5 text-right tabular-nums font-bold text-[#D97757]">
+                                        ₹ {years.reduce((grand, k) => grand + data.sanctioned_budget_breakup.reduce((s: number, r: any) => s + (parseFloat(r[k]) || 0), 0), 0).toLocaleString('en-IN')}
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </RegistryPanel>
+            )}
+
+            {/* Sanction letter attachment */}
+            {data.sanction_letter && (
+                <RegistryPanel title="Sanction Letter">
+                    <a href={data.sanction_letter} target="_blank" rel="noreferrer"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50 dark:bg-zinc-800 text-[#D97757] hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-sm font-medium">
+                        <PaperclipIcon className="h-4 w-4" />
+                        {getFileName(data.sanction_letter)}
+                    </a>
+                </RegistryPanel>
+            )}
+
+            {/* Sanction files — editable for staff, RnD; read-only for others */}
+            <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
+                <div className="flex items-center justify-between px-5 py-3 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
+                    <h3 className="text-[13px] font-extrabold uppercase tracking-wide text-[#3F3F46] dark:text-[#E4E4E7]">Sanction Files</h3>
+                    {canEdit && (
+                        <>
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                className="inline-flex items-center gap-1.5 h-7 px-3 text-[11px] font-bold uppercase tracking-wide rounded-lg bg-[#D97757]/10 hover:bg-[#D97757]/20 text-[#D97757] border border-[#D97757]/30 transition-colors"
+                            >
+                                <PaperclipIcon className="h-3 w-3" />
+                                Add File
+                            </button>
+                            <input ref={fileInputRef} type="file" className="hidden"
+                                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+                                onChange={handleFileAdd} />
+                        </>
+                    )}
+                </div>
+                <div className="p-5 space-y-3">
+                    {msg && (
+                        <div className={cn(
+                            'px-3 py-2 rounded-lg text-[12px] font-medium',
+                            msg.type === 'success'
+                                ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800',
+                        )}>
+                            {msg.text}
+                        </div>
+                    )}
+                    {fsFiles.length === 0 ? (
+                        <p className="text-[12px] text-[#A1A1AA] py-2">
+                            {canEdit ? 'No files attached. Click "Add File" to upload.' : 'No sanction files attached.'}
+                        </p>
+                    ) : (
+                        <div className="space-y-2">
+                            {fsFiles.map((row, idx) => (
+                                <div key={row._key} className="flex items-start gap-2 p-3 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
+                                    <PaperclipIcon className="h-4 w-4 text-[#D97757] mt-0.5 shrink-0" />
+                                    <div className="flex-1 min-w-0 space-y-1">
+                                        {row.is_new ? (
+                                            <p className="text-[12px] font-mono text-zinc-600 dark:text-zinc-300 truncate">{row.filename}</p>
+                                        ) : (
+                                            <a href={getFileUrl(row.sanction_file)} target="_blank" rel="noreferrer"
+                                                className="inline-flex items-center gap-1 text-[12px] font-medium text-[#D97757] hover:underline truncate">
+                                                {getFileName(row.sanction_file)}
+                                            </a>
+                                        )}
+                                        {canEdit ? (
+                                            <input
+                                                type="text"
+                                                placeholder="Description (optional)"
+                                                value={row.description}
+                                                onChange={e => setFsFiles(prev => prev.map((f, i) => i === idx ? { ...f, description: e.target.value } : f))}
+                                                className="w-full h-7 px-2 text-[12px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md text-zinc-700 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-[#D97757]/30 focus:border-[#D97757]"
+                                            />
+                                        ) : row.description ? (
+                                            <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA]">{row.description}</p>
+                                        ) : null}
+                                    </div>
+                                    {canEdit && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setFsFiles(prev => prev.filter((_, i) => i !== idx))}
+                                            className="p-1 rounded text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shrink-0"
+                                            title="Remove"
+                                        >
+                                            <span className="text-[14px] leading-none">×</span>
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    {canEdit && (
+                        <div className="flex justify-end pt-1">
+                            <button
+                                type="button"
+                                onClick={handleSave}
+                                disabled={isSaving}
+                                className="h-8 px-5 bg-[#D97757] hover:bg-[#c5684a] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-[11px] uppercase tracking-wide rounded-lg transition-colors"
+                            >
+                                {isSaving ? 'Saving…' : 'Save Files'}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // ── Main Component ────────────────────────────────────────────────────────────
 const TaskRegistryDetails: React.FC = () => {
     const { doctype: rawDoctype, name } = useParams<{ doctype: string; name: string }>();
     const navigate = useNavigate();
     const doctype = rawDoctype ? decodeURIComponent(rawDoctype) : '';
 
-    const { data, isLoading, error } = useFrappeGetDoc(doctype || '', name || '');
+    const { data, isLoading, error, mutate } = useFrappeGetDoc(doctype || '', name || '');
+    const { currentUser } = useFrappeAuth();
+    const { roles } = useUserRoles(currentUser ?? null);
+    const canEditFsFiles = roles.some(r => r === 'staff, RnD' || r === 'System Manager');
 
     const [travelFields, setTravelFields] = useState<FormField[]>([]);
     const [travelLinkOptions, setTravelLinkOptions] = useState<Record<string, LinkOption[]>>({});
@@ -596,6 +899,15 @@ const TaskRegistryDetails: React.FC = () => {
     };
 
     const renderContent = () => {
+        if (doctype === 'Fund Sanction') return (
+            <FundSanctionView
+                data={data}
+                docname={name!}
+                canEdit={canEditFsFiles}
+                onRefresh={() => mutate()}
+            />
+        );
+
         if (doctype === 'Direct Purchase') return <DirectPurchaseTabView data={data} docName={name!} />;
 
         if (doctype === 'Selection Committee Report') {
