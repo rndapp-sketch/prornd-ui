@@ -1,4 +1,4 @@
-import poTemplate from "@/pages/printformat/po_format.html?raw";
+import poTemplate from "@/pages/printformat/icss_po_format.html?raw";
 
 const fmt = (val: any) => {
   const n = Number(val);
@@ -124,7 +124,8 @@ export const DEFAULT_TERMS = `<ol>
 <li><strong>Warranty:</strong> 01 year from the date of delivery, installation, and acceptance of ordered goods in good condition at IIT Guwahati. Warranty certificate will have to be enclosed with the equipment.</li>
 <li><strong>GST Deduction:</strong> GST Deduction at source as per Order/notification of the Govt. of India will be applicable.</li>
 <li><strong>Bank Charges:</strong> All Bank and other charges to the supplier&rsquo;s account.</li>
-<li><strong>Performance Bank Guarantee:</strong> The supplier shall furnish an unconditional Performance Bank Guarantee (PBG) in the form of a Fixed Deposit or Bank Guarantee (including e-Bank Guarantee) as per the format enclosed at ANNEXURE&ndash;II issued by any Commercial Bank of India, as per the prescribed slab indicated below. In case of foreign procurement, submission of the PBG by the local agent shall be mandatory. Where the PBG is issued by a foreign bank, the same shall be duly endorsed by its corresponding bank in India.<br /><br />
+<li><strong>Termination for Default:</strong> Default is said to have occurred if the supplier fails to deliver within the specified time, fails to perform any other contractual obligation, or if the equipment/components are found to have poor workmanship, faulty design, poor performance, or bad quality of materials used. Under such circumstances, the Competent Authority, IITG may terminate the contract/purchase order in whole or in part and forfeit the EMD/PBG as applicable or impose any other penalty deemed fit. IITG may also procure similar goods/items elsewhere and recover the additional expenditure from the defaulting supplier.<br /><br />
+<strong>Performance Bank Guarantee:</strong> The supplier shall furnish an unconditional Performance Bank Guarantee (PBG) in the form of a Fixed Deposit or Bank Guarantee (including e-Bank Guarantee) as per the format enclosed at ANNEXURE&ndash;II issued by any Commercial Bank of India, as per the prescribed slab indicated below. In case of foreign procurement, submission of the PBG by the local agent shall be mandatory. Where the PBG is issued by a foreign bank, the same shall be duly endorsed by its corresponding bank in India.<br /><br />
 The validity of the PBG shall cover the entire warranty period plus an additional period of two (02) months from the date of installation/commissioning of the equipment.<br /><br />
 In the event of failure to submit the PBG within the stipulated timeframe, IIT Guwahati reserves the right to withhold or deduct an amount equivalent to the PBG value from the payment due to the supplier, without requiring further consent. Such amount shall be retained until submission of the requisite PBG.<br /><br />
 <table style="width: 100%; border-collapse: collapse; margin: 10px 0; border: 1px solid #000; font-size: 12px;">
@@ -165,13 +166,6 @@ In the event of failure to submit the PBG within the stipulated timeframe, IIT G
   </li>
   <li style="margin-top: 10px;"><strong>Condition for invoking PBG:</strong> In case of failure to comply with the guarantees above, IITG may terminate the contract/purchase order in whole or in part and forfeit the PBG. In addition, IITG may, at its discretion, procure upon such terms and in such manner as it deems appropriate, goods similar to the undelivered items/products, and the defaulting supplier/vendor shall be liable to compensate IITG for any extra expenditure involved.</li>
 </ol>
-</li>
-<li><strong>Termination for default:</strong>
-  <ol>
-    <li>If the supplier fails to deliver any or all the services within the time period(s) specified in the purchase order or any extension thereof granted by IITG.</li>
-    <li>If the supplier fails to perform any other obligation(s) under the contract.</li>
-    <li>If the equipment or any of its components is found to have poor workmanship, faulty designs, poor performance, and bad quality of materials used. Under the above circumstances, the Competent Authority, IITG may terminate the contract/purchase order in whole or in part and forfeit the EMD/PBG as applicable or impose any other penalty as deemed fit. In addition to the above, IITG may at its discretion also take the following action: IITG may procure, upon such terms and in such manner as it deems appropriate, goods similar to the undelivered items/products and the defaulting supplier shall be liable to compensate IITG for any extra expenditure involved.</li>
-  </ol>
 </li>
 <li><strong>Applicable Law:</strong>
   <ol>
@@ -215,26 +209,53 @@ export const RATE_CONTRACT_TERMS = `<ol>
 </li>
 <li><strong>Road Permit / Form 62:</strong> If road permit is required, please send the Proforma Invoice along with your Order Acknowledgement. The Proforma Invoice is to bear the final value of ordered goods and complete address from which the goods are to be consigned.</li>
 <li><strong>Bank Charges:</strong> All bank and other charges shall be to the supplier's account.</li>
-<li><strong>Termination for Default:</strong> Default is said to have occurred if the supplier fails to deliver within the specified time, fails to perform any other contractual obligation, or if the equipment/components are found to have poor workmanship, faulty design, poor performance, or bad quality of materials used. Under such circumstances, the Competent Authority, IITG may terminate the contract/purchase order in whole or in part and forfeit the EMD/PBG as applicable or impose any other penalty deemed fit. IITG may also procure similar goods/items elsewhere and recover the additional expenditure from the defaulting supplier.</li>
+<li><strong>Termination for Default:</strong> Default is said to have occurred if the supplier fails to deliver within the specified time, fails to perform any other contractual obligation, or if the equipment/components are found to have poor workmanship, faulty design, poor performance, or bad quality of materials used. Under such circumstances, the Competent Authority, IITG may terminate the contract/purchase order in whole or in part and forfeit the EMD/PBG as applicable or impose any other penalty deemed fit. IITG may also procure similar goods/items elsewhere and recover the additional expenditure from the defaulting supplier.<br /><br />
+<strong>Performance Bank Guarantee:</strong> The supplier shall furnish an unconditional Performance Bank Guarantee (PBG) in the form of a Fixed Deposit or Bank Guarantee (including e-Bank Guarantee) as per the format enclosed at ANNEXURE&ndash;II issued by any Commercial Bank of India, as per the prescribed slab indicated below. In case of foreign procurement, submission of the PBG by the local agent shall be mandatory. Where the PBG is issued by a foreign bank, the same shall be duly endorsed by its corresponding bank in India.<br /><br />
+The validity of the PBG shall cover the entire warranty period plus an additional period of two (02) months from the date of installation/commissioning of the equipment.<br /><br />
+In the event of failure to submit the PBG within the stipulated timeframe, IIT Guwahati reserves the right to withhold or deduct an amount equivalent to the PBG value from the payment due to the supplier, without requiring further consent. Such amount shall be retained until submission of the requisite PBG.<br /><br />
+<table style="width: 100%; border-collapse: collapse; margin: 10px 0; border: 1px solid #000; font-size: 12px;">
+  <thead>
+    <tr style="background-color: #f0f0f0;">
+      <th style="padding: 5px 6px; border: 1px solid #000; text-align: center; font-weight: bold;">Slab</th>
+      <th style="padding: 5px 6px; border: 1px solid #000; text-align: center; font-weight: bold;">PO/ Contract Value</th>
+      <th style="padding: 5px 6px; border: 1px solid #000; text-align: center; font-weight: bold;">PBG Rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding: 5px 6px; border: 1px solid #000; text-align: center;">1</td>
+      <td style="padding: 5px 6px; border: 1px solid #000; text-align: center;">&#8377; 5,00,000/- to &#8377; 15,00,000/-</td>
+      <td style="padding: 5px 6px; border: 1px solid #000; text-align: center;">3%</td>
+    </tr>
+    <tr>
+      <td style="padding: 5px 6px; border: 1px solid #000; text-align: center;">2</td>
+      <td style="padding: 5px 6px; border: 1px solid #000; text-align: center;">&#8377; 15,00,000/- to &#8377; 25,00,000/-</td>
+      <td style="padding: 5px 6px; border: 1px solid #000; text-align: center;">4%</td>
+    </tr>
+    <tr>
+      <td style="padding: 5px 6px; border: 1px solid #000; text-align: center;">3</td>
+      <td style="padding: 5px 6px; border: 1px solid #000; text-align: center;">Above &#8377; 25,00,000/-</td>
+      <td style="padding: 5px 6px; border: 1px solid #000; text-align: center;">5%</td>
+    </tr>
+  </tbody>
+</table>
+<ol style="list-style-type: lower-roman; padding-left: 20px; margin-top: 10px;">
+  <li>By submitting the PBG, the vendor is understood to have guaranteed that,
+    <ol style="list-style-type: lower-alpha; padding-left: 20px; margin-top: 5px;">
+      <li>The Purchase Order (PO) shall be executed as per the terms and conditions mentioned therein.</li>
+      <li>The equipment shall function satisfactorily for a period up to 60 days after the warranty period.</li>
+      <li>The equipment and components are free from poor workmanship, bad quality, and faulty designs.</li>
+      <li>The vendor shall at his/their own cost rectify/replace the defects, if any, during the guarantee period.</li>
+      <li>The guarantee is to the extent as per the slabs mentioned in the pre-page.</li>
+    </ol>
+  </li>
+  <li style="margin-top: 10px;"><strong>Condition for invoking PBG:</strong> In case of failure to comply with the guarantees above, IITG may terminate the contract/purchase order in whole or in part and forfeit the PBG. In addition, IITG may, at its discretion, procure upon such terms and in such manner as it deems appropriate, goods similar to the undelivered items/products, and the defaulting supplier/vendor shall be liable to compensate IITG for any extra expenditure involved.</li>
+</ol>
+</li>
 <li><strong>Applicable Law:</strong>
   <ol>
     <li>The contract shall be governed by the laws and procedures established by the Government of India and shall be subject to the exclusive jurisdiction of the competent court and forum in Guwahati only.</li>
     <li>Any dispute arising out of this purchase shall be referred to the Director, IIT Guwahati, and if either party is dissatisfied with the decision, the dispute shall be referred to an Arbitrator acceptable to both parties, to be appointed by the Director of IITG. The decision of such Arbitrator shall be final and binding on both parties.</li>
-  </ol>
-</li>
-<li><strong>Performance Bank Guarantee (Above INR 5 Lakhs):</strong> You are to furnish an unconditional Performance Bank Guarantee (PBG) in the form of Fixed Deposit or Bank Guarantee as per the attached format, valid till 60 days after the warranty period from any commercial bank for 3% of the Purchase Order value within 21 days of placement of this order, failing which the contract shall be deemed terminated. Validity of the PBG, effective from the date mentioned therein, shall be at least 14 months.
-  <ol>
-    <li>By submitting the PBG, the vendor is understood to have guaranteed that:
-      <ol>
-        <li>The Purchase Order shall be executed as per the terms and conditions mentioned therein.</li>
-        <li>The equipment shall function satisfactorily for a period up to 60 days after the warranty period.</li>
-        <li>The equipment is free from poor workmanship, bad quality, and faulty design.</li>
-        <li>The vendor shall at their own cost rectify/replace the defects, if any, during the guarantee period.</li>
-        <li>The guarantee is to the extent of 10% of the order value.</li>
-      </ol>
-    </li>
-    <li><strong>Condition for Invoking PBG:</strong> In case of failure to comply with the guarantees above, IITG may terminate the contract/purchase order in whole or in part and forfeit the PBG. In addition, IITG may procure similar goods/items elsewhere and the defaulting supplier/vendor shall be liable to compensate IITG for any extra expenditure involved.</li>
-    <li><strong>Consumables:</strong> In case of consumables, PBG is not applicable.</li>
   </ol>
 </li>
 </ol>`;
@@ -513,6 +534,7 @@ export function generatePOHtml(poData: Record<string, any>): string {
       }),
     )
     .replace("{{QUOTATION_NO}}", poData.quotation_no || "")
+    .replace("{{FILE_NUMBER}}", poData.ss_file_number || poData.name || "")
     .replace(
       "{{AMC_JOB_ORDER_LINE}}",
       isAmcPo

@@ -20,6 +20,7 @@ import {
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { generatePOHtml, DEFAULT_TERMS, getFormattedTerms } from "@/utils/DpPoPrint";
+import { generatePOHtml as generateIcssPOHtml } from "@/utils/IcssPoPrint";
 
 // ── Terms Editor Modal ──────────────────────────────────────────────────────
 const icons = {
@@ -476,7 +477,7 @@ export const POEditor: React.FC<POEditorProps> = ({
     dpId,
     isStaffRnD = false,
     isPIReadOnly = false,
-    sourceLabel: _sourceLabel,
+    sourceLabel,
     isSaved: isSavedProp = false,
     isDirty: _isDirty,
     onChange,
@@ -834,41 +835,57 @@ export const POEditor: React.FC<POEditorProps> = ({
                 </div>
 
                 {/* Items table */}
-                {Array.isArray(poData.table_bttk) && poData.table_bttk.length > 0 && (
-                    <div className="px-4 pb-4">
-                        <p className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">
-                            Items
-                        </p>
-                        <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
-                            <table className="w-full table-fixed text-[11px]">
-                                <thead className="bg-zinc-50 dark:bg-zinc-800">
-                                    <tr>
-                                        {["#", "Item", "Make", "Model", "Qty", "Unit Price", "Discount", "GST", "Total"].map((h) => (
-                                            <th key={h} className="px-2 py-2 text-left text-[10px] font-extrabold uppercase text-zinc-500 dark:text-zinc-400 break-words">
-                                                {h}
-                                            </th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {poData.table_bttk.map((row: any, i: number) => (
-                                        <tr key={i} className="border-t border-zinc-100 dark:border-zinc-800">
-                                            <td className="px-2 py-2 align-top text-zinc-500">{i + 1}</td>
-                                            <td className="px-2 py-2 align-top break-words">{row.item_name}</td>
-                                            <td className="px-2 py-2 align-top break-words">{row.item_make}</td>
-                                            <td className="px-2 py-2 align-top break-words">{row.item_model}</td>
-                                            <td className="px-2 py-2 align-top break-words">{row.item_quantity}</td>
-                                            <td className="px-2 py-2 align-top break-words">{row.item_unit_price}</td>
-                                            <td className="px-2 py-2 align-top break-words">{row.item_discount}</td>
-                                            <td className="px-2 py-2 align-top break-words">{row.item_gst}</td>
-                                            <td className="px-2 py-2 align-top font-medium break-words">{row.dp_total_price}</td>
+                {Array.isArray(poData.table_bttk) && poData.table_bttk.length > 0 && (() => {
+                    const isRateContract = String(poData.po_source_indent_type || poData.indent_type || "").toLowerCase().includes("rate contract");
+                    const headers = isRateContract
+                        ? ["#", "Item Description", "Cat No.", "Page No.", "Qty", "Unit Rate", "Discount (%)", "GST (%)", "Total"]
+                        : ["#", "Item", "Make", "Model", "Qty", "Unit Price", "Discount", "GST", "Total"];
+                    return (
+                        <div className="px-4 pb-4">
+                            <p className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">
+                                Items
+                            </p>
+                            <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
+                                <table className="w-full table-fixed text-[11px]">
+                                    <thead className="bg-zinc-50 dark:bg-zinc-800">
+                                        <tr>
+                                            {headers.map((h) => (
+                                                <th key={h} className="px-2 py-2 text-left text-[10px] font-extrabold uppercase text-zinc-500 dark:text-zinc-400 break-words">
+                                                    {h}
+                                                </th>
+                                            ))}
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {poData.table_bttk.map((row: any, i: number) => (
+                                            <tr key={i} className="border-t border-zinc-100 dark:border-zinc-800">
+                                                <td className="px-2 py-2 align-top text-zinc-500">{i + 1}</td>
+                                                {isRateContract ? (
+                                                    <>
+                                                        <td className="px-2 py-2 align-top break-words">{row.item_description}</td>
+                                                        <td className="px-2 py-2 align-top break-words">{row.item_cat_no}</td>
+                                                        <td className="px-2 py-2 align-top break-words">{row.item_page_no}</td>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <td className="px-2 py-2 align-top break-words">{row.item_name}</td>
+                                                        <td className="px-2 py-2 align-top break-words">{row.item_make}</td>
+                                                        <td className="px-2 py-2 align-top break-words">{row.item_model}</td>
+                                                    </>
+                                                )}
+                                                <td className="px-2 py-2 align-top break-words">{row.item_quantity}</td>
+                                                <td className="px-2 py-2 align-top break-words">{row.item_unit_price}</td>
+                                                <td className="px-2 py-2 align-top break-words">{row.item_discount_percent ?? row.item_discount}</td>
+                                                <td className="px-2 py-2 align-top break-words">{row.item_gst_percent ?? row.item_gst}</td>
+                                                <td className="px-2 py-2 align-top font-medium break-words">{row.dp_total_price}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    );
+                })()}
             </div>
 
             {/* Amount in Words — after prefilled/items, before Terms — read-only */}
@@ -948,7 +965,7 @@ export const POEditor: React.FC<POEditorProps> = ({
             <PreviewModal
                 isOpen={isPreviewOpen}
                 onClose={() => setIsPreviewOpen(false)}
-                htmlContent={isPreviewOpen ? generatePOHtml(poData) : ""}
+                htmlContent={isPreviewOpen ? (sourceLabel === "ICSS" ? generateIcssPOHtml(poData) : generatePOHtml(poData)) : ""}
                 docName={poData.po_number || dpId || ""}
             />
         </div>
