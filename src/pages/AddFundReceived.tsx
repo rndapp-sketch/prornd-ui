@@ -5,7 +5,6 @@ import { AppSidebar } from "../components/RndSidebar";
 import { useFrappePostCall, useFrappeGetCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
 import { ArrowLeftIcon } from "lucide-react";
-import useUserRoleCheck from "../components/UserRoleCheck";
 import { AutocompleteEmail } from "../components/AutocompleteEmail";
 
 // --- TYPE DEFINITIONS ---
@@ -302,13 +301,22 @@ const MemoizedBudgetBreakupTable = memo(
         onAddRow,
         onDeleteRow,
         budgetHeadOptions,
+        hasEmptyAccountHead,
+        usedAccountHeads,
     }: any) => {
         const options = budgetHeadOptions || [];
         return (
             <div>
-                <h3 className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2.5 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200 mb-3">
-                    Budget Breakup of Received Amount
-                </h3>
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                    <h3 className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2.5 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200">
+                        Budget Breakup of Received Amount
+                    </h3>
+                    {hasEmptyAccountHead && (
+                        <span className="text-[11px] font-semibold text-red-600 dark:text-red-400">
+                            ⚠ All rows must have an Account Head selected before submitting.
+                        </span>
+                    )}
+                </div>
                 <div className="overflow-x-auto border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl">
                     <table className="min-w-full divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
                         <thead className="bg-[#EEF2FF] dark:bg-blue-950/20">
@@ -329,14 +337,24 @@ const MemoizedBudgetBreakupTable = memo(
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46] bg-white dark:bg-[#27272A]">
-                            {(tableData || []).map((row: any, i: number) => (
+                            {(tableData || []).map((row: any, i: number) => {
+                                const otherSelected = (usedAccountHeads || []).filter(
+                                    (_: string, j: number) => j !== i,
+                                );
+                                const isDuplicate =
+                                    row.account_head &&
+                                    otherSelected.includes(row.account_head);
+                                const missingAmount =
+                                    !row.amount_received ||
+                                    parseFloat(row.amount_received) <= 0;
+                                return (
                                 <tr
                                     key={row.id || i}
-                                    className="divide-x divide-[#E4E4E7] dark:divide-[#3F3F46] hover:bg-[#FAFAF9] dark:hover:bg-[#18181B]"
+                                    className={`divide-x divide-[#E4E4E7] dark:divide-[#3F3F46] hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] ${isDuplicate ? "bg-red-50 dark:bg-red-950/20" : ""}`}
                                 >
                                     <td className="px-2 py-1.5">
                                         <select
-                                            className={`${inputClasses} !h-8`}
+                                            className={`${inputClasses} !h-8 ${isDuplicate ? "!border-red-400 !ring-red-300" : ""}`}
                                             value={row.account_head || ""}
                                             onChange={(e) =>
                                                 onRowChange(
@@ -349,17 +367,32 @@ const MemoizedBudgetBreakupTable = memo(
                                             <option value="">
                                                 Select Account Head...
                                             </option>
-                                            {options.map((opt: string) => (
-                                                <option key={opt} value={opt}>
-                                                    {opt}
-                                                </option>
-                                            ))}
+                                            {options.map((opt: string) => {
+                                                const alreadyUsed =
+                                                    otherSelected.includes(opt);
+                                                return (
+                                                    <option
+                                                        key={opt}
+                                                        value={opt}
+                                                        disabled={alreadyUsed}
+                                                    >
+                                                        {alreadyUsed
+                                                            ? `${opt} (already added)`
+                                                            : opt}
+                                                    </option>
+                                                );
+                                            })}
                                         </select>
+                                        {isDuplicate && (
+                                            <p className="text-[10px] text-red-500 mt-0.5 font-semibold">
+                                                Duplicate account head
+                                            </p>
+                                        )}
                                     </td>
                                     <td className="px-2 py-1.5">
                                         <input
                                             type="number"
-                                            className={`${inputClasses} !h-8`}
+                                            className={`${inputClasses} !h-8 ${missingAmount && row.account_head ? "!border-red-400" : ""}`}
                                             value={row.amount_received || ""}
                                             onChange={(e) =>
                                                 onRowChange(
@@ -398,7 +431,8 @@ const MemoizedBudgetBreakupTable = memo(
                                         </FrappeButton>
                                     </td>
                                 </tr>
-                            ))}
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
@@ -458,7 +492,6 @@ const AddFundReceived: React.FC = () => {
     const [linkOptions, setLinkOptions] = useState<
         Record<string, LinkOption[]>
     >({});
-    const [budgetHeadOptions, setBudgetHeadOptions] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [validationState, setValidationState] = useState<ValidationState>({
@@ -483,17 +516,35 @@ const AddFundReceived: React.FC = () => {
         ? parseFloat(formData.fund_received_amt)
         : NaN;
     const fundReceivedAmtError: string | null = (() => {
-        if (isNaN(fundReceivedAmt) || fundReceivedAmt === 0) return null; // nothing entered yet
+        if (isNaN(fundReceivedAmt) || fundReceivedAmt === 0) return null;
         if (totalBreakupAmt > fundReceivedAmt)
             return `⚠️ Budget breakup total (₹${totalBreakupAmt.toLocaleString("en-IN")}) exceeds Fund Received Amount (₹${fundReceivedAmt.toLocaleString("en-IN")}) by ₹${(totalBreakupAmt - fundReceivedAmt).toLocaleString("en-IN")}.`;
-        if (totalBreakupAmt > 0 && totalBreakupAmt < fundReceivedAmt)
-            return `ℹ️ Budget breakup total (₹${totalBreakupAmt.toLocaleString("en-IN")}) is less than Fund Received Amount (₹${fundReceivedAmt.toLocaleString("en-IN")}). Remaining: ₹${(fundReceivedAmt - totalBreakupAmt).toLocaleString("en-IN")}.`;
+        if (totalBreakupAmt < fundReceivedAmt)
+            return `⚠️ Budget breakup total (₹${totalBreakupAmt.toLocaleString("en-IN")}) must equal Fund Received Amount (₹${fundReceivedAmt.toLocaleString("en-IN")}). Remaining: ₹${(fundReceivedAmt - totalBreakupAmt).toLocaleString("en-IN")}.`;
         return null;
     })();
+    // Both amounts must be non-zero and exactly equal before submit is allowed.
     const isFundAmtBreakupValid =
-        isNaN(fundReceivedAmt) ||
-        fundReceivedAmt === 0 ||
-        totalBreakupAmt <= fundReceivedAmt;
+        !isNaN(fundReceivedAmt) &&
+        fundReceivedAmt > 0 &&
+        Math.abs(totalBreakupAmt - fundReceivedAmt) < 0.01;
+
+    const breakupRows: any[] = formData.received_amt_breakup || [];
+    const usedAccountHeads = breakupRows
+        .map((r: any) => r.account_head)
+        .filter(Boolean);
+    const hasDuplicateAccountHead =
+        new Set(usedAccountHeads).size !== usedAccountHeads.length;
+    const hasEmptyAccountHead =
+        breakupRows.length === 0 ||
+        hasDuplicateAccountHead ||
+        breakupRows.some(
+            (row: any) =>
+                !row.account_head ||
+                String(row.account_head).trim() === "" ||
+                !row.amount_received ||
+                parseFloat(row.amount_received) <= 0,
+        );
 
     const {
         call: fetchFormData,
@@ -505,10 +556,6 @@ const AddFundReceived: React.FC = () => {
     const { call: submitForm, error: submitError } = useFrappePostCall(
         "rndopsapp.rndopsapp.doctype.fund_received.fund_received.submit_fund_received",
     );
-    const { call: fetchBudgetHeads, result: budgetHeadsResult } =
-        useFrappePostCall(
-            "rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_head",
-        );
 
     const { data: sanctionData, isLoading: sanctionLoading } = useFrappeGetCall(
         "rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_sanctions_for_project",
@@ -530,17 +577,8 @@ const AddFundReceived: React.FC = () => {
         if (projectName) {
             fetchFormData({ doc_name: projectName });
         }
-        fetchBudgetHeads({});
-    }, [fetchFormData, fetchBudgetHeads, projectName]);
+    }, [fetchFormData, projectName]);
 
-    useEffect(() => {
-        if (budgetHeadsResult?.message) {
-            const heads = budgetHeadsResult.message.map(
-                (item: any) => item.budget_head,
-            );
-            setBudgetHeadOptions(heads);
-        }
-    }, [budgetHeadsResult]);
 
     // Handle Edit Mode
     const editSearchParams = new URLSearchParams(location.search);
@@ -1341,20 +1379,14 @@ const AddFundReceived: React.FC = () => {
                 )}
                 {/* Real-time validation: breakup total vs fund_received_amt */}
                 {isFundReceivedAmtField && fundReceivedAmtError && (
-                    <p
-                        className={`text-xs font-medium mt-1 ${
-                            totalBreakupAmt > fundReceivedAmt
-                                ? "text-red-600"
-                                : "text-amber-600"
-                        }`}
-                    >
+                    <p className="text-xs font-semibold mt-1 text-red-600">
                         {fundReceivedAmtError}
                     </p>
                 )}
                 {isFundReceivedAmtField &&
                     !isNaN(fundReceivedAmt) &&
                     fundReceivedAmt > 0 &&
-                    totalBreakupAmt === fundReceivedAmt && (
+                    Math.abs(totalBreakupAmt - fundReceivedAmt) < 0.01 && (
                         <p className="text-xs font-medium text-green-600 mt-1">
                             ✓ Budget breakup total matches Fund Received Amount.
                         </p>
@@ -1529,6 +1561,8 @@ const AddFundReceived: React.FC = () => {
                                                     budgetHeadOptions={
                                                         sanctionedAccountHeads
                                                     }
+                                                    hasEmptyAccountHead={hasEmptyAccountHead}
+                                                    usedAccountHeads={usedAccountHeads}
                                                 />
                                             </div>
                                         ) : (
@@ -1552,7 +1586,7 @@ const AddFundReceived: React.FC = () => {
                                 </FrappeButton>
                                 <FrappeButton
                                     type="submit"
-                                    disabled={isSubmitting || !isFundAmtBreakupValid}
+                                    disabled={isSubmitting || !isFundAmtBreakupValid || hasEmptyAccountHead}
                                     className="bg-[#D97757] text-white border-[#D97757] hover:bg-[#c5684a] disabled:bg-zinc-300"
                                 >
                                     {isSubmitting
@@ -1924,14 +1958,7 @@ const AddFundReceived: React.FC = () => {
                                                 </div>
                                             </div>
                                             {fundReceivedAmtError ? (
-                                                <p
-                                                    className={`text-[11px] font-semibold mt-1 ${
-                                                        totalBreakupAmt >
-                                                        fundReceivedAmt
-                                                            ? "text-red-600"
-                                                            : "text-amber-600"
-                                                    }`}
-                                                >
+                                                <p className="text-[11px] font-semibold mt-1 text-red-600">
                                                     {fundReceivedAmtError}
                                                 </p>
                                             ) : (
