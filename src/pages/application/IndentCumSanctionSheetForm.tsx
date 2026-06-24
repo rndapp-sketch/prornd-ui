@@ -4575,7 +4575,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         ss_funding_agency: data.funding_agency || data.project_title || "",
         ss_name_of_firms:
           savedDraft.ss_name_of_firms || vendorDetails.vendorAddress || "",
-        ss_file_number: savedDraft.ss_file_number || data.file_number || "",
+        ss_file_number: data.name || currentDocName || savedDraft.ss_file_number || data.file_number || "",
         ss_grand_total: totalAmount || "",
         vendor_address:
           data.vendor_address ||
@@ -4597,11 +4597,11 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           data.amount_in_words ||
           data.icss_amount_in_words,
         terms_and_conditions:
+          getDefaultTermsForIndentType(indentType) ||
           savedDraft.terms_and_conditions ||
           data.po_terms_and_conditions ||
           data.additional_terms_and_conditions_if_any ||
-          data.terms_and_conditions ||
-          getDefaultTermsForIndentType(indentType),
+          data.terms_and_conditions,
         po_intro_paragraph:
           savedDraft.po_intro_paragraph || variantCopy.introParagraph,
         po_header_note: savedDraft.po_header_note || variantCopy.headerNote,
