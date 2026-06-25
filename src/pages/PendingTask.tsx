@@ -250,6 +250,12 @@ const PendingTask: React.FC = () => {
         docstatus?: number;
         workflow_state?: string;
     }> }>('frappe.client.get_list');
+    const { call: fetchSCDList } = useFrappePostCall<{ message: Array<{
+        application_id?: string;
+        candidate_id?: string;
+        appointment_order_number?: string;
+        medical_report_number?: string;
+    }> }>('frappe.client.get_list');
 
     // Best-effort match: normalize spaces & case so "Anil  Kumar" === "anil kumar".
     const normalizeName = (...parts: Array<string | undefined>) =>
@@ -278,6 +284,36 @@ const PendingTask: React.FC = () => {
                         .map(normalizeSCRCandidate);
                 } catch (scrErr) {
                     console.error("Failed to fetch SCR candidate rows:", scrErr);
+                }
+
+                // Enrich fallback candidates with appointment_order_number and
+                // medical_report_number from Selection Candidate Details, since
+                // those fields are not stored on the SCR candidates table itself.
+                if (candidates.length > 0) {
+                    try {
+                        const scdRes = await fetchSCDList({
+                            doctype: 'Selection Candidate Details',
+                            filters: JSON.stringify([['scr_id', '=', taskId]]),
+                            fields: JSON.stringify(['application_id', 'candidate_id', 'appointment_order_number', 'medical_report_number']),
+                            limit_page_length: 0,
+                        });
+                        const scdRows = scdRes?.message ?? [];
+                        if (scdRows.length > 0) {
+                            const byAppId = new Map(scdRows.map(r => [String(r.application_id ?? ''), r]));
+                            const byCandId = new Map(scdRows.map(r => [String(r.candidate_id ?? ''), r]));
+                            candidates = candidates.map(c => {
+                                const scd = byAppId.get(String(c.application_id)) ?? byCandId.get(String(c.candidate_id));
+                                if (!scd) return c;
+                                return {
+                                    ...c,
+                                    appointment_order_number: scd.appointment_order_number || c.appointment_order_number,
+                                    medical_report_number: scd.medical_report_number || c.medical_report_number,
+                                };
+                            });
+                        }
+                    } catch {
+                        /* enrichment failure is non-fatal */
+                    }
                 }
             }
 

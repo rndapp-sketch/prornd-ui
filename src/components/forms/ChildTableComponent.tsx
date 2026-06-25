@@ -6,6 +6,7 @@
 import React, { memo, useCallback, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { AutocompleteEmail } from '@/components/AutocompleteEmail';
+import { DepartmentName } from '@/components/DepartmentName';
 
 // --- TYPE DEFINITIONS ---
 export interface ChildField {
@@ -160,6 +161,19 @@ export const ChildTableComponent = memo(({
     const renderCellInput = (col: ChildField, row: any, rowIndex: number) => {
         const value = row[col.fieldname];
         const isReadOnly = readOnly || !!col.read_only;
+
+        // Resolve department-linked fields to human-readable names in read-only mode
+        const isDeptField =
+            col.fieldname === 'department_section' ||
+            col.fieldname === 'department' ||
+            col.fieldname === 'department_for' ||
+            col.fieldname === 'upfa_department' ||
+            col.fieldname === 'ps_department' ||
+            col.fieldname === 'implementation_department' ||
+            col.fieldname === 'applicant_department';
+        if (isReadOnly && isDeptField && value) {
+            return <DepartmentName name={value} />;
+        }
 
         switch (col.fieldtype) {
             case 'Int':
