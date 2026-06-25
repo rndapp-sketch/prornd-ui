@@ -471,7 +471,9 @@ export function generatePOHtml(poData: Record<string, any>): string {
               : column.align === "center"
                 ? "center"
                 : "";
-          return `<td class="${alignClass}">${cellValues[column.key] || ""}</td>`;
+          const cellContent = cellValues[column.key];
+          const cellClass = cellContent ? alignClass : "center";
+          return `<td class="${cellClass}">${cellContent || "-"}</td>`;
         })
         .join("");
 

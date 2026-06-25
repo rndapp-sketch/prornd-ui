@@ -177,41 +177,55 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
             setSlipLoading(true);
             setSlipError(null);
 
+            const csrfToken = (window as any).csrf_token || "";
+
             for (const doctype of depositSlipDoctypes) {
                 try {
-                    // Use /api/v2/document/ endpoint for filtering
-                    const response = await fetch(
-                        `/api/v2/document/${encodeURIComponent(doctype)}?filters=[["fund_received_ref","=","${fundReceivedName}"]]&order_by=creation desc&limit_page_length=1`,
-                        { credentials: "include" },
-                    );
+                    // POST to frappe.client.get_list — same approach used in FundReceivedDetails (staff view)
+                    const res = await fetch("/api/method/frappe.client.get_list", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-Frappe-CSRF-Token": csrfToken,
+                        },
+                        credentials: "include",
+                        body: JSON.stringify({
+                            doctype,
+                            filters: [["fund_received_ref", "=", fundReceivedName]],
+                            fields: ["name"],
+                            limit_page_length: 1,
+                            order_by: "creation desc",
+                        }),
+                    });
 
-                    // Skip if not found or error (some doctypes may not have fund_received_ref field)
-                    if (!response.ok) {
-                        console.log(`Skipping ${doctype}: ${response.status}`);
+                    if (!res.ok) {
+                        console.log(`Skipping ${doctype}: ${res.status}`);
                         continue;
                     }
 
-                    const result = await response.json();
-                    if (result.data && result.data.length > 0) {
-                        // Found a matching deposit slip, fetch full document
-                        const docName = result.data[0].name;
-                        console.log("doctype:", doctype);
-                        const docResponse = await fetch(
-                            `/api/v2/document/${encodeURIComponent(doctype)}/${encodeURIComponent(docName)}`,
-                            { credentials: "include" },
-                        );
-                        if (docResponse.ok) {
-                            const docResult = await docResponse.json();
-                            setDepositSlip(docResult.data);
+                    const json = await res.json();
+                    if (json.message?.length > 0) {
+                        const docName = json.message[0].name;
+                        // Fetch full document via frappe.client.get
+                        const docRes = await fetch("/api/method/frappe.client.get", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-Frappe-CSRF-Token": csrfToken,
+                            },
+                            credentials: "include",
+                            body: JSON.stringify({ doctype, name: docName }),
+                        });
+                        if (docRes.ok) {
+                            const docJson = await docRes.json();
+                            setDepositSlip(docJson.message);
                             setDepositSlipDoctype(doctype);
                             setSlipLoading(false);
-                            console.log("docResult", docResult.data);
-                            return; // Found it, stop searching
+                            return;
                         }
                     }
                 } catch (err) {
                     console.log(`Skipping ${doctype} due to error:`, err);
-                    // Continue to next doctype
                 }
             }
 
