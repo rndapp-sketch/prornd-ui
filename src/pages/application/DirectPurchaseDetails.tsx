@@ -3353,107 +3353,127 @@ const DirectPurchaseDetails: React.FC = () => {
                                     description="Prepare, preview, print, and upload the signed purchase order generated from the sanction sheet."
                                     tone="po"
                                 />
-                                {isLoadingPOData ? (
-                                    <div className="flex items-center justify-center rounded-xl border border-dashed border-[#E4E4E7] bg-[#FAFAF9] py-12 dark:border-[#3F3F46] dark:bg-[#18181B]">
-                                        <div className="animate-spin rounded-full h-7 w-7 border-2 border-[#D97757] border-t-transparent" />
+                                <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
+                                    {/* Left — PO editor / empty states */}
+                                    <div className="min-w-0">
+                                        {isLoadingPOData ? (
+                                            <div className="flex items-center justify-center rounded-xl border border-dashed border-[#E4E4E7] bg-[#FAFAF9] py-12 dark:border-[#3F3F46] dark:bg-[#18181B]">
+                                                <div className="animate-spin rounded-full h-7 w-7 border-2 border-[#D97757] border-t-transparent" />
+                                            </div>
+                                        ) : poSanctionData &&
+                                            (isStaffRnD ||
+                                                data?.workflow_state ===
+                                                "POGenerated") ? (
+                                            <POEditor
+                                                ssData={poSanctionData}
+                                                dpId={id || ""}
+                                                isStaffRnD={isStaffRnD}
+                                                isPIReadOnly={
+                                                    isPermanentEmployee &&
+                                                    !isStaffRnD
+                                                }
+                                                isSaved={!!dpPoDocname}
+                                                onSave={isStaffRnD ? handleSaveDpPo : undefined}
+                                                onUploadSignedPO={async (
+                                                    file: File,
+                                                ) => {
+                                                    const formData = new FormData();
+                                                    formData.append(
+                                                        "file",
+                                                        file,
+                                                        file.name,
+                                                    );
+                                                    formData.append(
+                                                        "docname",
+                                                        poSanctionData.name,
+                                                    );
+                                                    formData.append(
+                                                        "app_id",
+                                                        id || "",
+                                                    );
+                                                    formData.append(
+                                                        "project_no",
+                                                        poSanctionData.project_no ||
+                                                        "",
+                                                    );
+                                                    const res = await fetch(
+                                                        "/api/method/rndopsapp.rndopsapp.doctype.direct_purchase.direct_purchase.upload_po_document",
+                                                        {
+                                                            method: "POST",
+                                                            body: formData,
+                                                            credentials: "include",
+                                                            headers: {
+                                                                "X-Frappe-CSRF-Token":
+                                                                    (window as any)
+                                                                        .csrf_token ||
+                                                                    "",
+                                                            },
+                                                        },
+                                                    );
+                                                    const json = await res
+                                                        .json()
+                                                        .catch(() => ({}));
+                                                    if (
+                                                        !res.ok ||
+                                                        json?.message?.status ===
+                                                        false
+                                                    )
+                                                        throw new Error(
+                                                            json?.message
+                                                                ?.message ||
+                                                            "Upload failed",
+                                                        );
+                                                    // Reset so the effect re-fetches with updated file_path
+                                                    setPoSanctionData(null);
+                                                    setDpPoDocname(null);
+                                                }}
+                                            />
+                                        ) : poSanctionData ? (
+                                            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#E4E4E7] bg-[#FAFAF9] px-5 py-12 text-center gap-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
+                                                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-[#A1A1AA] shadow-sm dark:bg-[#27272A] dark:text-[#71717A]">
+                                                    <ShoppingCartIcon className="h-5 w-5" />
+                                                </div>
+                                                <p className="text-[15px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                                    Purchase Order Not Yet Generated
+                                                </p>
+                                                <p className="max-w-md text-[12px] font-medium leading-5 text-[#71717A] dark:text-[#A1A1AA]">
+                                                    The Purchase Order has not been
+                                                    generated by staff yet. Please
+                                                    check back later.
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#E4E4E7] bg-[#FAFAF9] px-5 py-12 text-center gap-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
+                                                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-[#A1A1AA] shadow-sm dark:bg-[#27272A] dark:text-[#71717A]">
+                                                    <ShoppingCartIcon className="h-5 w-5" />
+                                                </div>
+                                                <p className="text-[15px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                                    No Sanction Sheet Available
+                                                </p>
+                                                <p className="max-w-md text-[12px] font-medium leading-5 text-[#71717A] dark:text-[#A1A1AA]">
+                                                    The Purchase Order editor
+                                                    requires a Sanction Sheet to be
+                                                    created first.
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
-                                ) : poSanctionData &&
-                                    (isStaffRnD ||
-                                        data?.workflow_state ===
-                                        "POGenerated") ? (
-                                    <POEditor
-                                        ssData={poSanctionData}
-                                        dpId={id || ""}
-                                        isStaffRnD={isStaffRnD}
-                                        isPIReadOnly={
-                                            isPermanentEmployee &&
-                                            !isStaffRnD
-                                        }
-                                        isSaved={!!dpPoDocname}
-                                        onSave={isStaffRnD ? handleSaveDpPo : undefined}
-                                        onUploadSignedPO={async (
-                                            file: File,
-                                        ) => {
-                                            const formData = new FormData();
-                                            formData.append(
-                                                "file",
-                                                file,
-                                                file.name,
-                                            );
-                                            formData.append(
-                                                "docname",
-                                                poSanctionData.name,
-                                            );
-                                            formData.append(
-                                                "app_id",
-                                                id || "",
-                                            );
-                                            formData.append(
-                                                "project_no",
-                                                poSanctionData.project_no ||
-                                                "",
-                                            );
-                                            const res = await fetch(
-                                                "/api/method/rndopsapp.rndopsapp.doctype.direct_purchase.direct_purchase.upload_po_document",
-                                                {
-                                                    method: "POST",
-                                                    body: formData,
-                                                    credentials: "include",
-                                                    headers: {
-                                                        "X-Frappe-CSRF-Token":
-                                                            (window as any)
-                                                                .csrf_token ||
-                                                            "",
-                                                    },
-                                                },
-                                            );
-                                            const json = await res
-                                                .json()
-                                                .catch(() => ({}));
-                                            if (
-                                                !res.ok ||
-                                                json?.message?.status ===
-                                                false
-                                            )
-                                                throw new Error(
-                                                    json?.message
-                                                        ?.message ||
-                                                    "Upload failed",
-                                                );
-                                            // Reset so the effect re-fetches with updated file_path
-                                            setPoSanctionData(null);
-                                            setDpPoDocname(null);
-                                        }}
-                                    />
-                                ) : poSanctionData ? (
-                                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#E4E4E7] bg-[#FAFAF9] px-5 py-12 text-center gap-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
-                                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-[#A1A1AA] shadow-sm dark:bg-[#27272A] dark:text-[#71717A]">
-                                            <ShoppingCartIcon className="h-5 w-5" />
+
+                                    {/* Right — Commit Payment */}
+                                    {isStaffRnD && (
+                                        <div className="min-w-0">
+                                            <CommitPayment
+                                                doctype="Direct Purchase"
+                                                docName={id || ""}
+                                                projectName={projectTitle}
+                                                budgetHeads={budgetHeads}
+                                                actualBalance={actualBalance}
+                                                onCommitSuccess={() => loadData()}
+                                                onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
+                                            />
                                         </div>
-                                        <p className="text-[15px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
-                                            Purchase Order Not Yet Generated
-                                        </p>
-                                        <p className="max-w-md text-[12px] font-medium leading-5 text-[#71717A] dark:text-[#A1A1AA]">
-                                            The Purchase Order has not been
-                                            generated by staff yet. Please
-                                            check back later.
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#E4E4E7] bg-[#FAFAF9] px-5 py-12 text-center gap-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
-                                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-[#A1A1AA] shadow-sm dark:bg-[#27272A] dark:text-[#71717A]">
-                                            <ShoppingCartIcon className="h-5 w-5" />
-                                        </div>
-                                        <p className="text-[15px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
-                                            No Sanction Sheet Available
-                                        </p>
-                                        <p className="max-w-md text-[12px] font-medium leading-5 text-[#71717A] dark:text-[#A1A1AA]">
-                                            The Purchase Order editor
-                                            requires a Sanction Sheet to be
-                                            created first.
-                                        </p>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </>
                         )}
 

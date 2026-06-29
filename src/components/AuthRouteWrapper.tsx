@@ -22,12 +22,13 @@ type AllowedRole =
 
 interface AuthRouteWrapperProps {
   allowedRole: AllowedRole | AllowedRole[];
+  blockedRole?: AllowedRole | AllowedRole[];
   children: React.ReactNode;
 }
 
 const AUTH_STORAGE_KEY = 'prornd_last_user';
 
-const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, children }) => {
+const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, blockedRole, children }) => {
   const navigate = useNavigate();
   const { currentUser, isLoading: isAuthLoading } = useFrappeAuth();
   const { roles, isLoading: isRolesLoading, error: rolesError } = useUserRoles(currentUser ?? null);
@@ -95,6 +96,17 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, childr
 
     // Access Control Logic
     const allowedRoles = Array.isArray(allowedRole) ? allowedRole : [allowedRole];
+
+    // Check blocked roles first — deny even if user would otherwise have access.
+    if (blockedRole) {
+      const blockedRoles = Array.isArray(blockedRole) ? blockedRole : [blockedRole];
+      const isBlocked = blockedRoles.some(role => roles.includes(role));
+      if (isBlocked) {
+        console.warn(`Access Denied: User with roles [${roles.join(', ')}] is blocked from this route.`);
+        navigate('/dashboard');
+        return;
+      }
+    }
 
     // Exception for routes that are for all logged-in users.
     if (allowedRoles.includes('All_ProRnd_User')) {
