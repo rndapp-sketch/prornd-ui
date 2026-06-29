@@ -88,6 +88,12 @@ export interface CommitPaymentProps {
      * Parents should use this to disable forward/action buttons for Staff RnD users.
      */
     onStagingStatusChange?: (isCommitted: boolean) => void;
+    /**
+     * Optional: async callback called with (budgetHead, amount) just before the commit
+     * payload is sent. Should return the refDetails string to embed, or undefined to skip.
+     * If it throws, the commit is aborted and the error is shown to the user.
+     */
+    resolveRefDetails?: (head: string, amount: number) => Promise<string | undefined>;
     /** Optional: class overrides for the outer container */
     className?: string;
 }
@@ -401,6 +407,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     disabledReason,
     onCommitSuccess,
     onStagingStatusChange,
+    resolveRefDetails,
     className,
 }) => {
     // ── Staging check state ──────────────────────────────────────────────────
@@ -546,6 +553,18 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
         setIsSubmitting(true);
         try {
             let refDetails: string | undefined = forcedRefDetails?.trim() || undefined;
+
+            // Resolve ref details via callback (e.g. call ref_details_id endpoint)
+            if (!refDetails && resolveRefDetails) {
+                try {
+                    const resolved = await resolveRefDetails(commitHead, amount);
+                    if (resolved) refDetails = resolved;
+                } catch (resolveErr: any) {
+                    setSubmitError(resolveErr?.message || "Failed to fetch reference details. Please try again.");
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
 
             // If a parent app is linked, fetch its committed TID from the ledger
             if (!refDetails && parentAppId) {
@@ -762,8 +781,9 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                         value={commitAmount}
                         onChange={(e) => handleCommitAmountChange(e.target.value)}
                         disabled={disabled}
+                        onWheel={(e) => e.currentTarget.blur()}
                         onKeyDown={(e) => {
-                            if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
+                            if (["e", "E", "+", "-"].includes(e.key)) {
                                 e.preventDefault();
                             }
                         }}
@@ -786,6 +806,18 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                         className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] resize-none"
                     />
                 </div>
+
+                {/* Static Ref ID — shown when a forcedRefDetails value is available */}
+                {forcedRefDetails && (
+                    <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-2.5 flex items-center justify-between gap-3">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 shrink-0">
+                            Ref ID
+                        </span>
+                        <span className="font-mono text-sm font-bold text-emerald-700 dark:text-emerald-300">
+                            {forcedRefDetails}
+                        </span>
+                    </div>
+                )}
 
                 {/* Error message */}
                 {submitError && (
