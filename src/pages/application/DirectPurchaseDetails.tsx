@@ -1897,14 +1897,27 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
         return () => { cancelled = true; };
     }, [dpId]);
 
+    // Fill po_total_value from link_options when the PO number is auto-selected but total is still empty
+    useEffect(() => {
+        if (!formData.purchase_order_number) return;
+        if (toNum(formData.po_total_value) !== "") return;
+        const po = (linkOptions.purchase_order_number || []).find(
+            (o) => String(o.value) === String(formData.purchase_order_number),
+        );
+        const total = toNum(po?.ss_grand_total);
+        if (total !== "") {
+            setFormData((prev) => ({ ...prev, po_total_value: total }));
+        }
+    }, [formData.purchase_order_number, linkOptions.purchase_order_number]);
+
     const setField = <K extends keyof FSFormData>(fieldname: K, value: FSFormData[K]) => {
         setFormData((prev) => {
             const next = { ...prev, [fieldname]: value };
             if (fieldname === "purchase_order_number") {
                 const po = (linkOptions.purchase_order_number || []).find(
-                    (o) => o.value === value,
+                    (o) => String(o.value) === String(value),
                 );
-                next.po_total_value = po?.ss_grand_total ?? "";
+                next.po_total_value = toNum(po?.ss_grand_total) ?? "";
             }
             return next;
         });
@@ -2577,6 +2590,60 @@ const DirectPurchaseDetails: React.FC = () => {
                 setResolvedProjectNo(linkedName);
             });
     }, [directPurchaseProject, fetchDocument]);
+
+    const [poRefDetailsId, setPoRefDetailsId] = useState<string | null>(null);
+
+    // Fetch the first commit's staging record, then call ref_details_id with its payload values
+    useEffect(() => {
+        if (!id) return;
+        let cancelled = false;
+        const run = async () => {
+            try {
+                const encodedFilter = encodeURIComponent(
+                    JSON.stringify([["reference_name", "=", id]])
+                );
+                const stagingRes = await fetch(
+                    `/api/v2/document/Kafka Commit Staging?filters=${encodedFilter}&fields=["*"]`,
+                    { credentials: "include" }
+                );
+                if (!stagingRes.ok || cancelled) return;
+                const stagingJson = await stagingRes.json();
+                const record = (stagingJson?.data ?? [])[0];
+                if (!record) return;
+
+                let payload: Record<string, any> = {};
+                try {
+                    const raw = record.payload ?? record.commit_payload ?? "{}";
+                    payload = typeof raw === "string" ? JSON.parse(raw) : raw;
+                } catch { return; }
+
+                const commitAmount = payload.commit_amount;
+                const budgetHead = payload.budget_head;
+                const projectName = payload.project_name;
+                const frapAppIdVal = payload.frap_app_id ?? payload.frapAppId ?? id;
+                if (!commitAmount || !projectName) return;
+
+                const params = new URLSearchParams({
+                    commitAmount: String(commitAmount),
+                    projectName: String(projectName),
+                    frapAppId: String(frapAppIdVal),
+                    ...(budgetHead ? { budgetHead: String(budgetHead) } : {}),
+                });
+                const refRes = await fetch(
+                    `/api/method/rndopsapp.rndopsapp.doctype.dp_po.dp_po.ref_details_id?${params}`,
+                    { credentials: "include" }
+                );
+                if (!refRes.ok || cancelled) return;
+                const refJson = await refRes.json();
+                const refId = refJson?.message?.refDetailsId;
+                if (refId != null && !cancelled) setPoRefDetailsId(String(refId));
+            } catch {
+                // silently ignore — poRefDetailsId stays null
+            }
+        };
+        run();
+        return () => { cancelled = true; };
+    }, [id]);
 
     const [commitHead, setCommitHead] = useState("");
     const [paymentAmount, setPaymentAmount] = useState("");
@@ -3459,10 +3526,11 @@ const DirectPurchaseDetails: React.FC = () => {
                                         )}
                                     </div>
 
-                                    {/* Right — Commit Payment */}
-                                    {isStaffRnD && (
-                                        <div className="min-w-0">
+                                    {/* Right — Commit Payment (only when sanction sheet / PO data is available) */}
+                                    {isStaffRnD && !!poSanctionData && (
+                                        <div className="min-w-0 space-y-4">
                                             <CommitPayment
+                                                key={`commit-main-${id}`}
                                                 doctype="Direct Purchase"
                                                 docName={id || ""}
                                                 projectName={projectTitle}
@@ -3470,6 +3538,20 @@ const DirectPurchaseDetails: React.FC = () => {
                                                 actualBalance={actualBalance}
                                                 onCommitSuccess={() => loadData()}
                                                 onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
+                                            />
+                                            <CommitPayment
+                                                key={`commit-po-${id}`}
+                                                doctype="Direct Purchase"
+                                                docName={id || ""}
+                                                stagingReferenceName={`${id}-po`}
+                                                frapAppId={id}
+                                                projectName={projectTitle}
+                                                budgetHeads={budgetHeads}
+                                                actualBalance={actualBalance}
+                                                title="Additional PO Commitment"
+                                                description="Submit a linked commitment for this Purchase Order, referencing the existing commitment's transaction ID."
+                                                forcedRefDetails={poRefDetailsId ?? undefined}
+                                                onCommitSuccess={() => loadData()}
                                             />
                                         </div>
                                     )}

@@ -1,6 +1,5 @@
 
-
-// -===========================================
+// // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
 // import React, { useState, useEffect, useCallback, useMemo } from "react";
@@ -288,6 +287,7 @@
 //     const [schemeFilter, setSchemeFilter] = useState<string>("All");
 //     const [departmentLabels, setDepartmentLabels] = useState<Record<string, string>>({});
 //     const [schemeMap, setSchemeMap] = useState<Record<string, string>>({});
+//     const [schemeNumberMap, setSchemeNumberMap] = useState<Record<string, string>>({});
 
 //     // Pay slip modal state
 //     const [selectedSlipRecord, setSelectedSlipRecord] = useState<StaffRecord | null>(null);
@@ -573,19 +573,25 @@
 //             const res = await getList({
 //                 doctype: "Project Registration",
 //                 filters: [["project_no", "in", projectNos]],
-//                 fields: ["project_no", "funding_agency_schemes"],
+//                 fields: ["project_no", "funding_agency_schemes", "enter_scheme_number"],
 //                 limit_page_length: projectNos.length,
 //             });
 //             const map: Record<string, string> = {};
+//             const numberMap: Record<string, string> = {};
 //             (res?.message || []).forEach((row: any) => {
 //                 if (row.project_no && row.funding_agency_schemes) {
 //                     map[row.project_no] = row.funding_agency_schemes;
 //                 }
+//                 if (row.project_no && row.enter_scheme_number) {
+//                     numberMap[row.project_no] = row.enter_scheme_number;
+//                 }
 //             });
 //             setSchemeMap(map);
+//             setSchemeNumberMap(numberMap);
 //         } catch (err) {
 //             console.error("Failed to fetch scheme mapping:", err);
 //             setSchemeMap({});
+//             setSchemeNumberMap({});
 //         }
 //     }, [records, getList]);
 
@@ -865,9 +871,9 @@
 
 //     const schemesList = useMemo(() => {
 //         const set = new Set<string>();
-//         Object.values(schemeMap).forEach(s => { if (s) set.add(s); });
+//         Object.values(schemeNumberMap).forEach(s => { if (s) set.add(s); });
 //         return ["All", ...Array.from(set)].sort();
-//     }, [schemeMap]);
+//     }, [schemeNumberMap]);
 
 //     // Sort & filter
 //     const filtered = useMemo(() => {
@@ -902,7 +908,7 @@
 //             list = list.filter(r => r.project_no === projectFilter);
 //         }
 //         if (schemeFilter !== "All") {
-//             list = list.filter(r => schemeMap[r.project_no || ""] === schemeFilter);
+//             list = list.filter(r => schemeNumberMap[r.project_no || ""] === schemeFilter);
 //         }
 
 //         // Apply Sorting
@@ -1017,7 +1023,7 @@
 //         const monthLabel = MONTHS.find(m => m.value === selectedMonth)?.label || "Month";
 //         const headers = [
 //             "Sl.No", "Employee Id", "First Name", "Email Id", "Department",
-//             "Designation", "Project No", "Bank Account Number", "Hostel", "Joining Date", "Term Completion Date",
+//             "Designation", "Project No", "Scheme", "Bank Account Number", "Hostel", "Joining Date", "Term Completion Date",
 //             "Basic Salary", "HRA", "HRA (%)", "Total Working Days", "Amount (Working Days)",
 //             "HRA amt (W.Days)", "Medical amt (W.Days)", "Arrear", "Gross Pay",
 //             "HRA Ded", "Medical Ded.", "P-Tax", "TA", "ID Card Charge", "Electricity Bill", "Other Deduction",
@@ -1041,7 +1047,7 @@
 //             })();
 //             return [
 //                 i + 1, r.employee_id, r.first_name, r.email_id, r.department,
-//                 r.designation, r.project_no || "—", r.bank_account_number || "—", hostelStatus, r.joining_date, r.term_completion_date,
+//                 r.designation, r.project_no || "—", schemeNumberMap[r.project_no || ""] || "—", r.bank_account_number || "—", hostelStatus, r.joining_date, r.term_completion_date,
 //                 r.basic_salary, r.hra, `${r.hra_percent}%`, workingDays, proRataBasic,
 //                 proRataHRA, proRataMedical, inputs.arrear, grossPay,
 //                 hraDed, inputs.medicalDeduction, pTax, inputs.ta, inputs.idCardCharge, inputs.electricityBill, inputs.otherDeduction,
@@ -1502,6 +1508,7 @@
 //                                                     <th rowSpan={2} className="px-3 py-4 text-left">Joining</th>
 //                                                     <th rowSpan={2} className="px-3 py-4 text-left">Exit Date</th>
 //                                                     <th rowSpan={2} className="px-3 py-4 text-left">Project No</th>
+//                                                     <th rowSpan={2} className="px-3 py-4 text-left">Scheme</th>
 //                                                     <th rowSpan={2} className="px-3 py-4 text-left">Bank A/C No</th>
 //                                                     <th rowSpan={2} className="px-3 py-4 text-center">Hostel</th>
 
@@ -1592,6 +1599,15 @@
 //                                                             <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap">{fmtDate(r.joining_date)}</td>
 //                                                             <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.term_completion_date ? fmtDate(r.term_completion_date) : "—"}</td>
 //                                                             <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.project_no || "—"}</td>
+//                                                             <td className="px-3 py-3 text-xs whitespace-nowrap">
+//                                                                 {schemeNumberMap[r.project_no || ""] ? (
+//                                                                     <span className="text-[10px] font-semibold bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 border border-violet-100 dark:border-violet-900/50 px-2 py-0.5 rounded-full whitespace-nowrap">
+//                                                                         {schemeNumberMap[r.project_no || ""]}
+//                                                                     </span>
+//                                                                 ) : (
+//                                                                     <span className="text-zinc-400">—</span>
+//                                                                 )}
+//                                                             </td>
 //                                                             <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.bank_account_number || "—"}</td>
 //                                                             <td className="px-3 py-3 text-center whitespace-nowrap">
 //                                                                 {(() => {
@@ -2047,6 +2063,10 @@
 //                                     <span className="font-semibold text-zinc-900">{selectedSlipRecord.project_no || "—"}</span>
 //                                 </div>
 //                                 <div className="flex justify-between border-b border-zinc-100 py-1">
+//                                     <span className="text-zinc-500 font-medium">Scheme:</span>
+//                                     <span className="font-semibold text-violet-700">{schemeMap[selectedSlipRecord.project_no || ""] || "—"}</span>
+//                                 </div>
+//                                 <div className="flex justify-between border-b border-zinc-100 py-1">
 //                                     <span className="text-zinc-500 font-medium">Bank Account Number:</span>
 //                                     <span className="font-mono font-bold text-zinc-950">{selectedSlipRecord.bank_account_number || "—"}</span>
 //                                 </div>
@@ -2171,21 +2191,7 @@
 //                                             </div>
 //                                         )}
 
-//                                         {/* Signature Pad Details */}
-//                                         <div className="grid grid-cols-3 gap-4 pt-16 text-center text-xs font-bold">
-//                                             <div className="space-y-4">
-//                                                 <div className="border-b border-zinc-400 max-w-[180px] mx-auto"></div>
-//                                                 <p className="text-zinc-500">Prepared / Checked By</p>
-//                                             </div>
-//                                             <div className="space-y-4">
-//                                                 <div className="border-b border-zinc-400 max-w-[180px] mx-auto"></div>
-//                                                 <p className="text-zinc-500">Principal Investigator (PI)</p>
-//                                             </div>
-//                                             <div className="space-y-4">
-//                                                 <div className="border-b border-zinc-400 max-w-[180px] mx-auto"></div>
-//                                                 <p className="text-zinc-500">Associate Dean / Dean (R&D)</p>
-//                                             </div>
-//                                         </div>
+
 //                                     </div>
 //                                 );
 //                             })()}
@@ -2231,7 +2237,7 @@
 
 
 
-// -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+// -=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
@@ -2531,6 +2537,15 @@ const SalaryModule: React.FC = () => {
     const [budgetHeadMap, setBudgetHeadMap] = useState<Record<string, string>>({});
     const [loadingEmpId, setLoadingEmpId] = useState<string | null>(null);
 
+    // ─── Checkbox Selection & Scheme-wise BMR Modal ───────────────────────
+    const [selectedEmpIds, setSelectedEmpIds] = useState<Set<string>>(new Set());
+    const [bmrModalOpen, setBmrModalOpen] = useState(false);
+    const [bmrInput, setBmrInput] = useState("");
+    const [bmrSubmitting, setBmrSubmitting] = useState(false);
+    const [bmrError, setBmrError] = useState<string | null>(null);
+    // Stores the pre-built commit payloads for all selected staff, keyed by employee_id
+    const [pendingBulkCommits, setPendingBulkCommits] = useState<Record<string, any>>({});
+
     // Editable Inputs state mapped by record's docName (storing only overrides!)
     const [overrides, setOverrides] = useState<Record<string, Partial<EditableInputs>>>({});
 
@@ -2555,35 +2570,17 @@ const SalaryModule: React.FC = () => {
 
     // ─── Salary Processing Status ─────────────────────────────────────────
     const [activeTab, setActiveTab] = useState<"pending" | "processed">("pending");
-    const [processedEmployees, setProcessedEmployees] = useState<Set<string>>(() => {
-        const saved = localStorage.getItem(`rnd_processed_salaries_${new Date().getFullYear()}-${new Date().getMonth()}`);
-        if (saved) {
-            try { return new Set(JSON.parse(saved)); } catch { }
-        }
-        return new Set();
-    });
+    const [processedEmployees, setProcessedEmployees] = useState<Set<string>>(new Set());
     const [isCheckingStatus, setIsCheckingStatus] = useState(false);
 
-    // Persist processed employees to localStorage whenever they change
+    // Reset tab when period changes
     useEffect(() => {
-        localStorage.setItem(
-            `rnd_processed_salaries_${selectedYear}-${selectedMonth}`,
-            JSON.stringify(Array.from(processedEmployees))
-        );
-    }, [processedEmployees, selectedYear, selectedMonth]);
-
-    // Load processed employees from localStorage when cycle changes
-    useEffect(() => {
-        const saved = localStorage.getItem(`rnd_processed_salaries_${selectedYear}-${selectedMonth}`);
-        if (saved) {
-            try { setProcessedEmployees(new Set(JSON.parse(saved))); } catch { setProcessedEmployees(new Set()); }
-        } else {
-            setProcessedEmployees(new Set());
-        }
+        setProcessedEmployees(new Set());
         setActiveTab("pending");
+        setSelectedEmpIds(new Set());
     }, [selectedYear, selectedMonth]);
 
-    // Mark an employee as processed
+    // Mark an employee as processed (optimistic, within current session)
     const markAsProcessed = useCallback((empId: string) => {
         setProcessedEmployees(prev => {
             const next = new Set(prev);
@@ -2594,6 +2591,181 @@ const SalaryModule: React.FC = () => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { call: getList } = useFrappePostCall<{ message: any[] }>("frappe.client.get_list");
+
+    // ── Build commit payload for a single staff record (shared by single-pay & bulk-pay) ──
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const buildCommitData = useCallback(async (r: StaffRecord, netPay: number): Promise<any | null> => {
+        const monthLabel = MONTHS[selectedMonth].label.toLowerCase();
+        const salary_year_month = `${selectedYear}_${monthLabel}`;
+        const daysInMonthVal = getDaysInMonth(selectedYear, selectedMonth);
+
+        // Use getRowInputs directly — NOTE: getRowInputs is defined later but hoisted fine here
+        // We re-compute inline to avoid circular dependency ordering issues
+        const record = r;
+        const dim = getDaysInMonth(selectedYear, selectedMonth);
+        const wd = calcWorkingDaysForPeriod(record.joining_date, record.term_completion_date, selectedYear, selectedMonth);
+        const defaultMedical = Math.round((record.medical_allowance / dim) * wd);
+        const rowOverrides = overrides[r.docName] || {};
+        const inputs: EditableInputs = {
+            ta: rowOverrides.ta ?? 0,
+            otherDeduction: rowOverrides.otherDeduction ?? 0,
+            arrear: rowOverrides.arrear ?? 0,
+            medicalDeduction: rowOverrides.medicalDeduction ?? defaultMedical,
+            idCardCharge: rowOverrides.idCardCharge ?? 0,
+            electricityBill: rowOverrides.electricityBill ?? 0,
+            comment: rowOverrides.comment ?? "",
+            remarks: rowOverrides.remarks ?? "",
+        };
+
+        const workingDays = wd;
+        const proRataBasic = calcProRataBasic(r.basic_salary, workingDays, daysInMonthVal);
+        const proRataHRA = Math.round((r.hra / daysInMonthVal) * workingDays);
+        const proRataMedical = Math.round((r.medical_allowance / daysInMonthVal) * workingDays);
+        const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
+        const pTax = calcPTax(r.basic_salary);
+        const hraDed = getHRADeduction(r, proRataHRA);
+        const totalDed = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
+
+        const salary_user_details = {
+            employee_id: r.employee_id,
+            first_name: r.first_name,
+            email_id: r.email_id,
+            department: r.department,
+            designation: r.designation,
+            joining_date: r.joining_date,
+            term_completion_date: r.term_completion_date,
+            basic_salary: Math.round(r.basic_salary),
+            hra: Math.round(r.hra),
+            working_days: workingDays,
+            pro_rata_basic: Math.round(proRataBasic),
+            pro_rata_hra: Math.round(proRataHRA),
+            pro_rata_medical: Math.round(proRataMedical),
+            arrear: Math.round(inputs.arrear),
+            gross_pay: Math.round(grossPay),
+            hra_deduction: Math.round(hraDed),
+            medical_deduction: Math.round(inputs.medicalDeduction),
+            p_tax: Math.round(pTax),
+            ta: Math.round(inputs.ta),
+            id_card_charge: Math.round(inputs.idCardCharge),
+            electricity_bill: Math.round(inputs.electricityBill),
+            other_deduction: Math.round(inputs.otherDeduction),
+            total_deduction: Math.round(totalDed),
+            net_pay: Math.round(netPay),
+            comment: inputs.comment,
+            remarks: inputs.remarks,
+        };
+
+        const salary_backend_details = {
+            ps_emp_id: r.employee_id,
+            scr_id: "",
+            project_no: r.project_no || "",
+            interview_id: "",
+            tenure_details: "",
+            current_basic_salary: r.basic_salary,
+            active_basic_salary: r.basic_salary,
+        };
+
+        // Try salary_payment_data API first
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let commitFromApi: any = null;
+        try {
+            const response = await fetch(
+                `/api/method/rndopsapp.rndopsapp.commitPayment.salary_payment_data?ps_emp_id=${r.employee_id}&salary_year_month=${salary_year_month}`,
+                { credentials: "include" }
+            );
+            if (response.ok) {
+                const json = await response.json();
+                if (json?.message && Array.isArray(json.message) && json.message.length > 0) {
+                    commitFromApi = json.message[0];
+                }
+            }
+        } catch { /* silent */ }
+
+        if (commitFromApi) {
+            return {
+                projectNumber: r.project_no || commitFromApi.projectNumber || "",
+                accountHeadId: commitFromApi.accountHeadId || 1,
+                moduleId: commitFromApi.moduleId || 11,
+                frapAppId: commitFromApi.frapAppId || r.employee_id,
+                commitDate: commitFromApi.commitDate || new Date().toISOString().split("T")[0],
+                commitParticular: `Salary payment for ${r.first_name} (${r.employee_id}) - ${MONTHS[selectedMonth].label} ${selectedYear}`,
+                refDetails: commitFromApi.refDetails || `Employee ID: ${r.employee_id}`,
+                commitAmount: Math.round(netPay),
+                transactionCommitNumber: commitFromApi.transactionCommitNumber || 0,
+                salary_year_month,
+                salary_user_details,
+                salary_backend_details,
+            };
+        }
+
+        // Fallback: virtual commit
+        return {
+            projectNumber: r.department || "",
+            accountHeadId: 1,
+            moduleId: 11,
+            frapAppId: r.employee_id,
+            commitDate: new Date().toISOString().split("T")[0],
+            commitParticular: `Salary payment for ${r.first_name} (${r.employee_id}) - ${MONTHS[selectedMonth].label} ${selectedYear}`,
+            refDetails: `Employee ID: ${r.employee_id}`,
+            commitAmount: Math.round(netPay),
+            transactionCommitNumber: 0,
+            salary_year_month,
+            salary_user_details,
+            salary_backend_details,
+        };
+    }, [selectedYear, selectedMonth, overrides]);
+
+    // ── Open BMR modal: build all commit payloads for selected pending staff ──
+    const handlePaySelected = useCallback(async (selectedRecords: StaffRecord[]) => {
+        if (selectedRecords.length === 0) return;
+
+        // All selected must share the same scheme number (not project_no —
+        // multiple project_nos can map to the same scheme e.g. 4211)
+        const schemeNumbers = new Set(
+            selectedRecords.map(r => schemeNumberMap[r.project_no || ""] || r.project_no || "")
+        );
+        if (schemeNumbers.size > 1) {
+            alert("Please select staff from only one scheme at a time. The selected staff belong to different schemes.");
+            return;
+        }
+
+        setLoadingEmpId("__bulk__");
+        try {
+            const commits: Record<string, any> = {};
+            for (const r of selectedRecords) {
+                const dim = getDaysInMonth(selectedYear, selectedMonth);
+                const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+                const defaultMedical = Math.round((r.medical_allowance / dim) * wd);
+                const rowOverrides = overrides[r.docName] || {};
+                const inputs: EditableInputs = {
+                    ta: rowOverrides.ta ?? 0,
+                    otherDeduction: rowOverrides.otherDeduction ?? 0,
+                    arrear: rowOverrides.arrear ?? 0,
+                    medicalDeduction: rowOverrides.medicalDeduction ?? defaultMedical,
+                    idCardCharge: rowOverrides.idCardCharge ?? 0,
+                    electricityBill: rowOverrides.electricityBill ?? 0,
+                    comment: rowOverrides.comment ?? "",
+                    remarks: rowOverrides.remarks ?? "",
+                };
+                const proRataBasic = calcProRataBasic(r.basic_salary, wd, dim);
+                const proRataHRA = Math.round((r.hra / dim) * wd);
+                const proRataMedical = Math.round((r.medical_allowance / dim) * wd);
+                const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
+                const hraDed = getHRADeduction(r, proRataHRA);
+                const totalDed = hraDed + inputs.medicalDeduction + calcPTax(r.basic_salary) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
+                const netPay = Math.round(grossPay - totalDed);
+                const commit = await buildCommitData(r, netPay);
+                if (commit) commits[r.employee_id] = commit;
+            }
+            setPendingBulkCommits(commits);
+            setBmrInput("");
+            setBmrError(null);
+            setBmrModalOpen(true);
+        } finally {
+            setLoadingEmpId(null);
+        }
+    }, [selectedYear, selectedMonth, overrides, buildCommitData]);
+
 
     const getRowInputs = useCallback((docName: string): { inputs: EditableInputs; isEdited: Record<keyof EditableInputs, boolean> } => {
         const record = records.find(r => r.docName === docName);
@@ -2743,54 +2915,112 @@ const SalaryModule: React.FC = () => {
         }
     }, [getList, currentUser]);
 
+    // ── Submit all pending commits with the entered BMR number ──
+    const handleBmrSubmit = useCallback(async () => {
+        const bmr = bmrInput.trim();
+        if (!bmr) { setBmrError("Please enter a BMR number before submitting."); return; }
+        setBmrSubmitting(true);
+        setBmrError(null);
+        const paymentEndpoint = "/api/method/rndopsapp.rndopsapp.commitPayment.submit_payment_data";
+        const failed: string[] = [];
+        for (const [empId, commitData] of Object.entries(pendingBulkCommits)) {
+            try {
+                const body = {
+                    ...commitData,
+                    doctype: "AccountHeadPayment",
+                    project_name: commitData.projectNumber,
+                    payment_amount: commitData.commitAmount,
+                    payment_particular: commitData.commitParticular,
+                    payment_date: new Date().toISOString().split("T")[0],
+                    payment_status: "PENDING",
+                    bmr,
+                    frapAppId: commitData.frapAppId,
+                    moduleName: commitData.moduleId,
+                    salary_year_month: commitData.salary_year_month,
+                    salary_user_details: commitData.salary_user_details,
+                    salary_backend_details: commitData.salary_backend_details,
+                };
+                const res = await fetch(paymentEndpoint, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Accept: "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify(body),
+                });
+                const result = await res.json();
+                if (result.exc || result.exception) throw new Error(result.exc || result.exception);
+                markAsProcessed(empId);
+            } catch (err: any) {
+                console.error(`Payment failed for ${empId}:`, err);
+                failed.push(empId);
+            }
+        }
+        setBmrSubmitting(false);
+        setBmrModalOpen(false);
+        setSelectedEmpIds(new Set());
+        setPendingBulkCommits({});
+        if (failed.length > 0) {
+            alert(`Payment processing completed.\n\n⚠️ Failed for: ${failed.join(", ")}\n\nPlease retry the failed entries manually.`);
+        } else {
+            alert("✅ All selected salaries have been processed successfully!");
+        }
+        fetchData();
+    }, [bmrInput, pendingBulkCommits, markAsProcessed, fetchData]);
+
     useEffect(() => { if (currentUser) fetchData(); }, [fetchData, currentUser]);
 
-    // Batch check salary processing status for all employees
+    // ── Fetch processed employees from Salary Staging (doc name = salary_year_month) ──
     const checkSalaryStatuses = useCallback(async () => {
         if (records.length === 0 || !isPrepared) return;
         setIsCheckingStatus(true);
         const monthLabel = MONTHS[selectedMonth].label.toLowerCase();
         const salary_year_month = `${selectedYear}_${monthLabel}`;
-        const alreadyProcessed = new Set<string>(processedEmployees);
-        let changed = false;
         try {
-            // Check each employee in parallel (batch of 5 at a time)
-            const empIds = records.map(r => r.employee_id).filter(id => id && id !== "—" && !alreadyProcessed.has(id));
-            const batchSize = 5;
-            for (let i = 0; i < empIds.length; i += batchSize) {
-                const batch = empIds.slice(i, i + batchSize);
-                const results = await Promise.allSettled(
-                    batch.map(empId =>
-                        fetch(`/api/method/rndopsapp.rndopsapp.commitPayment.salary_payment_data?ps_emp_id=${empId}&salary_year_month=${salary_year_month}`, { credentials: 'include' })
-                            .then(res => res.ok ? res.json() : null)
-                            .then(json => ({ empId, json }))
-                    )
-                );
-                results.forEach(result => {
-                    if (result.status === 'fulfilled' && result.value?.json?.message) {
-                        const msg = result.value.json.message;
-                        if (!Array.isArray(msg) && (msg.message === "Salary already initiated" || msg.status)) {
-                            // Verify that this status is for the selected month/year
-                            const isSameMonth = !msg.salary_year_month || msg.salary_year_month === salary_year_month;
-                            if (isSameMonth) {
-                                alreadyProcessed.add(result.value.empId);
-                                changed = true;
-                            }
-                        }
-                    }
+            // Fetch Salary Staging document by name (e.g. "2026_may")
+            const response = await fetch(
+                `/api/resource/Salary%20Staging/${encodeURIComponent(salary_year_month)}`,
+                { credentials: "include", headers: { Accept: "application/json" } }
+            );
+
+            const processedEmpIds = new Set<string>();
+
+            if (response.ok) {
+                const json = await response.json();
+                // salary_record is a JSON string array of payment records
+                let salaryRecords: any[] = [];
+                try {
+                    const raw = json?.data?.salary_record ?? json?.message?.salary_record ?? "[]";
+                    salaryRecords = typeof raw === "string" ? JSON.parse(raw) : raw;
+                } catch { /* parse error — treat as empty */ }
+
+                salaryRecords.forEach((rec: any) => {
+                    // Primary: salary_backend_details.ps_emp_id
+                    const empId =
+                        rec?.salary_backend_details?.ps_emp_id ||
+                        rec?.salary_user_details?.employee_id;
+                    if (empId) processedEmpIds.add(empId);
                 });
             }
-            if (changed) {
-                setProcessedEmployees(new Set(alreadyProcessed));
+            // If 404 (no doc for this month) — processedEmpIds stays empty, which is correct.
+
+            // Stale-guard: discard if user switched months while request was in-flight.
+            const currentSYM = `${selectedYear}_${MONTHS[selectedMonth].label.toLowerCase()}`;
+            if (salary_year_month === currentSYM) {
+                setProcessedEmployees(new Set(processedEmpIds));
             }
         } catch (err) {
-            console.error("Batch salary status check failed:", err);
+            console.error("Salary Staging fetch failed:", err);
         } finally {
             setIsCheckingStatus(false);
         }
-    }, [records, isPrepared, processedEmployees, selectedYear, selectedMonth]);
+    }, [records, isPrepared, selectedYear, selectedMonth]);
 
-
+    // ── Auto-reconcile processed status with server on every load / period change ──
+    useEffect(() => {
+        if (records.length > 0 && isPrepared) {
+            checkSalaryStatuses();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [records, selectedYear, selectedMonth, isPrepared]);
 
     // Fetch Scheme mapping from Project Registration doctype
     const fetchSchemeMap = useCallback(async () => {
@@ -3731,9 +3961,27 @@ const SalaryModule: React.FC = () => {
                                         <table className="min-w-[2400px] table-auto border-collapse divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
                                             <thead className="sticky top-0 z-20 bg-[#EEF2FF] text-[10px] font-extrabold uppercase tracking-wider text-[#1E3A8A] dark:bg-[#1E3A8A]/18 dark:text-[#C7D2FE]">
                                                 <tr className="border-b border-[#C7D2FE]/70 bg-[#EEF2FF] dark:border-[#4A6CF7]/25 dark:bg-[#1E3A8A]/18">
-                                                    <th rowSpan={2} className="w-[48px] min-w-[48px] border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25 sticky left-0 z-30 bg-[#EEF2FF] dark:bg-[#1e293b]">#</th>
-                                                    <th rowSpan={2} className="w-[120px] min-w-[120px] border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25 sticky left-[48px] z-30 bg-[#EEF2FF] dark:bg-[#1e293b]">Emp ID</th>
-                                                    <th rowSpan={2} className="w-[200px] min-w-[200px] border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25 sticky left-[168px] z-30 bg-[#EEF2FF] dark:bg-[#1e293b] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.1)]">Full Name</th>
+                                                    {/* Checkbox select-all — only shown on pending tab */}
+                                                    {activeTab === "pending" && (
+                                                        <th rowSpan={2} className="w-[44px] min-w-[44px] border-r border-[#C7D2FE]/70 px-3 py-4 text-center dark:border-[#4A6CF7]/25 sticky left-0 z-30 bg-[#EEF2FF] dark:bg-[#1e293b]">
+                                                            <input
+                                                                type="checkbox"
+                                                                title="Select all pending"
+                                                                checked={pendingRecords.length > 0 && pendingRecords.every(r => selectedEmpIds.has(r.employee_id))}
+                                                                onChange={e => {
+                                                                    if (e.target.checked) {
+                                                                        setSelectedEmpIds(new Set(pendingRecords.map(r => r.employee_id)));
+                                                                    } else {
+                                                                        setSelectedEmpIds(new Set());
+                                                                    }
+                                                                }}
+                                                                className="h-4 w-4 rounded border-zinc-300 text-[#4A6CF7] cursor-pointer"
+                                                            />
+                                                        </th>
+                                                    )}
+                                                    <th rowSpan={2} className={cn("min-w-[48px] border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25 z-30 bg-[#EEF2FF] dark:bg-[#1e293b]", activeTab === "pending" ? "w-[48px] sticky left-[44px]" : "w-[48px] sticky left-0")}>#</th>
+                                                    <th rowSpan={2} className={cn("w-[120px] min-w-[120px] border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25 z-30 bg-[#EEF2FF] dark:bg-[#1e293b]", activeTab === "pending" ? "sticky left-[92px]" : "sticky left-[48px]")}>Emp ID</th>
+                                                    <th rowSpan={2} className={cn("w-[200px] min-w-[200px] border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25 z-30 bg-[#EEF2FF] dark:bg-[#1e293b] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.1)]", activeTab === "pending" ? "sticky left-[212px]" : "sticky left-[168px]")}>Full Name</th>
                                                     <th rowSpan={2} className="px-3 py-4 text-left">Email ID</th>
                                                     <th rowSpan={2} className="px-3 py-4 text-left">Department</th>
                                                     <th rowSpan={2} className="px-3 py-4 text-left">Role</th>
@@ -3753,7 +4001,20 @@ const SalaryModule: React.FC = () => {
                                                     <th rowSpan={2} className="px-4 py-4 text-right font-bold text-amber-800 dark:text-amber-400 bg-amber-50/20 dark:bg-amber-950/10 border-l border-r border-zinc-200 dark:border-zinc-800">Net Pay (₹)</th>
                                                     <th rowSpan={2} className="px-3 py-4 text-left">Comment</th>
                                                     <th rowSpan={2} className="px-3 py-4 text-left border-r border-zinc-200 dark:border-zinc-800">Remarks</th>
-                                                    <th rowSpan={2} className="px-3 py-4 text-center bg-zinc-50 dark:bg-zinc-950 shadow-sm">Slip / Pay</th>
+                                                    <th rowSpan={2} className="px-3 py-4 text-center bg-zinc-50 dark:bg-zinc-950 shadow-sm min-w-[160px]">
+                                                        {activeTab === "pending" && selectedEmpIds.size > 0 ? (
+                                                            <button
+                                                                onClick={() => handlePaySelected(pendingRecords.filter(r => selectedEmpIds.has(r.employee_id)))}
+                                                                disabled={loadingEmpId === "__bulk__"}
+                                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700 transition-all shadow-sm disabled:opacity-60"
+                                                            >
+                                                                {loadingEmpId === "__bulk__" ? <Loader2 className="w-3 h-3 animate-spin" /> : <IndianRupee className="w-3 h-3" />}
+                                                                Pay {selectedEmpIds.size} Selected
+                                                            </button>
+                                                        ) : (
+                                                            <span>Slip / Pay</span>
+                                                        )}
+                                                    </th>
                                                 </tr>
                                                 <tr className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
                                                     {/* Earnings sub-headers */}
@@ -3781,6 +4042,8 @@ const SalaryModule: React.FC = () => {
                                             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/80 text-sm">
                                                 {displayedRecords.map((r, i) => {
                                                     const { inputs, isEdited } = getRowInputs(r.docName);
+                                                    const isProcessed = processedEmployees.has(r.employee_id);
+                                                    const isChecked = selectedEmpIds.has(r.employee_id);
                                                     const workingDays = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
                                                     const proRataBasic = calcProRataBasic(r.basic_salary, workingDays, daysInMonth);
                                                     const proRataHRA = Math.round((r.hra / daysInMonth) * workingDays);
@@ -3792,19 +4055,38 @@ const SalaryModule: React.FC = () => {
                                                     const netPay = grossPay - totalDed;
 
                                                     return (
-                                                        <tr key={r.docName || i} className={cn("transition-colors group", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50/80 dark:bg-zinc-900/60", "hover:bg-blue-50/50 dark:hover:bg-[#27272A]")}>
+                                                        <tr key={r.docName || i} className={cn("transition-colors group", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50/80 dark:bg-zinc-900/60", "hover:bg-blue-50/50 dark:hover:bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
+                                                            {/* Checkbox — only on pending tab */}
+                                                            {activeTab === "pending" && (
+                                                                <td className={cn("px-3 py-3 text-center border-r border-zinc-200 dark:border-zinc-800 sticky left-0 z-10 w-[44px] min-w-[44px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={isChecked}
+                                                                        onChange={e => {
+                                                                            setSelectedEmpIds(prev => {
+                                                                                const next = new Set(prev);
+                                                                                if (e.target.checked) next.add(r.employee_id);
+                                                                                else next.delete(r.employee_id);
+                                                                                return next;
+                                                                            });
+                                                                        }}
+                                                                        className="h-4 w-4 rounded border-zinc-300 text-[#4A6CF7] cursor-pointer"
+                                                                    />
+                                                                </td>
+                                                            )}
+
                                                             {/* # */}
-                                                            <td className={cn("px-3 py-3 text-xs font-semibold text-zinc-400 border-r border-zinc-200 dark:border-zinc-800 sticky left-0 z-10 w-[48px] min-w-[48px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]")}>{i + 1}</td>
+                                                            <td className={cn("px-3 py-3 text-xs font-semibold text-zinc-400 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[48px] min-w-[48px]", activeTab === "pending" ? "sticky left-[44px]" : "sticky left-0", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>{i + 1}</td>
 
                                                             {/* Emp ID */}
-                                                            <td className={cn("px-3 py-3 border-r border-zinc-200 dark:border-zinc-800 sticky left-[48px] z-10 w-[120px] min-w-[120px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]")}>
+                                                            <td className={cn("px-3 py-3 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[120px] min-w-[120px]", activeTab === "pending" ? "sticky left-[92px]" : "sticky left-[48px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
                                                                 <span className="text-xs font-mono font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-2 py-0.5 rounded border border-zinc-200/50 dark:border-zinc-700/50">
                                                                     {r.employee_id}
                                                                 </span>
                                                             </td>
 
                                                             {/* Full Name */}
-                                                            <td className={cn("px-3 py-3 border-r border-zinc-200 dark:border-zinc-800 sticky left-[168px] z-10 w-[200px] min-w-[200px] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.07)]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]")}>
+                                                            <td className={cn("px-3 py-3 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[200px] min-w-[200px] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.07)]", activeTab === "pending" ? "sticky left-[212px]" : "sticky left-[168px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
                                                                 <div className="flex items-center gap-2">
                                                                     <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#D97757]/20 to-orange-200/50 dark:from-[#D97757]/30 dark:to-orange-950/30 flex items-center justify-center shrink-0 border border-orange-500/10">
                                                                         <span className="text-[10px] font-bold text-[#D97757]">
@@ -4044,19 +4326,26 @@ const SalaryModule: React.FC = () => {
                                                                         <Eye className="w-3 h-3" />
                                                                         Slip
                                                                     </button>
-                                                                    <button
-                                                                        onClick={() => handlePayClick(r, netPay)}
-                                                                        disabled={loadingEmpId !== null}
-                                                                        title="Process Payment"
-                                                                        className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 dark:hover:text-white transition-all shadow-sm active:scale-95 disabled:opacity-50 text-[10px] font-bold"
-                                                                    >
-                                                                        {loadingEmpId === r.employee_id ? (
-                                                                            <Loader2 className="w-3 h-3 animate-spin" />
-                                                                        ) : (
-                                                                            <IndianRupee className="w-3 h-3" />
-                                                                        )}
-                                                                        Pay
-                                                                    </button>
+                                                                    {isProcessed ? (
+                                                                        <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700/60 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold tracking-wide">
+                                                                            <CheckCircle2 className="w-3 h-3" />
+                                                                            Paid
+                                                                        </span>
+                                                                    ) : (
+                                                                        <button
+                                                                            onClick={() => handlePayClick(r, netPay)}
+                                                                            disabled={loadingEmpId !== null}
+                                                                            title="Process Payment"
+                                                                            className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 dark:hover:text-white transition-all shadow-sm active:scale-95 disabled:opacity-50 text-[10px] font-bold"
+                                                                        >
+                                                                            {loadingEmpId === r.employee_id ? (
+                                                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                                                            ) : (
+                                                                                <IndianRupee className="w-3 h-3" />
+                                                                            )}
+                                                                            Pay
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                             </td>
                                                         </tr>
@@ -4067,9 +4356,12 @@ const SalaryModule: React.FC = () => {
                                             {/* FOOTER */}
                                             <tfoot className="bg-zinc-50 dark:bg-zinc-955 sticky bottom-0 z-20 border-t-2 border-zinc-200 dark:border-zinc-700 font-bold text-xs uppercase tracking-wide">
                                                 <tr className="bg-zinc-50 dark:bg-zinc-950">
-                                                    <td className="px-3 py-4 text-sm font-serif font-bold text-zinc-900 dark:text-white bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 sticky left-0 z-30 w-[48px] min-w-[48px]"></td>
-                                                    <td className="px-3 py-4 text-sm font-serif font-bold text-zinc-900 dark:text-white bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 sticky left-[48px] z-30 w-[120px] min-w-[120px] whitespace-nowrap">Total</td>
-                                                    <td className="px-3 py-4 text-sm font-serif font-bold text-zinc-900 dark:text-white bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 sticky left-[168px] z-30 w-[200px] min-w-[200px] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.1)] whitespace-nowrap">({displayedRecords.length} Staff)</td>
+                                                    {activeTab === "pending" && (
+                                                        <td className="px-3 py-4 bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 sticky left-0 z-30 w-[44px] min-w-[44px]"></td>
+                                                    )}
+                                                    <td className={cn("px-3 py-4 text-sm font-serif font-bold text-zinc-900 dark:text-white bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 z-30 w-[48px] min-w-[48px]", activeTab === "pending" ? "sticky left-[44px]" : "sticky left-0")}></td>
+                                                    <td className={cn("px-3 py-4 text-sm font-serif font-bold text-zinc-900 dark:text-white bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 z-30 w-[120px] min-w-[120px] whitespace-nowrap", activeTab === "pending" ? "sticky left-[92px]" : "sticky left-[48px]")}>Total</td>
+                                                    <td className={cn("px-3 py-4 text-sm font-serif font-bold text-zinc-900 dark:text-white bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 z-30 w-[200px] min-w-[200px] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.1)] whitespace-nowrap", activeTab === "pending" ? "sticky left-[212px]" : "sticky left-[168px]")}>({displayedRecords.length} Staff)</td>
                                                     <td colSpan={8} className="px-3 py-4 bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800"></td>
 
                                                     {/* Earnings totals */}
@@ -4461,6 +4753,124 @@ const SalaryModule: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* ── Scheme-wise BMR Entry Modal ── */}
+            {bmrModalOpen && (() => {
+                const schemeName = (() => {
+                    const empIds = Object.keys(pendingBulkCommits);
+                    if (empIds.length === 0) return "—";
+                    const firstRecord = records.find(r => r.employee_id === empIds[0]);
+                    if (!firstRecord) return "—";
+                    return schemeNumberMap[firstRecord.project_no || ""] || firstRecord.project_no || "—";
+                })();
+                const staffList = records.filter(r => pendingBulkCommits[r.employee_id]);
+                return (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => !bmrSubmitting && setBmrModalOpen(false)}>
+                        <div
+                            className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-2xl dark:border-[#3F3F46] dark:bg-[#1C1C1E] animate-in fade-in zoom-in-95 duration-200"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            {/* Color bar */}
+                            <div className="h-[3px] bg-gradient-to-r from-emerald-400 via-emerald-500 to-[#D97757]" />
+
+                            {/* Header */}
+                            <div className="flex items-center justify-between border-b border-[#E4E4E7] bg-[#FAFAF9] px-6 py-4 dark:border-[#3F3F46] dark:bg-[#27272A]">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-900/40">
+                                        <IndianRupee className="h-4 w-4" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-[15px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">Enter BMR Number</h3>
+                                        <p className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+                                            One BMR for all staff under scheme <span className="font-bold text-violet-600 dark:text-violet-400">{schemeName}</span>
+                                        </p>
+                                    </div>
+                                </div>
+                                {!bmrSubmitting && (
+                                    <button onClick={() => setBmrModalOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#E4E4E7] text-[#71717A] hover:bg-zinc-100 dark:border-[#3F3F46] dark:hover:bg-zinc-800 transition-colors">
+                                        <X className="h-4 w-4" />
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Staff list summary */}
+                            <div className="max-h-52 overflow-y-auto px-6 py-4 space-y-2">
+                                <p className="text-[11px] font-extrabold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-2">
+                                    {staffList.length} Staff Selected
+                                </p>
+                                {staffList.map((r, idx) => {
+                                    const commit = pendingBulkCommits[r.employee_id];
+                                    return (
+                                        <div key={r.employee_id} className="flex items-center justify-between rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] px-3 py-2">
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                <span className="shrink-0 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/30 text-[9px] font-bold text-emerald-700 dark:text-emerald-400">{idx + 1}</span>
+                                                <div className="min-w-0">
+                                                    <p className="text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.first_name}</p>
+                                                    <p className="text-[10px] font-mono text-[#71717A] dark:text-[#A1A1AA]">{r.employee_id}</p>
+                                                </div>
+                                            </div>
+                                            <span className="shrink-0 text-[12px] font-bold tabular-nums text-amber-700 dark:text-amber-400">
+                                                {fmt(commit?.commitAmount || 0)}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Total */}
+                            <div className="mx-6 flex items-center justify-between rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/40 px-4 py-2.5">
+                                <span className="text-[12px] font-bold text-emerald-800 dark:text-emerald-400">Total Net Payout</span>
+                                <span className="text-[15px] font-extrabold tabular-nums text-emerald-900 dark:text-emerald-300">
+                                    {fmt(Object.values(pendingBulkCommits).reduce((s, c) => s + (c?.commitAmount || 0), 0))}
+                                </span>
+                            </div>
+
+                            {/* BMR input */}
+                            <div className="px-6 pt-4 pb-2">
+                                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
+                                    BMR Number <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={bmrInput}
+                                    onChange={e => { setBmrInput(e.target.value); setBmrError(null); }}
+                                    onKeyDown={e => { if (e.key === "Enter" && !bmrSubmitting) handleBmrSubmit(); }}
+                                    placeholder="Enter BMR number for this scheme..."
+                                    autoFocus
+                                    className="w-full rounded-lg border-2 border-[#E4E4E7] bg-white px-4 py-2.5 text-[13px] font-semibold text-[#3F3F46] outline-none placeholder:text-[#A1A1AA] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15 transition-all dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#E4E4E7] dark:placeholder:text-[#71717A] dark:focus:border-emerald-500"
+                                />
+                                {bmrError && (
+                                    <p className="mt-1.5 flex items-center gap-1 text-[11px] font-semibold text-red-600 dark:text-red-400">
+                                        <AlertCircle className="h-3 w-3" /> {bmrError}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex items-center justify-end gap-3 border-t border-[#E4E4E7] dark:border-[#3F3F46] px-6 py-4">
+                                <button
+                                    onClick={() => setBmrModalOpen(false)}
+                                    disabled={bmrSubmitting}
+                                    className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#E4E4E7] bg-white px-4 text-[12px] font-bold text-[#3F3F46] transition-all hover:bg-[#FAFAF9] disabled:opacity-50 dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleBmrSubmit}
+                                    disabled={bmrSubmitting || !bmrInput.trim()}
+                                    className="inline-flex h-9 items-center gap-2 rounded-lg bg-emerald-600 px-4 text-[12px] font-bold text-white shadow-sm transition-all hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {bmrSubmitting ? (
+                                        <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Processing {staffList.length} salaries...</>
+                                    ) : (
+                                        <><CheckCircle2 className="h-3.5 w-3.5" /> Submit BMR &amp; Process All</>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 };
