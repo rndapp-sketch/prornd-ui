@@ -326,6 +326,9 @@ export function AppSidebar() {
         if (item.label === "Project Staff") {
             return roles?.includes("Permanent Employee") ?? false;
         }
+        if (item.label === "Stakeholder Registration") {
+            return !(roles?.includes("project staff") ?? false);
+        }
         if (item.label === "Delegate User") {
             return roles?.includes("Permanent Employee") ?? false;
         }

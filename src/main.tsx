@@ -750,7 +750,7 @@ const router = createBrowserRouter(
                 {
                     path: "universal-registration/:id?",
                     element: (
-                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User" blockedRole="project staff">
                             <UniversalRegistrationForm />
                         </AuthRouteWrapper>
                     ),
