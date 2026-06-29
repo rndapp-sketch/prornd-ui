@@ -354,7 +354,8 @@ const SalaryModule: React.FC = () => {
     // ── Build commit payload for a single staff record (shared by single-pay & bulk-pay) ──
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const buildCommitData = useCallback(async (r: StaffRecord, netPay: number): Promise<any | null> => {
-        const salary_year_month = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`;
+        const monthLabel = MONTHS[selectedMonth].label.toLowerCase();
+        const salary_year_month = `${selectedYear}_${monthLabel}`;
         const daysInMonthVal = getDaysInMonth(selectedYear, selectedMonth);
 
         // Use getRowInputs directly — NOTE: getRowInputs is defined later but hoisted fine here
@@ -441,7 +442,7 @@ const SalaryModule: React.FC = () => {
 
         if (commitFromApi) {
             return {
-                projectNumber: r.project_no || commitFromApi.projectNumber || "",
+                projectNumber: r.project_no || "",
                 accountHeadId: commitFromApi.accountHeadId || 1,
                 moduleId: commitFromApi.moduleId || 11,
                 // Use employee_id, not the RAC doc name, to avoid the backend calling
@@ -461,7 +462,7 @@ const SalaryModule: React.FC = () => {
 
         // Fallback: virtual commit
         return {
-            projectNumber: r.department || "",
+            projectNumber: r.project_no || "",
             accountHeadId: 1,
             moduleId: 11,
             frapAppId: r.employee_id,
@@ -691,7 +692,8 @@ const SalaryModule: React.FC = () => {
                     doctype: "Recruitment Adhoc Contractual",
                     moduleName: "Recruitment Adhoc Contractual",
                     moduleId: "11",
-                    project_name: commitData.projectNumber,
+                    project_name: commitData.projectNumber || commitData.salary_backend_details?.project_no || "",
+                    project_no: commitData.salary_backend_details?.project_no || commitData.projectNumber || "",
                     payment_amount: commitData.commitAmount,
                     budget_head: commitData.budget_head ?? String(commitData.accountHeadId ?? ""),
                     payment_particular: commitData.commitParticular,
@@ -737,9 +739,10 @@ const SalaryModule: React.FC = () => {
     const checkSalaryStatuses = useCallback(async () => {
         if (records.length === 0 || !isPrepared) return;
         setIsCheckingStatus(true);
-        const salary_year_month = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`;
+        const monthLabel = MONTHS[selectedMonth].label.toLowerCase();
+        const salary_year_month = `${selectedYear}_${monthLabel}`;
         try {
-            // Fetch Salary Staging document by name (e.g. "2026-06")
+            // Fetch Salary Staging document by name (e.g. "2026_june")
             const response = await fetch(
                 `/api/resource/Salary%20Staging/${encodeURIComponent(salary_year_month)}`,
                 { credentials: "include", headers: { Accept: "application/json" } }
@@ -767,7 +770,7 @@ const SalaryModule: React.FC = () => {
             // If 404 (no doc for this month) — processedEmpIds stays empty, which is correct.
 
             // Stale-guard: discard if user switched months while request was in-flight.
-            const currentSYM = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`;
+            const currentSYM = `${selectedYear}_${MONTHS[selectedMonth].label.toLowerCase()}`;
             if (salary_year_month === currentSYM) {
                 setProcessedEmployees(new Set(processedEmpIds));
             }
@@ -855,7 +858,8 @@ const SalaryModule: React.FC = () => {
 
         const netPay = Math.round(rawNetPay);
         setLoadingEmpId(r.employee_id);
-        const salary_year_month = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`;
+        const monthLabel = MONTHS[selectedMonth].label.toLowerCase();
+        const salary_year_month = `${selectedYear}_${monthLabel}`;
         try {
             // 1. Fetch salary payment data (this returns a list containing the matched commit directly!)
             let commitFromApi: any = null;
@@ -939,7 +943,7 @@ const SalaryModule: React.FC = () => {
             if (commitFromApi) {
                 // Prefill using the directly matched commit returned by the salary_payment_data API
                 selectedCommitData = {
-                    projectNumber: r.project_no || commitFromApi.projectNumber || "",
+                    projectNumber: r.project_no || "",
                     accountHeadId: commitFromApi.accountHeadId || 1,
                     moduleId: commitFromApi.moduleId || 11,
                     frapAppId: r.employee_id,
