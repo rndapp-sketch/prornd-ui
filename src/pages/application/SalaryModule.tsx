@@ -444,7 +444,10 @@ const SalaryModule: React.FC = () => {
                 projectNumber: r.project_no || commitFromApi.projectNumber || "",
                 accountHeadId: commitFromApi.accountHeadId || 1,
                 moduleId: commitFromApi.moduleId || 11,
-                frapAppId: commitFromApi.frapAppId || r.employee_id,
+                // Use employee_id, not the RAC doc name, to avoid the backend calling
+                // frappe.get_doc() on the RAC document which triggers mandatory-field validation.
+                // The actual RAC doc name is preserved in salary_backend_details.scr_id.
+                frapAppId: r.employee_id,
                 commitDate: commitFromApi.commitDate || new Date().toISOString().split("T")[0],
                 commitParticular: `Salary payment for ${r.first_name} (${r.employee_id}) - ${MONTHS[selectedMonth].label} ${selectedYear}`,
                 refDetails: commitFromApi.refDetails || `Employee ID: ${r.employee_id}`,
@@ -452,7 +455,7 @@ const SalaryModule: React.FC = () => {
                 transactionCommitNumber: commitFromApi.transactionCommitNumber || 0,
                 salary_year_month,
                 salary_user_details,
-                salary_backend_details,
+                salary_backend_details: { ...salary_backend_details, scr_id: commitFromApi.frapAppId || "" },
             };
         }
 
@@ -939,7 +942,7 @@ const SalaryModule: React.FC = () => {
                     projectNumber: r.project_no || commitFromApi.projectNumber || "",
                     accountHeadId: commitFromApi.accountHeadId || 1,
                     moduleId: commitFromApi.moduleId || 11,
-                    frapAppId: commitFromApi.frapAppId || r.employee_id,
+                    frapAppId: r.employee_id,
                     commitDate: commitFromApi.commitDate || new Date().toISOString().split('T')[0],
                     commitParticular: `Salary payment for ${r.first_name} (${r.employee_id}) - ${MONTHS[selectedMonth].label} ${selectedYear}`,
                     refDetails: commitFromApi.refDetails || `Employee ID: ${r.employee_id}, Commit No: ${commitFromApi.transactionCommitNumber}`,
@@ -947,7 +950,7 @@ const SalaryModule: React.FC = () => {
                     transactionCommitNumber: commitFromApi.transactionCommitNumber || 0,
                     salary_year_month,
                     salary_user_details,
-                    salary_backend_details,
+                    salary_backend_details: { ...salary_backend_details, scr_id: commitFromApi.frapAppId || "" },
                 };
             } else {
                 // Fallback: Fetch pending commits from Ledger to query manually
