@@ -28,7 +28,6 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
-  ChevronRight,
   FolderOpen,
   X,
   CalendarIcon,
@@ -38,17 +37,18 @@ import {
   FileText,
   ExternalLink,
   Pencil,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import ProjectDetailsOverview from "@/pages/ProjectDetailsOverview";
-import { Textarea } from "@/components/ui/textarea";
 import { useUserRoles } from "@/components/UserRole";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { ProjectLedgerModal } from "@/components/ProjectLedgerModal";
 import { CommitPayment } from "@/components/CommitPayment";
 import { POEditor } from "@/components/POEditor";
+import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import { getFileUrl } from "@/utils/fileUtils";
 import {
   generatePOHtml,
@@ -96,12 +96,6 @@ const FrappeButton = ({
 
 type StageStatus = "completed" | "in-progress" | "pending" | "rejected";
 
-interface ActivityItem {
-  owner: string;
-  creation: string;
-  content: string;
-  comment_type: string;
-}
 
 const toNumber = (value: any) => {
   if (value === undefined || value === null || value === "") return 0;
@@ -1086,158 +1080,116 @@ const WorkflowTimeline = ({
   formData: Record<string, any>;
 }) => {
   const stages = buildIcssTimelineStages(currentState || "Draft", formData);
+  const completedCount = stages.filter((s) => s.status === "completed").length;
+  const totalCount = stages.length;
+  const progressPct = Math.round((completedCount / totalCount) * 100);
+  const activeStage = stages.find((s) => s.status === "in-progress");
+  const isFinished = ["Approved", "PO Delivered"].includes(currentState);
+  const isRejected = currentState === "Rejected";
 
-  const iconForStatus = (status: StageStatus) => {
-    if (status === "completed")
-      return <CheckCircle2 className="w-4 h-4 text-white" />;
-    if (status === "in-progress")
-      return <Clock className="w-4 h-4 text-white" />;
-    if (status === "rejected")
-      return <XCircle className="w-4 h-4 text-white" />;
-    return <span className="w-2 h-2 rounded-full bg-white/60" />;
+  const nodeStyle = (status: StageStatus) => {
+    if (status === "completed") return "bg-emerald-500 border-emerald-500 text-white";
+    if (status === "in-progress") return "bg-[#D97757] border-[#D97757] text-white ring-4 ring-[#D97757]/20";
+    if (status === "rejected") return "bg-red-500 border-red-500 text-white";
+    return "bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600 text-zinc-400 dark:text-zinc-500";
   };
 
-  const bgForStatus = (status: StageStatus) => {
-    if (status === "completed") return "bg-emerald-500";
-    if (status === "in-progress") return "bg-[#D97757]";
-    if (status === "rejected") return "bg-red-500";
-    return "bg-zinc-300 dark:bg-zinc-600";
-  };
-
-  const connectorColor = (status: StageStatus) =>
-    status === "completed" ? "bg-emerald-400" : "bg-zinc-200 dark:bg-zinc-700";
+  const lineStyle = (status: StageStatus) =>
+    status === "completed"
+      ? "bg-emerald-400"
+      : "bg-zinc-200 dark:bg-zinc-700";
 
   return (
     <FrappeCard>
-      <div className="p-5">
-        <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-          Workflow Progress
-        </h3>
-        <div className="flex items-start overflow-x-auto pb-1">
+      <div className="p-4">
+        {/* Header row */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+              Workflow
+            </h3>
+            {isFinished && (
+              <span className="text-[10px] font-bold text-white bg-emerald-500 px-2 py-0.5 rounded-full">
+                Complete
+              </span>
+            )}
+            {isRejected && (
+              <span className="text-[10px] font-bold text-white bg-red-500 px-2 py-0.5 rounded-full">
+                Rejected
+              </span>
+            )}
+            {activeStage && (
+              <span className="text-[10px] font-semibold text-[#D97757] bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 px-2 py-0.5 rounded-full">
+                {activeStage.label}
+              </span>
+            )}
+          </div>
+          <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 tabular-nums">
+            {completedCount}/{totalCount} steps
+          </span>
+        </div>
+
+        {/* Progress bar */}
+        <div className="h-1 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 mb-4 overflow-hidden">
+          <div
+            className={cn(
+              "h-full rounded-full transition-all duration-500",
+              isRejected ? "bg-red-400" : isFinished ? "bg-emerald-500" : "bg-[#D97757]",
+            )}
+            style={{ width: `${isFinished ? 100 : progressPct}%` }}
+          />
+        </div>
+
+        {/* Step track */}
+        <div className="flex items-center overflow-x-auto pb-1 gap-0">
           {stages.map((stage, idx) => (
             <React.Fragment key={`${stage.label}-${idx}`}>
-              <div className="flex flex-col items-center min-w-[92px] max-w-[116px]">
+              <div className="flex flex-col items-center flex-shrink-0">
                 <div
                   className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center shadow-sm flex-shrink-0",
-                    bgForStatus(stage.status),
+                    "w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all duration-200 text-[10px] font-bold",
+                    nodeStyle(stage.status),
                   )}
+                  title={stage.label}
                 >
-                  {iconForStatus(stage.status)}
+                  {stage.status === "completed" ? (
+                    <CheckCircle2 className="w-3 h-3" />
+                  ) : stage.status === "rejected" ? (
+                    <XCircle className="w-3 h-3" />
+                  ) : stage.status === "in-progress" ? (
+                    <Clock className="w-3 h-3" />
+                  ) : (
+                    <span>{idx + 1}</span>
+                  )}
                 </div>
                 <p
                   className={cn(
-                    "mt-2 text-center text-xs leading-tight px-1",
-                    stage.status === "in-progress" &&
-                    "font-bold text-[#D97757]",
-                    stage.status === "completed" &&
-                    "text-emerald-600 dark:text-emerald-400 font-medium",
-                    stage.status === "pending" &&
-                    "text-zinc-400 dark:text-zinc-500",
-                    stage.status === "rejected" && "text-red-500 font-bold",
+                    "mt-1.5 text-center text-[10px] leading-tight w-[68px] px-0.5",
+                    stage.status === "in-progress" && "font-bold text-[#D97757]",
+                    stage.status === "completed" && "font-medium text-emerald-600 dark:text-emerald-400",
+                    stage.status === "pending" && "text-zinc-400 dark:text-zinc-500",
+                    stage.status === "rejected" && "font-bold text-red-500",
                   )}
                 >
                   {stage.label}
                 </p>
-                {stage.status === "in-progress" && (
-                  <span className="mt-1 text-[10px] font-bold text-white bg-[#D97757] px-2 py-0.5 rounded-full">
-                    Pending Here
-                  </span>
-                )}
-                {["Approved", "PO Delivered"].includes(currentState) &&
-                  idx === stages.length - 1 && (
-                    <span className="mt-1 text-[10px] font-bold text-white bg-emerald-500 px-2 py-0.5 rounded-full whitespace-nowrap">
-                      Complete
-                    </span>
-                  )}
               </div>
               {idx < stages.length - 1 && (
-                <div className="flex-1 flex items-center pt-4 min-w-[20px]">
-                  <div
-                    className={cn(
-                      "h-1 w-full rounded",
-                      connectorColor(stage.status),
-                    )}
-                  />
-                  <ChevronRight className="w-3 h-3 text-zinc-400 flex-shrink-0 -ml-1" />
-                </div>
+                <div
+                  className={cn(
+                    "flex-1 h-0.5 mb-4 min-w-[10px]",
+                    lineStyle(stage.status),
+                  )}
+                />
               )}
             </React.Fragment>
           ))}
         </div>
-        {currentState &&
-          currentState !== "Draft" &&
-          currentState !== "Approved" &&
-          currentState !== "PO Delivered" &&
-          currentState !== "Rejected" && (
-            <div className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Currently pending at:{" "}
-                <span className="font-semibold text-[#D97757]">
-                  {currentState}
-                </span>
-              </p>
-            </div>
-          )}
       </div>
     </FrappeCard>
   );
 };
 
-const ActivityStream = ({
-  doctype,
-  docname,
-  refreshToken = 0,
-}: {
-  doctype: string;
-  docname: string;
-  refreshToken?: number;
-}) => {
-  const { data: activityData, mutate: refetchActivity } = useFrappeGetCall<{
-    message: ActivityItem[];
-  }>(
-    "rndopsapp.rndopsapp.api.get_project_activity",
-    { doctype, docname },
-    docname ? undefined : null,
-  );
-
-  useEffect(() => {
-    if (docname) {
-      refetchActivity();
-    }
-  }, [docname, refreshToken, refetchActivity]);
-
-  return (
-    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-      {activityData?.message?.length ? (
-        activityData.message.map((item, idx) => (
-          <div
-            key={`${item.creation}-${idx}`}
-            className="flex items-start gap-3"
-          >
-            <div className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center font-bold text-[#D97757] text-xs">
-              {item.owner?.charAt(0).toUpperCase() || "U"}
-            </div>
-            <div className="min-w-0">
-              <div
-                className="text-sm text-zinc-800 dark:text-zinc-200 prose prose-sm max-w-none"
-                dangerouslySetInnerHTML={{ __html: item.content }}
-              />
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                {item.owner} ·{" "}
-                {item.creation ? new Date(item.creation).toLocaleString() : ""}
-              </p>
-            </div>
-          </div>
-        ))
-      ) : (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400 italic">
-          No activity yet.
-        </p>
-      )}
-    </div>
-  );
-};
 
 const getIcssVendorDetails = (
   data: Record<string, any>,
@@ -1879,9 +1831,9 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     editDocName || null,
   );
   const currentDocName = editDocName || savedDocName || "";
-  const [sidebarComment, setSidebarComment] = useState("");
-  const [isAddingComment, setIsAddingComment] = useState(false);
-  const [activityRefreshKey, setActivityRefreshKey] = useState(0);
+  const [showActionsDropdown, setShowActionsDropdown] = useState(false);
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [actionComment, setActionComment] = useState("");
   const [isLedgerOpen, setIsLedgerOpen] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(
@@ -2169,7 +2121,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     const fetchBudgetHeads = async () => {
       try {
         const response = await fetch(
-          '/api/v2/document/Budget%20Head?fields=["name","budget_head","id"]&order_by=id%20asc',
+          '/api/resource/Budget%20Head?fields=["name","budget_head","id"]&order_by=id%20asc&limit_page_length=0',
           { credentials: "include" },
         );
         const result = await response.json();
@@ -4317,7 +4269,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     ],
   );
 
-  const handleWorkflowAction = async (action: string) => {
+  const handleWorkflowAction = async (action: string, comment?: string) => {
     const docNameToUse = savedDocName || editDocName;
     if (!runLegacyValidations(formData)) return;
 
@@ -4359,6 +4311,17 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         response.message.status === "success"
       ) {
         const nextWorkflowState = response.message.workflow_state;
+        if (comment?.trim()) {
+          try {
+            await addComment({
+              doctype: "Indent Cum Sanction Sheet",
+              docname: effectiveDocName,
+              content: comment.trim(),
+            });
+          } catch {
+            // comment failure is non-fatal
+          }
+        }
         alert(getIcssWorkflowSuccessMessage(action, nextWorkflowState));
         setWorkflowState(nextWorkflowState);
         await fetchFormConfiguration(effectiveDocName);
@@ -4419,25 +4382,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       alert("Failed to open the linked project.");
     } finally {
       setIsProjectViewLoading(false);
-    }
-  };
-
-  const handleSidebarCommentSubmit = async () => {
-    if (!sidebarComment.trim() || !currentDocName) return;
-    setIsAddingComment(true);
-    try {
-      await addComment({
-        doctype: "Indent Cum Sanction Sheet",
-        docname: currentDocName,
-        content: sidebarComment.trim(),
-      });
-      setSidebarComment("");
-      setActivityRefreshKey((prev) => prev + 1);
-    } catch (error) {
-      console.error("Failed to submit ICSS comment:", error);
-      alert("Failed to submit comment.");
-    } finally {
-      setIsAddingComment(false);
     }
   };
 
@@ -5455,6 +5399,14 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     Boolean(currentDocName);
   const directorApproveBlocked =
     isAtDeanApproval && isDirectorApprovalRequired && !directorSignedPdf;
+  const handleConfirmAction = async () => {
+    if (!pendingAction) return;
+    const comment = actionComment;
+    setPendingAction(null);
+    setActionComment("");
+    await handleWorkflowAction(pendingAction, comment);
+  };
+
   const renderActionButtons = () => {
     if (workflowState === "Draft") {
       if (!isEditMode) return null;
@@ -5474,18 +5426,18 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             Save Draft
           </FrappeButton>
 
-          <FrappeButton
-            onClick={() => handleWorkflowAction("Submit")}
+          <button
+            onClick={() => setPendingAction("Submit")}
             disabled={isSubmitting || isActionLoading}
-            className="bg-[#D97757] hover:opacity-90 text-white shadow-sm"
-          >
-            {isActionLoading ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4 mr-2" />
+            className={cn(
+              "inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 shadow-sm",
+              "bg-[#D97757] hover:bg-[#c66a4e] text-white border-transparent",
+              (isSubmitting || isActionLoading) && "opacity-50 cursor-not-allowed",
             )}
+          >
+            <Send className="w-4 h-4 mr-2" />
             Submit
-          </FrappeButton>
+          </button>
         </>
       );
     }
@@ -5494,6 +5446,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       return null;
     }
 
+    const dropdownDisabled = isActionLoading || commitRequired;
+
     return (
       <>
         {commitRequired && (
@@ -5501,44 +5455,69 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             A commitment must be submitted before forwarding this application.
           </div>
         )}
-        {filteredWorkflowActions.map((action) => {
-          const isApproveAction = action === "Approve";
-          const isDirectorBlockedAction =
-            isApproveAction && directorApproveBlocked;
-          const disabled =
-            isActionLoading || commitRequired || isDirectorBlockedAction;
-          const disabledTitle = isDirectorBlockedAction
-            ? sendToDirector
-              ? "Awaiting Director-signed PDF upload by Staff"
-              : "Tick Send for Director Approval before approving"
-            : commitRequired
-              ? "Submit a commitment first"
-              : undefined;
-
-          return (
-            <FrappeButton
-              key={action}
-              onClick={() => handleWorkflowAction(action)}
-              disabled={disabled}
-              title={disabledTitle}
+        {filteredWorkflowActions.length > 0 && (
+          <div className="relative">
+            <button
+              onClick={() => setShowActionsDropdown((v) => !v)}
+              disabled={dropdownDisabled}
               className={cn(
-                "shadow-sm",
-                disabled
-                  ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
-                  : action === "Approve"
-                    ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                    : action === "Reject"
-                      ? "bg-red-600 hover:bg-red-700 text-white"
-                      : "bg-[#D97757] hover:opacity-90 text-white",
+                "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 shadow-sm",
+                dropdownDisabled
+                  ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 border-zinc-200 dark:border-zinc-700 cursor-not-allowed"
+                  : "bg-[#D97757] hover:bg-[#c66a4e] text-white border-transparent",
               )}
             >
               {isActionLoading ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" />
               ) : null}
-              {action}
-            </FrappeButton>
-          );
-        })}
+              Actions
+              <ChevronDown className="w-4 h-4" />
+            </button>
+
+            {showActionsDropdown && !dropdownDisabled && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setShowActionsDropdown(false)}
+                />
+                <div className="absolute right-0 top-full mt-1 z-20 min-w-[160px] rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg overflow-hidden">
+                  {filteredWorkflowActions.map((action) => {
+                    const isApproveAction = action === "Approve";
+                    const isDirectorBlocked = isApproveAction && directorApproveBlocked;
+                    const disabledTitle = isDirectorBlocked
+                      ? sendToDirector
+                        ? "Awaiting Director-signed PDF upload by Staff"
+                        : "Tick Send for Director Approval before approving"
+                      : undefined;
+                    return (
+                      <button
+                        key={action}
+                        disabled={isDirectorBlocked}
+                        title={disabledTitle}
+                        onClick={() => {
+                          setShowActionsDropdown(false);
+                          setPendingAction(action);
+                        }}
+                        className={cn(
+                          "w-full px-4 py-2.5 text-left text-sm font-medium transition-colors",
+                          isDirectorBlocked
+                            ? "text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
+                            : action === "Approve"
+                              ? "text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                              : action === "Reject"
+                                ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                : "text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-700",
+                        )}
+                      >
+                        {action}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </>
     );
   };
@@ -6093,132 +6072,93 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             )}
           </div>
 
-          <aside className="lg:col-span-1 space-y-6">
+          <aside className="lg:col-span-1 space-y-4">
             <FrappeCard>
-              <div className="p-5 space-y-4">
-                <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                  Status
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between items-center">
-                    <span className="text-zinc-600 dark:text-zinc-400">
-                      Workflow State
+              <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                {/* State badge row */}
+                <div className="px-4 py-3 flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider shrink-0">
+                    State
+                  </span>
+                  <span
+                    className={cn(
+                      "text-[11px] font-bold px-2.5 py-1 rounded-full truncate max-w-[160px]",
+                      workflowState === "Approved" || workflowState === "PO Delivered"
+                        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                        : workflowState === "Rejected"
+                          ? "bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400"
+                          : workflowState === "Draft"
+                            ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                            : "bg-orange-50 text-[#D97757] dark:bg-orange-900/20 dark:text-orange-400",
+                    )}
+                  >
+                    {workflowState || "Draft"}
+                  </span>
+                </div>
+
+                {/* Doc ID */}
+                {currentDocName && (
+                  <div className="px-4 py-3 flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider shrink-0">
+                      Doc ID
                     </span>
-                    <span
-                      className={cn(
-                        "px-3 py-1 text-xs font-bold rounded-full",
-                        workflowState === "Approved" &&
-                        "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-                        workflowState === "Rejected" &&
-                        "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-                        workflowState === "Draft" &&
-                        "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
-                        !["Approved", "Rejected", "Draft"].includes(
-                          workflowState || "",
-                        ) &&
-                        "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-                      )}
-                    >
-                      {workflowState || "Draft"}
+                    <span className="text-[11px] font-mono font-semibold text-zinc-700 dark:text-zinc-300 truncate text-right">
+                      {currentDocName}
                     </span>
                   </div>
-                  {currentDocName && (
-                    <div className="flex justify-between">
-                      <span className="text-zinc-600 dark:text-zinc-400">
-                        Document
+                )}
+
+                {/* Last modified */}
+                {formData.modified && (
+                  <div className="px-4 py-3 flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider shrink-0">
+                      Modified
+                    </span>
+                    <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400 flex items-center gap-1">
+                      <CalendarIcon className="w-3 h-3" />
+                      {new Date(formData.modified).toLocaleDateString("en-IN", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </span>
+                  </div>
+                )}
+
+                {/* Budget — only when projectCode exists */}
+                {projectCode && (
+                  <>
+                    <div className="px-4 py-3 flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider shrink-0">
+                        Committable
                       </span>
-                      <span className="font-medium text-zinc-900 dark:text-zinc-100 text-right break-all">
-                        {currentDocName}
+                      <span className="text-sm font-bold text-[#D97757] tabular-nums">
+                        ₹{Number(totalCommitableBalance || 0).toLocaleString("en-IN")}
                       </span>
                     </div>
-                  )}
-                  {formData.modified && (
-                    <div className="flex justify-between">
-                      <span className="text-zinc-600 dark:text-zinc-400">
-                        Last Modified
+
+                    <div className="px-4 py-3 flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider shrink-0">
+                        Available
                       </span>
-                      <span className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-1">
-                        <CalendarIcon className="w-3 h-3" />
-                        {new Date(formData.modified).toLocaleDateString(
-                          "en-IN",
-                        )}
+                      <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                        ₹{Number(actualBalance || 0).toLocaleString("en-IN")}
                       </span>
                     </div>
-                  )}
-                </div>
+
+                    <div className="px-4 py-3">
+                      <button
+                        onClick={() => setIsLedgerOpen(true)}
+                        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[#D97757] text-xs font-semibold hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                      >
+                        <LedgerIcon className="w-3.5 h-3.5" />
+                        View Ledger
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </FrappeCard>
-
-            {projectCode && (
-              <FrappeCard>
-                <div className="p-5 space-y-4">
-                  <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Project Budget
-                  </h3>
-                  <div className="flex justify-between items-center bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800">
-                    <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                      Commitable Balance
-                    </p>
-                    <p className="text-lg font-bold text-[#D97757]">
-                      ₹{" "}
-                      {Number(totalCommitableBalance || 0).toLocaleString(
-                        "en-IN",
-                      )}
-                    </p>
-                  </div>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    Available balance: ₹{" "}
-                    {Number(actualBalance || 0).toLocaleString("en-IN")}
-                  </p>
-                  <button
-                    onClick={() => setIsLedgerOpen(true)}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-[#D97757] font-bold text-sm hover:bg-[#B2DFDB] transition-colors"
-                  >
-                    <LedgerIcon className="w-4 h-4" />
-                    View Project Ledger
-                  </button>
-                </div>
-              </FrappeCard>
-            )}
-
-            {currentDocName && (
-              <FrappeCard>
-                <div className="p-5">
-                  <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-                    Latest Activity
-                  </h3>
-                  <ActivityStream
-                    doctype="Indent Cum Sanction Sheet"
-                    docname={currentDocName}
-                    refreshToken={activityRefreshKey}
-                  />
-                </div>
-              </FrappeCard>
-            )}
-
-            {currentDocName && (
-              <FrappeCard>
-                <div className="p-5">
-                  <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
-                    Add Comment
-                  </h3>
-                  <Textarea
-                    rows={3}
-                    placeholder="Type your comment here..."
-                    value={sidebarComment}
-                    onChange={(e) => setSidebarComment(e.target.value)}
-                    className="w-full mb-3 text-sm"
-                  />
-                  <FrappeButton
-                    className="w-full bg-[#D97757] hover:opacity-90 text-white"
-                    onClick={handleSidebarCommentSubmit}
-                    disabled={isAddingComment}
-                  >
-                    {isAddingComment ? "Submitting..." : "Submit Comment"}
-                  </FrappeButton>
-                </div>
-              </FrappeCard>
-            )}
 
             {isRnDStaff && !!currentDocName && workflowState === "Pending Staff Approval" && (
               <CommitPayment
@@ -6363,6 +6303,71 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           budgetHeadList={budgetHeadList}
         />
       )}
+      {/* Action confirmation dialog with optional comment */}
+      {pendingAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-md mx-4 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 dark:border-zinc-800">
+              <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+                Confirm: <span className="text-[#D97757]">{pendingAction}</span>
+              </h3>
+              <button
+                onClick={() => { setPendingAction(null); setActionComment(""); }}
+                className="p-1 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                You are about to <strong className="text-zinc-700 dark:text-zinc-200">{pendingAction}</strong> this Indent Cum Sanction Sheet. Add an optional comment below.
+              </p>
+              <textarea
+                rows={3}
+                placeholder="Optional comment…"
+                value={actionComment}
+                onChange={(e) => setActionComment(e.target.value)}
+                className="w-full resize-none rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] transition-colors"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
+              <button
+                onClick={() => { setPendingAction(null); setActionComment(""); }}
+                className="px-4 py-2 rounded-lg text-sm font-medium border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmAction}
+                disabled={isActionLoading}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors",
+                  pendingAction === "Approve"
+                    ? "bg-emerald-600 hover:bg-emerald-700"
+                    : pendingAction === "Reject"
+                      ? "bg-red-600 hover:bg-red-700"
+                      : "bg-[#D97757] hover:opacity-90",
+                  isActionLoading && "opacity-50 cursor-not-allowed",
+                )}
+              >
+                {isActionLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin inline mr-1" />
+                ) : null}
+                {pendingAction}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating activity log */}
+      {currentDocName && (
+        <FloatingActivityLogButton
+          doctype="Indent Cum Sanction Sheet"
+          docname={currentDocName}
+        />
+      )}
+
       {prPreviewName && (
         <div
           className="fixed inset-0 z-50 flex flex-col bg-black/60 backdrop-blur-sm"

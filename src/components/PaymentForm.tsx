@@ -158,6 +158,9 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
                     budget_head: data.budget_head || undefined,
                     bmr: data.payment_bmr || data.bmr || undefined,
                     frapAppId: commitData?.frapAppId || undefined,
+                    refDetails: commitData?.transactionCommitNumber
+                        ? String(commitData.transactionCommitNumber)
+                        : undefined,
                     salary_year_month: (commitData as any)?.salary_year_month || undefined,
                     salary_user_details: (commitData as any)?.salary_user_details || undefined,
                     salary_backend_details: (commitData as any)?.salary_backend_details || undefined,

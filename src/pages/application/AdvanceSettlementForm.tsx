@@ -207,7 +207,7 @@ const AdvanceSettlementForm: React.FC = () => {
         const fetchBudgetHeads = async () => {
             try {
                 // Fetch all budget heads to populate the Account Head field
-                const response = await fetch('/api/v2/document/Budget%20Head?fields=["budget_head","name"]&limit_page_length=0');
+                const response = await fetch('/api/resource/Budget%20Head?fields=["budget_head","name"]&limit_page_length=0');
                 if (response.ok) {
                     const result = await response.json();
                     if (result.data) {

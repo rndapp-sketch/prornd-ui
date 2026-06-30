@@ -459,7 +459,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                 const [res, budgetHeadRes, userRes] = await Promise.all([
                     fetchFields({ doc_name: id }),
                     fetch(
-                        '/api/v2/document/Budget%20Head?fields=["name","budget_head"]&order_by=budget_head asc',
+                        '/api/resource/Budget%20Head?fields=["name","budget_head"]&order_by=budget_head asc&limit_page_length=0',
                         { credentials: "include", headers: { Accept: "application/json" } },
                     )
                         .then((r) => r.json())

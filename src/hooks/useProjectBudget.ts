@@ -55,7 +55,7 @@ export const useProjectBudget = (projectCode: string) => {
       try {
         // 1. Fetch Budget Heads
         const headRes = await fetch(
-          '/api/v2/document/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc',
+          '/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0',
           { credentials: "include", headers: { Accept: "application/json" } },
         );
         const headData = await headRes.json();

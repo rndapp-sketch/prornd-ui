@@ -256,7 +256,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
         const fetchBudgetHeads = async () => {
             try {
                 const response = await fetch(
-                    '/api/v2/document/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc',
+                    '/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0',
                     { credentials: "include" },
                 );
                 const result = await response.json();
@@ -391,6 +391,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
 
                 // Fetch Users for link options
                 let baseLinkOptions = link_options || {};
+
                 try {
                     const headsRes = await fetchUsersList({
                         doctype: "Budget Head",
@@ -398,12 +399,31 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                         limit_page_length: 0,
                     });
                     if (headsRes?.message) {
-                        baseLinkOptions["account_head"] = headsRes.message.map(
-                            (h: any) => ({
-                                value: h.name,
-                                label: h.budget_head || h.name,
-                            }),
-                        );
+                        const bhOptions = headsRes.message.map((h: any) => ({
+                            value: h.name,
+                            label: h.budget_head || h.name,
+                        }));
+                        // Key by both fieldname and doctype so DynamicFormRenderer's merge picks it up
+                        baseLinkOptions["account_head"] = bhOptions;
+                        baseLinkOptions["Budget Head"] = bhOptions;
+                    }
+                } catch (_) {}
+
+                try {
+                    const deptRes = await fetchUsersList({
+                        doctype: "Department_prornd",
+                        fields: ["name", "dept_name"],
+                        limit_page_length: 0,
+                    });
+                    if (deptRes?.message) {
+                        const deptOptions = deptRes.message.map((d: any) => ({
+                            value: d.name,
+                            label: d.dept_name || d.name,
+                        }));
+                        baseLinkOptions["applicant_department"] = deptOptions;
+                        baseLinkOptions["department_for"] = deptOptions;
+                        baseLinkOptions["department"] = deptOptions;
+                        baseLinkOptions["Department_prornd"] = deptOptions;
                     }
                 } catch (_) {}
 

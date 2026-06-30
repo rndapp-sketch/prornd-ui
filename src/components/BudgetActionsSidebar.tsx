@@ -69,7 +69,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
     useEffect(() => {
         const fetchBudgetHeads = async () => {
             try {
-                const response = await fetch('/api/v2/document/Budget%20Head?fields=["*"]&order_by=name%20asc');
+                const response = await fetch('/api/resource/Budget%20Head?fields=["*"]&order_by=name%20asc&limit_page_length=0');
                 const result = await response.json();
                 if (result?.data) {
                     setBudgetHeadList(result.data.map((item: any) => ({

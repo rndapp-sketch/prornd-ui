@@ -2942,10 +2942,11 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         const fetchBudgetHeads = async () => {
             try {
                 const response = await fetch(
-                    '/api/v2/document/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc',
+                    '/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0',
                 );
                 const result = await response.json();
-                console.log("Budget Head v2 API data:", result);
+                console.log("[PDO] Budget Head API raw result:", result);
+                console.log("[PDO] Budget Heads fetched:", result?.data?.length ?? 0, "records:", result?.data?.map((h: any) => `${h.budget_head}(id=${h.id})`));
                 if (result?.data) {
                     setBudgetHeadList(
                         result.data.map((item: any) => ({
@@ -2955,8 +2956,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                     );
                 }
             } catch (err) {
-                console.error("Failed to fetch Budget Heads:", err);
-            } finally {
+                console.error("[PDO] Failed to fetch Budget Heads:", err);
             }
         };
         fetchBudgetHeads();
@@ -2967,35 +2967,38 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         const checkHeadsWithData = async () => {
             if (!projectName || budgetHeadList.length === 0) return;
 
+            const effectiveProjectNo = data?.project_no || projectName;
+            console.log(`[PDO] checkHeadsWithData — project: "${effectiveProjectNo}", heads: ${budgetHeadList.length}, data?.project_no: "${data?.project_no}"`);
+
             setIsCheckingHeads(true);
             const headsSet = new Set<number>();
 
             try {
                 // Check each head for data
                 const promises = budgetHeadList.map(async (head) => {
+                    const url = `/ledger-api/commit-payment-transactions?projectNumber=${effectiveProjectNo}&accountHeadId=${head.id}`;
                     try {
-                        const response = await fetch(
-                            `/ledger-api/commit-payment-transactions?projectNumber=${data?.project_no || projectName}&accountHeadId=${head.id}`,
-                        );
+                        const response = await fetch(url);
                         if (response.ok) {
-                            const data = await response.json();
-                            if (Array.isArray(data) && data.length > 0) {
+                            const txns = await response.json();
+                            const hasData = Array.isArray(txns) && txns.length > 0;
+                            console.log(`[PDO] Head "${head.name}" (id=${head.id}): ${txns?.length ?? "err"} txns → ${hasData ? "HAS DATA" : "empty"}`);
+                            if (hasData) {
                                 headsSet.add(head.id);
                             }
+                        } else {
+                            console.warn(`[PDO] Head "${head.name}" (id=${head.id}): HTTP ${response.status}`);
                         }
                     } catch (err) {
-                        console.error(
-                            `Failed to check data for head ${head.name}:`,
-                            err,
-                        );
+                        console.error(`[PDO] Head "${head.name}" (id=${head.id}): fetch error`, err);
                     }
                 });
 
                 await Promise.all(promises);
                 setHeadsWithData(headsSet);
-                console.log("Heads with data:", headsSet);
+                console.log("[PDO] headsWithData ids:", [...headsSet]);
             } catch (err) {
-                console.error("Failed to check heads with data:", err);
+                console.error("[PDO] checkHeadsWithData failed:", err);
             } finally {
                 setIsCheckingHeads(false);
             }

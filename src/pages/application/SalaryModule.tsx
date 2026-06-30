@@ -428,53 +428,58 @@ const SalaryModule: React.FC = () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let commitFromApi: any = null;
         try {
-            const response = await fetch(
-                `/api/method/rndopsapp.rndopsapp.commitPayment.salary_payment_data?ps_emp_id=${r.employee_id}&salary_year_month=${salary_year_month}`,
-                { credentials: "include" }
-            );
-            if (response.ok) {
-                const json = await response.json();
-                if (json?.message && Array.isArray(json.message) && json.message.length > 0) {
-                    commitFromApi = json.message[0];
-                }
+            const apiUrl = `/api/method/rndopsapp.rndopsapp.commitPayment.salary_payment_data?ps_emp_id=${r.employee_id}&yyyy_month=${salary_year_month}`;
+            console.log(`[SalaryModule][buildCommitData] Fetching commit for ${r.employee_id}:`, apiUrl);
+            const response = await fetch(apiUrl, { credentials: "include" });
+            const json = await response.json();
+            console.log(`[SalaryModule][buildCommitData] Raw API response for ${r.employee_id}:`, JSON.stringify(json, null, 2));
+            if (response.ok && json?.message && Array.isArray(json.message) && json.message.length > 0) {
+                commitFromApi = json.message[0];
+                console.log(`[SalaryModule][buildCommitData] commitFromApi for ${r.employee_id}:`, commitFromApi);
+            } else {
+                console.warn(`[SalaryModule][buildCommitData] No commit record found for ${r.employee_id} (${salary_year_month}). message:`, json?.message);
             }
-        } catch { /* silent */ }
+        } catch (err) {
+            console.error(`[SalaryModule][buildCommitData] Fetch failed for ${r.employee_id}:`, err);
+        }
 
         if (commitFromApi) {
+            const projectNo = commitFromApi.projectNumber || commitFromApi.project_no;
+            // All required fields must be present — skip employee if any are missing
+            const missingFields = [];
+            if (!projectNo) missingFields.push("projectNumber/project_no");
+            if (!commitFromApi.accountHeadId) missingFields.push("accountHeadId");
+            if (!commitFromApi.moduleId) missingFields.push("moduleId");
+            if (!commitFromApi.frapAppId) missingFields.push("frapAppId");
+            if (!commitFromApi.transactionCommitNumber) missingFields.push("transactionCommitNumber");
+
+            if (missingFields.length > 0) {
+                console.warn(`[SalaryModule] Incomplete commit data for ${r.employee_id} — missing: [${missingFields.join(", ")}]`, commitFromApi);
+                return null;
+            }
             return {
-                projectNumber: r.project_no || "",
-                accountHeadId: commitFromApi.accountHeadId || 1,
-                moduleId: commitFromApi.moduleId || 11,
-                // Use employee_id, not the RAC doc name, to avoid the backend calling
-                // frappe.get_doc() on the RAC document which triggers mandatory-field validation.
-                // The actual RAC doc name is preserved in salary_backend_details.scr_id.
-                frapAppId: r.employee_id,
-                commitDate: commitFromApi.commitDate || new Date().toISOString().split("T")[0],
+                projectNumber: projectNo,
+                accountHeadId: commitFromApi.accountHeadId,
+                moduleId: commitFromApi.moduleId,
+                frapAppId: commitFromApi.frapAppId,
+                commitDate: commitFromApi.commitDate,
                 commitParticular: `Salary payment for ${r.first_name} (${r.employee_id}) - ${MONTHS[selectedMonth].label} ${selectedYear}`,
-                refDetails: commitFromApi.refDetails || `Employee ID: ${r.employee_id}`,
+                refDetails: String(commitFromApi.transactionCommitNumber),
                 commitAmount: Math.round(netPay),
-                transactionCommitNumber: commitFromApi.transactionCommitNumber || 0,
+                transactionCommitNumber: commitFromApi.transactionCommitNumber,
                 salary_year_month,
                 salary_user_details,
-                salary_backend_details: { ...salary_backend_details, scr_id: commitFromApi.frapAppId || "" },
+                salary_backend_details: {
+                    ...salary_backend_details,
+                    project_no: projectNo,
+                    scr_id: commitFromApi.frapAppId,
+                },
             };
         }
 
-        // Fallback: virtual commit
-        return {
-            projectNumber: r.project_no || "",
-            accountHeadId: 1,
-            moduleId: 11,
-            frapAppId: r.employee_id,
-            commitDate: new Date().toISOString().split("T")[0],
-            commitParticular: `Salary payment for ${r.first_name} (${r.employee_id}) - ${MONTHS[selectedMonth].label} ${selectedYear}`,
-            refDetails: `Employee ID: ${r.employee_id}`,
-            commitAmount: Math.round(netPay),
-            transactionCommitNumber: 0,
-            salary_year_month,
-            salary_user_details,
-            salary_backend_details,
-        };
+        // No commit data found — skip this employee
+        console.warn(`[SalaryModule] No salary_payment_data found for ${r.employee_id} (${salary_year_month}) — skipping`);
+        return null;
     }, [selectedYear, selectedMonth, overrides]);
 
     // ── Open BMR modal: build all commit payloads for selected pending staff ──
@@ -831,7 +836,7 @@ const SalaryModule: React.FC = () => {
     // Fetch Budget Heads for mapping
     const fetchBudgetHeads = useCallback(async () => {
         try {
-            const response = await fetch('/api/v2/document/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc', {
+            const response = await fetch('/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0', {
                 credentials: "include",
                 headers: { Accept: "application/json" },
             });
@@ -864,27 +869,32 @@ const SalaryModule: React.FC = () => {
             // 1. Fetch salary payment data (this returns a list containing the matched commit directly!)
             let commitFromApi: any = null;
             try {
-                const response = await fetch(`/api/method/rndopsapp.rndopsapp.commitPayment.salary_payment_data?ps_emp_id=${r.employee_id}&salary_year_month=${salary_year_month}`, { credentials: 'include' });
-                if (response.ok) {
-                    const json = await response.json();
-                    if (json?.message) {
-                        if (!Array.isArray(json.message)) {
-                            // Check if salary payment has already been initiated
-                            if (json.message.message === "Salary already initiated" || json.message.status) {
-                                const isSameMonth = !json.message.salary_year_month || json.message.salary_year_month === salary_year_month;
-                                if (isSameMonth) {
-                                    markAsProcessed(r.employee_id);
-                                    alert(`Salary successfully processed.\n\nStatus: ${json.message.status || "Pending Approval"}`);
-                                    return; // abort modal presentation!
-                                }
+                const apiUrl = `/api/method/rndopsapp.rndopsapp.commitPayment.salary_payment_data?ps_emp_id=${r.employee_id}&yyyy_month=${salary_year_month}`;
+                console.log(`[SalaryModule][handlePayClick] Fetching commit for ${r.employee_id}:`, apiUrl);
+                const response = await fetch(apiUrl, { credentials: 'include' });
+                const json = await response.json();
+                console.log(`[SalaryModule][handlePayClick] Raw API response for ${r.employee_id}:`, JSON.stringify(json, null, 2));
+                if (response.ok && json?.message) {
+                    if (!Array.isArray(json.message)) {
+                        // Check if salary payment has already been initiated
+                        console.log(`[SalaryModule][handlePayClick] Non-array message for ${r.employee_id}:`, json.message);
+                        if (json.message.message === "Salary already initiated" || json.message.status) {
+                            const isSameMonth = !json.message.salary_year_month || json.message.salary_year_month === salary_year_month;
+                            if (isSameMonth) {
+                                markAsProcessed(r.employee_id);
+                                alert(`Salary successfully processed.\n\nStatus: ${json.message.status || "Pending Approval"}`);
+                                return; // abort modal presentation!
                             }
-                        } else if (json.message.length > 0) {
-                            commitFromApi = json.message[0];
                         }
+                    } else if (json.message.length > 0) {
+                        commitFromApi = json.message[0];
+                        console.log(`[SalaryModule][handlePayClick] commitFromApi for ${r.employee_id}:`, commitFromApi);
+                    } else {
+                        console.warn(`[SalaryModule][handlePayClick] Empty array returned for ${r.employee_id} (${salary_year_month})`);
                     }
                 }
             } catch (err) {
-                console.error("Failed to fetch salary payment data:", err);
+                console.error(`[SalaryModule][handlePayClick] Fetch failed for ${r.employee_id}:`, err);
             }
 
             // Construct salary year month parameter (e.g. 2026_june) and detailed user & backend data
@@ -930,9 +940,9 @@ const SalaryModule: React.FC = () => {
 
             const salary_backend_details = {
                 ps_emp_id: r.employee_id,
-                scr_id: commitFromApi?.frapAppId || "",
-                project_no: r.project_no || commitFromApi?.projectNumber || "",
-                interview_id: commitFromApi?.frapAppId || "",
+                scr_id: "",
+                project_no: r.project_no || "",
+                interview_id: "",
                 tenure_details: "",
                 current_basic_salary: r.basic_salary,
                 active_basic_salary: r.basic_salary
@@ -941,27 +951,58 @@ const SalaryModule: React.FC = () => {
             let selectedCommitData: any = null;
 
             if (commitFromApi) {
-                // Prefill using the directly matched commit returned by the salary_payment_data API
-                selectedCommitData = {
-                    projectNumber: r.project_no || "",
-                    accountHeadId: commitFromApi.accountHeadId || 1,
-                    moduleId: commitFromApi.moduleId || 11,
-                    frapAppId: r.employee_id,
-                    commitDate: commitFromApi.commitDate || new Date().toISOString().split('T')[0],
-                    commitParticular: `Salary payment for ${r.first_name} (${r.employee_id}) - ${MONTHS[selectedMonth].label} ${selectedYear}`,
-                    refDetails: commitFromApi.refDetails || `Employee ID: ${r.employee_id}, Commit No: ${commitFromApi.transactionCommitNumber}`,
-                    commitAmount: netPay, // Override amount with Net Pay
-                    transactionCommitNumber: commitFromApi.transactionCommitNumber || 0,
-                    salary_year_month,
-                    salary_user_details,
-                    salary_backend_details: { ...salary_backend_details, scr_id: commitFromApi.frapAppId || "" },
-                };
-            } else {
+                const projectNo = commitFromApi.projectNumber || commitFromApi.project_no;
+                // Only use commit if all required fields are present
+                const missingFields: string[] = [];
+                if (!projectNo) missingFields.push("projectNumber/project_no");
+                if (!commitFromApi.accountHeadId) missingFields.push("accountHeadId");
+                if (!commitFromApi.moduleId) missingFields.push("moduleId");
+                if (!commitFromApi.frapAppId) missingFields.push("frapAppId");
+                if (!commitFromApi.transactionCommitNumber) missingFields.push("transactionCommitNumber");
+
+                console.log(`[SalaryModule][handlePayClick] Commit validation for ${r.employee_id}:`, {
+                    projectNo,
+                    accountHeadId: commitFromApi.accountHeadId,
+                    moduleId: commitFromApi.moduleId,
+                    frapAppId: commitFromApi.frapAppId,
+                    transactionCommitNumber: commitFromApi.transactionCommitNumber,
+                    missing: missingFields,
+                });
+
+                if (missingFields.length === 0) {
+                    selectedCommitData = {
+                        projectNumber: projectNo,
+                        accountHeadId: commitFromApi.accountHeadId,
+                        moduleId: commitFromApi.moduleId,
+                        frapAppId: commitFromApi.frapAppId,
+                        commitDate: commitFromApi.commitDate,
+                        commitParticular: `Salary payment for ${r.first_name} (${r.employee_id}) - ${MONTHS[selectedMonth].label} ${selectedYear}`,
+                        refDetails: String(commitFromApi.transactionCommitNumber),
+                        commitAmount: netPay,
+                        transactionCommitNumber: commitFromApi.transactionCommitNumber,
+                        salary_year_month,
+                        salary_user_details,
+                        salary_backend_details: {
+                            ...salary_backend_details,
+                            project_no: projectNo,
+                            scr_id: commitFromApi.frapAppId,
+                        },
+                    };
+                    console.log(`[SalaryModule][handlePayClick] selectedCommitData built for ${r.employee_id}:`, selectedCommitData);
+                } else {
+                    console.warn(`[SalaryModule][handlePayClick] Incomplete commit for ${r.employee_id} — missing: [${missingFields.join(", ")}]`, commitFromApi);
+                }
+            }
+
+            if (!selectedCommitData) {
                 // Fallback: Fetch pending commits from Ledger to query manually
                 try {
-                    const ledgerRes = await fetch(`/ledger-api/account-head-commit/by-status/COMMITTED`);
+                    const ledgerFallbackUrl = `/ledger-api/account-head-commit/by-status/COMMITTED`;
+                    console.log(`[SalaryModule][handlePayClick] salary_payment_data had no usable commit for ${r.employee_id}. Trying ledger fallback:`, ledgerFallbackUrl);
+                    const ledgerRes = await fetch(ledgerFallbackUrl);
                     if (ledgerRes.ok) {
                         const commits = await ledgerRes.json();
+                        console.log(`[SalaryModule][handlePayClick] Ledger fallback returned ${commits?.length ?? 0} commits. Searching for employee ${r.employee_id} / department ${r.department}...`);
                         // Try matching by project_no AND interview_id AND moduleId === 11 (Recruitment Adhoc Contractual)
                         let match = commits.find((c: any) =>
                             String(c.projectNumber).toLowerCase() === String(r.department || '').toLowerCase() &&
@@ -983,6 +1024,7 @@ const SalaryModule: React.FC = () => {
                             );
                         }
 
+                        console.log(`[SalaryModule][handlePayClick] Ledger fallback match result for ${r.employee_id}:`, match || "NO MATCH");
                         if (match) {
                             selectedCommitData = {
                                 ...match,
@@ -1000,21 +1042,8 @@ const SalaryModule: React.FC = () => {
             }
 
             if (!selectedCommitData) {
-                // Fallback 3: Create a virtual commit to prefill the modal
-                selectedCommitData = {
-                    projectNumber: r.department || "",
-                    accountHeadId: 1, // default budget head
-                    moduleId: 11, // Recruitment Adhoc Contractual module id
-                    frapAppId: r.employee_id,
-                    commitDate: new Date().toISOString().split('T')[0],
-                    commitParticular: `Salary payment for ${r.first_name} (${r.employee_id}) - ${MONTHS[selectedMonth].label} ${selectedYear}`,
-                    refDetails: `Employee ID: ${r.employee_id}`,
-                    commitAmount: netPay,
-                    transactionCommitNumber: 0,
-                    salary_year_month,
-                    salary_user_details,
-                    salary_backend_details,
-                };
+                alert(`No valid salary commit data found for ${r.first_name} (${r.employee_id}). Please ensure a commitment exists for this employee before processing payment.`);
+                return;
             }
 
             setSelectedPaymentName(null);
