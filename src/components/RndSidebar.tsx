@@ -28,6 +28,7 @@ import {
     IndianRupee,
     Calendar,
     HelpCircle,
+    LayoutGrid,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -131,7 +132,9 @@ export function AppSidebar() {
         currentUser && canUploadDirectorPdf ? undefined : null,
     );
 
-    // Calculate count matching PendingTask.tsx filter logic
+    // Calculate count matching PendingTask.tsx filter logic. For
+    // Permanent Employees (PIs) we further restrict to records sitting at
+    // the "Pending PI Approval" workflow state.
     const pendingTaskCount = React.useMemo(() => {
         if (!pendingTaskData?.message?.results) return 0;
         let count = 0;
@@ -141,10 +144,11 @@ export function AppSidebar() {
                     if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name)) {
                         return;
                     }
-                    if (isPermanentEmployee && group.doctype === "Leave Module" && allowedLeaveNames) {
-                        if (record.status === "Pending PI Approval" && !allowedLeaveNames.has(record.name)) {
-                            return;
-                        }
+                    if (isPermanentEmployee && (record.status || "").trim() !== "Pending PI Approval") {
+                        return;
+                    }
+                    if (isPermanentEmployee && group.doctype === "Leave Module" && allowedLeaveNames && !allowedLeaveNames.has(record.name)) {
+                        return;
                     }
                     count++;
                 });
@@ -225,6 +229,16 @@ export function AppSidebar() {
             icon: Calendar,
             path: "/leave-module",
         },
+        // {
+        //     label: "Applications",
+        //     icon: LayoutGrid,
+        //     path: "/project-staff-dashboard?tab=quick-actions",
+        // },
+        {
+            label: "Resignation",
+            icon: FileText,
+            path: "/project-staff-resignation",
+        },
         {
             label: "Pending Task",
             icon: ListTodo,
@@ -296,6 +310,7 @@ export function AppSidebar() {
                 "head_approver_1",
                 "Hos, RnD (Head of Section, RnD)",
                 "staff, RnD",
+                "Permanent Employee",
             ];
             return roles && allowedRoles.some((role) => roles.includes(role));
         }
@@ -331,6 +346,15 @@ export function AppSidebar() {
         if (item.label === "Leave Module") {
             const allowedRoles = ["project staff", "IF - Inspired Faculty", "Independent Researcher"];
             return roles ? allowedRoles.some((role) => roles.includes(role)) : false;
+        }
+        if (item.label === "Stakeholder Registration") {
+            return !(roles?.includes("project staff") ?? false);
+        }
+        // if (item.label === "Applications") {
+        //     return roles?.includes("project staff") ?? false;
+        // }
+        if (item.label === "Resignation") {
+            return roles?.includes("project staff") ?? false;
         }
         return true;
     });
@@ -415,6 +439,15 @@ export function AppSidebar() {
             const searchParams = new URLSearchParams(location.search);
             const viewMode = searchParams.get("view") || "Overview";
             return location.pathname === "/head-overview" && path === `/head-overview?view=${viewMode}`;
+        }
+
+        if (path.startsWith("/project-staff-dashboard")) {
+            const searchParams = new URLSearchParams(location.search);
+            const tab = searchParams.get("tab") || "";
+            if (path.includes("?tab=")) {
+                return location.pathname === "/project-staff-dashboard" && path === `/project-staff-dashboard?tab=${tab}`;
+            }
+            return location.pathname === "/project-staff-dashboard" && !tab;
         }
 
         return location.pathname.startsWith(path) && path !== "/";

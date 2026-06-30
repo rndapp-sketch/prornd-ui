@@ -33,6 +33,7 @@ import { DorndDashboard } from './pages/dashboards/DorndDashboard.tsx';
 import { HeadDashboard } from './pages/dashboards/HeadDashboard.tsx';
 import { RndStaffDashboard } from './pages/dashboards/RndStaffDashboard.tsx';
 import { ProjectStaffDashboard } from './pages/dashboards/ProjectStaffDashboard.tsx';
+import { StudentDashboard } from './pages/dashboards/StudentDashboard.tsx';
 import { DirectorDashboard } from './pages/dashboards/DirectorDashboard.tsx';
 import { AdoRndDashboard } from './pages/dashboards/AdoRndDashboard.tsx';
 import Reimbursement from './pages/reimbursement/Reimbursement.tsx';
@@ -347,6 +348,10 @@ const router = createBrowserRouter(
                     element: (<AuthRouteWrapper allowedRole="project staff"><ProjectStaffDashboard /></AuthRouteWrapper>),
                 },
                 {
+                    path: "student-dashboard",
+                    element: (<AuthRouteWrapper allowedRole="Student"><StudentDashboard /></AuthRouteWrapper>),
+                },
+                {
                     path: "ado-rnd-dashboard",
                     element: (<AuthRouteWrapper allowedRole="Ado_RnD"><AdoRndDashboard /></AuthRouteWrapper>),
                 },
@@ -399,7 +404,8 @@ const router = createBrowserRouter(
                             'Ado_RnD',
                             'head_approver_1',
                             'Hos, RnD (Head of Section, RnD)',
-                            'staff, RnD'
+                            'staff, RnD',
+                            'Permanent Employee'
                         ]}>
                             <PendingTask />
                         </AuthRouteWrapper>
@@ -414,7 +420,8 @@ const router = createBrowserRouter(
                             'Ado_RnD',
                             'head_approver_1',
                             'Hos, RnD (Head of Section, RnD)',
-                            'staff, RnD'
+                            'staff, RnD',
+                            'Permanent Employee'
                         ]}>
                             <PendingTaskDetails />
                         </AuthRouteWrapper>

@@ -227,8 +227,8 @@ const PendingTask: React.FC = () => {
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
     const isHeadApprover = roles?.includes("head_approver_1") ?? false;
-    const isStaffRnD = roles?.includes("staff, RnD") ?? false;
     const isPermanentEmployee = roles?.includes("Permanent Employee") ?? false;
+    const isStaffRnD = roles?.includes("staff, RnD") ?? false;
     const [orderModal, setOrderModal] = useState<{
         open: boolean;
         loading: boolean;
@@ -384,6 +384,9 @@ const PendingTask: React.FC = () => {
                         record.status === "Endorsement Approved" ||
                         record.status === "Sanction Approved"
                     ) {
+                        return;
+                    }
+                    if (isPermanentEmployee && (record.status || "").trim() !== "Pending PI Approval") {
                         return;
                     }
                     tasks.push({
@@ -823,6 +826,8 @@ const PendingTask: React.FC = () => {
                                                                 navigate(`/selection-committee-report/${task.id}`);
                                                             } else if (task.doctype === "Project Staff Details") {
                                                                 navigate(`/project-staff-joining?docname=${encodeURIComponent(task.id)}`);
+                                                            } else if (task.doctype === "Project Staff Resignation") {
+                                                                navigate(`/project-staff-resignation?edit=${encodeURIComponent(task.id)}`);
                                                             } else {
                                                                 navigate(`/pending-tasks/${task.doctype}/${task.id}`);
                                                             }
@@ -1052,6 +1057,8 @@ const PendingTask: React.FC = () => {
                                 setSelectedTask(null);
                                 if (selectedTask.doctype === "Project Staff Details") {
                                     navigate(`/project-staff-joining?docname=${encodeURIComponent(selectedTask.docname)}`);
+                                } else if (selectedTask.doctype === "Project Staff Resignation") {
+                                    navigate(`/project-staff-resignation?edit=${encodeURIComponent(selectedTask.docname)}`);
                                 } else {
                                     navigate(`/pending-tasks/${encodeURIComponent(selectedTask.doctype)}/${selectedTask.docname}`);
                                 }

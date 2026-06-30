@@ -592,6 +592,7 @@ const DirectPurchase: React.FC = () => {
     const [searchParams] = useSearchParams();
     const projectName = searchParams.get('project_no') || searchParams.get('project') || '';
     const editDocName = searchParams.get('edit') || '';
+    const fromProjectStaff = searchParams.get('from_project_staff') === '1';
 
     const [fields, setFields] = useState<Field[]>([]);
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
@@ -1085,6 +1086,11 @@ const DirectPurchase: React.FC = () => {
 
         fields.forEach(field => {
             let isVisible = true;
+
+            // Hide account_head when opened by project staff — PI fills it in next state
+            if (fromProjectStaff && field.fieldname === 'account_head') {
+                isVisible = false;
+            }
 
             // For Table fields with computation_rules conditional_visibility,
             // let the computation_rules take FULL precedence (over depends_on AND hidden)
