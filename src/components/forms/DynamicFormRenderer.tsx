@@ -712,7 +712,7 @@ const MemoizedFormField = memo(
             );
           }
 
-          // Department Data fields store the Frappe doc name (ID) — resolve to display name in read-only mode
+          // Department Data fields store the Frappe doc name (ID) — use DepartmentName to resolve in read-only mode
           if (
             isReadOnly &&
             value &&
@@ -723,10 +723,9 @@ const MemoizedFormField = memo(
               field.fieldname === "implementation_department" ||
               field.fieldname === "applicant_department")
           ) {
-            const deptLabel = options?.find((o) => o.value === value || o.label === value)?.label;
             return (
               <div className="flex min-h-10 w-full rounded-md border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]/60 px-3 py-2 text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5] whitespace-normal break-words leading-relaxed">
-                {deptLabel && deptLabel !== value ? deptLabel : <DepartmentName name={value} />}
+                <DepartmentName name={value} />
               </div>
             );
           }

@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/common/PageHeader';
 import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButton';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
-import { travelAPI, advanceSettlementAPI, temporaryAdvanceAPI, tadaAPI, recruitmentAdhocContractualAPI, selectionCommitteeReportAPI } from '@/services/apiService';
+import { travelAPI, advanceSettlementAPI, temporaryAdvanceAPI, tadaAPI, recruitmentAdhocContractualAPI, selectionCommitteeReportAPI, disbursalOfHonorariumAPI } from '@/services/apiService';
 import { useUserRoles } from '@/components/UserRole';
 import { getFileUrl } from '@/utils/fileUtils';
 import { POEditor } from '@/components/POEditor';
@@ -800,12 +800,17 @@ const TaskRegistryDetails: React.FC = () => {
     const [scrLinkOptions, setScrLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [isScrLoading, setIsScrLoading] = useState(false);
 
+    const [dohFields, setDohFields] = useState<FormField[]>([]);
+    const [dohLinkOptions, setDohLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    const [isDohLoading, setIsDohLoading] = useState(false);
+
     const { call: fetchTravelFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any } }>(travelAPI.getFields);
     const { call: fetchAdvFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any; child_table_meta?: any } }>(advanceSettlementAPI.getFields);
     const { call: fetchTaFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any } }>(temporaryAdvanceAPI.getFields);
     const { call: fetchTadaFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any; child_table_meta?: any } }>(tadaAPI.getFields);
     const { call: fetchRecFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any; child_table_meta?: any } }>(recruitmentAdhocContractualAPI.getFields);
     const { call: fetchScrFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any; child_table_meta?: any } }>(selectionCommitteeReportAPI.getFields);
+    const { call: fetchDohFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any; child_table_fields?: any } }>(disbursalOfHonorariumAPI.getFields);
 
     useEffect(() => {
         if (doctype === 'Disbursal of Consultancy' && name) navigate(`/disbursal-of-consultancy/${name}`, { replace: true });
@@ -863,6 +868,52 @@ const TaskRegistryDetails: React.FC = () => {
             fetchScrFields({ doc_name: name }).then(res => {
                 if (res?.message) { setScrFields(res.message.fields || []); setScrLinkOptions(res.message.link_options || {}); }
             }).finally(() => setIsScrLoading(false));
+        }
+    }, [doctype, name]);
+
+    useEffect(() => {
+        if (doctype === 'Disbursal of Honorarium' && name) {
+            setIsDohLoading(true);
+
+            const postList = (doctype: string, fields: string[]) =>
+                fetch('/api/method/frappe.client.get_list', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': (window as any).csrf_token || '' },
+                    body: JSON.stringify({ doctype, fields, limit_page_length: 0 }),
+                }).then(r => r.json()).catch(() => null);
+
+            Promise.all([
+                fetchDohFields({ doc_name: name }),
+                postList('Budget Head', ['name', 'budget_head']),
+                postList('Department_prornd', ['name', 'dept_name']),
+            ]).then(([fieldsRes, bhRes, deptRes]) => {
+                if (fieldsRes?.message) {
+                    const { fields: apiFields, link_options, child_table_fields } = fieldsRes.message;
+                    const enhanced = (apiFields || []).map((f: FormField) => {
+                        if (f.fieldtype === 'Table' && child_table_fields?.[f.fieldname]) {
+                            return { ...f, child_fields: child_table_fields[f.fieldname] };
+                        }
+                        return f;
+                    });
+                    setDohFields(enhanced);
+
+                    const merged: Record<string, LinkOption[]> = { ...(link_options || {}) };
+
+                    if (bhRes?.message) {
+                        const bhOpts: LinkOption[] = bhRes.message.map((h: any) => ({ value: h.name, label: h.budget_head || h.name }));
+                        merged['account_head'] = bhOpts;
+                        merged['Budget Head'] = bhOpts;
+                    }
+                    if (deptRes?.message) {
+                        const deptOpts: LinkOption[] = deptRes.message.map((d: any) => ({ value: d.name, label: d.dept_name || d.name }));
+                        merged['applicant_department'] = deptOpts;
+                        merged['department_for'] = deptOpts;
+                        merged['department'] = deptOpts;
+                        merged['Department_prornd'] = deptOpts;
+                    }
+                    setDohLinkOptions(merged);
+                }
+            }).finally(() => setIsDohLoading(false));
         }
     }, [doctype, name]);
 
@@ -964,6 +1015,15 @@ const TaskRegistryDetails: React.FC = () => {
             if (recFields.length > 0) return (
                 <RegistryPanel title="Recruitment Adhoc Contractual">
                     <DynamicFormRenderer fields={recFields} formData={data} linkOptions={recLinkOptions} {...readOnlyRendererProps} />
+                </RegistryPanel>
+            );
+        }
+
+        if (doctype === 'Disbursal of Honorarium') {
+            if (isDohLoading) return <Spinner />;
+            if (dohFields.length > 0) return (
+                <RegistryPanel title="Disbursal of Honorarium">
+                    <DynamicFormRenderer fields={dohFields} formData={data} linkOptions={dohLinkOptions} {...readOnlyRendererProps} />
                 </RegistryPanel>
             );
         }
