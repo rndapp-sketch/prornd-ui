@@ -155,28 +155,16 @@
 //                     >
 //                         {isActionLoading ? 'Processing...' : actionName}
 //                     </button>
-//                 );
-//             })}
-//         </div>
-//     );
-// };
-
-// export default TemporaryAdvanceActionButtons;
-
-
-
-
-
-// -=-=-=-=-=
-
 import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { ChevronDown, CheckCircleIcon, XCircleIcon, ChevronRight } from 'lucide-react';
 
 interface TemporaryAdvanceActionButtonsProps {
     docname: string;
     onActionComplete: () => void;
-    /** When true, all action buttons are disabled until a commitment exists (Staff RnD gate) */
+    /** When true, forward action buttons are disabled until a commitment exists (Staff R&D gate) */
     commitRequired?: boolean;
 }
 
@@ -197,25 +185,43 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
     // Extract actions from the API response
     const actions = actionsData?.message || [];
 
+    // Dropdown state
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
+    const toggleBtnRef = useRef<HTMLButtonElement>(null);
+    const dropdownPortalRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!dropdownOpen) return;
+        const handleOutside = (e: MouseEvent) => {
+            const target = e.target as Node;
+            if (!toggleBtnRef.current?.contains(target) && !dropdownPortalRef.current?.contains(target)) {
+                setDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleOutside);
+        return () => document.removeEventListener("mousedown", handleOutside);
+    }, [dropdownOpen]);
+
+    const handleToggleDropdown = () => {
+        if (!dropdownOpen && toggleBtnRef.current) {
+            const rect = toggleBtnRef.current.getBoundingClientRect();
+            setDropdownPos({ top: rect.bottom + window.scrollY + 4, right: window.innerWidth - rect.right });
+        }
+        setDropdownOpen(o => !o);
+    };
+
     // Log the fetched data for debugging
     useEffect(() => {
         console.log('🔍 TemporaryAdvanceActionButtons Debug Info:');
         console.log('  📌 docname:', docname);
         console.log('  📊 Raw actionsData:', JSON.stringify(actionsData, null, 2));
         console.log('  📋 actions array:', actions);
-        console.log('  📏 actions.length:', actions?.length);
         console.log('  🔧 isLoading:', isLoading);
-        console.log('  ❓ fetchError:', fetchError);
-        if (fetchError) {
-            console.error('❌ Full error details:', JSON.stringify(fetchError, null, 2));
-        }
-        // Check if the API returned an unexpected format
-        if (actionsData && !actionsData.message) {
-            console.warn('⚠️ API response missing "message" key. Full response:', actionsData);
-        }
-    }, [docname, actionsData, actions, fetchError, isLoading]);
+    }, [docname, actionsData, actions, isLoading]);
 
     const onAction = async (action: string) => {
+        setDropdownOpen(false);
         if (!confirm(`Are you sure you want to ${action} this temporary advance?`)) return;
 
         try {
@@ -280,64 +286,110 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
         );
     }
 
-    // Helper function to determine button color based on action - Claude UI Style
-    const getActionStyle = (actionName: string) => {
-        const lowerAction = actionName.toLowerCase();
-
-        // Primary Actions (Approve, Submit, Forward) - Terracotta
-        if (lowerAction.includes('approve') || lowerAction.includes('submit') || lowerAction.includes('forward')) {
-            return 'bg-[#D97757] hover:bg-[#c66a4e] text-white border-transparent shadow-sm hover:shadow-md';
-        }
-        // Destructive Actions (Reject, Cancel) - White with Red Text/Border
-        if (lowerAction.includes('reject') || lowerAction.includes('cancel')) {
-            return 'bg-white hover:bg-red-50 text-red-600 border-red-200 hover:border-red-300';
-        }
-        // Warning/Revision Actions (Return, Revise) - White with Amber Text/Border
-        if (lowerAction.includes('return') || lowerAction.includes('revise')) {
-            return 'bg-white hover:bg-amber-50 text-amber-600 border-amber-200 hover:border-amber-300';
-        }
-        // Default Secondary Actions - White with Zinc Text/Border
-        return 'bg-white hover:bg-zinc-50 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:text-zinc-900';
+    const categorise = (actionName: string) => {
+        const a = actionName.toLowerCase();
+        if (a.includes("forward") || a.includes("approve") || a.includes("submit") || a.includes("recommend")) return "forward";
+        if (a.includes("reject") || a.includes("cancel")) return "reject";
+        return "neutral";
     };
 
+    const itemStyle = (actionName: string) => {
+        const cat = categorise(actionName);
+        if (cat === "forward") return {
+            icon: <CheckCircleIcon className="h-3.5 w-3.5" />,
+            cls: "text-[#D97757] hover:bg-orange-50 dark:hover:bg-orange-900/20",
+            iconCls: "text-[#D97757]",
+        };
+        if (cat === "reject") return {
+            icon: <XCircleIcon className="h-3.5 w-3.5" />,
+            cls: "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20",
+            iconCls: "text-red-500",
+        };
+        return {
+            icon: <ChevronRight className="h-3.5 w-3.5" />,
+            cls: "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700",
+            iconCls: "text-zinc-400 dark:text-zinc-500",
+        };
+    };
+
+    const forwardActions = actions.map(action => typeof action === 'string' ? action : action.action || action.workflow_action || action.label || '').filter(a => a && categorise(a) === "forward");
+    const neutralActions = actions.map(action => typeof action === 'string' ? action : action.action || action.workflow_action || action.label || '').filter(a => a && categorise(a) === "neutral");
+    const rejectActions  = actions.map(action => typeof action === 'string' ? action : action.action || action.workflow_action || action.label || '').filter(a => a && categorise(a) === "reject");
+    const groups = [forwardActions, neutralActions, rejectActions].filter(g => g.length > 0);
+
     return (
-        <div className="flex flex-col gap-2">
-            {commitRequired && (
-                <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300 font-medium">
-                    A commitment must be submitted before forwarding this application.
-                </div>
-            )}
-            <div className="flex items-center gap-3 flex-wrap">
-                {actions.map((action: any, idx: number) => {
-                    let actionName = typeof action === 'string' ? action : '';
-                    if (typeof action === 'object' && action !== null) {
-                        actionName = action.action || action.workflow_action || action.label || action.transition_name || action.name || '';
-                        if (!actionName) {
-                            console.warn('Invalid action object:', action);
-                            return <span key={idx} className="text-xs text-red-400" title={JSON.stringify(action)}>Invalid Action</span>;
-                        }
-                    }
-                    if (!actionName) return null;
-                    return (
-                        <button
-                            key={actionName}
-                            onClick={() => onAction(actionName)}
-                            disabled={isActionLoading || commitRequired}
-                            title={commitRequired ? "Submit a commitment first" : undefined}
-                            className={cn(
-                                "px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 border",
-                                "focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-zinc-300 dark:focus:ring-offset-zinc-900",
-                                commitRequired
-                                    ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 border-zinc-200 dark:border-zinc-700 cursor-not-allowed"
-                                    : getActionStyle(actionName),
-                                isActionLoading && "opacity-50 cursor-not-allowed"
-                            )}
-                        >
-                            {isActionLoading ? 'Processing...' : actionName}
-                        </button>
-                    );
-                })}
+        <div className="flex flex-col items-end gap-1">
+            <div className="relative">
+                <button
+                    ref={toggleBtnRef}
+                    onClick={handleToggleDropdown}
+                    disabled={isActionLoading}
+                    className={cn(
+                        "inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg shadow-sm transition-all disabled:opacity-50",
+                        dropdownOpen
+                            ? "bg-[#D97757] text-white border border-[#c66a4e]"
+                            : "bg-[#FFF7ED] dark:bg-[#D97757]/15 text-[#D97757] border border-[#D97757]/40 hover:bg-[#D97757] hover:text-white dark:hover:bg-[#D97757]/30",
+                    )}
+                >
+                    {isActionLoading ? "Processing…" : "Actions"}
+                    <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-150", dropdownOpen && "rotate-180")} />
+                </button>
+
+                {dropdownOpen && createPortal(
+                    <div
+                        ref={dropdownPortalRef}
+                        style={{ position: "absolute", top: dropdownPos.top, right: dropdownPos.right, zIndex: 9999 }}
+                        className="min-w-[210px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden"
+                    >
+                        <div className="px-4 py-2 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-100 dark:border-zinc-700">
+                            <span className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                                Workflow Actions
+                            </span>
+                        </div>
+                        {groups.map((group, gi) => (
+                            <React.Fragment key={gi}>
+                                {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
+                                {group.map((actionName) => {
+                                    const isForward = categorise(actionName) === "forward";
+                                    const blocked = commitRequired && isForward;
+                                    const { icon, cls, iconCls } = itemStyle(actionName);
+                                    return (
+                                        <div key={actionName} className="relative group/item">
+                                            <button
+                                                onClick={() => { if (!blocked) onAction(actionName); }}
+                                                disabled={isActionLoading || blocked}
+                                                className={cn(
+                                                    "w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left transition-colors disabled:cursor-not-allowed",
+                                                    blocked ? "opacity-40" : cls,
+                                                )}
+                                            >
+                                                <span className={iconCls}>{icon}</span>
+                                                {actionName}
+                                                {blocked && (
+                                                    <span className="ml-auto text-[10px] font-normal text-zinc-400">blocked</span>
+                                                )}
+                                            </button>
+                                            {blocked && (
+                                                <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/item:block z-[9999]">
+                                                    <div className="bg-zinc-900 text-white text-[11px] rounded-lg px-3 py-1.5 shadow-lg whitespace-nowrap">
+                                                        A commitment must be submitted before forwarding this application.
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </React.Fragment>
+                        ))}
+                    </div>,
+                    document.body,
+                )}
             </div>
+            {commitRequired && (
+                <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                    A commitment must be submitted before forwarding.
+                </p>
+            )}
         </div>
     );
 };
