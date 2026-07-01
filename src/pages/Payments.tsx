@@ -422,17 +422,7 @@ const Payments: React.FC = () => {
                     >
                         Pending Commits
                     </button>
-                    <button
-                        onClick={() => setActiveTab('history')}
-                        className={cn(
-                            "h-9 flex-shrink-0 rounded-lg border px-3 text-[11px] font-extrabold uppercase tracking-wide transition-colors",
-                            activeTab === 'history'
-                                ? "bg-[#ECFDF5] border-[#10B981] text-[#065F46]"
-                                : "border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] hover:bg-[#ECFDF5]"
-                        )}
-                    >
-                        Payment History
-                    </button>
+                    {/* Payment History tab hidden temporarily */}
                 </div>
 
                 {activeTab === 'commits' && (
