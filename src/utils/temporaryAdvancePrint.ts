@@ -1,4 +1,7 @@
 import tempTemplate from "@/pages/printformat/temporary_advance_format.html?raw";
+import { ToWords } from "to-words";
+
+const toWords = new ToWords({ localeCode: "en-IN", converterOptions: { ignoreDecimal: false } });
 
 const fmtNum = (val: any) => {
     const n = Number(val) || 0;
@@ -8,10 +11,18 @@ const fmtNum = (val: any) => {
     });
 };
 
+const computeAmountInWords = (data: Record<string, any>): string => {
+    if (data.amount_in_words) return data.amount_in_words;
+    const n = Number(data.amount);
+    if (!n) return "-";
+    try { return toWords.convert(n); } catch { return "-"; }
+};
+
 export function generateTemporaryAdvanceHtml(
     data: Record<string, any>,
     resolvedProjectTitle: string,
-    resolvedAccountHead: string
+    resolvedAccountHead: string,
+    resolvedApplicantName = ""
 ): string {
     const creation = data.creation
         ? new Date(data.creation).toLocaleDateString("en-IN", {
@@ -40,7 +51,7 @@ export function generateTemporaryAdvanceHtml(
         `;
     }
 
-    const indenterName = data.applicant_name || data.owner || "";
+    const indenterName = resolvedApplicantName || data.applicant_name || data.owner || "";
 
     const cleanHtml = tempTemplate
         .replace("{{DOC_REF}}", data.name || "")
@@ -50,7 +61,7 @@ export function generateTemporaryAdvanceHtml(
         .replace("{{PROJECT_TITLE}}", resolvedProjectTitle || "")
         .replace("{{ADVANCE_AMOUNT}}", `₹ ${fmtNum(data.amount)}`)
         .replace("{{APPLYING_FOR}}", data.applying_for_select || "-")
-        .replace("{{AMOUNT_IN_WORDS}}", data.amount_in_words || "-")
+        .replace("{{AMOUNT_IN_WORDS}}", computeAmountInWords(data))
         .replace("{{APPLICANT_NAME}}", indenterName)
         .replace("{{APPLICANT_WEBMAIL}}", data.applicant_webmail || data.owner || "")
         .replace("{{APPLICANT_DEPARTMENT}}", data.applicant_department || "-")

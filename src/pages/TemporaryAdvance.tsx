@@ -46,7 +46,7 @@ interface FormDataResponse {
 }
 
 // --- STYLES ---
-const inputClasses = "w-full h-10 px-3 bg-white dark:bg-[#27272A] border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] rounded-[0.4375rem] text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] dark:placeholder:text-[#71717A] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7] disabled:opacity-55 disabled:bg-[#FAFAF9] dark:disabled:bg-[#27272A]/50 disabled:text-[#71717A] read-only:bg-[#FAFAF9] dark:read-only:bg-[#27272A]/50 transition-colors duration-150";
+const inputClasses = "w-full h-10 px-3 bg-white dark:bg-[#27272A] border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] rounded-[0.4375rem] text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] dark:placeholder:text-[#71717A] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7] disabled:bg-[#EEECEA] dark:disabled:bg-[#2A2A2E] disabled:text-[#27272A] dark:disabled:text-[#D4D4D8] disabled:border-[#D4D0CA] dark:disabled:border-[#3F3F46] disabled:cursor-default read-only:bg-[#EEECEA] dark:read-only:bg-[#2A2A2E] transition-colors duration-150";
 
 const formatFieldLabel = (label?: string | null, fieldname?: string) => {
     const raw = label || fieldname || "";
@@ -229,11 +229,6 @@ const MemoizedFormField = memo(({
 });
 
 // --- REUSABLE UI COMPONENTS ---
-const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white dark:bg-[#27272A] p-4 sm:p-5 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm", className)}>
-        {children}
-    </div>
-);
 
 const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: {
     children: React.ReactNode;
@@ -352,16 +347,16 @@ const TemporaryAdvance: React.FC = () => {
                         console.log('Auto-fill project_code:', initialData.project_code);
                     }
 
-                    // Set project name if passed via URL
+                    // Set project name — look up label from link_options using project_code (=project_no),
+                    // then fall back to projectTitle from URL, then fetch from backend.
                     if (!initialData.project_name) {
-                        const projectId = searchParams.get('projectId') || '';
-                        let resolvedTitle = projectTitle;
+                        let resolvedTitle = projectTitle; // may be empty if URL param missing
 
-                        // If no projectTitle but we have projectId, look up the label from link_options
-                        if (!resolvedTitle && projectId) {
+                        // Check link_options for a label matching the project_no
+                        if (!resolvedTitle && projectName) {
                             const projectNameOpts = link_options?.project_name || link_options?.project_code || [];
-                            const match = projectNameOpts.find((opt: LinkOption) => opt.value === projectId);
-                            if (match) {
+                            const match = projectNameOpts.find((opt: LinkOption) => opt.value === projectName);
+                            if (match?.label && match.label !== projectName) {
                                 resolvedTitle = match.label;
                             }
                         }
@@ -369,7 +364,6 @@ const TemporaryAdvance: React.FC = () => {
                         if (resolvedTitle) {
                             initialData.project_name = resolvedTitle;
                             delete link_options.project_name;
-                            console.log('Auto-fill project_name:', initialData.project_name);
                         }
                     }
 
@@ -520,19 +514,38 @@ const TemporaryAdvance: React.FC = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [formData.applying_for_select, dataLoaded]);
 
-    // Effect to calculate amount in words when amount is prefilled
+    // Fill amount_in_words once when prefilled data loads (handleChange covers live user input)
     useEffect(() => {
-        if (dataLoaded && (formData.amount || formData.amount_applied) && !formData.amount_in_words) {
-            const amountValue = parseFloat(formData.amount || formData.amount_applied);
-            if (!isNaN(amountValue) && amountValue > 0) {
-                setFormData(prev => ({
-                    ...prev,
-                    amount_in_words: toWords.convert(amountValue)
-                }));
-            }
+        if (!dataLoaded) return;
+        const n = parseFloat(formData.amount || formData.amount_applied);
+        if (!isNaN(n) && n > 0 && !formData.amount_in_words) {
+            setFormData(prev => ({ ...prev, amount_in_words: toWords.convert(n) }));
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dataLoaded]);
+
+    // Fetch project title by project_no when data is loaded and project_name is still empty
+    useEffect(() => {
+        if (!dataLoaded || !projectName || formData.project_name) return;
+        fetch("/api/method/frappe.client.get_list", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+                doctype: "Project Registration",
+                filters: { project_no: projectName },
+                fields: ["project_title"],
+                limit_page_length: 1,
+            }),
+        })
+            .then(r => r.json())
+            .then(res => {
+                const title = res?.message?.[0]?.project_title || "";
+                if (title) setFormData(prev => ({ ...prev, project_name: title }));
+            })
+            .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dataLoaded, projectName]);
 
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -765,7 +778,7 @@ const TemporaryAdvance: React.FC = () => {
                         </FrappeButton>
                         <FrappeButton
                             type="submit"
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || !formData.declaration_settlement || !formData.declaration_rate_contract}
                             className="bg-[#D97757] text-white border-[#D97757] hover:bg-[#c5694d] disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                             {isSubmitting ? 'Saving...' : 'Submit Temporary Advance'}

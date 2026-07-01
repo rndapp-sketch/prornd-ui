@@ -808,6 +808,118 @@ const TaskRegistryDetails: React.FC = () => {
 
     const [resolvedAccountHead, setResolvedAccountHead] = useState<string>("");
     const [resolvedProjectTitle, setResolvedProjectTitle] = useState<string>("");
+    const [resolvedApplicantName, setResolvedApplicantName] = useState<string>("");
+
+    const [displayData, setDisplayData] = useState<Record<string, any>>({});
+
+    useEffect(() => {
+        if (data) {
+            setDisplayData(data);
+        }
+    }, [data]);
+
+    const resolveLinkFields = async (
+        fields: FormField[],
+        currentData: Record<string, any>,
+    ) => {
+        const fieldsToResolve = fields.filter(
+            (f) =>
+                (f.fieldname === "applicant_department" ||
+                    f.fieldname === "applicant_category" ||
+                    f.fieldname.includes("department") ||
+                    f.fieldname.includes("category")) &&
+                f.fieldtype === "Link" &&
+                f.options &&
+                currentData[f.fieldname],
+        );
+
+        if (fieldsToResolve.length === 0) return;
+
+        const updates: Record<string, any> = {};
+
+        await Promise.all(
+            fieldsToResolve.map(async (field) => {
+                const value = currentData[field.fieldname];
+                if (!value) return;
+
+                try {
+                    const res = await fetch(`/api/v2/document/${encodeURIComponent(field.options ?? '')}/${encodeURIComponent(String(value))}`, {
+                        credentials: "include",
+                        headers: { Accept: "application/json" },
+                    });
+                    if (!res.ok) return;
+                    const json = await res.json();
+                    if (json?.data) {
+                        const doc = json.data;
+                        let readable = value;
+                        if (doc.title) readable = doc.title;
+                        else if (doc.dept_name) readable = doc.dept_name;
+                        else if (doc.department_name) readable = doc.department_name;
+                        else if (doc.employee_category_name)
+                            readable = doc.employee_category_name;
+                        else if (doc.employee_category)
+                            readable = doc.employee_category;
+                        else if (doc.category_name)
+                            readable = doc.category_name;
+                        else if (doc.designation_name)
+                            readable = doc.designation_name;
+                        else if (doc.name && doc.name !== value)
+                            readable = doc.name;
+
+                        if (
+                            (field.options === "Department" || field.options === "Department_prornd") &&
+                            (doc.dept_name || doc.department_name)
+                        )
+                            readable = doc.dept_name || doc.department_name;
+                        if (
+                            field.options === "Employee Category" &&
+                            (doc.employee_category || doc.employee_category_name)
+                        )
+                            readable = doc.employee_category || doc.employee_category_name;
+
+                        if (readable === value) {
+                            const potential = Object.values(doc).find(
+                                (v) =>
+                                    typeof v === "string" &&
+                                    v !== value &&
+                                    (v as string).length > 2 &&
+                                    (v as string).length < 50,
+                            );
+                            if (potential) readable = potential as string;
+                        }
+
+                        updates[field.fieldname] = readable;
+                    }
+                } catch (e) {
+                    console.warn(
+                        `Failed to resolve link for ${field.fieldname}`,
+                        e,
+                    );
+                }
+            }),
+        );
+
+        if (Object.keys(updates).length > 0) {
+            setDisplayData((prev) => ({ ...prev, ...updates }));
+        }
+    };
+
+    useEffect(() => {
+        if (data) {
+            let activeFields: FormField[] = [];
+            if (doctype === 'Travel') activeFields = travelFields;
+            else if (doctype === 'Advance Settlement') activeFields = advFields;
+            else if (doctype === 'Temporary Advance') activeFields = taFields;
+            else if (doctype === 'TA DA Settlement') activeFields = tadaFields;
+            else if (doctype === 'Recruitment Adhoc Contractual') activeFields = recFields;
+            else if (doctype === 'Selection Committee Report') activeFields = scrFields;
+            else if (doctype === 'Disbursal of Honorarium') activeFields = dohFields;
+
+            if (activeFields.length > 0) {
+                resolveLinkFields(activeFields, data);
+            }
+        }
+    }, [data, doctype, travelFields, advFields, taFields, tadaFields, recFields, scrFields, dohFields]);
 
     useEffect(() => {
         if (doctype === "Temporary Advance" && data) {
@@ -821,21 +933,76 @@ const TaskRegistryDetails: React.FC = () => {
                     .catch(err => console.error("Failed to resolve budget head", err));
             }
 
-            // Project Title
-            if (data.project_code) {
-                fetch(`/api/v2/document/Project%20Proposal/${data.project_code}`)
+            // Department — resolve raw ID to human-readable name for print
+            const deptId = data.applicant_department;
+            if (deptId) {
+                fetch(`/api/v2/document/Department_prornd/${encodeURIComponent(deptId)}`, { credentials: "include" })
                     .then(r => r.json())
                     .then(res => {
-                        if (res.data) setResolvedProjectTitle(res.data.project_title || res.data.name);
+                        const name = res.data?.dept_name;
+                        if (name) setDisplayData(prev => ({ ...prev, applicant_department: name }));
                     })
-                    .catch(err => console.error("Failed to resolve project", err));
+                    .catch(() => {});
+            }
+
+            // Applicant full name — applicant_name may store email; resolve from User
+            const email = data.applicant_webmail || data.owner || "";
+            if (email) {
+                fetch(`/api/method/frappe.client.get_value?doctype=User&filters=${encodeURIComponent(email)}&fieldname=full_name`, { credentials: "include" })
+                    .then(r => r.json())
+                    .then(res => {
+                        const fullName = res.message?.full_name;
+                        if (fullName) setResolvedApplicantName(fullName);
+                    })
+                    .catch(() => {});
+            }
+
+            // Project Title — project_code/project_no is the project number, NOT the Frappe doc name.
+            // Must search by project_no filter, not fetch by document name.
+            const projectRef = data.project_code || data.project_no;
+            if (projectRef) {
+                const resolveProjectTitle = async () => {
+                    // 1. Check loaded link options for a label that differs from the raw ID
+                    const opts = taLinkOptions[data.project_code ? 'project_code' : 'project_no']
+                        || taLinkOptions['Project Registration']
+                        || taLinkOptions['Project Proposal'] || [];
+                    const fromOpts = (opts as any[]).find((o) => o.value === projectRef);
+                    if (fromOpts?.label && fromOpts.label !== projectRef) {
+                        setResolvedProjectTitle(fromOpts.label);
+                        setDisplayData(prev => ({ ...prev, project_name: fromOpts.label }));
+                        return;
+                    }
+                    // 2. Search Project Registration by project_no using POST (GET with encoded filters is unreliable)
+                    try {
+                        const postOpts = { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include" as RequestCredentials };
+                        let res = await fetch("/api/method/frappe.client.get_list", { ...postOpts, body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
+                        let json = await res.json();
+                        let title = json?.message?.[0]?.project_title || "";
+                        // 3. Fall back to Project Proposal
+                        if (!title) {
+                            res = await fetch("/api/method/frappe.client.get_list", { ...postOpts, body: JSON.stringify({ doctype: "Project Proposal", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
+                            json = await res.json();
+                            title = json?.message?.[0]?.project_title || "";
+                        }
+                        if (title) {
+                            setResolvedProjectTitle(title);
+                            setDisplayData(prev => ({ ...prev, project_name: title }));
+                        } else if (data.project_name) {
+                            setResolvedProjectTitle(data.project_name);
+                        }
+                    } catch (err) {
+                        console.error("Failed to resolve project", err);
+                        if (data.project_name) setResolvedProjectTitle(data.project_name);
+                    }
+                };
+                resolveProjectTitle();
             }
         }
-    }, [data, doctype]);
+    }, [data, doctype, taLinkOptions]);
 
     const handlePrintTemporaryAdvance = () => {
         if (!data) return;
-        const html = generateTemporaryAdvanceHtml(data, resolvedProjectTitle, resolvedAccountHead);
+        const html = generateTemporaryAdvanceHtml(displayData, resolvedProjectTitle, resolvedAccountHead, resolvedApplicantName);
         const printWindow = window.open("", "_blank");
         if (printWindow) {
             printWindow.document.write(html);
@@ -1020,7 +1187,7 @@ const TaskRegistryDetails: React.FC = () => {
                         webmail={data?.webmail_id_travel} fullName={data?.applicant_name_travel}
                         department={data?.department_travel} designation={data?.designation_travel}
                         projectNo={data?.travel_project_number} />
-                    <DynamicFormRenderer fields={travelFields} formData={data} linkOptions={travelLinkOptions} {...readOnlyRendererProps} />
+                    <DynamicFormRenderer fields={travelFields} formData={displayData} linkOptions={travelLinkOptions} {...readOnlyRendererProps} />
                 </RegistryPanel>
             );
         }
@@ -1029,7 +1196,7 @@ const TaskRegistryDetails: React.FC = () => {
             if (isAdvLoading) return <Spinner />;
             if (advFields.length > 0) return (
                 <RegistryPanel title="Advance Settlement">
-                    <DynamicFormRenderer fields={advFields} formData={data} linkOptions={advLinkOptions} {...readOnlyRendererProps} />
+                    <DynamicFormRenderer fields={advFields} formData={displayData} linkOptions={advLinkOptions} {...readOnlyRendererProps} />
                 </RegistryPanel>
             );
         }
@@ -1038,7 +1205,7 @@ const TaskRegistryDetails: React.FC = () => {
             if (isTaLoading) return <Spinner />;
             if (taFields.length > 0) return (
                 <RegistryPanel title="Temporary Advance">
-                    <DynamicFormRenderer fields={taFields} formData={data} linkOptions={taLinkOptions} {...readOnlyRendererProps} />
+                    <DynamicFormRenderer fields={taFields.filter(f => f.fieldname !== 'applying_for_select')} formData={displayData} linkOptions={taLinkOptions} {...readOnlyRendererProps} />
                 </RegistryPanel>
             );
         }
@@ -1047,7 +1214,7 @@ const TaskRegistryDetails: React.FC = () => {
             if (isTadaLoading) return <Spinner />;
             if (tadaFields.length > 0) return (
                 <RegistryPanel title="TA DA Settlement">
-                    <DynamicFormRenderer fields={tadaFields} formData={data} linkOptions={tadaLinkOptions} {...readOnlyRendererProps} />
+                    <DynamicFormRenderer fields={tadaFields} formData={displayData} linkOptions={tadaLinkOptions} {...readOnlyRendererProps} />
                 </RegistryPanel>
             );
         }
@@ -1056,7 +1223,7 @@ const TaskRegistryDetails: React.FC = () => {
             if (isRecLoading) return <Spinner />;
             if (recFields.length > 0) return (
                 <RegistryPanel title="Recruitment Adhoc Contractual">
-                    <DynamicFormRenderer fields={recFields} formData={data} linkOptions={recLinkOptions} {...readOnlyRendererProps} />
+                    <DynamicFormRenderer fields={recFields} formData={displayData} linkOptions={recLinkOptions} {...readOnlyRendererProps} />
                 </RegistryPanel>
             );
         }
@@ -1065,7 +1232,7 @@ const TaskRegistryDetails: React.FC = () => {
             if (isDohLoading) return <Spinner />;
             if (dohFields.length > 0) return (
                 <RegistryPanel title="Disbursal of Honorarium">
-                    <DynamicFormRenderer fields={dohFields} formData={data} linkOptions={dohLinkOptions} {...readOnlyRendererProps} />
+                    <DynamicFormRenderer fields={dohFields} formData={displayData} linkOptions={dohLinkOptions} {...readOnlyRendererProps} />
                 </RegistryPanel>
             );
         }
@@ -1076,7 +1243,7 @@ const TaskRegistryDetails: React.FC = () => {
                     <h3 className="text-[13px] font-extrabold tracking-wide text-[#3F3F46] dark:text-[#E4E4E7] uppercase">{doctype}</h3>
                 </div>
                 <div className="p-5 md:p-6">
-                    <GenericDocViewer data={data} />
+                    <GenericDocViewer data={displayData} />
                 </div>
             </div>
         );

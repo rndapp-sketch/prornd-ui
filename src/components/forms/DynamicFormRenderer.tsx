@@ -733,6 +733,14 @@ const MemoizedFormField = memo(
           // If linkOptions are available for this Data field (e.g. local_supplier),
           // render as a select dropdown so the user can choose from the list.
           if (options && options.length > 1) {
+            if (isReadOnly) {
+              const resolvedLabel = options.find((o) => o.value === value || o.label === value)?.label;
+              return (
+                <div className="flex min-h-10 w-full rounded-md border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]/60 px-3 py-2 text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5] whitespace-normal break-words leading-relaxed">
+                  {resolvedLabel || value || "-"}
+                </div>
+              );
+            }
             // formData stores the human-readable name; find the matching option
             // by label so the <select> controlled value reflects the selection.
             const selectedId =

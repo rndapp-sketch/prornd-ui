@@ -2089,6 +2089,7 @@ const PendingTaskDetails: React.FC = () => {
 
     const [resolvedAccountHead, setResolvedAccountHead] = useState<string>("");
     const [resolvedProjectTitle, setResolvedProjectTitle] = useState<string>("");
+    const [resolvedApplicantName, setResolvedApplicantName] = useState<string>("");
 
     useEffect(() => {
         if (doctype === "Temporary Advance" && data) {
@@ -2102,21 +2103,73 @@ const PendingTaskDetails: React.FC = () => {
                     .catch(err => console.error("Failed to resolve budget head", err));
             }
 
-            // Project Title
-            if (data.project_code) {
-                fetch(`/api/v2/document/Project%20Proposal/${data.project_code}`)
+            // Department — resolve raw ID to human-readable name for print
+            const deptId = data.applicant_department;
+            if (deptId) {
+                fetch(`/api/v2/document/Department_prornd/${encodeURIComponent(deptId)}`, { credentials: "include" })
                     .then(r => r.json())
                     .then(res => {
-                        if (res.data) setResolvedProjectTitle(res.data.project_title || res.data.name);
+                        const name = res.data?.dept_name;
+                        if (name) setDisplayData(prev => ({ ...prev, applicant_department: name }));
                     })
-                    .catch(err => console.error("Failed to resolve project", err));
+                    .catch(() => {});
+            }
+
+            // Applicant full name — applicant_name may store email; resolve from User
+            const email = data.applicant_webmail || data.owner || "";
+            if (email) {
+                fetch(`/api/method/frappe.client.get_value?doctype=User&filters=${encodeURIComponent(email)}&fieldname=full_name`, { credentials: "include" })
+                    .then(r => r.json())
+                    .then(res => {
+                        const fullName = res.message?.full_name;
+                        if (fullName) setResolvedApplicantName(fullName);
+                    })
+                    .catch(() => {});
+            }
+
+            // Project Title — project_code/project_no is the project number, NOT the Frappe doc name.
+            // Must search by project_no filter, not fetch by document name.
+            const projectRef = data.project_code || data.project_no;
+            if (projectRef) {
+                const resolveProjectTitle = async () => {
+                    const opts = temporaryAdvanceLinkOptions[data.project_code ? 'project_code' : 'project_no']
+                        || temporaryAdvanceLinkOptions['Project Registration']
+                        || temporaryAdvanceLinkOptions['Project Proposal'] || [];
+                    const fromOpts = (opts as any[]).find((o) => o.value === projectRef);
+                    if (fromOpts?.label && fromOpts.label !== projectRef) {
+                        setResolvedProjectTitle(fromOpts.label);
+                        setDisplayData(prev => ({ ...prev, project_name: fromOpts.label }));
+                        return;
+                    }
+                    try {
+                        const postOpts = { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include" as RequestCredentials };
+                        let res = await fetch("/api/method/frappe.client.get_list", { ...postOpts, body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
+                        let json = await res.json();
+                        let title = json?.message?.[0]?.project_title || "";
+                        if (!title) {
+                            res = await fetch("/api/method/frappe.client.get_list", { ...postOpts, body: JSON.stringify({ doctype: "Project Proposal", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
+                            json = await res.json();
+                            title = json?.message?.[0]?.project_title || "";
+                        }
+                        if (title) {
+                            setResolvedProjectTitle(title);
+                            setDisplayData(prev => ({ ...prev, project_name: title }));
+                        } else if (data.project_name) {
+                            setResolvedProjectTitle(data.project_name);
+                        }
+                    } catch (err) {
+                        console.error("Failed to resolve project", err);
+                        if (data.project_name) setResolvedProjectTitle(data.project_name);
+                    }
+                };
+                resolveProjectTitle();
             }
         }
-    }, [data, doctype]);
+    }, [data, doctype, temporaryAdvanceLinkOptions]);
 
     const handlePrintTemporaryAdvance = () => {
         if (!data) return;
-        const html = generateTemporaryAdvanceHtml(data, resolvedProjectTitle, resolvedAccountHead);
+        const html = generateTemporaryAdvanceHtml(displayData, resolvedProjectTitle, resolvedAccountHead, resolvedApplicantName);
         const printWindow = window.open("", "_blank");
         if (printWindow) {
             printWindow.document.write(html);
@@ -2153,43 +2206,43 @@ const PendingTaskDetails: React.FC = () => {
                 if (!value) return;
 
                 try {
-                    // Fetch the linked document
-                    // We use a specific call or generic get_value if possible, but get_doc is safer without specific API
-                    const response = await (window as any).frappe?.call({
-                        method: "frappe.client.get",
-                        args: {
-                            doctype: field.options,
-                            name: value,
-                        },
+                    // Fetch the linked document using standard fetch API
+                    const res = await fetch(`/api/v2/document/${encodeURIComponent(field.options ?? '')}/${encodeURIComponent(String(value))}`, {
+                        credentials: "include",
+                        headers: { Accept: "application/json" },
                     });
-
-                    if (response?.message) {
-                        const doc = response.message;
+                    if (!res.ok) return;
+                    const json = await res.json();
+                    if (json?.data) {
+                        const doc = json.data;
                         // Try to find a readable field
-                        // Common readable fields: title, department_name, employee_category_name, name (if not hash-like)
-                        // We can also check if the doc has a 'meta' title_field, but we don't have that here.
-
                         let readable = value;
                         if (doc.title) readable = doc.title;
-                        else if (doc.department_name)
-                            readable = doc.department_name;
+                        else if (doc.dept_name) readable = doc.dept_name;
+                        else if (doc.department_name) readable = doc.department_name;
                         else if (doc.employee_category_name)
                             readable = doc.employee_category_name;
+                        else if (doc.employee_category)
+                            readable = doc.employee_category;
+                        else if (doc.category_name)
+                            readable = doc.category_name;
                         else if (doc.designation_name)
                             readable = doc.designation_name;
                         else if (doc.name && doc.name !== value)
-                            readable = doc.name; // If name is different from ID (unlikely in Frappe unless custom)
+                            readable = doc.name;
 
-                        // Special case for our known hashes
+                        // Special case for our known doctypes
                         if (
-                            field.options === "Department" &&
-                            doc.department_name
+                            (field.options === "Department" || field.options === "Department_prornd") &&
+                            (doc.dept_name || doc.department_name)
                         )
-                            readable = doc.department_name;
-                        if (field.options === "Employee Category" && doc.name)
-                            readable = doc.name; // Often Category name IS the ID if readable, but here it's a hash
-                        // If Employee Category uses 'name' as human readable but we see a hash, then maybe the field is different.
-                        // Let's look for any likely field.
+                            readable = doc.dept_name || doc.department_name;
+                        if (
+                            field.options === "Employee Category" &&
+                            (doc.employee_category || doc.employee_category_name)
+                        )
+                            readable = doc.employee_category || doc.employee_category_name;
+
                         if (readable === value) {
                             // Fallback: look for any string field that isn't the ID
                             const potential = Object.values(doc).find(
@@ -2990,7 +3043,7 @@ const PendingTaskDetails: React.FC = () => {
                             ) : temporaryAdvanceFields.length > 0 ? (
                                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-6">
                                     <DynamicFormRenderer
-                                        fields={temporaryAdvanceFields}
+                                        fields={temporaryAdvanceFields.filter(f => f.fieldname !== 'applying_for_select')}
                                         formData={displayData}
                                         linkOptions={
                                             temporaryAdvanceLinkOptions
