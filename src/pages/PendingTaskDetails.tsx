@@ -26,6 +26,7 @@ import {
     MessageSquareIcon,
     ChevronDown,
     ChevronRight,
+    Printer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 // import { AppSidebar } from '@/components/RndSidebar';
@@ -56,6 +57,7 @@ import { ActivityLog } from "@/components/ActivityLog";
 import { BudgetActionsSidebar } from "@/components/BudgetActionsSidebar";
 import TemporaryAdvanceActionButtons from "@/components/TemporaryAdvanceActionButtons";
 import TADASettlementActionButtons from "@/components/TADASettlementActionButtons";
+import { generateTemporaryAdvanceHtml } from "@/utils/temporaryAdvancePrint";
 import { useUserRoles } from "@/components/UserRole";
 import { POEditor } from "@/components/POEditor";
 import { DeclarationFields } from "@/components/DeclarationFields";
@@ -2085,6 +2087,46 @@ const PendingTaskDetails: React.FC = () => {
         }
     }, [data]);
 
+    const [resolvedAccountHead, setResolvedAccountHead] = useState<string>("");
+    const [resolvedProjectTitle, setResolvedProjectTitle] = useState<string>("");
+
+    useEffect(() => {
+        if (doctype === "Temporary Advance" && data) {
+            // Account Head
+            if (data.account_head) {
+                fetch(`/api/v2/document/Budget%20Head/${data.account_head}`)
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.data) setResolvedAccountHead(res.data.budget_head || res.data.name);
+                    })
+                    .catch(err => console.error("Failed to resolve budget head", err));
+            }
+
+            // Project Title
+            if (data.project_code) {
+                fetch(`/api/v2/document/Project%20Proposal/${data.project_code}`)
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.data) setResolvedProjectTitle(res.data.project_title || res.data.name);
+                    })
+                    .catch(err => console.error("Failed to resolve project", err));
+            }
+        }
+    }, [data, doctype]);
+
+    const handlePrintTemporaryAdvance = () => {
+        if (!data) return;
+        const html = generateTemporaryAdvanceHtml(data, resolvedProjectTitle, resolvedAccountHead);
+        const printWindow = window.open("", "_blank");
+        if (printWindow) {
+            printWindow.document.write(html);
+            printWindow.document.close();
+            setTimeout(() => {
+                printWindow.print();
+            }, 500);
+        }
+    };
+
     // Helper to resolve Linked fields to readable names
     const resolveLinkFields = async (
         fields: FormField[],
@@ -2398,15 +2440,7 @@ const PendingTaskDetails: React.FC = () => {
         return <GlobalLoader isLoading delay={0} />;
     }
 
-    if (doctype === "Temporary Advance") {
-        return (
-            <TemporaryAdvanceDetailsView
-                docName={name}
-                backUrl="/pending-task"
-                backLabel="Back to Pending Tasks"
-            />
-        );
-    }
+
 
     if (error || !data) {
         return (
@@ -2800,12 +2834,25 @@ const PendingTaskDetails: React.FC = () => {
                                 />
                             )}
                             {doctype === "Temporary Advance" && name && (
-                                <TemporaryAdvanceActionButtons
-                                    docname={name}
-                                    onActionComplete={() =>
-                                        window.location.reload()
-                                    }
-                                />
+                                <div className="flex items-center gap-3">
+                                    {isRnDStaff && (
+                                        <button
+                                            onClick={handlePrintTemporaryAdvance}
+                                            className="inline-flex items-center justify-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-700 shadow-sm transition-all"
+                                            title="Print Temporary Advance"
+                                        >
+                                            <Printer className="h-4 w-4" />
+                                            Print
+                                        </button>
+                                    )}
+                                    <TemporaryAdvanceActionButtons
+                                        docname={name}
+                                        onActionComplete={() =>
+                                            window.location.reload()
+                                        }
+                                        commitRequired={isRnDStaff && isCommittedForGate === false}
+                                    />
+                                </div>
                             )}
                             {doctype === "Direct Purchase" && name && (
                                 <DirectPurchaseWorkflowActions
@@ -3694,6 +3741,7 @@ const PendingTaskDetails: React.FC = () => {
                                         isStaff={true}
                                         docName={name}
                                         doctype={doctype}
+                                        onStagingStatusChange={setIsCommittedForGate}
                                     />
                                 )}
                             {/* Setup for TA DA Settlement */}
