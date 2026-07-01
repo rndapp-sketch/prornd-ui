@@ -595,6 +595,9 @@ const ReimbursementDetails: React.FC = () => {
           if (docData.account_head) {
             nameMap.account_head = await resolveLinkName("Budget Head", docData.account_head, "budget_head");
           }
+          if (docData.applicant_webmail) {
+            nameMap.applicant_name = await resolveLinkName("User", docData.applicant_webmail, "full_name");
+          }
           if (docData.project_name) {
             nameMap.project_name = await resolveLinkName("Project Registration", docData.project_name, "project_title");
             if (nameMap.project_name === docData.project_name) {
@@ -684,6 +687,8 @@ const ReimbursementDetails: React.FC = () => {
       .map((dec) => `<li>${dec}</li>`)
       .join("");
 
+    const applicantName = resolvedNames.applicant_name || data.applicant_webmail || "-";
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -691,113 +696,230 @@ const ReimbursementDetails: React.FC = () => {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reimbursement - ${data.name}</title>
     <style>
-        @page { size: A4; margin: 10mm; }
-        * { box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; font-size: 11px; line-height: 1.3; color: #333; margin: 0; padding: 10px; background-color: #f0f0f0; }
-        .page { width: 190mm; max-width: 100%; margin: 0 auto; background-color: white; padding: 15px 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); position: relative; min-height: 277mm; }
-        .top-meta { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 8px; color: #666; }
-        .header-box { border: 1px solid #000; padding: 8px 12px; display: flex; align-items: center; margin-bottom: 8px; }
-        .logo-img { width: 60px; height: 60px; margin-right: 15px; object-fit: contain; }
-        .header-text h1 { margin: 0; font-size: 16px; color: #2d3e8b; text-transform: uppercase; }
-        .header-text h2 { margin: 0; font-size: 14px; color: #2d3e8b; }
-        .header-text p { margin: 2px 0 0; font-weight: bold; font-size: 11px; }
-        .barcode-container { margin-top: 5px; text-align: left; font-size: 10px; }
-        .barcode { width: 150px; height: 25px; background: linear-gradient(90deg, #000 2%, transparent 2%, transparent 4%, #000 4%, #000 5%, transparent 5%, transparent 7%, #000 7%, #000 10%, transparent 10%, transparent 12%, #000 12%, #000 13%, transparent 13%, transparent 15%, #000 15%); background-size: 15px 100%; }
-        .date-line { text-align: right; margin-bottom: 10px; font-size: 11px; }
-        h2.main-title { text-align: center; font-weight: normal; font-size: 16px; margin: 10px 0 15px; }
-        .details-grid { display: flex; gap: 20px; margin-bottom: 10px; }
-        .details-section { flex: 1; }
-        .section-header { border: 1px solid #000; text-align: center; font-weight: bold; padding: 4px; margin-bottom: 6px; background-color: #f5f5f5; font-size: 11px; }
-        .info-row { display: flex; margin-bottom: 6px; font-size: 10px; }
-        .info-label { width: 110px; font-weight: normal; color: #555; }
-        .info-value { flex: 1; font-weight: 500; }
-        .comments-box { border: 1px solid #000; margin-top: 10px; }
-        .comment-content { padding: 6px 8px; font-size: 10px; }
-        .comment-timestamp { text-align: right; padding: 2px 8px; color: #666; font-size: 9px; }
-        .declaration-box { margin-top: 10px; border: 1px solid #000; }
-        .declaration-content { padding: 6px 8px; font-size: 9px; }
-        .declaration-content ol { padding-left: 15px; margin: 5px 0; }
-        .declaration-content li { margin-bottom: 6px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10px; }
-        th, td { border: 1px solid #000; padding: 5px; text-align: left; vertical-align: top; }
-        th { background-color: #f5f5f5; text-align: center; font-size: 10px; }
-        .footer-info { margin-top: 15px; font-size: 10px; }
-        .footer-info p { margin: 3px 0; }
-        .bottom-meta { position: absolute; bottom: 8px; left: 20px; right: 20px; display: flex; justify-content: space-between; font-size: 9px; border-top: 1px solid #ddd; padding-top: 4px; color: #666; }
+        @page { size: A4; margin: 12mm 14mm; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Arial', sans-serif; font-size: 10.5px; line-height: 1.45; color: #1a1a2e; background: #e8e8e8; padding: 12px; }
+        .page { width: 182mm; max-width: 100%; margin: 0 auto; background: #fff; padding: 18px 22px 60px; box-shadow: 0 2px 16px rgba(0,0,0,0.13); position: relative; min-height: 257mm; }
+
+        /* Header */
+        .header { display: flex; align-items: center; border-bottom: 3px solid #1a3a6b; padding-bottom: 10px; margin-bottom: 10px; }
+        .logo-img { width: 58px; height: 58px; object-fit: contain; margin-right: 14px; flex-shrink: 0; }
+        .header-text { flex: 1; }
+        .header-text .inst-hi { font-size: 13.5px; font-weight: 700; color: #1a3a6b; letter-spacing: 0.3px; }
+        .header-text .inst-en { font-size: 12px; font-weight: 700; color: #1a3a6b; letter-spacing: 0.5px; text-transform: uppercase; }
+        .header-text .dept { font-size: 9.5px; color: #555; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; margin-top: 2px; }
+        .header-right { text-align: right; flex-shrink: 0; }
+        .header-right .doc-id { font-size: 9px; font-weight: 700; color: #1a3a6b; letter-spacing: 0.5px; border: 1.5px solid #1a3a6b; padding: 3px 8px; border-radius: 4px; display: inline-block; }
+        .header-right .doc-date { font-size: 9px; color: #666; margin-top: 4px; }
+
+        /* Title band */
+        .title-band { background: #1a3a6b; color: #fff; text-align: center; padding: 7px 0; font-size: 13px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; border-radius: 4px; margin: 10px 0; }
+
+        /* Status badge */
+        .status-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .status-badge { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; padding: 3px 10px; border-radius: 20px; background: #e8f0fe; color: #1a3a6b; border: 1.5px solid #1a3a6b; }
+        .app-date { font-size: 9px; color: #666; }
+
+        /* Two-column info grid */
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .info-card { border: 1px solid #dde2ee; border-radius: 6px; overflow: hidden; }
+        .info-card-full { grid-column: span 2; border: 1px solid #dde2ee; border-radius: 6px; overflow: hidden; }
+        .card-header { background: #f0f4fb; border-bottom: 1px solid #dde2ee; padding: 5px 10px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #1a3a6b; }
+        .card-body { padding: 8px 10px; }
+        .field-row { display: flex; align-items: baseline; margin-bottom: 5px; }
+        .field-row:last-child { margin-bottom: 0; }
+        .field-label { width: 110px; flex-shrink: 0; font-size: 9px; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+        .field-value { font-size: 10px; font-weight: 600; color: #1a1a2e; flex: 1; }
+        .field-value.highlight { color: #1a3a6b; font-weight: 700; font-size: 11px; }
+        .field-value.mono { font-family: 'Courier New', monospace; letter-spacing: 0.5px; }
+
+        /* Expenditure table */
+        .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #1a3a6b; border-bottom: 2px solid #1a3a6b; padding-bottom: 4px; margin: 12px 0 6px; }
+        table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+        thead tr { background: #1a3a6b; color: #fff; }
+        thead th { padding: 5px 7px; font-weight: 700; text-align: left; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #1a3a6b; }
+        thead th.center { text-align: center; }
+        thead th.right { text-align: right; }
+        tbody tr { border-bottom: 1px solid #e8eaf0; }
+        tbody tr:nth-child(even) { background: #f7f9fc; }
+        tbody td { padding: 5px 7px; border: 1px solid #dde2ee; vertical-align: top; }
+        tbody td.center { text-align: center; }
+        tbody td.right { text-align: right; font-weight: 600; }
+        tfoot tr { background: #f0f4fb; font-weight: 700; }
+        tfoot td { padding: 5px 7px; border: 1px solid #dde2ee; }
+        tfoot td.right { text-align: right; color: #1a3a6b; font-size: 11px; }
+
+        /* Declaration */
+        .declaration-box { border: 1px solid #dde2ee; border-radius: 6px; overflow: hidden; margin-top: 10px; }
+        .decl-header { background: #f0f4fb; border-bottom: 1px solid #dde2ee; padding: 5px 10px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #1a3a6b; }
+        .decl-body { padding: 7px 10px; font-size: 9px; color: #333; }
+        .decl-body ol { padding-left: 16px; }
+        .decl-body li { margin-bottom: 4px; line-height: 1.4; }
+
+        /* Comments */
+        .comment-box { border: 1px solid #dde2ee; border-radius: 6px; margin-top: 10px; overflow: hidden; }
+        .comment-header { background: #fffbea; border-bottom: 1px solid #e8d96a; padding: 5px 10px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #7a6100; }
+        .comment-body { padding: 7px 10px; font-size: 9.5px; color: #333; font-style: italic; }
+
+        /* Footer */
+        .page-footer { position: absolute; bottom: 12px; left: 22px; right: 22px; border-top: 1px solid #dde2ee; padding-top: 6px; display: flex; justify-content: space-between; align-items: center; }
+        .footer-note { font-size: 8.5px; color: #888; font-style: italic; }
+        .footer-meta { font-size: 8.5px; color: #999; text-align: right; }
+
         @media print {
             body { background: none; padding: 0; }
-            .page { box-shadow: none; margin: 0; width: 100%; min-height: auto; padding: 10mm; }
+            .page { box-shadow: none; margin: 0; width: 100%; padding: 0; min-height: auto; }
         }
     </style>
 </head>
 <body>
 <div class="page">
-    <div class="top-meta">
-        <span>${data.name}</span>
-        <span>https://rndops.iitg.ac.in</span>
-    </div>
-    <div class="header-box">
+
+    <!-- Header -->
+    <div class="header">
         <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo" class="logo-img" />
         <div class="header-text">
-            <h1>भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</h1>
-            <h2>INDIAN INSTITUTE OF TECHNOLOGY GUWAHATI</h2>
-            <p>RESEARCH AND DEVELOPMENT CELL</p>
+            <div class="inst-hi">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
+            <div class="inst-en">Indian Institute of Technology Guwahati</div>
+            <div class="dept">Research and Development Cell</div>
+        </div>
+        <div class="header-right">
+            <div class="doc-id">${data.name}</div>
+            <div class="doc-date">Date: ${formattedDate}</div>
         </div>
     </div>
-    <div class="barcode-container">
-        <div class="barcode"></div>
-        <div>${data.name}</div>
+
+    <!-- Title Band -->
+    <div class="title-band">Application for Reimbursement</div>
+
+    <!-- Status Row -->
+    <div class="status-row">
+        <span class="status-badge">${data.workflow_state || "Draft"}</span>
+        <span class="app-date">Submitted: ${applicationDate}</span>
     </div>
-    <div class="date-line">Date: ${formattedDate}</div>
-    <h2 class="main-title">Application for Reimbursement</h2>
-    <div class="details-grid">
-        <div class="details-section">
-            <div class="section-header">Applicant Details</div>
-            <div class="info-row"><div class="info-label">Name:</div><div class="info-value">${data.account_holder_name || data.applicant_webmail || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Department:</div><div class="info-value">${resolvedNames.applicant_department || data.applicant_department || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Designation:</div><div class="info-value">${data.applicant_designation || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Email ID:</div><div class="info-value">${data.applicant_webmail || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Application Initiated by:</div><div class="info-value">${data.owner || "-"}</div></div>
-            ${data.comment ? `<div class="comments-box"><div class="section-header">Comments</div><div class="comment-content">${data.comment}</div><div class="comment-timestamp">${applicationDate} ➔</div></div>` : ""}
-            ${acceptedDeclarations ? `<div class="declaration-box"><div class="section-header">Applicant's Declaration</div><div class="declaration-content"><ol>${acceptedDeclarations}</ol></div></div>` : ""}
+
+    <!-- Info Grid -->
+    <div class="info-grid">
+
+        <!-- Applicant Details -->
+        <div class="info-card">
+            <div class="card-header">Applicant Details</div>
+            <div class="card-body">
+                <div class="field-row">
+                    <div class="field-label">Name</div>
+                    <div class="field-value highlight">${applicantName}</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">Department</div>
+                    <div class="field-value">${resolvedNames.applicant_department || data.applicant_department || "-"}</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">Designation</div>
+                    <div class="field-value">${data.applicant_designation || "-"}</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">Email ID</div>
+                    <div class="field-value mono">${data.applicant_webmail || "-"}</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">Initiated by</div>
+                    <div class="field-value mono">${data.owner || "-"}</div>
+                </div>
+            </div>
         </div>
-        <div class="details-section">
-            <div class="section-header">Form Details</div>
-            <div class="info-row"><div class="info-label">Own/ Other Project:</div><div class="info-value">${data.self_other || "Own"}</div></div>
-            <div class="info-row"><div class="info-label">Project Number:</div><div class="info-value">${data.project_number || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Project Name:</div><div class="info-value">${resolvedNames.project_name || data.project_name || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Account Head:</div><div class="info-value">${resolvedNames.account_head || data.account_head || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Total Amount (₹):</div><div class="info-value">${totalAmount.toLocaleString("en-IN")}</div></div>
-            <div class="info-row"><div class="info-label">Date and Time:</div><div class="info-value">${applicationDate}</div></div>
-            <div class="info-row"><div class="info-label">Bank Name:</div><div class="info-value">${data.bank_name || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Bank Account Number:</div><div class="info-value">${data.bank_account_number || "-"}</div></div>
-            <div class="info-row"><div class="info-label">IFSC Code:</div><div class="info-value">${data.ifsc_code || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Status:</div><div class="info-value">${data.workflow_state || "Draft"}</div></div>
+
+        <!-- Project Details -->
+        <div class="info-card">
+            <div class="card-header">Project Details</div>
+            <div class="card-body">
+                <div class="field-row">
+                    <div class="field-label">Project No.</div>
+                    <div class="field-value mono">${data.project_number || "-"}</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">Project Name</div>
+                    <div class="field-value">${resolvedNames.project_name || data.project_name || "-"}</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">Account Head</div>
+                    <div class="field-value">${resolvedNames.account_head || data.account_head || "-"}</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">Own / Other</div>
+                    <div class="field-value">${data.self_other || "Own"}</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">Total Amount</div>
+                    <div class="field-value highlight">₹ ${totalAmount.toLocaleString("en-IN")}</div>
+                </div>
+            </div>
         </div>
+
+        <!-- Bank Details -->
+        <div class="info-card info-card-full">
+            <div class="card-header">Bank Details</div>
+            <div class="card-body" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 20px;">
+                <div class="field-row">
+                    <div class="field-label">Bank Name</div>
+                    <div class="field-value">${data.bank_name || "-"}</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">Account No.</div>
+                    <div class="field-value mono">${data.bank_account_number || "-"}</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">IFSC Code</div>
+                    <div class="field-value mono">${data.ifsc_code || "-"}</div>
+                </div>
+            </div>
+        </div>
+
     </div>
-    <h3 style="text-align: center; margin-top: 30px;">Expenditure Details</h3>
+
+    <!-- Expenditure Table -->
+    <div class="section-title">Expenditure Details</div>
     <table>
         <thead>
             <tr>
-                <th>Sl No.</th>
-                <th>Date</th>
+                <th class="center" style="width: 28px;">Sl.</th>
+                <th style="width: 70px;">Date</th>
                 <th>Particulars</th>
-                <th>Vendors Name</th>
-                <th>Amount (Rs.)</th>
-                <th>Attachments</th>
+                <th>Vendor's Name</th>
+                <th class="right" style="width: 80px;">Amount (₹)</th>
+                <th class="center" style="width: 70px;">Attachment</th>
             </tr>
         </thead>
         <tbody>${expenditureRows}</tbody>
+        <tfoot>
+            <tr>
+                <td colspan="4" style="text-align: right; font-weight: 700; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: #555;">Total Amount</td>
+                <td class="right" style="color: #1a3a6b; font-size: 11px;">₹ ${totalAmount.toLocaleString("en-IN")}</td>
+                <td></td>
+            </tr>
+        </tfoot>
     </table>
-    <div class="footer-info">
-        <p>Application Status: ${data.workflow_state || "Draft"}</p>
-        <p>Approved By:</p>
-        <p style="margin-top: 20px;">N.B. This is a system generated form. Signature is not required.</p>
+
+    ${acceptedDeclarations ? `
+    <div class="declaration-box">
+        <div class="decl-header">Applicant's Declaration</div>
+        <div class="decl-body"><ol>${acceptedDeclarations}</ol></div>
+    </div>` : ""}
+
+    ${data.comment ? `
+    <div class="comment-box">
+        <div class="comment-header">Remarks / Comments</div>
+        <div class="comment-body">${data.comment}</div>
+    </div>` : ""}
+
+    <!-- Footer -->
+    <div class="page-footer">
+        <div class="footer-note">N.B. This is a system-generated document. No signature required.</div>
+        <div class="footer-meta">
+            <div>rndops.iitg.ac.in</div>
+            <div>${formattedDate}, ${formattedTime}</div>
+        </div>
     </div>
-    <div class="bottom-meta">
-        <span>1 of 1</span>
-        <span>${formattedDate}, ${formattedTime}</span>
-    </div>
+
 </div>
 </body>
 </html>`;
@@ -889,6 +1011,10 @@ const ReimbursementDetails: React.FC = () => {
                 }
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <FieldLabel>Name</FieldLabel>
+                    <FieldValue>{resolvedNames.applicant_name || data.applicant_webmail || "-"}</FieldValue>
+                  </div>
                   <div>
                     <FieldLabel>Applicant Webmail</FieldLabel>
                     <FieldValue>{data.applicant_webmail || "-"}</FieldValue>
