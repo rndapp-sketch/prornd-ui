@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useFrappeGetDoc, useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
 import {
     FileTextIcon, ClipboardListIcon, ShoppingCartIcon,
-    LayoutGridIcon, PaperclipIcon, Printer,
+    LayoutGridIcon, PaperclipIcon, Printer, FolderOpenIcon, XIcon,
 } from "lucide-react";
 import { cn } from '@/lib/utils';
 
@@ -17,7 +17,9 @@ import { POEditor } from '@/components/POEditor';
 import { DeclarationFields } from '@/components/DeclarationFields';
 import TravelApplicantSummary from '@/components/TravelApplicantSummary';
 import ProjectDetailsView from "./ProjectDetails";
+import ProjectDetailsOverview from "./ProjectDetailsOverview";
 import { generateTemporaryAdvanceHtml } from '@/utils/temporaryAdvancePrint';
+import { DOCTYPE_PR_LINKS } from '@/utils/projectTypeMapping';
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 const isFilePath = (value: string) => {
@@ -221,6 +223,36 @@ const EmptyState = ({ icon, title, description }: { icon: React.ReactNode; title
         </div>
         <p className="text-[15px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">{title}</p>
         <p className="max-w-md text-[12px] font-medium leading-5 text-[#71717A] dark:text-[#A1A1AA]">{description}</p>
+    </div>
+);
+
+// ── Project Preview Modal ─────────────────────────────────────────────────────
+const ProjectPreviewModal = ({ projectName, onClose }: { projectName: string; onClose: () => void }) => (
+    <div
+        className="fixed inset-0 z-50 flex flex-col bg-black/60 backdrop-blur-sm"
+        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+        <div className="relative flex-1 mx-auto my-4 w-full max-w-7xl flex flex-col bg-[#FAFAF9] dark:bg-zinc-900 rounded-2xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
+                <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+                    <FolderOpenIcon className="w-4 h-4 text-[#D97757]" />
+                    Project Registration Preview
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-orange-50 dark:bg-zinc-800 text-[#D97757] font-mono border border-orange-100 dark:border-zinc-700">
+                        {projectName}
+                    </span>
+                </span>
+                <button
+                    onClick={onClose}
+                    className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
+                    aria-label="Close project preview"
+                >
+                    <XIcon className="w-5 h-5" />
+                </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+                <ProjectDetailsOverview projectName={projectName} embedded />
+            </div>
+        </div>
     </div>
 );
 
@@ -810,6 +842,9 @@ const TaskRegistryDetails: React.FC = () => {
     const [resolvedProjectTitle, setResolvedProjectTitle] = useState<string>("");
     const [resolvedApplicantName, setResolvedApplicantName] = useState<string>("");
 
+    const [prPreviewName, setPrPreviewName] = useState<string | null>(null);
+    const [prPreviewLoading, setPrPreviewLoading] = useState(false);
+
     const [displayData, setDisplayData] = useState<Record<string, any>>({});
 
     useEffect(() => {
@@ -1270,6 +1305,49 @@ const TaskRegistryDetails: React.FC = () => {
                             )}
                         </div>
 
+                        {/* View Project button */}
+                        {doctype !== 'Project Registration' && data && (
+                            <button
+                                onClick={async () => {
+                                    const mapping = DOCTYPE_PR_LINKS[doctype];
+                                    if (!mapping) return;
+                                    const strategy = mapping.primary;
+                                    if (strategy.type === 'pr_name') {
+                                        const val = data[strategy.field];
+                                        if (val) { setPrPreviewName(val); return; }
+                                    }
+                                    if (strategy.type === 'self') {
+                                        setPrPreviewName(name!);
+                                        return;
+                                    }
+                                    // pr_project_no — async lookup
+                                    const noField = strategy.type === 'pr_project_no' ? strategy.field
+                                        : mapping.fallback?.type === 'pr_project_no' ? (mapping.fallback as any).field
+                                        : null;
+                                    const projectNo = noField ? data[noField] : null;
+                                    if (!projectNo) return;
+                                    setPrPreviewLoading(true);
+                                    try {
+                                        const params = new URLSearchParams({
+                                            filters: JSON.stringify([['project_no', '=', projectNo]]),
+                                            fields: JSON.stringify(['name']),
+                                            limit: '1',
+                                        });
+                                        const res = await fetch(`/api/resource/Project%20Registration?${params}`, { credentials: 'include' }).then(r => r.json());
+                                        const prName = (res?.data ?? res?.message ?? [])[0]?.name;
+                                        if (prName) setPrPreviewName(prName);
+                                    } finally {
+                                        setPrPreviewLoading(false);
+                                    }
+                                }}
+                                disabled={prPreviewLoading}
+                                className="inline-flex items-center gap-1.5 h-9 px-3 text-xs font-bold uppercase tracking-wide rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:border-[#D97757] hover:text-[#D97757] shadow-sm transition-all disabled:opacity-60"
+                            >
+                                <FolderOpenIcon className="h-3.5 w-3.5" />
+                                {prPreviewLoading ? 'Loading…' : 'View Project'}
+                            </button>
+                        )}
+
                         {/* Print Button (only for Rnd Staff on Temporary Advance) */}
                         {doctype === 'Temporary Advance' && isStaffRnD && (
                             <button
@@ -1291,6 +1369,13 @@ const TaskRegistryDetails: React.FC = () => {
 
             {name && doctype && (
                 <FloatingActivityLogButton doctype={doctype} docname={name} />
+            )}
+
+            {prPreviewName && (
+                <ProjectPreviewModal
+                    projectName={prPreviewName}
+                    onClose={() => setPrPreviewName(null)}
+                />
             )}
         </div>
     );
