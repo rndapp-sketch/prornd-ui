@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useFrappeGetDoc, useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
 import {
     FileTextIcon, ClipboardListIcon, ShoppingCartIcon,
-    LayoutGridIcon, PaperclipIcon,
+    LayoutGridIcon, PaperclipIcon, Printer,
 } from "lucide-react";
 import { cn } from '@/lib/utils';
 
@@ -17,6 +17,7 @@ import { POEditor } from '@/components/POEditor';
 import { DeclarationFields } from '@/components/DeclarationFields';
 import TravelApplicantSummary from '@/components/TravelApplicantSummary';
 import ProjectDetailsView from "./ProjectDetails";
+import { generateTemporaryAdvanceHtml } from '@/utils/temporaryAdvancePrint';
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 const isFilePath = (value: string) => {
@@ -775,6 +776,7 @@ const TaskRegistryDetails: React.FC = () => {
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
     const canEditFsFiles = roles.some(r => r === 'staff, RnD' || r === 'System Manager');
+    const isStaffRnD = roles.some(r => ["staff, RnD", "Staff RnD", "RnD Staff", "System Manager"].includes(r));
 
     const [travelFields, setTravelFields] = useState<FormField[]>([]);
     const [travelLinkOptions, setTravelLinkOptions] = useState<Record<string, LinkOption[]>>({});
@@ -803,6 +805,46 @@ const TaskRegistryDetails: React.FC = () => {
     const [dohFields, setDohFields] = useState<FormField[]>([]);
     const [dohLinkOptions, setDohLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [isDohLoading, setIsDohLoading] = useState(false);
+
+    const [resolvedAccountHead, setResolvedAccountHead] = useState<string>("");
+    const [resolvedProjectTitle, setResolvedProjectTitle] = useState<string>("");
+
+    useEffect(() => {
+        if (doctype === "Temporary Advance" && data) {
+            // Account Head
+            if (data.account_head) {
+                fetch(`/api/v2/document/Budget%20Head/${data.account_head}`)
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.data) setResolvedAccountHead(res.data.budget_head || res.data.name);
+                    })
+                    .catch(err => console.error("Failed to resolve budget head", err));
+            }
+
+            // Project Title
+            if (data.project_code) {
+                fetch(`/api/v2/document/Project%20Proposal/${data.project_code}`)
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.data) setResolvedProjectTitle(res.data.project_title || res.data.name);
+                    })
+                    .catch(err => console.error("Failed to resolve project", err));
+            }
+        }
+    }, [data, doctype]);
+
+    const handlePrintTemporaryAdvance = () => {
+        if (!data) return;
+        const html = generateTemporaryAdvanceHtml(data, resolvedProjectTitle, resolvedAccountHead);
+        const printWindow = window.open("", "_blank");
+        if (printWindow) {
+            printWindow.document.write(html);
+            printWindow.document.close();
+            setTimeout(() => {
+                printWindow.print();
+            }, 500);
+        }
+    };
 
     const { call: fetchTravelFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any } }>(travelAPI.getFields);
     const { call: fetchAdvFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any; child_table_meta?: any } }>(advanceSettlementAPI.getFields);
@@ -1048,15 +1090,29 @@ const TaskRegistryDetails: React.FC = () => {
                     status={data?.workflow_state}
                     projectName={data?.project_name || data?.project_no}
                 >
-                    {/* Meta strip */}
-                    <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
-                        <span><span className="font-extrabold uppercase tracking-wider">Type</span> &nbsp;{doctype}</span>
-                        <span><span className="font-extrabold uppercase tracking-wider">Owner</span> &nbsp;{data?.owner || '—'}</span>
-                        {data?.modified && (
-                            <span>
-                                <span className="font-extrabold uppercase tracking-wider">Modified</span>
-                                &nbsp;{new Date(data.modified).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                            </span>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between w-full gap-4">
+                        {/* Meta strip */}
+                        <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
+                            <span><span className="font-extrabold uppercase tracking-wider">Type</span> &nbsp;{doctype}</span>
+                            <span><span className="font-extrabold uppercase tracking-wider">Owner</span> &nbsp;{data?.owner || '—'}</span>
+                            {data?.modified && (
+                                <span>
+                                    <span className="font-extrabold uppercase tracking-wider">Modified</span>
+                                    &nbsp;{new Date(data.modified).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Print Button (only for Rnd Staff on Temporary Advance) */}
+                        {doctype === 'Temporary Advance' && isStaffRnD && (
+                            <button
+                                onClick={handlePrintTemporaryAdvance}
+                                className="inline-flex items-center justify-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-zinc-200 dark:border-zinc-700 bg-[#FAFAF9] dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-[#EFF6FF] dark:hover:bg-[#2563EB]/10 hover:border-[#2563EB]/40 shadow-sm transition-all"
+                                title="Print Temporary Advance"
+                            >
+                                <Printer className="h-4 w-4 text-[#2563EB] dark:text-[#60A5FA]" />
+                                Print
+                            </button>
                         )}
                     </div>
                 </PageHeader>
