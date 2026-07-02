@@ -875,7 +875,7 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
                             <EmptyState
                                 icon={<ShoppingCartIcon className="h-5 w-5" />}
                                 title="Purchase Order Locked"
-                                description="The Purchase Order is locked while the Sanction Sheet is being processed. It will be available once the Sanction Sheet is printed."
+                                description={`The Purchase Order is locked. The Sanction Sheet has not been printed yet${applicant ? ` by ${applicant}` : ""}. Once the PI prints the Sanction Sheet, this form will move to "Sanction Sheet Printed" and the Purchase Order will be enabled.`}
                             />
                         ) :
                         poSanctionData && (isStaffRnD || data?.workflow_state === "POGenerated" || data?.workflow_state === "Sanction Sheet Printed") ? (
