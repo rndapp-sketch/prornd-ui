@@ -20,6 +20,7 @@ import TravelApplicantSummary from '@/components/TravelApplicantSummary';
 import ProjectDetailsView from "./ProjectDetails";
 import ProjectDetailsOverview from "./ProjectDetailsOverview";
 import { generateTemporaryAdvanceHtml } from '@/utils/temporaryAdvancePrint';
+import { generateDisbursalOfHonorariumHtml, resolveHonorariumPrintData } from '@/utils/disbursalOfHonorariumPrint';
 import { DOCTYPE_PR_LINKS } from '@/utils/projectTypeMapping';
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -1580,6 +1581,21 @@ const TaskRegistryDetails: React.FC = () => {
         }
     };
 
+    const handlePrintDisbursalOfHonorarium = () => {
+        if (!data) return;
+        const html = generateDisbursalOfHonorariumHtml(
+            resolveHonorariumPrintData(displayData, dohLinkOptions),
+        );
+        const printWindow = window.open("", "_blank");
+        if (printWindow) {
+            printWindow.document.write(html);
+            printWindow.document.close();
+            setTimeout(() => {
+                printWindow.print();
+            }, 500);
+        }
+    };
+
     const { call: fetchTravelFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any } }>(travelAPI.getFields);
     const { call: fetchAdvFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any; child_table_meta?: any } }>(advanceSettlementAPI.getFields);
     const { call: fetchTaFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any } }>(temporaryAdvanceAPI.getFields);
@@ -1882,6 +1898,16 @@ const TaskRegistryDetails: React.FC = () => {
                                     onClick={handlePrintTemporaryAdvance}
                                     className="inline-flex items-center justify-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-zinc-200 dark:border-zinc-700 bg-[#FAFAF9] dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-[#EFF6FF] dark:hover:bg-[#2563EB]/10 hover:border-[#2563EB]/40 shadow-sm transition-all"
                                     title="Print Temporary Advance"
+                                >
+                                    <Printer className="h-4 w-4 text-[#2563EB] dark:text-[#60A5FA]" />
+                                    Print
+                                </button>
+                            )}
+                            {doctype === 'Disbursal of Honorarium' && isStaffRnD && (
+                                <button
+                                    onClick={handlePrintDisbursalOfHonorarium}
+                                    className="inline-flex items-center justify-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-zinc-200 dark:border-zinc-700 bg-[#FAFAF9] dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-[#EFF6FF] dark:hover:bg-[#2563EB]/10 hover:border-[#2563EB]/40 shadow-sm transition-all"
+                                    title="Print Disbursal of Honorarium"
                                 >
                                     <Printer className="h-4 w-4 text-[#2563EB] dark:text-[#60A5FA]" />
                                     Print

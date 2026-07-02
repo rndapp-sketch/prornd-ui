@@ -13,6 +13,7 @@ import {
     FileSpreadsheetIcon as LedgerIcon,
     EditIcon,
     Send,
+    Printer,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlobalLoader } from "@/components/ui/global-loader";
@@ -29,6 +30,8 @@ import { useUserRoles } from "@/components/UserRole";
 import { ProjectLedgerModal } from "@/components/ProjectLedgerModal";
 import { ActivityLog } from "@/components/ActivityLog";
 import ViewProjectButton from "@/components/ViewProjectButton";
+import { P11PrintModal } from "@/components/P11PrintModal";
+import { generateDisbursalOfConsultancyHtml } from "@/utils/disbursalOfConsultancyPrint";
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -163,6 +166,7 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
     // Sidebar state
     const [sidebarComment, setSidebarComment] = useState("");
@@ -516,6 +520,15 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                     projectNumber={formData.disbursal_project_number}
                 >
                     <ViewProjectButton doctype="Disbursal of Consultancy" data={formData} />
+                    {id && (
+                        <button
+                            onClick={() => setIsPrintModalOpen(true)}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
+                        >
+                            <Printer className="w-4 h-4" />
+                            Print / PDF
+                        </button>
+                    )}
                     {(formData.workflow_state === "Draft" ||
                         !formData.workflow_state) &&
                         id && (
@@ -540,6 +553,17 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                             </>
                         )}
                 </PageHeader>
+
+                <P11PrintModal
+                    isOpen={isPrintModalOpen}
+                    onClose={() => setIsPrintModalOpen(false)}
+                    htmlContent={
+                        isPrintModalOpen
+                            ? generateDisbursalOfConsultancyHtml(formData)
+                            : ""
+                    }
+                    docName={formData.name || id || ""}
+                />
 
                 {/* Workflow Action Buttons — only after submission */}
                 {id &&

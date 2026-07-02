@@ -50,6 +50,7 @@ import {
     FileSpreadsheetIcon as LedgerIcon,
     EditIcon,
     Send,
+    Printer,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlobalLoader } from "@/components/ui/global-loader";
@@ -65,6 +66,11 @@ import { ActivityLog } from "@/components/ActivityLog";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { useUserRoles } from "@/components/UserRole";
 import { ProjectLedgerModal } from "@/components/ProjectLedgerModal";
+import { P11PrintModal } from "@/components/P11PrintModal";
+import {
+    generateDisbursalOfHonorariumHtml,
+    resolveHonorariumPrintData,
+} from "@/utils/disbursalOfHonorariumPrint";
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -203,6 +209,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
     // Sidebar state
     const [sidebarComment, setSidebarComment] = useState("");
@@ -569,32 +576,56 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                     }
                     projectNumber={formData.project_no}
                 >
-                    {(formData.workflow_state === "Draft" ||
-                        !formData.workflow_state) &&
-                        id && (
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() =>
-                                        navigate(
-                                            `/disbursal-of-honorarium-form/${id}`,
-                                        )
-                                    }
-                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
-                                >
-                                    <EditIcon className="w-4 h-4" />
-                                    Edit
-                                </button>
-                                <button
-                                    onClick={handleSubmitApplication}
-                                    disabled={isSubmitting}
-                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <Send className="w-4 h-4" />
-                                    {isSubmitting ? "Submitting..." : "Submit Application"}
-                                </button>
-                            </div>
+                    <div className="flex items-center gap-2">
+                        {id && (
+                            <button
+                                onClick={() => setIsPrintModalOpen(true)}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
+                            >
+                                <Printer className="w-4 h-4" />
+                                Print / PDF
+                            </button>
                         )}
+                        {(formData.workflow_state === "Draft" ||
+                            !formData.workflow_state) &&
+                            id && (
+                                <>
+                                    <button
+                                        onClick={() =>
+                                            navigate(
+                                                `/disbursal-of-honorarium-form/${id}`,
+                                            )
+                                        }
+                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
+                                    >
+                                        <EditIcon className="w-4 h-4" />
+                                        Edit
+                                    </button>
+                                    <button
+                                        onClick={handleSubmitApplication}
+                                        disabled={isSubmitting}
+                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <Send className="w-4 h-4" />
+                                        {isSubmitting ? "Submitting..." : "Submit Application"}
+                                    </button>
+                                </>
+                            )}
+                    </div>
                 </PageHeader>
+
+                <P11PrintModal
+                    isOpen={isPrintModalOpen}
+                    onClose={() => setIsPrintModalOpen(false)}
+                    htmlContent={
+                        isPrintModalOpen
+                            ? generateDisbursalOfHonorariumHtml(
+                                  resolveHonorariumPrintData(formData, linkOptions),
+                              )
+                            : ""
+                    }
+                    docName={formData.name || id || ""}
+                />
 
                 {/* Workflow Action Buttons — only after submission */}
                 {id &&

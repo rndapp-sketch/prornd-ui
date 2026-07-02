@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Disbursal of Honorarium</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Times New Roman", Times, serif;
+            background: #e0e0e0;
+        }
+
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 20px auto;
+            background: #fff;
+            position: relative;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .content {
+            position: relative;
+            z-index: 1;
+            padding: 10mm 12mm;
+        }
+
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.06;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .watermark img {
+            width: 350px;
+        }
+
+        .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 12px;
+        }
+
+        .logo-container img {
+            height: 65px;
+            width: auto;
+        }
+
+        .header-text {
+            text-align: center;
+        }
+
+        .header {
+            font-size: 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+
+        .sub-header {
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .title {
+            text-align: center;
+            font-weight: bold;
+            text-decoration: underline;
+            margin: 15px 0 20px 0;
+            font-size: 18px;
+            text-transform: uppercase;
+        }
+
+        .top-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-bottom: 15px;
+        }
+
+        .info-table td {
+            border: 1px solid #000;
+            padding: 6px 10px;
+            vertical-align: top;
+            line-height: 1.4;
+        }
+
+        .info-table td.label {
+            font-weight: bold;
+            width: 25%;
+            background-color: #f7f7f7;
+        }
+
+        table.item-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11.5px;
+            margin-bottom: 12px;
+            table-layout: fixed;
+        }
+
+        table.item-table th,
+        table.item-table td {
+            border: 1px solid #000;
+            padding: 5px 6px;
+            vertical-align: middle;
+            line-height: 1.3;
+            word-wrap: break-word;
+        }
+
+        table.item-table th {
+            text-align: center;
+            font-weight: bold;
+            background-color: #f0f0f0;
+        }
+
+        .center {
+            text-align: center;
+        }
+
+        .right {
+            text-align: right;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: bold;
+            text-decoration: underline;
+            margin: 15px 0 8px 0;
+            text-transform: uppercase;
+        }
+
+        .signature-section {
+            margin-top: 60px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            page-break-inside: avoid;
+        }
+
+        .sig-block {
+            text-align: center;
+            width: 30%;
+        }
+
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        @media print {
+            body {
+                margin: 0;
+                background: none;
+            }
+
+            .page {
+                margin: 0;
+                box-shadow: none;
+                background: none;
+                width: auto;
+                min-height: auto;
+                page-break-inside: auto;
+            }
+
+            .content {
+                padding: 10mm 10mm;
+            }
+
+            .signature-section {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+        <div class="watermark">
+            <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
+                onerror="this.style.display = 'none'" />
+        </div>
+
+        <div class="content">
+            <!-- HEADER -->
+            <div class="header-row">
+                <div class="logo-container">
+                    <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
+                        onerror="this.style.display = 'none'" />
+                </div>
+                <div class="header-text">
+                    <div class="header">
+                        Indian Institute of Technology Guwahati
+                    </div>
+                    <div class="sub-header">
+                        Research &amp; Development Section
+                    </div>
+                </div>
+            </div>
+
+            <!-- TOP INFO -->
+            <div class="top-info">
+                <div>
+                    <strong>Doc ID:</strong> {{DOC_REF}}
+                </div>
+                <div style="text-align: right">
+                    <strong>Date:</strong> {{DATE}}
+                </div>
+            </div>
+
+            <!-- TITLE -->
+            <div class="title">Disbursal of Honorarium</div>
+
+            <!-- APPLICANT DETAILS -->
+            <div class="section-title">Applicant Details</div>
+            <table class="info-table">
+                <tr>
+                    <td class="label">Applicant Name</td>
+                    <td>{{APPLICANT_NAME}}</td>
+                    <td class="label">Designation</td>
+                    <td>{{APPLICANT_DESIGNATION}}</td>
+                </tr>
+                <tr>
+                    <td class="label">Department</td>
+                    <td>{{APPLICANT_DEPARTMENT}}</td>
+                    <td class="label">Applying For</td>
+                    <td>{{APPLYING_FOR}}</td>
+                </tr>
+                <tr>
+                    <td class="label">Project No.</td>
+                    <td>{{PROJECT_NO}}</td>
+                    <td class="label">Account Head</td>
+                    <td>{{ACCOUNT_HEAD}}</td>
+                </tr>
+                <tr>
+                    <td class="label">Project Name</td>
+                    <td colspan="3">{{PROJECT_NAME}}</td>
+                </tr>
+            </table>
+
+            <!-- BENEFICIARY DETAILS (IF APPLICABLE) -->
+            {{BENEFICIARY_SECTION}}
+
+            <!-- HONORARIUM DETAILS -->
+            <div class="section-title">Details of Honorarium</div>
+            <table class="item-table">
+                <colgroup>
+                    <col style="width: 4%" />
+                    <col style="width: 15%" />
+                    <col style="width: 11%" />
+                    <col style="width: 11%" />
+                    <col style="width: 8%" />
+                    <col style="width: 13%" />
+                    <col style="width: 8%" />
+                    <col style="width: 8%" />
+                    <col style="width: 12%" />
+                    <col style="width: 10%" />
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th>Sl.</th>
+                        <th>Name</th>
+                        <th>Designation</th>
+                        <th>Department / Section</th>
+                        <th>Emp. ID</th>
+                        <th>Nature of Work</th>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Bank A/c No. / IFSC</th>
+                        <th>Amount (Rs.)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ITEM_ROWS}}
+                </tbody>
+            </table>
+
+            <!-- TOTAL & APPROVAL -->
+            <table class="info-table">
+                <tr>
+                    <td class="label">Total Amount</td>
+                    <td style="font-weight: bold;">{{TOTAL_AMOUNT}}</td>
+                    <td class="label">Approval of Competent Authority Attached</td>
+                    <td>{{APPROVAL_COMP_AUTHORITY}}</td>
+                </tr>
+            </table>
+
+            <!-- SIGNATURES -->
+            <div class="signature-section">
+                <div class="sig-block">
+                    _______________________<br /><br />
+                    <strong>Principal Investigator</strong>
+                </div>
+                <div class="sig-block">
+                    _______________________<br /><br />
+                    <strong>HoS (RnD)</strong>
+                </div>
+                <div class="sig-block">
+                    _______________________<br /><br />
+                    <strong>Assoc. Dean, R&amp;D</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
