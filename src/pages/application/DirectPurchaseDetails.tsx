@@ -112,7 +112,7 @@ const DP_PHASE2_ORDER = [
     "RDP-11 Verified",
     "Sanction Sheet Generated",
     "Sanction Sheet Printed",
-    "Sanction Approved",
+    "Sanction OK",
     "POGenerated",
 ];
 
@@ -142,7 +142,7 @@ const DP_PHASE2_LABELS: Record<string, { label: string; description: string; nex
         description: "The applicant (Permanent Employee) acknowledges that a physical print of the Sanction Sheet has been taken.",
         nextAction: "Verify Sanction Sheet",
     },
-    "Sanction Approved": {
+    "Sanction OK": {
         label: "Sanction OK",
         description: "R&D Staff verifies the signed Sanction Sheet and marks it as approved before generating the Purchase Order.",
         nextAction: "Generate PO",
@@ -3276,7 +3276,7 @@ const DirectPurchaseDetails: React.FC = () => {
 
                                 {/* Commit Payment — details tab only */}
                                 {isStaffRnD &&
-                                    ["Pending Staff Approval", "Sanction Approved"].includes(data.workflow_state) && (
+                                    ["Pending Staff Approval", "Sanction OK"].includes(data.workflow_state) && (
                                         <div className="mt-4">
                                             <CommitPayment
                                                 doctype="Direct Purchase"
