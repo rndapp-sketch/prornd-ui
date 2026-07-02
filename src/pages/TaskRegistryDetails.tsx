@@ -515,10 +515,82 @@ const FundSanctionView = ({ data, docname, canEdit, onRefresh }: {
         content?: string;
         is_new: boolean;
     };
+    type BudgetRow = {
+        account_head: string;
+        first_year_budget: number;
+        second_year_budget: number;
+        third_year_budget: number;
+        fourth_year_budget: number;
+        fifth_year_budget: number;
+    };
     const [fsFiles, setFsFiles] = useState<FsFileRow[]>([]);
     const [isSaving, setIsSaving] = useState(false);
     const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const [isEditingBudget, setIsEditingBudget] = useState(false);
+    const [editBudgetRows, setEditBudgetRows] = useState<BudgetRow[]>([]);
+    const [isSavingBudget, setIsSavingBudget] = useState(false);
+    const [budgetMsg, setBudgetMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [budgetHeadList, setBudgetHeadList] = useState<string[]>([]);
+
+    useEffect(() => {
+        fetch('/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0')
+            .then(r => r.json())
+            .then(j => { if (j?.data) setBudgetHeadList(j.data.map((x: any) => x.budget_head).filter(Boolean)); })
+            .catch(() => {});
+    }, []);
+
+    const startEditBudget = () => {
+        setEditBudgetRows(
+            (data.sanctioned_budget_breakup ?? []).map((r: any) => ({
+                account_head: r.account_head ?? '',
+                first_year_budget: parseFloat(r.first_year_budget) || 0,
+                second_year_budget: parseFloat(r.second_year_budget) || 0,
+                third_year_budget: parseFloat(r.third_year_budget) || 0,
+                fourth_year_budget: parseFloat(r.fourth_year_budget) || 0,
+                fifth_year_budget: parseFloat(r.fifth_year_budget) || 0,
+            }))
+        );
+        setIsEditingBudget(true);
+        setBudgetMsg(null);
+    };
+
+    const cancelEditBudget = () => {
+        setIsEditingBudget(false);
+        setEditBudgetRows([]);
+        setBudgetMsg(null);
+    };
+
+    const saveBudget = async () => {
+        setIsSavingBudget(true);
+        setBudgetMsg(null);
+        try {
+            const res = await fetch(
+                '/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.update_sanctioned_budget_breakup',
+                {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-Frappe-CSRF-Token': (window as any).csrf_token || '',
+                    },
+                    body: JSON.stringify({ docname, rows: editBudgetRows }),
+                },
+            );
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(json?.exception || `HTTP ${res.status}`);
+            onRefresh();
+            setIsEditingBudget(false);
+            setEditBudgetRows([]);
+            setBudgetMsg({ type: 'success', text: 'Budget breakup updated.' });
+        } catch (e: any) {
+            setBudgetMsg({ type: 'error', text: e?.message || 'Failed to save.' });
+        } finally {
+            setIsSavingBudget(false);
+        }
+    };
 
     useEffect(() => {
         const rows: any[] = data?.sanction_related_files || [];
@@ -647,51 +719,188 @@ const FundSanctionView = ({ data, docname, canEdit, onRefresh }: {
             </RegistryPanel>
 
             {/* Budget breakup */}
-            {data.sanctioned_budget_breakup?.length > 0 && (
-                <RegistryPanel title="Sanctioned Budget Breakup">
-                    <div className="overflow-x-auto">
-                        <table className="w-full table-fixed text-[11px]">
-                            <thead>
-                                <tr className="border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
-                                    <th className="px-3 py-2.5 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#1E3A8A] dark:text-[#C7D2FE]">Account Head</th>
-                                    {['Yr 1', 'Yr 2', 'Yr 3', 'Yr 4', 'Yr 5', 'Total'].map(h => (
-                                        <th key={h} className="px-3 py-2.5 text-right text-[10px] font-extrabold uppercase tracking-wider text-[#1E3A8A] dark:text-[#C7D2FE]">{h}</th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {data.sanctioned_budget_breakup.map((row: any, i: number) => {
-                                    const rowTotal = years.reduce((s, k) => s + (parseFloat(row[k]) || 0), 0);
-                                    return (
-                                        <tr key={i} className="border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30">
-                                            <td className="px-3 py-2 font-mono text-xs text-zinc-800 dark:text-zinc-100">{row.account_head}</td>
-                                            {years.map(k => (
-                                                <td key={k} className="px-3 py-2 text-right tabular-nums text-zinc-600 dark:text-zinc-300">
-                                                    {parseFloat(row[k]) ? Number(row[k]).toLocaleString('en-IN') : '—'}
+            {(data.sanctioned_budget_breakup?.length > 0 || canEdit) && (
+                <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
+                    <div className="flex items-center justify-between px-5 py-3 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
+                        <h3 className="text-[13px] font-extrabold uppercase tracking-wide text-[#3F3F46] dark:text-[#E4E4E7]">Sanctioned Budget Breakup</h3>
+                        {canEdit && !isEditingBudget && (
+                            <button
+                                type="button"
+                                onClick={startEditBudget}
+                                className="inline-flex items-center gap-1.5 h-7 px-3 text-[11px] font-bold uppercase tracking-wide rounded-lg bg-[#D97757]/10 hover:bg-[#D97757]/20 text-[#D97757] border border-[#D97757]/30 transition-colors"
+                            >
+                                <PaperclipIcon className="h-3 w-3" />
+                                Edit
+                            </button>
+                        )}
+                        {canEdit && isEditingBudget && (
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={cancelEditBudget}
+                                    disabled={isSavingBudget}
+                                    className="inline-flex items-center gap-1 h-7 px-3 text-[11px] font-bold uppercase tracking-wide rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-50 transition-colors"
+                                >
+                                    <XIcon className="h-3 w-3" />
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={saveBudget}
+                                    disabled={isSavingBudget}
+                                    className="inline-flex items-center gap-1 h-7 px-3 text-[11px] font-bold uppercase tracking-wide rounded-lg bg-[#D97757] hover:bg-[#c5684a] text-white disabled:opacity-50 transition-colors"
+                                >
+                                    {isSavingBudget ? 'Saving…' : 'Save'}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    <div className="p-4 space-y-3">
+                        {budgetMsg && (
+                            <div className={cn(
+                                'px-3 py-2 rounded-lg text-[12px] font-medium',
+                                budgetMsg.type === 'success'
+                                    ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                    : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800',
+                            )}>
+                                {budgetMsg.text}
+                            </div>
+                        )}
+                        {isEditingBudget ? (
+                            <div className="space-y-3">
+                                <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+                                    <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800 text-xs">
+                                        <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                                            <tr>
+                                                <th className="px-3 py-2 text-left font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Budget Head</th>
+                                                {[{ key: 'first_year_budget', label: 'Year 1' }, { key: 'second_year_budget', label: 'Year 2' }, { key: 'third_year_budget', label: 'Year 3' }, { key: 'fourth_year_budget', label: 'Year 4' }, { key: 'fifth_year_budget', label: 'Year 5' }].map(y => (
+                                                    <th key={y.key} className="px-3 py-2 text-right font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">{y.label}</th>
+                                                ))}
+                                                <th className="px-3 py-2 text-right font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Total</th>
+                                                <th className="px-3 py-2 w-8" />
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-800">
+                                            {editBudgetRows.map((row, idx) => {
+                                                const yearKeys = ['first_year_budget', 'second_year_budget', 'third_year_budget', 'fourth_year_budget', 'fifth_year_budget'] as const;
+                                                const rowTotal = yearKeys.reduce((s, k) => s + (row[k] || 0), 0);
+                                                return (
+                                                    <tr key={idx}>
+                                                        <td className="px-2 py-1.5">
+                                                            <select
+                                                                className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-2 py-1 text-xs"
+                                                                value={row.account_head}
+                                                                onChange={e => {
+                                                                    const updated = [...editBudgetRows];
+                                                                    updated[idx] = { ...updated[idx], account_head: e.target.value };
+                                                                    setEditBudgetRows(updated);
+                                                                }}
+                                                            >
+                                                                <option value="">— Select —</option>
+                                                                {budgetHeadList.map(bh => <option key={bh} value={bh}>{bh}</option>)}
+                                                            </select>
+                                                        </td>
+                                                        {yearKeys.map(k => (
+                                                            <td key={k} className="px-2 py-1.5">
+                                                                <input
+                                                                    type="text"
+                                                                    inputMode="numeric"
+                                                                    className="w-24 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-2 py-1 text-xs text-right"
+                                                                    value={row[k] || ''}
+                                                                    onChange={e => {
+                                                                        const updated = [...editBudgetRows];
+                                                                        updated[idx] = { ...updated[idx], [k]: Number(e.target.value) };
+                                                                        setEditBudgetRows(updated);
+                                                                    }}
+                                                                />
+                                                            </td>
+                                                        ))}
+                                                        <td className="px-2 py-1.5 text-right text-xs font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap">
+                                                            {rowTotal.toLocaleString('en-IN')}
+                                                        </td>
+                                                        <td className="px-2 py-1.5">
+                                                            <button
+                                                                type="button"
+                                                                className="text-zinc-400 hover:text-red-500"
+                                                                onClick={() => setEditBudgetRows(editBudgetRows.filter((_, i) => i !== idx))}
+                                                            >
+                                                                <XIcon className="h-3.5 w-3.5" />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                        <tfoot className="bg-zinc-100 dark:bg-zinc-800">
+                                            <tr>
+                                                <td className="px-3 py-2 text-xs font-bold text-zinc-900 dark:text-zinc-100">Total</td>
+                                                {(['first_year_budget', 'second_year_budget', 'third_year_budget', 'fourth_year_budget', 'fifth_year_budget'] as const).map(k => (
+                                                    <td key={k} className="px-3 py-2 text-xs font-bold text-zinc-900 dark:text-zinc-100 text-right">
+                                                        {editBudgetRows.reduce((s, r) => s + (r[k] || 0), 0).toLocaleString('en-IN')}
+                                                    </td>
+                                                ))}
+                                                <td className="px-3 py-2 text-xs font-bold text-[#D97757] text-right">
+                                                    ₹ {editBudgetRows.reduce((s, r) => s + r.first_year_budget + r.second_year_budget + r.third_year_budget + r.fourth_year_budget + r.fifth_year_budget, 0).toLocaleString('en-IN')}
                                                 </td>
+                                                <td />
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setEditBudgetRows([...editBudgetRows, { account_head: '', first_year_budget: 0, second_year_budget: 0, third_year_budget: 0, fourth_year_budget: 0, fifth_year_budget: 0 }])}
+                                    className="inline-flex items-center gap-1 h-7 px-3 text-[11px] font-bold uppercase tracking-wide rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                                >
+                                    + Add Row
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full table-fixed text-[11px]">
+                                    <thead>
+                                        <tr className="border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                                            <th className="px-3 py-2.5 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#1E3A8A] dark:text-[#C7D2FE]">Account Head</th>
+                                            {['Yr 1', 'Yr 2', 'Yr 3', 'Yr 4', 'Yr 5', 'Total'].map(h => (
+                                                <th key={h} className="px-3 py-2.5 text-right text-[10px] font-extrabold uppercase tracking-wider text-[#1E3A8A] dark:text-[#C7D2FE]">{h}</th>
                                             ))}
-                                            <td className="px-3 py-2 text-right tabular-nums font-bold text-zinc-900 dark:text-zinc-100">
-                                                {rowTotal ? rowTotal.toLocaleString('en-IN') : '—'}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {data.sanctioned_budget_breakup.map((row: any, i: number) => {
+                                            const rowTotal = years.reduce((s, k) => s + (parseFloat(row[k]) || 0), 0);
+                                            return (
+                                                <tr key={i} className="border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30">
+                                                    <td className="px-3 py-2 font-mono text-xs text-zinc-800 dark:text-zinc-100">{row.account_head}</td>
+                                                    {years.map(k => (
+                                                        <td key={k} className="px-3 py-2 text-right tabular-nums text-zinc-600 dark:text-zinc-300">
+                                                            {parseFloat(row[k]) ? Number(row[k]).toLocaleString('en-IN') : '—'}
+                                                        </td>
+                                                    ))}
+                                                    <td className="px-3 py-2 text-right tabular-nums font-bold text-zinc-900 dark:text-zinc-100">
+                                                        {rowTotal ? rowTotal.toLocaleString('en-IN') : '—'}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                    <tfoot className="border-t-2 border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
+                                        <tr>
+                                            <td className="px-3 py-2.5 text-[10px] font-bold uppercase text-zinc-700 dark:text-zinc-300">Total</td>
+                                            {years.map(k => {
+                                                const t = data.sanctioned_budget_breakup.reduce((s: number, r: any) => s + (parseFloat(r[k]) || 0), 0);
+                                                return <td key={k} className="px-3 py-2.5 text-right tabular-nums font-bold text-zinc-800 dark:text-zinc-100">{t ? t.toLocaleString('en-IN') : '—'}</td>;
+                                            })}
+                                            <td className="px-3 py-2.5 text-right tabular-nums font-bold text-[#D97757]">
+                                                ₹ {years.reduce((grand, k) => grand + data.sanctioned_budget_breakup.reduce((s: number, r: any) => s + (parseFloat(r[k]) || 0), 0), 0).toLocaleString('en-IN')}
                                             </td>
                                         </tr>
-                                    );
-                                })}
-                            </tbody>
-                            <tfoot className="border-t-2 border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
-                                <tr>
-                                    <td className="px-3 py-2.5 text-[10px] font-bold uppercase text-zinc-700 dark:text-zinc-300">Total</td>
-                                    {years.map(k => {
-                                        const t = data.sanctioned_budget_breakup.reduce((s: number, r: any) => s + (parseFloat(r[k]) || 0), 0);
-                                        return <td key={k} className="px-3 py-2.5 text-right tabular-nums font-bold text-zinc-800 dark:text-zinc-100">{t ? t.toLocaleString('en-IN') : '—'}</td>;
-                                    })}
-                                    <td className="px-3 py-2.5 text-right tabular-nums font-bold text-[#D97757]">
-                                        ₹ {years.reduce((grand, k) => grand + data.sanctioned_budget_breakup.reduce((s: number, r: any) => s + (parseFloat(r[k]) || 0), 0), 0).toLocaleString('en-IN')}
-                                    </td>
-                                </tr>
-                            </tfoot>
-                        </table>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        )}
                     </div>
-                </RegistryPanel>
+                </div>
             )}
 
             {/* Sanction letter attachment */}
@@ -807,7 +1016,7 @@ const TaskRegistryDetails: React.FC = () => {
     const { data, isLoading, error, mutate } = useFrappeGetDoc(doctype || '', name || '');
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
-    const canEditFsFiles = roles.some(r => r === 'staff, RnD' || r === 'System Manager');
+    const canEditFsFiles = roles.some(r => ["staff, RnD", "Staff RnD", "RnD Staff", "System Manager"].includes(r));
     const isStaffRnD = roles.some(r => ["staff, RnD", "Staff RnD", "RnD Staff", "System Manager"].includes(r));
 
     const [travelFields, setTravelFields] = useState<FormField[]>([]);
