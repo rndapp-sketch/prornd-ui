@@ -1091,6 +1091,7 @@ const DirectPurchaseActionButtons = ({
     sanctionRequired = false,
     onSanctionMissing,
     highlight = false,
+    onActionsLoaded,
 }: {
     docname: string;
     onActionComplete: () => void;
@@ -1100,6 +1101,7 @@ const DirectPurchaseActionButtons = ({
     sanctionRequired?: boolean;
     onSanctionMissing?: () => void;
     highlight?: boolean;
+    onActionsLoaded?: (actions: string[]) => void;
 }) => {
     const [actions, setActions] = useState<string[]>([]);
     const [isPerforming, setIsPerforming] = useState(false);
@@ -1119,8 +1121,9 @@ const DirectPurchaseActionButtons = ({
     useEffect(() => {
         fetchActions({ docname })
             .then((res) => {
-                if (res?.message)
-                    setActions(Array.isArray(res.message) ? res.message : []);
+                const loaded = Array.isArray(res?.message) ? res.message : [];
+                setActions(loaded);
+                onActionsLoaded?.(loaded);
             })
             .catch((err) =>
                 console.error("Error fetching workflow actions:", err),
@@ -2520,6 +2523,7 @@ const DirectPurchaseDetails: React.FC = () => {
         (searchParams.get("tab") as TabId) || "details",
     );
     const highlightAction = searchParams.get("highlight_action") === "1";
+    const [dpActions, setDpActions] = useState<string[]>([]);
     const [isGeneratingPO, setIsGeneratingPO] = useState(false);
     const [isGeneratingP11, setIsGeneratingP11] = useState(false);
     const [isOpeningSanctionSheet, setIsOpeningSanctionSheet] = useState(false);
@@ -3175,12 +3179,13 @@ const DirectPurchaseDetails: React.FC = () => {
                                 sanctionRequired={sanctionRequired}
                                 onSanctionMissing={() => setActiveTab("sanction")}
                                 highlight={highlightAction}
+                                onActionsLoaded={setDpActions}
                             />
                         )}
                     </div>
                 </PageHeader>
 
-                {data.workflow_state === "Sanction Sheet Printed" && (
+                {dpActions.length > 0 && (
                     <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-700/50 dark:bg-amber-950/30">
                         <div className="mt-0.5 flex-shrink-0 flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/40">
                             <svg className="h-4 w-4 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -3188,9 +3193,11 @@ const DirectPurchaseDetails: React.FC = () => {
                             </svg>
                         </div>
                         <div className="min-w-0">
-                            <p className="text-[13px] font-bold text-amber-800 dark:text-amber-300">Action Required — Verify Sanction Sheet</p>
+                            <p className="text-[13px] font-bold text-amber-800 dark:text-amber-300">
+                                Action Required — {dpActions.join(" / ")}
+                            </p>
                             <p className="mt-0.5 text-[12px] font-medium leading-5 text-amber-700 dark:text-amber-400">
-                                The Sanction Sheet has been printed. Please verify the hardcopy and then click the <span className="font-bold">"Verify Sanction Sheet"</span> action button above to proceed.
+                                Click the <span className="font-bold">"{dpActions[0]}"</span> button above to proceed to the next step.
                             </p>
                         </div>
                     </div>
