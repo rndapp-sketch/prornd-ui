@@ -112,7 +112,7 @@ const DP_PHASE2_ORDER = [
     "RDP-11 Verified",
     "Sanction Sheet Generated",
     "Sanction Sheet Printed",
-    "Sanction OK",
+    "Sanction Approved",
     "POGenerated",
 ];
 
@@ -142,8 +142,8 @@ const DP_PHASE2_LABELS: Record<string, { label: string; description: string; nex
         description: "The applicant (Permanent Employee) acknowledges that a physical print of the Sanction Sheet has been taken.",
         nextAction: "Verify Sanction Sheet",
     },
-    "Sanction OK": {
-        label: "Sanction OK",
+    "Sanction Approved": {
+        label: "Sanction Approved",
         description: "R&D Staff verifies the signed Sanction Sheet and marks it as approved before generating the Purchase Order.",
         nextAction: "Generate PO",
     },
@@ -2866,16 +2866,16 @@ const DirectPurchaseDetails: React.FC = () => {
                     ...ssDoc,
                     ...(dpPoData
                         ? {
-                              vendor_address:       dpPoData.vendor_name_address || ssDoc.ss_name_of_firms || "",
-                              po_number:            dpPoData.po_number            || ssDoc.name || "",
-                              po_date:              dpPoData.po_date               || "",
-                              quotation_no:         dpPoData.quotation_ref_no      || "",
-                              amount_in_words:      dpPoData.amount_in_words       || "",
-                              terms_and_conditions: dpPoData.terms_and_conditions  || "",
-                              _dp_po_items:         dpPoData.items || [],
-                          }
+                            vendor_address: dpPoData.vendor_name_address || ssDoc.ss_name_of_firms || "",
+                            po_number: dpPoData.po_number || ssDoc.name || "",
+                            po_date: dpPoData.po_date || "",
+                            quotation_no: dpPoData.quotation_ref_no || "",
+                            amount_in_words: dpPoData.amount_in_words || "",
+                            terms_and_conditions: dpPoData.terms_and_conditions || "",
+                            _dp_po_items: dpPoData.items || [],
+                        }
                         : {}),
-                    signee_name:        signeeName,
+                    signee_name: signeeName,
                     signee_designation: signeeDesignation,
                     _dp_po_name: dpPoName,
                     dp_indent_value: data?.total_estimate ?? "",
@@ -2922,32 +2922,32 @@ const DirectPurchaseDetails: React.FC = () => {
     const handleSaveDpPo = async (poData: Record<string, any>) => {
         const csrf = (window as any).csrf_token || "";
         const payload: Record<string, any> = {
-            name:                dpPoDocname || undefined,
+            name: dpPoDocname || undefined,
             direct_purchase_ref: id,
-            sanction_sheet_ref:  poSanctionData?.name || "",
+            sanction_sheet_ref: poSanctionData?.name || "",
             vendor_name_address: poData.vendor_address || "",
-            po_number:           poData.po_number || "",
-            po_date:             (() => {
+            po_number: poData.po_number || "",
+            po_date: (() => {
                 const raw = poData.po_date || "";
                 const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(raw);
                 return m ? `${m[3]}-${m[2]}-${m[1]}` : raw;
             })(),
-            quotation_ref_no:    poData.quotation_no || "",
-            signee_name:         poData.signee_name || "",
-            signee_designation:  poData.signee_designation || "",
-            amount_in_words:     poData.amount_in_words || "",
+            quotation_ref_no: poData.quotation_no || "",
+            signee_name: poData.signee_name || "",
+            signee_designation: poData.signee_designation || "",
+            amount_in_words: poData.amount_in_words || "",
             terms_and_conditions: poData.terms_and_conditions || "",
             items: Array.isArray(poData.table_bttk)
                 ? poData.table_bttk.map((row: any) => ({
-                      item_name:  row.item_name       || "",
-                      make:       row.item_make        || "",
-                      model:      row.item_model       || "",
-                      qty:        row.item_quantity    || 0,
-                      unit_price: row.item_unit_price  || 0,
-                      discount:   row.item_discount    || 0,
-                      gst:        row.item_gst         || 0,
-                      total:      row.dp_total_price   || 0,
-                  }))
+                    item_name: row.item_name || "",
+                    make: row.item_make || "",
+                    model: row.item_model || "",
+                    qty: row.item_quantity || 0,
+                    unit_price: row.item_unit_price || 0,
+                    discount: row.item_discount || 0,
+                    gst: row.item_gst || 0,
+                    total: row.dp_total_price || 0,
+                }))
                 : [],
         };
 
@@ -3276,7 +3276,7 @@ const DirectPurchaseDetails: React.FC = () => {
 
                                 {/* Commit Payment — details tab only */}
                                 {isStaffRnD &&
-                                    ["Pending Staff Approval", "Sanction OK"].includes(data.workflow_state) && (
+                                    ["Pending Staff Approval", "Sanction Approved"].includes(data.workflow_state) && (
                                         <div className="mt-4">
                                             <CommitPayment
                                                 doctype="Direct Purchase"
@@ -3453,14 +3453,14 @@ const DirectPurchaseDetails: React.FC = () => {
                                                 </p>
                                                 <p className="max-w-md text-[12px] font-medium leading-5 text-[#71717A] dark:text-[#A1A1AA]">
                                                     {data?.workflow_state === "Sanction Sheet Printed"
-                                                        ? "The Sanction Sheet has been printed. This tab will be enabled once R&D Staff verifies the hardcopy of the Sanction Sheet and generates the Purchase Order."
+                                                        ? "The Sanction Sheet has been printed. This tab will be enabled once the Sanction is Approved by R&D Staff."
                                                         : `The Sanction Sheet has not been printed yet${data?.applicant_name ? ` by ${data.applicant_name}` : ""}. Once the PI prints the Sanction Sheet, this form will move to “Sanction Sheet Printed” and the Purchase Order will be enabled.`}
                                                 </p>
                                             </div>
                                         ) : poSanctionData &&
                                             (isStaffRnD ||
-                                                data?.workflow_state ===
-                                                "POGenerated") ? (
+                                                data?.workflow_state === "Sanction Approved" ||
+                                                data?.workflow_state === "POGenerated") ? (
                                             <POEditor
                                                 ssData={poSanctionData}
                                                 dpId={id || ""}
