@@ -670,7 +670,14 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
                     )}
                     {activeTab === 'po' && (
                         isLoadingPOData ? <Spinner /> :
-                        poSanctionData && (isStaffRnD || data?.workflow_state === "POGenerated") ? (
+                        data?.workflow_state === "Sanction Sheet Generated" ? (
+                            <EmptyState
+                                icon={<ShoppingCartIcon className="h-5 w-5" />}
+                                title="Purchase Order Locked"
+                                description="The Purchase Order is locked while the Sanction Sheet is being processed. It will be available once the Sanction Sheet is printed."
+                            />
+                        ) :
+                        poSanctionData && (isStaffRnD || data?.workflow_state === "POGenerated" || data?.workflow_state === "Sanction Sheet Printed") ? (
                             <POEditor ssData={poSanctionData} dpId={docName} isStaffRnD={isStaffRnD} isPIReadOnly={isPermanentEmployee && !isStaffRnD} />
                         ) : poSanctionData ? (
                             <EmptyState
