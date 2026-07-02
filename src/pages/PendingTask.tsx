@@ -690,6 +690,19 @@ const PendingTask: React.FC = () => {
                     </div>
                 </div>
 
+                {/* Info banner */}
+                <div className="mb-5 flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-800/50 dark:bg-blue-950/30">
+                    <div className="mt-0.5 flex-shrink-0 flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/40">
+                        <svg className="h-4 w-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p className="text-[13px] font-bold text-blue-800 dark:text-blue-300">All form processing must be done from this page.</p>
+                        <p className="mt-0.5 text-[12px] font-medium leading-5 text-blue-700 dark:text-blue-400">Approvals, forwarding, and all workflow actions are only available here in Pending Tasks. Open a task and use the action buttons to process it.</p>
+                    </div>
+                </div>
+
                 {/* Project Type Filter */}
                 <div className="mb-4 border-t-2 border-[#4A6CF7]/35 pt-4 dark:border-[#818CF8]/35">
                     <div className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#71717A] dark:text-[#A1A1AA]">
