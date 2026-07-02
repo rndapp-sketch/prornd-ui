@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useFrappeGetDoc, useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
+import { useFrappeGetDoc, useFrappePostCall, useFrappeAuth, useFrappeGetCall } from 'frappe-react-sdk';
 import {
     FileTextIcon, ClipboardListIcon, ShoppingCartIcon,
     LayoutGridIcon, PaperclipIcon, Printer, FolderOpenIcon, XIcon,
@@ -613,15 +613,56 @@ const DP_WORKFLOW_STAGES = [
     "Completed",
 ];
 
+const ROLE_ABBR: Record<string, string> = {
+    "staff, RnD": "RnD",
+    "Staff RnD": "RnD",
+    "RnD Staff": "RnD",
+    "System Manager": "Admin",
+    "Permanent Employee": "PI",
+    "project staff": "PI",
+    "head_approver_1": "Head",
+    "Ado_RnD": "Ado",
+    "Hos, RnD": "HoS",
+    "Dean, RnD": "Dean",
+    "Director": "Dir",
+    "All_ProRnd_User": "All",
+};
+
+const abbreviateRole = (role: string) => ROLE_ABBR[role] ?? role.split(/[\s,_]/)[0];
+
+const useDPWorkflowRoles = () => {
+    const { data: wfList } = useFrappeGetCall<{ message: { name: string }[] }>(
+        'frappe.client.get_list',
+        { doctype: 'Workflow', filters: JSON.stringify([['document_type', '=', 'Direct Purchase'], ['is_active', '=', 1]]), fields: JSON.stringify(['name']), limit_page_length: 1 }
+    );
+    const wfName = wfList?.message?.[0]?.name;
+    const { data: wfDoc } = useFrappeGetCall<{ message: { transitions: { state: string; allowed: string }[] } }>(
+        'frappe.client.get',
+        { doctype: 'Workflow', name: wfName },
+        wfName ? undefined : null
+    );
+    return React.useMemo(() => {
+        const map: Record<string, string[]> = {};
+        (wfDoc?.message?.transitions || []).forEach(t => {
+            if (!map[t.state]) map[t.state] = [];
+            const abbr = abbreviateRole(t.allowed);
+            if (abbr && !map[t.state].includes(abbr)) map[t.state].push(abbr);
+        });
+        return map;
+    }, [wfDoc]);
+};
+
 const DPWorkflowStepper = ({ currentState }: { currentState: string }) => {
     const currentIdx = DP_WORKFLOW_STAGES.indexOf(currentState);
     const isRejected = currentState?.toLowerCase().includes("reject") || currentState?.toLowerCase().includes("cancel");
+    const rolesByState = useDPWorkflowRoles();
 
     return (
         <div className="flex items-center gap-0 overflow-x-auto pb-1 scrollbar-none">
             {DP_WORKFLOW_STAGES.map((stage, idx) => {
                 const isDone = currentIdx > idx;
                 const isActive = currentIdx === idx;
+                const roles = rolesByState[stage] || [];
                 return (
                     <React.Fragment key={stage}>
                         <div className="flex flex-col items-center gap-1 flex-shrink-0">
@@ -643,10 +684,18 @@ const DPWorkflowStepper = ({ currentState }: { currentState: string }) => {
                             )}>
                                 {stage}
                             </span>
+                            {roles.length > 0 && (
+                                <span className={cn(
+                                    "text-[7px] font-semibold text-center leading-tight max-w-[52px]",
+                                    isActive ? "text-[#D97757]/80" : "text-[#C1C1C8] dark:text-zinc-600",
+                                )}>
+                                    {roles.join("/")}
+                                </span>
+                            )}
                         </div>
                         {idx < DP_WORKFLOW_STAGES.length - 1 && (
                             <div className={cn(
-                                "h-[2px] flex-1 min-w-[10px] mx-0.5 mb-4 rounded-full transition-all",
+                                "h-[2px] flex-1 min-w-[10px] mx-0.5 mb-6 rounded-full transition-all",
                                 currentIdx > idx ? "bg-emerald-400 dark:bg-emerald-600" : "bg-[#E4E4E7] dark:bg-zinc-700",
                             )} />
                         )}
