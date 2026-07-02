@@ -3209,6 +3209,7 @@ const DirectPurchaseDetails: React.FC = () => {
                     totalEstimate={data.total_estimate}
                 />
 
+                <div className={cn("min-w-0 space-y-0", isStaffRnD && ["Pending Staff Approval", "Sanction Approved"].includes(data.workflow_state ?? "") ? "grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-4 items-start" : "")}>
                 <div className="min-w-0 space-y-0">
                     {/* Tab navigation */}
                     <div className={cn("mb-4 grid grid-cols-1 gap-2 rounded-2xl border border-[#E4E4E7] bg-white p-2 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A] sm:grid-cols-2", isStaffRnD ? "lg:grid-cols-5" : "lg:grid-cols-4")}>
@@ -3281,21 +3282,6 @@ const DirectPurchaseDetails: React.FC = () => {
                                 />
                                 <DocumentViewer data={data} />
 
-                                {/* Commit Payment — details tab only */}
-                                {isStaffRnD &&
-                                    ["Pending Staff Approval", "Sanction Approved"].includes(data.workflow_state) && (
-                                        <div className="mt-4">
-                                            <CommitPayment
-                                                doctype="Direct Purchase"
-                                                docName={id || ""}
-                                                projectName={projectTitle}
-                                                budgetHeads={budgetHeads}
-                                                actualBalance={actualBalance}
-                                                onCommitSuccess={() => loadData()}
-                                                onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
-                                            />
-                                        </div>
-                                    )}
 
                                 {/* Record Payment — details tab only */}
                                 {isStaffRnD &&
@@ -3605,12 +3591,43 @@ const DirectPurchaseDetails: React.FC = () => {
                                     description="Submit the PO Commit Adjustment for this direct purchase after the PO is fulfilled."
                                     tone="settlement"
                                 />
-                                <FinalSettlementTab dpId={id} />
+                                {!["PO Sent", "Completed"].includes(data.workflow_state ?? "") ? (
+                                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#E4E4E7] bg-[#FAFAF9] px-5 py-12 text-center gap-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
+                                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-[#A1A1AA] shadow-sm dark:bg-[#27272A] dark:text-[#71717A]">
+                                            <ReceiptIcon className="h-5 w-5" />
+                                        </div>
+                                        <p className="text-[15px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                            Settlement Locked
+                                        </p>
+                                        <p className="max-w-md text-[12px] font-medium leading-5 text-[#71717A] dark:text-[#A1A1AA]">
+                                            The PO Commit Adjustment can only be submitted after the Purchase Order has been sent. This section will be available once the status reaches <span className="font-semibold">"PO Sent"</span>.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <FinalSettlementTab dpId={id} />
+                                )}
                             </>
                         )}
                     </ClaudeCard>
 
-                </div>
+                </div>{/* end inner tab column */}
+
+                {/* Sidebar — Make a Commitment */}
+                {isStaffRnD && ["Pending Staff Approval", "Sanction Approved"].includes(data.workflow_state ?? "") && (
+                    <div className="sticky top-4 space-y-4">
+                        <CommitPayment
+                            doctype="Direct Purchase"
+                            docName={id || ""}
+                            projectName={projectTitle}
+                            budgetHeads={budgetHeads}
+                            actualBalance={actualBalance}
+                            onCommitSuccess={() => loadData()}
+                            onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
+                        />
+                    </div>
+                )}
+
+                </div>{/* end outer grid */}
 
                 {id && <FloatingActivityLogButton doctype="Direct Purchase" docname={id} />}
             </main>
