@@ -425,9 +425,12 @@ const PendingTask: React.FC = () => {
                 if (isPermanentEmployee && group.doctype === "Leave Module" && record.status === "Pending PI Approval" && allowedLeaveNames && !allowedLeaveNames.has(record.name)) {
                     return;
                 }
+                if (record.status === "Endorsement Approved") {
+                    return;
+                }
                 if (
-                    record.status === "Endorsement Approved" ||
-                    record.status === "Sanction Approved"
+                    record.status === "Sanction Approved" &&
+                    group.doctype !== "Direct Purchase"
                 ) {
                     return;
                 }
