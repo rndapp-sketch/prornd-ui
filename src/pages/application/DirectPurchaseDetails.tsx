@@ -3180,6 +3180,22 @@ const DirectPurchaseDetails: React.FC = () => {
                     </div>
                 </PageHeader>
 
+                {data.workflow_state === "Sanction Sheet Printed" && (
+                    <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-700/50 dark:bg-amber-950/30">
+                        <div className="mt-0.5 flex-shrink-0 flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/40">
+                            <svg className="h-4 w-4 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                            </svg>
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-[13px] font-bold text-amber-800 dark:text-amber-300">Action Required — Verify Sanction Sheet</p>
+                            <p className="mt-0.5 text-[12px] font-medium leading-5 text-amber-700 dark:text-amber-400">
+                                The Sanction Sheet has been printed. Please verify the hardcopy and then click the <span className="font-bold">"Verify Sanction Sheet"</span> action button above to proceed.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 <DPWorkflowTimeline
                     workflowState={data.workflow_state}
                     accountHead={data.account_head}
@@ -3426,6 +3442,20 @@ const DirectPurchaseDetails: React.FC = () => {
                                         {isLoadingPOData ? (
                                             <div className="flex items-center justify-center rounded-xl border border-dashed border-[#E4E4E7] bg-[#FAFAF9] py-12 dark:border-[#3F3F46] dark:bg-[#18181B]">
                                                 <div className="animate-spin rounded-full h-7 w-7 border-2 border-[#D97757] border-t-transparent" />
+                                            </div>
+                                        ) : (data?.workflow_state === "Sanction Sheet Generated" || data?.workflow_state === "Sanction Sheet Printed") ? (
+                                            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-amber-200 bg-amber-50 px-5 py-12 text-center gap-3 dark:border-amber-900/40 dark:bg-amber-950/20">
+                                                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-amber-500 shadow-sm dark:bg-[#27272A]">
+                                                    <ShoppingCartIcon className="h-5 w-5" />
+                                                </div>
+                                                <p className="text-[15px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                                    Purchase Order Locked
+                                                </p>
+                                                <p className="max-w-md text-[12px] font-medium leading-5 text-[#71717A] dark:text-[#A1A1AA]">
+                                                    {data?.workflow_state === "Sanction Sheet Printed"
+                                                        ? "The Sanction Sheet has been printed. This tab will be enabled once R&D Staff verifies the hardcopy of the Sanction Sheet and generates the Purchase Order."
+                                                        : `The Sanction Sheet has not been printed yet${data?.applicant_name ? ` by ${data.applicant_name}` : ""}. Once the PI prints the Sanction Sheet, this form will move to “Sanction Sheet Printed” and the Purchase Order will be enabled.`}
+                                                </p>
                                             </div>
                                         ) : poSanctionData &&
                                             (isStaffRnD ||
