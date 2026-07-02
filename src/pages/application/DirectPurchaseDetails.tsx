@@ -3209,7 +3209,7 @@ const DirectPurchaseDetails: React.FC = () => {
                     totalEstimate={data.total_estimate}
                 />
 
-                <div className={cn("min-w-0 space-y-0", isStaffRnD && ["Pending Staff Approval", "Sanction Approved"].includes(data.workflow_state ?? "") ? "grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-4 items-start" : "")}>
+                <div className={cn("min-w-0 space-y-0", isStaffRnD && data.workflow_state === "Pending Staff Approval" && activeTab === "details" ? "grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-4 items-start" : "")}>
                 <div className="min-w-0 space-y-0">
                     {/* Tab navigation */}
                     <div className={cn("mb-4 grid grid-cols-1 gap-2 rounded-2xl border border-[#E4E4E7] bg-white p-2 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A] sm:grid-cols-2", isStaffRnD ? "lg:grid-cols-5" : "lg:grid-cols-4")}>
@@ -3612,8 +3612,8 @@ const DirectPurchaseDetails: React.FC = () => {
 
                 </div>{/* end inner tab column */}
 
-                {/* Sidebar — Make a Commitment */}
-                {isStaffRnD && ["Pending Staff Approval", "Sanction Approved"].includes(data.workflow_state ?? "") && (
+                {/* Sidebar — Make a Commitment (details tab + Pending Staff Approval only) */}
+                {isStaffRnD && data.workflow_state === "Pending Staff Approval" && activeTab === "details" && (
                     <div className="sticky top-4 space-y-4">
                         <CommitPayment
                             doctype="Direct Purchase"
