@@ -598,6 +598,65 @@ const DPLinkedDocTab = ({ doctype, filterField, filterValue, emptyTitle, emptyDe
     );
 };
 
+// ── DP Workflow stepper ───────────────────────────────────────────────────────
+const DP_WORKFLOW_STAGES = [
+    "Draft",
+    "Pending PI Approval",
+    "Pending RnD Approval",
+    "Approved",
+    "RDP-11 Generated",
+    "RDP-11 Verified",
+    "Sanction Sheet Generated",
+    "Sanction Sheet Printed",
+    "POGenerated",
+    "PO Sent",
+    "Completed",
+];
+
+const DPWorkflowStepper = ({ currentState }: { currentState: string }) => {
+    const currentIdx = DP_WORKFLOW_STAGES.indexOf(currentState);
+    const isRejected = currentState?.toLowerCase().includes("reject") || currentState?.toLowerCase().includes("cancel");
+
+    return (
+        <div className="flex items-center gap-0 overflow-x-auto pb-1 scrollbar-none">
+            {DP_WORKFLOW_STAGES.map((stage, idx) => {
+                const isDone = currentIdx > idx;
+                const isActive = currentIdx === idx;
+                return (
+                    <React.Fragment key={stage}>
+                        <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                            <div className={cn(
+                                "w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-extrabold border-2 transition-all",
+                                isDone && "bg-emerald-500 border-emerald-500 text-white",
+                                isActive && !isRejected && "bg-[#D97757] border-[#D97757] text-white shadow-md shadow-orange-200 dark:shadow-orange-900/30 scale-110",
+                                isActive && isRejected && "bg-red-500 border-red-500 text-white",
+                                !isDone && !isActive && "bg-white dark:bg-zinc-800 border-[#E4E4E7] dark:border-zinc-600 text-[#A1A1AA]",
+                            )}>
+                                {isDone ? <CheckCircle2Icon className="w-3 h-3" /> : idx + 1}
+                            </div>
+                            <span className={cn(
+                                "text-[8px] font-bold text-center leading-tight max-w-[52px] break-words",
+                                isDone && "text-emerald-600 dark:text-emerald-400",
+                                isActive && !isRejected && "text-[#D97757]",
+                                isActive && isRejected && "text-red-500",
+                                !isDone && !isActive && "text-[#A1A1AA] dark:text-zinc-500",
+                            )}>
+                                {stage}
+                            </span>
+                        </div>
+                        {idx < DP_WORKFLOW_STAGES.length - 1 && (
+                            <div className={cn(
+                                "h-[2px] flex-1 min-w-[10px] mx-0.5 mb-4 rounded-full transition-all",
+                                currentIdx > idx ? "bg-emerald-400 dark:bg-emerald-600" : "bg-[#E4E4E7] dark:bg-zinc-700",
+                            )} />
+                        )}
+                    </React.Fragment>
+                );
+            })}
+        </div>
+    );
+};
+
 // ── DirectPurchaseTabView ─────────────────────────────────────────────────────
 const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; docName: string }) => {
     const [activeTab, setActiveTab] = React.useState<DPTabId>('details');
@@ -627,29 +686,122 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
         }).catch(() => { }).finally(() => setIsLoadingPOData(false));
     }, [activeTab, docName, poSanctionData]);
 
+    const workflowState = data?.workflow_state || 'Draft';
+    const estimatedAmount = data?.estimated_amount || data?.total_amount || data?.amount;
+    const applicant = data?.applicant_name || data?.applicant || data?.owner;
+    const projectNo = data?.project_no || data?.project_code || data?.project;
+    const createdDate = data?.creation ? new Date(data.creation).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
+    const purpose = data?.purpose || data?.particulars || data?.item_description;
+
     return (
-        <div className="space-y-4">
-            {/* Tab nav */}
-            <div className="grid grid-cols-2 gap-2 rounded-2xl border border-[#E4E4E7] bg-white p-2 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A] lg:grid-cols-4">
+        <div className="space-y-5">
+            {/* ── Hero summary card ── */}
+            <div className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden">
+                {/* Top accent bar */}
+                <div className="h-1 bg-gradient-to-r from-[#D97757] via-orange-400 to-amber-300" />
+
+                <div className="p-5 md:p-6">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        {/* Left: key fields */}
+                        <div className="space-y-3 min-w-0">
+                            <div className="flex items-center gap-2">
+                                <ShoppingCartIcon className="h-4 w-4 text-[#D97757] flex-shrink-0" />
+                                <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#71717A] dark:text-[#A1A1AA]">Direct Purchase</span>
+                            </div>
+                            <p className="font-mono text-[11px] text-[#A1A1AA] dark:text-zinc-500 break-all">{docName}</p>
+                            {purpose && (
+                                <p className="text-[14px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] leading-snug max-w-md">{purpose}</p>
+                            )}
+                            <div className="flex flex-wrap gap-x-5 gap-y-1.5 pt-1">
+                                {applicant && (
+                                    <div className="flex items-center gap-1.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
+                                        <span className="font-extrabold uppercase tracking-wider">Applicant</span>
+                                        <span className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{applicant}</span>
+                                    </div>
+                                )}
+                                {projectNo && (
+                                    <div className="flex items-center gap-1.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
+                                        <span className="font-extrabold uppercase tracking-wider">Project</span>
+                                        <span className="font-mono font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{projectNo}</span>
+                                    </div>
+                                )}
+                                {createdDate && (
+                                    <div className="flex items-center gap-1.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
+                                        <span className="font-extrabold uppercase tracking-wider">Created</span>
+                                        <span className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{createdDate}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Right: amount + status */}
+                        <div className="flex flex-row sm:flex-col items-start sm:items-end gap-3 flex-shrink-0">
+                            {estimatedAmount != null && (
+                                <div className="rounded-xl bg-orange-50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30 px-4 py-3 text-right">
+                                    <p className="text-[9px] font-extrabold uppercase tracking-[0.12em] text-orange-500 dark:text-orange-400 mb-0.5">Est. Amount</p>
+                                    <p className="text-[20px] font-extrabold text-[#D97757] tracking-tight leading-none">
+                                        ₹{Number(estimatedAmount).toLocaleString('en-IN')}
+                                    </p>
+                                </div>
+                            )}
+                            <span className={cn(
+                                "inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border",
+                                workflowState === "Completed" && "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800/40",
+                                workflowState === "Draft" && "bg-zinc-50 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700",
+                                workflowState?.toLowerCase().includes("pending") && "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800/40",
+                                workflowState?.toLowerCase().includes("approved") && "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800/40",
+                                workflowState?.toLowerCase().includes("reject") && "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800/40",
+                                !["Completed","Draft"].includes(workflowState) && !workflowState?.toLowerCase().includes("pending") && !workflowState?.toLowerCase().includes("approved") && !workflowState?.toLowerCase().includes("reject") && "bg-orange-50 text-[#D97757] border-orange-200 dark:bg-orange-950/20 dark:border-orange-900/30",
+                            )}>
+                                {workflowState}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Workflow stepper */}
+                    <div className="mt-5 pt-4 border-t border-[#F4F4F5] dark:border-[#3F3F46]">
+                        <p className="text-[9px] font-extrabold uppercase tracking-[0.12em] text-[#A1A1AA] dark:text-zinc-500 mb-3">Workflow Progress</p>
+                        <DPWorkflowStepper currentState={workflowState} />
+                    </div>
+                </div>
+            </div>
+
+            {/* ── Tab navigation ── */}
+            <div className="flex gap-1 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] p-1">
                 {DP_TABS.map(tab => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={cn(
-                            "inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-[12px] font-bold transition-all duration-150",
+                            "flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-bold transition-all duration-150",
                             activeTab === tab.id
                                 ? DP_TAB_ACTIVE[tab.id]
-                                : "border-transparent text-[#71717A] hover:bg-zinc-50 hover:text-[#3F3F46] dark:text-[#A1A1AA] dark:hover:bg-zinc-800 dark:hover:text-[#E4E4E7]",
+                                : "border border-transparent text-[#71717A] hover:bg-white dark:hover:bg-zinc-800 hover:text-[#3F3F46] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7]",
                         )}
                     >
                         {tab.icon}
-                        {tab.label}
+                        <span className="hidden sm:inline">{tab.label}</span>
+                        <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
                     </button>
                 ))}
             </div>
 
-            {/* Tab content */}
-            <div className="rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A] overflow-hidden">
+            {/* ── Tab content ── */}
+            <div className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden">
+                {/* Tab header strip */}
+                <div className={cn(
+                    "px-5 py-3 border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center gap-2",
+                    activeTab === 'details' && "bg-blue-50/60 dark:bg-blue-950/10",
+                    activeTab === 'p11' && "bg-indigo-50/60 dark:bg-indigo-950/10",
+                    activeTab === 'sanction' && "bg-emerald-50/60 dark:bg-emerald-950/10",
+                    activeTab === 'po' && "bg-orange-50/60 dark:bg-orange-950/10",
+                )}>
+                    {DP_TABS.find(t => t.id === activeTab)?.icon}
+                    <span className="text-[12px] font-extrabold uppercase tracking-wider text-[#3F3F46] dark:text-[#E4E4E7]">
+                        {DP_TABS.find(t => t.id === activeTab)?.label}
+                    </span>
+                </div>
+
                 <div className="p-5 md:p-6">
                     {activeTab === 'details' && <DPDocumentViewer data={data} doctype="Direct Purchase" />}
                     {activeTab === 'p11' && (
