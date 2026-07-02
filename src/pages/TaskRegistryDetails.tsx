@@ -608,6 +608,7 @@ const DP_WORKFLOW_STAGES = [
     "RDP-11 Verified",
     "Sanction Sheet Generated",
     "Sanction Sheet Printed",
+    "Sanction Approved",
     "POGenerated",
     "PO Sent",
     "Completed",
