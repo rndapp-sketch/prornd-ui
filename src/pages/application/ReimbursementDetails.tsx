@@ -177,83 +177,6 @@ const CommentModal = ({
   );
 };
 
-// --- REIMBURSEMENT WORKFLOW ACTIONS ---
-const ReimbursementWorkflowActions = ({
-  docname,
-  onActionComplete,
-  commitRequired = false,
-}: {
-  docname: string;
-  onActionComplete: () => void;
-  commitRequired?: boolean;
-}) => {
-  const { data, isLoading: actionsLoading } = useFrappeGetCall<{
-    message: string[];
-  }>(
-    "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_reimbursement_workflow_actions",
-    { docname },
-  );
-
-  const { call: performAction, loading: actionLoading } = useFrappePostCall(
-    "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.perform_reimbursement_action",
-  );
-
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedAction, setSelectedAction] = useState("");
-
-  const handleActionClick = (action: string) => {
-    setSelectedAction(action);
-    setModalOpen(true);
-  };
-
-  const handleConfirmAction = async (comment: string) => {
-    try {
-      await performAction({ docname, action: selectedAction, comment });
-      setModalOpen(false);
-      onActionComplete();
-    } catch (error) {
-      console.error("Error performing action:", error);
-      alert("Failed to perform action. Please try again.");
-    }
-  };
-
-  const filteredActions = (data?.message || []).filter(
-    (action) => action.toLowerCase() !== "submit",
-  );
-
-  if (actionsLoading || !filteredActions.length) return null;
-
-  return (
-    <>
-      {commitRequired && (
-        <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300 font-medium mb-4">
-          A commitment must be submitted before forwarding this application.
-        </div>
-      )}
-      <div className="flex gap-2 mb-4">
-        {filteredActions.map((action) => (
-          <FrappeButton
-            key={action}
-            onClick={() => handleActionClick(action)}
-            disabled={actionLoading || commitRequired}
-            variant={commitRequired ? "outline" : "action"}
-            className={commitRequired ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed border-0" : ""}
-          >
-            {action}
-          </FrappeButton>
-        ))}
-      </div>
-      <CommentModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onSubmit={handleConfirmAction}
-        action={selectedAction}
-        isLoading={actionLoading}
-      />
-    </>
-  );
-};
-
 // --- ACTIONS DROPDOWN ---
 const ActionsDropdown = ({
   docname,
@@ -1072,40 +995,28 @@ const ReimbursementDetails: React.FC = () => {
                 By: {data.owner}
               </div>
             </div>
-            {/* Edit and Submit buttons - only show for Draft */}
-            {(data.workflow_state === "Draft" || !data.workflow_state) && (
-              <>
-                <FrappeButton
-                  variant="outline"
-                  onClick={() => navigate(`/reimbursement?edit=${data.name}`)}
-                >
-                  Edit
-                </FrappeButton>
-                <FrappeButton
-                  variant="primary"
-                  onClick={handleSubmit}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? "Submitting..." : "Submit"}
-                </FrappeButton>
-              </>
+            {!cancellationStatus?.message?.has_pending && (
+              <ActionsDropdown
+                docname={data.name}
+                workflowState={data.workflow_state || "Draft"}
+                onActionComplete={() => window.location.reload()}
+                onEdit={() => navigate(`/reimbursement?edit=${data.name}`)}
+                onSubmit={handleSubmit}
+                onDownload={handleDownload}
+                isSubmitting={isSubmitting}
+                commitRequired={
+                  isRnDStaff &&
+                  isCommittedForGate === false &&
+                  data.workflow_state === "Pending Staff Approval"
+                }
+              />
             )}
-            {/* Download button - always visible */}
-            <FrappeButton variant="outline" onClick={handleDownload}>
-              <DownloadIcon className="w-4 h-4" />
-            </FrappeButton>
+            {cancellationStatus?.message?.has_pending && (
+              <FrappeButton variant="outline" onClick={handleDownload}>
+                <DownloadIcon className="w-4 h-4" />
+              </FrappeButton>
+            )}
           </div>
-          {!cancellationStatus?.message?.has_pending && data.workflow_state && (
-            <ReimbursementWorkflowActions
-              docname={data.name}
-              onActionComplete={() => window.location.reload()}
-              commitRequired={
-                isRnDStaff &&
-                isCommittedForGate === false &&
-                data.workflow_state === "Pending Staff Approval"
-              }
-            />
-          )}
         </PageHeader>
 
         {/* Warning Banner if there's a pending cancellation */}
