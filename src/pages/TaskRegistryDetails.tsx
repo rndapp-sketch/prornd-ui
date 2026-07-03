@@ -20,6 +20,7 @@ import TravelApplicantSummary from '@/components/TravelApplicantSummary';
 import ProjectDetailsView from "./ProjectDetails";
 import ProjectDetailsOverview from "./ProjectDetailsOverview";
 import { generateTemporaryAdvanceHtml } from '@/utils/temporaryAdvancePrint';
+import { generateDisbursalOfHonorariumHtml, resolveHonorariumPrintData, type ActivityItem } from '@/utils/disbursalOfHonorariumPrint';
 import { DOCTYPE_PR_LINKS } from '@/utils/projectTypeMapping';
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -712,10 +713,10 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
     const [activeTab, setActiveTab] = React.useState<DPTabId>('details');
     const [poSanctionData, setPoSanctionData] = React.useState<Record<string, any> | null>(null);
     const [isLoadingPOData, setIsLoadingPOData] = React.useState(false);
+    const navigate = useNavigate();
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
     const isStaffRnD = roles.some(r => ["staff, RnD", "Staff RnD", "RnD Staff", "System Manager"].includes(r));
-    const isPermanentEmployee = roles.some(r => r === "Permanent Employee");
 
     React.useEffect(() => {
         if (activeTab !== 'po' || !docName || poSanctionData) return;
@@ -873,14 +874,40 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
                     {activeTab === 'po' && (
                         isLoadingPOData ? <Spinner /> :
                         data?.workflow_state === "Sanction Sheet Generated" ? (
-                            <EmptyState
-                                icon={<ShoppingCartIcon className="h-5 w-5" />}
-                                title="Purchase Order Locked"
-                                description={`The Purchase Order is locked. The Sanction Sheet has not been printed yet${applicant ? ` by ${applicant}` : ""}. Once the PI prints the Sanction Sheet, this form will move to "Sanction Sheet Printed" and the Purchase Order will be enabled.`}
-                            />
+                            <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-4 dark:border-amber-700/60 dark:bg-amber-950/40 shadow-sm">
+                                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/50">
+                                    <svg className="h-4 w-4 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p className="text-[13px] font-bold text-amber-800 dark:text-amber-300">
+                                        Purchase Order Locked
+                                    </p>
+                                    <p className="mt-1 text-[12px] leading-5 text-amber-700 dark:text-amber-400">
+                                        The Purchase Order is locked. The Sanction Sheet has not been printed yet
+                                        {applicant && (
+                                            <> by <span className="font-semibold">{applicant}</span></>
+                                        )}
+                                        . Once the PI prints the Sanction Sheet, this form will move to{" "}
+                                        <span className="font-semibold">"Sanction Sheet Printed"</span>{" "}
+                                        status, then RnD staff can process the form and the Purchase Order will be enabled.
+                                    </p>
+                                    <p className="mt-2 text-[12px] text-amber-700 dark:text-amber-400">
+                                        To take action, go to{" "}
+                                        <button
+                                            onClick={() => navigate(`/direct-purchase/${docName}`)}
+                                            className="inline-flex items-center gap-1 font-semibold text-amber-800 dark:text-amber-300 underline underline-offset-2 hover:text-amber-900 dark:hover:text-amber-200 transition-colors"
+                                        >
+                                            Pending Tasks
+                                            <ExternalLinkIcon className="w-3 h-3" />
+                                        </button>
+                                    </p>
+                                </div>
+                            </div>
                         ) :
                         poSanctionData && (isStaffRnD || data?.workflow_state === "POGenerated" || data?.workflow_state === "Sanction Sheet Printed") ? (
-                            <POEditor ssData={poSanctionData} dpId={docName} isStaffRnD={isStaffRnD} isPIReadOnly={isPermanentEmployee && !isStaffRnD} />
+                            <POEditor ssData={poSanctionData} dpId={docName} isStaffRnD={false} isPIReadOnly={true} />
                         ) : poSanctionData ? (
                             <EmptyState
                                 icon={<ShoppingCartIcon className="h-5 w-5" />}
@@ -1546,6 +1573,10 @@ const TaskRegistryDetails: React.FC = () => {
     const doctype = rawDoctype ? decodeURIComponent(rawDoctype) : '';
 
     const { data, isLoading, error, mutate } = useFrappeGetDoc(doctype || '', name || '');
+    const { data: activityData } = useFrappeGetCall<{ message: ActivityItem[] }>(
+        "rndopsapp.rndopsapp.api.get_project_activity",
+        doctype && name ? { doctype, docname: name } : undefined,
+    );
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
     const canEditFsFiles = roles.some(r => ["staff, RnD", "Staff RnD", "RnD Staff", "System Manager"].includes(r));
@@ -1775,6 +1806,20 @@ const TaskRegistryDetails: React.FC = () => {
             }
         }
     }, [data, doctype, taLinkOptions]);
+
+    const handlePrintDisbursalOfHonorarium = () => {
+        if (!data) return;
+        const html = generateDisbursalOfHonorariumHtml(
+            resolveHonorariumPrintData(displayData, dohLinkOptions),
+            activityData?.message || [],
+        );
+        const printWindow = window.open("", "_blank");
+        if (printWindow) {
+            printWindow.document.write(html);
+            printWindow.document.close();
+            setTimeout(() => { printWindow.print(); }, 500);
+        }
+    };
 
     const handlePrintTemporaryAdvance = () => {
         if (!data) return;
@@ -2091,6 +2136,16 @@ const TaskRegistryDetails: React.FC = () => {
                                     onClick={handlePrintTemporaryAdvance}
                                     className="inline-flex items-center justify-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-zinc-200 dark:border-zinc-700 bg-[#FAFAF9] dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-[#EFF6FF] dark:hover:bg-[#2563EB]/10 hover:border-[#2563EB]/40 shadow-sm transition-all"
                                     title="Print Temporary Advance"
+                                >
+                                    <Printer className="h-4 w-4 text-[#2563EB] dark:text-[#60A5FA]" />
+                                    Print
+                                </button>
+                            )}
+                            {doctype === 'Disbursal of Honorarium' && isStaffRnD && (
+                                <button
+                                    onClick={handlePrintDisbursalOfHonorarium}
+                                    className="inline-flex items-center justify-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-zinc-200 dark:border-zinc-700 bg-[#FAFAF9] dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-[#EFF6FF] dark:hover:bg-[#2563EB]/10 hover:border-[#2563EB]/40 shadow-sm transition-all"
+                                    title="Print Disbursal of Honorarium"
                                 >
                                     <Printer className="h-4 w-4 text-[#2563EB] dark:text-[#60A5FA]" />
                                     Print

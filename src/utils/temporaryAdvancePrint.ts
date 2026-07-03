@@ -1,6 +1,35 @@
 import tempTemplate from "@/pages/printformat/temporary_advance_format.html?raw";
 import { ToWords } from "to-words";
 
+import type { ActivityItem } from "@/utils/disbursalOfHonorariumPrint";
+
+function buildActivityLogHtml(items: ActivityItem[]): string {
+    const filtered = (items || []).filter((c) => c.owner !== "Administrator");
+
+    if (!filtered.length) {
+        return '<div class="activity-log"><em style="color:#888;font-size:12px;">No activity comments.</em></div>';
+    }
+
+    const entries = filtered
+        .map((c) => {
+            const dt = c.creation ? new Date(c.creation) : null;
+            const dateStr = dt
+                ? dt.toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" })
+                : "";
+            const timeStr = dt
+                ? dt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })
+                : "";
+            const plainContent = (c.content || "").replace(/<[^>]*>/g, "").trim();
+            return `<div class="activity-entry">
+            <div class="activity-meta"><strong>${c.owner}</strong>&nbsp;&middot;&nbsp;${dateStr}${timeStr ? ", " + timeStr : ""}</div>
+            <div class="activity-content">${plainContent}</div>
+        </div>`;
+        })
+        .join("");
+
+    return `<div class="activity-log">${entries}</div>`;
+}
+
 const toWords = new ToWords({ localeCode: "en-IN", converterOptions: { ignoreDecimal: false } });
 
 const fmtNum = (val: any) => {
@@ -22,7 +51,8 @@ export function generateTemporaryAdvanceHtml(
     data: Record<string, any>,
     resolvedProjectTitle: string,
     resolvedAccountHead: string,
-    resolvedApplicantName = ""
+    resolvedApplicantName = "",
+    activityItems: ActivityItem[] = [],
 ): string {
     const creation = data.creation
         ? new Date(data.creation).toLocaleDateString("en-IN", {
@@ -72,7 +102,8 @@ export function generateTemporaryAdvanceHtml(
         .replace("{{ACCOUNT_HOLDER}}", data.account || "-")
         .replace("{{ACCOUNT_NUMBER}}", data.bank_account_number || "-")
         .replace("{{IFSC_CODE}}", data.ifsc_code || "-")
-        .replace("{{JUSTIFICATION}}", data.justification || data.reason || data.purpose || data.comments || "-");
+        .replace("{{JUSTIFICATION}}", data.justification || data.reason || data.purpose || data.comments || "-")
+        .replace("{{ACTIVITY_LOG_SECTION}}", buildActivityLogHtml(activityItems));
 
     return cleanHtml;
 }

@@ -1983,6 +1983,29 @@ const DirectPurchaseTabView = ({
 
                 {activeTab === "po" && (
                     <>
+                        {data?.workflow_state === "Sanction Sheet Generated" && (
+                            <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3.5 dark:border-amber-700/60 dark:bg-amber-950/40 shadow-sm">
+                                <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/50">
+                                    <svg className="h-4 w-4 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p className="text-[13px] font-bold text-amber-800 dark:text-amber-300">
+                                        Purchase Order Locked
+                                    </p>
+                                    <p className="mt-0.5 text-[12px] leading-5 text-amber-700 dark:text-amber-400">
+                                        The Purchase Order is locked. The Sanction Sheet has not been printed yet
+                                        {(data?.applicant_name || data?.applicant || data?.owner) && (
+                                            <> by <span className="font-semibold">{data?.applicant_name || data?.applicant || data?.owner}</span></>
+                                        )}
+                                        . Once the PI prints the Sanction Sheet, this form will move to{" "}
+                                        <span className="font-semibold">"Sanction Sheet Printed"</span>{" "}
+                                        status, then RnD staff can process the form and the Purchase Order will be enabled.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                         {isLoadingPOData ? (
                             <div className="flex items-center justify-center py-16">
                                 <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#D97757] border-t-transparent" />

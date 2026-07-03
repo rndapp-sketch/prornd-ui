@@ -3,8 +3,7 @@
 
 <head>
     <meta charset="UTF-8" />
-    <title>Temporary Advance Sanction Sheet</title>
-
+    <title>Disbursal of Consultancy</title>
     <style>
         * {
             box-sizing: border-box;
@@ -31,7 +30,7 @@
         .content {
             position: relative;
             z-index: 1;
-            padding: 15mm 15mm;
+            padding: 10mm 12mm;
         }
 
         .watermark {
@@ -96,7 +95,6 @@
             line-height: 1.4;
         }
 
-        /* Info table (key-value pairs) */
         .info-table {
             width: 100%;
             border-collapse: collapse;
@@ -117,22 +115,43 @@
             background-color: #f7f7f7;
         }
 
+        table.item-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11.5px;
+            margin-bottom: 12px;
+            table-layout: fixed;
+        }
+
+        table.item-table th,
+        table.item-table td {
+            border: 1px solid #000;
+            padding: 5px 6px;
+            vertical-align: middle;
+            line-height: 1.3;
+            word-wrap: break-word;
+        }
+
+        table.item-table th {
+            text-align: center;
+            font-weight: bold;
+            background-color: #f0f0f0;
+        }
+
+        .center {
+            text-align: center;
+        }
+
+        .right {
+            text-align: right;
+        }
+
         .section-title {
             font-size: 14px;
             font-weight: bold;
             text-decoration: underline;
             margin: 15px 0 8px 0;
             text-transform: uppercase;
-        }
-
-        .remarks {
-            font-size: 13px;
-            line-height: 1.5;
-            border: 1px solid #000;
-            padding: 10px;
-            background-color: #fff;
-            min-height: 60px;
-            white-space: pre-wrap;
         }
 
         .activity-log {
@@ -196,109 +215,102 @@
 
 <body>
     <div class="page">
-        <div class="watermark">
-            <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
-                onerror="this.style.display = 'none'" />
-        </div>
-
-        <div class="content">
-            <!-- HEADER -->
+        <div class="watermark"> <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
+                onerror="this.style.display = 'none'" /> </div>
+        <div class="content"> <!-- HEADER -->
             <div class="header-row">
-                <div class="logo-container">
-                    <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
-                        onerror="this.style.display = 'none'" />
-                </div>
+                <div class="logo-container"> <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
+                        onerror="this.style.display = 'none'" /> </div>
                 <div class="header-text">
-                    <div class="header">
-                        Indian Institute of Technology Guwahati
-                    </div>
-                    <div class="sub-header">
-                        Research &amp; Development Section
-                    </div>
+                    <div class="header"> Indian Institute of Technology Guwahati </div>
+                    <div class="sub-header"> Research &amp; Development Section </div>
                 </div>
-            </div>
-
-            <!-- TOP INFO -->
+            </div> <!-- TOP INFO -->
             <div class="top-info">
-                <div>
-                    <strong>Doc ID:</strong> {{DOC_REF}}
-                </div>
-                <div style="text-align: right">
-                    <strong>Date:</strong> {{DATE}}
-                </div>
-            </div>
-
-            <!-- TITLE -->
-            <div class="title">TEMPORARY ADVANCE</div>
-
-            <!-- PROJECT & ADVANCE DETAILS -->
-            <div class="section-title">Project &amp; Advance Details</div>
+                <div> <strong>Doc ID:</strong> {{DOC_REF}} </div>
+                <div style="text-align: right"> <strong>Date:</strong> {{DATE}} </div>
+            </div> <!-- TITLE -->
+            <div class="title">Disbursal of Consultancy</div> <!-- PI & PROJECT DETAILS -->
+            <div class="section-title">PI &amp; Project Details</div>
             <table class="info-table">
                 <tr>
-                    <td class="label">Project Code</td>
-                    <td>{{PROJECT_CODE}}</td>
-                    <td class="label">Account Head</td>
-                    <td>{{ACCOUNT_HEAD}}</td>
+                    <td class="label">PI Name</td>
+                    <td>{{PI_NAME}}</td>
+                    <td class="label">Employee ID</td>
+                    <td>{{EMPLOYEE_ID}}</td>
                 </tr>
                 <tr>
                     <td class="label">Project Title</td>
                     <td colspan="3">{{PROJECT_TITLE}}</td>
                 </tr>
                 <tr>
-                    <td class="label">Advance Amount</td>
-                    <td colspan="3" style="font-weight: bold; font-size: 14px; color: #111;">{{ADVANCE_AMOUNT}}</td>
+                    <td class="label">Date of Registration</td>
+                    <td>{{DATE_OF_REGISTRATION}}</td>
+                    <td class="label">Date of Completion</td>
+                    <td>{{DATE_OF_COMPLETION}}</td>
                 </tr>
                 <tr>
-                    <td class="label">Amount in Words</td>
-                    <td colspan="3" style="text-transform: capitalize;">{{AMOUNT_IN_WORDS}}</td>
+                    <td class="label">Total Amount Received</td>
+                    <td>{{TOTAL_AMOUNT_RECEIVED}}</td>
+                    <td class="label">Current Balance</td>
+                    <td>{{CURRENT_BALANCE}}</td>
                 </tr>
-            </table>
-
-            <!-- APPLICANT DETAILS -->
-            <div class="section-title">Applicant Details</div>
+            </table> <!-- DISBURSAL DETAILS -->
+            <div class="section-title">Details of Disbursal</div>
+            <table class="item-table">
+                <colgroup>
+                    <col style="width: 4%" />
+                    <col style="width: 16%" />
+                    <col style="width: 10%" />
+                    <col style="width: 12%" />
+                    <col style="width: 8%" />
+                    <col style="width: 14%" />
+                    <col style="width: 12%" />
+                    <col style="width: 12%" />
+                    <col style="width: 12%" />
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th>Sl.</th>
+                        <th>Name</th>
+                        <th>Employee / Student</th>
+                        <th>Designation</th>
+                        <th>Emp. ID</th>
+                        <th>PDF No. / Bank A/c No.</th>
+                        <th>Amount (Rs.)</th>
+                        <th>Personal Share (Rs.)</th>
+                        <th>Institute Share (Rs.)</th>
+                    </tr>
+                </thead>
+                <tbody> {{ITEM_ROWS}} </tbody>
+            </table> <!-- TOTALS -->
             <table class="info-table">
                 <tr>
-                    <td class="label">Applicant Name</td>
-                    <td>{{APPLICANT_NAME}}</td>
-                    <td class="label">Webmail / Owner</td>
-                    <td>{{APPLICANT_WEBMAIL}}</td>
+                    <td class="label">Total Disbursal Amount</td>
+                    <td>{{TOTAL_DISBURSAL_AMOUNT}}</td>
+                    <td class="label">Total Personal Share</td>
+                    <td>{{TOTAL_PERSONAL_SHARE}}</td>
                 </tr>
                 <tr>
-                    <td class="label">Department</td>
-                    <td>{{APPLICANT_DEPARTMENT}}</td>
-                    <td class="label">Designation</td>
-                    <td>{{APPLICANT_DESIGNATION}}</td>
+                    <td class="label">Total Institute Share</td>
+                    <td colspan="3">{{TOTAL_INSTITUTE_SHARE}}</td>
                 </tr>
-
-            </table>
-
-            <!-- BENEFICIARY DETAILS (IF APPLICABLE) -->
-            {{BENEFICIARY_SECTION}}
-
-            <!-- BANK DETAILS -->
-            <div class="section-title">Bank Details</div>
+            </table> <!-- INSTITUTE SHARE BREAKDOWN -->
+            <div class="section-title">Institute Share Breakdown</div>
             <table class="info-table">
                 <tr>
-                    <td class="label">Bank Name</td>
-                    <td>{{BANK_NAME}}</td>
-                    <td class="label">Account Holder</td>
-                    <td>{{ACCOUNT_HOLDER}}</td>
+                    <td class="label">IDF (40% of Inst. Share)</td>
+                    <td>{{IDF}}</td>
+                    <td class="label">DPF (50% of Inst. Share)</td>
+                    <td>{{DPF}}</td>
                 </tr>
                 <tr>
-                    <td class="label">Account Number</td>
-                    <td style="font-family: monospace;">{{ACCOUNT_NUMBER}}</td>
-                    <td class="label">IFSC Code</td>
-                    <td style="font-family: monospace;">{{IFSC_CODE}}</td>
+                    <td class="label">Staff Welfare Fund (5%)</td>
+                    <td>{{STAFF_WELFARE_FUND}}</td>
+                    <td class="label">Student Welfare Fund (5%)</td>
+                    <td>{{STUDENT_WELFARE_FUND}}</td>
                 </tr>
-            </table>
-
-            <!-- JUSTIFICATION / REASON -->
-            <div class="section-title">Justification / Purpose</div>
-            <div class="remarks">
-                {{JUSTIFICATION}}
-            </div>
-
-            <!-- ACTIVITY LOG -->
+            </table> <!-- ACTIVITY LOG -->
             <div class="section-title">Activity Log</div>
             {{ACTIVITY_LOG_SECTION}}
         </div>
