@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
+import { useFrappePostCall, useFrappeGetCall, useFrappeAuth } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
 import {
     EditIcon, ChevronRight, CheckCircle2, XCircle,
     Clock, CalendarIcon, ActivityIcon,
     UserIcon, ShoppingCartIcon, UsersIcon, FileTextIcon,
-    TruckIcon, FileSearch2,
+    TruckIcon, FileSearch2, PrinterIcon, ExternalLink, UploadIcon,
 } from "lucide-react";
 import { AppSidebar } from "@/components/RndSidebar";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -28,12 +28,12 @@ import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButto
 import { ProjectLedgerModal } from "@/components/ProjectLedgerModal";
 import IndentGeneralFormActionButtons from "@/components/IndentGeneralFormActionButtons";
 import ProjectDetailsOverview from "@/pages/ProjectDetailsOverview";
+import { generateIgfPrintHtml } from "@/utils/igfPrint";
 
 // ---------------------------------------------------------------------------
 // Workflow pipeline
 // ---------------------------------------------------------------------------
-// Happy-path stages (matches "Indent General Workflow" in Frappe)
-const WORKFLOW_STAGES = [
+const BASE_WORKFLOW_STAGES = [
     "Draft",
     "Pending Staff Approval",
     "Pending HoS Approval",
@@ -43,24 +43,28 @@ const WORKFLOW_STAGES = [
 
 type StageStatus = "completed" | "in-progress" | "pending" | "rejected";
 
-function buildTimeline(currentState: string): { label: string; status: StageStatus }[] {
+function buildTimeline(
+    currentState: string,
+    includeDirector: boolean,
+): { label: string; status: StageStatus }[] {
     const isApproved = currentState === "Approved";
     const isRejected = currentState === "Rejected";
 
-    // For rejected state, replace the terminal "Approved" node with "Rejected"
-    const stages = isRejected
-        ? [...WORKFLOW_STAGES.slice(0, -1), "Rejected"]
-        : WORKFLOW_STAGES;
+    const stages = [
+        ...BASE_WORKFLOW_STAGES.slice(0, -1),
+        ...(includeDirector ? ["Pending Director Approval"] : []),
+        "Approved",
+    ];
+    const stagesForRejected = [...stages.slice(0, -1), "Rejected"];
+    const activeStages = isRejected ? stagesForRejected : stages;
 
-    let currentIdx = stages.findIndex((s) => s === currentState);
-    if (currentIdx === -1) currentIdx = 1; // fallback: treat as in-progress after Draft
+    let currentIdx = activeStages.findIndex((s) => s === currentState);
+    if (currentIdx === -1) currentIdx = 1;
 
-    return stages.map((stage, idx) => {
+    return activeStages.map((stage, idx) => {
         if (isApproved) return { label: stage, status: "completed" };
         if (isRejected) {
-            // Terminal rejected node
-            if (idx === stages.length - 1) return { label: stage, status: "rejected" };
-            // All prior stages pending (rejection stage not tracked without activity log)
+            if (idx === activeStages.length - 1) return { label: stage, status: "rejected" };
             return { label: stage, status: "pending" };
         }
         if (idx < currentIdx) return { label: stage, status: "completed" };
@@ -148,8 +152,8 @@ const StateBadge = ({ state }: { state: string }) => {
 // ---------------------------------------------------------------------------
 // Workflow Timeline
 // ---------------------------------------------------------------------------
-const WorkflowTimeline: React.FC<{ currentState: string }> = ({ currentState }) => {
-    const stages = buildTimeline(currentState);
+const WorkflowTimeline: React.FC<{ currentState: string; includeDirector?: boolean }> = ({ currentState, includeDirector = false }) => {
+    const stages = buildTimeline(currentState, includeDirector);
 
     const icon = (status: StageStatus) => {
         if (status === "completed") return <CheckCircle2 className="w-3 h-3 text-white" />;
@@ -247,11 +251,25 @@ const IndentGeneralFormDetails: React.FC = () => {
     const isStaffRnD = roles.some((r) =>
         ["staff, RnD", "Staff RnD", "RnD Staff", "System Manager"].includes(r),
     );
+    const isDeanRnD = roles.some((r) =>
+        ["Dean, RnD", "System Manager"].includes(r),
+    );
+
+    const [isUpdatingDirectorFlag, setIsUpdatingDirectorFlag] = useState(false);
+    const directorPdfInputRef = useRef<HTMLInputElement>(null);
+    const [isUploadingPdf, setIsUploadingPdf] = useState(false);
 
     const { call: fetchFields } = useFrappePostCall<{ message: any }>(indentGeneralFormAPI.getFields);
     const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>("frappe.client.get_value");
     const { call: submitPayment, loading: isPaying } = useFrappePostCall<{ message: any }>(
         "rndopsapp.rndopsapp.commitPayment.submit_payment_data",
+    );
+    const { call: updateSendToDirectorCall } = useFrappePostCall(
+        indentGeneralFormAPI.updateSendToDirector,
+    );
+    const { data: activityData } = useFrappeGetCall<{ message: { owner: string; creation: string; content: string; comment_type?: string }[] }>(
+        "rndopsapp.rndopsapp.api.get_project_activity",
+        id ? { doctype: "Indent General Form", docname: id } : undefined,
     );
 
     // igf_project_code is the project number used by the ledger/budget API
@@ -462,6 +480,74 @@ const IndentGeneralFormDetails: React.FC = () => {
 
     const workflowState = formData.workflow_state || "Draft";
     const isDraft = workflowState === "Draft" || !formData.workflow_state;
+    const sendToDirector = Boolean(Number(formData.send_to_director || 0));
+    const directorSignedPdf = String(formData.director_signed_pdf || "").trim();
+    const isAtDeanApproval = workflowState === "Pending Dean Approval";
+    const isAtDirectorApproval = workflowState === "Pending Director Approval";
+    const includeDirectorStage = sendToDirector || isAtDirectorApproval;
+    const directorPdfBlocked = isDeanRnD && isAtDirectorApproval && !directorSignedPdf;
+
+    const handleSendToDirector = async () => {
+        if (!id || isUpdatingDirectorFlag) return;
+        setIsUpdatingDirectorFlag(true);
+        try {
+            await updateSendToDirectorCall({ docname: id, send_to_director: 1 });
+            setFormData((prev: any) => ({ ...prev, send_to_director: 1 }));
+            handleRefresh();
+        } catch (err: any) {
+            alert(err?.message || "Failed to send for Director approval.");
+        } finally {
+            setIsUpdatingDirectorFlag(false);
+        }
+    };
+
+    const handleDirectorPdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !id) return;
+        setIsUploadingPdf(true);
+        try {
+            const fd = new FormData();
+            fd.append("file", file, file.name);
+            fd.append("is_private", "0");
+            fd.append("doctype", "Indent General Form");
+            fd.append("docname", id);
+            fd.append("fieldname", "director_signed_pdf");
+            const csrfToken = (window as any).csrf_token;
+            const uploadRes = await fetch("/api/method/upload_file", {
+                method: "POST", body: fd, credentials: "include",
+                headers: csrfToken ? { "X-Frappe-CSRF-Token": csrfToken } : undefined,
+            });
+            if (!uploadRes.ok) throw new Error(await uploadRes.text());
+            const uploadJson = await uploadRes.json();
+            const fileUrl: string = uploadJson?.message?.file_url;
+            if (!fileUrl) throw new Error("Upload returned no file_url");
+            const bindRes = await fetch(`/api/method/${indentGeneralFormAPI.attachDirectorPdf}`, {
+                method: "POST", credentials: "include",
+                headers: { "Content-Type": "application/json", ...(csrfToken ? { "X-Frappe-CSRF-Token": csrfToken } : {}) },
+                body: JSON.stringify({ docname: id, file_url: fileUrl }),
+            });
+            if (!bindRes.ok) throw new Error(await bindRes.text());
+            handleRefresh();
+        } catch (err: any) {
+            alert(err?.message || "Upload failed.");
+        } finally {
+            setIsUploadingPdf(false);
+            if (directorPdfInputRef.current) directorPdfInputRef.current.value = "";
+        }
+    };
+
+    const handlePrint = () => {
+        const resolvedAccountHead = linkOptions?.igf_account_head?.find((o: any) => o.value === formData.igf_account_head)?.label || formData.igf_account_head || "";
+        const html = generateIgfPrintHtml(
+            formData,
+            deptName,
+            resolvedAccountHead,
+            projectTitle,
+            activityData?.message || [],
+        );
+        const win = window.open("", "_blank");
+        if (win) { win.document.write(html); win.document.close(); setTimeout(() => win.print(), 400); }
+    };
 
     if (loading) return <GlobalLoader isLoading={true} />;
 
@@ -519,6 +605,15 @@ const IndentGeneralFormDetails: React.FC = () => {
                             Edit
                         </button>
                     )}
+                    {isDeanRnD && (isAtDeanApproval || isAtDirectorApproval) && (
+                        <button
+                            onClick={handlePrint}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
+                        >
+                            <PrinterIcon className="w-4 h-4" />
+                            Print PDF
+                        </button>
+                    )}
                     {id && (
                         <IndentGeneralFormActionButtons
                             docname={id}
@@ -528,6 +623,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                                 isCommittedForGate === false &&
                                 workflowState === "Pending Staff Approval"
                             }
+                            directorPdfBlocked={directorPdfBlocked}
                         />
                     )}
                 </PageHeader>
@@ -540,7 +636,7 @@ const IndentGeneralFormDetails: React.FC = () => {
 
                 {/* Workflow Timeline */}
                 <div className="mt-6">
-                    <WorkflowTimeline currentState={workflowState} />
+                    <WorkflowTimeline currentState={workflowState} includeDirector={includeDirectorStage} />
                 </div>
 
                 {/* Main Content */}
@@ -770,6 +866,83 @@ const IndentGeneralFormDetails: React.FC = () => {
                                 onCommitSuccess={() => handleRefresh()}
                                 onStagingStatusChange={(status) => setIsCommittedForGate(status)}
                             />
+                        )}
+
+                        {/* Director Approval — shown to Dean at Pending Dean Approval */}
+                        {isDeanRnD && isAtDeanApproval && (
+                            <div className="rounded-2xl border border-[#E4E4E7] bg-white p-4 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+                                <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
+                                    Director Approval
+                                </h3>
+                                {sendToDirector ? (
+                                    <div className="flex items-center gap-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-3 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300">
+                                        Flagged for Director Approval
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={handleSendToDirector}
+                                        disabled={isUpdatingDirectorFlag}
+                                        className="w-full px-3 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 transition-all"
+                                    >
+                                        {isUpdatingDirectorFlag ? "Saving…" : "Send for Director Approval"}
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Director Approval — PDF upload for Staff / view + gate for Dean */}
+                        {isAtDirectorApproval && (
+                            <div className="rounded-2xl border border-[#E4E4E7] bg-white p-4 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+                                <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
+                                    Director-Signed PDF
+                                </h3>
+                                {directorSignedPdf ? (
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 px-3 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                                            PDF uploaded
+                                        </div>
+                                        <button
+                                            onClick={() => window.open(directorSignedPdf, "_blank", "noopener,noreferrer")}
+                                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 transition-all"
+                                        >
+                                            <ExternalLink className="w-3.5 h-3.5" />
+                                            View Director PDF
+                                        </button>
+                                        {isStaffRnD && (
+                                            <>
+                                                <input ref={directorPdfInputRef} type="file" accept="application/pdf" className="hidden" onChange={handleDirectorPdfUpload} />
+                                                <button
+                                                    onClick={() => directorPdfInputRef.current?.click()}
+                                                    disabled={isUploadingPdf}
+                                                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold bg-zinc-100 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 transition-all disabled:opacity-50"
+                                                >
+                                                    <UploadIcon className="w-3.5 h-3.5" />
+                                                    {isUploadingPdf ? "Replacing…" : "Replace PDF"}
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                                            {isStaffRnD ? "Upload the Director-signed scan to unblock Dean approval." : "Awaiting Director-signed PDF upload by Staff."}
+                                        </div>
+                                        {isStaffRnD && (
+                                            <>
+                                                <input ref={directorPdfInputRef} type="file" accept="application/pdf" className="hidden" onChange={handleDirectorPdfUpload} />
+                                                <button
+                                                    onClick={() => directorPdfInputRef.current?.click()}
+                                                    disabled={isUploadingPdf}
+                                                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold bg-[#D97757] hover:bg-[#c66a4e] text-white disabled:opacity-50 transition-all"
+                                                >
+                                                    <UploadIcon className="w-3.5 h-3.5" />
+                                                    {isUploadingPdf ? "Uploading…" : "Upload Director PDF"}
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         )}
 
                         {/* Record Payment */}
