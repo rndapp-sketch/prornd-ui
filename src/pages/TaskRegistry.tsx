@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaExclamationCircle, FaArrowLeft, FaSearch } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
-import { AppSidebar } from '@/components/RndSidebar';
+// import { AppSidebar } from '@/components/RndSidebar';
 import { useNavigate } from 'react-router-dom';
 import { useFrappeGetCall, useFrappeGetDocList } from 'frappe-react-sdk';
 import { GlobalLoader } from '@/components/ui/global-loader';
@@ -397,7 +397,7 @@ const TaskRegistry: React.FC = () => {
         <>
             <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
                 <GlobalLoader isLoading={isLoading} />
-                <AppSidebar />
+                {/* <AppSidebar /> */}
 
                 <main className="flex-1 px-6 md:px-8 pt-7 pb-10 w-full overflow-hidden">
                     {/* Header */}

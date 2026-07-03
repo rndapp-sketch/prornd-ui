@@ -13,6 +13,7 @@ import {
     FileSpreadsheetIcon as LedgerIcon,
     EditIcon,
     Send,
+    Printer,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlobalLoader } from "@/components/ui/global-loader";
@@ -29,6 +30,9 @@ import { useUserRoles } from "@/components/UserRole";
 import { ProjectLedgerModal } from "@/components/ProjectLedgerModal";
 import { ActivityLog } from "@/components/ActivityLog";
 import ViewProjectButton from "@/components/ViewProjectButton";
+import { P11PrintModal } from "@/components/P11PrintModal";
+import { generateDisbursalOfConsultancyHtml } from "@/utils/disbursalOfConsultancyPrint";
+import type { ActivityItem } from "@/utils/disbursalOfHonorariumPrint";
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -38,13 +42,6 @@ interface FormDataResponse {
         prefill_data: Record<string, any>;
         child_table_fields?: Record<string, any[]>;
     };
-}
-
-interface ActivityItem {
-    owner: string;
-    creation: string;
-    content: string;
-    comment_type: string;
 }
 
 // --- UI COMPONENTS ---
@@ -163,6 +160,7 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
     // Sidebar state
     const [sidebarComment, setSidebarComment] = useState("");
@@ -190,6 +188,10 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
     );
     const { call: addComment } = useFrappePostCall(
         "rndopsapp.rndopsapp.api.add_project_comment",
+    );
+    const { data: activityData } = useFrappeGetCall<{ message: ActivityItem[] }>(
+        "rndopsapp.rndopsapp.api.get_project_activity",
+        id ? { doctype: "Disbursal of Consultancy", docname: id } : undefined,
     );
     const { call: submitDocument } = useFrappePostCall<{ message: any }>(disbursalOfConsultancyAPI.submit);
     const { call: stageCommit } = useFrappePostCall("rndopsapp.rndopsapp.commitPayment.submit_commit_data");
@@ -516,29 +518,40 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                     projectNumber={formData.disbursal_project_number}
                 >
                     <ViewProjectButton doctype="Disbursal of Consultancy" data={formData} />
-                    {(formData.workflow_state === "Draft" ||
-                        !formData.workflow_state) &&
-                        id && (
-                            <>
-                                <button
-                                    onClick={() =>
-                                        navigate(`/disbursal-of-consultancy-form/${id}`)
-                                    }
-                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
-                                >
-                                    <EditIcon className="w-4 h-4" />
-                                    Edit
-                                </button>
-                                <button
-                                    onClick={handleSubmitDraft}
-                                    disabled={isSubmitting}
-                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm transition-all disabled:opacity-50"
-                                >
-                                    <Send className="w-4 h-4" />
-                                    {isSubmitting ? "Submitting..." : "Submit Application"}
-                                </button>
-                            </>
+                    <div className="flex items-center gap-2">
+                        {id && (
+                            <button
+                                onClick={() => setIsPrintModalOpen(true)}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
+                            >
+                                <Printer className="w-4 h-4" />
+                                Print / PDF
+                            </button>
                         )}
+                        {(formData.workflow_state === "Draft" ||
+                            !formData.workflow_state) &&
+                            id && (
+                                <>
+                                    <button
+                                        onClick={() =>
+                                            navigate(`/disbursal-of-consultancy-form/${id}`)
+                                        }
+                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
+                                    >
+                                        <EditIcon className="w-4 h-4" />
+                                        Edit
+                                    </button>
+                                    <button
+                                        onClick={handleSubmitDraft}
+                                        disabled={isSubmitting}
+                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm transition-all disabled:opacity-50"
+                                    >
+                                        <Send className="w-4 h-4" />
+                                        {isSubmitting ? "Submitting..." : "Submit Application"}
+                                    </button>
+                                </>
+                            )}
+                    </div>
                 </PageHeader>
 
                 {/* Workflow Action Buttons — only after submission */}
@@ -783,6 +796,16 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                     budgetHeadList={budgetHeadList}
                 />
             )}
+            <P11PrintModal
+                isOpen={isPrintModalOpen}
+                onClose={() => setIsPrintModalOpen(false)}
+                htmlContent={
+                    isPrintModalOpen
+                        ? generateDisbursalOfConsultancyHtml(formData, activityData?.message || [])
+                        : ""
+                }
+                docName={formData.name || id || ""}
+            />
         </div>
     );
 };

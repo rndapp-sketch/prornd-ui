@@ -1,10 +1,10 @@
 module.exports = {
   apps: [
     {
-      name: "prornd-ui-mythos_omni_v0.4",
+      name: "prornd-ui-mythos_fable_v0.5",
       script: "npm",
       args: "run dev",
-      cwd: "/home/prornd/Projects/mythos_omni_v0.4/prornd-ui",
+      cwd: "/home/prornd/Projects/mythos_fable_v0.5/prornd-ui",
       interpreter: "none",
       env: {
         NODE_ENV: "development",

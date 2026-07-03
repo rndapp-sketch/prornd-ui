@@ -788,6 +788,8 @@ interface QuickActionsProps {
     projectTitle?: string;
     onNavigate: (path: string) => void;
     embedded?: boolean;
+    hasSanction?: boolean;
+    hasFunds?: boolean;
 }
 
 const QuickActions = ({
@@ -796,6 +798,8 @@ const QuickActions = ({
     projectTitle,
     onNavigate,
     embedded = false,
+    hasSanction = false,
+    hasFunds = false,
 }: QuickActionsProps) => {
     const [searchParams, setSearchParams] = useSearchParams();
 
@@ -805,7 +809,7 @@ const QuickActions = ({
     const [activeTab, setActiveTab] = useState(defaultSubtab);
     const [selectedApplication, setSelectedApplication] = useState<
         string | null
-    >(defaultApp || "Reimbursement");
+    >(defaultApp || null);
     const [applicationData, setApplicationData] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -1040,6 +1044,18 @@ const QuickActions = ({
             setIsLoading(false);
         }
     };
+
+    // Lock all groups except Loan when project has no sanction and no funds received
+    const isModuleLocked = !hasSanction && !hasFunds;
+
+    // Auto-redirect to Loan tab when modules are locked; clear selectedApplication so the banner is visible
+    useEffect(() => {
+        if (isModuleLocked) {
+            setActiveTab("Loan");
+            setSelectedApplication(null);
+            setApplicationData([]);
+        }
+    }, [isModuleLocked]);
 
     const groups = [
         {
@@ -2019,14 +2035,18 @@ const QuickActions = ({
                         {groups.map((group) => {
                             const Icon = group.icon;
                             const isActive = activeTab === group.title;
+                            const tabLocked = isModuleLocked && group.title !== "Loan";
                             return (
                                 <button
                                     key={group.title}
-                                    onClick={() => handleTabChange(group.title)}
+                                    onClick={() => !tabLocked && handleTabChange(group.title)}
                                     aria-selected={isActive}
+                                    disabled={tabLocked}
+                                    title={tabLocked ? "Locked: Fund Sanction must be approved and funds received before using this module" : undefined}
                                     className={cn(
                                         "frappe-tab flex items-center gap-2 font-bold",
                                         isActive && "active",
+                                        tabLocked && "opacity-40 cursor-not-allowed pointer-events-none",
                                     )}
                                 >
                                     <Icon className="w-4 h-4" />
@@ -2053,17 +2073,19 @@ const QuickActions = ({
                         </h3>
                     </div>
 
-                    <button
-                        onClick={handleApplyNew}
-                        className={cn(
-                            "flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm",
-                            "bg-[#D97757] text-white hover:bg-[#D97757]",
-                            "shadow-sm transition-all duration-150",
-                        )}
-                    >
-                        <Plus className="w-4 h-4" />
-                        Apply New
-                    </button>
+                    {(!isModuleLocked || selectedApplication === "Loan Request") && (
+                        <button
+                            onClick={handleApplyNew}
+                            className={cn(
+                                "flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm",
+                                "bg-[#D97757] text-white hover:bg-[#D97757]",
+                                "shadow-sm transition-all duration-150",
+                            )}
+                        >
+                            <Plus className="w-4 h-4" />
+                            Apply New
+                        </button>
+                    )}
                 </div>
 
                 {/* Applications Table */}
@@ -2537,20 +2559,45 @@ const QuickActions = ({
     // Category selection view
     return (
         <div className="p-5 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl">
+            {/* Lock notice banner */}
+            {isModuleLocked && (
+                <div className="mb-4 flex gap-3 px-4 py-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
+                    <AlertCircleIcon className="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                    <div className="text-sm text-amber-800 dark:text-amber-300 space-y-1">
+                        <p className="font-semibold">Applications are currently locked</p>
+                        <p>
+                            This project does not yet have an approved Fund Sanction or any received funds.
+                            All application modules are disabled until the following conditions are met:
+                        </p>
+                        <ul className="list-disc list-inside mt-1 space-y-0.5 text-amber-700 dark:text-amber-400">
+                            <li>A <strong>Fund Sanction</strong> must be submitted and approved by the sanctioning authority.</li>
+                            <li><strong>Fund Received</strong> must be recorded against the approved sanction.</li>
+                        </ul>
+                        <p className="mt-1">
+                            Only <strong>Loan Request</strong> applications are available at this stage.
+                        </p>
+                    </div>
+                </div>
+            )}
+
             {/* Tab Header */}
             <div className="mb-5">
                 <nav className="frappe-tabs" aria-label="Quick actions tabs">
                     {groups.map((group) => {
                         const Icon = group.icon;
                         const isActive = activeTab === group.title;
+                        const tabLocked = isModuleLocked && group.title !== "Loan";
                         return (
                             <button
                                 key={group.title}
-                                onClick={() => handleTabChange(group.title)}
+                                onClick={() => !tabLocked && handleTabChange(group.title)}
                                 aria-selected={isActive}
+                                disabled={tabLocked}
+                                title={tabLocked ? "Locked: Fund Sanction must be approved and funds received before using this module" : undefined}
                                 className={cn(
                                     "frappe-tab flex items-center gap-2 font-bold",
                                     isActive && "active",
+                                    tabLocked && "opacity-40 cursor-not-allowed pointer-events-none",
                                 )}
                             >
                                 <Icon className="w-4 h-4" />
@@ -2563,16 +2610,33 @@ const QuickActions = ({
 
             {/* Tab Content */}
             <div className="p-5 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                    {activeGroup?.items.map((item) => (
-                        <ActionButton
-                            key={item}
-                            onClick={() => handleApplicationClick(item)}
-                        >
-                            {item}
-                        </ActionButton>
-                    ))}
-                </div>
+                {isModuleLocked && activeTab !== "Loan" ? (
+                    <div className="flex flex-col items-center justify-center py-10 gap-3">
+                        <AlertCircleIcon className="w-9 h-9 text-amber-400" />
+                        <div className="text-center space-y-1 max-w-sm">
+                            <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                                This module is locked
+                            </p>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                                No approved Fund Sanction or received funds are linked to this project.
+                                Please complete the Fund Sanction and Fund Received process under the
+                                <strong className="text-zinc-600 dark:text-zinc-300"> Sanction Details</strong> tab
+                                to unlock all application modules.
+                            </p>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                        {activeGroup?.items.map((item) => (
+                            <ActionButton
+                                key={item}
+                                onClick={() => handleApplicationClick(item)}
+                            >
+                                {item}
+                            </ActionButton>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -2625,7 +2689,74 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
             }
         };
 
-        return null;
+        const items: ActivityItem[] = activityData?.message ?? [];
+
+        return (
+            <div className="space-y-4">
+                {/* Comment input */}
+                <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 space-y-3">
+                    <Textarea
+                        placeholder="Add a comment… (Ctrl+Enter to submit)"
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        onKeyDown={handleKeyPress}
+                        className="resize-none text-sm min-h-[80px]"
+                    />
+                    <div className="flex justify-end">
+                        <button
+                            onClick={handleCommentSubmit}
+                            disabled={isSubmitting || !newComment.trim()}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#D97757] text-white text-sm font-semibold hover:bg-[#c4664a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            {isSubmitting ? "Posting…" : "Post Comment"}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Activity list */}
+                <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800">
+                    {items.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-14 text-zinc-400 dark:text-zinc-500 gap-2">
+                            <MessageSquareIcon className="w-8 h-8" />
+                            <p className="text-sm">No activity yet.</p>
+                        </div>
+                    ) : (
+                        items.map((item, idx) => (
+                            <div key={idx} className="flex gap-3 px-4 py-3">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-xs font-bold uppercase">
+                                    {item.owner?.[0] ?? "?"}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                                            {item.owner}
+                                        </span>
+                                        <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
+                                            {new Date(item.creation).toLocaleString("en-IN", {
+                                                day: "2-digit",
+                                                month: "short",
+                                                year: "numeric",
+                                                hour: "2-digit",
+                                                minute: "2-digit",
+                                            })}
+                                        </span>
+                                        {item.comment_type && item.comment_type !== "Comment" && (
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-medium">
+                                                {item.comment_type}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p
+                                        className="text-sm text-zinc-600 dark:text-zinc-300 mt-0.5 leading-relaxed"
+                                        dangerouslySetInnerHTML={{ __html: item.content }}
+                                    />
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+        );
     },
 );
 ActivityStream.displayName = "ActivityStream";
@@ -3958,8 +4089,107 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                             </nav>
                         </div>
                         <div className="bg-[#F4F4F5] dark:bg-[#18181B] p-4 md:p-5">
+                            {/* Next-step guidance banners */}
+                            {(() => {
+                                // Don't render banners while data is still loading
+                                if (isLoading || sanctionIsLoading) return null;
+
+                                const projectApproved =
+                                    (data?.workflow_state || "").toLowerCase() === "endorsement approved";
+                                const sanctions = normalizeResponse(sanctionData);
+                                const hasSanctionRecord = sanctions.length > 0;
+                                const hasSanctionApproved = sanctions.some(
+                                    (s: any) =>
+                                        (s.sanction_workflow_status || "").toLowerCase() ===
+                                        "sanction approved",
+                                );
+                                const hasFundReceived = normalizeResponse(fundReceivedData).length > 0;
+
+                                if (projectApproved && !hasSanctionRecord) {
+                                    return (
+                                        <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700">
+                                            <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-300 text-xs font-bold">
+                                                1
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">
+                                                    Next Step: Add a Fund Sanction
+                                                </p>
+                                                <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5 leading-relaxed">
+                                                    Your project has been approved. Add a Fund Sanction to
+                                                    register the grant details from the funding agency. All
+                                                    application modules will remain locked until the sanction
+                                                    is approved and funds are received.
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    setActiveTab("sanction-details");
+                                                    setProjectTabParam("sanction-details");
+                                                }}
+                                                className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
+                                            >
+                                                Go to Sanction
+                                                <ChevronRight className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                    );
+                                }
+
+                                if (hasSanctionApproved && !hasFundReceived) {
+                                    return (
+                                        <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700">
+                                            <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-bold">
+                                                2
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
+                                                    Next Step: Record Fund Received
+                                                </p>
+                                                <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5 leading-relaxed">
+                                                    Fund Sanction is approved. Record the funds received from
+                                                    the funding agency to unlock all application modules.
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={handleAddFunds}
+                                                className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors"
+                                            >
+                                                Add Fund Received
+                                                <ChevronRight className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                    );
+                                }
+
+                                return null;
+                            })()}
                             {activeTab === "overview" && (
                                 <div className="space-y-5">
+                                    {/* Sanction prompt in overview when no sanction exists */}
+                                    {!sanctionIsLoading && normalizeResponse(sanctionData).length === 0 && (
+                                        <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700">
+                                            <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-300 text-xs font-bold">
+                                                1
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">
+                                                    No Fund Sanction Added
+                                                </p>
+                                                <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5 leading-relaxed">
+                                                    Add a Fund Sanction to register the grant details from the funding agency.
+                                                    All application modules remain locked until the sanction is approved and funds are received.
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={handleAddSanctionDetails}
+                                                className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
+                                            >
+                                                Add Sanction
+                                                <ChevronRight className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                    )}
                                     {/* ... existing overview content ... */}
                                     <SectionWrapper
                                         title="General Information"
@@ -6201,16 +6431,28 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                     )}
                                                 </>
                                             ) : (
-                                                <div className="text-center py-16 text-[#6B7280] dark:text-zinc-400 rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900">
-                                                    <CreditCardIcon className="h-10 w-10 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
-                                                    <p className="font-medium text-zinc-700 dark:text-zinc-300">
-                                                        No Sanction Details
-                                                        Found
-                                                    </p>
-                                                    <p className="text-sm mt-1">
-                                                        Click "Add Sanction" to
-                                                        create the first entry.
-                                                    </p>
+                                                <div className="flex flex-col items-center gap-5 py-14 px-6 rounded-xl border border-dashed border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20">
+                                                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-800">
+                                                        <CreditCardIcon className="h-7 w-7 text-blue-600 dark:text-blue-300" />
+                                                    </div>
+                                                    <div className="text-center space-y-1.5 max-w-sm">
+                                                        <p className="font-semibold text-blue-800 dark:text-blue-200">
+                                                            No Fund Sanction Added Yet
+                                                        </p>
+                                                        <p className="text-sm text-blue-700 dark:text-blue-300 leading-relaxed">
+                                                            Your project is approved. Add a Fund Sanction to register
+                                                            the grant details from the funding agency. All application
+                                                            modules remain locked until the sanction is approved and
+                                                            funds are received.
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        onClick={handleAddSanctionDetails}
+                                                        className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+                                                    >
+                                                        <PlusIcon className="w-4 h-4" />
+                                                        Add Fund Sanction
+                                                    </button>
                                                 </div>
                                             )}
                                         </div>
@@ -6396,6 +6638,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                     projectTitle={data?.title}
                                     onNavigate={navigate}
                                     embedded={embedded}
+                                    hasSanction={normalizeResponse(sanctionData).some(
+                                        (s) => (s.sanction_workflow_status || "").toLowerCase() === "sanction approved"
+                                    )}
+                                    hasFunds={normalizeResponse(fundReceivedData).length > 0}
                                 />
                             )}
 

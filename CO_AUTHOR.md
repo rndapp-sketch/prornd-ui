@@ -65,7 +65,7 @@ refactor: extract FundSanctionView into separate component
 
 ## Branch Naming
 
-- **Active development branch:** `mythos_omni_v0.4`
+- **Active development branch:** `mythos_fable_v0.5`
 - **Main / production branch:** `main`
 - Feature branches (if needed): `feat/<short-description>` — e.g. `feat/sanction-budget-edit`
 - Fix branches (if needed): `fix/<short-description>` — e.g. `fix/applicant-name-display`
@@ -75,7 +75,7 @@ refactor: extract FundSanctionView into separate component
 
 ## Push Behavior
 
-- Always push to `mythos_omni_v0.4` unless explicitly working on another branch
+- Always push to `mythos_fable_v0.5` unless explicitly working on another branch
 - **Never force push** (`git push --force` / `git push -f`) to any branch
 - **Never force push to `main`** under any circumstances
 - Always confirm the target branch before pushing
