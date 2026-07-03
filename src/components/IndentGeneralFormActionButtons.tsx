@@ -10,6 +10,7 @@ interface Props {
   onActionComplete: () => void;
   commitRequired?: boolean;
   directorPdfBlocked?: boolean;
+  hideForwardActions?: boolean;
 }
 
 const CommentModal = ({
@@ -66,6 +67,7 @@ const IndentGeneralFormActionButtons = ({
   onActionComplete,
   commitRequired = false,
   directorPdfBlocked = false,
+  hideForwardActions = false,
 }: Props) => {
   const { data, isLoading: actionsLoading } = useFrappeGetCall<{
     message: string[] | { actions?: string[] };
@@ -159,7 +161,7 @@ const IndentGeneralFormActionButtons = ({
     return "neutral";
   };
 
-  const forwardActions = workflowActions.filter((a) => categorise(a) === "forward");
+  const forwardActions = hideForwardActions ? [] : workflowActions.filter((a) => categorise(a) === "forward");
   const neutralActions = workflowActions.filter((a) => categorise(a) === "neutral");
   const rejectActions = workflowActions.filter((a) => categorise(a) === "reject");
 

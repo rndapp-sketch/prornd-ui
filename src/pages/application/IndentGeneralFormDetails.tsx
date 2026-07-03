@@ -9,7 +9,7 @@ import {
     UserIcon, ShoppingCartIcon, UsersIcon, FileTextIcon,
     TruckIcon, FileSearch2, PrinterIcon, ExternalLink, UploadIcon,
 } from "lucide-react";
-import { AppSidebar } from "@/components/RndSidebar";
+// import { AppSidebar } from "@/components/RndSidebar";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import {
@@ -258,6 +258,7 @@ const IndentGeneralFormDetails: React.FC = () => {
     const [isUpdatingDirectorFlag, setIsUpdatingDirectorFlag] = useState(false);
     const directorPdfInputRef = useRef<HTMLInputElement>(null);
     const [isUploadingPdf, setIsUploadingPdf] = useState(false);
+    const [hasPrinted, setHasPrinted] = useState(false);
 
     const { call: fetchFields } = useFrappePostCall<{ message: any }>(indentGeneralFormAPI.getFields);
     const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>("frappe.client.get_value");
@@ -266,6 +267,13 @@ const IndentGeneralFormDetails: React.FC = () => {
     );
     const { call: updateSendToDirectorCall } = useFrappePostCall(
         indentGeneralFormAPI.updateSendToDirector,
+    );
+    const { call: performWorkflowAction, loading: isForwarding } = useFrappePostCall(
+        indentGeneralFormAPI.performAction,
+    );
+    const { data: workflowActionsData } = useFrappeGetCall<{ message: string[] | { actions?: string[] } }>(
+        indentGeneralFormAPI.getWorkflowActions,
+        id ? { docname: id } : undefined,
     );
     const { data: activityData } = useFrappeGetCall<{ message: { owner: string; creation: string; content: string; comment_type?: string }[] }>(
         "rndopsapp.rndopsapp.api.get_project_activity",
@@ -487,6 +495,31 @@ const IndentGeneralFormDetails: React.FC = () => {
     const includeDirectorStage = sendToDirector || isAtDirectorApproval;
     const directorPdfBlocked = isDeanRnD && isAtDirectorApproval && !directorSignedPdf;
 
+    // Mirror backend _resolve_igf_next_state() thresholds: Equipment > ₹10L, Consumable > ₹3L
+    // → Approve auto-routes to Director Approval (no manual send needed).
+    const accountHeadLabel = igfAccountHeadLabel?.toLowerCase() ?? "";
+    const totalEstimate = Number(formData.igf_total_estimate || 0);
+    const autoRequiresDirector =
+        (accountHeadLabel.includes("equipment") && totalEstimate > 1000000) ||
+        (accountHeadLabel.includes("consumable") && totalEstimate > 300000);
+
+    const rawActions = workflowActionsData?.message;
+    const allWorkflowActions: string[] = Array.isArray(rawActions) ? rawActions : (rawActions as any)?.actions || [];
+    const forwardAction = allWorkflowActions.find((a) => {
+        const al = a.toLowerCase();
+        return al.includes("approve") || al.includes("forward");
+    }) ?? null;
+
+    const handleForwardAction = async () => {
+        if (!id || !forwardAction) return;
+        try {
+            await performWorkflowAction({ docname: id, action: forwardAction, comment: "" });
+            handleRefresh();
+        } catch (err: any) {
+            alert(err?.message || "Failed to perform action.");
+        }
+    };
+
     const handleSendToDirector = async () => {
         if (!id || isUpdatingDirectorFlag) return;
         setIsUpdatingDirectorFlag(true);
@@ -547,6 +580,7 @@ const IndentGeneralFormDetails: React.FC = () => {
         );
         const win = window.open("", "_blank");
         if (win) { win.document.write(html); win.document.close(); setTimeout(() => win.print(), 400); }
+        setHasPrinted(true);
     };
 
     if (loading) return <GlobalLoader isLoading={true} />;
@@ -566,7 +600,7 @@ const IndentGeneralFormDetails: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-[#FAFAF9] font-sans dark:bg-[#18181B]">
-            <AppSidebar />
+            {/* <AppSidebar /> */}
             <main className="w-full overflow-hidden px-5 py-6 md:px-8 md:py-7">
                 <PageHeader
                     title={formData.name || id || "Indent General Form"}
@@ -574,8 +608,9 @@ const IndentGeneralFormDetails: React.FC = () => {
                     projectName={projectTitle || formData.igf_project_code}
                     projectNumber={formData.igf_project_code}
                 >
-                    {/* NIQ Form button — Approved, Limited Tender, below ₹50 lakh */}
-                    {workflowState === "Approved" &&
+                    {/* NIQ Form button — Approved, Limited Tender, below ₹50 lakh; Dean R&D does not initiate NIQ */}
+                    {!isDeanRnD &&
+                        workflowState === "Approved" &&
                         Number(formData.igf_total_estimate) < 5000000 &&
                         formData.igf_tender_type === "Limited Tender" &&
                         id && (
@@ -624,10 +659,11 @@ const IndentGeneralFormDetails: React.FC = () => {
                                 workflowState === "Pending Staff Approval"
                             }
                             directorPdfBlocked={directorPdfBlocked}
+                            hideForwardActions={isDeanRnD && isAtDeanApproval && (!autoRequiresDirector || !hasPrinted)}
                         />
                     )}
                 </PageHeader>
-                
+
                 {isStaffRnD && isCommittedForGate === false && workflowState === "Pending Staff Approval" && (
                     <div className="mt-4 max-w-fit rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] font-semibold text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
                         A commitment must be submitted before forwarding this application.
@@ -870,22 +906,65 @@ const IndentGeneralFormDetails: React.FC = () => {
 
                         {/* Director Approval — shown to Dean at Pending Dean Approval */}
                         {isDeanRnD && isAtDeanApproval && (
-                            <div className="rounded-2xl border border-[#E4E4E7] bg-white p-4 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
-                                <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
+                            <div className="rounded-2xl border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/10 p-4 shadow-sm">
+                                <h3 className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider mb-3">
                                     Director Approval
                                 </h3>
-                                {sendToDirector ? (
-                                    <div className="flex items-center gap-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-3 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300">
-                                        Flagged for Director Approval
+                                {autoRequiresDirector ? (
+                                    /* Amount above threshold — Approve auto-routes; gated by print */
+                                    <div className="space-y-2.5">
+                                        {!hasPrinted ? (
+                                            <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 px-3 py-3 space-y-1.5">
+                                                <p className="text-[11.5px] font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wide">Print Required Before Forwarding</p>
+                                                <p className="text-[12px] text-amber-700 dark:text-amber-300 leading-relaxed">
+                                                    The total estimate requires Director Approval. Click <strong>Print PDF</strong> (top-right) first — the forward button will appear once you print.
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={handleForwardAction}
+                                                disabled={isForwarding || !forwardAction}
+                                                className="w-full px-3 py-2 rounded-lg text-xs font-semibold bg-[#D97757] hover:bg-[#c66a4e] text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                            >
+                                                {isForwarding ? "Forwarding…" : (forwardAction ?? "Approve")}
+                                            </button>
+                                        )}
+                                        <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 px-3 py-2.5 space-y-1">
+                                            <p className="text-[11px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide">ⓘ What happens after forwarding</p>
+                                            <p className="text-[12px] text-blue-600 dark:text-blue-300 leading-relaxed">
+                                                The status moves to <strong>Pending Director Approval</strong>. Staff will upload the Director-signed document. Once uploaded, you can return here to give the final approval.
+                                            </p>
+                                        </div>
                                     </div>
                                 ) : (
-                                    <button
-                                        onClick={handleSendToDirector}
-                                        disabled={isUpdatingDirectorFlag}
-                                        className="w-full px-3 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 transition-all"
-                                    >
-                                        {isUpdatingDirectorFlag ? "Saving…" : "Send for Director Approval"}
-                                    </button>
+                                    /* Below threshold — manual Director send, also gated by print */
+                                    <div className="space-y-3">
+                                        {!hasPrinted ? (
+                                            <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 px-3 py-3 space-y-1.5">
+                                                <p className="text-[11.5px] font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wide">Step 1 — Print the Form</p>
+                                                <p className="text-[12px] text-amber-700 dark:text-amber-300 leading-relaxed">
+                                                    Click <strong>Print PDF</strong> (top-right) to generate the form. Get it signed by the <strong>Director</strong>, then come back here to send it for approval.
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-300 dark:border-emerald-700 px-3 py-2.5 text-[12px] text-emerald-700 dark:text-emerald-300 font-semibold">
+                                                ✓ Form printed — get it signed by the Director, then click the button below.
+                                            </div>
+                                        )}
+                                        <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 px-3 py-2.5 space-y-1">
+                                            <p className="text-[11px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide">ⓘ What happens after</p>
+                                            <p className="text-[12px] text-blue-600 dark:text-blue-300 leading-relaxed">
+                                                Status changes to <strong>Pending Director Approval</strong>. Staff will upload the signed scan. Once uploaded, your <strong>Actions → Approve</strong> is unblocked for final approval.
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={handleSendToDirector}
+                                            disabled={isUpdatingDirectorFlag || !hasPrinted}
+                                            className="w-full px-3 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                        >
+                                            {isUpdatingDirectorFlag ? "Saving…" : "Send for Director Approval"}
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         )}
