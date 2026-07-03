@@ -1,7 +1,6 @@
 import { useRef, useState, useMemo, useEffect } from "react";
 import { useFrappeGetCall } from "frappe-react-sdk";
 import {
-    FileTextIcon,
     UploadIcon,
     EyeIcon,
     RefreshCwIcon,
@@ -14,12 +13,12 @@ import {
     XIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { selectionCommitteeReportAPI, icssAPI } from "@/services/apiService";
+import { selectionCommitteeReportAPI, icssAPI, indentGeneralFormAPI } from "@/services/apiService";
 import { DepartmentName } from "@/components/DepartmentName";
 
 type PendingDoc = {
     name: string;
-    _doctype: "Selection Committee Report" | "Indent Cum Sanction Sheet";
+    _doctype: "Selection Committee Report" | "Indent Cum Sanction Sheet" | "Indent General Form";
     _attachApi: string;
     interview_id?: string;
     principal_investigator?: string;
@@ -31,7 +30,7 @@ type PendingDoc = {
     modified?: string;
 };
 
-type ModuleFilter = "" | "Indent Cum Sanction Sheet" | "Selection Committee Report";
+type ModuleFilter = "" | "Indent Cum Sanction Sheet" | "Selection Committee Report" | "Indent General Form";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -39,6 +38,7 @@ const MODULE_OPTIONS: { label: string; short: string; value: ModuleFilter }[] = 
     { label: "All Modules", short: "All", value: "" },
     { label: "Indent Cum Sanction Sheet", short: "ICSS", value: "Indent Cum Sanction Sheet" },
     { label: "Selection Committee Report", short: "SCR", value: "Selection Committee Report" },
+    { label: "Indent General Form", short: "IGF", value: "Indent General Form" },
 ];
 
 const MODULE_BADGE: Record<string, { bg: string; text: string }> = {
@@ -49,6 +49,10 @@ const MODULE_BADGE: Record<string, { bg: string; text: string }> = {
     "Selection Committee Report": {
         bg: "bg-blue-100 dark:bg-blue-900/40",
         text: "text-blue-700 dark:text-blue-300",
+    },
+    "Indent General Form": {
+        bg: "bg-emerald-100 dark:bg-emerald-900/40",
+        text: "text-emerald-700 dark:text-emerald-300",
     },
 };
 
@@ -92,8 +96,18 @@ const DirectorPdfUpload = () => {
         {},
     );
 
-    const isLoading = scrLoading || icssLoading;
-    const error = scrError || icssError;
+    const {
+        data: igfData,
+        isLoading: igfLoading,
+        error: igfError,
+        mutate: igfMutate,
+    } = useFrappeGetCall<{ message: { status: string; data: any[] } }>(
+        indentGeneralFormAPI.getPendingDirectorUploads,
+        {},
+    );
+
+    const isLoading = scrLoading || icssLoading || igfLoading;
+    const error = scrError || icssError || igfError;
 
     const allDocs: PendingDoc[] = useMemo(() => [
         ...(icssData?.message?.data ?? []).map((d: any) => ({
@@ -106,7 +120,16 @@ const DirectorPdfUpload = () => {
             _doctype: "Selection Committee Report" as const,
             _attachApi: selectionCommitteeReportAPI.attachDirectorPdf,
         })),
-    ], [icssData, scrData]);
+        ...(igfData?.message?.data ?? []).map((d: any) => ({
+            ...d,
+            _doctype: "Indent General Form" as const,
+            _attachApi: indentGeneralFormAPI.attachDirectorPdf,
+            principal_investigator: d.igf_indenter,
+            project_number: d.igf_project_code,
+            project_name: d.igf_project_title,
+            upfa_department: d.igf_department_centre_section,
+        })),
+    ], [icssData, scrData, igfData]);
 
     const uploadedCount = allDocs.filter((d) => d.director_signed_pdf?.trim()).length;
     const pendingCount = allDocs.length - uploadedCount;
@@ -137,6 +160,7 @@ const DirectorPdfUpload = () => {
     const mutateAll = () => {
         scrMutate();
         icssMutate();
+        igfMutate();
     };
 
     const handleModuleChange = (val: ModuleFilter) => {

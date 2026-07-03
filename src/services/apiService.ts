@@ -243,6 +243,11 @@ export const indentGeneralFormAPI = {
     save: `${API_BASE}.indent_general_form.indent_general_form.save_indent_general_form_data`,
     getWorkflowActions: `${API_BASE}.indent_general_form.indent_general_form.get_indent_general_form_workflow_actions`,
     performAction: `${API_BASE}.indent_general_form.indent_general_form.perform_indent_general_form_action`,
+    updateSendToDirector: `${API_BASE}.indent_general_form.indent_general_form.update_send_to_director_igf`,
+    attachDirectorPdf: `${API_BASE}.indent_general_form.indent_general_form.attach_director_pdf_igf`,
+    getPendingDirectorUploads: `${API_BASE}.indent_general_form.indent_general_form.get_pending_director_uploads_igf`,
+    getAvailableBackActions: `${API_BASE}.indent_general_form.indent_general_form.get_available_back_actions`,
+    putBack: `${API_BASE}.indent_general_form.indent_general_form.put_back`,
 };
 
 // Loan Request API endpoints

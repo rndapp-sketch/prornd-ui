@@ -3,12 +3,13 @@ import { createPortal } from "react-dom";
 import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
 import { indentGeneralFormAPI } from "@/services/apiService";
-import { ChevronDown, CheckCircle, XCircle, ChevronRight } from "lucide-react";
+import { ChevronDown, CheckCircle, XCircle, ChevronRight, CornerUpLeft } from "lucide-react";
 
 interface Props {
   docname: string;
   onActionComplete: () => void;
   commitRequired?: boolean;
+  directorPdfBlocked?: boolean;
 }
 
 const CommentModal = ({
@@ -64,19 +65,30 @@ const IndentGeneralFormActionButtons = ({
   docname,
   onActionComplete,
   commitRequired = false,
+  directorPdfBlocked = false,
 }: Props) => {
   const { data, isLoading: actionsLoading } = useFrappeGetCall<{
     message: string[] | { actions?: string[] };
   }>(indentGeneralFormAPI.getWorkflowActions, { docname });
 
+  const { data: backData } = useFrappeGetCall<{
+    message: { actions: { target: string; label: string; next_state: string }[] };
+  }>(indentGeneralFormAPI.getAvailableBackActions, { docname });
+
   const { call: performAction, loading: actionLoading } = useFrappePostCall(
     indentGeneralFormAPI.performAction,
+  );
+
+  const { call: putBack, loading: putBackLoading } = useFrappePostCall(
+    indentGeneralFormAPI.putBack,
   );
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedAction, setSelectedAction] = useState("");
+  const [isPutBack, setIsPutBack] = useState(false);
+  const [selectedTarget, setSelectedTarget] = useState("");
   const toggleBtnRef = React.useRef<HTMLButtonElement>(null);
   const dropdownPortalRef = React.useRef<HTMLDivElement>(null);
 
@@ -105,13 +117,26 @@ const IndentGeneralFormActionButtons = ({
 
   const handleWorkflowClick = (action: string) => {
     setDropdownOpen(false);
+    setIsPutBack(false);
     setSelectedAction(action);
+    setModalOpen(true);
+  };
+
+  const handlePutBackClick = (target: string, label: string) => {
+    setDropdownOpen(false);
+    setIsPutBack(true);
+    setSelectedTarget(target);
+    setSelectedAction(label);
     setModalOpen(true);
   };
 
   const handleConfirmAction = async (comment: string) => {
     try {
-      await performAction({ docname, action: selectedAction, comment });
+      if (isPutBack) {
+        await putBack({ docname, target: selectedTarget, comment });
+      } else {
+        await performAction({ docname, action: selectedAction, comment });
+      }
       setModalOpen(false);
       onActionComplete();
     } catch (error) {
@@ -123,6 +148,9 @@ const IndentGeneralFormActionButtons = ({
   const workflowActions: string[] = Array.isArray(raw)
     ? raw
     : (raw as any)?.actions || [];
+
+  const backActions: { target: string; label: string; next_state: string }[] =
+    (backData?.message as any)?.actions || [];
 
   const categorise = (action: string) => {
     const a = action.toLowerCase();
@@ -154,8 +182,8 @@ const IndentGeneralFormActionButtons = ({
     };
   };
 
-  const isLoading = actionsLoading || actionLoading;
-  const hasActions = forwardActions.length > 0 || neutralActions.length > 0 || rejectActions.length > 0;
+  const isLoading = actionsLoading || actionLoading || putBackLoading;
+  const hasActions = forwardActions.length > 0 || neutralActions.length > 0 || rejectActions.length > 0 || backActions.length > 0;
 
   if (!hasActions && !actionsLoading) return null;
 
@@ -195,13 +223,21 @@ const IndentGeneralFormActionButtons = ({
               </div>
             )}
 
+            {directorPdfBlocked && (
+              <div className="mx-3 mt-3 mb-1 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+                Director-signed PDF must be uploaded before approving.
+              </div>
+            )}
+
             {[forwardActions, neutralActions, rejectActions]
               .filter((g) => g.length > 0)
               .map((group, gi) => (
                 <React.Fragment key={gi}>
                   {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
                   {group.map((action) => {
-                    const blocked = commitRequired && categorise(action) === "forward";
+                    const blockedByCommit = commitRequired && categorise(action) === "forward";
+                    const blockedByPdf = directorPdfBlocked && categorise(action) === "forward";
+                    const blocked = blockedByCommit || blockedByPdf;
                     const { icon, cls, iconCls } = itemStyle(action);
                     return (
                       <button
@@ -224,6 +260,28 @@ const IndentGeneralFormActionButtons = ({
                   })}
                 </React.Fragment>
               ))}
+
+            {backActions.length > 0 && (
+              <>
+                <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />
+                <div className="px-4 py-1.5">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                    Put Back
+                  </span>
+                </div>
+                {backActions.map((ba) => (
+                  <button
+                    key={ba.target}
+                    onClick={() => handlePutBackClick(ba.target, ba.label)}
+                    disabled={putBackLoading}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+                  >
+                    <CornerUpLeft className="h-3.5 w-3.5 text-zinc-400" />
+                    {ba.label}
+                  </button>
+                ))}
+              </>
+            )}
           </div>,
           document.body,
         )}
@@ -234,7 +292,7 @@ const IndentGeneralFormActionButtons = ({
         onClose={() => setModalOpen(false)}
         onSubmit={handleConfirmAction}
         action={selectedAction}
-        isLoading={actionLoading ?? false}
+        isLoading={actionLoading || putBackLoading}
       />
     </>
   );
