@@ -2,14 +2,13 @@ import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
-import { disbursalOfHonorariumAPI } from "@/services/apiService";
-import { ChevronDown, CheckCircle, XCircle, ChevronRight, Printer } from "lucide-react";
+import { indentGeneralFormAPI } from "@/services/apiService";
+import { ChevronDown, CheckCircle, XCircle, ChevronRight } from "lucide-react";
 
 interface Props {
   docname: string;
   onActionComplete: () => void;
   commitRequired?: boolean;
-  onPrint?: () => void;
 }
 
 const CommentModal = ({
@@ -61,18 +60,17 @@ const CommentModal = ({
   );
 };
 
-const DisbursalOfHonorariumActionButtons = ({
+const IndentGeneralFormActionButtons = ({
   docname,
   onActionComplete,
   commitRequired = false,
-  onPrint,
 }: Props) => {
-  const { data, isLoading: actionsLoading } = useFrappeGetCall<{ message: string[] }>(
-    disbursalOfHonorariumAPI.getWorkflowActions,
-    { docname },
-  );
+  const { data, isLoading: actionsLoading } = useFrappeGetCall<{
+    message: string[] | { actions?: string[] };
+  }>(indentGeneralFormAPI.getWorkflowActions, { docname });
+
   const { call: performAction, loading: actionLoading } = useFrappePostCall(
-    disbursalOfHonorariumAPI.performAction,
+    indentGeneralFormAPI.performAction,
   );
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -121,7 +119,10 @@ const DisbursalOfHonorariumActionButtons = ({
     }
   };
 
-  const workflowActions = data?.message || [];
+  const raw = data?.message;
+  const workflowActions: string[] = Array.isArray(raw)
+    ? raw
+    : (raw as any)?.actions || [];
 
   const categorise = (action: string) => {
     const a = action.toLowerCase();
@@ -188,19 +189,6 @@ const DisbursalOfHonorariumActionButtons = ({
               </span>
             </div>
 
-            {onPrint && (
-              <>
-                <button
-                  onClick={() => { setDropdownOpen(false); onPrint(); }}
-                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
-                >
-                  <span className="text-zinc-400"><Printer className="h-3.5 w-3.5" /></span>
-                  Print / PDF
-                </button>
-                <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />
-              </>
-            )}
-
             {commitRequired && (
               <div className="mx-3 mt-3 mb-1 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
                 A commitment must be submitted before proceeding.
@@ -213,7 +201,7 @@ const DisbursalOfHonorariumActionButtons = ({
                 <React.Fragment key={gi}>
                   {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
                   {group.map((action) => {
-                    const blocked = commitRequired;
+                    const blocked = commitRequired && categorise(action) === "forward";
                     const { icon, cls, iconCls } = itemStyle(action);
                     return (
                       <button
@@ -252,4 +240,4 @@ const DisbursalOfHonorariumActionButtons = ({
   );
 };
 
-export default DisbursalOfHonorariumActionButtons;
+export default IndentGeneralFormActionButtons;

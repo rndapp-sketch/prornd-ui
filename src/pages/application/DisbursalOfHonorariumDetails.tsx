@@ -50,11 +50,10 @@ import {
     FileSpreadsheetIcon as LedgerIcon,
     EditIcon,
     Send,
-    Printer,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlobalLoader } from "@/components/ui/global-loader";
-import { Textarea } from "@/components/ui/textarea";
+import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import {
     DynamicFormRenderer,
     type FormField,
@@ -62,7 +61,6 @@ import {
 } from "@/components/forms/DynamicFormRenderer";
 import DisbursalOfHonorariumActionButtons from "@/components/DisbursalOfHonorariumActionButtons";
 import { CommitPayment } from "@/components/CommitPayment";
-import { ActivityLog } from "@/components/ActivityLog";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { useUserRoles } from "@/components/UserRole";
 import { ProjectLedgerModal } from "@/components/ProjectLedgerModal";
@@ -133,11 +131,11 @@ const FrappeButton = ({
             "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-150",
             "focus:outline-none focus:ring-2 focus:ring-zinc-400",
             variant === "primary" &&
-                "bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-md border border-[#C66A4E]",
+            "bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-md border border-[#C66A4E]",
             variant === "ghost" &&
-                "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-700",
+            "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-700",
             variant === "outline" &&
-                "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800",
+            "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             className,
         )}
@@ -145,53 +143,6 @@ const FrappeButton = ({
         {children}
     </button>
 );
-
-// --- ACTIVITY STREAM ---
-const ActivityStream = ({
-    doctype,
-    docname,
-}: {
-    doctype: string;
-    docname: string;
-}) => {
-    const { data: activityData, mutate: refetch } = useFrappeGetCall<{
-        message: ActivityItem[];
-    }>("rndopsapp.rndopsapp.api.get_project_activity", { doctype, docname });
-
-    useEffect(() => {
-        refetch();
-    }, [docname]);
-
-    return (
-        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-            {activityData?.message?.length ? (
-                activityData.message.map((item, idx) => (
-                    <div key={idx} className="flex items-start gap-3">
-                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center font-bold text-[#D97757] text-xs">
-                            {item.owner?.charAt(0).toUpperCase() || "U"}
-                        </div>
-                        <div className="min-w-0">
-                            <div
-                                className="text-sm text-zinc-800 dark:text-zinc-200 prose prose-sm max-w-none"
-                                dangerouslySetInnerHTML={{
-                                    __html: item.content,
-                                }}
-                            />
-                            <p className="text-xs text-zinc-500 mt-0.5">
-                                {item.owner} ·{" "}
-                                {item.creation
-                                    ? new Date(item.creation).toLocaleString()
-                                    : ""}
-                            </p>
-                        </div>
-                    </div>
-                ))
-            ) : (
-                <p className="text-sm text-zinc-500 italic">No activity yet.</p>
-            )}
-        </div>
-    );
-};
 
 // --- MAIN COMPONENT ---
 const DisbursalOfHonorariumDetails: React.FC = () => {
@@ -207,10 +158,9 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
     const [refreshKey, setRefreshKey] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+    const [resolvedProjectTitle, setResolvedProjectTitle] = useState<string>("");
+    const [applicantFullName, setApplicantFullName] = useState<string>("");
 
-    // Sidebar state
-    const [sidebarComment, setSidebarComment] = useState("");
-    const [isAddingComment, setIsAddingComment] = useState(false);
     const [isLedgerOpen, setIsLedgerOpen] = useState(false);
 
     // Commit / Payment state (commitAmount moved to CommitPayment component)
@@ -231,11 +181,12 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
     const { call: fetchUsersList } = useFrappePostCall<{ message: any[] }>(
         "frappe.client.get_list",
     );
-    const { call: addComment } = useFrappePostCall(
-        "rndopsapp.rndopsapp.api.add_project_comment",
-    );
     const { data: activityData } = useFrappeGetCall<{ message: ActivityItem[] }>(
         "rndopsapp.rndopsapp.api.get_project_activity",
+        id ? { doctype: "Disbursal of Honorarium", docname: id } : undefined,
+    );
+    const { data: docActivityData } = useFrappeGetCall<{ message: any[] }>(
+        "rndopsapp.rndopsapp.api.get_document_activity",
         id ? { doctype: "Disbursal of Honorarium", docname: id } : undefined,
     );
     // CommitPayment component handles submit_commit_data internally
@@ -248,6 +199,51 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
 
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
+
+    // --- RESOLVE PRINT DISPLAY FIELDS via authenticated SDK calls ---
+    useEffect(() => {
+        if (!formData.name) return;
+        const run = async () => {
+            // Project title: look up by project_no (frappe.client.get_list — same as form)
+            if (formData.project_no) {
+                try {
+                    const res = await fetchUsersList({
+                        doctype: "Project Registration",
+                        filters: [["project_no", "=", formData.project_no]],
+                        fields: ["name", "project_title"],
+                        limit_page_length: 1,
+                    });
+                    const title = res?.message?.[0]?.project_title;
+                    if (title) setResolvedProjectTitle(title);
+                } catch (_) { }
+            }
+            // Fallback: fetch Project Registration doc by stored docname
+            if (!resolvedProjectTitle) {
+                const prDocName = formData.project_title || formData.project_name;
+                if (prDocName && prDocName !== formData.project_no) {
+                    try {
+                        const res = await fetchDocument({
+                            doctype: "Project Registration",
+                            name: prDocName,
+                        });
+                        const title = res?.message?.project_title;
+                        if (title) setResolvedProjectTitle(title);
+                    } catch (_) { }
+                }
+            }
+            // Applicant full name: look up User by webmail_id
+            const userEmail = formData.webmail_id || formData.web_mail_id;
+            if (userEmail) {
+                try {
+                    const res = await fetchDocument({ doctype: "User", name: userEmail });
+                    const fullName = res?.message?.full_name;
+                    if (fullName) setApplicantFullName(fullName);
+                } catch (_) { }
+            }
+            // (document activity is fetched via useFrappeGetCall hook — docActivityData)
+        };
+        run();
+    }, [formData.name, formData.project_no]);
 
     // --- PROJECT BUDGET ---
     const projectTitle =
@@ -415,7 +411,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                         baseLinkOptions["account_head"] = bhOptions;
                         baseLinkOptions["Budget Head"] = bhOptions;
                     }
-                } catch (_) {}
+                } catch (_) { }
 
                 try {
                     const deptRes = await fetchUsersList({
@@ -433,7 +429,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                         baseLinkOptions["department"] = deptOptions;
                         baseLinkOptions["Department_prornd"] = deptOptions;
                     }
-                } catch (_) {}
+                } catch (_) { }
 
                 try {
                     const usersRes = await fetchUsersList({
@@ -454,7 +450,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                         baseLinkOptions["User"] =
                             baseLinkOptions["web_mail_id"];
                     }
-                } catch (_) {}
+                } catch (_) { }
 
                 setLinkOptions(baseLinkOptions);
 
@@ -538,28 +534,10 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
         }
     };
 
-    // --- COMMENT ---
-    const handleSidebarCommentSubmit = async () => {
-        if (!sidebarComment.trim() || !id) return;
-        setIsAddingComment(true);
-        try {
-            await addComment({
-                doctype: "Disbursal of Honorarium",
-                docname: id,
-                content: sidebarComment,
-            });
-            setSidebarComment("");
-            handleRefresh();
-        } catch {
-            alert("Failed to submit comment.");
-        } finally {
-            setIsAddingComment(false);
-        }
-    };
 
     // No-op handlers for read-only form
-    const noOp = () => {};
-    const noOpTable = () => {};
+    const noOp = () => { };
+    const noOpTable = () => { };
 
     // --- RENDER ---
     if (loading) return <GlobalLoader isLoading={true} />;
@@ -573,62 +551,44 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                     title={formData.name || id || "Disbursal of Honorarium"}
                     status={formData.workflow_state || "Draft"}
                     projectName={
-                        formData.project_name || formData.project_title
+                        resolvedProjectTitle || formData.project_title
                     }
                     projectNumber={formData.project_no}
                 >
                     <div className="flex items-center gap-2">
-                        {id && (
-                            <button
-                                onClick={() => setIsPrintModalOpen(true)}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
-                            >
-                                <Printer className="w-4 h-4" />
-                                Print / PDF
-                            </button>
+                        {(formData.workflow_state === "Draft" || !formData.workflow_state) && id && (
+                            <>
+                                <button
+                                    onClick={() => navigate(`/disbursal-of-honorarium-form/${id}`)}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
+                                >
+                                    <EditIcon className="w-4 h-4" />
+                                    Edit
+                                </button>
+                                <button
+                                    onClick={handleSubmitApplication}
+                                    disabled={isSubmitting}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <Send className="w-4 h-4" />
+                                    {isSubmitting ? "Submitting..." : "Submit Application"}
+                                </button>
+                            </>
                         )}
-                        {(formData.workflow_state === "Draft" ||
-                            !formData.workflow_state) &&
-                            id && (
-                                <>
-                                    <button
-                                        onClick={() =>
-                                            navigate(`/disbursal-of-honorarium-form/${id}`)
-                                        }
-                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
-                                    >
-                                        <EditIcon className="w-4 h-4" />
-                                        Edit
-                                    </button>
-                                    <button
-                                        onClick={handleSubmitApplication}
-                                        disabled={isSubmitting}
-                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        <Send className="w-4 h-4" />
-                                        {isSubmitting ? "Submitting..." : "Submit Application"}
-                                    </button>
-                                </>
-                            )}
-                    </div>
-                </PageHeader>
-
-                {/* Workflow Action Buttons — only after submission */}
-                {id &&
-                    formData.workflow_state &&
-                    formData.workflow_state !== "Draft" && (
-                        <div className="mb-6">
+                        {id && (
                             <DisbursalOfHonorariumActionButtons
                                 docname={id}
                                 onActionComplete={handleRefresh}
+                                onPrint={() => setIsPrintModalOpen(true)}
                                 commitRequired={
                                     isRnDStaff &&
-                                    (formData.workflow_state === "Pending Staff Approval") &&
+                                    formData.workflow_state === "Pending Staff Approval" &&
                                     isCommittedForGate === false
                                 }
                             />
-                        </div>
-                    )}
+                        )}
+                    </div>
+                </PageHeader>
 
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                     {/* Main Content — read-only form */}
@@ -650,138 +610,49 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                     </div>
 
                     {/* Sidebar */}
-                    <aside className="lg:col-span-1 space-y-5">
-                        {/* Status */}
-                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
-                                Status
-                            </h3>
-                            <div className="space-y-2 text-sm">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-zinc-600 dark:text-zinc-400">
-                                        Workflow State
-                                    </span>
-                                    <span
-                                        className={cn(
-                                            "px-3 py-1 text-xs font-bold rounded-full",
-                                            formData.workflow_state ===
-                                                "Approved" &&
-                                                "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-                                            formData.workflow_state ===
-                                                "Rejected" &&
-                                                "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-                                            formData.workflow_state ===
-                                                "Draft" &&
-                                                "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
-                                            ![
-                                                "Approved",
-                                                "Rejected",
-                                                "Draft",
-                                            ].includes(
-                                                formData.workflow_state || "",
-                                            ) &&
-                                                "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-                                        )}
-                                    >
-                                        {formData.workflow_state || "Draft"}
-                                    </span>
-                                </div>
-                                {/*<div className="flex justify-between">
-                                    <span className="text-zinc-600 dark:text-zinc-400">
-                                        Doc Status
-                                    </span>
-                                    <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                                        {formData.docstatus === 1
-                                            ? "Submitted"
-                                            : formData.docstatus === 2
-                                              ? "Cancelled"
-                                              : "Draft"}
-                                    </span>
-                                </div>*/}
+                    <aside className="lg:col-span-1 space-y-3">
+                        {/* Status + Last Modified */}
+                        <div className="bg-white dark:bg-zinc-900 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <span
+                                    className={cn(
+                                        "px-2.5 py-1 text-xs font-bold rounded-full",
+                                        formData.workflow_state === "Approved" &&
+                                        "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                                        formData.workflow_state === "Rejected" &&
+                                        "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                                        formData.workflow_state === "Draft" &&
+                                        "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
+                                        !["Approved", "Rejected", "Draft"].includes(formData.workflow_state || "") &&
+                                        "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+                                    )}
+                                >
+                                    {formData.workflow_state || "Draft"}
+                                </span>
                                 {formData.modified && (
-                                    <div className="flex justify-between">
-                                        <span className="text-zinc-600 dark:text-zinc-400">
-                                            Last Modified
-                                        </span>
-                                        <span className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-1">
-                                            <CalendarIcon className="w-3 h-3" />
-                                            {new Date(
-                                                formData.modified,
-                                            ).toLocaleDateString("en-IN")}
-                                        </span>
-                                    </div>
+                                    <span className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
+                                        <CalendarIcon className="w-3 h-3" />
+                                        {new Date(formData.modified).toLocaleDateString("en-IN")}
+                                    </span>
                                 )}
                             </div>
                         </div>
 
                         {/* Project Budget */}
-                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-                                Project Budget
-                            </h3>
-                            <div className="flex justify-between items-center bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800 mb-3">
-                                <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                                    Commitable Balance
-                                </p>
-                                <p className="text-lg font-bold text-[#D97757]">
-                                    ₹{" "}
-                                    {totalCommitableBalance.toLocaleString(
-                                        "en-IN",
-                                    )}
-                                </p>
+                        <div className="bg-white dark:bg-zinc-900 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Commitable Balance</span>
+                                <span className="text-base font-bold text-[#D97757]">₹ {totalCommitableBalance.toLocaleString("en-IN")}</span>
                             </div>
                             <button
                                 onClick={() => setIsLedgerOpen(true)}
-                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-[#D97757] font-bold text-sm hover:bg-[#B2DFDB] transition-colors"
+                                className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-[#D97757] font-semibold text-xs hover:bg-[#B2DFDB] transition-colors"
                             >
-                                <LedgerIcon className="w-4 h-4" />
-                                View Project Ledger
+                                <LedgerIcon className="w-3.5 h-3.5" />
+                                View Ledger
                             </button>
                         </div>
 
-                        {/* Activity Stream (legacy local) */}
-                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-                                Latest Activity
-                            </h3>
-                            {id && (
-                                <ActivityStream
-                                    doctype="Disbursal of Honorarium"
-                                    docname={id}
-                                />
-                            )}
-                        </div>
-
-                        {/* Activity Log (new endpoint) */}
-                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            {id && <ActivityLog doctype="Disbursal of Honorarium" docname={id} />}
-                        </div>
-
-                        {/* Add Comment */}
-                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
-                                Add Comment
-                            </h3>
-                            <Textarea
-                                rows={3}
-                                placeholder="Type your comment here..."
-                                value={sidebarComment}
-                                onChange={(e) =>
-                                    setSidebarComment(e.target.value)
-                                }
-                                className="w-full mb-3 text-sm"
-                            />
-                            <FrappeButton
-                                className="w-full"
-                                variant="primary"
-                                onClick={handleSidebarCommentSubmit}
-                                disabled={isAddingComment}
-                            >
-                                {isAddingComment
-                                    ? "Submitting..."
-                                    : "Submit Comment"}
-                            </FrappeButton>
-                        </div>
 
                         {/* Make a Commitment / Committed Data Display */}
                         {(formData.workflow_state === "Pending Staff Approval" ||
@@ -860,8 +731,8 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                                                     isPaying ||
                                                     !paymentAmount ||
                                                     parseFloat(paymentAmount) >
-                                                        (linkedCommitment?.committed ||
-                                                            0)
+                                                    (linkedCommitment?.committed ||
+                                                        0)
                                                 }
                                             >
                                                 {isPaying
@@ -903,13 +774,24 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                 htmlContent={
                     isPrintModalOpen
                         ? generateDisbursalOfHonorariumHtml(
-                              resolveHonorariumPrintData(formData, linkOptions),
-                              activityData?.message || [],
-                          )
+                            resolveHonorariumPrintData({
+                                ...formData,
+                                project_name: resolvedProjectTitle || formData.project_name,
+                                name_of_applicant: applicantFullName || formData.name_of_applicant,
+                            }, linkOptions),
+                            activityData?.message || [],
+                            docActivityData?.message,
+                        )
                         : ""
                 }
                 docName={formData.name || id || ""}
             />
+            {id && (
+                <FloatingActivityLogButton
+                    doctype="Disbursal of Honorarium"
+                    docname={id}
+                />
+            )}
         </div>
     );
 };
