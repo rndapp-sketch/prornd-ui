@@ -4,7 +4,7 @@ module.exports = {
       name: "prornd-ui-mythos_fable_v0.5",
       script: "npm",
       args: "run dev",
-      cwd: "/home/prornd/Projects/mythos_fable_v0.5/prornd-ui",
+      cwd: "/home/prornd/Projects/mythos_omni_v0.4/prornd-ui",
       interpreter: "none",
       env: {
         NODE_ENV: "development",
