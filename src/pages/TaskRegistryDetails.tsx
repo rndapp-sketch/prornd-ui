@@ -1807,6 +1807,41 @@ const TaskRegistryDetails: React.FC = () => {
         }
     }, [data, doctype, taLinkOptions]);
 
+    useEffect(() => {
+        if (doctype !== "Disbursal of Honorarium" || !data) return;
+        const postOpts = { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include" as RequestCredentials };
+
+        // Project title — look up by project_no in Project Registration
+        const projectRef = data.project_no;
+        if (projectRef) {
+            (async () => {
+                try {
+                    let res = await fetch("/api/method/frappe.client.get_list", { ...postOpts, body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
+                    let json = await res.json();
+                    let title = json?.message?.[0]?.project_title || "";
+                    if (!title) {
+                        res = await fetch("/api/method/frappe.client.get_list", { ...postOpts, body: JSON.stringify({ doctype: "Project Proposal", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
+                        json = await res.json();
+                        title = json?.message?.[0]?.project_title || "";
+                    }
+                    if (title) setDisplayData(prev => ({ ...prev, project_name: title }));
+                } catch { }
+            })();
+        }
+
+        // Applicant full name — webmail_id holds the email
+        const email = data.webmail_id || data.web_mail_id;
+        if (email) {
+            fetch(`/api/method/frappe.client.get_value?doctype=User&filters=${encodeURIComponent(email)}&fieldname=full_name`, { credentials: "include" })
+                .then(r => r.json())
+                .then(res => {
+                    const fullName = res.message?.full_name;
+                    if (fullName) setDisplayData(prev => ({ ...prev, name_of_applicant: fullName }));
+                })
+                .catch(() => { });
+        }
+    }, [data, doctype]);
+
     const handlePrintDisbursalOfHonorarium = () => {
         if (!data) return;
         const html = generateDisbursalOfHonorariumHtml(

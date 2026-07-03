@@ -76,10 +76,14 @@ export interface CommitPaymentProps {
     description?: string;
     /** Optional: custom submit button label */
     submitLabel?: string;
+    /** Optional: per-head balance map from useProjectBudget — keys are budget head names */
+    headBalances?: Record<string, { commitable: number; received: number; actual: number; committed: number; payment: number; id: number }>;
     /** Optional: disable the form externally while still showing it */
     disabled?: boolean;
     /** Optional: reason shown when disabled externally */
     disabledReason?: string;
+    /** Optional: called whenever the selected budget head changes (for parent sidebar sync) */
+    onHeadChange?: (head: string) => void;
     /** Optional: called after a successful commit so the parent can update its local state */
     onCommitSuccess?: (head: string, amount: number) => void;
     /**
@@ -403,6 +407,8 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     title = "Make a Commitment",
     description,
     submitLabel = "Submit Commitment",
+    headBalances,
+    onHeadChange,
     disabled = false,
     disabledReason,
     onCommitSuccess,
@@ -459,6 +465,11 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
             setCommitHead(budgetHeads[0]);
         }
     }, [budgetHeads, commitHead, preferredCommitHead]);
+
+    // ── Notify parent when selected head changes ─────────────────────────────
+    useEffect(() => {
+        if (commitHead) onHeadChange?.(commitHead);
+    }, [commitHead]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Pre-fill amount from billAmount prop ─────────────────────────────────
     useEffect(() => {
@@ -534,6 +545,11 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
         checkStagingRecord();
     }, [checkStagingRecord]);
 
+    // Commitable balance for the currently selected head (falls back to total actualBalance)
+    const selectedHeadBalance = commitHead && headBalances?.[commitHead] != null
+        ? headBalances[commitHead].commitable
+        : actualBalance;
+
     // ── Validate & open confirmation dialog ─────────────────────────────────
     const handleSubmitClick = () => {
         setSubmitError(null);
@@ -542,6 +558,15 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
         if (isNaN(amount) || amount <= 0) { setSubmitError("Please enter a valid positive amount."); return; }
         if (!commitReferenceName || !payloadFrapAppId || !projectName) { setSubmitError("Missing document or project information."); return; }
         if (disabled) { setSubmitError(disabledReason || "Commitment cannot be submitted yet."); return; }
+        if (headBalances && commitHead && headBalances[commitHead] != null) {
+            const headCommitable = headBalances[commitHead].commitable;
+            if (amount > headCommitable) {
+                setSubmitError(
+                    `Amount ₹${amount.toLocaleString("en-IN")} exceeds the commitable balance of ₹${headCommitable.toLocaleString("en-IN")} for "${commitHead}".`
+                );
+                return;
+            }
+        }
         setShowConfirmDialog(true);
     };
 
@@ -711,6 +736,15 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     }
 
     // ── Render: Form (normal state) ──────────────────────────────────────────
+    const parsedCommitAmount = parseFloat(commitAmount);
+    const amountExceedsSubmit =
+        !isNaN(parsedCommitAmount) &&
+        parsedCommitAmount > 0 &&
+        headBalances != null &&
+        commitHead !== "" &&
+        headBalances[commitHead] != null &&
+        parsedCommitAmount > headBalances[commitHead].commitable;
+
     return (
         <div className={cn("bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm", className)}>
             {/* Title */}
@@ -749,23 +783,30 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                     <select
                         value={commitHead}
                         onChange={(e) => setCommitHead(e.target.value)}
-                        disabled={disabled}
+                        disabled={disabled || budgetHeads.length === 0}
                         className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                     >
-                        {budgetHeads.length > 0 ? (
-                            budgetHeads.map((head) => (
-                                <option key={head} value={head}>
-                                    {head}
-                                </option>
-                            ))
+                        {budgetHeads.length === 0 ? (
+                            <option value="">Loading budget heads…</option>
                         ) : (
-                            <option value="">No Budget Heads available</option>
+                            <>
+                                {!commitHead && (
+                                    <option value="" disabled>
+                                        — Select Budget Head —
+                                    </option>
+                                )}
+                                {budgetHeads.map((head) => (
+                                    <option key={head} value={head}>
+                                        {head}
+                                    </option>
+                                ))}
+                            </>
                         )}
                     </select>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                         Available:{" "}
-                        <span className="font-medium text-[#D97757]">
-                            ₹{actualBalance.toLocaleString("en-IN")}
+                        <span className={`font-medium ${selectedHeadBalance < 0 ? "text-red-500" : "text-[#D97757]"}`}>
+                            ₹{selectedHeadBalance.toLocaleString("en-IN")}
                         </span>
                     </p>
                 </div>
@@ -788,8 +829,19 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                             }
                         }}
                         placeholder="e.g. 5000"
-                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
+                        className={cn(
+                            "w-full px-3 py-2 border rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2",
+                            amountExceedsSubmit
+                                ? "border-red-400 dark:border-red-500 focus:ring-red-300/30 focus:border-red-500"
+                                : "border-zinc-300 dark:border-zinc-700 focus:ring-[#D97757]/25 focus:border-[#D97757]",
+                        )}
                     />
+                    {amountExceedsSubmit && (
+                        <p className="flex items-center gap-1 mt-1 text-[11px] font-medium text-red-600 dark:text-red-400">
+                            <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                            Exceeds available ₹{headBalances![commitHead].commitable.toLocaleString("en-IN")}
+                        </p>
+                    )}
                 </div>
 
                 {/* Particulars / Comment (commitParticular) */}
@@ -830,7 +882,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                 {/* Submit Button */}
                 <button
                     onClick={handleSubmitClick}
-                    disabled={disabled || isSubmitting || !commitHead || !commitAmount}
+                    disabled={disabled || isSubmitting || !commitHead || !commitAmount || amountExceedsSubmit}
                     className="w-full flex items-center justify-center gap-2 bg-[#D97757] hover:bg-[#c66a4e] text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {isSubmitting ? (
@@ -848,7 +900,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
             {showConfirmDialog && (
                 <ConfirmCommitDialog
                     budgetHeadName={commitHead}
-                    availableBalance={actualBalance}
+                    availableBalance={selectedHeadBalance}
                     commitAmount={parseFloat(commitAmount) || 0}
                     onConfirm={handleCommit}
                     onCancel={() => setShowConfirmDialog(false)}

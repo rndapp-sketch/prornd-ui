@@ -59,7 +59,19 @@ Columns: `fieldname` · Label · Type · Options (Link target or Select choices)
 | Role | `fieldname` | Label | Type | Options |
 |---|---|---|---|---|
 | Dept | `igf_department_centre_section` | Department / Centre / Section | Link | → Department_prornd |
-| Acct | `igf_account_head` | Account Head | Select | Consumable / Contingency / Equipments / Other |
+| Acct | `igf_account_head` | Account Head | Select (overridden) | Consumable / Contingency / Equipments / Other |
+
+> **Frontend override** — `igf_account_head` is defined as a Select in the Frappe doctype, but `IndentGeneralFormDetails.tsx` overrides it to `fieldtype: "Link", options: "Budget Head"` and injects `budgetHeadOptions` into `linkOptions`. This means `formData.igf_account_head` stores the Budget Head doc `name`, not a Select string.
+>
+> **Resolving to human-readable label** — To get the human-readable budget head name (which matches `headBalances` keys from `useProjectBudget`), look up the value in `linkOptions.igf_account_head`:
+> ```ts
+> const igfAccountHeadLabel =
+>     linkOptions?.igf_account_head?.find((o) => o.value === formData.igf_account_head)?.label
+>     || formData.igf_account_head || "";
+> ```
+> Pass `igfAccountHeadLabel` as `defaultBudgetHead` to `CommitPayment` so the correct head is auto-selected.
+>
+> **Department resolution** — `igf_department_centre_section` stores a Frappe auto-ID (e.g. `oti8os9ndm`). Resolve it to the human-readable `dept_name` via `frappe.client.get_value` against the `Department_prornd` doctype during the load function, then display `deptName` in the UI.
 
 ---
 

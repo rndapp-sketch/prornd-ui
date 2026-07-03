@@ -10,15 +10,18 @@ export interface ActivityItem {
 function buildActivityLogHtml(items: ActivityItem[]): string {
     const filtered = (items || []).filter(
         (c) =>
-            c.owner !== "Administrator" &&
-            (!c.comment_type || c.comment_type === "Comment"),
+            c.owner !== "Administrator"
     );
 
     if (!filtered.length) {
         return '<div class="activity-log"><em style="color:#888;font-size:12px;">No activity comments.</em></div>';
     }
 
-    const entries = filtered
+    const sorted = [...filtered].sort(
+        (a, b) => new Date(a.creation).getTime() - new Date(b.creation).getTime(),
+    );
+
+    const entries = sorted
         .map((c) => {
             const dt = c.creation ? new Date(c.creation) : null;
             const dateStr = dt
@@ -28,14 +31,50 @@ function buildActivityLogHtml(items: ActivityItem[]): string {
                 ? dt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })
                 : "";
             const plainContent = (c.content || "").replace(/<[^>]*>/g, "").trim();
+            const label = c.comment_type === "Creation" ? "created document" : "";
             return `<div class="activity-entry">
-            <div class="activity-meta"><strong>${c.owner}</strong>&nbsp;&middot;&nbsp;${dateStr}${timeStr ? ", " + timeStr : ""}</div>
-            <div class="activity-content">${plainContent}</div>
+            <div class="activity-meta"><strong>${c.owner}</strong>${label ? `&nbsp;&middot;&nbsp;${label}` : ""}&nbsp;&middot;&nbsp;${dateStr}${timeStr ? ", " + timeStr : ""}</div>
+            ${plainContent ? `<div class="activity-content">${plainContent}</div>` : ""}
         </div>`;
         })
         .join("");
 
     return `<div class="activity-log">${entries}</div>`;
+}
+
+// Builds activity HTML from get_document_activity entries (ActivityLogEntry format).
+// Shows all entries (workflow, creation, comments) sorted by timestamp, with comment
+// content displayed inline. Mirrors what the floating activity button shows.
+function buildDocActivityLogHtml(entries: any[]): string {
+    const toShow = (entries || []).filter(
+        (e) => e.user !== "Administrator" && e.user_email !== "Administrator",
+    );
+
+    if (!toShow.length) {
+        return '<div class="activity-log"><em style="color:#888;font-size:12px;">No activity yet.</em></div>';
+    }
+
+    const rows = [...toShow]
+        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+        .map((e) => {
+            const dt = e.timestamp ? new Date(e.timestamp) : null;
+            const dateStr = dt
+                ? dt.toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" })
+                : "";
+            const timeStr = dt
+                ? dt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })
+                : "";
+            const displayName = e.user || e.user_email || "";
+            const label = e.label || e.type || "";
+            const plainContent = (e.content || "").replace(/<[^>]*>/g, "").trim();
+            return `<div class="activity-entry">
+            <div class="activity-meta"><strong>${displayName}</strong>&nbsp;&middot;&nbsp;${label}&nbsp;&middot;&nbsp;${dateStr}${timeStr ? ", " + timeStr : ""}</div>
+            ${plainContent ? `<div class="activity-content">${plainContent}</div>` : ""}
+        </div>`;
+        })
+        .join("");
+
+    return `<div class="activity-log">${rows}</div>`;
 }
 
 const fmt = (val: any) => {
@@ -93,6 +132,7 @@ export function resolveHonorariumPrintData(
 export function generateDisbursalOfHonorariumHtml(
     formData: Record<string, any>,
     activityItems: ActivityItem[] = [],
+    docActivityEntries?: any[],
 ): string {
     const rows: any[] = Array.isArray(formData.table_weoy)
         ? formData.table_weoy
@@ -161,5 +201,24 @@ export function generateDisbursalOfHonorariumHtml(
         .replace("{{ITEM_ROWS}}", itemRows)
         .replace("{{TOTAL_AMOUNT}}", fmt(formData.total_amount))
         .replace("{{APPROVAL_COMP_AUTHORITY}}", formData.approval_comp_authority || "-")
-        .replace("{{ACTIVITY_LOG_SECTION}}", buildActivityLogHtml(activityItems));
+        .replace(
+            "{{ACTIVITY_LOG_SECTION}}",
+            (() => {
+                if (docActivityEntries && docActivityEntries.length > 0) {
+                    return buildDocActivityLogHtml(docActivityEntries);
+                }
+                // Inject creation entry from formData if not already present
+                const allItems = [...activityItems];
+                const hasCreation = allItems.some((i) => i.comment_type === "Creation");
+                if (!hasCreation && formData.creation && formData.owner) {
+                    allItems.push({
+                        owner: formData.owner,
+                        creation: formData.creation,
+                        content: "",
+                        comment_type: "Creation",
+                    });
+                }
+                return buildActivityLogHtml(allItems);
+            })(),
+        );
 }
