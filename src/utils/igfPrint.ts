@@ -107,16 +107,17 @@ export function generateIgfPrintHtml(
                <thead><tr><th>Member Name</th><th>Designation</th></tr></thead>
                <tbody>${committee.map((m) => `<tr>
                    <td>${esc(m.igf_member_name ?? m.member_name)}</td>
-                   <td>${esc(m.igf_member_designation ?? m.designation)}</td>
+                   <td>${esc(m.igf_designation ?? m.designation ?? m.igf_member_designation)}</td>
                </tr>`).join("")}</tbody>
            </table>`
         : "";
 
-    const declarationText = formData.igf_declaration_text || "";
-    const declarationSection = declarationText
+    // igf_declaration_text is a Read Only non-stored field; igf_decl_inr_confirmation is the actual check
+    const declConfirmed = Boolean(Number(formData.igf_decl_inr_confirmation || 0));
+    const declarationSection = declConfirmed
         ? `<div class="section-title">Declaration</div>
            <div style="border:1px solid #000;padding:8px 10px;font-size:12.5px;line-height:1.6;margin-bottom:15px;">
-               ${esc(declarationText)}
+               &#9745; I hereby confirm that the amount stated above is in Indian Rupees (INR) and the details provided are true and correct to the best of my knowledge.
            </div>`
         : "";
 
