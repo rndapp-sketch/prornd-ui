@@ -3,7 +3,11 @@ import docTemplate from "@/pages/printformat/disbursal_of_consultancy_format.htm
 import type { ActivityItem } from "@/utils/disbursalOfHonorariumPrint";
 
 function buildActivityLogHtml(items: ActivityItem[]): string {
-    const filtered = (items || []).filter((c) => c.owner !== "Administrator");
+    const filtered = (items || []).filter(
+        (c) =>
+            c.owner !== "Administrator" &&
+            (!c.comment_type || c.comment_type === "Comment"),
+    );
 
     if (!filtered.length) {
         return '<div class="activity-log"><em style="color:#888;font-size:12px;">No activity comments.</em></div>';

@@ -8,7 +8,11 @@ export interface ActivityItem {
 }
 
 function buildActivityLogHtml(items: ActivityItem[]): string {
-    const filtered = (items || []).filter((c) => c.owner !== "Administrator");
+    const filtered = (items || []).filter(
+        (c) =>
+            c.owner !== "Administrator" &&
+            (!c.comment_type || c.comment_type === "Comment"),
+    );
 
     if (!filtered.length) {
         return '<div class="activity-log"><em style="color:#888;font-size:12px;">No activity comments.</em></div>';
