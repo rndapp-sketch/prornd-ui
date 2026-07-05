@@ -1045,12 +1045,14 @@ const QuickActions = ({
         }
     };
 
-    // Lock all groups except Loan when project has no sanction and no funds received
+    // Lock all groups except Loan and Recruitment when project has no sanction and no funds received
     const isModuleLocked = !hasSanction && !hasFunds;
+    const unlockedGroups = ["Loan", "Recruitment"];
+    const unlockedApplications = ["Loan Request", "Adhoc/Contractual"];
 
     // Auto-redirect to Loan tab when modules are locked; clear selectedApplication so the banner is visible
     useEffect(() => {
-        if (isModuleLocked) {
+        if (isModuleLocked && !unlockedGroups.includes(activeTab)) {
             setActiveTab("Loan");
             setSelectedApplication(null);
             setApplicationData([]);
@@ -2035,7 +2037,7 @@ const QuickActions = ({
                         {groups.map((group) => {
                             const Icon = group.icon;
                             const isActive = activeTab === group.title;
-                            const tabLocked = isModuleLocked && group.title !== "Loan";
+                            const tabLocked = isModuleLocked && !unlockedGroups.includes(group.title);
                             return (
                                 <button
                                     key={group.title}
@@ -2073,7 +2075,9 @@ const QuickActions = ({
                         </h3>
                     </div>
 
-                    {(!isModuleLocked || selectedApplication === "Loan Request") && (
+                    {(!isModuleLocked ||
+                        (selectedApplication &&
+                            unlockedApplications.includes(selectedApplication))) && (
                         <button
                             onClick={handleApplyNew}
                             className={cn(
@@ -2574,7 +2578,7 @@ const QuickActions = ({
                             <li><strong>Fund Received</strong> must be recorded against the approved sanction.</li>
                         </ul>
                         <p className="mt-1">
-                            Only <strong>Loan Request</strong> applications are available at this stage.
+                            Only <strong>Loan Request</strong> and <strong>Recruitment (Adhoc/Contractual)</strong> applications are available at this stage.
                         </p>
                     </div>
                 </div>
@@ -2586,7 +2590,7 @@ const QuickActions = ({
                     {groups.map((group) => {
                         const Icon = group.icon;
                         const isActive = activeTab === group.title;
-                        const tabLocked = isModuleLocked && group.title !== "Loan";
+                        const tabLocked = isModuleLocked && !unlockedGroups.includes(group.title);
                         return (
                             <button
                                 key={group.title}
@@ -2610,7 +2614,7 @@ const QuickActions = ({
 
             {/* Tab Content */}
             <div className="p-5 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                {isModuleLocked && activeTab !== "Loan" ? (
+                {isModuleLocked && !unlockedGroups.includes(activeTab) ? (
                     <div className="flex flex-col items-center justify-center py-10 gap-3">
                         <AlertCircleIcon className="w-9 h-9 text-amber-400" />
                         <div className="text-center space-y-1 max-w-sm">
