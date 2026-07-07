@@ -4213,7 +4213,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                     );
                                 }
 
-                                if (hasSanctionApproved && hasFundReceived) {
+                                if (hasSanctionApproved && hasFundReceived && (activeTab === "overview" || activeTab === "sanction-details")) {
                                     return (
                                         <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-xl bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-700">
                                             <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-800 text-violet-700 dark:text-violet-300 text-xs font-bold">
