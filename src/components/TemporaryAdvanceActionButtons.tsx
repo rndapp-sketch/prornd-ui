@@ -172,7 +172,7 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
     console.log('🎯 TemporaryAdvanceActionButtons mounted with docname:', docname);
 
     // Simple pattern matching ReimbursementWorkflowActions - just method and params
-    const { data: actionsData, error: fetchError, isLoading, mutate: refetchActions } = useFrappeGetCall<{ message: string[] }>(
+    const { data: actionsData, error: fetchError, isLoading, mutate: refetchActions } = useFrappeGetCall<{ message: (string | { action?: string; workflow_action?: string; label?: string })[] }>(
         "rndopsapp.rndopsapp.doctype.temporary_advance.temporary_advance.get_temporary_advance_workflow_actions",
         { docname }
     );
