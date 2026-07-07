@@ -2094,8 +2094,14 @@ const AddFundReceived: React.FC = () => {
                                                 ⚠️ Cannot Submit
                                             </p>
                                             <p className="text-[11px] text-red-600 mt-1">
-                                                Please fix validation errors
-                                                above
+                                                {!isFundAmtBreakupValid
+                                                    ? "Fund Received Amount does not match budget breakup total"
+                                                    : !validationState.totalValidation.isValid
+                                                    ? "Total funds exceed sanctioned amount or budget validation failed"
+                                                    : Object.values(validationState.headValidations).some((v) => !v.isValid)
+                                                    ? "Some budget heads exceed their sanctioned limits"
+                                                    : "Please fix validation errors above"
+                                                }
                                             </p>
                                         </div>
                                     )}
