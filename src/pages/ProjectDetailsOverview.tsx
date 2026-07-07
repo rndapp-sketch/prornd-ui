@@ -2837,6 +2837,9 @@ const normalizeResponse = (raw: any): any[] => {
     if (raw.results && Array.isArray(raw.results)) return raw.results;
     if (raw.message && raw.message.data && Array.isArray(raw.message.data))
         return raw.message.data;
+    // Handle case where message is an object with data property
+    if (raw.message && typeof raw.message === 'object' && raw.message.data && Array.isArray(raw.message.data))
+        return raw.message.data;
     return [];
 };
 
@@ -4107,7 +4110,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                         (s.sanction_workflow_status || "").toLowerCase() ===
                                         "sanction approved",
                                 );
-                                const hasFundReceived = normalizeResponse(fundReceivedData).length > 0;
+                                // Check if funds have been received by looking at balance
+                                const hasFundReceived = commitableBalance > 0 || actualBalance > 0;
 
                                 if (projectApproved && !hasSanctionRecord) {
                                     return (
@@ -4140,26 +4144,94 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                     );
                                 }
 
-                                if (hasSanctionApproved && !hasFundReceived) {
+                                if (projectApproved && hasSanctionRecord && !hasSanctionApproved) {
                                     return (
-                                        <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700">
-                                            <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-bold">
-                                                2
+                                        <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
+                                            <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-800 text-amber-700 dark:text-amber-300 text-xs font-bold">
+                                                1
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
-                                                    Next Step: Record Fund Received
+                                                <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+                                                    Fund Sanction Pending Approval
                                                 </p>
-                                                <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5 leading-relaxed">
-                                                    Fund Sanction is approved. Record the funds received from
-                                                    the funding agency to unlock all application modules.
+                                                <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5 leading-relaxed">
+                                                    Your Fund Sanction is under review. Once approved, you can proceed to record funds received.
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    setActiveTab("sanction-details");
+                                                    setProjectTabParam("sanction-details");
+                                                }}
+                                                className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700 transition-colors"
+                                            >
+                                                View Sanction
+                                                <ChevronRight className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                    );
+                                }
+
+                                if (hasSanctionApproved && !hasFundReceived) {
+                                    return (
+                                        <div className="space-y-3">
+                                            <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-xl bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200 dark:border-cyan-700">
+                                                <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-100 dark:bg-cyan-800 text-cyan-700 dark:text-cyan-300 text-xs font-bold">
+                                                    <CheckCircleIcon className="w-4 h-4" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-semibold text-cyan-800 dark:text-cyan-200">
+                                                        Sanction Approved
+                                                    </p>
+                                                    <p className="text-xs text-cyan-700 dark:text-cyan-300 mt-0.5 leading-relaxed">
+                                                        Fund Sanction has been approved successfully.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700">
+                                                <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-bold">
+                                                    2
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
+                                                        Next Step: Record Fund Received
+                                                    </p>
+                                                    <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5 leading-relaxed">
+                                                        Fund Sanction is approved. Record the funds received from
+                                                        the funding agency to unlock all application modules.
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    onClick={handleAddFunds}
+                                                    className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors"
+                                                >
+                                                    Add Fund Received
+                                                    <ChevronRight className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                }
+
+                                if (hasSanctionApproved && hasFundReceived) {
+                                    return (
+                                        <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-xl bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-700">
+                                            <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-800 text-violet-700 dark:text-violet-300 text-xs font-bold">
+                                                <CheckCircleIcon className="w-4 h-4" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-semibold text-violet-800 dark:text-violet-200">
+                                                    Funds Received
+                                                </p>
+                                                <p className="text-xs text-violet-700 dark:text-violet-300 mt-0.5 leading-relaxed">
+                                                    Fund has been recorded. You can add further funds or proceed with project operations.
                                                 </p>
                                             </div>
                                             <button
                                                 onClick={handleAddFunds}
-                                                className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors"
+                                                className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-violet-600 text-white text-xs font-semibold hover:bg-violet-700 transition-colors"
                                             >
-                                                Add Fund Received
+                                                Add More Funds
                                                 <ChevronRight className="w-3.5 h-3.5" />
                                             </button>
                                         </div>
