@@ -304,6 +304,8 @@ const SalaryModule: React.FC = () => {
     const [bmrError, setBmrError] = useState<string | null>(null);
     // Stores the pre-built commit payloads for all selected staff, keyed by employee_id
     const [pendingBulkCommits, setPendingBulkCommits] = useState<Record<string, any>>({});
+    // Stores the selected records for immediate UI display (calculated from table data)
+    const [selectedBulkRecords, setSelectedBulkRecords] = useState<StaffRecord[]>([]);
 
     // Editable Inputs state mapped by record's docName (storing only overrides!)
     const [overrides, setOverrides] = useState<Record<string, Partial<EditableInputs>>>({});
@@ -496,6 +498,8 @@ const SalaryModule: React.FC = () => {
             return;
         }
 
+        // Store selected records immediately for UI display (no need to wait for API)
+        setSelectedBulkRecords(selectedRecords);
         setLoadingEmpId("__bulk__");
         try {
             const commits: Record<string, any> = {};
@@ -730,6 +734,7 @@ const SalaryModule: React.FC = () => {
         setBmrModalOpen(false);
         setSelectedEmpIds(new Set());
         setPendingBulkCommits({});
+        setSelectedBulkRecords([]);
         if (failed.length > 0) {
             alert(`Payment processing completed.\n\n⚠️ Failed for: ${failed.join(", ")}\n\nPlease retry the failed entries manually.`);
         } else {
@@ -2553,13 +2558,11 @@ const SalaryModule: React.FC = () => {
             {/* ── Scheme-wise BMR Entry Modal ── */}
             {bmrModalOpen && (() => {
                 const schemeName = (() => {
-                    const empIds = Object.keys(pendingBulkCommits);
-                    if (empIds.length === 0) return "—";
-                    const firstRecord = records.find(r => r.employee_id === empIds[0]);
-                    if (!firstRecord) return "—";
+                    if (selectedBulkRecords.length === 0) return "—";
+                    const firstRecord = selectedBulkRecords[0];
                     return schemeNumberMap[firstRecord.project_no || ""] || firstRecord.project_no || "—";
                 })();
-                const staffList = records.filter(r => pendingBulkCommits[r.employee_id]);
+                const staffList = selectedBulkRecords;
                 return (
                     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => !bmrSubmitting && setBmrModalOpen(false)}>
                         <div
@@ -2583,7 +2586,7 @@ const SalaryModule: React.FC = () => {
                                     </div>
                                 </div>
                                 {!bmrSubmitting && (
-                                    <button onClick={() => setBmrModalOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#E4E4E7] text-[#71717A] hover:bg-zinc-100 dark:border-[#3F3F46] dark:hover:bg-zinc-800 transition-colors">
+                                    <button onClick={() => { setBmrModalOpen(false); setSelectedBulkRecords([]); }} className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#E4E4E7] text-[#71717A] hover:bg-zinc-100 dark:border-[#3F3F46] dark:hover:bg-zinc-800 transition-colors">
                                         <X className="h-4 w-4" />
                                     </button>
                                 )}
@@ -2595,7 +2598,16 @@ const SalaryModule: React.FC = () => {
                                     {staffList.length} Staff Selected
                                 </p>
                                 {staffList.map((r, idx) => {
-                                    const commit = pendingBulkCommits[r.employee_id];
+                                    const dim = getDaysInMonth(selectedYear, selectedMonth);
+                                    const { inputs } = getRowInputs(r.docName);
+                                    const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+                                    const prb = calcProRataBasic(r.basic_salary, wd, dim);
+                                    const proRataHRA = Math.round((r.hra / dim) * wd);
+                                    const proRataMedical = Math.round((r.medical_allowance / dim) * wd);
+                                    const grossPay = prb + proRataHRA + proRataMedical + inputs.arrear;
+                                    const hraDed = getHRADeduction(r, proRataHRA);
+                                    const totalDed = hraDed + inputs.medicalDeduction + calcPTax(r.basic_salary) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
+                                    const netPay = grossPay - totalDed;
                                     return (
                                         <div key={r.employee_id} className="flex items-center justify-between rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] px-3 py-2">
                                             <div className="flex items-center gap-2.5 min-w-0">
@@ -2606,7 +2618,7 @@ const SalaryModule: React.FC = () => {
                                                 </div>
                                             </div>
                                             <span className="shrink-0 text-[12px] font-bold tabular-nums text-amber-700 dark:text-amber-400">
-                                                {fmt(commit?.commitAmount || 0)}
+                                                {fmt(netPay)}
                                             </span>
                                         </div>
                                     );
@@ -2614,12 +2626,28 @@ const SalaryModule: React.FC = () => {
                             </div>
 
                             {/* Total */}
-                            <div className="mx-6 flex items-center justify-between rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/40 px-4 py-2.5">
-                                <span className="text-[12px] font-bold text-emerald-800 dark:text-emerald-400">Total Net Payout</span>
-                                <span className="text-[15px] font-extrabold tabular-nums text-emerald-900 dark:text-emerald-300">
-                                    {fmt(Object.values(pendingBulkCommits).reduce((s, c) => s + (c?.commitAmount || 0), 0))}
-                                </span>
-                            </div>
+                            {(() => {
+                                const dim = getDaysInMonth(selectedYear, selectedMonth);
+                                const selectedTotal = selectedBulkRecords.reduce((sum, r) => {
+                                    const { inputs } = getRowInputs(r.docName);
+                                    const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+                                    const prb = calcProRataBasic(r.basic_salary, wd, dim);
+                                    const proRataHRA = Math.round((r.hra / dim) * wd);
+                                    const proRataMedical = Math.round((r.medical_allowance / dim) * wd);
+                                    const grossPay = prb + proRataHRA + proRataMedical + inputs.arrear;
+                                    const hraDed = getHRADeduction(r, proRataHRA);
+                                    const totalDed = hraDed + inputs.medicalDeduction + calcPTax(r.basic_salary) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
+                                    return sum + (grossPay - totalDed);
+                                }, 0);
+                                return (
+                                    <div className="mx-6 flex items-center justify-between rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/40 px-4 py-2.5">
+                                        <span className="text-[12px] font-bold text-emerald-800 dark:text-emerald-400">Total Net Payout</span>
+                                        <span className="text-[15px] font-extrabold tabular-nums text-emerald-900 dark:text-emerald-300">
+                                            {fmt(selectedTotal)}
+                                        </span>
+                                    </div>
+                                );
+                            })()}
 
                             {/* BMR input */}
                             <div className="px-6 pt-4 pb-2">
@@ -2645,7 +2673,7 @@ const SalaryModule: React.FC = () => {
                             {/* Actions */}
                             <div className="flex items-center justify-end gap-3 border-t border-[#E4E4E7] dark:border-[#3F3F46] px-6 py-4">
                                 <button
-                                    onClick={() => setBmrModalOpen(false)}
+                                    onClick={() => { setBmrModalOpen(false); setSelectedBulkRecords([]); }}
                                     disabled={bmrSubmitting}
                                     className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#E4E4E7] bg-white px-4 text-[12px] font-bold text-[#3F3F46] transition-all hover:bg-[#FAFAF9] disabled:opacity-50 dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]"
                                 >
