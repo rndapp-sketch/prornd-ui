@@ -398,6 +398,25 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
         }
     };
 
+    // --- Comment API ---
+    const { call: addComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
+
+    const handleAddComment = async (commentText: string): Promise<boolean> => {
+        if (!commentText.trim() || !docName) return false;
+        try {
+            await addComment({
+                reference_doctype: "Temporary Advance",
+                reference_name: docName,
+                content: commentText,
+                comment_type: "Comment"
+            });
+            return true;
+        } catch (error) {
+            console.error("Error adding comment:", error);
+            return false;
+        }
+    };
+
     // Resolve ID lookups
     useEffect(() => {
         if (!data) return;
@@ -514,7 +533,11 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
                                 </Button>
                             )}
                             {!cancellationStatus?.message?.has_pending && (
-                                <TemporaryAdvanceActionButtons docname={docName} onActionComplete={() => window.location.reload()} />
+                                <TemporaryAdvanceActionButtons
+                                    docname={docName}
+                                    onActionComplete={() => window.location.reload()}
+                                    onAddComment={handleAddComment}
+                                />
                             )}
                         </div>
                     </div>

@@ -2487,6 +2487,32 @@ const PendingTaskDetails: React.FC = () => {
     // Kafka Staging Commit Status Gate
     const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
 
+    // Comment handler for action buttons
+    const handleAddComment = async (commentText: string): Promise<boolean> => {
+        if (!commentText.trim() || !name || doctype !== "Temporary Advance") return false;
+        try {
+            const response = await fetch('/api/method/rndopsapp.rndopsapp.api.add_project_comment', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-Frappe-CSRF-Token': (window as any).csrf_token || '',
+                },
+                body: JSON.stringify({
+                    reference_doctype: "Temporary Advance",
+                    reference_name: name,
+                    content: commentText.trim(),
+                    comment_type: "Comment"
+                }),
+            });
+            return response.ok;
+        } catch (error) {
+            console.error("Error adding comment:", error);
+            return false;
+        }
+    };
+
     // Top Up Fellowship → Students.dept_centre is a Link to Department_prornd.
     // Resolve IDs to dept_name so the table shows the readable name.
     const [topUpDeptNames, setTopUpDeptNames] = useState<Record<string, string>>({});
@@ -3448,6 +3474,7 @@ const PendingTaskDetails: React.FC = () => {
                                             window.location.reload()
                                         }
                                         commitRequired={isRnDStaff && isCommittedForGate === false}
+                                        onAddComment={handleAddComment}
                                     />
                                 </div>
                             )}
