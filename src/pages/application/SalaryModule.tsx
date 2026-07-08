@@ -479,13 +479,56 @@ const SalaryModule: React.FC = () => {
             };
         }
 
+        // No commit data found — try ledger fallback
+        console.warn(`[SalaryModule] No salary_payment_data found for ${r.employee_id} (${salary_year_month}) — trying ledger fallback`);
+        try {
+            const ledgerFallbackUrl = `/ledger-api/account-head-commit/by-status/COMMITTED`;
+            console.log(`[SalaryModule][buildCommitData] Ledger fallback for ${r.employee_id}:`, ledgerFallbackUrl);
+            const ledgerRes = await fetch(ledgerFallbackUrl);
+            if (ledgerRes.ok) {
+                const commits = await ledgerRes.json();
+                console.log(`[SalaryModule][buildCommitData] Ledger returned ${commits?.length ?? 0} commits. Searching for employee ${r.employee_id}...`);
+
+                // Try matching by moduleId === 11 (Recruitment Adhoc Contractual)
+                let match = commits.find((c: any) =>
+                    String(c.moduleId) === '11'
+                );
+
+                // Fallback: match by project number
+                if (!match) {
+                    match = commits.find((c: any) =>
+                        String(c.projectNumber).toLowerCase() === String(r.department || '').toLowerCase()
+                    );
+                }
+
+                console.log(`[SalaryModule][buildCommitData] Ledger fallback match for ${r.employee_id}:`, match || "NO MATCH");
+                if (match) {
+                    return {
+                        ...match,
+                        commitAmount: Math.round(netPay),
+                        commitParticular: `Salary payment for ${r.first_name} (${r.employee_id}) - ${MONTHS[selectedMonth].label} ${selectedYear}`,
+                        salary_year_month,
+                        salary_user_details,
+                        salary_backend_details: {
+                            ...salary_backend_details,
+                            project_no: match.projectNumber || r.project_no,
+                            scr_id: match.frapAppId,
+                        },
+                    };
+                }
+            }
+        } catch (ledgerErr) {
+            console.error(`[SalaryModule][buildCommitData] Ledger fallback failed for ${r.employee_id}:`, ledgerErr);
+        }
+
         // No commit data found — skip this employee
-        console.warn(`[SalaryModule] No salary_payment_data found for ${r.employee_id} (${salary_year_month}) — skipping`);
+        console.warn(`[SalaryModule] No salary payment data found for ${r.employee_id} (${salary_year_month}) — skipping`);
         return null;
     }, [selectedYear, selectedMonth, overrides]);
 
     // ── Open BMR modal: build all commit payloads for selected pending staff ──
     const handlePaySelected = useCallback(async (selectedRecords: StaffRecord[]) => {
+        console.log("[SalaryModule][handlePaySelected] Called with", selectedRecords.length, "records");
         if (selectedRecords.length === 0) return;
 
         // All selected must share the same scheme number (not project_no —
@@ -503,6 +546,7 @@ const SalaryModule: React.FC = () => {
         setLoadingEmpId("__bulk__");
         try {
             const commits: Record<string, any> = {};
+            console.log("[SalaryModule][handlePaySelected] Building commits for", selectedRecords.length, "records");
             for (const r of selectedRecords) {
                 const dim = getDaysInMonth(selectedYear, selectedMonth);
                 const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
@@ -526,8 +570,10 @@ const SalaryModule: React.FC = () => {
                 const totalDed = hraDed + inputs.medicalDeduction + calcPTax(r.basic_salary) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
                 const netPay = Math.round(grossPay - totalDed);
                 const commit = await buildCommitData(r, netPay);
+                console.log(`[SalaryModule][handlePaySelected] buildCommitData result for ${r.employee_id}:`, commit);
                 if (commit) commits[r.employee_id] = commit;
             }
+            console.log("[SalaryModule][handlePaySelected] Final commits object:", commits);
             setPendingBulkCommits(commits);
             setBmrInput("");
             setBmrError(null);
@@ -689,10 +735,12 @@ const SalaryModule: React.FC = () => {
     // ── Submit all pending commits with the entered BMR number ──
     const handleBmrSubmit = useCallback(async () => {
         const bmr = bmrInput.trim();
+        console.log("[SalaryModule][handleBmrSubmit] Called with BMR:", bmr, "pendingBulkCommits:", pendingBulkCommits);
         if (!bmr) { setBmrError("Please enter a BMR number before submitting."); return; }
         setBmrSubmitting(true);
         setBmrError(null);
         const paymentEndpoint = "/api/method/rndopsapp.rndopsapp.commitPayment.submit_payment_data";
+        console.log("[SalaryModule][handleBmrSubmit] Starting payment submission for", Object.keys(pendingBulkCommits).length, "employees");
         const failed: string[] = [];
         for (const [empId, commitData] of Object.entries(pendingBulkCommits)) {
             try {
@@ -714,6 +762,7 @@ const SalaryModule: React.FC = () => {
                     salary_user_details: commitData.salary_user_details,
                     salary_backend_details: commitData.salary_backend_details,
                 };
+                console.log(`[SalaryModule][handleBmrSubmit] Sending payment for ${empId} to ${paymentEndpoint}`, body);
                 const res = await fetch(paymentEndpoint, {
                     method: "POST",
                     headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -721,9 +770,11 @@ const SalaryModule: React.FC = () => {
                     body: JSON.stringify(body),
                 });
                 const result = await res.json();
+                console.log(`[SalaryModule][handleBmrSubmit] Response for ${empId}:`, result);
                 const msg = result?.message;
                 if (msg?.status === "error") throw new Error(msg?.message || "Salary staging failed");
                 if (result.exc || result.exception) throw new Error(result.exc || result.exception);
+                console.log(`[SalaryModule][handleBmrSubmit] Payment processed successfully for ${empId}`);
                 markAsProcessed(empId);
             } catch (err: any) {
                 console.error(`Payment failed for ${empId}:`, err);
