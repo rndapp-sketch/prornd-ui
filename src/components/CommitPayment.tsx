@@ -846,11 +846,17 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
 
                 {/* Particulars / Comment (commitParticular) */}
                 <div>
-                    <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1">
-                        Particulars / Comment
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                            Particulars / Comment
+                        </label>
+                        <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                            {commitParticular.length}/200
+                        </span>
+                    </div>
                     <textarea
                         rows={2}
+                        maxLength={200}
                         value={commitParticular}
                         onChange={(e) => setCommitParticular(e.target.value)}
                         disabled={disabled}
