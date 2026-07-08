@@ -160,15 +160,18 @@ import { cn } from '@/lib/utils';
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, CheckCircleIcon, XCircleIcon, ChevronRight } from 'lucide-react';
+import { CommentModal } from './CommentModal';
 
 interface TemporaryAdvanceActionButtonsProps {
     docname: string;
     onActionComplete: () => void;
     /** When true, forward action buttons are disabled until a commitment exists (Staff R&D gate) */
     commitRequired?: boolean;
+    /** Callback to add a comment before performing action */
+    onAddComment?: (comment: string) => Promise<boolean>;
 }
 
-const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequired = false }: TemporaryAdvanceActionButtonsProps) => {
+const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequired = false, onAddComment }: TemporaryAdvanceActionButtonsProps) => {
     console.log('🎯 TemporaryAdvanceActionButtons mounted with docname:', docname);
 
     // Simple pattern matching ReimbursementWorkflowActions - just method and params
@@ -190,6 +193,11 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
     const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
     const toggleBtnRef = useRef<HTMLButtonElement>(null);
     const dropdownPortalRef = useRef<HTMLDivElement>(null);
+
+    // Comment modal state
+    const [commentModalOpen, setCommentModalOpen] = useState(false);
+    const [pendingAction, setPendingAction] = useState<string | null>(null);
+    const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
     useEffect(() => {
         if (!dropdownOpen) return;
@@ -220,42 +228,56 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
         console.log('  🔧 isLoading:', isLoading);
     }, [docname, actionsData, actions, isLoading]);
 
+    const handleCommentSubmit = async (comment: string) => {
+        setIsSubmittingComment(true);
+        try {
+            // Add comment first
+            if (onAddComment) {
+                const success = await onAddComment(comment);
+                if (!success) {
+                    alert("Failed to add comment. Please try again.");
+                    setIsSubmittingComment(false);
+                    return;
+                }
+            }
+
+            // Then perform the action
+            if (pendingAction) {
+                const response = await performAction({
+                    docname: docname,
+                    action: pendingAction
+                });
+
+                console.log('🎬 Action response:', JSON.stringify(response, null, 2));
+
+                if (response?.message?.status === 'error') {
+                    alert(`✗ Action failed: ${response.message.message || 'Unknown error'}`);
+                } else if (response?.message?.status === 'success') {
+                    alert(`✓ ${response.message.message || `Action "${pendingAction}" completed successfully`}`);
+                } else {
+                    alert(`✓ Action "${pendingAction}" completed`);
+                }
+
+                await refetchActions();
+                onActionComplete();
+            }
+
+            setCommentModalOpen(false);
+            setPendingAction(null);
+        } catch (e: any) {
+            console.error("Workflow action failed", e);
+            alert(`✗ Failed to perform action: ${e.message || 'Unknown error'}`);
+        } finally {
+            setIsSubmittingComment(false);
+        }
+    };
+
     const onAction = async (action: string) => {
         setDropdownOpen(false);
         if (!confirm(`Are you sure you want to ${action} this temporary advance?`)) return;
 
-        try {
-            // Call the perform_temporary_advance_action API with docname and action
-            const response = await performAction({
-                docname: docname,
-                action: action
-            });
-
-            // Debug: Log full response
-            console.log('🎬 Action response:', JSON.stringify(response, null, 2));
-
-            // Check for error status in response (backend returns {status: 'error', message: '...'})
-            if (response?.message?.status === 'error') {
-                alert(`✗ Action failed: ${response.message.message || 'Unknown error'}`);
-                return;
-            }
-
-            // Show success message
-            if (response?.message?.status === 'success') {
-                alert(`✓ ${response.message.message || `Action "${action}" completed successfully`}`);
-            } else {
-                alert(`✓ Action "${action}" completed`);
-            }
-
-            // Refresh actions by revalidating the GET request
-            await refetchActions();
-
-            // Refresh parent component
-            onActionComplete();
-        } catch (e: any) {
-            console.error("Workflow action failed", e);
-            alert(`✗ Failed to perform action: ${e.message || 'Unknown error'}`);
-        }
+        setPendingAction(action);
+        setCommentModalOpen(true);
     };
 
     // Show loading state
@@ -318,79 +340,94 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
     const groups = [forwardActions, neutralActions, rejectActions].filter(g => g.length > 0);
 
     return (
-        <div className="flex flex-col items-end gap-1">
-            <div className="relative">
-                <button
-                    ref={toggleBtnRef}
-                    onClick={handleToggleDropdown}
-                    disabled={isActionLoading}
-                    className={cn(
-                        "inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg shadow-sm transition-all disabled:opacity-50",
-                        dropdownOpen
-                            ? "bg-[#D97757] text-white border border-[#c66a4e]"
-                            : "bg-[#FFF7ED] dark:bg-[#D97757]/15 text-[#D97757] border border-[#D97757]/40 hover:bg-[#D97757] hover:text-white dark:hover:bg-[#D97757]/30",
-                    )}
-                >
-                    {isActionLoading ? "Processing…" : "Actions"}
-                    <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-150", dropdownOpen && "rotate-180")} />
-                </button>
-
-                {dropdownOpen && createPortal(
-                    <div
-                        ref={dropdownPortalRef}
-                        style={{ position: "absolute", top: dropdownPos.top, right: dropdownPos.right, zIndex: 9999 }}
-                        className="min-w-[210px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden"
+        <>
+            <div className="flex flex-col items-end gap-1">
+                <div className="relative">
+                    <button
+                        ref={toggleBtnRef}
+                        onClick={handleToggleDropdown}
+                        disabled={isActionLoading}
+                        className={cn(
+                            "inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg shadow-sm transition-all disabled:opacity-50",
+                            dropdownOpen
+                                ? "bg-[#D97757] text-white border border-[#c66a4e]"
+                                : "bg-[#FFF7ED] dark:bg-[#D97757]/15 text-[#D97757] border border-[#D97757]/40 hover:bg-[#D97757] hover:text-white dark:hover:bg-[#D97757]/30",
+                        )}
                     >
-                        <div className="px-4 py-2 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-100 dark:border-zinc-700">
-                            <span className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-                                Workflow Actions
-                            </span>
-                        </div>
-                        {groups.map((group, gi) => (
-                            <React.Fragment key={gi}>
-                                {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
-                                {group.map((actionName) => {
-                                    const isForward = categorise(actionName) === "forward";
-                                    const blocked = commitRequired && isForward;
-                                    const { icon, cls, iconCls } = itemStyle(actionName);
-                                    return (
-                                        <div key={actionName} className="relative group/item">
-                                            <button
-                                                onClick={() => { if (!blocked) onAction(actionName); }}
-                                                disabled={isActionLoading || blocked}
-                                                className={cn(
-                                                    "w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left transition-colors disabled:cursor-not-allowed",
-                                                    blocked ? "opacity-40" : cls,
-                                                )}
-                                            >
-                                                <span className={iconCls}>{icon}</span>
-                                                {actionName}
+                        {isActionLoading ? "Processing…" : "Actions"}
+                        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-150", dropdownOpen && "rotate-180")} />
+                    </button>
+
+                    {dropdownOpen && createPortal(
+                        <div
+                            ref={dropdownPortalRef}
+                            style={{ position: "absolute", top: dropdownPos.top, right: dropdownPos.right, zIndex: 9999 }}
+                            className="min-w-[210px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden"
+                        >
+                            <div className="px-4 py-2 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-100 dark:border-zinc-700">
+                                <span className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                                    Workflow Actions
+                                </span>
+                            </div>
+                            {groups.map((group, gi) => (
+                                <React.Fragment key={gi}>
+                                    {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
+                                    {group.map((actionName) => {
+                                        const isForward = categorise(actionName) === "forward";
+                                        const blocked = commitRequired && isForward;
+                                        const { icon, cls, iconCls } = itemStyle(actionName);
+                                        return (
+                                            <div key={actionName} className="relative group/item">
+                                                <button
+                                                    onClick={() => { if (!blocked) onAction(actionName); }}
+                                                    disabled={isActionLoading || blocked}
+                                                    className={cn(
+                                                        "w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left transition-colors disabled:cursor-not-allowed",
+                                                        blocked ? "opacity-40" : cls,
+                                                    )}
+                                                >
+                                                    <span className={iconCls}>{icon}</span>
+                                                    {actionName}
+                                                    {blocked && (
+                                                        <span className="ml-auto text-[10px] font-normal text-zinc-400">blocked</span>
+                                                    )}
+                                                </button>
                                                 {blocked && (
-                                                    <span className="ml-auto text-[10px] font-normal text-zinc-400">blocked</span>
-                                                )}
-                                            </button>
-                                            {blocked && (
-                                                <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/item:block z-[9999]">
-                                                    <div className="bg-zinc-900 text-white text-[11px] rounded-lg px-3 py-1.5 shadow-lg whitespace-nowrap">
-                                                        A commitment must be submitted before forwarding this application.
+                                                    <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/item:block z-[9999]">
+                                                        <div className="bg-zinc-900 text-white text-[11px] rounded-lg px-3 py-1.5 shadow-lg whitespace-nowrap">
+                                                            A commitment must be submitted before forwarding this application.
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </React.Fragment>
-                        ))}
-                    </div>,
-                    document.body,
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </React.Fragment>
+                            ))}
+                        </div>,
+                        document.body,
+                    )}
+                </div>
+                {commitRequired && (
+                    <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                        A commitment must be submitted before forwarding.
+                    </p>
                 )}
             </div>
-            {commitRequired && (
-                <p className="text-[11px] text-amber-700 dark:text-amber-300">
-                    A commitment must be submitted before forwarding.
-                </p>
-            )}
-        </div>
+
+            {/* Comment Modal */}
+            <CommentModal
+                isOpen={commentModalOpen}
+                onClose={() => {
+                    setCommentModalOpen(false);
+                    setPendingAction(null);
+                }}
+                onSubmit={handleCommentSubmit}
+                action={pendingAction || "Action"}
+                isLoading={isSubmittingComment}
+                requireComment={true}
+            />
+        </>
     );
 };
 

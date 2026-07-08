@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils';
 import { CalendarIcon, UserIcon, EditIcon, Wallet as WalletIcon, AlertTriangle } from "lucide-react";
 import { PageHeader } from '@/components/common/PageHeader';
 import { GlobalLoader } from '@/components/ui/global-loader';
-import { Textarea } from '@/components/ui/textarea';
 import TemporaryAdvanceActionButtons from '../../components/TemporaryAdvanceActionButtons';
 import { ToWords } from 'to-words';
 import { DepartmentName } from '@/components/DepartmentName';
@@ -100,9 +99,7 @@ const TemporaryAdvanceDetails: React.FC = () => {
         'frappe.client.get'
     );
 
-    // Sidebar State
-    const [sidebarComment, setSidebarComment] = useState("");
-    const [isAddingComment, setIsAddingComment] = useState(false);
+    // Comment API
     const { call: addComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
 
     // Commitment Widget State
@@ -267,23 +264,21 @@ const TemporaryAdvanceDetails: React.FC = () => {
         resolveProjectTitle();
     }, [data?.project_code]);
 
-    const handleSidebarCommentSubmit = async () => {
-        if (!sidebarComment.trim() || !id) return;
-        setIsAddingComment(true);
+    const handleAddComment = async (commentText: string): Promise<boolean> => {
+        if (!commentText.trim() || !id) return false;
         try {
             await addComment({
                 reference_doctype: "Temporary Advance",
                 reference_name: id,
-                content: sidebarComment,
+                content: commentText,
                 comment_type: "Comment"
             });
-            setSidebarComment("");
             // Refetch data instead of reload
             loadData();
+            return true;
         } catch (error) {
             console.error("Error adding comment:", error);
-        } finally {
-            setIsAddingComment(false);
+            return false;
         }
     };
 
@@ -358,6 +353,7 @@ const TemporaryAdvanceDetails: React.FC = () => {
                             docname={id}
                             onActionComplete={() => loadData()}
                             commitRequired={isRnDStaff && isCommittedForGate === false && data.workflow_state !== "Draft" && data.workflow_state !== "Rejected" && data.workflow_state !== "Cancelled"}
+                            onAddComment={handleAddComment}
                         />}
                     </div>
                 </PageHeader>
@@ -564,26 +560,6 @@ const TemporaryAdvanceDetails: React.FC = () => {
                     </div>
 
                     <div className="space-y-6">
-                        {/* Add Comment Section */}
-                        <div className="bg-white dark:bg-[#27272A] p-5 rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
-                            <h3 className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-3">Add Comment</h3>
-                            <Textarea
-                                className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] p-3 rounded-lg text-sm mb-3 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
-                                rows={3}
-                                placeholder="Type your comment here..."
-                                value={sidebarComment}
-                                onChange={(e) => setSidebarComment(e.target.value)}
-                            />
-                            <FrappeButton
-                                className="w-full"
-                                variant="primary"
-                                onClick={handleSidebarCommentSubmit}
-                                disabled={isAddingComment}
-                            >
-                                {isAddingComment ? "Submitting..." : "Submit Comment"}
-                            </FrappeButton>
-                        </div>
-
                         {/* Staff Action Section - matches AdvanceSettlementDetails */}
                         {isRnDStaff && (
                             <FrappeCard title="Temporary Advance Processing (Staff Only)" className="border-l-4 border-l-blue-500">
