@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AppSidebar } from "../../components/RndSidebar";
 import { useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, UserIcon, EditIcon, Wallet as WalletIcon, AlertTriangle, ArrowLeftIcon, FileTextIcon, CreditCardIcon, FolderOpenIcon } from "lucide-react";
+import { CalendarIcon, UserIcon, EditIcon, Wallet as WalletIcon, AlertTriangle, ArrowLeftIcon, FileTextIcon, CreditCardIcon, CheckCircle2Icon, PaperclipIcon } from "lucide-react";
 import { GlobalLoader } from '@/components/ui/global-loader';
 import TemporaryAdvanceActionButtons from '../../components/TemporaryAdvanceActionButtons';
 import { ToWords } from 'to-words';
@@ -14,7 +14,6 @@ import { ProjectLedgerModal } from '../../components/ProjectLedgerModal';
 import { DeclarationFields } from '@/components/DeclarationFields';
 import { CommitPayment } from '@/components/CommitPayment';
 import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButton';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
 const toWords = new ToWords({
@@ -42,13 +41,35 @@ interface TemporaryAdvanceData {
     [key: string]: any;
 }
 
+const SectionHeading = ({ icon, title }: { icon: React.ReactNode; title: string }) => (
+    <div className="mb-4 flex items-center gap-2.5">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-blue-50 text-[#2563EB] dark:bg-blue-950/30 dark:text-blue-300">
+            <span className="[&_svg]:h-3.5 [&_svg]:w-3.5">{icon}</span>
+        </span>
+        <span className="text-[12px] font-extrabold uppercase tracking-[0.1em] text-[#71717A] dark:text-[#A1A1AA]">
+            {title}
+        </span>
+        <span className="h-px flex-1 bg-[#E4E4E7] dark:bg-[#3F3F46]" />
+    </div>
+);
+
+const InfoCard = ({ label, value }: { label: string; value: any }) => (
+    <div className="flex min-w-0 flex-col gap-2 rounded-xl border border-[#E4E4E7] bg-[#FAFAF9] px-3.5 py-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
+        <div className="inline-flex w-fit max-w-full items-center rounded-md bg-white px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#2563EB] ring-1 ring-[#E4E4E7] dark:bg-[#27272A] dark:text-blue-300 dark:ring-[#3F3F46]">
+            <span className="truncate">{label}</span>
+        </div>
+        <p className="text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] break-words leading-relaxed">
+            {value || "-"}
+        </p>
+    </div>
+);
+
 const TemporaryAdvanceDetails: React.FC = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
     const [data, setData] = useState<TemporaryAdvanceData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState('overview');
     const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
     const [projectTitle, setProjectTitle] = useState<string>('');
     const [resolvedAccountHead, setResolvedAccountHead] = useState<string>('');
@@ -64,7 +85,7 @@ const TemporaryAdvanceDetails: React.FC = () => {
     const projectCode = data?.project_code || "";
     const { heads: budgetHeads } = useProjectBudget(projectCode);
 
-    const { data: cancellationStatus } = useFrappeGetCall<{ message: { has_pending: boolean; has_cancellation: boolean; cancellation_requests: any[] } }>(
+    const { data: cancellationStatus } = useFrappeGetCall<{ message: { has_pending: boolean } }>(
         "rndopsapp.rndopsapp.cancellation_api.get_cancellation_status",
         { reference_doctype: "Temporary Advance", reference_name: id },
         id ? undefined : null
@@ -179,23 +200,16 @@ const TemporaryAdvanceDetails: React.FC = () => {
         );
     }
 
-    const tabs = [
-        { id: 'overview', label: 'Overview', icon: FileTextIcon },
-        { id: 'applicant', label: 'Applicant Details', icon: UserIcon },
-        { id: 'bank', label: 'Bank Details', icon: CreditCardIcon },
-        { id: 'files', label: 'Attachments', icon: FolderOpenIcon },
-    ];
-
     const getStatusColor = (state: string) => {
-        if (state === 'Approved') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-        if (state === 'Rejected') return 'bg-red-50 text-red-700 border-red-200';
-        return 'bg-amber-50 text-amber-700 border-amber-200';
+        if (state === 'Approved') return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800 dark:text-emerald-300';
+        if (state === 'Rejected') return 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/20 dark:border-red-800 dark:text-red-300';
+        return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800 dark:text-amber-300';
     };
 
     return (
         <div className="bg-zinc-50 dark:bg-zinc-900 min-h-screen">
             <AppSidebar />
-            <div className="transition-all duration-300 p-6 md:p-8 lg:p-12 max-w-7xl mx-auto">
+            <div className="transition-all duration-300 p-6 md:p-8 lg:p-12 max-w-5xl mx-auto">
                 {/* Header */}
                 <div className="mb-8">
                     <div className="flex items-center gap-3 text-sm text-zinc-500 dark:text-zinc-400 mb-4">
@@ -212,7 +226,7 @@ const TemporaryAdvanceDetails: React.FC = () => {
                                 <h1 className="text-3xl md:text-4xl font-serif font-medium text-zinc-900 dark:text-zinc-50">
                                     Temporary Advance
                                 </h1>
-                                <span className={cn("px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider border", getStatusColor(data.workflow_state))}>
+                                <span className={cn("px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border", getStatusColor(data.workflow_state))}>
                                     {data.workflow_state}
                                 </span>
                             </div>
@@ -221,7 +235,7 @@ const TemporaryAdvanceDetails: React.FC = () => {
                             </p>
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 flex-wrap">
                             {data.workflow_state === 'Draft' && id && (
                                 <Button variant="outline" onClick={() => navigate(`/temporary-advance?edit=${id}`)} className="gap-2">
                                     <EditIcon className="h-4 w-4" /> Edit
@@ -249,233 +263,146 @@ const TemporaryAdvanceDetails: React.FC = () => {
                     </div>
                 )}
 
-                {/* Tabs */}
-                <div className="flex items-center gap-1 border-b border-zinc-200 dark:border-zinc-800 mb-8 overflow-x-auto">
-                    {tabs.map((tab) => {
-                        const Icon = tab.icon;
-                        const isActive = activeTab === tab.id;
-                        return (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={cn(
-                                    "flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors relative",
-                                    isActive
-                                        ? "text-[#D97757] dark:text-[#D97757]"
-                                        : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
-                                )}
-                            >
-                                <Icon className="h-4 w-4" />
-                                {tab.label}
-                                {isActive && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#D97757]" />}
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {/* Content Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2 space-y-6">
-                        {/* Overview Tab */}
-                        {activeTab === 'overview' && (
-                            <>
-                                <Card>
-                                    <CardHeader>
-                                        <div className="flex items-center gap-2">
-                                            <CreditCardIcon className="h-4 w-4 text-[#D97757]" />
-                                            <CardTitle className="text-xs font-semibold uppercase tracking-wide">Advance Details</CardTitle>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2 block">Amount</label>
-                                            <div className="text-2xl font-bold text-[#D97757]">
-                                                ₹ {(data.amount || data.amount_applied || 0).toLocaleString('en-IN')}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2 block">Amount in Words</label>
-                                            <div className="font-medium text-zinc-900 dark:text-zinc-100 capitalize">
-                                                {data.amount_in_words || (data.amount || data.amount_applied ? toWords.convert(data.amount || data.amount_applied) : '-')}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2 block">Account Head</label>
-                                            <div className="font-medium text-zinc-900 dark:text-zinc-100">{resolvedAccountHead || data.account_head || "-"}</div>
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2 block">Requested By</label>
-                                            <div className="font-medium text-zinc-900 dark:text-zinc-100">{data.owner}</div>
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2 block">Project Code</label>
-                                            <div className="font-medium text-zinc-900 dark:text-zinc-100">{data.project_code || "-"}</div>
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2 block">Applying For</label>
-                                            <div className="font-medium text-zinc-900 dark:text-zinc-100">{data.appplying_for_select || "-"}</div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                {/* Declarations & Justification */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-xs font-semibold uppercase tracking-wide">Declarations</CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <DeclarationFields doctype="Temporary Advance" />
-                                    </CardContent>
-                                </Card>
-
-                                {(data.justification || data.reason || data.purpose) && (
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle className="text-xs font-semibold uppercase tracking-wide">Justification</CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="p-4 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
-                                                {data.justification || data.reason || data.purpose}
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                )}
-                            </>
-                        )}
-
-                        {/* Applicant Tab */}
-                        {activeTab === 'applicant' && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-xs font-semibold uppercase tracking-wide">Applicant Information</CardTitle>
-                                </CardHeader>
-                                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2 block">Email</label>
-                                        <div className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                                            <UserIcon className="w-4 h-4 text-zinc-400" />
-                                            {data.applicant_webmail || "-"}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2 block">Department</label>
-                                        <div className="font-medium text-zinc-900 dark:text-zinc-100">
-                                            {data.applicant_department ? <DepartmentName name={data.applicant_department} /> : "-"}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2 block">Designation</label>
-                                        <div className="font-medium text-zinc-900 dark:text-zinc-100">{data.applicant_designation || "-"}</div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )}
-
-                        {/* Bank Tab */}
-                        {activeTab === 'bank' && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-xs font-semibold uppercase tracking-wide">Bank Details</CardTitle>
-                                </CardHeader>
-                                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2 block">Bank Name</label>
-                                        <div className="font-medium text-zinc-900 dark:text-zinc-100">{data.bank_name || "-"}</div>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2 block">Account Holder</label>
-                                        <div className="font-medium text-zinc-900 dark:text-zinc-100">{data.account || "-"}</div>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2 block">Account Number</label>
-                                        <div className="font-medium text-zinc-900 dark:text-zinc-100 font-mono">{data.bank_account_number || "-"}</div>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2 block">IFSC Code</label>
-                                        <div className="font-medium text-zinc-900 dark:text-zinc-100 font-mono">{data.ifsc_code || "-"}</div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )}
-
-                        {/* Files Tab */}
-                        {activeTab === 'files' && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-xs font-semibold uppercase tracking-wide">Attachments</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-2">
-                                        {data.documents && Array.isArray(data.documents) && data.documents.length > 0 ? (
-                                            data.documents.map((doc: any, idx: number) => (
-                                                <div key={idx} className="flex items-center justify-between p-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
-                                                    <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{doc.file_name || doc.name || `Document ${idx + 1}`}</span>
-                                                    {doc.file_url && (
-                                                        <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-[#D97757] text-sm font-medium hover:underline">
-                                                            View
-                                                        </a>
-                                                    )}
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <p className="text-sm text-zinc-500 dark:text-zinc-400">No attachments</p>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )}
+                {/* Content */}
+                <div className="space-y-6">
+                    {/* Financial KPI Strip */}
+                    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="rounded-xl border border-[#E4E4E7] bg-white px-4 py-3 shadow-sm dark:border-[#3F3F46] dark:bg-zinc-800/50">
+                            <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">Advance Amount</p>
+                            <p className="text-[17px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
+                                ₹{(data.amount || data.amount_applied || 0).toLocaleString('en-IN')}
+                            </p>
+                        </div>
+                        <div className="rounded-xl border border-[#E4E4E7] bg-white px-4 py-3 shadow-sm dark:border-[#3F3F46] dark:bg-zinc-800/50">
+                            <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">Account Head</p>
+                            <p className="text-[17px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight truncate">
+                                {resolvedAccountHead || data.account_head || "-"}
+                            </p>
+                        </div>
+                        <div className="rounded-xl border border-[#E4E4E7] bg-white px-4 py-3 shadow-sm dark:border-[#3F3F46] dark:bg-zinc-800/50">
+                            <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">Requested By</p>
+                            <p className="text-[17px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight truncate">
+                                {data.owner}
+                            </p>
+                        </div>
                     </div>
 
-                    {/* Sidebar - Staff Actions & Metadata */}
-                    <div className="space-y-6">
-                        {isRnDStaff && (
-                            <Card className="border-l-4 border-l-blue-500">
-                                <CardHeader>
-                                    <CardTitle className="text-xs font-semibold uppercase tracking-wide">Staff Processing</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <Button
-                                        onClick={() => setIsLedgerOpen(true)}
-                                        variant="outline"
-                                        className="w-full gap-2"
-                                    >
-                                        <WalletIcon className="h-4 w-4" />
-                                        Check Ledger
-                                    </Button>
-                                    <CommitPayment
-                                        doctype="Temporary Advance"
-                                        docName={id || ""}
-                                        projectName={data?.project_name || data?.project_code || ""}
-                                        budgetHeads={budgetHeads}
-                                        onCommitSuccess={() => loadData()}
-                                        onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
-                                    />
-                                </CardContent>
-                            </Card>
-                        )}
+                    {/* Advance Information */}
+                    <div>
+                        <SectionHeading icon={<CreditCardIcon />} title="Advance Details" />
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                            <InfoCard label="Amount" value={`₹${(data.amount || data.amount_applied || 0).toLocaleString('en-IN')}`} />
+                            <InfoCard label="Amount in Words" value={data.amount_in_words || (data.amount || data.amount_applied ? toWords.convert(data.amount || data.amount_applied) : '-')} />
+                            <InfoCard label="Account Head" value={resolvedAccountHead || data.account_head} />
+                            <InfoCard label="Project Code" value={data.project_code} />
+                            <InfoCard label="Project Name" value={projectTitle || data.project_name} />
+                            <InfoCard label="Applying For" value={data.appplying_for_select} />
+                        </div>
+                    </div>
 
-                        {/* Metadata */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-xs font-semibold uppercase tracking-wide">Document Info</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div>
-                                    <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2 block">Created</label>
-                                    <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                                        <CalendarIcon className="h-4 w-4 text-zinc-400" />
-                                        {data.creation ? new Date(data.creation).toLocaleDateString('en-IN') : "-"}
-                                    </div>
+                    {/* Declarations */}
+                    <div>
+                        <SectionHeading icon={<CheckCircle2Icon />} title="Declarations" />
+                        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] p-4">
+                            <DeclarationFields doctype="Temporary Advance" />
+                        </div>
+                    </div>
+
+                    {/* Justification */}
+                    {(data.justification || data.reason || data.purpose) && (
+                        <div>
+                            <SectionHeading icon={<FileTextIcon />} title="Justification" />
+                            <div className="p-4 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
+                                {data.justification || data.reason || data.purpose}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Applicant Information */}
+                    <div>
+                        <SectionHeading icon={<UserIcon />} title="Applicant Information" />
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                            <InfoCard label="Email" value={data.applicant_webmail} />
+                            <InfoCard label="Department" value={data.applicant_department ? <DepartmentName name={data.applicant_department} /> : "-"} />
+                            <InfoCard label="Designation" value={data.applicant_designation} />
+                        </div>
+                    </div>
+
+                    {/* Bank Details */}
+                    <div>
+                        <SectionHeading icon={<CreditCardIcon />} title="Bank Details" />
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                            <InfoCard label="Bank Name" value={data.bank_name} />
+                            <InfoCard label="Account Holder" value={data.account} />
+                            <InfoCard label="Account Number" value={data.bank_account_number} />
+                            <InfoCard label="IFSC Code" value={data.ifsc_code} />
+                        </div>
+                    </div>
+
+                    {/* Attachments */}
+                    {data.documents && Array.isArray(data.documents) && data.documents.length > 0 && (
+                        <div>
+                            <SectionHeading icon={<PaperclipIcon />} title="Attachments" />
+                            <div className="flex flex-wrap gap-2">
+                                {data.documents.map((doc: any, idx: number) => (
+                                    <a key={idx} href={doc.file_url} target="_blank" rel="noreferrer"
+                                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50 dark:bg-zinc-800 text-[#D97757] hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-sm font-medium">
+                                        <PaperclipIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                                        <span className="truncate max-w-[200px]">{doc.file_name || doc.name || `Document ${idx + 1}`}</span>
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Staff Processing */}
+                    {isRnDStaff && (
+                        <div className="border-l-4 border-l-blue-500 bg-white dark:bg-zinc-800 rounded-xl p-5 border border-[#E4E4E7] dark:border-[#3F3F46]">
+                            <div className="flex items-center gap-2 mb-4">
+                                <WalletIcon className="w-4 h-4 text-[#D97757]" />
+                                <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                                    Staff Processing
+                                </h3>
+                            </div>
+                            <div className="space-y-4">
+                                <Button
+                                    onClick={() => setIsLedgerOpen(true)}
+                                    variant="outline"
+                                    className="w-full gap-2"
+                                >
+                                    <WalletIcon className="h-4 w-4" />
+                                    Check Ledger
+                                </Button>
+                                <CommitPayment
+                                    doctype="Temporary Advance"
+                                    docName={id || ""}
+                                    projectName={data?.project_name || data?.project_code || ""}
+                                    budgetHeads={budgetHeads}
+                                    onCommitSuccess={() => loadData()}
+                                    onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Document Metadata */}
+                    <div className="bg-white dark:bg-zinc-800 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] p-5">
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1 block">Created On</label>
+                                <div className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                    <CalendarIcon className="h-4 w-4 text-zinc-400" />
+                                    {data.creation ? new Date(data.creation).toLocaleDateString('en-IN') : "-"}
                                 </div>
-                                <div>
-                                    <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2 block">Modified</label>
-                                    <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                                        <CalendarIcon className="h-4 w-4 text-zinc-400" />
-                                        {data.modified ? new Date(data.modified).toLocaleDateString('en-IN') : "-"}
-                                    </div>
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1 block">Modified On</label>
+                                <div className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                    <CalendarIcon className="h-4 w-4 text-zinc-400" />
+                                    {data.modified ? new Date(data.modified).toLocaleDateString('en-IN') : "-"}
                                 </div>
-                            </CardContent>
-                        </Card>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
