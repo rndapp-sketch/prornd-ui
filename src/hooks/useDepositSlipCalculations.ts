@@ -56,6 +56,12 @@ export const useDepositSlipCalculations = (
         .join("|");
 
       return `rc:${amount}:${multiplier}:${tableSig}`;
+    } else if (depositSlipType === "d_consultancy") {
+      // For D Consultancy, track ONLY the amount that triggers full recalculation
+      // Do NOT track Y or Z in signature to allow user manual edits without interference
+      const amount = flt(formData.amount_inclusive_of_gst);
+
+      return `dc:${amount}`;
     } else if (depositSlipType === "t_testing") {
       const amount = flt(formData.amount_inclusive_of_gst);
       const cgst = flt(formData.cgst_9);
@@ -110,7 +116,7 @@ export const useDepositSlipCalculations = (
   useEffect(() => {
     // Guard: unsupported type
     if (
-      !["research_consultancy", "t_testing", "research_deposit_slip"].includes(
+      !["research_consultancy", "t_testing", "research_deposit_slip", "d_consultancy"].includes(
         depositSlipType,
       )
     ) {
@@ -127,6 +133,13 @@ export const useDepositSlipCalculations = (
     if (
       depositSlipType === "research_consultancy" &&
       flt(data.amount_inclusive_gst_capital) <= 0
+    ) {
+      lastSignatureRef.current = currentSignature;
+      return;
+    }
+    if (
+      depositSlipType === "d_consultancy" &&
+      flt(data.amount_inclusive_of_gst) <= 0
     ) {
       lastSignatureRef.current = currentSignature;
       return;
@@ -160,6 +173,8 @@ export const useDepositSlipCalculations = (
 
     if (depositSlipType === "research_consultancy") {
       updates = calculateResearchConsultancy(data);
+    } else if (depositSlipType === "d_consultancy") {
+      updates = calculateDConsultancy(data);
     } else if (depositSlipType === "t_testing") {
       updates = calculateTTesting(data);
     } else if (depositSlipType === "research_deposit_slip") {
@@ -409,4 +424,95 @@ function calculateResearchDeposit(formData: FormData): FormData {
       ...zeroedTables,
     };
   }
+}
+
+// =============================================================
+// D CONSULTANCY CALCULATIONS (Frappe Backend Logic)
+// =============================================================
+function calculateDConsultancy(formData: FormData): FormData {
+  const amountInclGst = flt(formData.amount_inclusive_of_gst);
+
+  if (amountInclGst <= 0) {
+    return {
+      igst_18_on_consultancy: 0,
+      amount_after_gst_tds: 0,
+      total_cost_x: 0,
+      consultancy_charge_y: 0,
+      operational_charge_z: 0,
+      overhead_from_y_amount: 0,
+      overhead_from_z_amount: 0,
+      total_overhead_amount: 0,
+      institute_share_amount: 0,
+      total_overhead_institute_share: 0,
+      idf_percentage: 40,
+      idf_amount: 0,
+      dpf_amount: 0,
+      staff_welfare_amount: 0,
+      student_welfare_amount: 0,
+      balance_consultancy_fee: 0,
+      balance_operation_charge: 0,
+      total_gst: 0,
+      total_amount: 0,
+    };
+  }
+
+  // === GST CALCULATIONS ===
+  const taxableAmount = flt(amountInclGst / 1.18);
+  const igstAmount = flt(taxableAmount * 0.18);
+  const tdsAmount = Math.round(taxableAmount * 0.02);
+  const amountAfterTds = flt(amountInclGst - tdsAmount);
+  const totalCostX = flt(amountAfterTds - igstAmount);
+
+  // === Y AND Z SPLIT ===
+  const chargeY = flt(totalCostX * 0.30);
+  const chargeZ = flt(totalCostX - chargeY);
+
+  // === OVERHEAD AND DISTRIBUTION CALCULATIONS ===
+  const overheadFromY = flt(chargeY * 0.1);
+  const overheadFromZ = flt(chargeZ * 0.1);
+  const totalOverhead = flt(overheadFromY + overheadFromZ);
+  const instituteShare = flt(chargeY * 0.2);
+  const totalOverheadAndShare = flt(totalOverhead + instituteShare);
+
+  // === CREDIT DISTRIBUTION ===
+  // IDF percentage defaults to 40% (user-editable)
+  const idfPercentage = flt(formData.idf_percentage) || 40;
+  const idfAmt = flt(totalOverheadAndShare * (idfPercentage / 100));
+
+  // Staff and Student welfare are FIXED at 5% each
+  const staffWelfareAmt = flt(totalOverheadAndShare * 0.05);
+  const studentWelfareAmt = flt(totalOverheadAndShare * 0.05);
+
+  // DPF total is calculated based on user-entered row percentages
+  // Total DPF = 100% - IDF% - Staff 5% - Student 5%
+  const totalDpfPercentage = flt(100 - idfPercentage - 5 - 5);
+  const dpfAmt = flt(totalOverheadAndShare * (totalDpfPercentage / 100));
+
+  // === FINAL BALANCES ===
+  const balanceConsultancyFee = flt(chargeY - overheadFromY - instituteShare);
+  const balanceOperationCharge = flt(chargeZ - overheadFromZ);
+  const totalGst = igstAmount;
+  const totalAmount = amountAfterTds;
+
+  return {
+    igst_18_on_consultancy: igstAmount,
+    amount_after_gst_tds: amountAfterTds,
+    total_cost_x: totalCostX,
+    consultancy_charge_y: chargeY,
+    operational_charge_z: chargeZ,
+    overhead_from_y_amount: overheadFromY,
+    overhead_from_z_amount: overheadFromZ,
+    total_overhead_amount: totalOverhead,
+    institute_share_amount: instituteShare,
+    total_overhead_institute_share: totalOverheadAndShare,
+    idf_percentage: idfPercentage,
+    idf_amount: idfAmt,
+    dpf_amount: dpfAmt,
+    staff_welfare_amount: staffWelfareAmt,
+    student_welfare_amount: studentWelfareAmt,
+    balance_consultancy_fee: balanceConsultancyFee,
+    balance_operation_charge: balanceOperationCharge,
+    total_gst: totalGst,
+    total_amount: totalAmount,
+  };
 }
