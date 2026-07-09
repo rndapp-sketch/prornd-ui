@@ -2093,6 +2093,26 @@ const DepositSlipForm: React.FC = () => {
                                                                         [
                                                                             ...dpfCreditDistributions,
                                                                         ];
+                                                                    const percentage = parseNumericValue(e.target.value);
+
+                                                                    // For D Consultancy, calculate using total_overhead_institute_share
+                                                                    let amount = "";
+                                                                    if (selectedType === "d_consultancy") {
+                                                                        const baseAmount = parseNumericValue(
+                                                                            formValues.total_overhead_institute_share || 0
+                                                                        );
+                                                                        amount = formatNumericInput(
+                                                                            roundToTwo((baseAmount * percentage) / 100)
+                                                                        );
+                                                                    } else {
+                                                                        // For other types, use distributionBaseAmount
+                                                                        amount = percentage > 0
+                                                                            ? formatNumericInput(
+                                                                                  roundToTwo((distributionBaseAmount * percentage) / 100),
+                                                                              )
+                                                                            : "";
+                                                                    }
+
                                                                     newRows[
                                                                         idx
                                                                     ] = {
@@ -2103,15 +2123,9 @@ const DepositSlipForm: React.FC = () => {
                                                                             e
                                                                                 .target
                                                                                 .value,
+                                                                        dpf_amount: amount,
                                                                     };
-                                                                    setDpfCreditDistributions(
-                                                                        recalculateDistributionAmounts(
-                                                                            newRows,
-                                                                            "dpf_percentage",
-                                                                            "dpf_amount",
-                                                                            distributionBaseAmount,
-                                                                        ),
-                                                                    );
+                                                                    setDpfCreditDistributions(newRows);
                                                                 }}
                                                                 onWheel={
                                                                     preventScrollChange
