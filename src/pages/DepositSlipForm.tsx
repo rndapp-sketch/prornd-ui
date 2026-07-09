@@ -425,15 +425,28 @@ const DepositSlipForm: React.FC = () => {
     // Sync DPF row amounts based on user-entered dpf_percentage
     // Formula: dpf_amount = total_overhead_institute_share × (dpf_percentage / 100)
     useEffect(() => {
-        if (selectedType !== "d_consultancy" || dpfCreditDistributions.length === 0) {
+        if (selectedType !== "d_consultancy") {
             return;
         }
 
-        const totalOverheadShare = parseNumericValue(formValues.total_overhead_institute_share);
+        if (dpfCreditDistributions.length === 0) {
+            return;
+        }
+
+        const totalOverheadShare = parseNumericValue(formValues.total_overhead_institute_share || 0);
 
         // Recalculate all DPF row amounts based on their percentages
         const updatedDpf = dpfCreditDistributions.map((row) => {
-            const dpfPct = parseNumericValue(row.dpf_percentage);
+            const dpfPct = parseNumericValue(row.dpf_percentage || 0);
+
+            // Only calculate if percentage is set
+            if (dpfPct <= 0) {
+                return {
+                    ...row,
+                    dpf_amount: "",
+                };
+            }
+
             const dpfAmount = roundToTwo((totalOverheadShare * dpfPct) / 100);
 
             return {
@@ -443,7 +456,7 @@ const DepositSlipForm: React.FC = () => {
         });
 
         setDpfCreditDistributions(updatedDpf);
-    }, [selectedType, formValues.total_overhead_institute_share, dpfCreditDistributions.length, setDpfCreditDistributions]);
+    }, [selectedType, formValues.total_overhead_institute_share]);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
