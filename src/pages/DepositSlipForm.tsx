@@ -2224,19 +2224,27 @@ const DepositSlipForm: React.FC = () => {
                                                 select_dpf_dept_center_school:
                                                     "",
                                                 department_id: "",
-                                                dpf_percentage: "",
+                                                dpf_percentage: selectedType === "d_consultancy" ? "25" : "",
                                                 dpf_amount: "",
                                             },
                                         ];
-                                        setDpfCreditDistributions(
-                                            splitDistributionRows(
-                                                nextRows,
-                                                "dpf_percentage",
-                                                "dpf_amount",
-                                                distributionBaseAmount,
-                                                PDF_DPF_TOTAL_PERCENTAGE,
-                                            ),
-                                        );
+
+                                        // For D Consultancy: Set default 25%, let sync effect calculate amount
+                                        // For others: Use split distribution logic
+                                        if (selectedType === "d_consultancy") {
+                                            setDpfCreditDistributions(nextRows);
+                                            // Sync effect will run automatically (length changed)
+                                        } else {
+                                            setDpfCreditDistributions(
+                                                splitDistributionRows(
+                                                    nextRows,
+                                                    "dpf_percentage",
+                                                    "dpf_amount",
+                                                    distributionBaseAmount,
+                                                    PDF_DPF_TOTAL_PERCENTAGE,
+                                                ),
+                                            );
+                                        }
                                     }}
                                     className="mt-4"
                                 >
