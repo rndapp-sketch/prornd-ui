@@ -194,15 +194,15 @@ function calculateResearchConsultancy(formData: FormData): FormData {
   const totalInclusive = flt(formData.amount_inclusive_gst_capital);
   const multiplier = flt(formData.overhead_multiplier) || 15;
 
-  const projectBalance = totalInclusive / 1.18;
-  const cgst = projectBalance * 0.09;
-  const sgst = projectBalance * 0.09;
-  const overheadAmount = projectBalance * (multiplier / (100 + multiplier));
-  const projectAmount = projectBalance - overheadAmount;
-  const idfAmt = overheadAmount * (RC_PCT_IDF / 100);
-  const dpfAmt = overheadAmount * (RC_PCT_DPF / 100);
-  const staffAmt = overheadAmount * (RC_PCT_STAFF_WELFARE / 100);
-  const studentAmt = overheadAmount * (RC_PCT_STUDENT_WELFARE / 100);
+  const projectBalance = flt(totalInclusive / 1.18);
+  const cgst = flt(projectBalance * 0.09);
+  const sgst = flt(projectBalance * 0.09);
+  const overheadAmount = flt(projectBalance * (multiplier / (100 + multiplier)));
+  const projectAmount = flt(projectBalance - overheadAmount);
+  const idfAmt = flt(overheadAmount * (RC_PCT_IDF / 100));
+  const dpfAmt = flt(overheadAmount * (RC_PCT_DPF / 100));
+  const staffAmt = flt(overheadAmount * (RC_PCT_STAFF_WELFARE / 100));
+  const studentAmt = flt(overheadAmount * (RC_PCT_STUDENT_WELFARE / 100));
 
   // Handle credit distribution
   const currentDist = formData.credit_distribution || [];
@@ -488,6 +488,21 @@ function calculateDConsultancy(formData: FormData): FormData {
   const totalDpfPercentage = flt(100 - idfPercentage - 5 - 5);
   const dpfAmt = flt(totalOverheadAndShare * (totalDpfPercentage / 100));
 
+  // === UPDATE DPF CHILD TABLE (Similar to Research Consultancy) ===
+  const currentDpfDist = formData.dpf_credit_distributions || [];
+  let updatedDpfDist = [...currentDpfDist];
+
+  if (currentDpfDist.length > 0) {
+    updatedDpfDist = currentDpfDist.map((row: any) => {
+      const rowPercentage = flt(row.dpf_percentage || 0);
+      const rowAmount = flt(totalOverheadAndShare * (rowPercentage / 100));
+      return {
+        ...row,
+        dpf_amount: rowAmount,
+      };
+    });
+  }
+
   // === FINAL BALANCES ===
   const balanceConsultancyFee = flt(chargeY - overheadFromY - instituteShare);
   const balanceOperationCharge = flt(chargeZ - overheadFromZ);
@@ -514,5 +529,6 @@ function calculateDConsultancy(formData: FormData): FormData {
     balance_operation_charge: balanceOperationCharge,
     total_gst: totalGst,
     total_amount: totalAmount,
+    dpf_credit_distributions: updatedDpfDist,
   };
 }
