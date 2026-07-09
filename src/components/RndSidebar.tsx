@@ -227,6 +227,11 @@ export function AppSidebar() {
             path: "/leave-module",
         },
         {
+            label: "Resignation",
+            icon: FileText,
+            path: "/project-staff-resignation",
+        },
+        {
             label: "Form Application",
             icon: FileText,
             path: "/form-application",
@@ -306,12 +311,12 @@ export function AppSidebar() {
             return roles && allowedRoles.some((role) => roles.includes(role));
         }
         if (item.label === "Task Registry") {
-            // Visible to staff, HOS, Dean, DoRnD, Head Approver - NOT permanent employees
+            // Visible to staff, HOS, Dean, DoRnD, Head Approver, Ado_RnD - NOT permanent employees
             const allowedRoles = [
                 "staff, RnD",
                 "Hos, RnD (Head of Section, RnD)",
                 "Dean, RnD",
-
+                "Ado_RnD",
                 "head_approver_1",
             ];
             return roles && allowedRoles.some((role) => roles.includes(role));
@@ -340,6 +345,9 @@ export function AppSidebar() {
         if (item.label === "Leave Module") {
             const allowedRoles = ["project staff", "IF - Inspired Faculty", "Independent Researcher"];
             return roles ? allowedRoles.some((role) => roles.includes(role)) : false;
+        }
+        if (item.label === "Resignation") {
+            return roles?.includes("project staff") ?? false;
         }
         return true;
     });

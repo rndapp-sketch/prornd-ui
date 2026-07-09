@@ -35,6 +35,7 @@ import { RndStaffDashboard } from './pages/dashboards/RndStaffDashboard.tsx';
 import { ProjectStaffDashboard } from './pages/dashboards/ProjectStaffDashboard.tsx';
 import { DirectorDashboard } from './pages/dashboards/DirectorDashboard.tsx';
 import { AdoRndDashboard } from './pages/dashboards/AdoRndDashboard.tsx';
+import { StudentDashboard } from './pages/dashboards/StudentDashboard.tsx';
 import Reimbursement from './pages/reimbursement/Reimbursement.tsx';
 import PendingTask from './pages/PendingTask.tsx';
 import PendingTaskDetails from './pages/PendingTaskDetails.tsx';
@@ -348,6 +349,10 @@ const router = createBrowserRouter(
                     element: (<AuthRouteWrapper allowedRole="project staff"><ProjectStaffDashboard /></AuthRouteWrapper>),
                 },
                 {
+                    path: "student-dashboard",
+                    element: (<AuthRouteWrapper allowedRole="Student"><StudentDashboard /></AuthRouteWrapper>),
+                },
+                {
                     path: "ado-rnd-dashboard",
                     element: (<AuthRouteWrapper allowedRole="Ado_RnD"><AdoRndDashboard /></AuthRouteWrapper>),
                 },
@@ -400,7 +405,8 @@ const router = createBrowserRouter(
                             'Ado_RnD',
                             'head_approver_1',
                             'Hos, RnD (Head of Section, RnD)',
-                            'staff, RnD'
+                            'staff, RnD',
+                            'Permanent Employee'
                         ]}>
                             <PendingTask />
                         </AuthRouteWrapper>
@@ -415,7 +421,8 @@ const router = createBrowserRouter(
                             'Ado_RnD',
                             'head_approver_1',
                             'Hos, RnD (Head of Section, RnD)',
-                            'staff, RnD'
+                            'staff, RnD',
+                            'Permanent Employee'
                         ]}>
                             <PendingTaskDetails />
                         </AuthRouteWrapper>
@@ -580,6 +587,7 @@ const router = createBrowserRouter(
                             'staff, RnD',
                             'Hos, RnD (Head of Section, RnD)',
                             'Dean, RnD',
+                            'Ado_RnD',
                             'Director',
                             'head_approver_1'
                         ]}>
@@ -594,6 +602,7 @@ const router = createBrowserRouter(
                             'staff, RnD',
                             'Hos, RnD (Head of Section, RnD)',
                             'Dean, RnD',
+                            'Ado_RnD',
                             'Director',
                             'head_approver_1'
                         ]}>
