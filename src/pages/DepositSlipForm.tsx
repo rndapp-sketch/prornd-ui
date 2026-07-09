@@ -429,24 +429,16 @@ const DepositSlipForm: React.FC = () => {
             return;
         }
 
+        // Always recalculate when base amount changes, even if rows are empty initially
+        const totalOverheadShare = parseNumericValue(formValues.total_overhead_institute_share || 0);
+
         if (dpfCreditDistributions.length === 0) {
             return;
         }
 
-        const totalOverheadShare = parseNumericValue(formValues.total_overhead_institute_share || 0);
-
         // Recalculate all DPF row amounts based on their percentages
         const updatedDpf = dpfCreditDistributions.map((row) => {
-            const dpfPct = parseNumericValue(row.dpf_percentage || 0);
-
-            // Only calculate if percentage is set
-            if (dpfPct <= 0) {
-                return {
-                    ...row,
-                    dpf_amount: "",
-                };
-            }
-
+            const dpfPct = parseNumericValue(row.dpf_percentage || 25); // Default to 25 if not set
             const dpfAmount = roundToTwo((totalOverheadShare * dpfPct) / 100);
 
             return {
@@ -456,7 +448,7 @@ const DepositSlipForm: React.FC = () => {
         });
 
         setDpfCreditDistributions(updatedDpf);
-    }, [selectedType, formValues.total_overhead_institute_share]);
+    }, [selectedType, formValues.total_overhead_institute_share, dpfCreditDistributions.length]);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
