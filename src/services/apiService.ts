@@ -54,6 +54,8 @@ export const resignationAPI = {
     save: `${API_BASE}.project_staff_resignation.project_staff_resignation.save_project_staff_resignation`,
     submit: `${API_BASE}.project_staff_resignation.project_staff_resignation.submit_project_staff_resignation`,
     getList: `${API_BASE}.project_staff_resignation.project_staff_resignation.get_project_staff_resignation_list`,
+    getWorkflowActions: `${API_BASE}.project_staff_resignation.project_staff_resignation.get_project_staff_resignation_workflow_actions`,
+    performAction: `${API_BASE}.project_staff_resignation.project_staff_resignation.perform_project_staff_resignation_action`,
 };
 
 // Temporary Advance API endpoints

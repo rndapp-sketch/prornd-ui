@@ -18,7 +18,8 @@ type AllowedRole =
   | 'IF - Inspired Faculty'
   | 'Permanent Employee'
   | 'All_ProRnd_User'
-  | 'non-permanent';
+  | 'non-permanent'
+  | 'Student';
 
 interface AuthRouteWrapperProps {
   allowedRole: AllowedRole | AllowedRole[];

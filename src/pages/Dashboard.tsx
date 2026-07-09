@@ -65,11 +65,12 @@ const Dashboard = () => {
       const isProjectStaff = roles.includes('project staff');
       const isRndStaff = roles.includes('staff, RnD');
       const isAdoRnd = roles.includes('Ado_RnD');
+      const isStudent = roles.includes('Student');
 
       const isInspiredFaculty = roles.includes('Inspired Faculty');
       const isIndependentResearcher = roles.includes('Independent Researcher');
 
-      console.log("Dashboard Checks:", { isHosRnd, isPermanentEmployee, isDirector, isDean, isHead, isProjectStaff, isRndStaff, isAdoRnd, isInspiredFaculty, isIndependentResearcher });
+      console.log("Dashboard Checks:", { isHosRnd, isPermanentEmployee, isDirector, isDean, isHead, isProjectStaff, isRndStaff, isAdoRnd, isStudent, isInspiredFaculty, isIndependentResearcher });
 
       // Role-based redirection (in order of priority)
       // Higher administrative roles first, then specialized roles, then general roles
@@ -89,6 +90,8 @@ const Dashboard = () => {
         navigate('/rnd-staff-dashboard');
       } else if (isProjectStaff) {
         navigate('/project-staff-dashboard');
+      } else if (isStudent) {
+        navigate('/student-dashboard');
       } else if (isInspiredFaculty || isIndependentResearcher) {
         navigate('/home');
       } else if (isPermanentEmployee) {

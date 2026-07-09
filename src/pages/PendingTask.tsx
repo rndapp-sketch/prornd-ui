@@ -908,6 +908,8 @@ const PendingTask: React.FC = () => {
                                                                 navigate(`/selection-committee-report/${task.id}`);
                                                             } else if (task.doctype === "Project Staff Details") {
                                                                 navigate(`/project-staff-joining?docname=${encodeURIComponent(task.id)}`);
+                                                            } else if (task.doctype === "Project Staff Resignation") {
+                                                                navigate(`/project-staff-resignation?edit=${encodeURIComponent(task.id)}`);
                                                             } else {
                                                                 navigate(`/pending-tasks/${task.doctype}/${task.id}`);
                                                             }
@@ -1137,6 +1139,8 @@ const PendingTask: React.FC = () => {
                                 setSelectedTask(null);
                                 if (selectedTask.doctype === "Project Staff Details") {
                                     navigate(`/project-staff-joining?docname=${encodeURIComponent(selectedTask.docname)}`);
+                                } else if (selectedTask.doctype === "Project Staff Resignation") {
+                                    navigate(`/project-staff-resignation?edit=${encodeURIComponent(selectedTask.docname)}`);
                                 } else {
                                     navigate(`/pending-tasks/${encodeURIComponent(selectedTask.doctype)}/${selectedTask.docname}`);
                                 }
