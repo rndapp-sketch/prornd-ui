@@ -60,6 +60,7 @@ import {
     BookOpenIcon,
     ArrowRightIcon,
     CircleDotIcon,
+    LockIcon,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -3110,100 +3111,160 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                             icon: CheckCircleIcon, color: "emerald",
                                             done: !isDraft, active: isDraft,
                                             description: "Fill all required sections — Project Description, PI/Co-PI details, Proposed Budget, and Clearance information. Use Save as Draft to save progress, then Submit when the form is complete.",
+                                            action: null as (() => void) | null, actionLabel: null as string | null,
                                         },
                                         {
                                             num: 2, title: "Approval Workflow", subtitle: "Review by R&D office",
                                             icon: CreditCardIcon, color: "blue",
                                             done: isApproved, active: isSubmitted,
                                             description: "Submitted project goes through the R&D approval pipeline: HoS R&D reviews first, then Dean R&D gives final approval. You will be notified if any correction is needed.",
+                                            action: null as (() => void) | null, actionLabel: null as string | null,
                                         },
                                         {
                                             num: 3, title: "Project Proposal Approved", subtitle: "Financial operations unlocked",
                                             icon: CheckCircle2, color: "violet",
                                             done: false, active: isApproved,
                                             description: "Once approved, you can access the full project dashboard to add Fund Sanction, record Fund Received installments, and submit financial applications.",
+                                            action: null as (() => void) | null, actionLabel: null as string | null,
                                         },
                                         {
                                             num: 4, title: "Add Fund Sanction", subtitle: "Register grant from funding agency",
                                             icon: ArrowRightIcon, color: "orange",
                                             done: false, active: false,
                                             description: "After project approval, go to the Project Overview page to add the Fund Sanction. Enter the sanction letter details, grant amount, and budget heads. This will go through R&D approval.",
+                                            action: null as (() => void) | null, actionLabel: null as string | null,
                                         },
                                         {
                                             num: 5, title: "Applications Unlocked", subtitle: "Submit financial requests",
                                             icon: CircleDotIcon, color: "purple",
                                             done: false, active: false,
                                             description: "Once fund is received against an approved sanction, all financial applications (Travel, TA/DA, Reimbursement, Advance, etc.) are unlocked for this project.",
+                                            action: null as (() => void) | null, actionLabel: null as string | null,
                                         },
                                     ];
 
-                                    const colorMap: Record<string, { ring: string; bg: string; text: string; light: string; badge: string }> = {
-                                        emerald: { ring: "ring-emerald-400", bg: "bg-emerald-500", text: "text-emerald-700 dark:text-emerald-300", light: "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/50", badge: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300" },
-                                        blue: { ring: "ring-blue-400", bg: "bg-blue-500", text: "text-blue-700 dark:text-blue-300", light: "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/50", badge: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
-                                        violet: { ring: "ring-violet-400", bg: "bg-violet-500", text: "text-violet-700 dark:text-violet-300", light: "bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-800/50", badge: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300" },
-                                        orange: { ring: "ring-orange-400", bg: "bg-orange-500", text: "text-orange-700 dark:text-orange-300", light: "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800/50", badge: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300" },
-                                        purple: { ring: "ring-purple-400", bg: "bg-purple-500", text: "text-purple-700 dark:text-purple-300", light: "bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800/50", badge: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300" },
+                                    type ColorKey = "emerald" | "blue" | "violet" | "orange" | "purple";
+                                    const colorMap: Record<ColorKey, { bg: string; text: string; badge: string; btn: string; line: string; border: string }> = {
+                                        emerald: { bg: "bg-emerald-50 dark:bg-emerald-900/20", text: "text-emerald-700 dark:text-emerald-300", badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300", btn: "bg-emerald-600 hover:bg-emerald-700 text-white", line: "bg-emerald-200 dark:bg-emerald-800", border: "border-emerald-200 dark:border-emerald-800/50" },
+                                        blue:    { bg: "bg-blue-50 dark:bg-blue-900/20",       text: "text-blue-700 dark:text-blue-300",       badge: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",       btn: "bg-blue-600 hover:bg-blue-700 text-white",   line: "bg-blue-200 dark:bg-blue-800",   border: "border-blue-200 dark:border-blue-800/50" },
+                                        violet:  { bg: "bg-violet-50 dark:bg-violet-900/20",   text: "text-violet-700 dark:text-violet-300",   badge: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300", btn: "bg-violet-600 hover:bg-violet-700 text-white", line: "bg-violet-200 dark:bg-violet-800", border: "border-violet-200 dark:border-violet-800/50" },
+                                        orange:  { bg: "bg-orange-50 dark:bg-orange-900/20",   text: "text-orange-700 dark:text-orange-300",   badge: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300", btn: "bg-orange-600 hover:bg-orange-700 text-white", line: "bg-orange-200 dark:bg-orange-800", border: "border-orange-200 dark:border-orange-800/50" },
+                                        purple:  { bg: "bg-purple-50 dark:bg-purple-900/20",   text: "text-purple-700 dark:text-purple-300",   badge: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300", btn: "bg-purple-600 hover:bg-purple-700 text-white", line: "bg-purple-200 dark:bg-purple-800", border: "border-purple-200 dark:border-purple-800/50" },
                                     };
 
                                     return (
-                                        <div className="space-y-5">
+                                        <div>
                                             {/* Header */}
-                                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden">
-                                                <div className="bg-[#DC2626] px-5 py-4 flex items-center gap-3">
-                                                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20">
-                                                        <BookOpenIcon className="h-5 w-5 text-white" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[14px] font-extrabold text-white">Operation Guideline</p>
-                                                        <p className="text-[11px] text-red-100 mt-0.5">Step-by-step guide to the project registration and financial lifecycle</p>
-                                                    </div>
+                                            <div className="flex items-center gap-3 p-5 border-b border-zinc-100 dark:border-zinc-800">
+                                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-100 dark:bg-cyan-900/30">
+                                                    <BookOpenIcon className="w-4.5 h-4.5 text-cyan-600 dark:text-cyan-400" />
                                                 </div>
-
-                                                {/* Progress bar */}
-                                                <div className="px-5 py-3 border-b border-[#F4F4F5] dark:border-[#3F3F46]">
-                                                    <div className="flex items-center justify-between mb-1.5">
-                                                        <span className="text-[11px] font-extrabold text-[#52525B] dark:text-[#A1A1AA] uppercase tracking-wide">Progress</span>
-                                                        <span className="text-[11px] font-extrabold text-[#DC2626]">{currentStep} / 2 complete</span>
-                                                    </div>
-                                                    <div className="h-1.5 w-full rounded-full bg-[#F4F4F5] dark:bg-[#3F3F46] overflow-hidden">
-                                                        <div className="h-full rounded-full bg-[#DC2626] transition-all" style={{ width: `${Math.min((currentStep / 2) * 100, 100)}%` }} />
-                                                    </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Project Operations Guide</h2>
+                                                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Step-by-step walkthrough to unlock your project</p>
                                                 </div>
+                                                {isApproved && (
+                                                    <span className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+                                                        <CheckCircleIcon className="w-3.5 h-3.5" /> Approved
+                                                    </span>
+                                                )}
+                                            </div>
 
-                                                {/* Steps */}
-                                                <div className="divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]">
-                                                    {steps.map((step) => {
-                                                        const c = colorMap[step.color];
-                                                        const Icon = step.icon;
-                                                        return (
-                                                            <div key={step.num} className={cn("flex gap-4 px-5 py-4 transition-colors", step.active && `${c.light} border-l-[3px]`)}>
-                                                                <div className="flex flex-col items-center gap-1 pt-0.5">
-                                                                    <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white text-[12px] font-extrabold", step.done ? c.bg : step.active ? `${c.bg} ring-2 ${c.ring} ring-offset-1` : "bg-[#E4E4E7] dark:bg-[#3F3F46] text-[#71717A] dark:text-[#A1A1AA]")}>
-                                                                        {step.done ? <CheckCircle2 className="h-4 w-4" /> : <span>{step.num}</span>}
-                                                                    </div>
-                                                                    {step.num < steps.length && <div className="w-[2px] flex-1 min-h-[20px] bg-[#E4E4E7] dark:bg-[#3F3F46] rounded-full" />}
-                                                                </div>
-                                                                <div className="min-w-0 pb-2">
-                                                                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                                                                        <span className="text-[14px] font-extrabold text-[#18181B] dark:text-[#FAFAFA]">{step.title}</span>
-                                                                        {step.active && <span className={cn("text-[10px] font-extrabold px-2 py-0.5 rounded-full", c.badge)}>Current Step</span>}
-                                                                        {step.done && <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">Done</span>}
-                                                                    </div>
-                                                                    <p className="text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA] mb-1.5">{step.subtitle}</p>
-                                                                    <p className="text-[12px] font-medium text-[#52525B] dark:text-[#A1A1AA] leading-relaxed">{step.description}</p>
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
+                                            {/* Progress bar */}
+                                            <div className="px-5 py-3 bg-zinc-50 dark:bg-zinc-800/40 border-b border-zinc-100 dark:border-zinc-800">
+                                                <div className="flex items-center justify-between mb-1.5">
+                                                    <span className="text-xs text-zinc-500 dark:text-zinc-400">Progress</span>
+                                                    <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{Math.min(currentStep, 4)} / 4 complete</span>
+                                                </div>
+                                                <div className="h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-700 overflow-hidden">
+                                                    <div
+                                                        className="h-full rounded-full bg-gradient-to-r from-blue-500 via-violet-500 to-emerald-500 transition-all duration-700"
+                                                        style={{ width: `${Math.min((currentStep / 4) * 100, 100)}%` }}
+                                                    />
                                                 </div>
                                             </div>
 
-                                            {/* Info note */}
-                                            <div className="flex gap-3 rounded-xl border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/10 px-4 py-3">
-                                                <AlertTriangleIcon className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                                                <p className="text-[12px] font-semibold text-amber-800 dark:text-amber-300 leading-relaxed">
-                                                    This page shows the project registration record. After the project is approved, financial operations (Fund Sanction, Fund Received, Applications) are managed from the <strong>Project Overview</strong> page.
-                                                </p>
+                                            {/* Steps */}
+                                            <div className="p-5 space-y-0">
+                                                {steps.map((step, idx) => {
+                                                    const c = colorMap[step.color as ColorKey];
+                                                    const Icon = step.icon;
+                                                    const isDone = step.done;
+                                                    const isActive = step.active;
+                                                    const isLocked = !isDone && !isActive;
+                                                    const isLast = idx === steps.length - 1;
+
+                                                    return (
+                                                        <div key={step.num} className="relative flex gap-4">
+                                                            {/* Left column: icon + line */}
+                                                            <div className="flex flex-col items-center shrink-0">
+                                                                <div className={cn(
+                                                                    "h-8 w-8 flex items-center justify-center rounded-full border-2 z-10 bg-white dark:bg-zinc-900",
+                                                                    isDone && "border-emerald-400 dark:border-emerald-600",
+                                                                    isActive && c.border,
+                                                                    isLocked && "border-zinc-200 dark:border-zinc-700",
+                                                                )}>
+                                                                    {isDone ? (
+                                                                        <CheckCircleIcon className="w-4 h-4 text-emerald-500" />
+                                                                    ) : isActive ? (
+                                                                        <Icon className={cn("w-3.5 h-3.5", c.text)} />
+                                                                    ) : (
+                                                                        <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500">{step.num}</span>
+                                                                    )}
+                                                                </div>
+                                                                {!isLast && (
+                                                                    <div className={cn(
+                                                                        "w-0.5 flex-1 mt-0.5 mb-0.5 min-h-[20px]",
+                                                                        isDone ? c.line : "bg-zinc-100 dark:bg-zinc-800"
+                                                                    )} />
+                                                                )}
+                                                            </div>
+
+                                                            {/* Right column: card */}
+                                                            <div className={cn(
+                                                                "flex-1 min-w-0 rounded-xl border p-3.5 transition-all mb-3",
+                                                                isDone && "border-emerald-100 dark:border-emerald-900/40 bg-white dark:bg-zinc-900",
+                                                                isActive && cn(c.bg, c.border, "border shadow-sm"),
+                                                                isLocked && "border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/30 dark:bg-zinc-900/20 opacity-50",
+                                                            )}>
+                                                                <div className="flex items-start justify-between gap-2 mb-0.5">
+                                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                                        <span className={cn(
+                                                                            "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
+                                                                            isDone ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
+                                                                            : isActive ? c.badge
+                                                                            : "bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500"
+                                                                        )}>Step {step.num}</span>
+                                                                        <span className={cn(
+                                                                            "text-sm font-semibold",
+                                                                            isDone ? "text-emerald-800 dark:text-emerald-200"
+                                                                            : isActive ? c.text
+                                                                            : "text-zinc-400 dark:text-zinc-500"
+                                                                        )}>{step.title}</span>
+                                                                    </div>
+                                                                    <span className="shrink-0 text-[10px] font-semibold">
+                                                                        {isDone && <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5"><CheckCircleIcon className="w-3 h-3" /> Done</span>}
+                                                                        {isActive && <span className={cn(c.text, "flex items-center gap-0.5")}><CircleDotIcon className="w-3 h-3 animate-pulse" /> Current</span>}
+                                                                        {isLocked && <span className="text-zinc-300 dark:text-zinc-600 flex items-center gap-0.5"><LockIcon className="w-3 h-3" /> Locked</span>}
+                                                                    </span>
+                                                                </div>
+                                                                <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mb-1">{step.subtitle}</p>
+                                                                {(isDone || isActive) && (
+                                                                    <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed mt-1.5">{step.description}</p>
+                                                                )}
+                                                                {isActive && step.action && (
+                                                                    <button
+                                                                        onClick={step.action}
+                                                                        className={cn("mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors", c.btn)}
+                                                                    >
+                                                                        {step.actionLabel}
+                                                                        <ArrowRightIcon className="w-3 h-3" />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     );
