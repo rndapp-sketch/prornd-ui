@@ -15,12 +15,6 @@ interface CountrySelectProps {
     placeholder?: string;
 }
 
-const COUNTRIES_API_URL =
-    "https://restcountries.com/v3.1/all?fields=name,flags,cca2";
-
-// Module-level cache to avoid re-fetching across component instances
-let cachedCountries: Country[] | null = null;
-
 const flag = (code: string) => `https://flagcdn.com/w40/${code.toLowerCase()}.png`;
 
 const STATIC_COUNTRIES: Country[] = [
@@ -225,43 +219,11 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
     className,
     placeholder = "Search country...",
 }) => {
-    const [countries, setCountries] = useState<Country[]>(cachedCountries || STATIC_COUNTRIES);
+    const countries = STATIC_COUNTRIES;
     const [isOpen, setIsOpen] = useState(false);
     const [search, setSearch] = useState("");
-    const [isLoading, setIsLoading] = useState(!cachedCountries);
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-
-    // Fetch countries
-    useEffect(() => {
-        if (cachedCountries) {
-            setCountries(cachedCountries);
-            setIsLoading(false);
-            return;
-        }
-
-        const controller = new AbortController();
-        fetch(COUNTRIES_API_URL, { signal: controller.signal })
-            .then((res) => res.json())
-            .then((data: Country[]) => {
-                const sorted = data.sort((a, b) =>
-                    a.name.common.localeCompare(b.name.common),
-                );
-                cachedCountries = sorted;
-                setCountries(sorted);
-                setIsLoading(false);
-            })
-            .catch((err) => {
-                if (err.name !== "AbortError") {
-                    console.error("Failed to fetch countries, using static list:", err);
-                    cachedCountries = STATIC_COUNTRIES;
-                    setCountries(STATIC_COUNTRIES);
-                    setIsLoading(false);
-                }
-            });
-
-        return () => controller.abort();
-    }, []);
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -354,7 +316,7 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
                     </>
                 ) : (
                     <span className="text-zinc-400 dark:text-zinc-500 truncate">
-                        {isLoading ? "Loading countries..." : placeholder}
+                        {placeholder}
                     </span>
                 )}
                 <svg
