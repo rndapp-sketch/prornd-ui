@@ -232,7 +232,7 @@ export function AppSidebar() {
             path: "/project-staff-resignation",
         },
         {
-            label: "Form Application",
+            label: "Form Cancellation",
             icon: FileText,
             path: "/form-application",
         },

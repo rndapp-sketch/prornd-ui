@@ -2963,30 +2963,30 @@ Endorsement is optional. You may continue completing Project Registration while 
 
                             {/* STEP A: Fill the form */}
                             <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-[#E4E4E7] dark:border-[#2E2E30] overflow-hidden">
-                                <div className="bg-[#4A6CF7] px-5 py-3.5 flex items-center gap-2.5">
-                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white text-[11px] font-extrabold">A</span>
+                                <div className="bg-[#4A6CF7] px-4 py-2.5 flex items-center gap-2">
+                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-white text-[10px] font-extrabold">A</span>
                                     <div>
-                                        <p className="text-[13px] font-extrabold text-white leading-tight">Fill the Registration Form</p>
-                                        <p className="text-[10px] text-blue-100 mt-0.5">You are here — complete these 4 sections</p>
+                                        <p className="text-[12px] font-extrabold text-white leading-tight">Fill the Registration Form</p>
+                                        <p className="text-[9px] text-blue-100 mt-0.5">You are here — complete these 4 sections</p>
                                     </div>
                                 </div>
                                 <div className="divide-y divide-[#F4F4F5] dark:divide-[#2E2E30]">
                                     {[
-                                        { icon: FileText, color: "text-[#4A6CF7]", bg: "bg-[#EEF2FF] dark:bg-[#4A6CF7]/15", step: "1", title: "Project Details", body: "Choose the project type (Research / Consultancy / Others), enter the title, select the department and funding agency, set the duration, and attach the proposal or invitation letter." },
-                                        { icon: Users, color: "text-violet-600", bg: "bg-violet-50 dark:bg-violet-900/20", step: "2", title: "Investigators (PI / Co-PI)", body: "Your PI details auto-fill from webmail. Add a Co-PI or Additional PI only if someone else is also responsible for the project. External collaborators need stakeholder registration first." },
-                                        { icon: Landmark, color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-900/20", step: "3", title: "Budget & Clearances", body: "Enter the proposed budget breakup by head (manpower, equipment, travel, etc.). Fill committee clearance or ethical declaration fields only if applicable to your project." },
-                                        { icon: CheckCircle2, color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-900/20", step: "4", title: "Save or Submit", body: "Use Save As Draft if the form is not yet complete — you can return later. When everything is ready, click Submit to send the project for approval." },
+                                        { icon: FileText, color: "text-[#4A6CF7]", bg: "bg-[#EEF2FF] dark:bg-[#4A6CF7]/15", step: "1", title: "Project Details", body: <>Choose the <b>project type</b> (Research / Consultancy / Others), enter the title, select the <b>department</b> and <b>funding agency</b>, set the duration, and attach the <b>proposal or invitation letter</b>.</> },
+                                        { icon: Users, color: "text-violet-600", bg: "bg-violet-50 dark:bg-violet-900/20", step: "2", title: "Investigators (PI / Co-PI)", body: <>Your <b>PI details auto-fill from webmail</b>. Add a Co-PI or Additional PI only if someone else is also responsible for the project. External collaborators need <b>stakeholder registration</b> first.</> },
+                                        { icon: Landmark, color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-900/20", step: "3", title: "Budget & Clearances", body: <>Enter the <b>proposed budget breakup by head</b> (manpower, equipment, travel, etc.). Fill committee clearance or ethical declaration fields <b>only if applicable</b> to your project.</> },
+                                        { icon: CheckCircle2, color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-900/20", step: "4", title: "Save or Submit", body: <>Use <b>Save As Draft</b> if the form is not yet complete — you can return later. When everything is ready, click <b>Submit</b> to send the project for approval.</> },
                                     ].map((s) => (
-                                        <div key={s.step} className="flex gap-4 px-5 py-4">
-                                            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl mt-0.5 ${s.bg}`}>
-                                                <s.icon className={`h-4.5 w-4.5 ${s.color}`} />
+                                        <div key={s.step} className="flex gap-3 px-4 py-2.5">
+                                            <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg mt-0.5 ${s.bg}`}>
+                                                <s.icon className={`h-3.5 w-3.5 ${s.color}`} />
                                             </div>
                                             <div>
-                                                <div className="flex items-center gap-2 mb-1.5">
-                                                    <span className="text-[11px] font-extrabold text-[#A1A1AA] dark:text-[#71717A] uppercase tracking-wide">Step {s.step}</span>
-                                                    <span className="text-[14px] font-extrabold text-[#18181B] dark:text-[#FAFAFA]">{s.title}</span>
+                                                <div className="flex items-center gap-1.5 mb-1">
+                                                    <span className="text-[10px] font-extrabold text-[#A1A1AA] dark:text-[#71717A] uppercase tracking-wide">Step {s.step}</span>
+                                                    <span className="text-[12px] font-extrabold text-[#18181B] dark:text-[#FAFAFA]">{s.title}</span>
                                                 </div>
-                                                <p className="text-[13px] font-medium leading-relaxed text-[#52525B] dark:text-[#A1A1AA]">{s.body}</p>
+                                                <p className="text-[11px] font-medium leading-snug text-[#52525B] dark:text-[#A1A1AA] [&_b]:font-extrabold [&_b]:text-[#27272A] dark:[&_b]:text-[#E4E4E7]">{s.body}</p>
                                             </div>
                                         </div>
                                     ))}
@@ -2995,30 +2995,30 @@ Endorsement is optional. You may continue completing Project Registration while 
 
                             {/* STEP B: What happens after */}
                             <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-[#E4E4E7] dark:border-[#2E2E30] overflow-hidden">
-                                <div className="bg-emerald-600 px-5 py-3.5 flex items-center gap-2.5">
-                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white text-[11px] font-extrabold">B</span>
+                                <div className="bg-emerald-600 px-4 py-2.5 flex items-center gap-2">
+                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-white text-[10px] font-extrabold">B</span>
                                     <div>
-                                        <p className="text-[13px] font-extrabold text-white leading-tight">What Happens After You Submit</p>
-                                        <p className="text-[10px] text-emerald-100 mt-0.5">The project goes through this pipeline automatically</p>
+                                        <p className="text-[12px] font-extrabold text-white leading-tight">What Happens After You Submit</p>
+                                        <p className="text-[9px] text-emerald-100 mt-0.5">The project goes through this pipeline automatically</p>
                                     </div>
                                 </div>
                                 <div className="divide-y divide-[#F4F4F5] dark:divide-[#2E2E30]">
                                     {[
-                                        { num: "1", title: "Approval Workflow", body: "Your submitted project goes to the configured approvers — typically HoS (Head of Section) followed by Dean R&D. Each approver reviews and approves at their level.", tag: "Auto-routed", tagColor: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
-                                        { num: "2", title: "Project Approved", body: "Once all approvers sign off, the project status changes to Approved. You will now be able to add fund sanction details.", tag: "Milestone", tagColor: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" },
-                                        { num: "3", title: "Add Fund Sanction", body: "Enter the sanction letter details from your funding agency — sanction number, date, total amount, and budget breakup. This also goes through an approval workflow.", tag: "Action needed", tagColor: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" },
-                                        { num: "4", title: "Record Fund Received", body: "After sanction is approved, record each installment of actual funds received from the agency. Once funds are recorded, all application modules (Travel, Reimbursement, etc.) unlock.", tag: "Unlocks apps", tagColor: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" },
+                                        { num: "1", title: "Approval Workflow", body: <>Your submitted project goes to the configured approvers — typically <b>HoS</b> (Head of Section) followed by <b>Dean R&D</b>. Each approver reviews and approves at their level.</>, tag: "Auto-routed", tagColor: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
+                                        { num: "2", title: "Project Approved", body: <>Once all approvers sign off, the project status changes to <b>Approved</b>. You will now be able to <b>add fund sanction details</b>.</>, tag: "Milestone", tagColor: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" },
+                                        { num: "3", title: "Add Fund Sanction", body: <>Enter the <b>sanction letter details</b> from your funding agency — sanction number, date, total amount, and budget breakup. This also goes through an <b>approval workflow</b>.</>, tag: "Action needed", tagColor: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" },
+                                        { num: "4", title: "Record Fund Received", body: <>After sanction is approved, record each <b>installment of actual funds received</b> from the agency. Once funds are recorded, <b>all application modules</b> (Travel, Reimbursement, etc.) unlock.</>, tag: "Unlocks apps", tagColor: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" },
                                     ].map((s) => (
-                                        <div key={s.num} className="flex gap-4 px-5 py-4">
-                                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-200 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-300 text-[13px] font-extrabold mt-0.5">
+                                        <div key={s.num} className="flex gap-3 px-4 py-2.5">
+                                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-200 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-300 text-[11px] font-extrabold mt-0.5">
                                                 {s.num}
                                             </div>
                                             <div className="min-w-0">
-                                                <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                                                    <span className="text-[14px] font-extrabold text-[#18181B] dark:text-[#FAFAFA]">{s.title}</span>
-                                                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${s.tagColor}`}>{s.tag}</span>
+                                                <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                                                    <span className="text-[12px] font-extrabold text-[#18181B] dark:text-[#FAFAFA]">{s.title}</span>
+                                                    <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${s.tagColor}`}>{s.tag}</span>
                                                 </div>
-                                                <p className="text-[13px] font-medium leading-relaxed text-[#52525B] dark:text-[#A1A1AA]">{s.body}</p>
+                                                <p className="text-[11px] font-medium leading-snug text-[#52525B] dark:text-[#A1A1AA] [&_b]:font-extrabold [&_b]:text-[#27272A] dark:[&_b]:text-[#E4E4E7]">{s.body}</p>
                                             </div>
                                         </div>
                                     ))}
@@ -3031,25 +3031,25 @@ Endorsement is optional. You may continue completing Project Registration while 
 
                             {/* Endorsement guide */}
                             <div className="bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-700/50 overflow-hidden">
-                                <div className="px-5 py-3.5 border-b border-orange-200 dark:border-orange-800/50 flex items-center gap-2.5 bg-orange-50 dark:bg-orange-900/20">
-                                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-800/40 ring-1 ring-orange-200 dark:ring-orange-700">
-                                        <FileBadge className="h-3.5 w-3.5 text-orange-600 dark:text-orange-300" />
+                                <div className="px-4 py-2.5 border-b border-orange-200 dark:border-orange-800/50 flex items-center gap-2 bg-orange-50 dark:bg-orange-900/20">
+                                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-800/40 ring-1 ring-orange-200 dark:ring-orange-700">
+                                        <FileBadge className="h-3 w-3 text-orange-600 dark:text-orange-300" />
                                     </div>
                                     <div>
-                                        <p className="text-[13px] font-extrabold text-orange-900 dark:text-orange-100">Endorsement</p>
-                                        <p className="text-[11px] font-semibold text-orange-600 dark:text-orange-400">Optional — not required for every project</p>
+                                        <p className="text-[12px] font-extrabold text-orange-900 dark:text-orange-100">Endorsement</p>
+                                        <p className="text-[10px] font-semibold text-orange-600 dark:text-orange-400">Optional — not required for every project</p>
                                     </div>
                                 </div>
 
-                                <div className="px-5 py-4 space-y-3">
-                                    <div className="rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 px-4 py-3">
-                                        <p className="text-[13px] font-extrabold text-slate-800 dark:text-slate-100 mb-1">When do I need it?</p>
-                                        <p className="text-[12px] font-semibold text-slate-600 dark:text-slate-300 leading-relaxed">Only when the project or office process specifically requires an endorsement certificate. Most projects can be registered directly without it.</p>
+                                <div className="px-4 py-3 space-y-2.5">
+                                    <div className="rounded-lg bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 px-3 py-2">
+                                        <p className="text-[12px] font-extrabold text-slate-800 dark:text-slate-100 mb-0.5">When do I need it?</p>
+                                        <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 leading-snug">Only when the project or office process <b className="font-extrabold text-slate-800 dark:text-slate-100">specifically requires</b> an endorsement certificate. <b className="font-extrabold text-slate-800 dark:text-slate-100">Most projects can be registered directly</b> without it.</p>
                                     </div>
 
                                     <div>
-                                        <p className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Endorsement process</p>
-                                        <div className="space-y-2">
+                                        <p className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">Endorsement process</p>
+                                        <div className="space-y-1.5">
                                             {[
                                                 "Fill basic project data in this form",
                                                 "Click Generate Endorsement",
@@ -3058,17 +3058,17 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                 "Download the certificate from Project View",
                                                 "Use Register Project to continue registration",
                                             ].map((text, i) => (
-                                                <div key={i} className="flex gap-2.5 items-start">
-                                                    <span className="flex-shrink-0 h-5 w-5 flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-extrabold mt-0.5">{i + 1}</span>
-                                                    <p className="text-[12px] font-semibold text-slate-700 dark:text-slate-300 leading-relaxed">{text}</p>
+                                                <div key={i} className="flex gap-2 items-start">
+                                                    <span className="flex-shrink-0 h-4 w-4 flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[9px] font-extrabold mt-0.5">{i + 1}</span>
+                                                    <p className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 leading-snug">{text}</p>
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
 
-                                    <div className="rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 px-4 py-3">
-                                        <p className="text-[13px] font-extrabold text-slate-800 dark:text-slate-100 mb-1.5">Fields needed</p>
-                                        <ul className="space-y-1 text-[12px] font-semibold text-slate-600 dark:text-slate-300">
+                                    <div className="rounded-lg bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 px-3 py-2">
+                                        <p className="text-[12px] font-extrabold text-slate-800 dark:text-slate-100 mb-1">Fields needed</p>
+                                        <ul className="space-y-0.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
                                             <li>• Project Title, Type, Department</li>
                                             <li>• Duration & Funding Agency</li>
                                             <li>• PI Webmail, Name, Designation, Employee ID</li>
@@ -3079,16 +3079,16 @@ Endorsement is optional. You may continue completing Project Registration while 
                             </div>
 
                             {/* Quick tip */}
-                            <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-[#E4E4E7] dark:border-[#2E2E30] px-5 py-4">
-                                <p className="text-[13px] font-extrabold text-[#27272A] dark:text-[#E4E4E7] mb-2.5">Quick Tips</p>
-                                <ul className="space-y-2">
+                            <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-[#E4E4E7] dark:border-[#2E2E30] px-4 py-3">
+                                <p className="text-[12px] font-extrabold text-[#27272A] dark:text-[#E4E4E7] mb-2">Quick Tips</p>
+                                <ul className="space-y-1.5">
                                     {[
-                                        "You can save as draft at any time and return later.",
-                                        "Only submit when all required fields are filled.",
-                                        "Consultancy projects can be registered without endorsement.",
-                                        "If a Co-PI is from outside IIT Guwahati, they need stakeholder registration first.",
+                                        <>You can <b>save as draft</b> at any time and return later.</>,
+                                        <>Only <b>submit</b> when all required fields are filled.</>,
+                                        <><b>Consultancy projects</b> can be registered without endorsement.</>,
+                                        <>If a Co-PI is <b>from outside IIT Guwahati</b>, they need stakeholder registration first.</>,
                                     ].map((tip, i) => (
-                                        <li key={i} className="flex gap-2 items-start text-[12px] font-semibold text-[#52525B] dark:text-[#A1A1AA] leading-relaxed">
+                                        <li key={i} className="flex gap-1.5 items-start text-[11px] font-semibold text-[#52525B] dark:text-[#A1A1AA] leading-snug [&_b]:font-extrabold [&_b]:text-[#27272A] dark:[&_b]:text-[#E4E4E7]">
                                             <span className="text-[#4A6CF7] mt-0.5 shrink-0 font-extrabold">→</span>
                                             {tip}
                                         </li>

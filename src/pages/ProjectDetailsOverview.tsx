@@ -4066,8 +4066,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
 
                     if (hasSanctionApproved && !hasFundReceived) {
                         return (
-                            <div className="px-4 mb-4 space-y-2">
-                                <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200 dark:border-cyan-700">
+                            <div className="px-4 mb-4 flex flex-col md:flex-row gap-2">
+                                <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200 dark:border-cyan-700 md:flex-1">
                                     <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-100 dark:bg-cyan-800 text-cyan-700 dark:text-cyan-300 text-xs font-bold">
                                         <CheckCircleIcon className="w-4 h-4" />
                                     </div>
@@ -4080,7 +4080,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                         </p>
                                     </div>
                                 </div>
-                                <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700">
+                                <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 md:flex-1">
                                     <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-bold">
                                         2
                                     </div>
@@ -4089,7 +4089,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                             Next Step: Record Fund Received
                                         </p>
                                         <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5 leading-relaxed">
-                                            Fund Sanction is approved. Record the funds received from the funding agency to unlock all application modules.
+                                            Record funds received to unlock all application modules.
                                         </p>
                                     </div>
                                     <button
@@ -6515,16 +6515,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                             }
                                                         />
                                                     </div>
-
-                                                    {/* Fund Sanction Activity Log */}
-                                                    {sanctions[selectedSanctionIndex]?.name && (
-                                                        <div className="mt-8">
-                                                            <ActivityStream
-                                                                doctype="Fund Sanction"
-                                                                docname={sanctions[selectedSanctionIndex].name}
-                                                            />
-                                                        </div>
-                                                    )}
                                                 </>
                                             ) : (
                                                 <div className="flex flex-col items-center gap-5 py-14 px-6 rounded-xl border border-dashed border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20">
