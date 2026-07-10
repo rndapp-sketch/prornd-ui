@@ -785,7 +785,7 @@ const AddFundSanction: React.FC = () => {
                     {/* Action Buttons */}
                     <div className="mt-5 flex items-center justify-between py-3.5 px-4 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm">
                         {!savedAsDraft && !isBudgetMismatch ? (
-                            <p className="text-[11px] text-zinc-400 dark:text-zinc-500">Save as draft first to enable Submit</p>
+                            <p className="text-[11px] font-extrabold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 px-3 py-1.5 rounded-lg">Save as draft first to enable Submit</p>
                         ) : <div />}
                         <div className="flex gap-2.5">
                             <FrappeButton

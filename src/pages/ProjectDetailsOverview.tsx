@@ -61,6 +61,11 @@ import {
     Pencil,
     Save,
     Trash2,
+    BookOpenIcon,
+    ArrowRightIcon,
+    LockIcon,
+    UnlockIcon,
+    CircleDotIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -449,11 +454,11 @@ const AdvanceSettlementModal = ({
                             <div className="flex items-center gap-2">
                                 <span
                                     className={`text-xs px-2 py-1 rounded-full border ${settlement.workflow_state === "Approved"
-                                            ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-                                            : settlement.workflow_state ===
-                                                "Submitted"
-                                                ? "bg-blue-100 text-blue-800 border-blue-200"
-                                                : "bg-zinc-100 text-zinc-800 border-zinc-200"
+                                        ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                                        : settlement.workflow_state ===
+                                            "Submitted"
+                                            ? "bg-blue-100 text-blue-800 border-blue-200"
+                                            : "bg-zinc-100 text-zinc-800 border-zinc-200"
                                         }`}
                                 >
                                     {settlement.workflow_state || "Draft"}
@@ -546,11 +551,11 @@ const TADASettlementModal = ({
                             <div className="flex items-center gap-2">
                                 <span
                                     className={`text-xs px-2 py-1 rounded-full border ${settlement.workflow_state === "Approved"
-                                            ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-                                            : settlement.workflow_state ===
-                                                "Submitted"
-                                                ? "bg-blue-100 text-blue-800 border-blue-200"
-                                                : "bg-zinc-100 text-zinc-800 border-zinc-200"
+                                        ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                                        : settlement.workflow_state ===
+                                            "Submitted"
+                                            ? "bg-blue-100 text-blue-800 border-blue-200"
+                                            : "bg-zinc-100 text-zinc-800 border-zinc-200"
                                         }`}
                                 >
                                     {settlement.workflow_state || "Draft"}
@@ -641,12 +646,12 @@ const P11FormModal = ({
                                     <div className="flex items-center gap-2">
                                         <span
                                             className={`text-xs px-2 py-1 rounded-full border ${form.workflow_state ===
-                                                    "Approved"
-                                                    ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-                                                    : form.workflow_state ===
-                                                        "Submitted"
-                                                        ? "bg-blue-100 text-blue-800 border-blue-200"
-                                                        : "bg-zinc-100 text-zinc-800 border-zinc-200"
+                                                "Approved"
+                                                ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                                                : form.workflow_state ===
+                                                    "Submitted"
+                                                    ? "bg-blue-100 text-blue-800 border-blue-200"
+                                                    : "bg-zinc-100 text-zinc-800 border-zinc-200"
                                                 }`}
                                         >
                                             {form.workflow_state || "Draft"}
@@ -738,10 +743,10 @@ const ScrModal = ({
                             <div className="flex items-center gap-2">
                                 <span
                                     className={`text-xs px-2 py-1 rounded-full border ${scr.workflow_state === "Approved"
-                                            ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-                                            : scr.workflow_state === "Submitted"
-                                                ? "bg-blue-100 text-blue-800 border-blue-200"
-                                                : "bg-zinc-100 text-zinc-800 border-zinc-200"
+                                        ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                                        : scr.workflow_state === "Submitted"
+                                            ? "bg-blue-100 text-blue-800 border-blue-200"
+                                            : "bg-zinc-100 text-zinc-800 border-zinc-200"
                                         }`}
                                 >
                                     {scr.workflow_state || "Draft"}
@@ -1044,8 +1049,8 @@ const QuickActions = ({
         }
     };
 
-    // Lock all groups except Loan and Recruitment when project has no sanction and no funds received
-    const isModuleLocked = !hasSanction && !hasFunds;
+    // Lock all groups except Loan and Recruitment when project has no available fund balance
+    const isModuleLocked = !hasFunds;
     const unlockedGroups = ["Loan", "Recruitment"];
     const unlockedApplications = ["Loan Request", "Adhoc/Contractual"];
 
@@ -2027,6 +2032,23 @@ const QuickActions = ({
 
         return (
             <div className="p-5 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl">
+                {/* Lock notice banner */}
+                {isModuleLocked && (
+                    <div className="mb-4 flex gap-3 px-4 py-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
+                        <AlertCircleIcon className="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                        <div className="text-sm text-amber-800 dark:text-amber-300 space-y-1">
+                            <p className="font-semibold">Applications are currently locked</p>
+                            <p>
+                                This project has no available fund balance.
+                                All application modules are disabled until funds are received.
+                            </p>
+                            <p className="mt-1">
+                                Only <strong>Loan Request</strong> and <strong>Recruitment (Adhoc/Contractual)</strong> applications are available at this stage.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 {/* Tab Header - Always visible */}
                 <div className="mb-5">
                     <nav
@@ -2077,18 +2099,18 @@ const QuickActions = ({
                     {(!isModuleLocked ||
                         (selectedApplication &&
                             unlockedApplications.includes(selectedApplication))) && (
-                        <button
-                            onClick={handleApplyNew}
-                            className={cn(
-                                "flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm",
-                                "bg-[#D97757] text-white hover:bg-[#D97757]",
-                                "shadow-sm transition-all duration-150",
-                            )}
-                        >
-                            <Plus className="w-4 h-4" />
-                            Apply New
-                        </button>
-                    )}
+                            <button
+                                onClick={handleApplyNew}
+                                className={cn(
+                                    "flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm",
+                                    "bg-[#D97757] text-white hover:bg-[#D97757]",
+                                    "shadow-sm transition-all duration-150",
+                                )}
+                            >
+                                <Plus className="w-4 h-4" />
+                                Apply New
+                            </button>
+                        )}
                 </div>
 
                 {/* Applications Table */}
@@ -2569,13 +2591,9 @@ const QuickActions = ({
                     <div className="text-sm text-amber-800 dark:text-amber-300 space-y-1">
                         <p className="font-semibold">Applications are currently locked</p>
                         <p>
-                            This project does not yet have an approved Fund Sanction or any received funds.
-                            All application modules are disabled until the following conditions are met:
+                            This project has no available fund balance.
+                            All application modules are disabled until funds are received.
                         </p>
-                        <ul className="list-disc list-inside mt-1 space-y-0.5 text-amber-700 dark:text-amber-400">
-                            <li>A <strong>Fund Sanction</strong> must be submitted and approved by the sanctioning authority.</li>
-                            <li><strong>Fund Received</strong> must be recorded against the approved sanction.</li>
-                        </ul>
                         <p className="mt-1">
                             Only <strong>Loan Request</strong> and <strong>Recruitment (Adhoc/Contractual)</strong> applications are available at this stage.
                         </p>
@@ -2621,10 +2639,10 @@ const QuickActions = ({
                                 This module is locked
                             </p>
                             <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                                No approved Fund Sanction or received funds are linked to this project.
-                                Please complete the Fund Sanction and Fund Received process under the
+                                This project has no available fund balance.
+                                Ensure funds are received under the
                                 <strong className="text-zinc-600 dark:text-zinc-300"> Sanction Details</strong> tab
-                                to unlock all application modules.
+                                to unlock application modules.
                             </p>
                         </div>
                     </div>
@@ -3867,6 +3885,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                 iconClass: "text-[#7C3AED] dark:text-[#C4B5FD]",
             }]
             : []),
+
         {
             id: "activity",
             label: "Activity Log",
@@ -3874,6 +3893,14 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             activeClass: "bg-[#6B7280] border-[#6B7280] text-white shadow-sm",
             inactiveClass: "border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]",
             iconClass: "text-[#71717A] dark:text-[#A1A1AA]",
+        },
+        {
+            id: "help",
+            label: "Operation Guideline",
+            icon: BookOpenIcon,
+            activeClass: "bg-[#DC2626] border-[#DC2626] text-white shadow-sm",
+            inactiveClass: "border-[#FECACA] bg-[#FEF2F2]/60 text-[#B91C1C] hover:bg-[#FEF2F2] dark:border-[#EF4444]/30 dark:bg-[#EF4444]/10 dark:text-[#FCA5A5]",
+            iconClass: "text-[#DC2626] dark:text-[#F87171]",
         },
     ];
 
@@ -6710,7 +6737,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                     hasSanction={normalizeResponse(sanctionData).some(
                                         (s) => (s.sanction_workflow_status || "").toLowerCase() === "sanction approved"
                                     )}
-                                    hasFunds={normalizeResponse(fundReceivedData).length > 0}
+                                    hasFunds={commitableBalance > 0 || actualBalance > 0}
                                 />
                             )}
 
@@ -6721,6 +6748,184 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                     docname={projectName!}
                                 />
                             )}
+
+                            {activeTab === "help" && (() => {
+                                const sanctions = normalizeResponse(sanctionData);
+                                const hasSanctionRecord = sanctions.length > 0;
+                                const hasSanctionApproved = sanctions.some(
+                                    (s: any) => (s.sanction_workflow_status || "").toLowerCase() === "sanction approved"
+                                );
+                                const hasFundReceived = commitableBalance > 0 || actualBalance > 0;
+                                const projectApproved = (data?.workflow_state || "").toLowerCase().includes("approved");
+                                const currentStep = !projectApproved ? 0 : !hasSanctionRecord ? 1 : !hasSanctionApproved ? 2 : !hasFundReceived ? 3 : 4;
+
+                                const steps = [
+                                    {
+                                        num: 1, title: "Project Proposal Approved", subtitle: "Reviewed and approved by R&D office",
+                                        icon: CheckCircleIcon, color: "emerald",
+                                        done: projectApproved, active: !projectApproved,
+                                        description: "Your project registration has been reviewed and approved by the Head of Section and Dean R&D. This is the starting point for all financial operations.",
+                                        action: null as (() => void) | null, actionLabel: null as string | null,
+                                    },
+                                    {
+                                        num: 2, title: "Add Fund Sanction", subtitle: "Register grant details from funding agency",
+                                        icon: CreditCardIcon, color: "blue",
+                                        done: hasSanctionRecord, active: projectApproved && !hasSanctionRecord,
+                                        description: "Add the fund sanction letter details from your funding agency (e.g., DST, SERB, MOES). This registers the total grant amount, sanction number, and budget heads. Once submitted, it goes through the R&D workflow for approval.",
+                                        action: (projectApproved && !hasSanctionRecord ? handleAddSanctionDetails : null) as (() => void) | null,
+                                        actionLabel: "Add Fund Sanction",
+                                    },
+                                    {
+                                        num: 3, title: "Sanction Approval", subtitle: "Workflow review by R&D office",
+                                        icon: ShieldIcon, color: "violet",
+                                        done: hasSanctionApproved, active: hasSanctionRecord && !hasSanctionApproved,
+                                        description: "The submitted Fund Sanction goes through the R&D approval pipeline — HoS R&D → Dean R&D. Once all approvals are complete, the sanction status becomes \"Sanction Approved\".",
+                                        action: null as (() => void) | null, actionLabel: null as string | null,
+                                    },
+                                    {
+                                        num: 4, title: "Add Fund Received", subtitle: "Record actual funds credited to account",
+                                        icon: IndianRupeeIcon, color: "orange",
+                                        done: hasFundReceived, active: hasSanctionApproved && !hasFundReceived,
+                                        description: "Once the sanction is approved, record each installment of funds received from the funding agency. This updates your project balance and goes through the R&D workflow for verification.",
+                                        action: (hasSanctionApproved && !hasFundReceived ? handleAddFunds : null) as (() => void) | null,
+                                        actionLabel: "Add Fund Received",
+                                    },
+                                    {
+                                        num: 5, title: "Applications Unlocked", subtitle: "All modules active — start spending",
+                                        icon: UnlockIcon, color: "purple",
+                                        done: hasFundReceived, active: hasFundReceived,
+                                        description: "With an approved fund balance, all application modules are now unlocked: Travel, TA/DA Settlement, Reimbursement, Direct Purchase, Temporary Advance, Honorarium, and more.",
+                                        action: (hasFundReceived ? () => { setActiveTab("quick-actions"); setProjectTabParam("quick-actions"); } : null) as (() => void) | null,
+                                        actionLabel: "Go to Applications",
+                                    },
+                                ];
+
+                                type ColorKey = "emerald" | "blue" | "violet" | "orange" | "purple";
+                                const colorMap: Record<ColorKey, { bg: string; text: string; badge: string; btn: string; line: string; border: string }> = {
+                                    emerald: { bg: "bg-emerald-50 dark:bg-emerald-900/20", text: "text-emerald-700 dark:text-emerald-300", badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300", btn: "bg-emerald-600 hover:bg-emerald-700 text-white", line: "bg-emerald-200 dark:bg-emerald-800", border: "border-emerald-200 dark:border-emerald-800/50" },
+                                    blue:    { bg: "bg-blue-50 dark:bg-blue-900/20",       text: "text-blue-700 dark:text-blue-300",       badge: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",       btn: "bg-blue-600 hover:bg-blue-700 text-white",   line: "bg-blue-200 dark:bg-blue-800",   border: "border-blue-200 dark:border-blue-800/50" },
+                                    violet:  { bg: "bg-violet-50 dark:bg-violet-900/20",   text: "text-violet-700 dark:text-violet-300",   badge: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300", btn: "bg-violet-600 hover:bg-violet-700 text-white", line: "bg-violet-200 dark:bg-violet-800", border: "border-violet-200 dark:border-violet-800/50" },
+                                    orange:  { bg: "bg-orange-50 dark:bg-orange-900/20",   text: "text-orange-700 dark:text-orange-300",   badge: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300", btn: "bg-orange-600 hover:bg-orange-700 text-white", line: "bg-orange-200 dark:bg-orange-800", border: "border-orange-200 dark:border-orange-800/50" },
+                                    purple:  { bg: "bg-purple-50 dark:bg-purple-900/20",   text: "text-purple-700 dark:text-purple-300",   badge: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300", btn: "bg-purple-600 hover:bg-purple-700 text-white", line: "bg-purple-200 dark:bg-purple-800", border: "border-purple-200 dark:border-purple-800/50" },
+                                };
+
+                                return (
+                                    <div>
+                                        {/* Header */}
+                                        <div className="flex items-center gap-3 p-5 border-b border-zinc-100 dark:border-zinc-800">
+                                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-100 dark:bg-cyan-900/30">
+                                                <BookOpenIcon className="w-4.5 h-4.5 text-cyan-600 dark:text-cyan-400" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Project Operations Guide</h2>
+                                                <p className="text-xs text-zinc-500 dark:text-zinc-400">Step-by-step walkthrough to unlock your project</p>
+                                            </div>
+                                            {currentStep >= 4 && (
+                                                <span className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+                                                    <CheckCircleIcon className="w-3.5 h-3.5" /> All set
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {/* Progress bar */}
+                                        <div className="px-5 py-3 bg-zinc-50 dark:bg-zinc-800/40 border-b border-zinc-100 dark:border-zinc-800">
+                                            <div className="flex items-center justify-between mb-1.5">
+                                                <span className="text-xs text-zinc-500 dark:text-zinc-400">Progress</span>
+                                                <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{Math.min(currentStep, 4)} / 4 complete</span>
+                                            </div>
+                                            <div className="h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-700 overflow-hidden">
+                                                <div
+                                                    className="h-full rounded-full bg-gradient-to-r from-blue-500 via-violet-500 to-emerald-500 transition-all duration-700"
+                                                    style={{ width: `${Math.min((currentStep / 4) * 100, 100)}%` }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Steps */}
+                                        <div className="p-5 space-y-0">
+                                            {steps.map((step, idx) => {
+                                                const c = colorMap[step.color as ColorKey];
+                                                const Icon = step.icon;
+                                                const isDone = step.done;
+                                                const isActive = step.active;
+                                                const isLocked = !isDone && !isActive;
+                                                const isLast = idx === steps.length - 1;
+
+                                                return (
+                                                    <div key={step.num} className="relative flex gap-4">
+                                                        {/* Left column: icon + line */}
+                                                        <div className="flex flex-col items-center shrink-0">
+                                                            <div className={cn(
+                                                                "h-8 w-8 flex items-center justify-center rounded-full border-2 z-10 bg-white dark:bg-zinc-900",
+                                                                isDone && "border-emerald-400 dark:border-emerald-600",
+                                                                isActive && c.border,
+                                                                isLocked && "border-zinc-200 dark:border-zinc-700",
+                                                            )}>
+                                                                {isDone ? (
+                                                                    <CheckCircleIcon className="w-4 h-4 text-emerald-500" />
+                                                                ) : isActive ? (
+                                                                    <Icon className={cn("w-3.5 h-3.5", c.text)} />
+                                                                ) : (
+                                                                    <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500">{step.num}</span>
+                                                                )}
+                                                            </div>
+                                                            {!isLast && (
+                                                                <div className={cn(
+                                                                    "w-0.5 flex-1 mt-0.5 mb-0.5 min-h-[20px]",
+                                                                    isDone ? c.line : "bg-zinc-100 dark:bg-zinc-800"
+                                                                )} />
+                                                            )}
+                                                        </div>
+
+                                                        {/* Right column: card */}
+                                                        <div className={cn(
+                                                            "flex-1 min-w-0 rounded-xl border p-3.5 transition-all mb-3",
+                                                            isDone && "border-emerald-100 dark:border-emerald-900/40 bg-white dark:bg-zinc-900",
+                                                            isActive && cn(c.bg, c.border, "border shadow-sm"),
+                                                            isLocked && "border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/30 dark:bg-zinc-900/20 opacity-50",
+                                                        )}>
+                                                            <div className="flex items-start justify-between gap-2 mb-0.5">
+                                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                                    <span className={cn(
+                                                                        "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
+                                                                        isDone ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
+                                                                        : isActive ? c.badge
+                                                                        : "bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500"
+                                                                    )}>Step {step.num}</span>
+                                                                    <span className={cn(
+                                                                        "text-sm font-semibold",
+                                                                        isDone ? "text-emerald-800 dark:text-emerald-200"
+                                                                        : isActive ? c.text
+                                                                        : "text-zinc-400 dark:text-zinc-500"
+                                                                    )}>{step.title}</span>
+                                                                </div>
+                                                                <span className="shrink-0 text-[10px] font-semibold">
+                                                                    {isDone && <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5"><CheckCircleIcon className="w-3 h-3" /> Done</span>}
+                                                                    {isActive && <span className={cn(c.text, "flex items-center gap-0.5")}><CircleDotIcon className="w-3 h-3 animate-pulse" /> Current</span>}
+                                                                    {isLocked && <span className="text-zinc-300 dark:text-zinc-600 flex items-center gap-0.5"><LockIcon className="w-3 h-3" /> Locked</span>}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mb-1">{step.subtitle}</p>
+                                                            {(isDone || isActive) && (
+                                                                <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed mt-1.5">{step.description}</p>
+                                                            )}
+                                                            {isActive && step.action && (
+                                                                <button
+                                                                    onClick={step.action}
+                                                                    className={cn("mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors", c.btn)}
+                                                                >
+                                                                    {step.actionLabel}
+                                                                    <ArrowRightIcon className="w-3 h-3" />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </div>
 
@@ -6831,8 +7036,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                     const displayActivity = (activeTab === "sanction-details" && activityViewType === "fund")
                                         ? fundReceivedActivityData?.message
                                         : (activeTab === "sanction-details" && activityViewType === "sanction")
-                                        ? sanctionActivityData?.message
-                                        : activityData?.message;
+                                            ? sanctionActivityData?.message
+                                            : activityData?.message;
                                     return displayActivity?.length ? (
                                         <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
                                             {displayActivity
