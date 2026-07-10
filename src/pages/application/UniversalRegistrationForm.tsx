@@ -68,12 +68,15 @@ export default function UniversalRegistrationForm({
                     prefill_data,
                 } = response.message;
 
-                // Force Account Type to be non-readonly
+                // Force Account Type to be non-readonly and ensure nationality field is not autocomplete
                 const enableAccountType = (fieldsList: any[]) => {
                     fieldsList.forEach((f) => {
                         if (f.fieldname === "account_type_u_r" || f.label === "Account Type") {
                             f.read_only = 0;
                             f.read_only_depends_on = null;
+                        }
+                        if (f.fieldname === "nationality_u_r") {
+                            f.autocomplete_off = true;
                         }
                         if (f.child_fields && Array.isArray(f.child_fields)) {
                             enableAccountType(f.child_fields);
@@ -115,7 +118,13 @@ export default function UniversalRegistrationForm({
                     }
 
                     const personalFnames = ["full_name_u_r", "gender_u_r", "nationality_u_r", "guardian_name_u_r", "dob_u_r"];
-                    const personalExtracted = personalFnames.map(f => pullField(f)).filter(Boolean);
+                    const personalExtracted = personalFnames.map(f => {
+                        const field = pullField(f);
+                        if (field && field.fieldname === "nationality_u_r") {
+                            field.autocomplete = 0;
+                        }
+                        return field;
+                    }).filter(Boolean);
 
                     const contactFnames = ["mobile_number_u_r", "same_as_mobile_number_u_r", "whatsapp_number_u_r", "alternate_mobile_number_u_r"];
                     const contactExtracted = contactFnames.map(f => pullField(f)).filter(Boolean);
