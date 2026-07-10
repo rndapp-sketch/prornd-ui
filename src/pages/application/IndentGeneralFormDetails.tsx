@@ -569,7 +569,7 @@ const IndentGeneralFormDetails: React.FC = () => {
         }
     };
 
-    const handlePrint = () => {
+    const handlePrint = async () => {
         const resolvedAccountHead = linkOptions?.igf_account_head?.find((o: any) => o.value === formData.igf_account_head)?.label || formData.igf_account_head || "";
         const html = generateIgfPrintHtml(
             formData,
@@ -581,6 +581,32 @@ const IndentGeneralFormDetails: React.FC = () => {
         const win = window.open("", "_blank");
         if (win) { win.document.write(html); win.document.close(); setTimeout(() => win.print(), 400); }
         setHasPrinted(true);
+
+        // Dean printing at Pending Dean Approval auto-forwards the form —
+        // no separate click needed once the print is triggered.
+        if (isDeanRnD && isAtDeanApproval) {
+            if (autoRequiresDirector) {
+                if (forwardAction && id) {
+                    try {
+                        await performWorkflowAction({ docname: id, action: forwardAction, comment: "" });
+                        handleRefresh();
+                    } catch (err: any) {
+                        alert(err?.message || "Failed to perform action.");
+                    }
+                }
+            } else if (id) {
+                setIsUpdatingDirectorFlag(true);
+                try {
+                    await updateSendToDirectorCall({ docname: id, send_to_director: 1 });
+                    setFormData((prev: any) => ({ ...prev, send_to_director: 1 }));
+                    handleRefresh();
+                } catch (err: any) {
+                    alert(err?.message || "Failed to send for Director approval.");
+                } finally {
+                    setIsUpdatingDirectorFlag(false);
+                }
+            }
+        }
     };
 
     if (loading) return <GlobalLoader isLoading={true} />;
