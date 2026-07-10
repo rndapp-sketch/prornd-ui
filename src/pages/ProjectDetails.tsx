@@ -57,6 +57,9 @@ import {
     XCircle,
     Clock,
     AlertTriangleIcon,
+    BookOpenIcon,
+    ArrowRightIcon,
+    CircleDotIcon,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -1774,6 +1777,14 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
             inactiveClass: "border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]",
             iconClass: "text-[#71717A] dark:text-[#A1A1AA]",
         },
+        {
+            id: "help",
+            label: "Operation Guideline",
+            icon: BookOpenIcon,
+            activeClass: "bg-[#DC2626] border-[#DC2626] text-white shadow-sm",
+            inactiveClass: "border-[#FECACA] bg-[#FEF2F2]/60 text-[#B91C1C] hover:bg-[#FEF2F2] dark:border-[#EF4444]/30 dark:bg-[#EF4444]/10 dark:text-[#FCA5A5]",
+            iconClass: "text-[#DC2626] dark:text-[#F87171]",
+        },
     ];
 
     const needsProjectNumberGeneration =
@@ -3084,6 +3095,119 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                 {activeTab === "quick-actions" && (
                                     <QuickActions />
                                 )}
+
+                                {activeTab === "help" && (() => {
+                                    const wfState = (data?.workflow_state || "").toLowerCase();
+                                    const isDraft = !data?.workflow_state || wfState === "draft";
+                                    const isSubmitted = !isDraft && !wfState.includes("approved");
+                                    const isApproved = wfState.includes("approved");
+
+                                    const currentStep = isDraft ? 0 : isSubmitted ? 1 : isApproved ? 2 : 0;
+
+                                    const steps = [
+                                        {
+                                            num: 1, title: "Fill & Submit Registration", subtitle: "Complete the project form",
+                                            icon: CheckCircleIcon, color: "emerald",
+                                            done: !isDraft, active: isDraft,
+                                            description: "Fill all required sections — Project Description, PI/Co-PI details, Proposed Budget, and Clearance information. Use Save as Draft to save progress, then Submit when the form is complete.",
+                                        },
+                                        {
+                                            num: 2, title: "Approval Workflow", subtitle: "Review by R&D office",
+                                            icon: CreditCardIcon, color: "blue",
+                                            done: isApproved, active: isSubmitted,
+                                            description: "Submitted project goes through the R&D approval pipeline: HoS R&D reviews first, then Dean R&D gives final approval. You will be notified if any correction is needed.",
+                                        },
+                                        {
+                                            num: 3, title: "Project Proposal Approved", subtitle: "Financial operations unlocked",
+                                            icon: CheckCircle2, color: "violet",
+                                            done: false, active: isApproved,
+                                            description: "Once approved, you can access the full project dashboard to add Fund Sanction, record Fund Received installments, and submit financial applications.",
+                                        },
+                                        {
+                                            num: 4, title: "Add Fund Sanction", subtitle: "Register grant from funding agency",
+                                            icon: ArrowRightIcon, color: "orange",
+                                            done: false, active: false,
+                                            description: "After project approval, go to the Project Overview page to add the Fund Sanction. Enter the sanction letter details, grant amount, and budget heads. This will go through R&D approval.",
+                                        },
+                                        {
+                                            num: 5, title: "Applications Unlocked", subtitle: "Submit financial requests",
+                                            icon: CircleDotIcon, color: "purple",
+                                            done: false, active: false,
+                                            description: "Once fund is received against an approved sanction, all financial applications (Travel, TA/DA, Reimbursement, Advance, etc.) are unlocked for this project.",
+                                        },
+                                    ];
+
+                                    const colorMap: Record<string, { ring: string; bg: string; text: string; light: string; badge: string }> = {
+                                        emerald: { ring: "ring-emerald-400", bg: "bg-emerald-500", text: "text-emerald-700 dark:text-emerald-300", light: "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/50", badge: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300" },
+                                        blue: { ring: "ring-blue-400", bg: "bg-blue-500", text: "text-blue-700 dark:text-blue-300", light: "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/50", badge: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
+                                        violet: { ring: "ring-violet-400", bg: "bg-violet-500", text: "text-violet-700 dark:text-violet-300", light: "bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-800/50", badge: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300" },
+                                        orange: { ring: "ring-orange-400", bg: "bg-orange-500", text: "text-orange-700 dark:text-orange-300", light: "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800/50", badge: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300" },
+                                        purple: { ring: "ring-purple-400", bg: "bg-purple-500", text: "text-purple-700 dark:text-purple-300", light: "bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800/50", badge: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300" },
+                                    };
+
+                                    return (
+                                        <div className="space-y-5">
+                                            {/* Header */}
+                                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden">
+                                                <div className="bg-[#DC2626] px-5 py-4 flex items-center gap-3">
+                                                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20">
+                                                        <BookOpenIcon className="h-5 w-5 text-white" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[14px] font-extrabold text-white">Operation Guideline</p>
+                                                        <p className="text-[11px] text-red-100 mt-0.5">Step-by-step guide to the project registration and financial lifecycle</p>
+                                                    </div>
+                                                </div>
+
+                                                {/* Progress bar */}
+                                                <div className="px-5 py-3 border-b border-[#F4F4F5] dark:border-[#3F3F46]">
+                                                    <div className="flex items-center justify-between mb-1.5">
+                                                        <span className="text-[11px] font-extrabold text-[#52525B] dark:text-[#A1A1AA] uppercase tracking-wide">Progress</span>
+                                                        <span className="text-[11px] font-extrabold text-[#DC2626]">{currentStep} / 2 complete</span>
+                                                    </div>
+                                                    <div className="h-1.5 w-full rounded-full bg-[#F4F4F5] dark:bg-[#3F3F46] overflow-hidden">
+                                                        <div className="h-full rounded-full bg-[#DC2626] transition-all" style={{ width: `${Math.min((currentStep / 2) * 100, 100)}%` }} />
+                                                    </div>
+                                                </div>
+
+                                                {/* Steps */}
+                                                <div className="divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]">
+                                                    {steps.map((step) => {
+                                                        const c = colorMap[step.color];
+                                                        const Icon = step.icon;
+                                                        return (
+                                                            <div key={step.num} className={cn("flex gap-4 px-5 py-4 transition-colors", step.active && `${c.light} border-l-[3px]`)}>
+                                                                <div className="flex flex-col items-center gap-1 pt-0.5">
+                                                                    <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white text-[12px] font-extrabold", step.done ? c.bg : step.active ? `${c.bg} ring-2 ${c.ring} ring-offset-1` : "bg-[#E4E4E7] dark:bg-[#3F3F46] text-[#71717A] dark:text-[#A1A1AA]")}>
+                                                                        {step.done ? <CheckCircle2 className="h-4 w-4" /> : <span>{step.num}</span>}
+                                                                    </div>
+                                                                    {step.num < steps.length && <div className="w-[2px] flex-1 min-h-[20px] bg-[#E4E4E7] dark:bg-[#3F3F46] rounded-full" />}
+                                                                </div>
+                                                                <div className="min-w-0 pb-2">
+                                                                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                                                                        <span className="text-[14px] font-extrabold text-[#18181B] dark:text-[#FAFAFA]">{step.title}</span>
+                                                                        {step.active && <span className={cn("text-[10px] font-extrabold px-2 py-0.5 rounded-full", c.badge)}>Current Step</span>}
+                                                                        {step.done && <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">Done</span>}
+                                                                    </div>
+                                                                    <p className="text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA] mb-1.5">{step.subtitle}</p>
+                                                                    <p className="text-[12px] font-medium text-[#52525B] dark:text-[#A1A1AA] leading-relaxed">{step.description}</p>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+
+                                            {/* Info note */}
+                                            <div className="flex gap-3 rounded-xl border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/10 px-4 py-3">
+                                                <AlertTriangleIcon className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                                                <p className="text-[12px] font-semibold text-amber-800 dark:text-amber-300 leading-relaxed">
+                                                    This page shows the project registration record. After the project is approved, financial operations (Fund Sanction, Fund Received, Applications) are managed from the <strong>Project Overview</strong> page.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                             </div>
 
                             {/* Right Column for Staff RnD */}
