@@ -543,29 +543,36 @@ const PendingTask: React.FC = () => {
         }),
         [allTasks, resolvedProjectTypes]);
 
-    // Phase-3: fetch director_signed_pdf for IGF rows at Pending Director Approval
-    const [igfPdfStatus, setIgfPdfStatus] = React.useState<Map<string, boolean>>(new Map());
+    // Phase-3: fetch director_signed_pdf for all doctypes that support Director Approval flow
+    const DIRECTOR_PDF_DOCTYPES = ["Indent General Form", "Selection Committee Report", "Indent Cum Sanction Sheet"];
+    const [directorPdfStatus, setDirectorPdfStatus] = React.useState<Map<string, boolean>>(new Map());
     React.useEffect(() => {
-        const targets = allTasks.filter(
-            t => t.doctype === "Indent General Form" && t.status === "Pending Director Approval",
-        );
-        if (!targets.length) return;
-        const ids = targets.map(t => t.id);
-        const params = new URLSearchParams({
-            fields: JSON.stringify(["name", "director_signed_pdf"]),
-            filters: JSON.stringify([["name", "in", ids.join(",")]]),
-            limit: String(ids.length),
+        const byDoctype = new Map<string, string[]>();
+        allTasks
+            .filter(t => t.status === "Pending Director Approval" && DIRECTOR_PDF_DOCTYPES.includes(t.doctype))
+            .forEach(t => {
+                if (!byDoctype.has(t.doctype)) byDoctype.set(t.doctype, []);
+                byDoctype.get(t.doctype)!.push(t.id);
+            });
+        if (!byDoctype.size) return;
+
+        const combined = new Map<string, boolean>();
+        const fetches = Array.from(byDoctype.entries()).map(([doctype, ids]) => {
+            const params = new URLSearchParams({
+                fields: JSON.stringify(["name", "director_signed_pdf"]),
+                filters: JSON.stringify([["name", "in", ids.join(",")]]),
+                limit: String(ids.length),
+            });
+            return fetch(`/api/resource/${encodeURIComponent(doctype)}?${params}`, { credentials: "include" })
+                .then(r => r.json())
+                .then(result => {
+                    (result?.data ?? result?.message ?? []).forEach((rec: any) => {
+                        combined.set(rec.name, !!rec.director_signed_pdf);
+                    });
+                })
+                .catch(() => {});
         });
-        fetch(`/api/resource/Indent%20General%20Form?${params}`, { credentials: "include" })
-            .then(r => r.json())
-            .then(result => {
-                const map = new Map<string, boolean>();
-                (result?.data ?? result?.message ?? []).forEach((rec: any) => {
-                    map.set(rec.name, !!rec.director_signed_pdf);
-                });
-                setIgfPdfStatus(map);
-            })
-            .catch(() => {});
+        Promise.all(fetches).then(() => setDirectorPdfStatus(new Map(combined)));
     }, [allTasks]);
 
     const visibleTasks = React.useMemo(() =>
@@ -867,9 +874,9 @@ const PendingTask: React.FC = () => {
                                                 <span className={getStatusBadge(task.status)}>
                                                     {task.status}
                                                 </span>
-                                                {task.doctype === "Indent General Form" &&
-                                                    task.status === "Pending Director Approval" &&
-                                                    igfPdfStatus.get(task.id) && (
+                                                {task.status === "Pending Director Approval" &&
+                                                    DIRECTOR_PDF_DOCTYPES.includes(task.doctype) &&
+                                                    directorPdfStatus.get(task.id) && (
                                                     <span className="mt-1.5 flex items-center gap-1 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
                                                         <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
                                                         Director Approval Uploaded
