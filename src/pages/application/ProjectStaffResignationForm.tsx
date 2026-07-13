@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
+import { FaArrowLeft } from "react-icons/fa";
 import { AppSidebar } from "@/components/RndSidebar";
 import { CommitPayment } from "@/components/CommitPayment";
 import { useUserRoles } from "@/components/UserRole";
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { resignationAPI } from "@/services/apiService";
-import { getActionButtonStyle } from "@/utils/workflowUtils";
+import { getActionButtonStyle, getStateBadgeStyle } from "@/utils/workflowUtils";
 import {
     User as UserIcon, IdCard, Mail, Building2, Briefcase,
     FolderOpen, CalendarDays, FileText, AlertCircle, CheckCircle2,
-    ChevronLeft, Loader2, MessageSquare,
+    Loader2, MessageSquare,
     ArrowRightCircle, CheckCircle, XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -86,14 +87,6 @@ const InfoRow = ({ icon, label, value }: { icon: React.ReactNode; label: string;
         </div>
     </div>
 );
-
-const stateBadgeClass = (state: string) => {
-    const s = state.toLowerCase();
-    if (s === "approved") return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
-    if (s === "rejected" || s === "cancelled") return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-    if (s === "draft") return "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400";
-    return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
-};
 
 const actionIcon = (action: string) => {
     const a = action.toLowerCase();
@@ -470,28 +463,29 @@ const ProjectStaffResignationForm: React.FC = () => {
             <main className="flex-1 p-4 md:p-8">
                 <div className="w-full max-w-9xl mx-auto">
 
-                    {/* Back + Header */}
-                    <div className="mb-6">
-                        <button
-                            onClick={() => navigate("/project-staff-dashboard")}
-                            className="flex items-center gap-1.5 text-sm text-[#71717A] hover:text-[#3F3F46] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] mb-3 transition-colors"
-                        >
-                            <ChevronLeft className="h-4 w-4" /> Back to Dashboard
-                        </button>
-                        <div className="flex items-center justify-between flex-wrap gap-2">
-                            <div>
-                                <h1 className="text-2xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
-                                    Resignation Form
-                                </h1>
-                                <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] mt-0.5">
-                                    Project Staff Resignation Application
-                                </p>
+                    {/* Header */}
+                    <div className="mb-6 overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
+                        <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-5 py-4">
+                            <div className="flex items-start gap-3">
+                                <button
+                                    onClick={() => navigate("/project-staff-dashboard")}
+                                    className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
+                                    aria-label="Back to dashboard"
+                                >
+                                    <FaArrowLeft className="h-3.5 w-3.5" />
+                                </button>
+                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#EEF2FF] text-[#4A6CF7] dark:bg-[#4A6CF7]/15 dark:text-[#93C5FD]">
+                                    <FileText className="h-5 w-5" />
+                                </div>
+                                <div className="min-w-0">
+                                    <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">Resignation Form</span>
+                                    <h1 className="mt-1 font-sans text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Project Staff Resignation</h1>
+                                    <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">Project Staff Resignation Application</p>
+                                </div>
                             </div>
                             {workflowState && (
-                                <span className={cn(
-                                    "px-3 py-1 rounded-full text-xs font-semibold",
-                                    stateBadgeClass(workflowState),
-                                )}>
+                                <span className={cn("px-2.5 py-1 rounded-full text-xs font-bold border shrink-0", getStateBadgeStyle(workflowState))}>
                                     {workflowState}
                                 </span>
                             )}
@@ -518,7 +512,7 @@ const ProjectStaffResignationForm: React.FC = () => {
                             <Loader2 className="h-6 w-6 animate-spin text-[#4A6CF7]" />
                         </div>
                     ) : !hasFormData ? (
-                        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-8 text-center">
+                        <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-8 text-center">
                             <AlertCircle className="h-8 w-8 mx-auto mb-2 text-amber-400" />
                             <p className="text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
                                 {isEditMode
@@ -534,7 +528,7 @@ const ProjectStaffResignationForm: React.FC = () => {
 
                             {/* Workflow Timeline */}
                             {docName && (
-                                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-5">
+                                <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-5">
                                     <h2 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-sm uppercase tracking-wide mb-4">
                                         Approval Status
                                     </h2>
@@ -543,7 +537,7 @@ const ProjectStaffResignationForm: React.FC = () => {
                             )}
 
                             {/* Applicant Details — read-only, prefilled */}
-                            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-5">
+                            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-5">
                                 <div className="flex items-center gap-2 mb-4">
                                     <div className="p-1.5 bg-[#4A6CF7]/10 rounded-lg">
                                         <UserIcon className="h-4 w-4 text-[#4A6CF7]" />
@@ -573,7 +567,7 @@ const ProjectStaffResignationForm: React.FC = () => {
                             </div>
 
                             {/* Resignation Details — editable in Draft only */}
-                            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-5">
+                            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-5">
                                 <div className="flex items-center gap-2 mb-4">
                                     <div className="p-1.5 bg-red-50 dark:bg-red-900/20 rounded-lg">
                                         <FileText className="h-4 w-4 text-red-500 dark:text-red-400" />
@@ -674,7 +668,7 @@ const ProjectStaffResignationForm: React.FC = () => {
 
                             {/* Action Row — Save Draft (editable only) + Workflow actions */}
                             {(!isTerminal) && (
-                                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-5">
+                                <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-5">
                                     <h2 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-sm uppercase tracking-wide mb-4">
                                         Actions
                                     </h2>
