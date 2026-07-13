@@ -20,6 +20,7 @@ import {
     ChevronDownIcon,
     LogOutIcon,
     ListTodo,
+    ClipboardCheck,
     CreditCard,
     BarChart3,
     MessageCircle,
@@ -157,6 +158,17 @@ export function AppSidebar() {
 
     const pendingDirectorPdfCount = pendingDirectorPdfData?.message?.data?.length ?? 0;
 
+    // Leave Module applications pending the current user's approval as PI —
+    // scoped server-side, so no extra client-side filtering is needed here.
+    const { data: pendingApplicationData } = useFrappeGetCall<{
+        message: { user: string; results: Array<{ name: string }> };
+    }>(
+        "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_pending_application",
+        {},
+        currentUser ? undefined : null,
+    );
+    const pendingApplicationCount = pendingApplicationData?.message?.results?.length ?? 0;
+
     // --- LOGIC: Menu Data (Unchanged) ---
     const isDirector = roles?.includes("Director");
     const hasOverviewAccess = roles?.some(r => ["Director", "Dean, RnD", "Ado_RnD", "Hos, RnD (Head of Section, RnD)"].includes(r));
@@ -241,6 +253,11 @@ export function AppSidebar() {
             label: "Pending Task",
             icon: ListTodo,
             path: "/pending-task",
+        },
+        {
+            label: "Pending Application",
+            icon: ClipboardCheck,
+            path: "/pending-application",
         },
         {
             label: "Task Registry",
@@ -549,6 +566,17 @@ export function AppSidebar() {
                                                         : "bg-[#D97757] text-white",
                                                 )}>
                                                     {pendingTaskCount > 99 ? "99+" : pendingTaskCount}
+                                                </span>
+                                            )}
+
+                                            {item.label === "Pending Application" && pendingApplicationCount > 0 && state === "expanded" && (
+                                                <span className={cn(
+                                                    "ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold leading-none",
+                                                    isActive
+                                                        ? "bg-[#4A6CF7] text-white"
+                                                        : "bg-[#D97757] text-white",
+                                                )}>
+                                                    {pendingApplicationCount > 99 ? "99+" : pendingApplicationCount}
                                                 </span>
                                             )}
 

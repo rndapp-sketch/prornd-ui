@@ -296,7 +296,13 @@ export const ChildTableComponent = memo(({
                         <AutocompleteEmail
                             options={userOpts}
                             value={value || ''}
-                            onChange={(v) => onRowChange(tableName, rowIndex, col.fieldname, v)}
+                            onChange={(v) => {
+                                if (onLinkChange) {
+                                    onLinkChange(tableName, rowIndex, col.fieldname, v);
+                                } else {
+                                    onRowChange(tableName, rowIndex, col.fieldname, v);
+                                }
+                            }}
                             className={inputClasses}
                             placeholder={`Enter ${col.label || 'Email'}`}
                             showAllOnFocus={true}

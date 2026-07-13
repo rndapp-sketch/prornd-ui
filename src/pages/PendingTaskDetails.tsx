@@ -59,6 +59,7 @@ import { ActivityLog } from "@/components/ActivityLog";
 import { BudgetActionsSidebar } from "@/components/BudgetActionsSidebar";
 import TemporaryAdvanceActionButtons from "@/components/TemporaryAdvanceActionButtons";
 import TADASettlementActionButtons from "@/components/TADASettlementActionButtons";
+import LeaveModuleActionButtons from "@/components/LeaveModuleActionButtons";
 import { generateTemporaryAdvanceHtml } from "@/utils/temporaryAdvancePrint";
 import { useUserRoles } from "@/components/UserRole";
 import { POEditor } from "@/components/POEditor";
@@ -3519,6 +3520,14 @@ const PendingTaskDetails: React.FC = () => {
                                         window.location.reload()
                                     }
                                     commitRequired={isRnDStaff && isCommittedForGate === false}
+                                />
+                            )}
+                            {doctype === "Leave Module" && name && (
+                                <LeaveModuleActionButtons
+                                    docName={name}
+                                    onActionComplete={() =>
+                                        window.location.reload()
+                                    }
                                 />
                             )}
                             {/* {doctype === "Cancellation Request" && name && (

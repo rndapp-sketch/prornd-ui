@@ -83,7 +83,18 @@ const TopUpFellowshipForm: React.FC = () => {
     // Per-student monthly status, keyed by `${email}|${YYYY-MM}`
     type MonthlyStatus = { honorarium: number; top_up: number; total: number; remaining: number };
     const [monthlyStatus, setMonthlyStatus] = useState<Record<string, MonthlyStatus>>({});
-    const MONTHLY_CAP = 25000;
+    // Backend-driven cap (rndopsapp...get_students_monthly_summary returns { cap, summary }) —
+    // seeded with the last-known value and kept in sync with whatever the server reports.
+    // This is the cap for students with no stipend/scholarship; students who are already
+    // on a stipend or scholarship are capped lower regardless of what the server reports.
+    const [monthlyCap, setMonthlyCap] = useState<number>(50000);
+    const STIPEND_OR_SCHOLARSHIP_CAP = 25000;
+    // stipend_or_scholarship is a doctype Select field with options "\nYes\nNo" — not a boolean.
+    const isOnStipendOrScholarship = (row: any) => String(row?.stipend_or_scholarship || '').trim().toLowerCase() === 'yes';
+    const capForRow = useCallback(
+        (row: any) => (isOnStipendOrScholarship(row) ? STIPEND_OR_SCHOLARSHIP_CAP : monthlyCap),
+        [monthlyCap],
+    );
 
     const refreshMonthlyStatus = useCallback(async (email: string, periodFrom: string | null | undefined) => {
         if (!email) return;
@@ -100,6 +111,9 @@ const TopUpFellowshipForm: React.FC = () => {
                 year,
                 exclude_docname: editDocName || savedDocName || '',
             });
+            if (typeof res?.message?.cap === 'number') {
+                setMonthlyCap(res.message.cap);
+            }
             const data = res?.message?.summary?.[email];
             if (data) {
                 setMonthlyStatus(prev => ({ ...prev, [key]: data }));
@@ -291,14 +305,26 @@ const TopUpFellowshipForm: React.FC = () => {
         }));
     }, []);
 
-    // When a Link field in a child row changes (e.g. name_of_student), fetch details & cascade
+    // When email_of_student changes, fetch & cascade student details.
+    // NOTE: the backend's get_student_details does NOT read from the "User" doctype —
+    // it looks up "Academic Student Info" by email_id and returns roll_no/d_name/sname,
+    // mapped here to roll_number/dept_centre/name_of_the_student. The doctype JSON's
+    // fetch_from annotations (email_of_student.employee_id etc.) are not honoured by
+    // this custom RPC or by _serialize_field (which doesn't export fetch_from at all),
+    // so this manual cascade is the only thing populating these fields.
     const handleTableLinkChange = useCallback(async (tableName: string, rowIndex: number, fieldname: string, value: string) => {
         if (tableName !== 'students' || fieldname !== 'email_of_student') return;
 
         if (!value) {
             setFormData(prev => {
                 const table = [...(prev[tableName] || [])];
-                table[rowIndex] = { ...table[rowIndex], email_of_student: '', roll_number: '', dept_centre: '' };
+                table[rowIndex] = {
+                    ...table[rowIndex],
+                    email_of_student: '',
+                    roll_number: '',
+                    dept_centre: '',
+                    name_of_the_student: '',
+                };
                 return { ...prev, [tableName]: table };
             });
             return;
@@ -307,6 +333,17 @@ const TopUpFellowshipForm: React.FC = () => {
         try {
             const res = await fetchStudentDetails({ email: value });
             const details = res?.message || {};
+
+            // dept_centre is a Link to Department_prornd (value = doc name, label = dept_name),
+            // but get_student_details returns Academic Student Info's free-text department name —
+            // resolve it to the matching option's value so the <select> actually shows it selected.
+            const deptRaw = String(details.dept_centre || '').trim();
+            const deptOptions = linkOptions.dept_centre || [];
+            const matchedDept = deptOptions.find(
+                (o: any) => o.value === deptRaw || (o.label || '').trim().toLowerCase() === deptRaw.toLowerCase()
+            );
+            const resolvedDept = matchedDept ? matchedDept.value : deptRaw;
+
             let periodFrom = '';
             setFormData(prev => {
                 const table = [...(prev[tableName] || [])];
@@ -315,7 +352,8 @@ const TopUpFellowshipForm: React.FC = () => {
                     ...table[rowIndex],
                     email_of_student: value,
                     roll_number: details.roll_number || table[rowIndex]?.roll_number || '',
-                    dept_centre: details.dept_centre || table[rowIndex]?.dept_centre || '',
+                    dept_centre: resolvedDept || table[rowIndex]?.dept_centre || '',
+                    name_of_the_student: details.full_name || table[rowIndex]?.name_of_the_student || '',
                 };
                 return { ...prev, [tableName]: table };
             });
@@ -324,7 +362,7 @@ const TopUpFellowshipForm: React.FC = () => {
         } catch (err) {
             console.warn('Could not fetch student details:', err);
         }
-    }, [fetchStudentDetails, refreshMonthlyStatus]);
+    }, [fetchStudentDetails, refreshMonthlyStatus, linkOptions.dept_centre]);
 
     const effectiveDocName = editDocName || savedDocName;
 
@@ -347,7 +385,8 @@ const TopUpFellowshipForm: React.FC = () => {
             return;
         }
 
-        // Enforce ₹25,000 monthly cap per student
+        // Enforce the per-student monthly cap — lower for students already on a
+        // stipend/scholarship, otherwise the backend-reported default cap.
         const capViolations: string[] = [];
         for (const row of formData.students) {
             const email = row?.email_of_student;
@@ -356,10 +395,11 @@ const TopUpFellowshipForm: React.FC = () => {
             const status = key ? monthlyStatus[key] : undefined;
             const proposed = Number(row?.total_amount_per_month) || 0;
             const existing = status?.total ?? 0;
-            if (existing + proposed > MONTHLY_CAP) {
-                const over = existing + proposed - MONTHLY_CAP;
+            const cap = capForRow(row);
+            if (existing + proposed > cap) {
+                const over = existing + proposed - cap;
                 capViolations.push(
-                    `${email}: already ₹${existing.toLocaleString('en-IN')} this month, requesting ₹${proposed.toLocaleString('en-IN')} more — exceeds the ₹${MONTHLY_CAP.toLocaleString('en-IN')} cap by ₹${over.toLocaleString('en-IN')}.`
+                    `${email}: already ₹${existing.toLocaleString('en-IN')} this month, requesting ₹${proposed.toLocaleString('en-IN')} more — exceeds the ₹${cap.toLocaleString('en-IN')} cap${isOnStipendOrScholarship(row) ? ' (stipend/scholarship)' : ''} by ₹${over.toLocaleString('en-IN')}.`
                 );
             }
         }
@@ -450,7 +490,7 @@ const TopUpFellowshipForm: React.FC = () => {
                                 <div className="flex items-center gap-2 mb-3">
                                     <div className="h-3 w-1 rounded-full bg-[#4A6CF7]" />
                                     <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-[#93C5FD]">
-                                        Monthly Limit Status (₹{MONTHLY_CAP.toLocaleString('en-IN')} cap per student)
+                                        Monthly Limit Status (₹{monthlyCap.toLocaleString('en-IN')} cap per student, ₹{STIPEND_OR_SCHOLARSHIP_CAP.toLocaleString('en-IN')} if on stipend/scholarship)
                                     </h3>
                                 </div>
                                 <div className="overflow-x-auto">
@@ -458,6 +498,7 @@ const TopUpFellowshipForm: React.FC = () => {
                                         <thead>
                                             <tr className="text-left text-[10px] font-bold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] border-b border-[#E4E4E7] dark:border-[#3F3F46]">
                                                 <th className="py-2 pr-3">Student</th>
+                                                <th className="py-2 pr-3">Stipend / Scholarship?</th>
                                                 <th className="py-2 pr-3">Honorarium this month</th>
                                                 <th className="py-2 pr-3">Top Up this month</th>
                                                 <th className="py-2 pr-3">Already Received</th>
@@ -473,7 +514,7 @@ const TopUpFellowshipForm: React.FC = () => {
                                                     return (
                                                         <tr key={idx} className="border-b border-dashed border-[#E4E4E7]/60 dark:border-[#3F3F46]/60">
                                                             <td className="py-2 pr-3 italic text-[#A1A1AA]">Row #{idx + 1} — pick a student</td>
-                                                            <td colSpan={6} />
+                                                            <td colSpan={7} />
                                                         </tr>
                                                     );
                                                 }
@@ -481,14 +522,25 @@ const TopUpFellowshipForm: React.FC = () => {
                                                 const status = key ? monthlyStatus[key] : undefined;
                                                 const proposed = Number(row?.total_amount_per_month) || 0;
                                                 const existing = status?.total ?? 0;
-                                                const remaining = Math.max(0, MONTHLY_CAP - existing);
+                                                const cap = capForRow(row);
+                                                const remaining = Math.max(0, cap - existing);
                                                 const after = existing + proposed;
-                                                const over = after - MONTHLY_CAP;
-                                                const ok = after <= MONTHLY_CAP;
+                                                const over = after - cap;
+                                                const ok = after <= cap;
                                                 const fmt = (n: number) => `₹${n.toLocaleString('en-IN')}`;
                                                 return (
                                                     <tr key={idx} className="border-b border-dashed border-[#E4E4E7]/60 dark:border-[#3F3F46]/60 last:border-0">
                                                         <td className="py-2 pr-3 font-medium text-[#27272A] dark:text-[#F4F4F5]">{email}</td>
+                                                        <td className="py-2 pr-3">
+                                                            <span className={cn(
+                                                                'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider',
+                                                                isOnStipendOrScholarship(row)
+                                                                    ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:ring-amber-800/50'
+                                                                    : 'bg-zinc-100 text-zinc-500 ring-1 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700',
+                                                            )}>
+                                                                {row?.stipend_or_scholarship || 'No'}
+                                                            </span>
+                                                        </td>
                                                         <td className="py-2 pr-3">{status ? fmt(status.honorarium) : '—'}</td>
                                                         <td className="py-2 pr-3">{status ? fmt(status.top_up) : '—'}</td>
                                                         <td className="py-2 pr-3 font-semibold">{status ? fmt(existing) : '—'}</td>
@@ -514,7 +566,7 @@ const TopUpFellowshipForm: React.FC = () => {
                                     </table>
                                 </div>
                                 <p className="mt-3 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
-                                    Counts only <strong>Submitted</strong> Honorarium &amp; Top Up Fellowship rows whose period overlaps the month derived from each row's <em>Period From</em> (defaults to today if unset). Drafts are not included.
+                                    Counts only <strong>Submitted</strong> Honorarium &amp; Top Up Fellowship rows whose period overlaps the month derived from each row's <em>Period From</em> (defaults to today if unset). Drafts are not included. Mark <strong>Stipend / Scholarship</strong> for students already receiving one — their monthly cap drops to ₹{STIPEND_OR_SCHOLARSHIP_CAP.toLocaleString('en-IN')}.
                                 </p>
                             </div>
                         )}
