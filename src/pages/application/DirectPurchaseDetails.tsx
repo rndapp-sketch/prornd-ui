@@ -3197,7 +3197,7 @@ const DirectPurchaseDetails: React.FC = () => {
                                 Action Required — {dpActions.join(" / ")}
                             </p>
                             <p className="mt-0.5 text-[12px] font-medium leading-5 text-amber-700 dark:text-amber-400">
-                                Click the <span className="font-bold">"{dpActions[0]}"</span> button above to proceed to the next step.
+                                Click the <span className="font-bold">"{dpActions[0]}"</span> button above to {dpActions[0] === "Generate PO" ? "generate the Purchase Order." : "proceed to the next step."}
                             </p>
                         </div>
                     </div>
@@ -3452,7 +3452,6 @@ const DirectPurchaseDetails: React.FC = () => {
                                             </div>
                                         ) : poSanctionData &&
                                             (isStaffRnD ||
-                                                data?.workflow_state === "Sanction Approved" ||
                                                 data?.workflow_state === "POGenerated") ? (
                                             <POEditor
                                                 ssData={poSanctionData}

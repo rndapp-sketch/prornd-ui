@@ -1071,13 +1071,20 @@ const AddFundReceived: React.FC = () => {
         try {
             // ── Validate fund_received_amt vs breakup total ──
             if (!isFundAmtBreakupValid) {
-                const exceeded = totalBreakupAmt - fundReceivedAmt;
+                const diff = totalBreakupAmt - fundReceivedAmt;
+                const isOver = diff > 0;
+                const diffLine = isOver
+                    ? `Exceeded By: ₹${diff.toLocaleString("en-IN")}`
+                    : `Shortfall: ₹${Math.abs(diff).toLocaleString("en-IN")}`;
+                const hint = isOver
+                    ? `The total of all budget breakup entries must not exceed the Fund Received Amount.`
+                    : `The total of all budget breakup entries must equal the Fund Received Amount.`;
                 throw new Error(
                     `❌ TOTAL FUND VALIDATION FAILED\n\n` +
                     `Budget Breakup Total: ₹${totalBreakupAmt.toLocaleString("en-IN")}\n` +
                     `Fund Received Amount: ₹${fundReceivedAmt.toLocaleString("en-IN")}\n` +
-                    `Exceeded By: ₹${exceeded.toLocaleString("en-IN")}\n\n` +
-                    `The total of all budget breakup entries must not exceed the Fund Received Amount.`,
+                    `${diffLine}\n\n` +
+                    hint,
                 );
             }
 
