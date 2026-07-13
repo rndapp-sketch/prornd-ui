@@ -129,6 +129,7 @@ interface ActivityStreamHandle {
 interface ProjectDetailsProps {
     projectName?: string;
     embedded?: boolean;
+    hideActions?: boolean;
 }
 
 interface BudgetEntry {
@@ -2864,6 +2865,7 @@ const normalizeResponse = (raw: any): any[] => {
 const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
     projectName: propProjectName,
     embedded = false,
+    hideActions = false,
 }) => {
     const { projectName: paramProjectName } = useParams<{
         projectName: string;
@@ -3069,7 +3071,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
     const [isLedgerLoading, setIsLedgerLoading] = useState(false);
     const [ledgerError, setLedgerError] = useState<string | null>(null);
     const [ledgerSortOrder, setLedgerSortOrder] = useState<"newest" | "oldest">(
-        "newest",
+        "oldest",
     );
     const [ledgerPage, setLedgerPage] = useState(1);
     const [ledgerPageSize, setLedgerPageSize] = useState(10);
@@ -4052,6 +4054,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                             All application modules remain locked until the sanction is approved and funds are received.
                                         </p>
                                     </div>
+                                    {!hideActions && (
                                     <button
                                         onClick={handleAddSanctionDetails}
                                         className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
@@ -4059,6 +4062,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                         Add Sanction
                                         <ChevronRight className="w-3.5 h-3.5" />
                                     </button>
+                                    )}
                                 </div>
                             </div>
                         );
@@ -4092,6 +4096,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                             Record funds received to unlock all application modules.
                                         </p>
                                     </div>
+                                    {!hideActions && (
                                     <button
                                         onClick={handleAddFunds}
                                         className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors"
@@ -4099,6 +4104,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                         Add Fund Received
                                         <ChevronRight className="w-3.5 h-3.5" />
                                     </button>
+                                    )}
                                 </div>
                             </div>
                         );
@@ -4119,6 +4125,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                             Fund has been recorded. You can add further funds or proceed with project operations.
                                         </p>
                                     </div>
+                                    {!hideActions && (
                                     <button
                                         onClick={handleAddFunds}
                                         className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-violet-600 text-white text-xs font-semibold hover:bg-violet-700 transition-colors"
@@ -4126,6 +4133,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                         Add More Funds
                                         <ChevronRight className="w-3.5 h-3.5" />
                                     </button>
+                                    )}
                                 </div>
                             </div>
                         );

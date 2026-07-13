@@ -28,6 +28,7 @@ import {
     IndianRupee,
     Calendar,
     HelpCircle,
+    Search,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -280,6 +281,11 @@ export function AppSidebar() {
             label: "Salary Module",
             icon: IndianRupee,
             path: "/salary-module",
+        },
+        {
+            label: "Project Search",
+            icon: Search,
+            path: "/project-search",
         },
     ].filter((item) => {
         if (item.label === "Upload Director PDF") {

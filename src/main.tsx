@@ -101,6 +101,7 @@ import LeaveModule from './pages/LeaveModule.tsx';
 import LeaveModuleForm from './pages/LeaveModuleForm.tsx';
 import LeaveModuleDetails from './pages/LeaveModuleDetails.tsx';
 import FormApplication from './pages/FormApplication.tsx';
+import { ProjectSearch } from './pages/ProjectSearch.tsx';
 
 const router = createBrowserRouter(
     [
@@ -343,6 +344,10 @@ const router = createBrowserRouter(
                 {
                     path: "rnd-staff-dashboard",
                     element: (<AuthRouteWrapper allowedRole="staff, RnD"><RndStaffDashboard /></AuthRouteWrapper>),
+                },
+                {
+                    path: "project-search",
+                    element: (<AuthRouteWrapper allowedRole="staff, RnD"><ProjectSearch /></AuthRouteWrapper>),
                 },
                 {
                     path: "project-staff-dashboard",
