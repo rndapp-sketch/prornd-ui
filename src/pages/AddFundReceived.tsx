@@ -1,10 +1,10 @@
 // -=-=-=-=-=-=
 import React, { useState, useEffect, useCallback, memo } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { AppSidebar } from "../components/RndSidebar";
+
 import { useFrappePostCall, useFrappeGetCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, LightbulbIcon } from "lucide-react";
 import { AutocompleteEmail } from "../components/AutocompleteEmail";
 
 // --- TYPE DEFINITIONS ---
@@ -182,19 +182,19 @@ const MemoizedTransactionsTable = memo(
                                         )}
                                     </td>
                                     <td className="px-2 py-1.5 text-center">
-                                        <FrappeButton
+                                        <button
                                             onClick={() => onDeleteRow(i)}
-                                            className="!bg-red-200 hover:!bg-red-300 !py-1"
+                                            className="h-6 px-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wide text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors"
                                         >
                                             Delete
-                                        </FrappeButton>
+                                        </button>
                                     </td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
-                <FrappeButton
+                <button
                     onClick={() =>
                         onAddRow({
                             transaction_number: "",
@@ -203,10 +203,10 @@ const MemoizedTransactionsTable = memo(
                             attachment: null,
                         })
                     }
-                    className="bg-[#D97757] hover:bg-[#c5684a] text-white border-[#D97757] mt-3"
+                    className="mt-2.5 h-7 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wide text-white bg-[#D97757] border border-[#D97757] hover:bg-[#c5684a] transition-colors"
                 >
                     + Add Transaction
-                </FrappeButton>
+                </button>
             </div>
         );
     },
@@ -251,13 +251,12 @@ const ProgressBar = ({
             </div>
             <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2 overflow-hidden">
                 <div
-                    className={`h-2 rounded-full transition-all duration-300 ${
-                        isOverLimit
-                            ? "bg-red-600"
-                            : percentage > 90
-                              ? "bg-yellow-500"
-                              : "bg-green-500"
-                    }`}
+                    className={`h-2 rounded-full transition-all duration-300 ${isOverLimit
+                        ? "bg-red-600"
+                        : percentage > 90
+                            ? "bg-yellow-500"
+                            : "bg-green-500"
+                        }`}
                     style={{ width: `${percentage}%` }}
                 />
             </div>
@@ -283,11 +282,10 @@ const ValidationAlert = ({
 
     return (
         <div
-            className={`p-2.5 rounded-md border ${
-                isValid
-                    ? "bg-green-50 border-green-200 text-green-800"
-                    : "bg-red-50 border-red-300 text-red-800"
-            }`}
+            className={`p-2.5 rounded-md border ${isValid
+                ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900/40 text-green-800 dark:text-green-300"
+                : "bg-red-50 dark:bg-red-950/20 border-red-300 dark:border-red-900/40 text-red-800 dark:text-red-300"
+                }`}
         >
             <p className="text-xs font-medium">{message}</p>
         </div>
@@ -312,8 +310,8 @@ const MemoizedBudgetBreakupTable = memo(
                         Budget Breakup of Received Amount
                     </h3>
                     {hasEmptyAccountHead && (
-                        <span className="text-[11px] font-semibold text-red-600 dark:text-red-400">
-                            ⚠ All rows must have an Account Head selected before submitting.
+                        <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">
+                            ℹ All rows must have an Account Head selected before submitting.
                         </span>
                     )}
                 </div>
@@ -348,95 +346,95 @@ const MemoizedBudgetBreakupTable = memo(
                                     !row.amount_received ||
                                     parseFloat(row.amount_received) <= 0;
                                 return (
-                                <tr
-                                    key={row.id || i}
-                                    className={`divide-x divide-[#E4E4E7] dark:divide-[#3F3F46] hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] ${isDuplicate ? "bg-red-50 dark:bg-red-950/20" : ""}`}
-                                >
-                                    <td className="px-2 py-1.5">
-                                        <select
-                                            className={`${inputClasses} !h-8 ${isDuplicate ? "!border-red-400 !ring-red-300" : ""}`}
-                                            value={row.account_head || ""}
-                                            onChange={(e) =>
-                                                onRowChange(
-                                                    i,
-                                                    "account_head",
-                                                    e.target.value,
-                                                )
-                                            }
-                                        >
-                                            <option value="">
-                                                Select Account Head...
-                                            </option>
-                                            {options.map((opt: string) => {
-                                                const alreadyUsed =
-                                                    otherSelected.includes(opt);
-                                                return (
-                                                    <option
-                                                        key={opt}
-                                                        value={opt}
-                                                        disabled={alreadyUsed}
-                                                    >
-                                                        {alreadyUsed
-                                                            ? `${opt} (already added)`
-                                                            : opt}
-                                                    </option>
-                                                );
-                                            })}
-                                        </select>
-                                        {isDuplicate && (
-                                            <p className="text-[10px] text-red-500 mt-0.5 font-semibold">
-                                                Duplicate account head
-                                            </p>
-                                        )}
-                                    </td>
-                                    <td className="px-2 py-1.5">
-                                        <input
-                                            type="number"
-                                            className={`${inputClasses} !h-8 ${missingAmount && row.account_head ? "!border-red-400" : ""}`}
-                                            value={row.amount_received || ""}
-                                            onChange={(e) =>
-                                                onRowChange(
-                                                    i,
-                                                    "amount_received",
-                                                    e.target.value,
-                                                )
-                                            }
-                                            onWheel={(e) =>
-                                                e.currentTarget.blur()
-                                            }
-                                            placeholder="0.00"
-                                        />
-                                    </td>
-                                    <td className="px-2 py-1.5">
-                                        <input
-                                            type="text"
-                                            className={`${inputClasses} !h-8`}
-                                            value={row.remarks || ""}
-                                            onChange={(e) =>
-                                                onRowChange(
-                                                    i,
-                                                    "remarks",
-                                                    e.target.value,
-                                                )
-                                            }
-                                            placeholder="Remarks"
-                                        />
-                                    </td>
-                                    <td className="px-2 py-1.5 text-center">
-                                        <FrappeButton
-                                            onClick={() => onDeleteRow(i)}
-                                            className="!bg-red-200 hover:!bg-red-300 !py-1"
-                                        >
-                                            Delete
-                                        </FrappeButton>
-                                    </td>
-                                </tr>
+                                    <tr
+                                        key={row.id || i}
+                                        className={`divide-x divide-[#E4E4E7] dark:divide-[#3F3F46] hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] ${isDuplicate ? "bg-red-50 dark:bg-red-950/20" : ""}`}
+                                    >
+                                        <td className="px-2 py-1.5">
+                                            <select
+                                                className={`${inputClasses} !h-8 ${isDuplicate ? "!border-red-400 !ring-red-300" : ""}`}
+                                                value={row.account_head || ""}
+                                                onChange={(e) =>
+                                                    onRowChange(
+                                                        i,
+                                                        "account_head",
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            >
+                                                <option value="">
+                                                    Select Account Head...
+                                                </option>
+                                                {options.map((opt: string) => {
+                                                    const alreadyUsed =
+                                                        otherSelected.includes(opt);
+                                                    return (
+                                                        <option
+                                                            key={opt}
+                                                            value={opt}
+                                                            disabled={alreadyUsed}
+                                                        >
+                                                            {alreadyUsed
+                                                                ? `${opt} (already added)`
+                                                                : opt}
+                                                        </option>
+                                                    );
+                                                })}
+                                            </select>
+                                            {isDuplicate && (
+                                                <p className="text-[10px] text-red-500 mt-0.5 font-semibold">
+                                                    Duplicate account head
+                                                </p>
+                                            )}
+                                        </td>
+                                        <td className="px-2 py-1.5">
+                                            <input
+                                                type="number"
+                                                className={`${inputClasses} !h-8 ${missingAmount && row.account_head ? "!border-red-400" : ""}`}
+                                                value={row.amount_received || ""}
+                                                onChange={(e) =>
+                                                    onRowChange(
+                                                        i,
+                                                        "amount_received",
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                onWheel={(e) =>
+                                                    e.currentTarget.blur()
+                                                }
+                                                placeholder="0.00"
+                                            />
+                                        </td>
+                                        <td className="px-2 py-1.5">
+                                            <input
+                                                type="text"
+                                                className={`${inputClasses} !h-8`}
+                                                value={row.remarks || ""}
+                                                onChange={(e) =>
+                                                    onRowChange(
+                                                        i,
+                                                        "remarks",
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                placeholder="Remarks"
+                                            />
+                                        </td>
+                                        <td className="px-2 py-1.5 text-center">
+                                            <button
+                                                onClick={() => onDeleteRow(i)}
+                                                className="h-6 px-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wide text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors"
+                                            >
+                                                Delete
+                                            </button>
+                                        </td>
+                                    </tr>
                                 );
                             })}
                         </tbody>
                     </table>
                 </div>
-                <FrappeButton
+                <button
                     onClick={() =>
                         onAddRow({
                             account_head: "",
@@ -444,10 +442,10 @@ const MemoizedBudgetBreakupTable = memo(
                             remarks: "",
                         })
                     }
-                    className="bg-[#D97757] hover:bg-[#c5684a] text-white border-[#D97757] mt-3"
+                    className="mt-2.5 h-7 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wide text-white bg-[#D97757] border border-[#D97757] hover:bg-[#c5684a] transition-colors"
                 >
                     + Add Budget Item
-                </FrappeButton>
+                </button>
             </div>
         );
     },
@@ -475,6 +473,80 @@ interface ValidationState {
         }
     >;
 }
+
+const HelpFloating: React.FC = () => {
+    const [open, setOpen] = useState(false);
+    return (
+        <>
+            <button
+                onClick={() => setOpen((v) => !v)}
+                className="fixed bottom-6 right-6 z-50 h-9 px-4 rounded-full bg-[#4A6CF7] text-white shadow-lg hover:bg-[#3b5ce4] transition-colors flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide"
+                title="Help"
+            >
+                <LightbulbIcon className="h-4 w-4" />
+                How to fill
+            </button>
+            {open && (
+                <div className="fixed bottom-20 right-6 z-50 w-80 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-xl overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20">
+                        <span className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200">How to Add Fund Received</span>
+                        <button onClick={() => setOpen(false)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 text-lg leading-none">×</button>
+                    </div>
+                    <div className="p-4 space-y-4 max-h-96 overflow-y-auto text-[12px] text-zinc-700 dark:text-zinc-300">
+                        <div className="space-y-2">
+                            <p className="font-bold text-[#1E3A8A] dark:text-blue-300 uppercase tracking-wide text-[10px]">Steps</p>
+                            <ol className="space-y-2 list-none">
+                                {[
+                                    ["1", "Fill in the Fund Received Amount* and Date."],
+                                    ["2", "Enter the Bank Account Number / Scheme — Name / Number where the funds were received."],
+                                    ["3", "Add one or more Transaction Details (transaction number, date, amount, and optional attachment)."],
+                                    ["4", "Enter the Budget Breakup — distribute the received amount across account heads."],
+                                    ["5", "Make sure the breakup total exactly equals the Fund Received Amount before submitting."],
+                                ].map(([num, text]) => (
+                                    <li key={num} className="flex gap-2.5 items-start">
+                                        <span className="shrink-0 h-5 w-5 rounded-full bg-[#4A6CF7] text-white text-[10px] font-bold flex items-center justify-center mt-0.5">{num}</span>
+                                        <span>{text}</span>
+                                    </li>
+                                ))}
+                            </ol>
+                        </div>
+                        <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-3 space-y-2">
+                            <p className="font-bold text-[#1E3A8A] dark:text-blue-300 uppercase tracking-wide text-[10px]">Validation Rules</p>
+                            <ul className="space-y-1.5">
+                                {[
+                                    "Budget breakup total must exactly match the Fund Received Amount.",
+                                    "Total funds received (including previous entries) cannot exceed the sanctioned amount.",
+                                    "Each budget head amount cannot exceed its sanctioned limit.",
+                                    "Duplicate account heads in the breakup are not allowed.",
+                                ].map((rule, i) => (
+                                    <li key={i} className="flex gap-2 items-start">
+                                        <span className="shrink-0 text-[#4A6CF7] font-bold mt-0.5">·</span>
+                                        <span>{rule}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                        <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-3 space-y-1.5">
+                            <p className="font-bold text-[#1E3A8A] dark:text-blue-300 uppercase tracking-wide text-[10px]">Tips</p>
+                            <ul className="space-y-1.5">
+                                {[
+                                    "Use the Sanction Details panel on the right to see year-wise budget breakup.",
+                                    "The real-time validation panel updates as you type — check it before submitting.",
+                                    "You can attach transaction receipts or bank slips for each transaction row.",
+                                ].map((tip, i) => (
+                                    <li key={i} className="flex gap-2 items-start">
+                                        <span className="shrink-0 text-[#D97757] font-bold mt-0.5">·</span>
+                                        <span>{tip}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+};
 
 const AddFundReceived: React.FC = () => {
     const navigate = useNavigate();
@@ -515,12 +587,12 @@ const AddFundReceived: React.FC = () => {
     const fundReceivedAmt = formData.fund_received_amt
         ? parseFloat(formData.fund_received_amt)
         : NaN;
-    const fundReceivedAmtError: string | null = (() => {
+    const fundReceivedAmtError: { type: "over" | "under"; remaining: number } | null = (() => {
         if (isNaN(fundReceivedAmt) || fundReceivedAmt === 0) return null;
         if (totalBreakupAmt > fundReceivedAmt)
-            return `⚠️ Budget breakup total (₹${totalBreakupAmt.toLocaleString("en-IN")}) exceeds Fund Received Amount (₹${fundReceivedAmt.toLocaleString("en-IN")}) by ₹${(totalBreakupAmt - fundReceivedAmt).toLocaleString("en-IN")}.`;
+            return { type: "over", remaining: totalBreakupAmt - fundReceivedAmt };
         if (totalBreakupAmt < fundReceivedAmt)
-            return `⚠️ Budget breakup total (₹${totalBreakupAmt.toLocaleString("en-IN")}) must equal Fund Received Amount (₹${fundReceivedAmt.toLocaleString("en-IN")}). Remaining: ₹${(fundReceivedAmt - totalBreakupAmt).toLocaleString("en-IN")}.`;
+            return { type: "under", remaining: fundReceivedAmt - totalBreakupAmt };
         return null;
     })();
     // Both amounts must be non-zero and exactly equal before submit is allowed.
@@ -723,8 +795,8 @@ const AddFundReceived: React.FC = () => {
     const performValidation = useCallback(() => {
         const selectedSanction = formData.sanction_ref_no
             ? sanctionData?.message?.find(
-                  (s: any) => s.name === formData.sanction_ref_no,
-              )
+                (s: any) => s.name === formData.sanction_ref_no,
+            )
             : sanctionData?.message?.[0];
 
         if (!selectedSanction) {
@@ -752,10 +824,10 @@ const AddFundReceived: React.FC = () => {
             [];
         const relevantFunds = Array.isArray(rawFunds)
             ? rawFunds.filter(
-                  (f: any) =>
-                      f.sanction_ref_no === selectedSanction.name &&
-                      f.name !== editDocName,
-              ) // Exclude current doc if editing
+                (f: any) =>
+                    f.sanction_ref_no === selectedSanction.name &&
+                    f.name !== editDocName,
+            ) // Exclude current doc if editing
             : [];
 
         relevantFunds.forEach((fund: any) => {
@@ -832,10 +904,10 @@ const AddFundReceived: React.FC = () => {
                 totalSanctioned === 0
                     ? "⚠️ No sanctioned amount found"
                     : newTotalReceived > totalSanctioned
-                      ? `⚠️ EXCEEDS sanctioned amount by ₹${(newTotalReceived - totalSanctioned).toLocaleString()}`
-                      : remainingTotal > 0
-                        ? `✓ ₹${remainingTotal.toLocaleString()} remaining`
-                        : "✓ Full amount utilized",
+                        ? `⚠️ EXCEEDS sanctioned amount by ₹${(newTotalReceived - totalSanctioned).toLocaleString()}`
+                        : remainingTotal > 0
+                            ? `✓ ₹${remainingTotal.toLocaleString()} remaining`
+                            : "✓ Full amount utilized",
             currentTotal,
             previousTotal: prevTotal,
             sanctionedTotal: totalSanctioned,
@@ -860,8 +932,8 @@ const AddFundReceived: React.FC = () => {
                     totalForHead > limit
                         ? `⚠️ EXCEEDS by ₹${(totalForHead - limit).toLocaleString()}`
                         : remaining > 0
-                          ? `✓ ₹${remaining.toLocaleString()} remaining`
-                          : "✓ Fully utilized",
+                            ? `✓ ₹${remaining.toLocaleString()} remaining`
+                            : "✓ Fully utilized",
                 currentTotal: currentAmt,
                 previousTotal: prevAmt,
                 sanctionedLimit: limit,
@@ -1002,10 +1074,10 @@ const AddFundReceived: React.FC = () => {
                 const exceeded = totalBreakupAmt - fundReceivedAmt;
                 throw new Error(
                     `❌ TOTAL FUND VALIDATION FAILED\n\n` +
-                        `Budget Breakup Total: ₹${totalBreakupAmt.toLocaleString("en-IN")}\n` +
-                        `Fund Received Amount: ₹${fundReceivedAmt.toLocaleString("en-IN")}\n` +
-                        `Exceeded By: ₹${exceeded.toLocaleString("en-IN")}\n\n` +
-                        `The total of all budget breakup entries must not exceed the Fund Received Amount.`,
+                    `Budget Breakup Total: ₹${totalBreakupAmt.toLocaleString("en-IN")}\n` +
+                    `Fund Received Amount: ₹${fundReceivedAmt.toLocaleString("en-IN")}\n` +
+                    `Exceeded By: ₹${exceeded.toLocaleString("en-IN")}\n\n` +
+                    `The total of all budget breakup entries must not exceed the Fund Received Amount.`,
                 );
             }
 
@@ -1016,13 +1088,13 @@ const AddFundReceived: React.FC = () => {
                 const exceeded = currentTotal + previousTotal - sanctionedTotal;
                 throw new Error(
                     `❌ TOTAL FUND VALIDATION FAILED\n\n` +
-                        `Total Fund Received: ₹${(currentTotal + previousTotal).toLocaleString()}\n` +
-                        `Sanctioned Amount: ₹${sanctionedTotal.toLocaleString()}\n` +
-                        `Exceeded By: ₹${exceeded.toLocaleString()}\n\n` +
-                        `Breakdown:\n` +
-                        `- Previously Received: ₹${previousTotal.toLocaleString()}\n` +
-                        `- Current Entry: ₹${currentTotal.toLocaleString()}\n\n` +
-                        `Please reduce the current fund amount to stay within sanctioned limits.`,
+                    `Total Fund Received: ₹${(currentTotal + previousTotal).toLocaleString()}\n` +
+                    `Sanctioned Amount: ₹${sanctionedTotal.toLocaleString()}\n` +
+                    `Exceeded By: ₹${exceeded.toLocaleString()}\n\n` +
+                    `Breakdown:\n` +
+                    `- Previously Received: ₹${previousTotal.toLocaleString()}\n` +
+                    `- Current Entry: ₹${currentTotal.toLocaleString()}\n\n` +
+                    `Please reduce the current fund amount to stay within sanctioned limits.`,
                 );
             }
 
@@ -1049,9 +1121,9 @@ const AddFundReceived: React.FC = () => {
 
                 const proceed = window.confirm(
                     `⚠️ WARNING: Budget Head Limit Exceeded\n\n` +
-                        `${invalidHeads.length} budget head(s) exceed their sanctioned limits:` +
-                        warningDetails +
-                        `\n\nThe overall total is within the sanctioned amount. Do you want to proceed anyway?`,
+                    `${invalidHeads.length} budget head(s) exceed their sanctioned limits:` +
+                    warningDetails +
+                    `\n\nThe overall total is within the sanctioned amount. Do you want to proceed anyway?`,
                 );
                 if (!proceed) {
                     throw new Error("CANCELLED");
@@ -1061,8 +1133,8 @@ const AddFundReceived: React.FC = () => {
             // Get selected sanction for final validation
             const selectedSanction = formData.sanction_ref_no
                 ? sanctionData?.message?.find(
-                      (s: any) => s.name === formData.sanction_ref_no,
-                  )
+                    (s: any) => s.name === formData.sanction_ref_no,
+                )
                 : sanctionData?.message?.[0];
 
             if (!selectedSanction) {
@@ -1379,8 +1451,10 @@ const AddFundReceived: React.FC = () => {
                 )}
                 {/* Real-time validation: breakup total vs fund_received_amt */}
                 {isFundReceivedAmtField && fundReceivedAmtError && (
-                    <p className="text-xs font-semibold mt-1 text-red-600">
-                        {fundReceivedAmtError}
+                    <p className="text-xs font-medium mt-1 text-blue-600 dark:text-blue-400">
+                        {fundReceivedAmtError.type === "under"
+                            ? `₹${fundReceivedAmtError.remaining.toLocaleString("en-IN")} still unallocated — add it to the budget breakup below.`
+                            : `Budget breakup exceeds the received amount by ₹${fundReceivedAmtError.remaining.toLocaleString("en-IN")} — reduce one of the entries.`}
                     </p>
                 )}
                 {isFundReceivedAmtField &&
@@ -1441,21 +1515,21 @@ const AddFundReceived: React.FC = () => {
     // Keeping it here for UI display.
     const selectedSanction = formData.sanction_ref_no
         ? sanctionData?.message?.find(
-              (s: any) => s.name === formData.sanction_ref_no,
-          )
+            (s: any) => s.name === formData.sanction_ref_no,
+        )
         : sanctionData?.message?.[0];
 
     // Derive allowed account heads from the selected sanction's budget breakup
     const sanctionedAccountHeads: string[] =
         selectedSanction?.sanctioned_budget_breakup
             ? selectedSanction.sanctioned_budget_breakup
-                  .map((row: any) => row.account_head)
-                  .filter(Boolean)
+                .map((row: any) => row.account_head)
+                .filter(Boolean)
             : [];
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
-            <AppSidebar />
+
             <main className="flex-1 px-6 md:px-8 pt-7 pb-10">
                 <header className="mb-6 overflow-hidden bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm">
                     <div className="h-1.5 bg-[linear-gradient(to_right,#4A6CF7,#2563EB,#D97757)]" />
@@ -1496,7 +1570,7 @@ const AddFundReceived: React.FC = () => {
                                         title={section.title}
                                     >
                                         {section.title ===
-                                        "Transaction & Budget Breakups" ? (
+                                            "Transaction & Budget Breakups" ? (
                                             <div className="space-y-6">
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
                                                     {section.fields
@@ -1510,7 +1584,7 @@ const AddFundReceived: React.FC = () => {
                                                         )
                                                         .map((field) =>
                                                             field.fieldname ===
-                                                            "invoice_no" ? (
+                                                                "invoice_no" ? (
                                                                 <div
                                                                     key={
                                                                         field.fieldname
@@ -1770,8 +1844,8 @@ const AddFundReceived: React.FC = () => {
                                                                                         ) => {
                                                                                             const val =
                                                                                                 row[
-                                                                                                    year
-                                                                                                        .key
+                                                                                                year
+                                                                                                    .key
                                                                                                 ] ||
                                                                                                 0;
                                                                                             return (
@@ -1782,14 +1856,14 @@ const AddFundReceived: React.FC = () => {
                                                                                                     className="py-1.5 text-right text-zinc-600 dark:text-zinc-400"
                                                                                                 >
                                                                                                     {val >
-                                                                                                    0
+                                                                                                        0
                                                                                                         ? (
-                                                                                                              val /
-                                                                                                              1000
-                                                                                                          ).toFixed(
-                                                                                                              0,
-                                                                                                          ) +
-                                                                                                          "k"
+                                                                                                            val /
+                                                                                                            1000
+                                                                                                        ).toFixed(
+                                                                                                            0,
+                                                                                                        ) +
+                                                                                                        "k"
                                                                                                         : "-"}
                                                                                                 </td>
                                                                                             );
@@ -1840,14 +1914,14 @@ const AddFundReceived: React.FC = () => {
                                                                                         className="py-1.5 text-right font-semibold text-zinc-700 dark:text-zinc-300"
                                                                                     >
                                                                                         {yearTotal >
-                                                                                        0
+                                                                                            0
                                                                                             ? (
-                                                                                                  yearTotal /
-                                                                                                  1000
-                                                                                              ).toFixed(
-                                                                                                  0,
-                                                                                              ) +
-                                                                                              "k"
+                                                                                                yearTotal /
+                                                                                                1000
+                                                                                            ).toFixed(
+                                                                                                0,
+                                                                                            ) +
+                                                                                            "k"
                                                                                             : "-"}
                                                                                     </td>
                                                                                 );
@@ -1940,15 +2014,14 @@ const AddFundReceived: React.FC = () => {
                                                         Breakup Total
                                                     </p>
                                                     <p
-                                                        className={`text-xs font-bold ${
-                                                            totalBreakupAmt >
+                                                        className={`text-xs font-bold ${totalBreakupAmt >
                                                             fundReceivedAmt
-                                                                ? "text-red-600"
-                                                                : totalBreakupAmt ===
-                                                                    fundReceivedAmt
-                                                                  ? "text-green-600"
-                                                                  : "text-blue-600"
-                                                        }`}
+                                                            ? "text-red-600"
+                                                            : totalBreakupAmt ===
+                                                                fundReceivedAmt
+                                                                ? "text-green-600"
+                                                                : "text-blue-600"
+                                                            }`}
                                                     >
                                                         ₹
                                                         {totalBreakupAmt.toLocaleString(
@@ -1958,8 +2031,10 @@ const AddFundReceived: React.FC = () => {
                                                 </div>
                                             </div>
                                             {fundReceivedAmtError ? (
-                                                <p className="text-[11px] font-semibold mt-1 text-red-600">
-                                                    {fundReceivedAmtError}
+                                                <p className="text-[11px] font-medium mt-1 text-blue-600 dark:text-blue-400">
+                                                    {fundReceivedAmtError.type === "under"
+                                                        ? `₹${fundReceivedAmtError.remaining.toLocaleString("en-IN")} still unallocated`
+                                                        : `Exceeds by ₹${fundReceivedAmtError.remaining.toLocaleString("en-IN")}`}
                                                 </p>
                                             ) : (
                                                 <p className="text-[11px] font-semibold text-green-600 mt-1">
@@ -2024,83 +2099,89 @@ const AddFundReceived: React.FC = () => {
                                 {/* Budget Head-wise Validation */}
                                 {Object.keys(validationState.headValidations)
                                     .length > 0 && (
-                                    <div className="pt-4 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-                                        <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">
-                                            Budget Head Status
-                                        </p>
-                                        <div className="space-y-2.5 max-h-80 overflow-y-auto">
-                                            {Object.entries(
-                                                validationState.headValidations,
-                                            ).map(([head, validation]) => (
-                                                <div
-                                                    key={head}
-                                                    className="space-y-2 p-2.5 bg-zinc-50 dark:bg-zinc-800/50 rounded-md"
-                                                >
-                                                    <p className="font-semibold text-xs text-zinc-800 dark:text-zinc-200">
-                                                        {head}
-                                                    </p>
-                                                    <ProgressBar
-                                                        current={
-                                                            validation.previousTotal +
-                                                            validation.currentTotal
-                                                        }
-                                                        total={
-                                                            validation.sanctionedLimit
-                                                        }
-                                                        label=""
-                                                        showWarning={false}
-                                                    />
-                                                    <div className="flex justify-between text-[11px]">
-                                                        <span
-                                                            className={
-                                                                validation.isValid
-                                                                    ? "text-green-600"
-                                                                    : "text-red-600"
+                                        <div className="pt-4 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">
+                                                Budget Head Status
+                                            </p>
+                                            <div className="space-y-2.5 max-h-80 overflow-y-auto">
+                                                {Object.entries(
+                                                    validationState.headValidations,
+                                                ).map(([head, validation]) => (
+                                                    <div
+                                                        key={head}
+                                                        className="space-y-2 p-2.5 bg-zinc-50 dark:bg-zinc-800/50 rounded-md"
+                                                    >
+                                                        <p className="font-semibold text-xs text-zinc-800 dark:text-zinc-200">
+                                                            {head}
+                                                        </p>
+                                                        <ProgressBar
+                                                            current={
+                                                                validation.previousTotal +
+                                                                validation.currentTotal
                                                             }
-                                                        >
-                                                            {validation.message}
-                                                        </span>
-                                                        <span className="text-zinc-600 dark:text-zinc-400">
-                                                            Prev: ₹
-                                                            {validation.previousTotal.toLocaleString()}{" "}
-                                                            | Curr: ₹
-                                                            {validation.currentTotal.toLocaleString()}
-                                                        </span>
+                                                            total={
+                                                                validation.sanctionedLimit
+                                                            }
+                                                            label=""
+                                                            showWarning={false}
+                                                        />
+                                                        <div className="flex justify-between text-[11px]">
+                                                            <span
+                                                                className={
+                                                                    validation.isValid
+                                                                        ? "text-green-600"
+                                                                        : "text-red-600"
+                                                                }
+                                                            >
+                                                                {validation.message}
+                                                            </span>
+                                                            <span className="text-zinc-600 dark:text-zinc-400">
+                                                                Prev: ₹
+                                                                {validation.previousTotal.toLocaleString()}{" "}
+                                                                | Curr: ₹
+                                                                {validation.currentTotal.toLocaleString()}
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            ))}
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
 
                                 {/* Overall Status Badge */}
                                 <div className="mt-4 pt-4 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
                                     {validationState.totalValidation.isValid &&
-                                    isFundAmtBreakupValid &&
-                                    Object.values(
-                                        validationState.headValidations,
-                                    ).every((v) => v.isValid) ? (
-                                        <div className="bg-green-50 border border-green-200 rounded-md p-2.5 text-center">
-                                            <p className="text-green-800 text-sm font-semibold">
+                                        isFundAmtBreakupValid &&
+                                        Object.values(
+                                            validationState.headValidations,
+                                        ).every((v) => v.isValid) ? (
+                                        <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900/40 rounded-md p-2.5 text-center">
+                                            <p className="text-green-800 dark:text-green-300 text-sm font-semibold">
                                                 ✓ Ready to Submit
                                             </p>
-                                            <p className="text-[11px] text-green-600 mt-1">
+                                            <p className="text-[11px] text-green-600 dark:text-green-400 mt-1">
                                                 All validations passed
                                             </p>
                                         </div>
-                                    ) : (
-                                        <div className="bg-red-50 border border-red-200 rounded-md p-2.5 text-center">
-                                            <p className="text-red-800 text-sm font-semibold">
-                                                ⚠️ Cannot Submit
+                                    ) : isNaN(fundReceivedAmt) || fundReceivedAmt === 0 ? (
+                                        <div className="bg-zinc-50 border border-zinc-200 dark:bg-zinc-800/30 dark:border-zinc-700 rounded-md p-2.5 text-center">
+                                            <p className="text-zinc-500 dark:text-zinc-400 text-[11px]">
+                                                Fill in the fund details above to validate
                                             </p>
-                                            <p className="text-[11px] text-red-600 mt-1">
+                                        </div>
+                                    ) : (
+                                        <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 rounded-md p-2.5 text-center">
+                                            <p className="text-blue-800 dark:text-blue-300 text-sm font-semibold">
+                                                ℹ Cannot Submit
+                                            </p>
+                                            <p className="text-[11px] text-blue-600 dark:text-blue-400 mt-1">
                                                 {!isFundAmtBreakupValid
-                                                    ? "Fund Received Amount does not match budget breakup total"
+                                                    ? "Budget breakup total must equal the Fund Received Amount"
                                                     : !validationState.totalValidation.isValid
-                                                    ? "Total funds exceed sanctioned amount or budget validation failed"
-                                                    : Object.values(validationState.headValidations).some((v) => !v.isValid)
-                                                    ? "Some budget heads exceed their sanctioned limits"
-                                                    : "Please fix validation errors above"
+                                                        ? "Total funds exceed sanctioned amount"
+                                                        : Object.values(validationState.headValidations).some((v) => !v.isValid)
+                                                            ? "Some budget heads exceed their sanctioned limits"
+                                                            : "Please fix validation errors above"
                                                 }
                                             </p>
                                         </div>
@@ -2111,6 +2192,9 @@ const AddFundReceived: React.FC = () => {
                     </div>
                 </div>
             </main>
+
+            {/* Floating Help Button */}
+            <HelpFloating />
         </div>
     );
 };
