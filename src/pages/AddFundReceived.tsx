@@ -497,7 +497,7 @@ const HelpFloating: React.FC = () => {
                             <p className="font-bold text-[#1E3A8A] dark:text-blue-300 uppercase tracking-wide text-[10px]">Steps</p>
                             <ol className="space-y-2 list-none">
                                 {[
-                                    ["1", "Fill in the Fund Received Amount* and Date."],
+                                    ["1", "Fill in the Fund Received Amount."],
                                     ["2", "Enter the Bank Account Number / Scheme — Name / Number where the funds were received."],
                                     ["3", "Add one or more Transaction Details (transaction number, date, amount, and optional attachment)."],
                                     ["4", "Enter the Budget Breakup — distribute the received amount across account heads."],
