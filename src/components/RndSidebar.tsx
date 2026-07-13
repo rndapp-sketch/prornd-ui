@@ -297,6 +297,9 @@ export function AppSidebar() {
         if (item.label === "Salary Module") {
             return roles?.includes("staff, RnD") ?? false;
         }
+        if (item.label === "Project Search") {
+            return roles?.includes("staff, RnD") ?? false;
+        }
         if (item.label === "Universal Forms") {
             // Visible only to staff, RnD
             const allowedRoles = ["staff, RnD"];
