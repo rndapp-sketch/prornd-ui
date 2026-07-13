@@ -543,6 +543,31 @@ const PendingTask: React.FC = () => {
         }),
         [allTasks, resolvedProjectTypes]);
 
+    // Phase-3: fetch director_signed_pdf for IGF rows at Pending Director Approval
+    const [igfPdfStatus, setIgfPdfStatus] = React.useState<Map<string, boolean>>(new Map());
+    React.useEffect(() => {
+        const targets = allTasks.filter(
+            t => t.doctype === "Indent General Form" && t.status === "Pending Director Approval",
+        );
+        if (!targets.length) return;
+        const ids = targets.map(t => t.id);
+        const params = new URLSearchParams({
+            fields: JSON.stringify(["name", "director_signed_pdf"]),
+            filters: JSON.stringify([["name", "in", ids.join(",")]]),
+            limit: String(ids.length),
+        });
+        fetch(`/api/resource/Indent%20General%20Form?${params}`, { credentials: "include" })
+            .then(r => r.json())
+            .then(result => {
+                const map = new Map<string, boolean>();
+                (result?.data ?? result?.message ?? []).forEach((rec: any) => {
+                    map.set(rec.name, !!rec.director_signed_pdf);
+                });
+                setIgfPdfStatus(map);
+            })
+            .catch(() => {});
+    }, [allTasks]);
+
     const visibleTasks = React.useMemo(() =>
         resolvedTasks.filter(task => !(task.project_type === 'Others' && HIDDEN_OTHERS_DOCTYPES.has(task.doctype))),
         [resolvedTasks]);
@@ -852,6 +877,14 @@ const PendingTask: React.FC = () => {
                                                 <span className={getStatusBadge(task.status)}>
                                                     {task.status}
                                                 </span>
+                                                {task.doctype === "Indent General Form" &&
+                                                    task.status === "Pending Director Approval" &&
+                                                    igfPdfStatus.get(task.id) && (
+                                                    <span className="mt-1.5 flex items-center gap-1 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
+                                                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                        PDF Uploaded
+                                                    </span>
+                                                )}
                                             </td>
                                             <td className="p-3 align-middle text-zinc-600 dark:text-zinc-400 font-medium">
                                                 {task.doctype}
