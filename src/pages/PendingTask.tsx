@@ -872,7 +872,7 @@ const PendingTask: React.FC = () => {
                                                     igfPdfStatus.get(task.id) && (
                                                     <span className="mt-1.5 flex items-center gap-1 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
                                                         <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                                        PDF Uploaded
+                                                        Director Approval Uploaded
                                                     </span>
                                                 )}
                                             </td>
