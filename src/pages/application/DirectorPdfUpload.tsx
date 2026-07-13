@@ -114,6 +114,10 @@ const DirectorPdfUpload = () => {
             ...d,
             _doctype: "Indent Cum Sanction Sheet" as const,
             _attachApi: icssAPI.attachDirectorPdf,
+            project_number: d.project_no || d.project_code || d.project_number,
+            project_name: d.project_title || d.funding_agency || d.project_name,
+            principal_investigator: d.icss_applicant_name || d.applicant_name || d.principal_investigator,
+            upfa_department: d.icss_applicant_department__centre__section || d.department || d.upfa_department,
         })),
         ...(scrData?.message?.data ?? []).map((d: any) => ({
             ...d,
