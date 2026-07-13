@@ -710,6 +710,29 @@ const IndentGeneralFormDetails: React.FC = () => {
                     </div>
                 )}
 
+                {isDeanRnD && isAtDirectorApproval && directorSignedPdf && (
+                    <div className="mt-4 flex items-center gap-4 rounded-xl border border-blue-300 bg-blue-50 px-5 py-4 shadow-sm dark:border-blue-700 dark:bg-blue-900/20">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/50">
+                            <FileTextIcon className="h-4.5 w-4.5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-[13px] font-extrabold text-blue-800 dark:text-blue-200">
+                                Director-Signed PDF has been uploaded
+                            </p>
+                            <p className="mt-0.5 text-[11.5px] text-blue-600 dark:text-blue-400 leading-relaxed">
+                                The signed document is ready. Review it and proceed with your final approval from the Actions menu.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => window.open(directorSignedPdf, "_blank", "noopener,noreferrer")}
+                            className="shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm"
+                        >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            View PDF
+                        </button>
+                    </div>
+                )}
+
                 {workflowState === "Approved" && directorSignedPdf && (
                     <div className="mt-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-800 dark:bg-emerald-900/20">
                         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
