@@ -38,6 +38,7 @@ import { AdoRndDashboard } from './pages/dashboards/AdoRndDashboard.tsx';
 import { StudentDashboard } from './pages/dashboards/StudentDashboard.tsx';
 import Reimbursement from './pages/reimbursement/Reimbursement.tsx';
 import PendingTask from './pages/PendingTask.tsx';
+import PendingApplication from './pages/PendingApplication.tsx';
 import PendingTaskDetails from './pages/PendingTaskDetails.tsx';
 import DynamicFormPage from './pages/DynamicFormPage.tsx'; // Import DynamicFormPage
 import FundReceivedDetails from './pages/FundReceivedDetails.tsx';
@@ -414,6 +415,22 @@ const router = createBrowserRouter(
                             'Permanent Employee'
                         ]}>
                             <PendingTask />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "pending-application",
+                    element: (
+                        <AuthRouteWrapper allowedRole={[
+                            'Director',
+                            'Dean, RnD',
+                            'Ado_RnD',
+                            'head_approver_1',
+                            'Hos, RnD (Head of Section, RnD)',
+                            'staff, RnD',
+                            'Permanent Employee'
+                        ]}>
+                            <PendingApplication />
                         </AuthRouteWrapper>
                     ),
                 },

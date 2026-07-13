@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useFrappeAuth, useFrappeGetCall, useFrappePostCall } from 'frappe-react-sdk';
 import { AlertCircle, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -85,6 +85,8 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
 
 const LeaveModuleForm = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const editDocName = searchParams.get('edit') || null;
     const { currentUser } = useFrappeAuth();
 
     // --- LEAVE BALANCE GUARD ---
@@ -150,12 +152,14 @@ const LeaveModuleForm = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [dataLoaded, setDataLoaded] = useState(false);
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
-    const [savedDocName, setSavedDocName] = useState<string | null>(null);
+    const [savedDocName, setSavedDocName] = useState<string | null>(editDocName);
 
     // --- API HOOKS ---
     // Each useFrappePostCall gives us a `call` function and result/error tracking
     const { call: fetchFormData, result: formDataResult, error: formDataError } =
         useFrappePostCall<FormDataResponse>(leaveModuleAPI.getFields);
+    const { call: fetchDocument } =
+        useFrappePostCall<{ message: Record<string, any> }>('frappe.client.get');
     const { call: saveForm } =
         useFrappePostCall(leaveModuleAPI.save);
     const { call: submitForm } =
@@ -171,30 +175,48 @@ const LeaveModuleForm = () => {
 
     // --- PROCESS API RESPONSE ---
     useEffect(() => {
-        if (formDataResult?.message && !dataLoaded) {
-            const { fields: apiFields, prefill_data, link_options } = formDataResult.message;
-
-            setFields(apiFields || []);
-            setLinkOptions(link_options || {});
-
-            // Set initial form data from prefill + defaults
-            const initialData = { ...prefill_data };
-            (apiFields || []).forEach((field: FormField) => {
-                if (initialData[field.fieldname] === undefined && field.default !== undefined) {
-                    initialData[field.fieldname] = field.default;
-                }
-            });
-
-            setFormData(initialData);
-            setDataLoaded(true);
-            setLoading(false);
+        if (!formDataResult?.message || dataLoaded) {
+            if (formDataError) {
+                console.error("Failed to load form data:", formDataError);
+                alert("Error: Could not load the Leave form.");
+                setLoading(false);
+            }
+            return;
         }
-        if (formDataError) {
-            console.error("Failed to load form data:", formDataError);
-            alert("Error: Could not load the Leave form.");
-            setLoading(false);
+
+        const { fields: apiFields, prefill_data, link_options } = formDataResult.message;
+        setFields(apiFields || []);
+        setLinkOptions(link_options || {});
+
+        if (editDocName) {
+            // Editing an existing draft — load the real document over the field metadata.
+            fetchDocument({ doctype: 'Leave Module', name: editDocName })
+                .then((res) => {
+                    if (res?.message) setFormData(res.message);
+                })
+                .catch((err) => {
+                    console.error("Failed to load existing leave application:", err);
+                    alert("Error: Could not load the existing leave application.");
+                })
+                .finally(() => {
+                    setDataLoaded(true);
+                    setLoading(false);
+                });
+            return;
         }
-    }, [formDataResult, formDataError, dataLoaded]);
+
+        // Set initial form data from prefill + defaults
+        const initialData = { ...prefill_data };
+        (apiFields || []).forEach((field: FormField) => {
+            if (initialData[field.fieldname] === undefined && field.default !== undefined) {
+                initialData[field.fieldname] = field.default;
+            }
+        });
+
+        setFormData(initialData);
+        setDataLoaded(true);
+        setLoading(false);
+    }, [formDataResult, formDataError, dataLoaded, editDocName, fetchDocument]);
 
     // --- VALIDATION ---
     const validateForm = useCallback((): boolean => {
@@ -373,7 +395,7 @@ const LeaveModuleForm = () => {
             <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
                 <AppSidebar />
                 <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-                    <PageHeader title="New Leave Application" />
+                    <PageHeader title={editDocName ? `Edit Leave Application — ${editDocName}` : "New Leave Application"} />
                     <div className="max-w-xl mx-auto mt-16 text-center">
                         <div className="bg-white dark:bg-zinc-900 border border-red-200 dark:border-red-800 rounded-2xl p-8 shadow-sm">
                             <div className="mx-auto w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-5">
@@ -427,7 +449,7 @@ const LeaveModuleForm = () => {
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-                <PageHeader title="New Leave Application" />
+                <PageHeader title={editDocName ? `Edit Leave Application — ${editDocName}` : "New Leave Application"} />
 
                 {/* Validation Errors */}
                 {validationErrors.length > 0 && (
