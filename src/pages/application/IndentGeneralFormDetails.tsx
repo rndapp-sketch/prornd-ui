@@ -259,6 +259,7 @@ const IndentGeneralFormDetails: React.FC = () => {
     const directorPdfInputRef = useRef<HTMLInputElement>(null);
     const [isUploadingPdf, setIsUploadingPdf] = useState(false);
     const [hasPrinted, setHasPrinted] = useState(false);
+    const [directorPdfUrl, setDirectorPdfUrl] = useState("");
 
     const { call: fetchFields } = useFrappePostCall<{ message: any }>(indentGeneralFormAPI.getFields);
     const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>("frappe.client.get_value");
@@ -441,6 +442,18 @@ const IndentGeneralFormDetails: React.FC = () => {
 
                 setLinkOptions(merged);
                 setFormData(prefill_data || {});
+
+                // Fetch hidden field director_signed_pdf explicitly (not always in prefill_data)
+                if (id) {
+                    try {
+                        const pdfRes = await fetchFrappeValue({
+                            doctype: "Indent General Form",
+                            filters: { name: id },
+                            fieldname: "director_signed_pdf",
+                        });
+                        setDirectorPdfUrl(String(pdfRes?.message?.director_signed_pdf || "").trim());
+                    } catch { /* ignore */ }
+                }
             } catch (e) {
                 console.error("Failed to load IGF details:", e);
             } finally {
@@ -489,7 +502,7 @@ const IndentGeneralFormDetails: React.FC = () => {
     const workflowState = formData.workflow_state || "Draft";
     const isDraft = workflowState === "Draft" || !formData.workflow_state;
     const sendToDirector = Boolean(Number(formData.send_to_director || 0));
-    const directorSignedPdf = String(formData.director_signed_pdf || "").trim();
+    const directorSignedPdf = String(formData.director_signed_pdf || "").trim() || directorPdfUrl;
     const isAtDeanApproval = workflowState === "Pending Dean Approval";
     const isAtDirectorApproval = workflowState === "Pending Director Approval";
     const includeDirectorStage = sendToDirector || isAtDirectorApproval;
@@ -560,6 +573,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                 body: JSON.stringify({ docname: id, file_url: fileUrl }),
             });
             if (!bindRes.ok) throw new Error(await bindRes.text());
+            setDirectorPdfUrl(fileUrl);
             handleRefresh();
         } catch (err: any) {
             alert(err?.message || "Upload failed.");
@@ -693,6 +707,29 @@ const IndentGeneralFormDetails: React.FC = () => {
                 {isStaffRnD && isCommittedForGate === false && workflowState === "Pending Staff Approval" && (
                     <div className="mt-4 max-w-fit rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] font-semibold text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
                         A commitment must be submitted before forwarding this application.
+                    </div>
+                )}
+
+                {workflowState === "Approved" && directorSignedPdf && (
+                    <div className="mt-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-800 dark:bg-emerald-900/20">
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+                            <FileTextIcon className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-[12px] font-bold text-emerald-800 dark:text-emerald-300">
+                                Director-Signed PDF is available
+                            </p>
+                            <p className="text-[11px] text-emerald-600 dark:text-emerald-400">
+                                The signed document has been uploaded and is ready to download.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => window.open(directorSignedPdf, "_blank", "noopener,noreferrer")}
+                            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors"
+                        >
+                            <ExternalLink className="w-3 h-3" />
+                            Download
+                        </button>
                     </div>
                 )}
 
@@ -992,6 +1029,27 @@ const IndentGeneralFormDetails: React.FC = () => {
                                         </button>
                                     </div>
                                 )}
+                            </div>
+                        )}
+
+                        {/* Director-Signed PDF — view/download when Approved */}
+                        {workflowState === "Approved" && directorSignedPdf && (
+                            <div className="rounded-2xl border border-[#E4E4E7] bg-white p-4 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+                                <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
+                                    Director-Signed PDF
+                                </h3>
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 px-3 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                                        PDF available
+                                    </div>
+                                    <button
+                                        onClick={() => window.open(directorSignedPdf, "_blank", "noopener,noreferrer")}
+                                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 transition-all"
+                                    >
+                                        <ExternalLink className="w-3.5 h-3.5" />
+                                        View / Download PDF
+                                    </button>
+                                </div>
                             </div>
                         )}
 
