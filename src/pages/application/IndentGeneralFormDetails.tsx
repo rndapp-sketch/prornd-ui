@@ -1054,7 +1054,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                         )}
 
                         {/* Director Approval — PDF upload for Staff / view + gate for Dean */}
-                        {isAtDirectorApproval && (
+                        {isAtDirectorApproval && (isStaffRnD || isDeanRnD) && (
                             <div className="rounded-2xl border border-[#E4E4E7] bg-white p-4 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
                                 <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
                                     Director-Signed PDF
