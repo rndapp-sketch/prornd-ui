@@ -307,6 +307,7 @@ export function AppSidebar() {
                 "head_approver_1",
                 "Hos, RnD (Head of Section, RnD)",
                 "staff, RnD",
+                "Permanent Employee",
             ];
             return roles && allowedRoles.some((role) => roles.includes(role));
         }
