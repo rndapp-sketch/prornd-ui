@@ -165,7 +165,7 @@ export function AppSidebar() {
     }>(
         "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_pending_application",
         {},
-        currentUser ? undefined : null,
+        currentUser && isPermanentEmployee ? undefined : null,
     );
     const pendingApplicationCount = pendingApplicationData?.message?.results?.length ?? 0;
 
@@ -244,21 +244,21 @@ export function AppSidebar() {
             icon: FileText,
             path: "/project-staff-resignation",
         },
-        {
+        ...(isPermanentEmployee ? [{
             label: "Form Cancellation",
             icon: FileText,
             path: "/form-application",
-        },
+        }] : []),
         {
             label: "Pending Task",
             icon: ListTodo,
             path: "/pending-task",
         },
-        {
+        ...(isPermanentEmployee ? [{
             label: "Pending Application",
             icon: ClipboardCheck,
             path: "/pending-application",
-        },
+        }] : []),
         {
             label: "Task Registry",
             icon: FileText,
