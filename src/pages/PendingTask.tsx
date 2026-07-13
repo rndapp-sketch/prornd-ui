@@ -635,15 +635,6 @@ const PendingTask: React.FC = () => {
         searchInputRef.current?.focus();
     };
 
-    const getPriorityBadge = (priority: string) => {
-        const styles: Record<string, string> = {
-            High: 'bg-red-50 text-red-700 border-red-200',
-            Medium: 'bg-amber-50 text-amber-700 border-amber-200',
-            Low: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-        };
-        return cn("px-2 py-0.5 rounded-full text-[10px] font-medium border", styles[priority] || 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700');
-    };
-
     const getStatusBadge = (status: string) => {
         const s = status?.toLowerCase();
         let style = "bg-orange-50 text-orange-700 border-orange-200";
@@ -865,7 +856,6 @@ const PendingTask: React.FC = () => {
                                     <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Project No.</th>
                                     <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
                                     <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Owner</th>
-                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Priority</th>
                                     <th className="px-4 py-3 text-end text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
                                 </tr>
                             </thead>
@@ -912,11 +902,6 @@ const PendingTask: React.FC = () => {
                                                     </div>
                                                     <span className="truncate max-w-[100px]">{task.owner}</span>
                                                 </div>
-                                            </td>
-                                            <td className="p-3 align-middle">
-                                                <span className={getPriorityBadge(task.priority)}>
-                                                    {task.priority}
-                                                </span>
                                             </td>
                                             <td className="p-3 align-middle text-right">
                                                 <div className="flex items-center justify-end gap-2">
@@ -968,7 +953,7 @@ const PendingTask: React.FC = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={8} className="p-12 text-center text-zinc-500 dark:text-zinc-400">
+                                        <td colSpan={7} className="p-12 text-center text-zinc-500 dark:text-zinc-400">
                                             No pending tasks found matching your criteria.
                                         </td>
                                     </tr>
