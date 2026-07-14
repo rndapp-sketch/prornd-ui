@@ -842,6 +842,11 @@ const QuickActions = ({
     const [existingScrs, setExistingScrs] = useState<any[]>([]);
     const [selectedItemForScr, setSelectedItemForScr] = useState<any>(null);
 
+    // Commit / De-Commit is staff, RnD only for now — hidden from Permanent Employee.
+    const { currentUser: quickActionsCurrentUser } = useFrappeAuth();
+    const { roles: quickActionsRoles } = useUserRoles(quickActionsCurrentUser ?? null);
+    const isStaffRnDForCommit = quickActionsRoles.includes("staff, RnD");
+
     const handleSettleClick = async (item: any) => {
         setIsLoading(true);
         console.log(">>> handleSettleClick triggered for:", item.name);
@@ -1106,6 +1111,11 @@ const QuickActions = ({
         },
         { title: "Travel", icon: Plane, items: ["Travel"] },
         { title: "Loan", icon: CreditCardIcon, items: ["Loan Request"] },
+        ...(isStaffRnDForCommit ? [{
+            title: "Commit / De-Commit",
+            icon: CreditCard,
+            items: ["Miscellaneous Commit"],
+        }] : []),
         // {
         //   title: "Utilities",
         //   icon: Settings,
@@ -1848,6 +1858,36 @@ const QuickActions = ({
                     console.error("Loan Request fetch error:", fetchError);
                     data = [];
                 }
+            } else if (selectedApplication === "Miscellaneous Commit") {
+                try {
+                    const timestamp = Date.now();
+                    const apiUrl = `/api/v2/document/Miscellaneous%20Commit?fields=["name","creation","workflow_state","docstatus","owner","project_number","commit_decommit","commit_amount","budget_head"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    const fetchResponse = await fetch(apiUrl, {
+                        method: "GET",
+                        headers: { Accept: "application/json" },
+                        credentials: "include",
+                    });
+                    if (!fetchResponse.ok)
+                        throw new Error(
+                            `HTTP error! status: ${fetchResponse.status}`,
+                        );
+                    const result = await fetchResponse.json();
+                    const allItems = result?.data || [];
+                    data = allItems
+                        .filter((item: any) => {
+                            return (
+                                item.project_number === projectName ||
+                                item.project_number === projectNo
+                            );
+                        })
+                        .map((item: any) => ({
+                            ...item,
+                            workflow_state: item.workflow_state || "Draft",
+                        }));
+                } catch (fetchError) {
+                    console.error("Miscellaneous Commit fetch error:", fetchError);
+                    data = [];
+                }
             }
             setApplicationData(data);
         } catch (error) {
@@ -1981,6 +2021,11 @@ const QuickActions = ({
             case "Loan Request":
                 onNavigate(
                     `/loan-request?project=${projectParam}&projectTitle=${encodeURIComponent(projectTitle || "")}`,
+                );
+                break;
+            case "Miscellaneous Commit":
+                onNavigate(
+                    `/miscellaneous-commit-form?project=${projectName}`,
                 );
                 break;
             case "Project Staff Resignation":
@@ -2326,6 +2371,11 @@ const QuickActions = ({
                                                                 case "Loan Request":
                                                                     onNavigate(
                                                                         `/loan-request/${item.name}`,
+                                                                    );
+                                                                    break;
+                                                                case "Miscellaneous Commit":
+                                                                    onNavigate(
+                                                                        `/miscellaneous-commit/${item.name}`,
                                                                     );
                                                                     break;
                                                                 case "Indent General Form":

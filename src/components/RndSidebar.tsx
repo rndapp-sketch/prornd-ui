@@ -281,6 +281,11 @@ export function AppSidebar() {
             icon: IndianRupee,
             path: "/salary-module",
         },
+        {
+            label: "Commit / De-Commit",
+            icon: CreditCard,
+            path: "/miscellaneous-commit",
+        },
     ].filter((item) => {
         if (item.label === "Upload Director PDF") {
             return canUploadDirectorPdf;
@@ -289,6 +294,9 @@ export function AppSidebar() {
             return canUploadDirectorPdf;
         }
         if (item.label === "Salary Module") {
+            return roles?.includes("staff, RnD") ?? false;
+        }
+        if (item.label === "Commit / De-Commit") {
             return roles?.includes("staff, RnD") ?? false;
         }
         if (item.label === "Universal Forms") {
