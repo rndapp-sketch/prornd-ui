@@ -68,6 +68,9 @@ import DisbursalOfConsultancyForm from './pages/application/DisbursalOfConsultan
 import DisbursalOfConsultancyDetails from './pages/application/DisbursalOfConsultancyDetails.tsx';
 import LoanRequestForm from './pages/application/LoanRequestForm.tsx';
 import LoanRequestDetails from './pages/application/LoanRequestDetails.tsx';
+import MiscellaneousCommit from './pages/application/MiscellaneousCommit.tsx';
+import MiscellaneousCommitForm from './pages/application/MiscellaneousCommitForm.tsx';
+import MiscellaneousCommitDetails from './pages/application/MiscellaneousCommitDetails.tsx';
 import DirectPurchase from './pages/DirectPurchase.tsx';
 import DirectPurchaseDetails from './pages/application/DirectPurchaseDetails.tsx';
 import P11Form from './pages/application/P11Form.tsx';
@@ -569,6 +572,30 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <LoanRequestDetails />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "miscellaneous-commit",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <MiscellaneousCommit />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "miscellaneous-commit-form",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <MiscellaneousCommitForm />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "miscellaneous-commit/:id",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <MiscellaneousCommitDetails />
                         </AuthRouteWrapper>
                     )
                 },

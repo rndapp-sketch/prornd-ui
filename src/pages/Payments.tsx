@@ -88,6 +88,19 @@ const Payments: React.FC = () => {
     const commitsPerPage = 50;
     const itemsPerPage = 10;
 
+    // Search + module filter for the Pending Commits tab
+    const [commitSearchQuery, setCommitSearchQuery] = useState('');
+    const [debouncedCommitSearch, setDebouncedCommitSearch] = useState('');
+    const [selectedCommitModule, setSelectedCommitModule] = useState<string>('');
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedCommitSearch(commitSearchQuery);
+            setCommitPage(1);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [commitSearchQuery]);
+
     // Payment Modal State
     const [paymentModalOpen, setPaymentModalOpen] = useState(false);
     const [selectedPaymentName, setSelectedPaymentName] = useState<string | null>(null);
@@ -166,12 +179,23 @@ const Payments: React.FC = () => {
             '8': 'Advance Settlement',
         };
         try {
-            const response = await fetch('/api/v2/document/Module%20Registry/pending-task', { credentials: 'include' });
+            const csrf = (window as any).csrf_token || '';
+            const response = await fetch('/api/method/frappe.client.get', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Frappe-CSRF-Token': csrf,
+                    Accept: 'application/json',
+                },
+                body: JSON.stringify({ doctype: 'Module Registry', name: 'pending-task' }),
+            });
             const data = await response.json();
+            const rows = data?.message?.doctype_name;
             console.log('Module Registry response:', data);
-            if (data?.data?.doctype_name && Array.isArray(data.data.doctype_name)) {
+            if (Array.isArray(rows)) {
                 const map: Record<string, string> = {};
-                data.data.doctype_name.forEach((item: any) => {
+                rows.forEach((item: any) => {
                     map[String(item.idx)] = item.doctype_name;
                 });
                 console.log('Module name map:', map);
@@ -239,6 +263,46 @@ const Payments: React.FC = () => {
             return true;
         });
     }, [pendingCommits, moduleNameMap]);
+
+    // Module names present in the pending commits, for the "filter by module" dropdown
+    const commitModuleOptions = React.useMemo(() => {
+        const names = new Set<string>();
+        filteredPendingCommits.forEach(c => {
+            const name = c.moduleId ? (moduleNameMap[String(c.moduleId)] || String(c.moduleId)) : null;
+            if (name) names.add(name);
+        });
+        return Array.from(names).sort();
+    }, [filteredPendingCommits, moduleNameMap]);
+
+    // Search + module filter applied on top of filteredPendingCommits
+    const searchedPendingCommits = React.useMemo(() => {
+        let result = filteredPendingCommits;
+
+        if (selectedCommitModule) {
+            result = result.filter(c => {
+                const name = c.moduleId ? (moduleNameMap[String(c.moduleId)] || String(c.moduleId)) : '';
+                return name === selectedCommitModule;
+            });
+        }
+
+        if (debouncedCommitSearch) {
+            const q = debouncedCommitSearch.toLowerCase();
+            result = result.filter(c => {
+                const budgetHeadName = budgetHeadMap[String(c.accountHeadId)] || String(c.accountHeadId || '');
+                const moduleName = c.moduleId ? (moduleNameMap[String(c.moduleId)] || String(c.moduleId)) : '';
+                return (
+                    c.projectNumber?.toLowerCase().includes(q) ||
+                    c.frapAppId?.toLowerCase().includes(q) ||
+                    c.commitParticular?.toLowerCase().includes(q) ||
+                    c.refDetails?.toLowerCase().includes(q) ||
+                    budgetHeadName.toLowerCase().includes(q) ||
+                    moduleName.toLowerCase().includes(q)
+                );
+            });
+        }
+
+        return result;
+    }, [filteredPendingCommits, debouncedCommitSearch, selectedCommitModule, budgetHeadMap, moduleNameMap]);
 
     // Resolve module names on payments using the moduleNameMap (runs reactively when either changes)
     // Filter out module name or id 11 or "Recruitment Adhoc Contractual"
@@ -435,6 +499,57 @@ const Payments: React.FC = () => {
                                 These are committed funds waiting for payment or settlement.
                             </p>
                         </div>
+
+                        {/* Search + Module Filter */}
+                        <div className="p-3 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                                <div className="flex flex-1 items-center gap-4 w-full flex-wrap">
+                                    <div className="relative w-full md:w-64">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <FaSearch className="text-zinc-400 dark:text-zinc-500" />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="Search documents..."
+                                            value={commitSearchQuery}
+                                            onChange={(e) => setCommitSearchQuery(e.target.value)}
+                                            className="h-9 w-full pl-10 pr-4 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] focus:outline-none focus:border-[#4A6CF7] focus:ring-[3px] focus:ring-[#4A6CF7]/12 transition-colors"
+                                        />
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <label htmlFor="commit-module-filter" className="font-bold text-zinc-900 dark:text-zinc-100 uppercase text-sm whitespace-nowrap hidden md:block">
+                                            Module:
+                                        </label>
+                                        <select
+                                            id="commit-module-filter"
+                                            value={selectedCommitModule}
+                                            onChange={(e) => { setSelectedCommitModule(e.target.value); setCommitPage(1); }}
+                                            className="h-9 px-3 bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg font-bold text-[12px] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7]"
+                                        >
+                                            <option value="">All Modules</option>
+                                            {commitModuleOptions.map((name) => (
+                                                <option key={name} value={name}>{name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {(commitSearchQuery || selectedCommitModule) && (
+                                        <FrappeButton
+                                            onClick={() => { setCommitSearchQuery(''); setSelectedCommitModule(''); setCommitPage(1); }}
+                                            className="text-red-600 hover:bg-red-50 border border-red-200"
+                                        >
+                                            Clear Filters
+                                        </FrappeButton>
+                                    )}
+                                </div>
+
+                                <div className="text-sm text-zinc-900 dark:text-zinc-100 font-bold whitespace-nowrap">
+                                    Total: {searchedPendingCommits.length} commits
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="overflow-x-auto p-3">
                             <table className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg overflow-hidden">
                                 <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
@@ -451,8 +566,8 @@ const Payments: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                    {filteredPendingCommits.length > 0 ? (
-                                        filteredPendingCommits
+                                    {searchedPendingCommits.length > 0 ? (
+                                        searchedPendingCommits
                                             .slice((commitPage - 1) * commitsPerPage, commitPage * commitsPerPage)
                                             .map((commit, idx) => (
                                                 <tr key={idx} className="hover:bg-zinc-50 dark:bg-zinc-800/50">
@@ -527,10 +642,10 @@ const Payments: React.FC = () => {
                         </div>
 
                         {/* Commits Pagination */}
-                        {filteredPendingCommits.length > commitsPerPage && (
+                        {searchedPendingCommits.length > commitsPerPage && (
                             <div className="p-4 border-t border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex justify-between items-center">
                                 <div className="text-sm text-zinc-900 dark:text-zinc-100 font-medium">
-                                    Showing {(commitPage - 1) * commitsPerPage + 1} to {Math.min(commitPage * commitsPerPage, filteredPendingCommits.length)} of {filteredPendingCommits.length} commits
+                                    Showing {(commitPage - 1) * commitsPerPage + 1} to {Math.min(commitPage * commitsPerPage, searchedPendingCommits.length)} of {searchedPendingCommits.length} commits
                                 </div>
                                 <div className="flex gap-1">
                                     <FrappeButton
@@ -542,7 +657,7 @@ const Payments: React.FC = () => {
                                     </FrappeButton>
                                     <FrappeButton
                                         onClick={() => setCommitPage(p => p + 1)}
-                                        disabled={commitPage * commitsPerPage >= filteredPendingCommits.length}
+                                        disabled={commitPage * commitsPerPage >= searchedPendingCommits.length}
                                         variant="outline"
                                     >
                                         Next

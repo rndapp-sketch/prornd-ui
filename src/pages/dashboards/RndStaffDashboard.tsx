@@ -63,6 +63,8 @@ const getTaskRoute = (doctype: string, id: string) => {
   if (doctype === "Advance Settlement") return `/advance-settlement/${id}`;
   if (doctype === "Temporary Advance") return `/pending-tasks/${encodeURIComponent(doctype)}/${id}`;
   if (doctype === "Project Staff Details") return `/project-staff-joining?docname=${encodeURIComponent(id)}`;
+  if (doctype === "Miscellaneous Commit") return `/miscellaneous-commit/${id}`;
+  if (doctype === "Loan Request") return `/loan-request/${id}`;
   return `/pending-tasks/${doctype}/${id}`;
 };
 
