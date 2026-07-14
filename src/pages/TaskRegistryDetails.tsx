@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { cn } from '@/lib/utils';
 
+import { AppSidebar } from '@/components/RndSidebar';
 import { PageHeader } from '@/components/common/PageHeader';
 import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButton';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
@@ -2107,6 +2108,7 @@ const TaskRegistryDetails: React.FC = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans overflow-x-hidden">
+            <AppSidebar />
             <main className="transition-all duration-300 ease-in-out px-5 py-6 md:px-8 md:py-7 overflow-x-hidden">
                 <PageHeader
                     title={name || ''}

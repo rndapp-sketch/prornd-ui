@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useSWRConfig } from "swr";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Navigate } from "react-router-dom";
 import {
     useFrappeGetDoc,
     useFrappePostCall,
@@ -23,7 +23,6 @@ import {
     SaveIcon,
     XIcon,
     FolderOpenIcon,
-    MessageSquareIcon,
     ChevronDown,
     ChevronRight,
     Printer,
@@ -31,7 +30,9 @@ import {
     AlertTriangleIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-// import { AppSidebar } from '@/components/RndSidebar';
+import { AppSidebar } from '@/components/RndSidebar';
+import { PageHeader } from "@/components/common/PageHeader";
+import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import { FrappeButton } from "@/components/ui/neo-brutalism";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import ProjectDetailsView from "./ProjectDetails";
@@ -229,16 +230,23 @@ const CancellationRequestWorkflowActions = ({
         "rndopsapp.workflow_pipeline.perform_workflow_action",
     );
 
-    const handleActionClick = async (action: string) => {
-        if (!window.confirm(`Are you sure you want to perform action: ${action}?`)) {
-            return;
-        }
+    const [modalOpen, setModalOpen] = React.useState(false);
+    const [selectedAction, setSelectedAction] = React.useState("");
+
+    const handleActionClick = (action: string) => {
+        setSelectedAction(action);
+        setModalOpen(true);
+    };
+
+    const handleConfirmAction = async (comment: string) => {
         try {
             await performAction({
                 docname,
-                action,
+                action: selectedAction,
+                comment,
                 doctype: "Cancellation Request",
             });
+            setModalOpen(false);
             onActionComplete();
         } catch (err: any) {
             alert(err.message || "Failed to perform action");
@@ -250,18 +258,27 @@ const CancellationRequestWorkflowActions = ({
     if (actionsLoading || actions.length === 0) return null;
 
     return (
-        <div className="flex gap-2">
-            {actions.map((action) => (
-                <button
-                    key={action}
-                    onClick={() => handleActionClick(action)}
-                    disabled={actionLoading}
-                    className="bg-[#D97757] hover:bg-[#c66a4e] text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm hover:shadow transition-all disabled:opacity-60"
-                >
-                    {action}
-                </button>
-            ))}
-        </div>
+        <>
+            <div className="flex gap-2">
+                {actions.map((action) => (
+                    <button
+                        key={action}
+                        onClick={() => handleActionClick(action)}
+                        disabled={actionLoading}
+                        className="bg-[#D97757] hover:bg-[#c66a4e] text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm hover:shadow transition-all disabled:opacity-60"
+                    >
+                        {action}
+                    </button>
+                ))}
+            </div>
+            <CommentModal
+                isOpen={modalOpen}
+                onClose={() => setModalOpen(false)}
+                onSubmit={handleConfirmAction}
+                action={selectedAction}
+                isLoading={actionLoading}
+            />
+        </>
     );
 };
 
@@ -683,20 +700,31 @@ const TopUpFellowshipWorkflowActions = ({
     );
     const backActions = backResp?.message?.actions || [];
 
-    const handlePutBack = async (target: string, label: string) => {
-        const comment = window.prompt(`${label}\n\nAdd a comment (optional):`, "");
-        if (comment === null) return;
+    const [actionModalOpen, setActionModalOpen] = React.useState(false);
+    const [selectedTufAction, setSelectedTufAction] = React.useState("");
+    const [backModalOpen, setBackModalOpen] = React.useState(false);
+    const [pendingBack, setPendingBack] = React.useState<{ target: string; label: string } | null>(null);
+
+    const handlePutBack = (target: string, label: string) => {
+        setPendingBack({ target, label });
+        setBackModalOpen(true);
+    };
+
+    const handleConfirmPutBack = async (comment: string) => {
+        if (!pendingBack) return;
         try {
-            const res: any = await putBack({ docname, target, comment: comment || undefined });
+            const res: any = await putBack({ docname, target: pendingBack.target, comment: comment || undefined });
             if (res?.message?.status === "error") {
-                alert(res.message.message || `${label} failed.`);
+                alert(res.message.message || `${pendingBack.label} failed.`);
                 return;
             }
+            setBackModalOpen(false);
+            setPendingBack(null);
             refreshBackActions();
             onActionComplete();
         } catch (err: any) {
             console.error("put_back failed:", err);
-            alert(err?.message || `${label} failed.`);
+            alert(err?.message || `${pendingBack.label} failed.`);
         }
     };
 
@@ -741,26 +769,47 @@ const TopUpFellowshipWorkflowActions = ({
         }
     };
 
-    const handleActionClick = async (action: string) => {
-        const confirmMsg = action.toLowerCase() === "reject"
-            ? "Reject this Top Up Fellowship? This cannot be undone."
-            : `Perform "${action}"?`;
-        if (!window.confirm(confirmMsg)) return;
+    const handleActionClick = (action: string) => {
+        setSelectedTufAction(action);
+        setActionModalOpen(true);
+    };
+
+    const handleConfirmAction = async (comment: string) => {
         try {
-            const res: any = await performAction({ docname, action });
+            const res: any = await performAction({ docname, action: selectedTufAction, comment: comment || undefined });
             if (res?.message?.status === "error") {
-                alert(res.message.message || `Action "${action}" failed.`);
+                alert(res.message.message || `Action "${selectedTufAction}" failed.`);
                 return;
             }
+            setActionModalOpen(false);
             onActionComplete();
         } catch (err: any) {
             console.error("Top Up Fellowship action failed:", err);
-            alert(err?.message || `Action "${action}" failed.`);
+            alert(err?.message || `Action "${selectedTufAction}" failed.`);
         }
     };
 
     if (docLoading || actionsLoading) return null;
     const actions = actionsResp?.message || [];
+
+    const modals = (
+        <>
+            <CommentModal
+                isOpen={actionModalOpen}
+                onClose={() => setActionModalOpen(false)}
+                onSubmit={handleConfirmAction}
+                action={selectedTufAction}
+                isLoading={actionLoading}
+            />
+            <CommentModal
+                isOpen={backModalOpen}
+                onClose={() => { setBackModalOpen(false); setPendingBack(null); }}
+                onSubmit={handleConfirmPutBack}
+                action={pendingBack?.label || "Put Back"}
+                isLoading={putBackLoading}
+            />
+        </>
+    );
 
     // 3-stage Pending Staff Approval flow (mirrors SCR Dean→Director).
     if (isPendingStaff && actions.length > 0) {
@@ -771,98 +820,107 @@ const TopUpFellowshipWorkflowActions = ({
                 return al !== "forward" && al !== "submit" && al !== "approve";
             });
             return (
-                <div className="flex gap-2 flex-wrap">
-                    <FrappeButton
-                        onClick={handleSendToFa}
-                        disabled={markLoading}
-                        className="bg-[#D97757] hover:bg-[#c66a4e] text-white"
-                    >
-                        Send to Faculty Admission
-                    </FrappeButton>
-                    {renderBackButtons()}
-                    {stageOneActions.map((action) => {
-                        const al = action.toLowerCase();
-                        const isReject = al === "reject";
-                        return (
-                            <FrappeButton
-                                key={action}
-                                onClick={() => handleActionClick(action)}
-                                disabled={actionLoading}
-                                className={
-                                    isReject
-                                        ? "bg-red-600 hover:bg-red-700 text-white"
-                                        : "bg-zinc-200 hover:bg-zinc-300 text-zinc-800 dark:bg-zinc-700 dark:hover:bg-zinc-600 dark:text-zinc-100"
-                                }
-                            >
-                                {action}
-                            </FrappeButton>
-                        );
-                    })}
-                </div>
+                <>
+                    <div className="flex gap-2 flex-wrap">
+                        <FrappeButton
+                            onClick={handleSendToFa}
+                            disabled={markLoading}
+                            className="bg-[#D97757] hover:bg-[#c66a4e] text-white"
+                        >
+                            Send to Faculty Admission
+                        </FrappeButton>
+                        {renderBackButtons()}
+                        {stageOneActions.map((action) => {
+                            const al = action.toLowerCase();
+                            const isReject = al === "reject";
+                            return (
+                                <FrappeButton
+                                    key={action}
+                                    onClick={() => handleActionClick(action)}
+                                    disabled={actionLoading}
+                                    className={
+                                        isReject
+                                            ? "bg-red-600 hover:bg-red-700 text-white"
+                                            : "bg-zinc-200 hover:bg-zinc-300 text-zinc-800 dark:bg-zinc-700 dark:hover:bg-zinc-600 dark:text-zinc-100"
+                                    }
+                                >
+                                    {action}
+                                </FrappeButton>
+                            );
+                        })}
+                    </div>
+                    {modals}
+                </>
             );
         }
         // Stage 2 — sent, but signed PDF not yet uploaded.
         if (!hasFacultyPdf) {
             return (
-                <div className="flex gap-2 flex-wrap">
-                    <FrappeButton
-                        disabled
-                        className="bg-zinc-300 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300 cursor-not-allowed"
-                    >
-                        Waiting for Faculty Admission Upload
-                    </FrappeButton>
-                    {renderBackButtons()}
-                </div>
+                <>
+                    <div className="flex gap-2 flex-wrap">
+                        <FrappeButton
+                            disabled
+                            className="bg-zinc-300 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300 cursor-not-allowed"
+                        >
+                            Waiting for Faculty Admission Upload
+                        </FrappeButton>
+                        {renderBackButtons()}
+                    </div>
+                    {modals}
+                </>
             );
         }
         // Stage 3 — PDF uploaded → view + real workflow actions.
         return (
-            <div className="flex flex-col items-end gap-2">
-                <div className="flex gap-2 flex-wrap">
-                    <FrappeButton
-                        onClick={() => window.open(facultyPdfUrl, "_blank")}
-                        className="bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800/50 dark:text-emerald-300"
-                    >
-                        View Faculty Admission Signed PDF
-                    </FrappeButton>
-                    {renderBackButtons()}
-                    {actions.map((action) => {
-                        const isForwardLike =
-                            action.toLowerCase() === "forward" ||
-                            action.toLowerCase() === "submit" ||
-                            action.toLowerCase() === "approve";
-                        const disabled =
-                            actionLoading || (commitRequired && isForwardLike);
-                        return (
-                            <FrappeButton
-                                key={action}
-                                onClick={() => {
-                                    if (commitRequired && isForwardLike) {
-                                        alert(
-                                            "Please submit the commit (budget head + amount) before forwarding to HoS.",
-                                        );
-                                        return;
+            <>
+                <div className="flex flex-col items-end gap-2">
+                    <div className="flex gap-2 flex-wrap">
+                        <FrappeButton
+                            onClick={() => window.open(facultyPdfUrl, "_blank")}
+                            className="bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800/50 dark:text-emerald-300"
+                        >
+                            View Faculty Admission Signed PDF
+                        </FrappeButton>
+                        {renderBackButtons()}
+                        {actions.map((action) => {
+                            const isForwardLike =
+                                action.toLowerCase() === "forward" ||
+                                action.toLowerCase() === "submit" ||
+                                action.toLowerCase() === "approve";
+                            const disabled =
+                                actionLoading || (commitRequired && isForwardLike);
+                            return (
+                                <FrappeButton
+                                    key={action}
+                                    onClick={() => {
+                                        if (commitRequired && isForwardLike) {
+                                            alert(
+                                                "Please submit the commit (budget head + amount) before forwarding to HoS.",
+                                            );
+                                            return;
+                                        }
+                                        handleActionClick(action);
+                                    }}
+                                    disabled={disabled}
+                                    className={
+                                        disabled
+                                            ? "bg-zinc-300 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300 cursor-not-allowed"
+                                            : "bg-[#D97757] hover:bg-[#c66a4e] text-white"
                                     }
-                                    handleActionClick(action);
-                                }}
-                                disabled={disabled}
-                                className={
-                                    disabled
-                                        ? "bg-zinc-300 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300 cursor-not-allowed"
-                                        : "bg-[#D97757] hover:bg-[#c66a4e] text-white"
-                                }
-                            >
-                                {action}
-                            </FrappeButton>
-                        );
-                    })}
+                                >
+                                    {action}
+                                </FrappeButton>
+                            );
+                        })}
+                    </div>
+                    {commitRequired && (
+                        <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                            A commitment must be submitted before forwarding.
+                        </p>
+                    )}
                 </div>
-                {commitRequired && (
-                    <p className="text-[11px] text-amber-700 dark:text-amber-300">
-                        A commitment must be submitted before forwarding.
-                    </p>
-                )}
-            </div>
+                {modals}
+            </>
         );
     }
 
@@ -870,19 +928,22 @@ const TopUpFellowshipWorkflowActions = ({
     // workflow actions normally, plus any dynamic put-back actions.
     if (!actions.length && !backActions.length) return null;
     return (
-        <div className="flex gap-2 flex-wrap">
-            {actions.map((action) => (
-                <FrappeButton
-                    key={action}
-                    onClick={() => handleActionClick(action)}
-                    disabled={actionLoading}
-                    className="bg-[#D97757] hover:bg-[#c66a4e] text-white"
-                >
-                    {action}
-                </FrappeButton>
-            ))}
-            {renderBackButtons()}
-        </div>
+        <>
+            <div className="flex gap-2 flex-wrap">
+                {actions.map((action) => (
+                    <FrappeButton
+                        key={action}
+                        onClick={() => handleActionClick(action)}
+                        disabled={actionLoading}
+                        className="bg-[#D97757] hover:bg-[#c66a4e] text-white"
+                    >
+                        {action}
+                    </FrappeButton>
+                ))}
+                {renderBackButtons()}
+            </div>
+            {modals}
+        </>
     );
 };
 
@@ -2094,6 +2155,11 @@ const PendingTaskDetails: React.FC = () => {
     // Decode the doctype URL parameter
     const doctype = rawDoctype ? decodeURIComponent(rawDoctype) : "";
 
+    // Top Up Fellowship has its own dedicated details page
+    if (doctype === "Top Up Fellowship" && name) {
+        return <Navigate to={`/top-up-fellowship/${name}`} replace />;
+    }
+
     const { data, isLoading, error, mutate } = useFrappeGetDoc(
         doctype || "",
         name || "",
@@ -2483,8 +2549,6 @@ const PendingTaskDetails: React.FC = () => {
     // Project preview modal state
     const [prPreviewName, setPrPreviewName] = useState<string | null>(null);
     const [prPreviewLoading, setPrPreviewLoading] = useState(false);
-    const [isActivityOpen, setIsActivityOpen] = useState(false);
-
     // Kafka Staging Commit Status Gate
     const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
 
@@ -3322,8 +3386,8 @@ const PendingTaskDetails: React.FC = () => {
     };
 
     return (
-        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen text-zinc-900 dark:text-zinc-100">
-            {/* <AppSidebar /> */}
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
+            <AppSidebar />
 
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 {cancellationStatus?.message?.has_pending && (
@@ -3334,211 +3398,148 @@ const PendingTaskDetails: React.FC = () => {
                         </div>
                     </div>
                 )}
-                <header className="mb-6 p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                            <button
-                                onClick={() => navigate(-1)}
-                                className="p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:bg-zinc-800 transition-colors"
-                            >
-                                <ArrowLeftIcon className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
-                            </button>
-                            <div>
-                                {/*<h1 className="text-2xl md:text-3xl font-serif text-zinc-900 dark:text-zinc-50 tracking-tight">Task Details</h1>*/}
-                                <h1 className="text-sm md:text-base text-zinc-500 dark:text-zinc-400 mt-1">
-                                    {doctype} ·{" "}
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 dark:bg-zinc-800 text-[#D97757] dark:text-[#E28362] ml-1">
-                                        {name}
-                                    </span>
-                                </h1>
-                                {data?.workflow_state && (
-                                    <span className={cn(
-                                        "mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border",
-                                        (doctype === "Cancellation Request" && data.workflow_state === "Approved")
-                                            ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:border-red-800/50"
-                                            : data.workflow_state === "Approved"
-                                                ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50"
-                                                : data.workflow_state === "Draft"
-                                                    ? "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700"
-                                                    : data.workflow_state === "Rejected"
-                                                        ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:border-red-800/50"
-                                                        : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800/50",
-                                    )}>
-                                        {(doctype === "Cancellation Request" && data.workflow_state === "Approved") ? "Cancelled" : data.workflow_state}
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                        <div className="flex gap-2 flex-wrap items-center">
-                            {/* View linked Project Registration */}
-                            {doctype !== "Project Registration" && data && (
+                <PageHeader
+                    title={name || ''}
+                    projectName={doctype}
+                    status={(doctype === "Cancellation Request" && data?.workflow_state === "Approved") ? "Cancelled" : data?.workflow_state}
+                >
+                    {/* View linked Project Registration */}
+                    {doctype !== "Project Registration" && data && (
+                        <button
+                            onClick={async () => {
+                                const directName = extractPRName(doctype, data);
+                                if (directName) {
+                                    setPrPreviewName(directName);
+                                    return;
+                                }
+                                const mapping = DOCTYPE_PR_LINKS[doctype];
+                                const noField = mapping?.primary?.type === 'pr_project_no'
+                                    ? mapping.primary.field
+                                    : mapping?.fallback?.type === 'pr_project_no'
+                                        ? (mapping.fallback as any).field
+                                        : null;
+                                const projectNo = noField ? data[noField] : null;
+                                if (!projectNo) return;
+                                setPrPreviewLoading(true);
+                                try {
+                                    const params = new URLSearchParams({
+                                        filters: JSON.stringify([['project_no', '=', projectNo]]),
+                                        fields: JSON.stringify(['name']),
+                                        limit: '1',
+                                    });
+                                    const res = await fetch(`/api/resource/Project%20Registration?${params}`, { credentials: 'include' }).then(r => r.json());
+                                    const prName = (res?.data ?? res?.message ?? [])[0]?.name;
+                                    if (prName) setPrPreviewName(prName);
+                                } finally {
+                                    setPrPreviewLoading(false);
+                                }
+                            }}
+                            disabled={prPreviewLoading}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 h-fit rounded-md text-xs font-medium border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-[#D97757] hover:text-[#D97757] transition-colors disabled:opacity-60"
+                        >
+                            <FolderOpenIcon className="w-3.5 h-3.5" />
+                            {prPreviewLoading ? 'Loading…' : 'View Project'}
+                        </button>
+                    )}
+                    {doctype === "Cancellation Request" && data?.reference_doctype && data?.reference_name && (
+                        <button
+                            onClick={() => {
+                                const route = getOriginalApplicationRoute(
+                                    data.reference_doctype,
+                                    data.reference_name,
+                                );
+                                if (route) navigate(route);
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 h-fit rounded-md text-xs font-medium border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-[#D97757] hover:text-[#D97757] transition-colors"
+                        >
+                            <ExternalLinkIcon className="w-3.5 h-3.5" />
+                            View Original Application
+                        </button>
+                    )}
+                    {doctype === "Reimbursement" && name && !cancellationStatus?.message?.has_pending && (
+                        <ReimbursementWorkflowActions
+                            docname={name}
+                            onActionComplete={() => window.location.reload()}
+                        />
+                    )}
+                    {doctype === "Cancellation Request" && name && (
+                        <CancellationRequestWorkflowActions
+                            docname={name}
+                            onActionComplete={() => window.location.reload()}
+                        />
+                    )}
+                    {doctype === "Fund Sanction" && name && !cancellationStatus?.message?.has_pending && (
+                        <FundSanctionWorkflowActions
+                            docname={name}
+                            onActionComplete={() => window.location.reload()}
+                            blockForward={isRnDStaff && !(data?.is_the_account_type_pfms || fsProjectRegData?.is_the_account_type_pfms)}
+                        />
+                    )}
+                    {doctype === "Travel" && name && !cancellationStatus?.message?.has_pending && (
+                        <TravelWorkflowActions
+                            docname={name}
+                            onActionComplete={() => window.location.reload()}
+                        />
+                    )}
+                    {doctype === "Temporary Advance" && name && !cancellationStatus?.message?.has_pending && (
+                        <div className="flex items-center gap-3">
+                            {isRnDStaff && (
                                 <button
-                                    onClick={async () => {
-                                        const directName = extractPRName(doctype, data);
-                                        if (directName) {
-                                            setPrPreviewName(directName);
-                                            return;
-                                        }
-                                        // Fallback: lookup PR by project_no stored in the record
-                                        const mapping = DOCTYPE_PR_LINKS[doctype];
-                                        const noField = mapping?.primary?.type === 'pr_project_no'
-                                            ? mapping.primary.field
-                                            : mapping?.fallback?.type === 'pr_project_no'
-                                                ? (mapping.fallback as any).field
-                                                : null;
-                                        const projectNo = noField ? data[noField] : null;
-                                        if (!projectNo) return;
-                                        setPrPreviewLoading(true);
-                                        try {
-                                            const params = new URLSearchParams({
-                                                filters: JSON.stringify([['project_no', '=', projectNo]]),
-                                                fields: JSON.stringify(['name']),
-                                                limit: '1',
-                                            });
-                                            const res = await fetch(`/api/resource/Project%20Registration?${params}`, { credentials: 'include' }).then(r => r.json());
-                                            const prName = (res?.data ?? res?.message ?? [])[0]?.name;
-                                            if (prName) setPrPreviewName(prName);
-                                        } finally {
-                                            setPrPreviewLoading(false);
-                                        }
-                                    }}
-                                    disabled={prPreviewLoading}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 h-fit rounded-md text-xs font-medium border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-[#D97757] hover:text-[#D97757] transition-colors disabled:opacity-60"
+                                    onClick={handlePrintTemporaryAdvance}
+                                    className="inline-flex items-center justify-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-700 shadow-sm transition-all"
+                                    title="Print Temporary Advance"
                                 >
-                                    <FolderOpenIcon className="w-3.5 h-3.5" />
-                                    {prPreviewLoading ? 'Loading…' : 'View Project'}
+                                    <Printer className="h-4 w-4" />
+                                    Print
                                 </button>
                             )}
-                            {doctype === "Cancellation Request" && data?.reference_doctype && data?.reference_name && (
-                                <button
-                                    onClick={() => {
-                                        const route = getOriginalApplicationRoute(
-                                            data.reference_doctype,
-                                            data.reference_name,
-                                        );
-                                        if (route) navigate(route);
-                                    }}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 h-fit rounded-md text-xs font-medium border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-[#D97757] hover:text-[#D97757] transition-colors"
-                                >
-                                    <ExternalLinkIcon className="w-3.5 h-3.5" />
-                                    View Original Application
-                                </button>
-                            )}
-                            {doctype === "Reimbursement" && name && !cancellationStatus?.message?.has_pending && (
-                                <ReimbursementWorkflowActions
-                                    docname={name}
-                                    onActionComplete={() =>
-                                        window.location.reload()
-                                    }
-                                />
-                            )}
-                            {doctype === "Cancellation Request" && name && (
-                                <CancellationRequestWorkflowActions
-                                    docname={name}
-                                    onActionComplete={() =>
-                                        window.location.reload()
-                                    }
-                                />
-                            )}
-                            {doctype === "Fund Sanction" && name && !cancellationStatus?.message?.has_pending && (
-                                <FundSanctionWorkflowActions
-                                    docname={name}
-                                    onActionComplete={() =>
-                                        window.location.reload()
-                                    }
-                                    blockForward={isRnDStaff && !(data?.is_the_account_type_pfms || fsProjectRegData?.is_the_account_type_pfms)}
-                                />
-                            )}
-                            {doctype === "Travel" && name && !cancellationStatus?.message?.has_pending && (
-                                <TravelWorkflowActions
-                                    docname={name}
-                                    onActionComplete={() =>
-                                        window.location.reload()
-                                    }
-                                />
-                            )}
-                            {doctype === "Temporary Advance" && name && !cancellationStatus?.message?.has_pending && (
-                                <div className="flex items-center gap-3">
-                                    {isRnDStaff && (
-                                        <button
-                                            onClick={handlePrintTemporaryAdvance}
-                                            className="inline-flex items-center justify-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-700 shadow-sm transition-all"
-                                            title="Print Temporary Advance"
-                                        >
-                                            <Printer className="h-4 w-4" />
-                                            Print
-                                        </button>
-                                    )}
-                                    <TemporaryAdvanceActionButtons
-                                        docname={name}
-                                        onActionComplete={() =>
-                                            window.location.reload()
-                                        }
-                                        commitRequired={isRnDStaff && isCommittedForGate === false}
-                                        onAddComment={handleAddComment}
-                                    />
-                                </div>
-                            )}
-                            {doctype === "Direct Purchase" && name && !cancellationStatus?.message?.has_pending && (
-                                <DirectPurchaseWorkflowActions
-                                    docname={name}
-                                    onActionComplete={() => { }}
-                                    onAfterAction={(action) => {
-                                        if (
-                                            action
-                                                .toLowerCase()
-                                                .includes("verify")
-                                        ) {
-                                            setDpActiveTab("sanction");
-                                        }
-                                        refreshAll();
-                                    }}
-                                />
-                            )}
-                            {doctype === "TA DA Settlement" && name && !cancellationStatus?.message?.has_pending && (
-                                <TADASettlementActionButtons
-                                    docName={name}
-                                    onActionComplete={() =>
-                                        window.location.reload()
-                                    }
-                                />
-                            )}
-                            {doctype === "Recruitment Adhoc Contractual" &&
-                                name && !cancellationStatus?.message?.has_pending && (
-                                    <RecruitmentAdhocContractualWorkflowActions
-                                        docname={name}
-                                        onActionComplete={() =>
-                                            window.location.reload()
-                                        }
-                                        commitRequired={isRnDStaff && isCommittedForGate === false}
-                                    />
-                                )}
-                            {doctype === "Top Up Fellowship" && name && (
-                                <TopUpFellowshipWorkflowActions
-                                    docname={name}
-                                    onActionComplete={() =>
-                                        window.location.reload()
-                                    }
-                                    commitRequired={isRnDStaff && isCommittedForGate === false}
-                                />
-                            )}
-                            {doctype === "Leave Module" && name && (
-                                <LeaveModuleActionButtons
-                                    docName={name}
-                                    onActionComplete={() =>
-                                        window.location.reload()
-                                    }
-                                />
-                            )}
-                            {/* {doctype === "Cancellation Request" && name && (
-                                <CancellationRequestWorkflowActions
-                                    docname={name}
-                                    onActionComplete={() => window.location.reload()}
-                                />
-                            )} */}
+                            <TemporaryAdvanceActionButtons
+                                docname={name}
+                                onActionComplete={() => window.location.reload()}
+                                commitRequired={isRnDStaff && isCommittedForGate === false}
+                                onAddComment={handleAddComment}
+                            />
                         </div>
-                    </div>
-                </header>
+                    )}
+                    {doctype === "Direct Purchase" && name && !cancellationStatus?.message?.has_pending && (
+                        <DirectPurchaseWorkflowActions
+                            docname={name}
+                            onActionComplete={() => { }}
+                            onAfterAction={(action) => {
+                                if (action.toLowerCase().includes("verify")) {
+                                    setDpActiveTab("sanction");
+                                }
+                                refreshAll();
+                            }}
+                        />
+                    )}
+                    {doctype === "TA DA Settlement" && name && !cancellationStatus?.message?.has_pending && (
+                        <TADASettlementActionButtons
+                            docName={name}
+                            onActionComplete={() => window.location.reload()}
+                        />
+                    )}
+                    {doctype === "Recruitment Adhoc Contractual" && name && !cancellationStatus?.message?.has_pending && (
+                        <RecruitmentAdhocContractualWorkflowActions
+                            docname={name}
+                            onActionComplete={() => window.location.reload()}
+                            commitRequired={isRnDStaff && isCommittedForGate === false}
+                        />
+                    )}
+                    {doctype === "Top Up Fellowship" && name && (
+                        <TopUpFellowshipWorkflowActions
+                            docname={name}
+                            onActionComplete={() => window.location.reload()}
+                            commitRequired={isRnDStaff && isCommittedForGate === false}
+                        />
+                    )}
+                    {doctype === "Leave Module" && name && (
+                        <LeaveModuleActionButtons
+                            docName={name}
+                            onActionComplete={() => window.location.reload()}
+                        />
+                    )}
+                </PageHeader>
 
                 {/* Content Grid with Sidebar */}
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -4585,59 +4586,11 @@ const PendingTaskDetails: React.FC = () => {
                     </div>
                 </div>
 
-                {name && doctype && (
-                    <>
-                        <button
-                            type="button"
-                            onClick={() => setIsActivityOpen(true)}
-                            className="fixed bottom-6 right-6 z-40 inline-flex h-12 items-center gap-2 rounded-full border border-[#C7D2FE] bg-[#2563EB] px-4 text-[12px] font-extrabold uppercase tracking-wider text-white shadow-lg shadow-blue-900/20 transition-all hover:bg-[#1D4ED8] focus:outline-none focus:ring-4 focus:ring-[#4A6CF7]/20 dark:border-[#4A6CF7]/40"
-                            aria-label="Open Activity Log"
-                        >
-                            <MessageSquareIcon className="h-4 w-4" />
-                            Activity Log
-                        </button>
-
-                        {isActivityOpen && (
-                            <div className="fixed inset-0 z-50 flex justify-end">
-                                <div
-                                    className="absolute inset-0 bg-black/35 backdrop-blur-[2px]"
-                                    onClick={() => setIsActivityOpen(false)}
-                                />
-                                <div className="relative h-full w-full max-w-[420px] overflow-y-auto border-l border-[#E4E4E7] bg-white p-5 shadow-2xl dark:border-[#3F3F46] dark:bg-[#18181B]">
-                                    <div className="mb-4 flex items-center justify-between gap-4">
-                                        <div>
-                                            <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#D97757]">
-                                                Pending Task
-                                            </p>
-                                            <h2 className="text-lg font-extrabold text-[#27272A] dark:text-[#F4F4F5]">
-                                                Activity Log
-                                            </h2>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsActivityOpen(false)}
-                                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#E4E4E7] text-[#71717A] transition-colors hover:bg-[#F4F4F5] hover:text-[#27272A] dark:border-[#3F3F46] dark:text-[#A1A1AA] dark:hover:bg-[#27272A] dark:hover:text-[#F4F4F5]"
-                                            aria-label="Close Activity Log"
-                                        >
-                                            <XIcon className="h-4 w-4" />
-                                        </button>
-                                    </div>
-                                    <ActivityLog doctype={doctype} docname={name} />
-                                </div>
-                            </div>
-                        )}
-                    </>
-                )}
-
-                <div className="flex justify-end gap-3 pb-8 mt-6">
-                    <FrappeButton
-                        className="bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:bg-zinc-800/50 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800"
-                        onClick={() => navigate(-1)}
-                    >
-                        Back to List
-                    </FrappeButton>
-                </div>
             </main>
+
+            {name && doctype && (
+                <FloatingActivityLogButton doctype={doctype} docname={name} />
+            )}
 
             {/* Project Registration Preview Modal */}
             {prPreviewName && (
