@@ -935,6 +935,10 @@ const PendingTask: React.FC = () => {
                                                                 navigate(`/project-staff-joining?docname=${encodeURIComponent(task.id)}`);
                                                             } else if (task.doctype === "Project Staff Resignation") {
                                                                 navigate(`/project-staff-resignation?edit=${encodeURIComponent(task.id)}`);
+                                                            } else if (task.doctype === "Miscellaneous Commit") {
+                                                                navigate(`/miscellaneous-commit/${task.id}`);
+                                                            } else if (task.doctype === "Loan Request") {
+                                                                navigate(`/loan-request/${task.id}`);
                                                             } else {
                                                                 navigate(`/pending-tasks/${task.doctype}/${task.id}`);
                                                             }
@@ -1166,6 +1170,10 @@ const PendingTask: React.FC = () => {
                                     navigate(`/project-staff-joining?docname=${encodeURIComponent(selectedTask.docname)}`);
                                 } else if (selectedTask.doctype === "Project Staff Resignation") {
                                     navigate(`/project-staff-resignation?edit=${encodeURIComponent(selectedTask.docname)}`);
+                                } else if (selectedTask.doctype === "Miscellaneous Commit") {
+                                    navigate(`/miscellaneous-commit/${selectedTask.docname}`);
+                                } else if (selectedTask.doctype === "Loan Request") {
+                                    navigate(`/loan-request/${selectedTask.docname}`);
                                 } else {
                                     navigate(`/pending-tasks/${encodeURIComponent(selectedTask.doctype)}/${selectedTask.docname}`);
                                 }

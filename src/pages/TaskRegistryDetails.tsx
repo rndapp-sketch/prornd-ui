@@ -82,6 +82,8 @@ function getOriginalApplicationRoute(refDoctype: string, refName: string): strin
             return `/travel/${name}`;
         case "Loan Request":
             return `/loan-request/${name}`;
+        case "Miscellaneous Commit":
+            return `/miscellaneous-commit/${name}`;
         case "Indent General Form":
             return `/indent-general-form-details/${name}`;
         case "Indent Cum Sanction Sheet":

@@ -261,6 +261,15 @@ export const loanRequestAPI = {
     performAction: `${API_BASE}.loan_request.loan_request.perform_loan_request_action`,
 };
 
+// Miscellaneous Commit API endpoints
+export const miscellaneousCommitAPI = {
+    getFields: `${API_BASE}.miscellaneous_commit.miscellaneous_commit.get_miscellaneous_commit_fields`,
+    save: `${API_BASE}.miscellaneous_commit.miscellaneous_commit.save_miscellaneous_commit`,
+    submit: `${API_BASE}.miscellaneous_commit.miscellaneous_commit.submit_miscellaneous_commit`,
+    getWorkflowActions: `${API_BASE}.miscellaneous_commit.miscellaneous_commit.get_miscellaneous_commit_workflow_actions`,
+    performAction: `${API_BASE}.miscellaneous_commit.miscellaneous_commit.perform_miscellaneous_commit_action`,
+};
+
 // Common utility to get user details
 export const commonAPI = {
     getUserDetails: `${API_BASE}.project_registration.project_registration.get_user_details_for_pi`,
