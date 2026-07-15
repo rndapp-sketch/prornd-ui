@@ -300,6 +300,11 @@ export function AppSidebar() {
             path: "/salary-module",
         },
         {
+            label: "Commit / De-Commit",
+            icon: CreditCard,
+            path: "/miscellaneous-commit",
+        },
+        {
             label: "Project Search",
             icon: Search,
             path: "/project-search",
@@ -312,6 +317,9 @@ export function AppSidebar() {
             return canUploadDirectorPdf;
         }
         if (item.label === "Salary Module") {
+            return roles?.includes("staff, RnD") ?? false;
+        }
+        if (item.label === "Commit / De-Commit") {
             return roles?.includes("staff, RnD") ?? false;
         }
         if (item.label === "Project Search") {

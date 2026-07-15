@@ -818,6 +818,11 @@ const QuickActions = ({
     const [applicationData, setApplicationData] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
+    // QuickActions doesn't share scope with the outer component — call hooks independently here.
+    const { currentUser: quickActionsCurrentUser } = useFrappeAuth();
+    const { roles: quickActionsRoles } = useUserRoles(quickActionsCurrentUser ?? null);
+    const isStaffRnDForCommit = quickActionsRoles.includes("staff, RnD");
+
     // Settle Modal State (Advance)
     const [isSettleModalOpen, setIsSettleModalOpen] = useState(false);
     const [existingSettlements, setExistingSettlements] = useState<any[]>([]);
@@ -1107,6 +1112,11 @@ const QuickActions = ({
         },
         { title: "Travel", icon: Plane, items: ["Travel"] },
         { title: "Loan", icon: CreditCardIcon, items: ["Loan Request"] },
+        ...(isStaffRnDForCommit ? [{
+            title: "Commit / De-Commit",
+            icon: CreditCardIcon,
+            items: ["Miscellaneous Commit"],
+        }] : []),
         // {
         //   title: "Utilities",
         //   icon: Settings,
@@ -1849,6 +1859,34 @@ const QuickActions = ({
                     console.error("Loan Request fetch error:", fetchError);
                     data = [];
                 }
+            } else if (selectedApplication === "Miscellaneous Commit") {
+                try {
+                    const timestamp = Date.now();
+                    const apiUrl = `/api/v2/document/Miscellaneous%20Commit?fields=["name","creation","workflow_state","docstatus","owner","project_number","commit_decommit","commit_amount","budget_head"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    const fetchResponse = await fetch(apiUrl, {
+                        method: "GET",
+                        headers: { Accept: "application/json" },
+                        credentials: "include",
+                    });
+                    if (!fetchResponse.ok)
+                        throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+                    const result = await fetchResponse.json();
+                    const allItems = result?.data || [];
+                    data = allItems
+                        .filter((item: any) => {
+                            return (
+                                item.project_number === projectName ||
+                                item.project_number === projectNo
+                            );
+                        })
+                        .map((item: any) => ({
+                            ...item,
+                            workflow_state: item.workflow_state || "Draft",
+                        }));
+                } catch (fetchError) {
+                    console.error("Miscellaneous Commit fetch error:", fetchError);
+                    data = [];
+                }
             }
             setApplicationData(data);
         } catch (error) {
@@ -1987,6 +2025,11 @@ const QuickActions = ({
             case "Project Staff Resignation":
                 onNavigate(
                     `/project-staff-resignation?project=${projectParam}`,
+                );
+                break;
+            case "Miscellaneous Commit":
+                onNavigate(
+                    `/miscellaneous-commit-form?project=${projectName}`,
                 );
                 break;
             case "Direct Purchase":
@@ -2327,6 +2370,11 @@ const QuickActions = ({
                                                                 case "Loan Request":
                                                                     onNavigate(
                                                                         `/loan-request/${item.name}`,
+                                                                    );
+                                                                    break;
+                                                                case "Miscellaneous Commit":
+                                                                    onNavigate(
+                                                                        `/miscellaneous-commit/${item.name}`,
                                                                     );
                                                                     break;
                                                                 case "Indent General Form":
@@ -4011,16 +4059,18 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                     </p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <WorkflowActions
-                                    docname={projectName!}
-                                    onAction={handleWorkflowAction}
-                                    isLoading={isActionLoading}
-                                    projectNo={data?.project_no}
-                                    status={data?.workflow_state}
-                                    isStaffRnD={isStaffRnDOnly}
-                                />
-                            </div>
+                            {!hideActions && (
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <WorkflowActions
+                                        docname={projectName!}
+                                        onAction={handleWorkflowAction}
+                                        isLoading={isActionLoading}
+                                        projectNo={data?.project_no}
+                                        status={data?.workflow_state}
+                                        isStaffRnD={isStaffRnDOnly}
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
                 </header>
