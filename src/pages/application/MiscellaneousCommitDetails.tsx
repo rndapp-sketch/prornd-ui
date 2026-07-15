@@ -44,7 +44,6 @@ function buildTimelineStages(currentState: string): { label: string; status: Sta
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
     message: {
-        fields: FormField[];
         link_options: Record<string, LinkOption[]>;
         prefill_data: Record<string, any>;
     };
@@ -337,7 +336,6 @@ const MiscellaneousCommitDetails: React.FC = () => {
                                 <MiscellaneousCommitActionButtons
                                     docname={id}
                                     onActionComplete={handleRefresh}
-                                    inline
                                 />
                             )}
                         </div>
