@@ -2,8 +2,151 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppSidebar } from "@/components/RndSidebar";
 import { cn } from "@/lib/utils";
-import { Plus, ArrowLeftIcon } from "lucide-react";
+import {
+    Plus, ArrowLeftIcon, HelpCircle, X, ArrowRightLeft,
+    CheckCircle2, Clock, IndianRupee, BookOpen,
+} from "lucide-react";
 import { GlobalLoader } from "@/components/ui/global-loader";
+
+// --- HELP PANEL ---
+const HelpPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => (
+    <div className="fixed inset-0 z-50 flex justify-end">
+        <button
+            className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+            onClick={onClose}
+            aria-label="Close help"
+        />
+        <aside className="relative flex h-full w-full max-w-sm flex-col overflow-y-auto bg-white dark:bg-[#27272A] shadow-2xl animate-in slide-in-from-right duration-300">
+            {/* Header */}
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] px-5 py-4">
+                <div className="flex items-center gap-2.5">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#D97757]/10 text-[#D97757]">
+                        <HelpCircle className="h-4 w-4" />
+                    </span>
+                    <div>
+                        <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#D97757]">Guide</p>
+                        <h2 className="text-[15px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
+                            Commit / De-Commit
+                        </h2>
+                    </div>
+                </div>
+                <button
+                    onClick={onClose}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-[#71717A] hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                >
+                    <X className="h-4 w-4" />
+                </button>
+            </div>
+
+            <div className="flex-1 px-5 py-5 space-y-5">
+
+                {/* What is it */}
+                <section>
+                    <div className="flex items-center gap-2 mb-2">
+                        <BookOpen className="w-3.5 h-3.5 text-[#4A6CF7]" />
+                        <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">What is this?</h3>
+                    </div>
+                    <p className="text-[13px] text-[#52525B] dark:text-[#A1A1AA] leading-relaxed">
+                        A <strong className="text-[#3F3F46] dark:text-[#E4E4E7]">Miscellaneous Commit</strong> is used to
+                        reserve or release budget against a project's account head for a specific expenditure module
+                        (e.g. Recruitment, Travel, Honorarium).
+                    </p>
+                </section>
+
+                {/* Commit vs De-Commit */}
+                <section className="space-y-2.5">
+                    <div className="flex items-center gap-2 mb-2">
+                        <ArrowRightLeft className="w-3.5 h-3.5 text-[#D97757]" />
+                        <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">Commit vs De-Commit</h3>
+                    </div>
+                    <div className="rounded-xl border border-[#D97757]/20 bg-[#FFF7F4] dark:bg-[#D97757]/10 p-4">
+                        <p className="text-[12px] font-extrabold text-[#D97757] mb-1">Commit</p>
+                        <p className="text-[12.5px] text-[#52525B] dark:text-[#A1A1AA] leading-relaxed">
+                            Reserves a specific amount from the project budget head for a planned expenditure.
+                            The committed amount is <em>locked</em> and cannot be used for other purposes until released.
+                        </p>
+                    </div>
+                    <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4">
+                        <p className="text-[12px] font-extrabold text-blue-700 dark:text-blue-400 mb-1">De-Commit</p>
+                        <p className="text-[12.5px] text-[#52525B] dark:text-[#A1A1AA] leading-relaxed">
+                            Releases a previously committed amount back to the available balance.
+                            Use this when an expenditure was cancelled or the reserved amount is no longer needed.
+                        </p>
+                    </div>
+                </section>
+
+                {/* Key Fields */}
+                <section>
+                    <div className="flex items-center gap-2 mb-2">
+                        <IndianRupee className="w-3.5 h-3.5 text-emerald-500" />
+                        <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">Key Fields</h3>
+                    </div>
+                    <div className="space-y-2">
+                        {[
+                            { field: "Project Number", desc: "The project whose budget will be affected." },
+                            { field: "Budget Head", desc: "The specific budget line (account head) to commit or de-commit from." },
+                            { field: "Module", desc: "The expenditure category — e.g. Recruitment, Travel, Honorarium." },
+                            { field: "Commit Amount", desc: "Amount in INR to reserve or release." },
+                            { field: "Commit Particular", desc: "Brief description of what the commitment is for." },
+                            { field: "Linked Application", desc: "Optional — the related application document (e.g. a Recruitment application ID)." },
+                        ].map(({ field, desc }) => (
+                            <div key={field} className="flex gap-2.5">
+                                <span className="mt-0.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#D97757] mt-[7px]" />
+                                <p className="text-[12.5px] text-[#52525B] dark:text-[#A1A1AA] leading-snug">
+                                    <strong className="text-[#3F3F46] dark:text-[#E4E4E7]">{field}</strong> — {desc}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+
+                {/* Workflow */}
+                <section>
+                    <div className="flex items-center gap-2 mb-3">
+                        <Clock className="w-3.5 h-3.5 text-amber-500" />
+                        <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">Approval Workflow</h3>
+                    </div>
+                    <div className="space-y-0">
+                        {[
+                            { stage: "Draft", desc: "You create and save the application.", color: "bg-zinc-400" },
+                            { stage: "Pending HoS Approval", desc: "Forwarded to Head of Section (R&D) for review.", color: "bg-amber-400" },
+                            { stage: "Pending Dean Approval", desc: "Forwarded to Dean, R&D for final approval.", color: "bg-blue-400" },
+                            { stage: "Approved", desc: "Budget is committed or released on the project.", color: "bg-emerald-500" },
+                        ].map(({ stage, desc, color }, i, arr) => (
+                            <div key={stage} className="flex gap-3">
+                                <div className="flex flex-col items-center">
+                                    <span className={cn("h-2.5 w-2.5 rounded-full flex-shrink-0 mt-1", color)} />
+                                    {i < arr.length - 1 && <span className="w-px flex-1 bg-zinc-200 dark:bg-zinc-700 my-1" />}
+                                </div>
+                                <div className="pb-3">
+                                    <p className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">{stage}</p>
+                                    <p className="text-[11.5px] text-[#71717A] dark:text-[#A1A1AA]">{desc}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <p className="text-[11px] text-[#A1A1AA] dark:text-[#71717A] mt-1 italic">
+                        * Staff (R&D) submissions skip Pending Staff Approval and go directly to HoS.
+                    </p>
+                </section>
+
+                {/* How to apply */}
+                <section className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <p className="text-[12px] font-extrabold text-emerald-700 dark:text-emerald-400">How to apply</p>
+                    </div>
+                    <ol className="space-y-1 list-decimal list-inside text-[12.5px] text-emerald-800 dark:text-emerald-300">
+                        <li>Click <strong>Apply New</strong> (top right).</li>
+                        <li>Select your project and fill in the commit details.</li>
+                        <li>Click <strong>Save Draft</strong> to save, or <strong>Submit</strong> to send for approval.</li>
+                        <li>Track progress from this list or via Pending Tasks.</li>
+                    </ol>
+                </section>
+            </div>
+        </aside>
+    </div>
+);
 
 // --- TYPE DEFINITIONS ---
 interface MiscellaneousCommitListItem {
@@ -23,6 +166,7 @@ const MiscellaneousCommit: React.FC = () => {
     const navigate = useNavigate();
     const [list, setList] = useState<MiscellaneousCommitListItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [helpOpen, setHelpOpen] = useState(false);
 
     const fetchList = useCallback(async () => {
         setLoading(true);
@@ -195,6 +339,23 @@ const MiscellaneousCommit: React.FC = () => {
                     )}
                 </div>
             </main>
+
+            {/* Floating help button */}
+            <button
+                onClick={() => setHelpOpen(true)}
+                className="fixed bottom-8 right-7 z-40 flex h-11 items-center gap-2 rounded-full border border-[#4A6CF7]/30 bg-white/95 px-3.5 text-[#1E3A8A] shadow-lg shadow-[#18181B]/10 backdrop-blur transition-all hover:-translate-y-0.5 hover:border-[#4A6CF7]/50 hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/35 dark:bg-[#27272A]/95 dark:text-[#C7D2FE]"
+                aria-label="Help"
+                title="What is Commit / De-Commit?"
+            >
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#4A6CF7] text-white shadow-sm">
+                    <HelpCircle className="h-4 w-4" />
+                </span>
+                <span className="hidden text-[12px] font-extrabold uppercase tracking-wide md:block">
+                    Module Guide
+                </span>
+            </button>
+
+            {helpOpen && <HelpPanel onClose={() => setHelpOpen(false)} />}
         </div>
     );
 };
