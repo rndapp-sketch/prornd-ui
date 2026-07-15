@@ -4,9 +4,9 @@ import { AppSidebar } from '@/components/RndSidebar';
 import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import {
-    CalendarIcon, EditIcon, Send, ChevronRight,
-    CheckCircle2, XCircle, Clock, UserIcon, IndianRupeeIcon,
-    LinkIcon, Briefcase, ArrowLeftRightIcon,
+    CalendarIcon, EditIcon, Send,
+    CheckCircle2, UserIcon, IndianRupeeIcon,
+    LinkIcon, Briefcase, ArrowLeftRightIcon, ArrowLeft, X, ExternalLink,
 } from 'lucide-react';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { miscellaneousCommitAPI, prepareFormDataForApi } from '@/services/apiService';
@@ -14,6 +14,7 @@ import { DepartmentName } from '@/components/DepartmentName';
 import MiscellaneousCommitActionButtons from '@/components/MiscellaneousCommitActionButtons';
 import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButton';
 import { type LinkOption } from '@/components/forms/DynamicFormRenderer';
+import ProjectDetailsOverview from '@/pages/ProjectDetailsOverview';
 
 // --- WORKFLOW STAGES ---
 const STAGES_STAFF_PATH = ['Draft', 'Pending HoS Approval', 'Pending Dean Approval', 'Approved'];
@@ -91,71 +92,40 @@ const InfoRow = ({ label, value, children }: { label: string; value?: string; ch
     </div>
 );
 
-// --- WORKFLOW TIMELINE ---
+// --- COMPACT WORKFLOW TIMELINE (inline strip) ---
 const WorkflowTimeline: React.FC<{ currentState: string }> = ({ currentState }) => {
     const stages = buildTimelineStages(currentState);
-
-    const iconForStatus = (status: StageStatus) => {
-        if (status === 'completed') return <CheckCircle2 className="w-3.5 h-3.5 text-white" />;
-        if (status === 'in-progress') return <Clock className="w-3.5 h-3.5 text-white" />;
-        if (status === 'rejected') return <XCircle className="w-3.5 h-3.5 text-white" />;
-        return <span className="w-2 h-2 rounded-full bg-white/50" />;
-    };
-
-    const bgForStatus = (status: StageStatus) => {
-        if (status === 'completed') return 'bg-emerald-500';
-        if (status === 'in-progress') return 'bg-[#D97757]';
-        if (status === 'rejected') return 'bg-red-500';
-        return 'bg-[#D4D4D8] dark:bg-[#52525B]';
-    };
-
     return (
-        <FrappeCard>
-            <CardHeader icon={ChevronRight} label="Workflow Progress" />
-            <div className="px-5 py-4">
-                <div className="flex items-center overflow-x-auto pb-1 gap-0">
-                    {stages.map((stage, idx) => (
-                        <React.Fragment key={stage.label}>
-                            <div className="flex flex-col items-center min-w-[80px]">
-                                <div className={cn(
-                                    'w-8 h-8 rounded-full flex items-center justify-center shadow-sm flex-shrink-0',
-                                    bgForStatus(stage.status),
-                                )}>
-                                    {iconForStatus(stage.status)}
-                                </div>
-                                <p className={cn(
-                                    'mt-1.5 text-center text-[11px] leading-tight px-1 font-semibold',
-                                    stage.status === 'in-progress' && 'text-[#D97757]',
-                                    stage.status === 'completed' && 'text-emerald-600 dark:text-emerald-400',
-                                    stage.status === 'pending' && 'text-[#A1A1AA]',
-                                    stage.status === 'rejected' && 'text-red-500',
-                                )}>
-                                    {stage.label}
-                                </p>
-                                {stage.status === 'in-progress' && (
-                                    <span className="mt-1 text-[9px] font-extrabold text-white bg-[#D97757] px-2 py-0.5 rounded-full whitespace-nowrap">
-                                        Here
-                                    </span>
-                                )}
-                                {currentState === 'Approved' && stage.label === 'Approved' && (
-                                    <span className="mt-1 text-[9px] font-extrabold text-white bg-emerald-500 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                        Approved
-                                    </span>
-                                )}
-                            </div>
-                            {idx < stages.length - 1 && (
-                                <div className="flex-1 flex items-center pb-5 min-w-[16px]">
-                                    <div className={cn(
-                                        'h-0.5 w-full rounded-full',
-                                        stage.status === 'completed' ? 'bg-emerald-400' : 'bg-[#E4E4E7] dark:bg-[#3F3F46]',
-                                    )} />
-                                </div>
-                            )}
-                        </React.Fragment>
-                    ))}
-                </div>
-            </div>
-        </FrappeCard>
+        <div className="flex items-center gap-0 overflow-x-auto">
+            {stages.map((stage, idx) => (
+                <React.Fragment key={stage.label}>
+                    <div className="flex flex-col items-center min-w-fit">
+                        <div className={cn(
+                            'h-2 w-2 rounded-full flex-shrink-0',
+                            stage.status === 'completed' && 'bg-emerald-500',
+                            stage.status === 'in-progress' && 'bg-[#D97757] ring-2 ring-[#D97757]/30',
+                            stage.status === 'rejected' && 'bg-red-500',
+                            stage.status === 'pending' && 'bg-[#D4D4D8] dark:bg-[#52525B]',
+                        )} />
+                        <p className={cn(
+                            'mt-1 text-[10px] leading-tight whitespace-nowrap font-semibold',
+                            stage.status === 'in-progress' && 'text-[#D97757]',
+                            stage.status === 'completed' && 'text-emerald-600 dark:text-emerald-400',
+                            stage.status === 'pending' && 'text-[#A1A1AA]',
+                            stage.status === 'rejected' && 'text-red-500',
+                        )}>
+                            {stage.label}
+                        </p>
+                    </div>
+                    {idx < stages.length - 1 && (
+                        <div className={cn(
+                            'h-px flex-1 min-w-[12px] mx-1 mb-3',
+                            stage.status === 'completed' ? 'bg-emerald-400' : 'bg-[#E4E4E7] dark:bg-[#3F3F46]',
+                        )} />
+                    )}
+                </React.Fragment>
+            ))}
+        </div>
     );
 };
 
@@ -203,6 +173,7 @@ const MiscellaneousCommitDetails: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [prPreviewName, setPrPreviewName] = useState<string | null>(null);
 
     const { call: fetchFormData, result: formDataResult, error: formDataError } =
         useFrappePostCall<FormDataResponse>(miscellaneousCommitAPI.getFields);
@@ -295,25 +266,44 @@ const MiscellaneousCommitDetails: React.FC = () => {
                 <FrappeCard className="mb-5">
                     <div className="h-[3px] bg-gradient-to-r from-[#D97757] via-[#c66a4e] to-[#4A6CF7]" />
                     <div className="px-5 py-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0">
-                            <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">
-                                Miscellaneous Commit
-                            </span>
-                            <div className="mt-1 flex flex-wrap items-center gap-2">
-                                <h1 className="text-[20px] font-extrabold tracking-tight text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
-                                    {formData.name || id}
-                                </h1>
-                                <StateBadge state={workflowState} />
+                        <div className="flex items-start gap-3 min-w-0">
+                            {/* Back button */}
+                            <button
+                                onClick={() => navigate(-1)}
+                                className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#3F3F46] dark:hover:text-[#E4E4E7] hover:border-[#D97757]/50 transition-colors"
+                                aria-label="Go back"
+                            >
+                                <ArrowLeft className="w-3.5 h-3.5" />
+                            </button>
+                            <div className="min-w-0">
+                                <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">
+                                    Miscellaneous Commit
+                                </span>
+                                <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                                    <h1 className="text-[18px] font-extrabold tracking-tight text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
+                                        {formData.name || id}
+                                    </h1>
+                                    <StateBadge state={workflowState} />
+                                </div>
+                                {resolvedProjectNo && (
+                                    <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+                                        Project: {resolvedProjectNo}
+                                    </p>
+                                )}
                             </div>
-                            {resolvedProjectNo && (
-                                <p className="mt-1 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
-                                    Project: {resolvedProjectNo}
-                                </p>
-                            )}
                         </div>
 
                         {/* Header Actions */}
                         <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+                            {formData.project_number && (
+                                <button
+                                    onClick={() => setPrPreviewName(formData.project_number)}
+                                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-bold bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] text-[#52525B] dark:text-[#A1A1AA] hover:border-[#4A6CF7]/50 hover:text-[#4A6CF7] transition-all shadow-sm"
+                                >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    View Project
+                                </button>
+                            )}
                             {isDraft && id ? (
                                 <>
                                     <button
@@ -340,12 +330,12 @@ const MiscellaneousCommitDetails: React.FC = () => {
                             )}
                         </div>
                     </div>
-                </FrappeCard>
 
-                {/* ── Workflow Timeline ──────────────────────────── */}
-                <div className="mb-5">
-                    <WorkflowTimeline currentState={workflowState} />
-                </div>
+                    {/* ── Compact Workflow Timeline ── */}
+                    <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] px-5 py-3">
+                        <WorkflowTimeline currentState={workflowState} />
+                    </div>
+                </FrappeCard>
 
                 {/* ── Main Grid ─────────────────────────────────── */}
                 <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_300px] gap-5">
@@ -503,6 +493,26 @@ const MiscellaneousCommitDetails: React.FC = () => {
             </main>
 
             {id && <FloatingActivityLogButton doctype="Miscellaneous Commit" docname={id} />}
+
+            {/* ── View Project Modal ── */}
+            {prPreviewName && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                            <h2 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">Project Details</h2>
+                            <button
+                                onClick={() => setPrPreviewName(null)}
+                                className="flex h-8 w-8 items-center justify-center rounded-lg text-[#71717A] hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <div className="p-4">
+                            <ProjectDetailsOverview projectName={prPreviewName} embedded hideActions />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

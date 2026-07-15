@@ -167,7 +167,7 @@ const Payments: React.FC = () => {
 
     // Fetch Module Registry to map moduleId (idx) -> doctype_name
     const fetchModuleRegistry = useCallback(async () => {
-        // Fallback map in case API fails
+        // Fallback map in case API fails (covers well-known modules 1–8)
         const fallbackMap: Record<string, string> = {
             '1': 'Project Registration',
             '2': 'Project Proposal',
@@ -179,29 +179,22 @@ const Payments: React.FC = () => {
             '8': 'Advance Settlement',
         };
         try {
-            const csrf = (window as any).csrf_token || '';
-            const response = await fetch('/api/method/frappe.client.get', {
-                method: 'POST',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Frappe-CSRF-Token': csrf,
-                    Accept: 'application/json',
-                },
-                body: JSON.stringify({ doctype: 'Module Registry', name: 'pending-task' }),
-            });
+            // Use GET to avoid CSRF requirements in dev/proxy environments
+            const response = await fetch(
+                '/api/method/frappe.client.get?doctype=Module%20Registry&name=pending-task',
+                { credentials: 'include', headers: { Accept: 'application/json' } },
+            );
             const data = await response.json();
             const rows = data?.message?.doctype_name;
-            console.log('Module Registry response:', data);
-            if (Array.isArray(rows)) {
+            if (Array.isArray(rows) && rows.length > 0) {
                 const map: Record<string, string> = {};
                 rows.forEach((item: any) => {
-                    map[String(item.idx)] = item.doctype_name;
+                    if (item.idx != null && item.doctype_name) {
+                        map[String(item.idx)] = item.doctype_name;
+                    }
                 });
-                console.log('Module name map:', map);
                 setModuleNameMap(map);
             } else {
-                console.warn('Module Registry: unexpected response, using fallback map');
                 setModuleNameMap(fallbackMap);
             }
         } catch (err) {
