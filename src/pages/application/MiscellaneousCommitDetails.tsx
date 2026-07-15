@@ -6,29 +6,16 @@ import { cn } from '@/lib/utils';
 import {
     CalendarIcon, EditIcon, Send, ChevronRight,
     CheckCircle2, XCircle, Clock, UserIcon, IndianRupeeIcon,
+    LinkIcon, Briefcase, ArrowLeftRightIcon,
 } from 'lucide-react';
-import { PageHeader } from '@/components/common/PageHeader';
 import { GlobalLoader } from '@/components/ui/global-loader';
-import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { miscellaneousCommitAPI, prepareFormDataForApi } from '@/services/apiService';
 import { DepartmentName } from '@/components/DepartmentName';
 import MiscellaneousCommitActionButtons from '@/components/MiscellaneousCommitActionButtons';
 import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButton';
-
-// --- FIELD GROUP DEFINITIONS (same as form) ---
-const GROUP_A_FIELDS = new Set([
-    'section_break_klxk', 'project_number',
-    'applicant_webmail', 'applicant_department', 'applicant_designation',
-]);
-const GROUP_B_FIELDS = new Set([
-    'commit_details_section', 'budget_head', 'commit_decommit', 'module',
-    'commit_amount', 'commit_particular', 'linked_application',
-]);
+import { type LinkOption } from '@/components/forms/DynamicFormRenderer';
 
 // --- WORKFLOW STAGES ---
-// Two possible paths depending on who submitted:
-//  - staff, RnD submits   → Draft -> Pending HoS Approval -> Pending Dean Approval -> Approved
-//  - Permanent Employee   → Draft -> Pending Staff Approval -> Pending HoS Approval -> Pending Dean Approval -> Approved
 const STAGES_STAFF_PATH = ['Draft', 'Pending HoS Approval', 'Pending Dean Approval', 'Approved'];
 const STAGES_EMPLOYEE_PATH = ['Draft', 'Pending Staff Approval', 'Pending HoS Approval', 'Pending Dean Approval', 'Approved'];
 
@@ -37,15 +24,9 @@ type StageStatus = 'completed' | 'in-progress' | 'pending' | 'rejected';
 function buildTimelineStages(currentState: string): { label: string; status: StageStatus }[] {
     const isApproved = currentState === 'Approved';
     const isRejected = currentState === 'Rejected';
-    // Once state has passed "Pending Staff Approval" or skipped straight to "Pending HoS Approval"
-    // from Draft, we can no longer tell which path was taken except by whether the state ever was
-    // "Pending Staff Approval". We default to the employee path (longer/superset) unless the current
-    // state is "Pending HoS Approval" and we have no other signal — in that case both paths agree
-    // "Pending HoS Approval" comes right after Draft, so the staff path renders correctly too.
     const stages = currentState === 'Pending HoS Approval' || currentState === 'Draft'
         ? STAGES_STAFF_PATH
         : STAGES_EMPLOYEE_PATH;
-
     const currentIdx = stages.findIndex(s => s === currentState);
 
     return stages.map((stage, idx) => {
@@ -69,39 +50,45 @@ interface FormDataResponse {
     };
 }
 
-// --- UI COMPONENTS ---
-const GroupCard = ({
-    icon: Icon, label, badge, children, className,
-}: {
-    icon: React.ElementType;
-    label: string;
-    badge: string;
-    children: React.ReactNode;
-    className?: string;
-}) => (
+// --- UI PRIMITIVES ---
+const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
     <div className={cn(
-        'bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden',
+        'bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden',
         className,
     )}>
-        <div className="flex items-center gap-3 px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
-            <span className="flex items-center justify-center w-7 h-7 rounded-full bg-[#D97757]/10 text-[#D97757] font-bold text-xs">
-                {badge}
-            </span>
-            <Icon className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
-            <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
-                {label}
-            </h3>
-        </div>
-        <div className="p-6">{children}</div>
+        {children}
     </div>
 );
 
-const InfoRow = ({ label, value, isDept }: { label: string; value: string; isDept?: boolean }) => (
-    <div className="space-y-1">
-        <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">{label}</p>
-        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 min-h-[1.5rem]">
-            {isDept && value ? <DepartmentName name={value} /> : (value || <span className="text-zinc-400">—</span>)}
+const CardHeader = ({ icon: Icon, label, accent = false }: {
+    icon: React.ElementType;
+    label: string;
+    accent?: boolean;
+}) => (
+    <div className={cn(
+        'flex items-center gap-2.5 px-5 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46]',
+        accent ? 'bg-[#FFF7F4] dark:bg-[#3F3F46]/40' : 'bg-[#FAFAF9] dark:bg-[#27272A]',
+    )}>
+        <span className={cn(
+            'flex h-7 w-7 items-center justify-center rounded-lg',
+            accent ? 'bg-[#D97757]/10 text-[#D97757]' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400',
+        )}>
+            <Icon className="w-3.5 h-3.5" />
+        </span>
+        <h3 className="text-[11.5px] font-extrabold uppercase tracking-[0.08em] text-[#52525B] dark:text-[#A1A1AA]">
+            {label}
+        </h3>
+    </div>
+);
+
+const InfoRow = ({ label, value, children }: { label: string; value?: string; children?: React.ReactNode }) => (
+    <div className="space-y-0.5">
+        <p className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-[#A1A1AA] dark:text-[#71717A]">
+            {label}
         </p>
+        <div className="text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] leading-snug min-h-[1.25rem]">
+            {children ?? (value ? value : <span className="text-[#A1A1AA] font-normal">—</span>)}
+        </div>
     </div>
 );
 
@@ -110,90 +97,99 @@ const WorkflowTimeline: React.FC<{ currentState: string }> = ({ currentState }) 
     const stages = buildTimelineStages(currentState);
 
     const iconForStatus = (status: StageStatus) => {
-        if (status === 'completed') return <CheckCircle2 className="w-4 h-4 text-white" />;
-        if (status === 'in-progress') return <Clock className="w-4 h-4 text-white" />;
-        if (status === 'rejected') return <XCircle className="w-4 h-4 text-white" />;
-        return <span className="w-2 h-2 rounded-full bg-white/60" />;
+        if (status === 'completed') return <CheckCircle2 className="w-3.5 h-3.5 text-white" />;
+        if (status === 'in-progress') return <Clock className="w-3.5 h-3.5 text-white" />;
+        if (status === 'rejected') return <XCircle className="w-3.5 h-3.5 text-white" />;
+        return <span className="w-2 h-2 rounded-full bg-white/50" />;
     };
 
     const bgForStatus = (status: StageStatus) => {
         if (status === 'completed') return 'bg-emerald-500';
         if (status === 'in-progress') return 'bg-[#D97757]';
         if (status === 'rejected') return 'bg-red-500';
-        return 'bg-zinc-300 dark:bg-zinc-600';
+        return 'bg-[#D4D4D8] dark:bg-[#52525B]';
     };
 
-    const connectorColor = (status: StageStatus) =>
-        status === 'completed' ? 'bg-emerald-400' : 'bg-zinc-200 dark:bg-zinc-700';
-
     return (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-5">
-            <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-                Workflow Progress
-            </h3>
-            <div className="flex items-start overflow-x-auto pb-1">
-                {stages.map((stage, idx) => (
-                    <React.Fragment key={stage.label}>
-                        <div className="flex flex-col items-center min-w-[90px] max-w-[130px]">
-                            <div className={cn(
-                                'w-8 h-8 rounded-full flex items-center justify-center shadow-sm flex-shrink-0',
-                                bgForStatus(stage.status),
-                            )}>
-                                {iconForStatus(stage.status)}
+        <FrappeCard>
+            <CardHeader icon={ChevronRight} label="Workflow Progress" />
+            <div className="px-5 py-4">
+                <div className="flex items-center overflow-x-auto pb-1 gap-0">
+                    {stages.map((stage, idx) => (
+                        <React.Fragment key={stage.label}>
+                            <div className="flex flex-col items-center min-w-[80px]">
+                                <div className={cn(
+                                    'w-8 h-8 rounded-full flex items-center justify-center shadow-sm flex-shrink-0',
+                                    bgForStatus(stage.status),
+                                )}>
+                                    {iconForStatus(stage.status)}
+                                </div>
+                                <p className={cn(
+                                    'mt-1.5 text-center text-[11px] leading-tight px-1 font-semibold',
+                                    stage.status === 'in-progress' && 'text-[#D97757]',
+                                    stage.status === 'completed' && 'text-emerald-600 dark:text-emerald-400',
+                                    stage.status === 'pending' && 'text-[#A1A1AA]',
+                                    stage.status === 'rejected' && 'text-red-500',
+                                )}>
+                                    {stage.label}
+                                </p>
+                                {stage.status === 'in-progress' && (
+                                    <span className="mt-1 text-[9px] font-extrabold text-white bg-[#D97757] px-2 py-0.5 rounded-full whitespace-nowrap">
+                                        Here
+                                    </span>
+                                )}
+                                {currentState === 'Approved' && stage.label === 'Approved' && (
+                                    <span className="mt-1 text-[9px] font-extrabold text-white bg-emerald-500 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                        Approved
+                                    </span>
+                                )}
                             </div>
-                            <p className={cn(
-                                'mt-2 text-center text-xs leading-tight px-1',
-                                stage.status === 'in-progress' ? 'font-bold text-[#D97757]' : '',
-                                stage.status === 'completed' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : '',
-                                stage.status === 'pending' ? 'text-zinc-400 dark:text-zinc-500' : '',
-                                stage.status === 'rejected' ? 'text-red-500 font-bold' : '',
-                            )}>
-                                {stage.label}
-                            </p>
-                            {stage.status === 'in-progress' && (
-                                <span className="mt-1 text-[10px] font-bold text-white bg-[#D97757] px-2 py-0.5 rounded-full">
-                                    Pending Here
-                                </span>
+                            {idx < stages.length - 1 && (
+                                <div className="flex-1 flex items-center pb-5 min-w-[16px]">
+                                    <div className={cn(
+                                        'h-0.5 w-full rounded-full',
+                                        stage.status === 'completed' ? 'bg-emerald-400' : 'bg-[#E4E4E7] dark:bg-[#3F3F46]',
+                                    )} />
+                                </div>
                             )}
-                            {currentState === 'Approved' && stage.label === 'Approved' && (
-                                <span className="mt-1 text-[10px] font-bold text-white bg-emerald-500 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                    Commit Approved
-                                </span>
-                            )}
-                        </div>
-                        {idx < stages.length - 1 && (
-                            <div className="flex-1 flex items-center pt-4 min-w-[20px]">
-                                <div className={cn('h-1 w-full rounded', connectorColor(stage.status))} />
-                                <ChevronRight className="w-3 h-3 text-zinc-400 flex-shrink-0 -ml-1" />
-                            </div>
-                        )}
-                    </React.Fragment>
-                ))}
-            </div>
-            {currentState && currentState !== 'Draft' && currentState !== 'Approved' && currentState !== 'Rejected' && (
-                <div className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                        Currently pending at:{' '}
-                        <span className="font-semibold text-[#D97757]">{currentState}</span>
-                    </p>
+                        </React.Fragment>
+                    ))}
                 </div>
-            )}
-        </div>
+            </div>
+        </FrappeCard>
     );
 };
 
 // --- STATUS BADGE ---
 const StateBadge = ({ state }: { state: string }) => {
     const colors: Record<string, string> = {
-        Approved: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-        Rejected: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-        Draft: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300',
+        Approved: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
+        Rejected: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800',
+        Draft: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700',
     };
     const isPending = state?.startsWith('Pending');
-    const cls = colors[state] ?? (isPending ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-zinc-100 text-zinc-600');
+    const cls = colors[state] ?? (isPending
+        ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+        : 'bg-zinc-100 text-zinc-600 border-zinc-200');
     return (
-        <span className={cn('px-3 py-1 text-xs font-bold rounded-full', cls)}>
+        <span className={cn('inline-flex items-center px-2.5 py-1 text-[11px] font-extrabold rounded-full border', cls)}>
             {state || 'Draft'}
+        </span>
+    );
+};
+
+// --- COMMIT TYPE BADGE ---
+const CommitBadge = ({ type }: { type: string }) => {
+    const isCommit = type === 'Commit';
+    return (
+        <span className={cn(
+            'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-extrabold border',
+            isCommit
+                ? 'bg-[#D97757]/10 text-[#D97757] border-[#D97757]/25'
+                : 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800',
+        )}>
+            <ArrowLeftRightIcon className="w-3 h-3" />
+            {type || '—'}
         </span>
     );
 };
@@ -203,7 +199,6 @@ const MiscellaneousCommitDetails: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
 
-    const [fields, setFields] = useState<FormField[]>([]);
     const [formData, setFormData] = useState<Record<string, any>>({});
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [loading, setLoading] = useState(true);
@@ -223,9 +218,7 @@ const MiscellaneousCommitDetails: React.FC = () => {
     useEffect(() => {
         const load = async () => {
             if (formDataResult?.message && id) {
-                const { fields: apiFields, link_options } = formDataResult.message;
-
-                setFields(apiFields || []);
+                const { link_options } = formDataResult.message;
                 setLinkOptions(link_options || {});
                 try {
                     const doc = await fetchDocument({ doctype: 'Miscellaneous Commit', name: id });
@@ -270,157 +263,247 @@ const MiscellaneousCommitDetails: React.FC = () => {
         }
     };
 
-    // Split fields into groups
-    const groupA = useMemo(() => fields.filter(f => GROUP_A_FIELDS.has(f.fieldname)), [fields]);
-    const groupB = useMemo(() => fields.filter(f => GROUP_B_FIELDS.has(f.fieldname)), [fields]);
-
-    const noOp = () => { };
-    const rendererProps = {
-        formData,
-        linkOptions,
-        onChange: noOp,
-        onFileChange: noOp,
-        onTableRowChange: noOp,
-        onTableFileChange: noOp,
-        onAddTableRow: noOp,
-        onDeleteTableRow: noOp,
-        readOnly: true,
-    };
-
     const workflowState = formData.workflow_state || 'Draft';
     const isDraft = workflowState === 'Draft' || !formData.workflow_state;
     const resolvedProjectNo = useMemo(
         () => linkOptions.project_number?.find(o => o.value === formData.project_number)?.label || formData.project_number,
         [linkOptions, formData.project_number],
     );
+    const budgetHeadLabel = useMemo(
+        () => linkOptions.budget_head?.find(o => o.value === formData.budget_head)?.label || formData.budget_head,
+        [linkOptions, formData.budget_head],
+    );
 
     if (loading) return <GlobalLoader isLoading={true} />;
 
-    return (
-        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-            <AppSidebar />
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-                <PageHeader
-                    title={formData.name || id || 'Miscellaneous Commit'}
-                    status={workflowState}
-                    projectNumber={resolvedProjectNo}
-                >
-                    {isDraft && id && (
-                        <>
-                            <button
-                                onClick={() => navigate(`/miscellaneous-commit-form?edit=${id}`)}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
-                            >
-                                <EditIcon className="w-4 h-4" />
-                                Edit
-                            </button>
-                            <button
-                                onClick={handleSubmitDraft}
-                                disabled={isSubmitting}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <Send className="w-4 h-4" />
-                                {isSubmitting ? 'Submitting...' : 'Submit Application'}
-                            </button>
-                        </>
-                    )}
-                </PageHeader>
+    const commitAmountFmt = formData.commit_amount != null
+        ? Number(formData.commit_amount).toLocaleString('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2 })
+        : null;
 
-                {/* Workflow Timeline */}
-                <div className="mt-6">
+    const creationDate = formData.creation
+        ? new Date(formData.creation).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+        : null;
+    const modifiedDate = formData.modified
+        ? new Date(formData.modified).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+        : null;
+
+    return (
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
+            <AppSidebar />
+            <main className="flex-1 px-4 md:px-8 pt-6 pb-12 w-full overflow-hidden">
+
+                {/* ── Header ────────────────────────────────────── */}
+                <FrappeCard className="mb-5">
+                    <div className="h-[3px] bg-gradient-to-r from-[#D97757] via-[#c66a4e] to-[#4A6CF7]" />
+                    <div className="px-5 py-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                            <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">
+                                Miscellaneous Commit
+                            </span>
+                            <div className="mt-1 flex flex-wrap items-center gap-2">
+                                <h1 className="text-[20px] font-extrabold tracking-tight text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
+                                    {formData.name || id}
+                                </h1>
+                                <StateBadge state={workflowState} />
+                            </div>
+                            {resolvedProjectNo && (
+                                <p className="mt-1 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+                                    Project: {resolvedProjectNo}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Header Actions */}
+                        <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+                            {isDraft && id ? (
+                                <>
+                                    <button
+                                        onClick={() => navigate(`/miscellaneous-commit-form?edit=${id}`)}
+                                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-bold bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] text-[#52525B] dark:text-[#A1A1AA] hover:border-[#D97757]/50 hover:text-[#D97757] transition-all shadow-sm"
+                                    >
+                                        <EditIcon className="w-3.5 h-3.5" />
+                                        Edit
+                                    </button>
+                                    <button
+                                        onClick={handleSubmitDraft}
+                                        disabled={isSubmitting}
+                                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-bold bg-[#D97757] hover:bg-[#c66a4e] text-white shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <Send className="w-3.5 h-3.5" />
+                                        {isSubmitting ? 'Submitting…' : 'Submit'}
+                                    </button>
+                                </>
+                            ) : id && (
+                                <MiscellaneousCommitActionButtons
+                                    docname={id}
+                                    onActionComplete={handleRefresh}
+                                    inline
+                                />
+                            )}
+                        </div>
+                    </div>
+                </FrappeCard>
+
+                {/* ── Workflow Timeline ──────────────────────────── */}
+                <div className="mb-5">
                     <WorkflowTimeline currentState={workflowState} />
                 </div>
 
-                {/* Action Buttons */}
-                {id && !isDraft && (
-                    <div className="mt-4">
-                        <MiscellaneousCommitActionButtons
-                            docname={id!}
-                            onActionComplete={handleRefresh}
-                        />
-                    </div>
-                )}
+                {/* ── Main Grid ─────────────────────────────────── */}
+                <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_300px] gap-5">
 
-                {/* Main Content */}
-                <div className="mt-5 grid grid-cols-1 lg:grid-cols-4 gap-5">
-                    {/* Form Groups — 3 cols */}
-                    <div className="lg:col-span-3 space-y-5">
-                        <GroupCard icon={UserIcon} label="Applicant Details & Project" badge="A">
-                            {formData.applicant_webmail && (
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700">
-                                    <InfoRow label="Webmail" value={formData.applicant_webmail} />
-                                    <InfoRow label="Department" value={formData.applicant_department} isDept />
-                                    <InfoRow label="Designation" value={formData.applicant_designation} />
+                    {/* Left column */}
+                    <div className="space-y-5">
+
+                        {/* Applicant & Project */}
+                        <FrappeCard>
+                            <CardHeader icon={UserIcon} label="Applicant & Project" />
+                            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                <InfoRow label="Project Number">
+                                    {resolvedProjectNo
+                                        ? <span className="font-mono text-[12.5px]">{resolvedProjectNo}</span>
+                                        : <span className="text-[#A1A1AA] font-normal">—</span>
+                                    }
+                                </InfoRow>
+                                <InfoRow label="Applicant Webmail">
+                                    {formData.applicant_webmail
+                                        ? <a href={`mailto:${formData.applicant_webmail}`} className="text-[#4A6CF7] hover:underline">{formData.applicant_webmail}</a>
+                                        : <span className="text-[#A1A1AA] font-normal">—</span>
+                                    }
+                                </InfoRow>
+                                <InfoRow label="Department">
+                                    {formData.applicant_department
+                                        ? <DepartmentName name={formData.applicant_department} />
+                                        : <span className="text-[#A1A1AA] font-normal">—</span>
+                                    }
+                                </InfoRow>
+                                <InfoRow label="Designation" value={formData.applicant_designation} />
+                            </div>
+                        </FrappeCard>
+
+                        {/* Commit Details */}
+                        <FrappeCard>
+                            <CardHeader icon={IndianRupeeIcon} label="Commit Details" accent />
+                            <div className="p-5 space-y-5">
+
+                                {/* Amount highlight */}
+                                {commitAmountFmt && (
+                                    <div className="flex items-center gap-3 p-4 rounded-xl bg-[#FFF7F4] dark:bg-[#D97757]/10 border border-[#D97757]/20">
+                                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#D97757]/15 text-[#D97757] flex-shrink-0">
+                                            <IndianRupeeIcon className="w-5 h-5" />
+                                        </span>
+                                        <div>
+                                            <p className="text-[10.5px] font-bold uppercase tracking-wider text-[#A1A1AA]">Commit Amount</p>
+                                            <p className="text-[20px] font-extrabold text-[#D97757] leading-tight">{commitAmountFmt}</p>
+                                        </div>
+                                        <div className="ml-auto">
+                                            <CommitBadge type={formData.commit_decommit} />
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                    <InfoRow label="Budget Head">
+                                        {budgetHeadLabel
+                                            ? <span>{budgetHeadLabel}</span>
+                                            : <span className="text-[#A1A1AA] font-normal">—</span>
+                                        }
+                                    </InfoRow>
+                                    <InfoRow label="Module" value={formData.module} />
+                                    <InfoRow label="Commit / Decommit">
+                                        {formData.commit_decommit
+                                            ? <CommitBadge type={formData.commit_decommit} />
+                                            : <span className="text-[#A1A1AA] font-normal">—</span>
+                                        }
+                                    </InfoRow>
+                                    <InfoRow label="Commit Particular" value={formData.commit_particular} />
                                 </div>
-                            )}
-                            <DynamicFormRenderer fields={groupA} {...rendererProps} />
-                        </GroupCard>
 
-                        <GroupCard icon={IndianRupeeIcon} label="Commit Details" badge="B">
-                            <DynamicFormRenderer fields={groupB} {...rendererProps} />
-                        </GroupCard>
+                                {formData.linked_application && (
+                                    <InfoRow label="Linked Application">
+                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                            <LinkIcon className="w-3.5 h-3.5 text-[#4A6CF7] flex-shrink-0" />
+                                            <span className="font-mono text-[12.5px] text-[#4A6CF7]">
+                                                {formData.linked_application}
+                                            </span>
+                                        </div>
+                                    </InfoRow>
+                                )}
+                            </div>
+                        </FrappeCard>
                     </div>
 
-                    {/* Sidebar — 1 col */}
-                    <aside className="lg:col-span-1 space-y-4">
-                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-                                Status
-                            </h3>
-                            <div className="space-y-3 text-sm">
+                    {/* Right sidebar */}
+                    <aside className="space-y-4">
+                        {/* Meta */}
+                        <FrappeCard>
+                            <CardHeader icon={Briefcase} label="Document Info" />
+                            <div className="p-4 space-y-3.5">
                                 <div className="flex justify-between items-center">
-                                    <span className="text-zinc-500 dark:text-zinc-400">State</span>
+                                    <span className="text-[11.5px] text-[#71717A] dark:text-[#A1A1AA]">Status</span>
                                     <StateBadge state={workflowState} />
                                 </div>
+
                                 {workflowState && !isDraft && workflowState !== 'Approved' && workflowState !== 'Rejected' && (
-                                    <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                                        <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
+                                    <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                                        <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-0.5">
                                             Pending at
                                         </p>
-                                        <p className="text-sm font-bold text-blue-800 dark:text-blue-200 mt-0.5">
+                                        <p className="text-[13px] font-extrabold text-amber-800 dark:text-amber-200">
                                             {workflowState}
                                         </p>
                                     </div>
                                 )}
-                                {formData.owner && (
-                                    <div className="flex justify-between">
-                                        <span className="text-zinc-500 dark:text-zinc-400">Applicant</span>
-                                        <span className="font-medium text-zinc-900 dark:text-zinc-100 text-xs text-right max-w-[140px] truncate">
-                                            {formData.owner}
-                                        </span>
+
+                                {workflowState === 'Approved' && (
+                                    <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                                        <p className="text-[13px] font-extrabold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                                            <CheckCircle2 className="w-4 h-4" />
+                                            Commit Approved
+                                        </p>
                                     </div>
                                 )}
-                                {formData.creation && (
-                                    <div className="flex justify-between">
-                                        <span className="text-zinc-500 dark:text-zinc-400">Created</span>
-                                        <span className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-1 text-xs">
-                                            <CalendarIcon className="w-3 h-3" />
-                                            {new Date(formData.creation).toLocaleDateString('en-IN')}
-                                        </span>
-                                    </div>
-                                )}
-                                {formData.modified && (
-                                    <div className="flex justify-between">
-                                        <span className="text-zinc-500 dark:text-zinc-400">Modified</span>
-                                        <span className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-1 text-xs">
-                                            <CalendarIcon className="w-3 h-3" />
-                                            {new Date(formData.modified).toLocaleDateString('en-IN')}
-                                        </span>
-                                    </div>
-                                )}
-                                {formData.commit_amount != null && (
-                                    <div className="flex justify-between">
-                                        <span className="text-zinc-500 dark:text-zinc-400">Amount</span>
-                                        <span className="font-bold text-[#D97757]">
-                                            {Number(formData.commit_amount).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
-                                        </span>
-                                    </div>
-                                )}
+
+                                <div className="pt-2 space-y-3 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                                    {formData.owner && (
+                                        <div className="flex justify-between items-start gap-2">
+                                            <span className="text-[11.5px] text-[#71717A] dark:text-[#A1A1AA] flex-shrink-0">Applicant</span>
+                                            <span className="text-[11.5px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] text-right break-all">
+                                                {formData.owner}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {creationDate && (
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[11.5px] text-[#71717A] dark:text-[#A1A1AA]">Created</span>
+                                            <span className="text-[11.5px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-1">
+                                                <CalendarIcon className="w-3 h-3 text-[#A1A1AA]" />
+                                                {creationDate}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {modifiedDate && (
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[11.5px] text-[#71717A] dark:text-[#A1A1AA]">Modified</span>
+                                            <span className="text-[11.5px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-1">
+                                                <CalendarIcon className="w-3 h-3 text-[#A1A1AA]" />
+                                                {modifiedDate}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {commitAmountFmt && (
+                                        <div className="flex justify-between items-center pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                                            <span className="text-[11.5px] text-[#71717A] dark:text-[#A1A1AA]">Amount</span>
+                                            <span className="text-[13px] font-extrabold text-[#D97757]">{commitAmountFmt}</span>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        </FrappeCard>
                     </aside>
                 </div>
             </main>
+
             {id && <FloatingActivityLogButton doctype="Miscellaneous Commit" docname={id} />}
         </div>
     );
