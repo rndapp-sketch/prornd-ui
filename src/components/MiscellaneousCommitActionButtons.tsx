@@ -1,21 +1,20 @@
-import { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
 import { miscellaneousCommitAPI } from "@/services/apiService";
-import { ChevronRight, RotateCcw, CheckCircle2, XCircle } from "lucide-react";
+import {
+    ChevronDown, ChevronRight, CheckCircle, XCircle, RotateCcw,
+} from "lucide-react";
 
 interface MiscellaneousCommitActionButtonsProps {
     docname: string;
     onActionComplete: () => void;
 }
 
-// --- COMMENT MODAL (same pattern as other modules) ---
+// --- COMMENT MODAL ---
 const CommentModal = ({
-    isOpen,
-    onClose,
-    onSubmit,
-    action,
-    isLoading,
+    isOpen, onClose, onSubmit, action, isLoading,
 }: {
     isOpen: boolean;
     onClose: () => void;
@@ -28,9 +27,9 @@ const CommentModal = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10000]">
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-md">
-                <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+                <h3 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100 mb-1">
                     Confirm: {action}
                 </h3>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
@@ -64,29 +63,37 @@ const CommentModal = ({
     );
 };
 
-// --- ACTION BUTTON STYLE BY TYPE ---
-const getActionStyle = (action: string): string => {
+// --- CATEGORISE ACTION ---
+const categorise = (action: string) => {
     const a = action.toLowerCase();
-    if (a === "forward")
-        return "bg-[#D97757] hover:bg-[#c66a4e] text-white border-[#c66a4e]";
-    if (a.includes("put back") || a === "putback")
-        return "bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/20 dark:hover:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700";
-    if (a === "approve")
-        return "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700";
-    if (a === "reject")
-        return "bg-red-600 hover:bg-red-700 text-white border-red-700";
-    if (a === "submit")
-        return "bg-[#D97757] hover:bg-[#c66a4e] text-white border-[#c66a4e]";
-    return "bg-white hover:bg-zinc-50 text-zinc-700 border-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700";
+    if (a.includes("forward") || a.includes("approve") || a.includes("submit")) return "forward";
+    if (a.includes("reject")) return "reject";
+    if (a.includes("put back")) return "putback";
+    return "neutral";
 };
 
-const getActionIcon = (action: string) => {
-    const a = action.toLowerCase();
-    if (a === "forward") return <ChevronRight className="w-4 h-4" />;
-    if (a.includes("put back")) return <RotateCcw className="w-4 h-4" />;
-    if (a === "approve") return <CheckCircle2 className="w-4 h-4" />;
-    if (a === "reject") return <XCircle className="w-4 h-4" />;
-    return null;
+const itemStyle = (action: string) => {
+    const cat = categorise(action);
+    if (cat === "forward") return {
+        icon: <CheckCircle className="h-3.5 w-3.5" />,
+        cls: "text-[#D97757] hover:bg-orange-50 dark:hover:bg-orange-900/20",
+        iconCls: "text-[#D97757]",
+    };
+    if (cat === "reject") return {
+        icon: <XCircle className="h-3.5 w-3.5" />,
+        cls: "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20",
+        iconCls: "text-red-500",
+    };
+    if (cat === "putback") return {
+        icon: <RotateCcw className="h-3.5 w-3.5" />,
+        cls: "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20",
+        iconCls: "text-amber-500",
+    };
+    return {
+        icon: <ChevronRight className="h-3.5 w-3.5" />,
+        cls: "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700",
+        iconCls: "text-zinc-400 dark:text-zinc-500",
+    };
 };
 
 // --- MAIN COMPONENT ---
@@ -101,15 +108,39 @@ const MiscellaneousCommitActionButtons = ({
     const { call: performAction, loading: actionLoading } = useFrappePostCall(
         miscellaneousCommitAPI.performAction,
     );
-
     const { call: addComment } = useFrappePostCall(
-        'rndopsapp.rndopsapp.api.add_project_comment',
+        "rndopsapp.rndopsapp.api.add_project_comment",
     );
 
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedAction, setSelectedAction] = useState("");
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
+    const toggleBtnRef = useRef<HTMLButtonElement>(null);
+    const dropdownPortalRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!dropdownOpen) return;
+        const handleOutside = (e: MouseEvent) => {
+            const target = e.target as Node;
+            if (!toggleBtnRef.current?.contains(target) && !dropdownPortalRef.current?.contains(target)) {
+                setDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleOutside);
+        return () => document.removeEventListener("mousedown", handleOutside);
+    }, [dropdownOpen]);
+
+    const handleToggleDropdown = () => {
+        if (!dropdownOpen && toggleBtnRef.current) {
+            const rect = toggleBtnRef.current.getBoundingClientRect();
+            setDropdownPos({ top: rect.bottom + window.scrollY + 4, right: window.innerWidth - rect.right });
+        }
+        setDropdownOpen(o => !o);
+    };
 
     const handleActionClick = (action: string) => {
+        setDropdownOpen(false);
         setSelectedAction(action);
         setModalOpen(true);
     };
@@ -122,50 +153,87 @@ const MiscellaneousCommitActionButtons = ({
                 alert(res.message.message || "Action failed");
                 return;
             }
-            if (comment && comment.trim()) {
+            if (comment.trim()) {
                 try {
                     await addComment({
                         doctype: "Miscellaneous Commit",
                         docname,
                         content: `[${selectedAction}] ${comment.trim()}`,
                     });
-                } catch (commentError) {
-                    console.error("Error adding comment:", commentError);
-                }
+                } catch { /* non-fatal */ }
             }
             setModalOpen(false);
             onActionComplete();
         } catch (error: any) {
-            console.error("Error performing action:", error);
             alert(`Action failed: ${error.message || "Unknown error"}`);
         }
     };
 
     if (actionsLoading || !data?.message?.length) return null;
 
+    const actions = data.message;
+    const forwardActions = actions.filter(a => categorise(a) === "forward");
+    const putbackActions = actions.filter(a => categorise(a) === "putback");
+    const neutralActions = actions.filter(a => categorise(a) === "neutral");
+    const rejectActions  = actions.filter(a => categorise(a) === "reject");
+    const groups = [forwardActions, putbackActions, neutralActions, rejectActions].filter(g => g.length > 0);
+
     return (
         <>
-            <div className="flex gap-2 flex-wrap p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
-                <p className="w-full text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
-                    Available Actions
-                </p>
-                {data.message.map((action) => (
-                    <button
-                        key={action}
-                        onClick={() => handleActionClick(action)}
-                        disabled={!!actionLoading}
-                        className={cn(
-                            "inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 border",
-                            "focus:outline-none focus:ring-2 focus:ring-offset-1",
-                            "disabled:opacity-50 disabled:cursor-not-allowed",
-                            getActionStyle(action),
-                        )}
+            <div className="relative">
+                <button
+                    ref={toggleBtnRef}
+                    onClick={handleToggleDropdown}
+                    disabled={!!actionLoading}
+                    className={cn(
+                        "inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg shadow-sm transition-all disabled:opacity-50",
+                        dropdownOpen
+                            ? "bg-[#D97757] text-white border border-[#c66a4e]"
+                            : "bg-[#FFF7ED] dark:bg-[#D97757]/15 text-[#D97757] border border-[#D97757]/40 hover:bg-[#D97757] hover:text-white dark:hover:bg-[#D97757]/30",
+                    )}
+                >
+                    {actionLoading ? "Processing…" : "Actions"}
+                    <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-150", dropdownOpen && "rotate-180")} />
+                </button>
+
+                {dropdownOpen && createPortal(
+                    <div
+                        ref={dropdownPortalRef}
+                        style={{ position: "absolute", top: dropdownPos.top, right: dropdownPos.right, zIndex: 9999 }}
+                        className="min-w-[210px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden"
                     >
-                        {getActionIcon(action)}
-                        {actionLoading ? "Processing..." : action}
-                    </button>
-                ))}
+                        <div className="px-4 py-2 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-100 dark:border-zinc-700">
+                            <span className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                                Available Actions
+                            </span>
+                        </div>
+                        {groups.map((group, gi) => (
+                            <React.Fragment key={gi}>
+                                {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
+                                {group.map((action) => {
+                                    const { icon, cls, iconCls } = itemStyle(action);
+                                    return (
+                                        <button
+                                            key={action}
+                                            onClick={() => handleActionClick(action)}
+                                            disabled={!!actionLoading}
+                                            className={cn(
+                                                "w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+                                                cls,
+                                            )}
+                                        >
+                                            <span className={iconCls}>{icon}</span>
+                                            {action}
+                                        </button>
+                                    );
+                                })}
+                            </React.Fragment>
+                        ))}
+                    </div>,
+                    document.body,
+                )}
             </div>
+
             <CommentModal
                 isOpen={modalOpen}
                 onClose={() => setModalOpen(false)}
