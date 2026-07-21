@@ -64,13 +64,19 @@ export function generateSanctionSheetHtml(
             : "",
     ].join("");
 
-    const additionalTermsRow = formData.additional_terms_and_conditions_if_any
-        ? `<tr><td class="label">Additional Terms</td><td colspan="3">${formData.additional_terms_and_conditions_if_any}</td></tr>`
+    const additionalTermsVal =
+        formData.additional_terms_and_conditions_if_any ||
+        formData.additional_terms_conditions ||
+        formData.additional_terms ||
+        "";
+    const additionalTermsRow = additionalTermsVal
+        ? `<tr><td class="label">Additional Terms &amp; Conditions</td><td colspan="3">${additionalTermsVal}</td></tr>`
         : "";
 
-    // const remarksRow = formData.small_text_adcz
-    //     ? `<div class="remarks"><strong>Remarks:</strong> ${formData.small_text_adcz}</div>`
-    //     : '';
+    const remarksVal = formData.small_text_adcz || formData.remarks || formData.ss_remarks || "";
+    const remarksRow = remarksVal
+        ? `<div class="remarks"><strong>Remarks:</strong> ${remarksVal}</div>`
+        : "";
 
     return ssTemplate
         .replace("{{FILE_NUMBER}}", formData.ss_file_number || "")
@@ -105,6 +111,7 @@ export function generateSanctionSheetHtml(
         .replace("{{SS_DELIVERY}}", formData.ss_delivery || "")
         .replace("{{SS_PAYMENT}}", formData.ss_payment || "")
         .replace("{{ADDITIONAL_TERMS_ROW}}", additionalTermsRow)
+        .replace("{{REMARKS_ROW}}", remarksRow)
         .replace(
             "{{SS_DECLARATION}}",
             formData.html_dqce ||
