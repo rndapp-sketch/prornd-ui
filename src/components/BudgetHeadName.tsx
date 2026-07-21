@@ -1,4 +1,4 @@
-import { useFrappeGetDoc, useFrappeGetCall } from "frappe-react-sdk";
+import { useFrappeGetCall } from "frappe-react-sdk";
 
 interface BudgetHeadOption {
     name: string;
@@ -35,15 +35,16 @@ export const BudgetHeadName = ({ value, ID, id, className, options }: BudgetHead
         : <BHById id={key} fallback={fallback} className={className} />;
 };
 
-// Long value → Frappe doc name → fetch document directly
+// Long value → Frappe doc name → use get_list with name filter (more reliable than get_doc)
 const BHByDocName = ({ name, fallback, className }: { name: string; fallback: string; className?: string }) => {
-    const { data, isLoading } = useFrappeGetDoc<{ budget_head: string }>(
-        "Budget Head",
-        name,
+    const { data, isLoading } = useFrappeGetCall<{ message: { budget_head: string }[] }>(
+        "frappe.client.get_list",
+        { doctype: "Budget Head", filters: [["name", "=", name]], fields: ["budget_head"], limit_page_length: 1 },
+        name ? `bh-byname-${name}` : null,
         { revalidateOnFocus: false }
     );
     if (isLoading) return <span className={className}>…</span>;
-    return <span className={className}>{data?.budget_head || fallback}</span>;
+    return <span className={className}>{data?.message?.[0]?.budget_head || fallback}</span>;
 };
 
 // Short value → custom integer id field → list query

@@ -2703,7 +2703,8 @@ const DirectPurchaseDetails: React.FC = () => {
     const isCommitted = !!linkedCommitment;
 
     const commitRequired =
-        data?.workflow_state === "Pending Staff Approval" &&
+        (data?.workflow_state === "Pending Staff Approval" ||
+            data?.workflow_state === "Pending Staff Verification") &&
         isStaffRnD &&
         isCommittedForGate === false;
 
@@ -3209,7 +3210,7 @@ const DirectPurchaseDetails: React.FC = () => {
                     totalEstimate={data.total_estimate}
                 />
 
-                <div className={cn("min-w-0 space-y-0", isStaffRnD && data.workflow_state === "Pending Staff Approval" && activeTab === "details" ? "grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-4 items-start" : "")}>
+                <div className={cn("min-w-0 space-y-0", isStaffRnD && (data.workflow_state === "Pending Staff Approval" || data.workflow_state === "Pending Staff Verification") && activeTab === "details" ? "grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-4 items-start" : "")}>
                 <div className="min-w-0 space-y-0">
                     {/* Tab navigation */}
                     <div className={cn("mb-4 grid grid-cols-1 gap-2 rounded-2xl border border-[#E4E4E7] bg-white p-2 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A] sm:grid-cols-2", isStaffRnD ? "lg:grid-cols-5" : "lg:grid-cols-4")}>
@@ -3315,6 +3316,7 @@ const DirectPurchaseDetails: React.FC = () => {
                                             </ClaudeCard>
                                         </div>
                                     )}
+
                             </>
                         )}
 
@@ -3340,9 +3342,16 @@ const DirectPurchaseDetails: React.FC = () => {
                                         </button>
                                     ) : undefined}
                                 />
-                                <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] font-semibold leading-5 text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
-                                    A printed hard copy of the P-11 Form must be submitted to the R&amp;D Office for further processing.
-                                </div>
+                                {["RDP-11 Verified", "Sanction Sheet Generated", "Sanction Sheet Printed", "Sanction Approved", "POGenerated"].includes(data?.workflow_state ?? "") ? (
+                                    <div className="mb-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[12px] font-semibold leading-5 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300">
+                                        <CheckCircle2Icon className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                        The P-11 Form has been verified by R&amp;D Staff.
+                                    </div>
+                                ) : (
+                                    <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] font-semibold leading-5 text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+                                        A printed hard copy of the P-11 Form must be submitted to the R&amp;D Office for further processing.
+                                    </div>
+                                )}
                                 <LinkedDocTab
                                     doctype="P_11 Form"
                                     filterField="app_id"
@@ -3409,14 +3418,28 @@ const DirectPurchaseDetails: React.FC = () => {
                                     )
                                 )}
 
-                                <LinkedDocTab
-                                    doctype="sanction_sheet"
-                                    filterField="app_id"
-                                    filterValue={id}
-                                    emptyTitle="No Sanction Sheet Generated Yet"
-                                    emptyDescription="The Sanction Sheet is created by RnD Staff after the P-11 Form is verified and approved."
-                                    onDataReload={loadData}
-                                />
+                                {!isStaffRnD && !["Sanction Sheet Generated", "Sanction Sheet Printed", "Sanction Approved", "POGenerated"].includes(data?.workflow_state ?? "") ? (
+                                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-amber-200 bg-amber-50 px-5 py-12 text-center gap-3 dark:border-amber-900/40 dark:bg-amber-950/20">
+                                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-amber-500 shadow-sm dark:bg-[#27272A]">
+                                            <FileTextIcon className="h-5 w-5" />
+                                        </div>
+                                        <p className="text-[15px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                            Sanction Sheet Not Yet Available
+                                        </p>
+                                        <p className="max-w-md text-[12px] font-medium leading-5 text-[#71717A] dark:text-[#A1A1AA]">
+                                            The Sanction Sheet will be visible here once R&amp;D Staff generates it after verifying your P-11 Form.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <LinkedDocTab
+                                        doctype="sanction_sheet"
+                                        filterField="app_id"
+                                        filterValue={id}
+                                        emptyTitle="No Sanction Sheet Generated Yet"
+                                        emptyDescription="The Sanction Sheet is created by RnD Staff after the P-11 Form is verified and approved."
+                                        onDataReload={loadData}
+                                    />
+                                )}
                             </>
                         )}
 
@@ -3436,6 +3459,20 @@ const DirectPurchaseDetails: React.FC = () => {
                                             <div className="flex items-center justify-center rounded-xl border border-dashed border-[#E4E4E7] bg-[#FAFAF9] py-12 dark:border-[#3F3F46] dark:bg-[#18181B]">
                                                 <div className="animate-spin rounded-full h-7 w-7 border-2 border-[#D97757] border-t-transparent" />
                                             </div>
+                                        ) : (data?.workflow_state === "Pending Staff Verification" || data?.workflow_state === "RDP-11 Verified") ? (
+                                            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-amber-200 bg-amber-50 px-5 py-12 text-center gap-3 dark:border-amber-900/40 dark:bg-amber-950/20">
+                                                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-amber-500 shadow-sm dark:bg-[#27272A]">
+                                                    <ShoppingCartIcon className="h-5 w-5" />
+                                                </div>
+                                                <p className="text-[15px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                                    Purchase Order Locked
+                                                </p>
+                                                <p className="max-w-md text-[12px] font-medium leading-5 text-[#71717A] dark:text-[#A1A1AA]">
+                                                    {data?.workflow_state === "RDP-11 Verified"
+                                                        ? "The P-11 Form has been verified. R&D Staff must generate the Sanction Sheet before the Purchase Order becomes available."
+                                                        : "The P-11 Form has been submitted and is awaiting verification by R&D Staff. The Purchase Order will be available after the Sanction Sheet is generated."}
+                                                </p>
+                                            </div>
                                         ) : (data?.workflow_state === "Sanction Sheet Generated" || data?.workflow_state === "Sanction Sheet Printed") ? (
                                             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-amber-200 bg-amber-50 px-5 py-12 text-center gap-3 dark:border-amber-900/40 dark:bg-amber-950/20">
                                                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-amber-500 shadow-sm dark:bg-[#27272A]">
@@ -3447,7 +3484,7 @@ const DirectPurchaseDetails: React.FC = () => {
                                                 <p className="max-w-md text-[12px] font-medium leading-5 text-[#71717A] dark:text-[#A1A1AA]">
                                                     {data?.workflow_state === "Sanction Sheet Printed"
                                                         ? "The Sanction Sheet has been printed. This tab will be enabled once the Sanction is Approved by R&D Staff."
-                                                        : `The Sanction Sheet has not been printed yet${data?.applicant_name ? ` by ${data.applicant_name}` : ""}. Once the PI prints the Sanction Sheet, this form will move to “Sanction Sheet Printed” and the Purchase Order will be enabled.`}
+                                                        : `The Sanction Sheet has not been printed yet${data?.applicant_name ? ` by ${data.applicant_name}` : ""}. Once the PI prints the Sanction Sheet, this form will move to "Sanction Sheet Printed" and the Purchase Order will be enabled.`}
                                                 </p>
                                             </div>
                                         ) : poSanctionData &&
@@ -3548,8 +3585,8 @@ const DirectPurchaseDetails: React.FC = () => {
                                         )}
                                     </div>
 
-                                    {/* Right — Commit Payment (only when sanction sheet / PO data is available) */}
-                                    {isStaffRnD && !!poSanctionData && (
+                                    {/* Right — Commit Payment (only when PO tab is unlocked) */}
+                                    {isStaffRnD && !!poSanctionData && ["Sanction Approved", "POGenerated"].includes(data?.workflow_state ?? "") && (
                                         <div className="min-w-0 space-y-4">
                                             <CommitPayment
                                                 key={`commit-main-${id}`}
@@ -3611,8 +3648,8 @@ const DirectPurchaseDetails: React.FC = () => {
 
                 </div>{/* end inner tab column */}
 
-                {/* Sidebar — Make a Commitment (details tab + Pending Staff Approval only) */}
-                {isStaffRnD && data.workflow_state === "Pending Staff Approval" && activeTab === "details" && (
+                {/* Sidebar — Make a Commitment (details tab + Pending Staff Approval / Pending Staff Verification) */}
+                {isStaffRnD && (data.workflow_state === "Pending Staff Approval" || data.workflow_state === "Pending Staff Verification") && activeTab === "details" && (
                     <div className="sticky top-4 space-y-4">
                         <CommitPayment
                             doctype="Direct Purchase"

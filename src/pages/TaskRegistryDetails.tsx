@@ -15,6 +15,8 @@ import { DynamicFormRenderer, type FormField, type LinkOption } from '@/componen
 import { travelAPI, advanceSettlementAPI, temporaryAdvanceAPI, tadaAPI, recruitmentAdhocContractualAPI, selectionCommitteeReportAPI, disbursalOfHonorariumAPI } from '@/services/apiService';
 import { useUserRoles } from '@/components/UserRole';
 import { getFileUrl } from '@/utils/fileUtils';
+import { BudgetHeadName } from '@/components/BudgetHeadName';
+import { DepartmentName } from '@/components/DepartmentName';
 import { POEditor } from '@/components/POEditor';
 import { DeclarationFields } from '@/components/DeclarationFields';
 import TravelApplicantSummary from '@/components/TravelApplicantSummary';
@@ -22,6 +24,7 @@ import ProjectDetailsView from "./ProjectDetails";
 import ProjectDetailsOverview from "./ProjectDetailsOverview";
 import { generateTemporaryAdvanceHtml } from '@/utils/temporaryAdvancePrint';
 import { generateDisbursalOfHonorariumHtml, resolveHonorariumPrintData, type ActivityItem } from '@/utils/disbursalOfHonorariumPrint';
+import { generateSanctionSheetHtml } from '@/utils/sanctionSheetPrint';
 import { DOCTYPE_PR_LINKS } from '@/utils/projectTypeMapping';
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -39,7 +42,33 @@ const DP_EXCLUDED = [
     'modified_by', '_user_tags', '_comments', '_assign', '_liked_by', 'name',
     'workflow_state', '_seen', 'parent', 'parenttype', 'parentfield',
 ];
-const dpFmt = (key: string) => key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+const DP_FIELD_LABELS: Record<string, string> = {
+    small_text_adcz: 'Remarks',
+    ss_remarks: 'Remarks',
+    remarks: 'Remarks',
+    additional_terms_and_conditions_if_any: 'Additional Terms & Conditions',
+    additional_terms_conditions: 'Additional Terms & Conditions',
+    additional_terms: 'Additional Terms & Conditions',
+    ss_applicant_name: 'Applicant Name',
+    ss_year_period_of_sanction: 'Year / Period of Sanction',
+    ss_department_for_purchase: 'Department for Purchase',
+    ss_account_head: 'Account Head',
+    ss_funding_agency: 'Funding Agency',
+    ss_funds_allocated: 'Funds Allocated',
+    ss_balance_available: 'Balance Available',
+    ss_actual_expenditure: 'Actual Expenditure',
+    ss_name_of_firms: 'Name of Firms',
+    ss_pack_forward: 'Packing & Forwarding',
+    ss_freight: 'Freight',
+    ss_other_charges: 'Other Charges',
+    ss_grand_total: 'Grand Total',
+    ss_total_es_basic_value: 'Total Estimated Basic Value',
+    ss_warranty: 'Warranty',
+    ss_delivery: 'Delivery',
+    ss_payment: 'Payment',
+    ss_file_number: 'File Number',
+};
+const dpFmt = (key: string) => DP_FIELD_LABELS[key] ?? key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 const dpIsAmt = (key: string) => /amount|total|price|estimate|budget|salary|fee|cost/i.test(key);
 const dpIsBool = (key: string, val: any) =>
     (val === 0 || val === 1) &&
@@ -421,7 +450,11 @@ const DPDocumentViewer = ({ data, doctype: viewerDoctype }: { data: Record<strin
                                     <span className="truncate">{dpFmt(key)}</span>
                                 </div>
                                 <p className="text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] break-words leading-relaxed">
-                                    {String(value)}
+                                    {key === 'account_head' || key === 'ss_account_head'
+                                        ? <BudgetHeadName id={String(value)} />
+                                        : key === 'applicant_department' || key === 'applying_for_department'
+                                        ? <DepartmentName name={String(value)} />
+                                        : String(value)}
                                 </p>
                             </div>
                         ))}
@@ -716,6 +749,7 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
     const [activeTab, setActiveTab] = React.useState<DPTabId>('details');
     const [poSanctionData, setPoSanctionData] = React.useState<Record<string, any> | null>(null);
     const [isLoadingPOData, setIsLoadingPOData] = React.useState(false);
+    const [ssSanctionData, setSsSanctionData] = React.useState<Record<string, any> | null>(null);
     const navigate = useNavigate();
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
@@ -739,6 +773,31 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
             }
         }).catch(() => { }).finally(() => setIsLoadingPOData(false));
     }, [activeTab, docName, poSanctionData]);
+
+    React.useEffect(() => {
+        if (activeTab !== 'sanction' || !docName || ssSanctionData) return;
+        const filters = JSON.stringify([["app_id", "=", docName]]);
+        fetch(`/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`, {
+            credentials: 'include', headers: { Accept: 'application/json' },
+        }).then(r => r.json()).then(async res => {
+            const ssName = res?.data?.[0]?.name;
+            if (ssName) {
+                const docRes = await fetch('/api/method/frappe.client.get', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Frappe-CSRF-Token': (window as any).csrf_token || '' },
+                    body: JSON.stringify({ doctype: 'sanction_sheet', name: ssName }),
+                }).then(r => r.json()).catch(() => null);
+                if (docRes?.message) setSsSanctionData(docRes.message);
+            }
+        }).catch(() => { });
+    }, [activeTab, docName, ssSanctionData]);
+
+    const handlePrintSanctionSheet = () => {
+        if (!ssSanctionData) return;
+        const html = generateSanctionSheetHtml({ ...data, ...ssSanctionData });
+        const w = window.open('', '_blank');
+        if (w) { w.document.write(html); w.document.close(); w.focus(); w.print(); }
+    };
 
     const workflowState = data?.workflow_state || 'Draft';
     const estimatedAmount = data?.estimated_amount || data?.total_amount || data?.amount;
@@ -854,6 +913,15 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
                     <span className="text-[12px] font-extrabold uppercase tracking-wider text-[#3F3F46] dark:text-[#E4E4E7]">
                         {DP_TABS.find(t => t.id === activeTab)?.label}
                     </span>
+                    {activeTab === 'sanction' && ssSanctionData && (
+                        <button
+                            onClick={handlePrintSanctionSheet}
+                            className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold rounded-lg border border-emerald-200 dark:border-emerald-700/60 bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
+                        >
+                            <Printer className="h-3.5 w-3.5" />
+                            Print
+                        </button>
+                    )}
                 </div>
 
                 <div className="p-5 md:p-6">
