@@ -135,11 +135,13 @@ export function AppSidebar() {
         currentUser && canUploadDirectorPdf ? undefined : null,
     );
 
-    // Calculate count matching PendingTask.tsx filter logic
+    // Calculate count matching PendingTask.tsx filter logic exactly
+    const SIDEBAR_HIDDEN_DOCTYPES = new Set(["Kafka Commit Staging", "Project Number Generation"]);
     const pendingTaskCount = React.useMemo(() => {
         if (!pendingTaskData?.message?.results) return 0;
         let count = 0;
         pendingTaskData.message.results.forEach((group) => {
+            if (SIDEBAR_HIDDEN_DOCTYPES.has(group.doctype)) return;
             const shouldIncludeGroup = group.mod_vis || group.doctype === "Advance Settlement";
             group.records.forEach((record) => {
                 const isHosPending = record.status === "Pending HoS Approval";
@@ -148,6 +150,8 @@ export function AppSidebar() {
                 if (isPermanentEmployee && group.doctype === "Leave Module" && allowedLeaveNames) {
                     if (record.status === "Pending PI Approval" && !allowedLeaveNames.has(record.name)) return;
                 }
+                if (record.status === "Endorsement Approved") return;
+                if (record.status === "Sanction Approved" && group.doctype !== "Direct Purchase") return;
                 if (isHosRnd && !isAdoRnd && record.status === "Pending Associate Dean") return;
                 if (isAdoRnd && !isHosRnd && record.status === "Pending HoS Approval") return;
                 count++;
