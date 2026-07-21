@@ -1425,9 +1425,11 @@ const P11FormActionButtons = ({
 const SanctionSheetActionButtons = ({
     docname,
     onActionComplete,
+    hiddenActions = [],
 }: {
     docname: string;
     onActionComplete: () => void;
+    hiddenActions?: string[];
 }) => {
     const [actions, setActions] = useState<string[]>([]);
     const [isPerforming, setIsPerforming] = useState(false);
@@ -1528,7 +1530,8 @@ const SanctionSheetActionButtons = ({
         return "";
     };
 
-    if (!actions.length) return null;
+    const visibleActions = actions.filter(a => !hiddenActions.includes(a));
+    if (!visibleActions.length) return null;
 
     return (
         <>
@@ -1537,7 +1540,7 @@ const SanctionSheetActionButtons = ({
                     Workflow Actions
                 </p>
                 <div className="flex flex-wrap gap-2">
-                    {actions.map((action) => (
+                    {visibleActions.map((action) => (
                         <ClaudeButton
                             key={action}
                             variant="action"
@@ -1633,12 +1636,48 @@ const LinkedDocTab = ({
     } = useFrappeGetDoc<Record<string, any>>(doctype, docName);
 
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+    const [ssActions, setSsActions] = useState<string[]>([]);
+    const [isMergedPerforming, setIsMergedPerforming] = useState(false);
+    const { call: fetchSSActions } = useFrappePostCall<{ message: string[] }>(
+        sanctionSheetAPI.getWorkflowActions,
+    );
+    const { call: performSSAction } = useFrappePostCall(
+        sanctionSheetAPI.performAction,
+    );
 
     // Reload handler
     const handleReload = () => {
         reloadList();
         reloadDoc();
         if (onDataReload) onDataReload();
+    };
+
+    // Fetch SS workflow actions when viewing a sanction_sheet
+    useEffect(() => {
+        if (doctype !== "sanction_sheet" || !docName) return;
+        fetchSSActions({ docname: docName })
+            .then(res => {
+                setSsActions(Array.isArray(res?.message) ? res.message : []);
+            })
+            .catch(() => setSsActions([]));
+    }, [doctype, docName]);
+
+    const hasPrintMarkAction = doctype === "sanction_sheet" && ssActions.includes("Mark Print Taken");
+
+    const handleMergedPrint = async () => {
+        setIsPrintModalOpen(true);
+        if (hasPrintMarkAction && docName) {
+            setIsMergedPerforming(true);
+            try {
+                await performSSAction({ docname: docName, action: "Mark Print Taken", comment: "" });
+                setSsActions(prev => prev.filter(a => a !== "Mark Print Taken"));
+                handleReload();
+            } catch (e) {
+                console.warn("Mark Print Taken failed:", e);
+            } finally {
+                setIsMergedPerforming(false);
+            }
+        }
     };
 
     if (listLoading || docLoading) {
@@ -1683,10 +1722,12 @@ const LinkedDocTab = ({
                 )}
                 {doctype === "sanction_sheet" && (
                     <button
-                        onClick={() => setIsPrintModalOpen(true)}
-                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[12px] font-bold text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                        onClick={handleMergedPrint}
+                        disabled={isMergedPerforming}
+                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[12px] font-bold text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-60"
                     >
-                        <Printer className="h-3.5 w-3.5" /> Print / PDF
+                        <Printer className="h-3.5 w-3.5" />
+                        {isMergedPerforming ? "Processing…" : hasPrintMarkAction ? "Print & Mark Taken" : "Print / PDF"}
                     </button>
                 )}
             </div>
@@ -1720,6 +1761,7 @@ const LinkedDocTab = ({
                     <SanctionSheetActionButtons
                         docname={docName}
                         onActionComplete={handleReload}
+                        hiddenActions={hasPrintMarkAction ? ["Mark Print Taken"] : []}
                     />
                     <P11PrintModal
                         isOpen={isPrintModalOpen}

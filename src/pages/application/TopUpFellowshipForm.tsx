@@ -201,6 +201,7 @@ const TopUpFellowshipForm: React.FC = () => {
     );
     const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>('frappe.client.get');
     const { call: fetchProjectDetails } = useFrappePostCall<{ message: any }>('frappe.client.get');
+    const { call: fetchDepartments } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
     const { call: saveForm, error: saveError } = useFrappePostCall(
         'rndopsapp.rndopsapp.doctype.top_up_fellowship.top_up_fellowship.save_top_up_fellowship_data'
     );
@@ -294,7 +295,10 @@ const TopUpFellowshipForm: React.FC = () => {
                     .filter((f: FormField) => f.fieldname !== 'amended_from')
                     .map((field: FormField) => {
                         if (field.fieldtype === 'Table' && child_table_fields?.[field.fieldname]) {
-                            return { ...field, child_fields: child_table_fields[field.fieldname] };
+                            const childFields = child_table_fields[field.fieldname].map((cf: any) =>
+                                cf.fieldname === 'dept_centre' ? { ...cf, read_only: 0 } : cf
+                            );
+                            return { ...field, child_fields: childFields };
                         }
                         if (field.fieldname === 'pi_webmail') {
                             return { ...field, fieldtype: 'Link' };
@@ -302,7 +306,25 @@ const TopUpFellowshipForm: React.FC = () => {
                         return field;
                     });
                 setFields(enhancedFields);
-                setLinkOptions(link_options || {});
+
+                // Fetch Department_prornd list and inject as linkOptions for dept_centre
+                const mergedLinkOptions = { ...(link_options || {}) };
+                try {
+                    const deptRes = await fetchDepartments({
+                        doctype: 'Department_prornd',
+                        fields: JSON.stringify(['name', 'dept_name']),
+                        limit: 200,
+                    });
+                    if (Array.isArray(deptRes?.message)) {
+                        mergedLinkOptions['dept_centre'] = deptRes.message.map((d: any) => ({
+                            value: d.name,
+                            label: d.dept_name || d.name,
+                        }));
+                    }
+                } catch (err) {
+                    console.warn('Could not fetch departments:', err);
+                }
+                setLinkOptions(mergedLinkOptions);
 
                 let initialData: Record<string, any> = { ...prefill_data };
 
@@ -347,7 +369,7 @@ const TopUpFellowshipForm: React.FC = () => {
         };
 
         loadFormAndDocument();
-    }, [formDataResult, formDataError, editDocName, fetchExistingDoc, dataLoaded, currentUser]);
+    }, [formDataResult, formDataError, editDocName, fetchExistingDoc, fetchDepartments, dataLoaded, currentUser]);
 
     const handleChange = useCallback((fieldname: string, value: any) => {
         setFormData(prev => ({ ...prev, [fieldname]: value }));
@@ -447,7 +469,10 @@ const TopUpFellowshipForm: React.FC = () => {
     // this custom RPC or by _serialize_field (which doesn't export fetch_from at all),
     // so this manual cascade is the only thing populating these fields.
     const handleTableLinkChange = useCallback(async (tableName: string, rowIndex: number, fieldname: string, value: string) => {
-        if (tableName !== 'students' || fieldname !== 'email_of_student') return;
+        if (tableName !== 'students' || fieldname !== 'email_of_student') {
+            handleTableRowChange(tableName, rowIndex, fieldname, value);
+            return;
+        }
 
         if (!value) {
             setFormData(prev => {
@@ -496,7 +521,7 @@ const TopUpFellowshipForm: React.FC = () => {
         } catch (err) {
             console.warn('Could not fetch student details:', err);
         }
-    }, [fetchStudentDetails, refreshMonthlyStatus, linkOptions.dept_centre]);
+    }, [fetchStudentDetails, refreshMonthlyStatus, linkOptions.dept_centre, handleTableRowChange]);
 
     const effectiveDocName = editDocName || savedDocName;
 
