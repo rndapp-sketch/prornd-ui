@@ -536,7 +536,6 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
                                 <TemporaryAdvanceActionButtons
                                     docname={docName}
                                     onActionComplete={() => window.location.reload()}
-                                    onAddComment={handleAddComment}
                                 />
                             )}
                         </div>
