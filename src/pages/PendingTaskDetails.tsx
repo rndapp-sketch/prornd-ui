@@ -2558,30 +2558,6 @@ const PendingTaskDetails: React.FC = () => {
     const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
 
     // Comment handler for action buttons
-    const handleAddComment = async (commentText: string): Promise<boolean> => {
-        if (!commentText.trim() || !name || doctype !== "Temporary Advance") return false;
-        try {
-            const response = await fetch('/api/method/rndopsapp.rndopsapp.api.add_project_comment', {
-                method: 'POST',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
-                    'X-Frappe-CSRF-Token': (window as any).csrf_token || '',
-                },
-                body: JSON.stringify({
-                    reference_doctype: "Temporary Advance",
-                    reference_name: name,
-                    content: commentText.trim(),
-                    comment_type: "Comment"
-                }),
-            });
-            return response.ok;
-        } catch (error) {
-            console.error("Error adding comment:", error);
-            return false;
-        }
-    };
 
     // Top Up Fellowship → Students.dept_centre is a Link to Department_prornd.
     // Resolve IDs to dept_name so the table shows the readable name.
@@ -3502,7 +3478,6 @@ const PendingTaskDetails: React.FC = () => {
                                 docname={name}
                                 onActionComplete={() => window.location.reload()}
                                 commitRequired={isRnDStaff && isCommittedForGate === false}
-                                onAddComment={handleAddComment}
                             />
                         </div>
                     )}
@@ -4509,16 +4484,16 @@ const PendingTaskDetails: React.FC = () => {
                                 )}
                             {/* Setup for Temporary Advance */}
                             {doctype === "Temporary Advance" &&
-                                (data?.project_name || data?.project_code) && (
+                                data?.project_code && (
                                     <BudgetActionsSidebar
-                                        projectName={
-                                            data.project_name ||
-                                            data.project_code
-                                        }
+                                        projectName={data.project_code}
                                         isStaff={true}
                                         docName={name}
                                         doctype={doctype}
                                         onStagingStatusChange={setIsCommittedForGate}
+                                        showPayment={false}
+                                        billAmount={data.amount ?? data.amount_applied}
+                                        defaultBudgetHead={resolvedAccountHead || data.account_head}
                                     />
                                 )}
                             {/* Setup for TA DA Settlement */}

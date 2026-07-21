@@ -1,203 +1,38 @@
-// import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
-// import { cn } from '@/lib/utils';
-// import { useEffect } from 'react';
-
-// interface TemporaryAdvanceActionButtonsProps {
-//     docname: string;
-//     onActionComplete: () => void;
-// }
-
-// const TemporaryAdvanceActionButtons = ({ docname, onActionComplete }: TemporaryAdvanceActionButtonsProps) => {
-//     console.log('🎯 TemporaryAdvanceActionButtons mounted with docname:', docname);
-
-//     // Simple pattern matching ReimbursementWorkflowActions - just method and params
-//     const { data: actionsData, error: fetchError, isLoading, mutate: refetchActions } = useFrappeGetCall<{ message: string[] }>(
-//         "rndopsapp.rndopsapp.doctype.temporary_advance.temporary_advance.get_temporary_advance_workflow_actions",
-//         { docname }
-//     );
-
-//     // Use the specific Temporary Advance action API
-//     const { call: performAction, loading: isActionLoading } = useFrappePostCall(
-//         "rndopsapp.rndopsapp.doctype.temporary_advance.temporary_advance.perform_temporary_advance_action"
-//     );
-
-//     // Extract actions from the API response
-//     const actions = actionsData?.message || [];
-
-//     // Log the fetched data for debugging
-//     useEffect(() => {
-//         console.log('🔍 TemporaryAdvanceActionButtons Debug Info:');
-//         console.log('  📌 docname:', docname);
-//         console.log('  📊 Raw actionsData:', JSON.stringify(actionsData, null, 2));
-//         console.log('  📋 actions array:', actions);
-//         console.log('  📏 actions.length:', actions?.length);
-//         console.log('  🔧 isLoading:', isLoading);
-//         console.log('  ❓ fetchError:', fetchError);
-//         if (fetchError) {
-//             console.error('❌ Full error details:', JSON.stringify(fetchError, null, 2));
-//         }
-//         // Check if the API returned an unexpected format
-//         if (actionsData && !actionsData.message) {
-//             console.warn('⚠️ API response missing "message" key. Full response:', actionsData);
-//         }
-//     }, [docname, actionsData, actions, fetchError, isLoading]);
-
-//     const onAction = async (action: string) => {
-//         if (!confirm(`Are you sure you want to ${action} this temporary advance?`)) return;
-
-//         try {
-//             // Call the perform_temporary_advance_action API with docname and action
-//             const response = await performAction({
-//                 docname: docname,
-//                 action: action
-//             });
-
-//             // Debug: Log full response
-//             console.log('🎬 Action response:', JSON.stringify(response, null, 2));
-
-//             // Check for error status in response (backend returns {status: 'error', message: '...'})
-//             if (response?.message?.status === 'error') {
-//                 alert(`✗ Action failed: ${response.message.message || 'Unknown error'}`);
-//                 return;
-//             }
-
-//             // Show success message
-//             if (response?.message?.status === 'success') {
-//                 alert(`✓ ${response.message.message || `Action "${action}" completed successfully`}`);
-//             } else {
-//                 alert(`✓ Action "${action}" completed`);
-//             }
-
-//             // Refresh actions by revalidating the GET request
-//             await refetchActions();
-
-//             // Refresh parent component
-//             onActionComplete();
-//         } catch (e: any) {
-//             console.error("Workflow action failed", e);
-//             alert(`✗ Failed to perform action: ${e.message || 'Unknown error'}`);
-//         }
-//     };
-
-//     // Show loading state
-//     if (isLoading) {
-//         return (
-//             <div className="flex items-center gap-2">
-//                 <div className="animate-spin h-5 w-5 border-2 border-zinc-300 dark:border-zinc-600 border-t-[#D97757] rounded-full"></div>
-//                 <span className="text-sm text-zinc-500 dark:text-zinc-400">Loading actions...</span>
-//             </div>
-//         );
-//     }
-
-//     // Show error state
-//     if (fetchError) {
-//         return (
-//             <div className="px-3 py-1.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-//                 <span className="text-xs text-red-600 dark:text-red-400 font-medium">Error loading actions</span>
-//             </div>
-//         );
-//     }
-
-//     // Show message when no actions available
-//     if (!actions || actions.length === 0) {
-//         return (
-//             <div className="px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-lg">
-//                 <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">No actions available</span>
-//             </div>
-//         );
-//     }
-
-//     // Helper function to determine button color based on action
-//     const getActionStyle = (actionName: string) => {
-//         const lowerAction = actionName.toLowerCase();
-
-//         if (lowerAction.includes('approve') || lowerAction.includes('submit')) {
-//             return 'bg-green-600 hover:bg-green-700 text-white border-green-700';
-//         }
-//         if (lowerAction.includes('reject') || lowerAction.includes('cancel')) {
-//             return 'bg-red-600 hover:bg-red-700 text-white border-red-700';
-//         }
-//         if (lowerAction.includes('return') || lowerAction.includes('revise')) {
-//             return 'bg-amber-600 hover:bg-amber-700 text-white border-amber-700';
-//         }
-//         // Default style
-//         return 'bg-[#D97757] hover:bg-[#D97757] text-white border-[#D97757]';
-//     };
-
-//     return (
-//         <div className="flex items-center gap-3 flex-wrap">
-//             {actions.map((action: any, idx: number) => {
-//                 let actionName = typeof action === 'string' ? action : '';
-//                 if (typeof action === 'object' && action !== null) {
-//                     // Only use specific action-related keys. Avoid 'name' as it might be a document ID.
-//                     actionName = action.action || action.workflow_action || action.label || action.transition_name || action.name || '';
-
-//                     // If empty, we can't render a button usefuly.
-//                     if (!actionName) {
-//                         console.warn('Invalid action object:', action);
-//                         return <span key={idx} className="text-xs text-red-400" title={JSON.stringify(action)}>Invalid Action</span>;
-//                     }
-//                 }
-
-//                 if (!actionName) return null;
-
-//                 return (
-//                     <button
-//                         key={actionName}
-//                         onClick={() => onAction(actionName)}
-//                         disabled={isActionLoading}
-//                         className={cn(
-//                             "px-4 py-2 rounded-lg font-bold text-sm transition-all duration-150 border-2 shadow-md hover:shadow-lg",
-//                             "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-400 dark:focus:ring-offset-zinc-900",
-//                             getActionStyle(actionName),
-//                             isActionLoading && "opacity-50 cursor-not-allowed"
-//                         )}
-//                     >
-//                         {isActionLoading ? 'Processing...' : actionName}
-//                     </button>
 import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, CheckCircleIcon, XCircleIcon, ChevronRight } from 'lucide-react';
-import { CommentModal } from './CommentModal';
+import { ChevronDown, CheckCircle2 as CheckCircleIcon, XCircle as XCircleIcon, ChevronRight } from 'lucide-react';
 
 interface TemporaryAdvanceActionButtonsProps {
     docname: string;
     onActionComplete: () => void;
-    /** When true, forward action buttons are disabled until a commitment exists (Staff R&D gate) */
     commitRequired?: boolean;
-    /** Callback to add a comment before performing action */
-    onAddComment?: (comment: string) => Promise<boolean>;
 }
 
-const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequired = false, onAddComment }: TemporaryAdvanceActionButtonsProps) => {
-    console.log('🎯 TemporaryAdvanceActionButtons mounted with docname:', docname);
-
-    // Simple pattern matching ReimbursementWorkflowActions - just method and params
-    const { data: actionsData, error: fetchError, isLoading, mutate: refetchActions } = useFrappeGetCall<{ message: (string | { action?: string; workflow_action?: string; label?: string })[] }>(
+const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequired = false }: TemporaryAdvanceActionButtonsProps) => {
+    const { data: actionsData, isLoading, mutate: refetchActions } = useFrappeGetCall<{ message: string[] }>(
         "rndopsapp.rndopsapp.doctype.temporary_advance.temporary_advance.get_temporary_advance_workflow_actions",
         { docname }
     );
 
-    // Use the specific Temporary Advance action API
     const { call: performAction, loading: isActionLoading } = useFrappePostCall(
         "rndopsapp.rndopsapp.doctype.temporary_advance.temporary_advance.perform_temporary_advance_action"
     );
 
-    // Extract actions from the API response
-    const actions = actionsData?.message || [];
+    const actions: string[] = (actionsData?.message || []).map((a: any) =>
+        typeof a === "string" ? a : a.action || a.workflow_action || a.label || ""
+    ).filter(Boolean);
 
-    // Dropdown state
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
     const toggleBtnRef = useRef<HTMLButtonElement>(null);
     const dropdownPortalRef = useRef<HTMLDivElement>(null);
 
-    // Comment modal state
-    const [commentModalOpen, setCommentModalOpen] = useState(false);
-    const [pendingAction, setPendingAction] = useState<string | null>(null);
-    const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+    const [modalOpen, setModalOpen] = useState(false);
+    const [pendingAction, setPendingAction] = useState("");
+    const [comment, setComment] = useState("");
+    const [isPerforming, setIsPerforming] = useState(false);
 
     useEffect(() => {
         if (!dropdownOpen) return;
@@ -219,104 +54,45 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
         setDropdownOpen(o => !o);
     };
 
-    // Log the fetched data for debugging
-    useEffect(() => {
-        console.log('🔍 TemporaryAdvanceActionButtons Debug Info:');
-        console.log('  📌 docname:', docname);
-        console.log('  📊 Raw actionsData:', JSON.stringify(actionsData, null, 2));
-        console.log('  📋 actions array:', actions);
-        console.log('  🔧 isLoading:', isLoading);
-    }, [docname, actionsData, actions, isLoading]);
+    const handleActionClick = (action: string) => {
+        setDropdownOpen(false);
+        setPendingAction(action);
+        setComment("");
+        setModalOpen(true);
+    };
 
-    const handleCommentSubmit = async (comment: string) => {
-        setIsSubmittingComment(true);
+    const handleConfirm = async () => {
+        setIsPerforming(true);
         try {
-            // Add comment first
-            if (onAddComment) {
-                const success = await onAddComment(comment);
-                if (!success) {
-                    alert("Failed to add comment. Please try again.");
-                    setIsSubmittingComment(false);
-                    return;
-                }
-            }
-
-            // Then perform the action
-            if (pendingAction) {
-                const response = await performAction({
-                    docname: docname,
-                    action: pendingAction
-                });
-
-                console.log('🎬 Action response:', JSON.stringify(response, null, 2));
-
-                if (response?.message?.status === 'error') {
-                    alert(`✗ Action failed: ${response.message.message || 'Unknown error'}`);
-                } else if (response?.message?.status === 'success') {
-                    alert(`✓ ${response.message.message || `Action "${pendingAction}" completed successfully`}`);
-                } else {
-                    alert(`✓ Action "${pendingAction}" completed`);
-                }
-
-                await refetchActions();
-                onActionComplete();
-            }
-
-            setCommentModalOpen(false);
-            setPendingAction(null);
+            await performAction({ docname, action: pendingAction, comment: comment.trim() });
+            await refetchActions();
+            setModalOpen(false);
+            onActionComplete();
         } catch (e: any) {
-            console.error("Workflow action failed", e);
-            alert(`✗ Failed to perform action: ${e.message || 'Unknown error'}`);
+            alert(`Failed to perform action: ${e.message || "Unknown error"}`);
         } finally {
-            setIsSubmittingComment(false);
+            setIsPerforming(false);
         }
     };
 
-    const onAction = async (action: string) => {
-        setDropdownOpen(false);
-        if (!confirm(`Are you sure you want to ${action} this temporary advance?`)) return;
+    if (isLoading) return (
+        <div className="flex items-center gap-2">
+            <div className="animate-spin h-4 w-4 border-2 border-zinc-300 dark:border-zinc-600 border-t-[#D97757] rounded-full" />
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">Loading…</span>
+        </div>
+    );
 
-        setPendingAction(action);
-        setCommentModalOpen(true);
-    };
+    if (!actions.length) return null;
 
-    // Show loading state
-    if (isLoading) {
-        return (
-            <div className="flex items-center gap-2">
-                <div className="animate-spin h-5 w-5 border-2 border-zinc-300 dark:border-zinc-600 border-t-[#D97757] rounded-full"></div>
-                <span className="text-sm text-zinc-500 dark:text-zinc-400">Loading actions...</span>
-            </div>
-        );
-    }
-
-    // Show error state
-    if (fetchError) {
-        return (
-            <div className="px-3 py-1.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                <span className="text-xs text-red-600 dark:text-red-400 font-medium">Error loading actions</span>
-            </div>
-        );
-    }
-
-    // Show message when no actions available
-    if (!actions || actions.length === 0) {
-        return (
-            <div className="px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-lg">
-                <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">No actions available</span>
-            </div>
-        );
-    }
-
-    const categorise = (actionName: string) => {
-        const a = actionName.toLowerCase();
-        if (a.includes("forward") || a.includes("approve") || a.includes("submit") || a.includes("recommend")) return "forward";
-        if (a.includes("reject") || a.includes("cancel")) return "reject";
+    const categorise = (a: string) => {
+        const l = a.toLowerCase();
+        if (l.includes("forward") || l.includes("approve") || l.includes("submit") || l.includes("recommend")) return "forward";
+        if (l.includes("reject") || l.includes("cancel")) return "reject";
         return "neutral";
     };
 
-    const itemStyle = (actionName: string) => {
-        const cat = categorise(actionName);
+    const itemStyle = (a: string) => {
+        const cat = categorise(a);
         if (cat === "forward") return {
             icon: <CheckCircleIcon className="h-3.5 w-3.5" />,
             cls: "text-[#D97757] hover:bg-orange-50 dark:hover:bg-orange-900/20",
@@ -334,9 +110,9 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
         };
     };
 
-    const forwardActions = actions.map(action => typeof action === 'string' ? action : action.action || action.workflow_action || action.label || '').filter(a => a && categorise(a) === "forward");
-    const neutralActions = actions.map(action => typeof action === 'string' ? action : action.action || action.workflow_action || action.label || '').filter(a => a && categorise(a) === "neutral");
-    const rejectActions  = actions.map(action => typeof action === 'string' ? action : action.action || action.workflow_action || action.label || '').filter(a => a && categorise(a) === "reject");
+    const forwardActions = actions.filter(a => categorise(a) === "forward");
+    const neutralActions = actions.filter(a => categorise(a) === "neutral");
+    const rejectActions  = actions.filter(a => categorise(a) === "reject");
     const groups = [forwardActions, neutralActions, rejectActions].filter(g => g.length > 0);
 
     return (
@@ -346,7 +122,7 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
                     <button
                         ref={toggleBtnRef}
                         onClick={handleToggleDropdown}
-                        disabled={isActionLoading}
+                        disabled={isActionLoading || isPerforming}
                         className={cn(
                             "inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg shadow-sm transition-all disabled:opacity-50",
                             dropdownOpen
@@ -354,7 +130,7 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
                                 : "bg-[#FFF7ED] dark:bg-[#D97757]/15 text-[#D97757] border border-[#D97757]/40 hover:bg-[#D97757] hover:text-white dark:hover:bg-[#D97757]/30",
                         )}
                     >
-                        {isActionLoading ? "Processing…" : "Actions"}
+                        {isActionLoading || isPerforming ? "Processing…" : "Actions"}
                         <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-150", dropdownOpen && "rotate-180")} />
                     </button>
 
@@ -373,14 +149,13 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
                                 <React.Fragment key={gi}>
                                     {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
                                     {group.map((actionName) => {
-                                        const isForward = categorise(actionName) === "forward";
-                                        const blocked = commitRequired && isForward;
+                                        const blocked = commitRequired && categorise(actionName) === "forward";
                                         const { icon, cls, iconCls } = itemStyle(actionName);
                                         return (
                                             <div key={actionName} className="relative group/item">
                                                 <button
-                                                    onClick={() => { if (!blocked) onAction(actionName); }}
-                                                    disabled={isActionLoading || blocked}
+                                                    onClick={() => { if (!blocked) handleActionClick(actionName); }}
+                                                    disabled={isActionLoading || isPerforming || blocked}
                                                     className={cn(
                                                         "w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left transition-colors disabled:cursor-not-allowed",
                                                         blocked ? "opacity-40" : cls,
@@ -388,14 +163,12 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
                                                 >
                                                     <span className={iconCls}>{icon}</span>
                                                     {actionName}
-                                                    {blocked && (
-                                                        <span className="ml-auto text-[10px] font-normal text-zinc-400">blocked</span>
-                                                    )}
+                                                    {blocked && <span className="ml-auto text-[10px] font-normal text-zinc-400">blocked</span>}
                                                 </button>
                                                 {blocked && (
                                                     <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/item:block z-[9999]">
                                                         <div className="bg-zinc-900 text-white text-[11px] rounded-lg px-3 py-1.5 shadow-lg whitespace-nowrap">
-                                                            A commitment must be submitted before forwarding this application.
+                                                            A commitment must be submitted before forwarding.
                                                         </div>
                                                     </div>
                                                 )}
@@ -415,18 +188,42 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
                 )}
             </div>
 
-            {/* Comment Modal */}
-            <CommentModal
-                isOpen={commentModalOpen}
-                onClose={() => {
-                    setCommentModalOpen(false);
-                    setPendingAction(null);
-                }}
-                onSubmit={handleCommentSubmit}
-                action={pendingAction || "Action"}
-                isLoading={isSubmittingComment}
-                requireComment={true}
-            />
+            {/* Inline comment modal */}
+            {modalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-700 w-full max-w-md mx-4 overflow-hidden">
+                        <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800">
+                            <h3 className="text-sm font-bold text-zinc-800 dark:text-zinc-100">Confirm: {pendingAction}</h3>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Optionally add a comment before proceeding.</p>
+                        </div>
+                        <div className="px-6 py-4">
+                            <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5 uppercase tracking-wide">Comment (optional)</label>
+                            <textarea
+                                value={comment}
+                                onChange={e => setComment(e.target.value)}
+                                placeholder="Add a remark or note…"
+                                rows={3}
+                                className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-800 dark:text-zinc-100 px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/40"
+                            />
+                        </div>
+                        <div className="px-6 py-3 bg-zinc-50 dark:bg-zinc-800/60 border-t border-zinc-100 dark:border-zinc-800 flex justify-end gap-2">
+                            <button
+                                onClick={() => { setModalOpen(false); setPendingAction(""); setComment(""); }}
+                                className="px-4 py-2 text-xs font-semibold rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleConfirm}
+                                disabled={isPerforming}
+                                className="px-4 py-2 text-xs font-bold rounded-lg bg-[#D97757] text-white hover:bg-[#c5694d] transition-colors disabled:opacity-50"
+                            >
+                                {isPerforming ? "Processing…" : pendingAction}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 };

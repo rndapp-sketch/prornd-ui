@@ -231,9 +231,10 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({
                 return res.json();
             })
             .then((json) => {
-                const rawEntries: ActivityLogEntry[] = Array.isArray(json?.message)
+                const rawEntries: ActivityLogEntry[] = (Array.isArray(json?.message)
                     ? json.message
-                    : [];
+                    : []
+                ).filter((e: ActivityLogEntry) => e.type !== "share" && e.type !== "unshare");
                 // Already in reverse-chronological order from API;
                 // Sort just in case, newest first
                 const sorted = [...rawEntries].sort(

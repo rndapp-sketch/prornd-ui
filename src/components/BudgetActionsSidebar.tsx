@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
+import { useFrappeAuth } from 'frappe-react-sdk';
 import { PaymentModal } from './PaymentModal';
 import { ProjectLedgerModal, type BudgetEntry } from './ProjectLedgerModal';
 import { FrappeButton } from '@/components/ui/neo-brutalism';
-import { CreditCardIcon, CheckCircle2 } from 'lucide-react';
+import { CreditCardIcon, CheckCircle2, BookOpen as BookOpenIcon } from 'lucide-react';
 import { useUserRoles } from './UserRole';
 import { CommitPayment } from './CommitPayment';
+import { useProjectBudget } from '@/hooks/useProjectBudget';
 
 interface BudgetActionsSidebarProps {
     projectName: string;
@@ -18,6 +19,10 @@ interface BudgetActionsSidebarProps {
     billAmount?: number;
     /** Callback to notify parent of Kafka staging status, used to gate workflow actions */
     onStagingStatusChange?: (isCommitted: boolean) => void;
+    /** Hide the Record Payment widget (default: true) */
+    showPayment?: boolean;
+    /** Pre-select this budget head in CommitPayment */
+    defaultBudgetHead?: string;
 }
 
 export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
@@ -28,6 +33,8 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
     parentAppId,
     billAmount,
     onStagingStatusChange,
+    showPayment = true,
+    defaultBudgetHead,
 }) => {
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
@@ -44,27 +51,10 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
 
     const [commitSuccess, setCommitSuccess] = useState<{ amount: number; head: string } | null>(null);
 
-    // commit handled by CommitPayment component
+    // Head-wise balances from ledger API
+    const { heads: budgetHeads, headBalances, actualBalance } = useProjectBudget(projectName || "");
 
-    // Fetch Balances
-    const balanceParams = useMemo(() => ({ project_number: projectName || '' }), [projectName]);
-
-    const { data: projectAmounts } = useFrappeGetCall<{
-        message: {
-            data: {
-                availableCommitAmount: number;
-            }
-        };
-    }>(
-        'rndopsapp.rndopsapp.commitPayment.get_project_available_amounts',
-        balanceParams,
-        projectName ? undefined : null,
-        { revalidateOnFocus: false }
-    );
-
-    const actualBalance = (projectAmounts as any)?.message?.data?.availableCommitAmount ?? (projectAmounts as any)?.data?.availableCommitAmount ?? 0;
-
-    // Fetch Budget Heads
+    // Fetch Budget Heads list (needed by ProjectLedgerModal and PaymentModal)
     const [budgetHeadList, setBudgetHeadList] = useState<{ name: string; id: number | string }[]>([]);
     useEffect(() => {
         const fetchBudgetHeads = async () => {
@@ -83,10 +73,6 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
         };
         fetchBudgetHeads();
     }, []);
-
-    // Pre-fill logic (commitHead/commitAmount) moved to CommitPayment component
-
-    // handleCommit moved to CommitPayment component
 
     const budgetHeadNames = useMemo(() => budgetHeadList.map(h => h.name), [budgetHeadList]);
 
@@ -124,25 +110,63 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
                     actualBalance={actualBalance}
                     billAmount={billAmount}
                     parentAppId={parentAppId}
+                    defaultBudgetHead={defaultBudgetHead}
                     onCommitSuccess={(head, amount) => setCommitSuccess({ head, amount })}
                     onStagingStatusChange={onStagingStatusChange}
                 />
 
+            {/* Head-wise Balance */}
+            {budgetHeads.length > 0 && (
+                <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                    <div className="px-3 py-2 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Balance</span>
+                        <span className="text-xs font-bold text-[#D97757]">₹{actualBalance.toLocaleString("en-IN")}</span>
+                    </div>
+                    <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                        {budgetHeads
+                            .filter(head => (headBalances[head]?.actual ?? 0) !== 0 || (headBalances[head]?.committed ?? 0) !== 0)
+                            .map(head => {
+                                const hb = headBalances[head];
+                                return (
+                                    <div key={head} className="px-3 py-1.5 flex items-center justify-between gap-2">
+                                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">{head}</span>
+                                        <div className="text-right shrink-0">
+                                            <span className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">₹{(hb?.actual ?? 0).toLocaleString("en-IN")}</span>
+                                            {(hb?.committed ?? 0) > 0 && (
+                                                <div className="text-[10px] text-amber-500 dark:text-amber-400 leading-none mt-0.5">−₹{hb!.committed.toLocaleString("en-IN")}</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                    </div>
+                    <button
+                        onClick={() => setIsLedgerOpen(true)}
+                        className="w-full flex items-center justify-center gap-1.5 py-1.5 border-t border-zinc-100 dark:border-zinc-800 text-[#D97757] text-[11px] font-semibold hover:bg-orange-50 dark:hover:bg-orange-950/20 transition-colors"
+                    >
+                        <BookOpenIcon className="w-3 h-3" />
+                        View Ledger
+                    </button>
+                </div>
+            )}
+
             {/* Payment Widget */}
-            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                <h3 className="frappe-widget-title mb-3 font-semibold text-zinc-900 dark:text-zinc-100">Record Payment</h3>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">Process payment for this project directly.</p>
-                <FrappeButton
-                    onClick={() => {
-                        setInitialPaymentData(null);
-                        setIsPaymentOpen(true);
-                    }}
-                    className="w-full flex items-center justify-center gap-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm"
-                >
-                    <CreditCardIcon className="w-4 h-4" />
-                    Record Payment
-                </FrappeButton>
-            </div>
+            {showPayment && (
+                <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                    <h3 className="frappe-widget-title mb-3 font-semibold text-zinc-900 dark:text-zinc-100">Record Payment</h3>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">Process payment for this project directly.</p>
+                    <FrappeButton
+                        onClick={() => {
+                            setInitialPaymentData(null);
+                            setIsPaymentOpen(true);
+                        }}
+                        className="w-full flex items-center justify-center gap-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                    >
+                        <CreditCardIcon className="w-4 h-4" />
+                        Record Payment
+                    </FrappeButton>
+                </div>
+            )}
 
             <PaymentModal
                 isOpen={isPaymentOpen}
