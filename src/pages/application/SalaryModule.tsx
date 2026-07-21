@@ -9,11 +9,10 @@ import {
     Printer, Eye, Calendar, Building2, UserCheck, X,
     ChevronRight, Briefcase, Edit3, RotateCcw,
     TrendingDown, CalendarClock, Lock, Unlock, ExternalLink,
-    FolderKanban, Tags, CheckCircle2, Clock
+    FolderKanban, Tags, CheckCircle2, Clock, XCircle, Info
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { DepartmentName } from "@/components/DepartmentName";
-import { PaymentForm } from "@/components/PaymentForm";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -35,6 +34,16 @@ interface StaffRecord {
     project_no?: string;
     bank_account_number?: string;
     ps_hostel?: string | number;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type BuildCommitResult = { ok: true; commit: any } | { ok: false; reason: string };
+
+interface PaymentOutcome {
+    employeeId: string;
+    name: string;
+    status: "success" | "error" | "skipped";
+    message: string;
 }
 
 interface EditableInputs {
@@ -289,11 +298,6 @@ const SalaryModule: React.FC = () => {
     // Pay slip modal state
     const [selectedSlipRecord, setSelectedSlipRecord] = useState<StaffRecord | null>(null);
 
-    // Payment Modal State
-    const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-    const [selectedPaymentName, setSelectedPaymentName] = useState<string | null>(null);
-    const [selectedCommit, setSelectedCommit] = useState<any>(null);
-    const [budgetHeadMap, setBudgetHeadMap] = useState<Record<string, string>>({});
     const [loadingEmpId, setLoadingEmpId] = useState<string | null>(null);
 
     // ─── Checkbox Selection & Scheme-wise BMR Modal ───────────────────────
@@ -306,6 +310,12 @@ const SalaryModule: React.FC = () => {
     const [pendingBulkCommits, setPendingBulkCommits] = useState<Record<string, any>>({});
     // Stores the selected records for immediate UI display (calculated from table data)
     const [selectedBulkRecords, setSelectedBulkRecords] = useState<StaffRecord[]>([]);
+    // Employees that couldn't even get a commit built (already staged, no commit found, backend error) —
+    // carried forward and merged into the final results modal alongside submission outcomes.
+    const [buildFailures, setBuildFailures] = useState<PaymentOutcome[]>([]);
+    // Per-employee success/error/skipped outcomes shown in the results modal after a bulk submit.
+    const [paymentResults, setPaymentResults] = useState<PaymentOutcome[]>([]);
+    const [resultsModalOpen, setResultsModalOpen] = useState(false);
 
     // Editable Inputs state mapped by record's docName (storing only overrides!)
     const [overrides, setOverrides] = useState<Record<string, Partial<EditableInputs>>>({});
@@ -355,7 +365,7 @@ const SalaryModule: React.FC = () => {
 
     // ── Build commit payload for a single staff record (shared by single-pay & bulk-pay) ──
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const buildCommitData = useCallback(async (r: StaffRecord, netPay: number): Promise<any | null> => {
+    const buildCommitData = useCallback(async (r: StaffRecord, netPay: number): Promise<BuildCommitResult> => {
         const monthLabel = MONTHS[selectedMonth].label.toLowerCase();
         const salary_year_month = `${selectedYear}_${monthLabel}`;
         const daysInMonthVal = getDaysInMonth(selectedYear, selectedMonth);
@@ -426,7 +436,14 @@ const SalaryModule: React.FC = () => {
             active_basic_salary: r.basic_salary,
         };
 
-        // Try salary_payment_data API first
+        // Try salary_payment_data API first. The backend always responds with a LIST:
+        //  - [{"status": "error", "message": "..."}] on a real error (no staff record,
+        //    no active tenure, no matching Recruitment Adhoc Contractual application, etc.)
+        //  - [{"status": "Pending Approval in Account Portal", "message": "Salary already
+        //    initiated"}] if this employee/month was already staged — must NOT be retried
+        //  - [] (empty) if there's simply no matching commit yet — falls through to the
+        //    ledger fallback below
+        //  - [{...actual commit record with projectNumber/accountHeadId/...}] on success
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let commitFromApi: any = null;
         try {
@@ -435,14 +452,28 @@ const SalaryModule: React.FC = () => {
             const response = await fetch(apiUrl, { credentials: "include" });
             const json = await response.json();
             console.log(`[SalaryModule][buildCommitData] Raw API response for ${r.employee_id}:`, JSON.stringify(json, null, 2));
-            if (response.ok && json?.message && Array.isArray(json.message) && json.message.length > 0) {
-                commitFromApi = json.message[0];
+            if (!response.ok) {
+                return { ok: false, reason: `salary_payment_data request failed (HTTP ${response.status})` };
+            }
+            if (Array.isArray(json?.message) && json.message.length > 0) {
+                const first = json.message[0];
+                const hasCommitFields = first && typeof first === "object" && "projectNumber" in first;
+                if (first && typeof first === "object" && "status" in first && !hasCommitFields) {
+                    // Non-commit status object from the backend
+                    const status = String(first.status || "").toLowerCase();
+                    if (status.includes("pending approval")) {
+                        return { ok: false, reason: first.message || "Salary already initiated for this month" };
+                    }
+                    return { ok: false, reason: first.message || `Backend error: ${first.status}` };
+                }
+                commitFromApi = first;
                 console.log(`[SalaryModule][buildCommitData] commitFromApi for ${r.employee_id}:`, commitFromApi);
             } else {
                 console.warn(`[SalaryModule][buildCommitData] No commit record found for ${r.employee_id} (${salary_year_month}). message:`, json?.message);
             }
         } catch (err) {
             console.error(`[SalaryModule][buildCommitData] Fetch failed for ${r.employee_id}:`, err);
+            return { ok: false, reason: `Failed to fetch salary payment data: ${err instanceof Error ? err.message : String(err)}` };
         }
 
         if (commitFromApi) {
@@ -457,24 +488,27 @@ const SalaryModule: React.FC = () => {
 
             if (missingFields.length > 0) {
                 console.warn(`[SalaryModule] Incomplete commit data for ${r.employee_id} — missing: [${missingFields.join(", ")}]`, commitFromApi);
-                return null;
+                return { ok: false, reason: `Incomplete commit data — missing: ${missingFields.join(", ")}` };
             }
             return {
-                projectNumber: projectNo,
-                accountHeadId: commitFromApi.accountHeadId,
-                moduleId: commitFromApi.moduleId,
-                frapAppId: commitFromApi.frapAppId,
-                commitDate: commitFromApi.commitDate,
-                commitParticular: `Salary payment for ${r.first_name} (${r.employee_id}) - ${MONTHS[selectedMonth].label} ${selectedYear}`,
-                refDetails: String(commitFromApi.transactionCommitNumber),
-                commitAmount: Math.round(netPay),
-                transactionCommitNumber: commitFromApi.transactionCommitNumber,
-                salary_year_month,
-                salary_user_details,
-                salary_backend_details: {
-                    ...salary_backend_details,
-                    project_no: projectNo,
-                    scr_id: commitFromApi.frapAppId,
+                ok: true,
+                commit: {
+                    projectNumber: projectNo,
+                    accountHeadId: commitFromApi.accountHeadId,
+                    moduleId: commitFromApi.moduleId,
+                    frapAppId: commitFromApi.frapAppId,
+                    commitDate: commitFromApi.commitDate,
+                    commitParticular: `Salary payment for ${r.first_name} (${r.employee_id}) - ${MONTHS[selectedMonth].label} ${selectedYear}`,
+                    refDetails: String(commitFromApi.transactionCommitNumber),
+                    commitAmount: Math.round(netPay),
+                    transactionCommitNumber: commitFromApi.transactionCommitNumber,
+                    salary_year_month,
+                    salary_user_details,
+                    salary_backend_details: {
+                        ...salary_backend_details,
+                        project_no: projectNo,
+                        scr_id: commitFromApi.frapAppId,
+                    },
                 },
             };
         }
@@ -487,43 +521,58 @@ const SalaryModule: React.FC = () => {
             const ledgerRes = await fetch(ledgerFallbackUrl);
             if (ledgerRes.ok) {
                 const commits = await ledgerRes.json();
-                console.log(`[SalaryModule][buildCommitData] Ledger returned ${commits?.length ?? 0} commits. Searching for employee ${r.employee_id}...`);
+                console.log(`[SalaryModule][buildCommitData] Ledger returned ${commits?.length ?? 0} commits. Searching for employee ${r.employee_id} on project ${r.project_no}...`);
 
-                // Try matching by moduleId === 11 (Recruitment Adhoc Contractual)
-                let match = commits.find((c: any) =>
-                    String(c.moduleId) === '11'
-                );
+                // Must match this employee's own project — matching on moduleId alone
+                // (or against department, which isn't a project number) previously let
+                // unrelated employees on other projects be silently stamped with the
+                // first COMMITTED moduleId===11 record found in the whole ledger.
+                // Normalize (strip whitespace/punctuation, uppercase) before comparing —
+                // the ledger and Project Staff Details can format the same project
+                // number slightly differently (case, stray spaces, hyphenation).
+                const normalizeProjectNo = (v: unknown) => String(v || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+                const targetProjectNo = normalizeProjectNo(r.project_no);
+                const match = targetProjectNo
+                    ? commits.find((c: any) =>
+                        String(c.moduleId) === '11' &&
+                        normalizeProjectNo(c.projectNumber) === targetProjectNo
+                    )
+                    : undefined;
 
-                // Fallback: match by project number
                 if (!match) {
-                    match = commits.find((c: any) =>
-                        String(c.projectNumber).toLowerCase() === String(r.department || '').toLowerCase()
+                    console.warn(
+                        `[SalaryModule][buildCommitData] No project match for ${r.employee_id} (project_no="${r.project_no}"). Available COMMITTED moduleId=11 project numbers:`,
+                        commits.filter((c: any) => String(c.moduleId) === '11').map((c: any) => c.projectNumber)
                     );
                 }
-
                 console.log(`[SalaryModule][buildCommitData] Ledger fallback match for ${r.employee_id}:`, match || "NO MATCH");
                 if (match) {
                     return {
-                        ...match,
-                        commitAmount: Math.round(netPay),
-                        commitParticular: `Salary payment for ${r.first_name} (${r.employee_id}) - ${MONTHS[selectedMonth].label} ${selectedYear}`,
-                        salary_year_month,
-                        salary_user_details,
-                        salary_backend_details: {
-                            ...salary_backend_details,
-                            project_no: match.projectNumber || r.project_no,
-                            scr_id: match.frapAppId,
+                        ok: true,
+                        commit: {
+                            ...match,
+                            commitAmount: Math.round(netPay),
+                            commitParticular: `Salary payment for ${r.first_name} (${r.employee_id}) - ${MONTHS[selectedMonth].label} ${selectedYear}`,
+                            salary_year_month,
+                            salary_user_details,
+                            salary_backend_details: {
+                                ...salary_backend_details,
+                                project_no: match.projectNumber || r.project_no,
+                                scr_id: match.frapAppId,
+                            },
                         },
                     };
                 }
+                return { ok: false, reason: `No committed budget-head entry found for project ${r.project_no || "(unknown)"}` };
             }
         } catch (ledgerErr) {
             console.error(`[SalaryModule][buildCommitData] Ledger fallback failed for ${r.employee_id}:`, ledgerErr);
+            return { ok: false, reason: `Ledger fallback failed: ${ledgerErr instanceof Error ? ledgerErr.message : String(ledgerErr)}` };
         }
 
         // No commit data found — skip this employee
         console.warn(`[SalaryModule] No salary payment data found for ${r.employee_id} (${salary_year_month}) — skipping`);
-        return null;
+        return { ok: false, reason: "No salary commit data found for this employee/month" };
     }, [selectedYear, selectedMonth, overrides]);
 
     // ── Open BMR modal: build all commit payloads for selected pending staff ──
@@ -546,6 +595,7 @@ const SalaryModule: React.FC = () => {
         setLoadingEmpId("__bulk__");
         try {
             const commits: Record<string, any> = {};
+            const failures: PaymentOutcome[] = [];
             console.log("[SalaryModule][handlePaySelected] Building commits for", selectedRecords.length, "records");
             for (const r of selectedRecords) {
                 const dim = getDaysInMonth(selectedYear, selectedMonth);
@@ -569,11 +619,26 @@ const SalaryModule: React.FC = () => {
                 const hraDed = getHRADeduction(r, proRataHRA);
                 const totalDed = hraDed + inputs.medicalDeduction + calcPTax(r.basic_salary) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
                 const netPay = Math.round(grossPay - totalDed);
-                const commit = await buildCommitData(r, netPay);
-                console.log(`[SalaryModule][handlePaySelected] buildCommitData result for ${r.employee_id}:`, commit);
-                if (commit) commits[r.employee_id] = commit;
+                const result = await buildCommitData(r, netPay);
+                console.log(`[SalaryModule][handlePaySelected] buildCommitData result for ${r.employee_id}:`, result);
+                if (result.ok) {
+                    commits[r.employee_id] = result.commit;
+                } else {
+                    const isSkip = /already (initiated|staged)/i.test(result.reason);
+                    failures.push({ employeeId: r.employee_id, name: r.first_name, status: isSkip ? "skipped" : "error", message: result.reason });
+                }
             }
-            console.log("[SalaryModule][handlePaySelected] Final commits object:", commits);
+            console.log("[SalaryModule][handlePaySelected] Final commits object:", commits, "build failures:", failures);
+            setBuildFailures(failures);
+
+            if (Object.keys(commits).length === 0) {
+                // Nothing payable — skip the BMR modal and show the results straight away.
+                setPaymentResults(failures);
+                setResultsModalOpen(true);
+                setSelectedBulkRecords([]);
+                return;
+            }
+
             setPendingBulkCommits(commits);
             setBmrInput("");
             setBmrError(null);
@@ -741,15 +806,41 @@ const SalaryModule: React.FC = () => {
         setBmrError(null);
         const paymentEndpoint = "/api/method/rndopsapp.rndopsapp.commitPayment.submit_payment_data";
         console.log("[SalaryModule][handleBmrSubmit] Starting payment submission for", Object.keys(pendingBulkCommits).length, "employees");
-        const failed: string[] = [];
+        const outcomes: PaymentOutcome[] = [];
+        // Cache Project Registration doc-name lookups by project_no — the backend
+        // needs project_name to be the actual Project Registration document name
+        // (as the single-Pay PaymentForm flow resolves it), not the raw project
+        // number string, or the payment fails to link to the right project.
+        const projectRefCache: Record<string, string> = {};
+        const resolveProjectRef = async (projectNo: string): Promise<string> => {
+            if (!projectNo) return projectNo;
+            if (projectRefCache[projectNo]) return projectRefCache[projectNo];
+            try {
+                const prRes = await fetch(`/api/resource/Project%20Registration?filters=[["project_no","=","${projectNo}"]]&fields=["name"]`);
+                if (prRes.ok) {
+                    const prData = await prRes.json();
+                    const resolved = prData?.data?.[0]?.name;
+                    if (resolved) {
+                        projectRefCache[projectNo] = resolved;
+                        return resolved;
+                    }
+                }
+            } catch (err) {
+                console.error(`[SalaryModule][handleBmrSubmit] Failed to resolve Project Registration for ${projectNo}:`, err);
+            }
+            return projectNo;
+        };
         for (const [empId, commitData] of Object.entries(pendingBulkCommits)) {
             try {
+                const rawProjectNo = commitData.projectNumber || commitData.salary_backend_details?.project_no || "";
+                const projectRef = await resolveProjectRef(rawProjectNo);
                 const body = {
                     ...commitData,
                     doctype: "Recruitment Adhoc Contractual",
                     moduleName: "Recruitment Adhoc Contractual",
                     moduleId: "11",
-                    project_name: commitData.projectNumber || commitData.salary_backend_details?.project_no || "",
+                    project_ref_number: projectRef,
+                    project_name: projectRef,
                     project_no: commitData.salary_backend_details?.project_no || commitData.projectNumber || "",
                     payment_amount: commitData.commitAmount,
                     budget_head: commitData.budget_head ?? String(commitData.accountHeadId ?? ""),
@@ -758,6 +849,8 @@ const SalaryModule: React.FC = () => {
                     payment_status: "PENDING",
                     bmr,
                     frapAppId: commitData.frapAppId,
+                    commit_id: commitData.transactionCommitNumber,
+                    refDetails: commitData.transactionCommitNumber ? String(commitData.transactionCommitNumber) : undefined,
                     salary_year_month: commitData.salary_year_month,
                     salary_user_details: commitData.salary_user_details,
                     salary_backend_details: commitData.salary_backend_details,
@@ -772,13 +865,29 @@ const SalaryModule: React.FC = () => {
                 const result = await res.json();
                 console.log(`[SalaryModule][handleBmrSubmit] Response for ${empId}:`, result);
                 const msg = result?.message;
+                if (!res.ok) throw new Error(msg?.message || `Request failed (HTTP ${res.status})`);
                 if (msg?.status === "error") throw new Error(msg?.message || "Salary staging failed");
                 if (result.exc || result.exception) throw new Error(result.exc || result.exception);
-                console.log(`[SalaryModule][handleBmrSubmit] Payment processed successfully for ${empId}`);
+                // Require positive confirmation (a created doc name) rather than just the
+                // absence of an error shape — an HTTP 200 with no `name` means the backend
+                // didn't actually stage the payment even though nothing "failed" explicitly.
+                if (!msg?.name) throw new Error(msg?.message || "Backend did not confirm the payment was staged");
+                console.log(`[SalaryModule][handleBmrSubmit] Payment processed successfully for ${empId}: ${msg.name}`);
                 markAsProcessed(empId);
+                outcomes.push({
+                    employeeId: empId,
+                    name: commitData.salary_user_details?.first_name || empId,
+                    status: "success",
+                    message: `Staged as ${msg.name}`,
+                });
             } catch (err: any) {
                 console.error(`Payment failed for ${empId}:`, err);
-                failed.push(empId);
+                outcomes.push({
+                    employeeId: empId,
+                    name: commitData.salary_user_details?.first_name || empId,
+                    status: "error",
+                    message: err?.message || "Unknown error",
+                });
             }
         }
         setBmrSubmitting(false);
@@ -786,13 +895,14 @@ const SalaryModule: React.FC = () => {
         setSelectedEmpIds(new Set());
         setPendingBulkCommits({});
         setSelectedBulkRecords([]);
-        if (failed.length > 0) {
-            alert(`Payment processing completed.\n\n⚠️ Failed for: ${failed.join(", ")}\n\nPlease retry the failed entries manually.`);
-        } else {
-            alert("✅ All selected salaries have been processed successfully!");
-        }
+        // Merge in employees that never made it to submission (already staged, no
+        // commit found, etc.) so the results modal shows the full picture for
+        // everyone that was originally selected, not just the ones that were submitted.
+        setPaymentResults([...outcomes, ...buildFailures]);
+        setBuildFailures([]);
+        setResultsModalOpen(true);
         fetchData();
-    }, [bmrInput, pendingBulkCommits, markAsProcessed, fetchData]);
+    }, [bmrInput, pendingBulkCommits, buildFailures, markAsProcessed, fetchData]);
 
     useEffect(() => { if (currentUser) fetchData(); }, [fetchData, currentUser]);
 
@@ -889,229 +999,6 @@ const SalaryModule: React.FC = () => {
         if (records.length > 0) fetchSchemeMap();
     }, [records, fetchSchemeMap]);
 
-    // Fetch Budget Heads for mapping
-    const fetchBudgetHeads = useCallback(async () => {
-        try {
-            const response = await fetch('/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0', {
-                credentials: "include",
-                headers: { Accept: "application/json" },
-            });
-            const data = await response.json();
-            if (data?.data) {
-                const map: Record<string, string> = {};
-                data.data.forEach((h: any) => {
-                    map[String(h.id)] = h.budget_head;
-                });
-                setBudgetHeadMap(map);
-            }
-        } catch (err) {
-            console.error('Failed to fetch budget heads:', err);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchBudgetHeads();
-    }, [fetchBudgetHeads]);
-
-    const handlePayClick = async (r: StaffRecord, rawNetPay: number) => {
-        const confirm = window.confirm(`Are you sure you want to process the salary for ${r.first_name}?`);
-        if (!confirm) return;
-
-        const netPay = Math.round(rawNetPay);
-        setLoadingEmpId(r.employee_id);
-        const monthLabel = MONTHS[selectedMonth].label.toLowerCase();
-        const salary_year_month = `${selectedYear}_${monthLabel}`;
-        try {
-            // 1. Fetch salary payment data (this returns a list containing the matched commit directly!)
-            let commitFromApi: any = null;
-            try {
-                const apiUrl = `/api/method/rndopsapp.rndopsapp.commitPayment.salary_payment_data?ps_emp_id=${r.employee_id}&yyyy_month=${salary_year_month}`;
-                console.log(`[SalaryModule][handlePayClick] Fetching commit for ${r.employee_id}:`, apiUrl);
-                const response = await fetch(apiUrl, { credentials: 'include' });
-                const json = await response.json();
-                console.log(`[SalaryModule][handlePayClick] Raw API response for ${r.employee_id}:`, JSON.stringify(json, null, 2));
-                if (response.ok && json?.message) {
-                    if (!Array.isArray(json.message)) {
-                        // Check if salary payment has already been initiated
-                        console.log(`[SalaryModule][handlePayClick] Non-array message for ${r.employee_id}:`, json.message);
-                        if (json.message.message === "Salary already initiated" || json.message.status) {
-                            const isSameMonth = !json.message.salary_year_month || json.message.salary_year_month === salary_year_month;
-                            if (isSameMonth) {
-                                markAsProcessed(r.employee_id);
-                                alert(`Salary successfully processed.\n\nStatus: ${json.message.status || "Pending Approval"}`);
-                                return; // abort modal presentation!
-                            }
-                        }
-                    } else if (json.message.length > 0) {
-                        commitFromApi = json.message[0];
-                        console.log(`[SalaryModule][handlePayClick] commitFromApi for ${r.employee_id}:`, commitFromApi);
-                    } else {
-                        console.warn(`[SalaryModule][handlePayClick] Empty array returned for ${r.employee_id} (${salary_year_month})`);
-                    }
-                }
-            } catch (err) {
-                console.error(`[SalaryModule][handlePayClick] Fetch failed for ${r.employee_id}:`, err);
-            }
-
-            // Construct salary year month parameter (e.g. 2026_june) and detailed user & backend data
-            const daysInMonthVal = getDaysInMonth(selectedYear, selectedMonth);
-            const { inputs } = getRowInputs(r.docName);
-            const workingDays = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
-            const proRataBasic = calcProRataBasic(r.basic_salary, workingDays, daysInMonthVal);
-            const proRataHRA = Math.round((r.hra / daysInMonthVal) * workingDays);
-            const proRataMedical = Math.round((r.medical_allowance / daysInMonthVal) * workingDays);
-            const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
-            const pTax = calcPTax(r.basic_salary);
-            const hraDed = getHRADeduction(r, proRataHRA);
-            const totalDed = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
-
-            const salary_user_details = {
-                employee_id: r.employee_id,
-                first_name: r.first_name,
-                email_id: r.email_id,
-                department: r.department,
-                designation: r.designation,
-                joining_date: r.joining_date,
-                term_completion_date: r.term_completion_date,
-                basic_salary: Math.round(r.basic_salary),
-                hra: Math.round(r.hra),
-                working_days: workingDays,
-                pro_rata_basic: Math.round(proRataBasic),
-                pro_rata_hra: Math.round(proRataHRA),
-                pro_rata_medical: Math.round(proRataMedical),
-                arrear: Math.round(inputs.arrear),
-                gross_pay: Math.round(grossPay),
-                hra_deduction: Math.round(hraDed),
-                medical_deduction: Math.round(inputs.medicalDeduction),
-                p_tax: Math.round(pTax),
-                ta: Math.round(inputs.ta),
-                id_card_charge: Math.round(inputs.idCardCharge),
-                electricity_bill: Math.round(inputs.electricityBill),
-                other_deduction: Math.round(inputs.otherDeduction),
-                total_deduction: Math.round(totalDed),
-                net_pay: netPay,
-                comment: inputs.comment,
-                remarks: inputs.remarks
-            };
-
-            const salary_backend_details = {
-                ps_emp_id: r.employee_id,
-                scr_id: "",
-                project_no: r.project_no || "",
-                interview_id: "",
-                tenure_details: "",
-                current_basic_salary: r.basic_salary,
-                active_basic_salary: r.basic_salary
-            };
-
-            let selectedCommitData: any = null;
-
-            if (commitFromApi) {
-                const projectNo = commitFromApi.projectNumber || commitFromApi.project_no;
-                // Only use commit if all required fields are present
-                const missingFields: string[] = [];
-                if (!projectNo) missingFields.push("projectNumber/project_no");
-                if (!commitFromApi.accountHeadId) missingFields.push("accountHeadId");
-                if (!commitFromApi.moduleId) missingFields.push("moduleId");
-                if (!commitFromApi.frapAppId) missingFields.push("frapAppId");
-                if (!commitFromApi.transactionCommitNumber) missingFields.push("transactionCommitNumber");
-
-                console.log(`[SalaryModule][handlePayClick] Commit validation for ${r.employee_id}:`, {
-                    projectNo,
-                    accountHeadId: commitFromApi.accountHeadId,
-                    moduleId: commitFromApi.moduleId,
-                    frapAppId: commitFromApi.frapAppId,
-                    transactionCommitNumber: commitFromApi.transactionCommitNumber,
-                    missing: missingFields,
-                });
-
-                if (missingFields.length === 0) {
-                    selectedCommitData = {
-                        projectNumber: projectNo,
-                        accountHeadId: commitFromApi.accountHeadId,
-                        moduleId: commitFromApi.moduleId,
-                        frapAppId: commitFromApi.frapAppId,
-                        commitDate: commitFromApi.commitDate,
-                        commitParticular: `Salary payment for ${r.first_name} (${r.employee_id}) - ${MONTHS[selectedMonth].label} ${selectedYear}`,
-                        refDetails: String(commitFromApi.transactionCommitNumber),
-                        commitAmount: netPay,
-                        transactionCommitNumber: commitFromApi.transactionCommitNumber,
-                        salary_year_month,
-                        salary_user_details,
-                        salary_backend_details: {
-                            ...salary_backend_details,
-                            project_no: projectNo,
-                            scr_id: commitFromApi.frapAppId,
-                        },
-                    };
-                    console.log(`[SalaryModule][handlePayClick] selectedCommitData built for ${r.employee_id}:`, selectedCommitData);
-                } else {
-                    console.warn(`[SalaryModule][handlePayClick] Incomplete commit for ${r.employee_id} — missing: [${missingFields.join(", ")}]`, commitFromApi);
-                }
-            }
-
-            if (!selectedCommitData) {
-                // Fallback: Fetch pending commits from Ledger to query manually
-                try {
-                    const ledgerFallbackUrl = `/ledger-api/account-head-commit/by-status/COMMITTED`;
-                    console.log(`[SalaryModule][handlePayClick] salary_payment_data had no usable commit for ${r.employee_id}. Trying ledger fallback:`, ledgerFallbackUrl);
-                    const ledgerRes = await fetch(ledgerFallbackUrl);
-                    if (ledgerRes.ok) {
-                        const commits = await ledgerRes.json();
-                        console.log(`[SalaryModule][handlePayClick] Ledger fallback returned ${commits?.length ?? 0} commits. Searching for employee ${r.employee_id} / department ${r.department}...`);
-                        // Try matching by project_no AND interview_id AND moduleId === 11 (Recruitment Adhoc Contractual)
-                        let match = commits.find((c: any) =>
-                            String(c.projectNumber).toLowerCase() === String(r.department || '').toLowerCase() &&
-                            String(c.moduleId) === '11' &&
-                            String(c.frapAppId).toLowerCase() === String(r.employee_id).toLowerCase()
-                        );
-
-                        // Fallback 1: match by moduleId === 11
-                        if (!match) {
-                            match = commits.find((c: any) =>
-                                String(c.moduleId) === '11'
-                            );
-                        }
-
-                        // Fallback 2: match by project number
-                        if (!match) {
-                            match = commits.find((c: any) =>
-                                String(c.projectNumber).toLowerCase() === String(r.department || '').toLowerCase()
-                            );
-                        }
-
-                        console.log(`[SalaryModule][handlePayClick] Ledger fallback match result for ${r.employee_id}:`, match || "NO MATCH");
-                        if (match) {
-                            selectedCommitData = {
-                                ...match,
-                                commitAmount: netPay, // Override amount with Net Pay
-                                commitParticular: `Salary payment for ${r.first_name} (${r.employee_id}) - ${MONTHS[selectedMonth].label} ${selectedYear}`,
-                                salary_year_month,
-                                salary_user_details,
-                                salary_backend_details,
-                            };
-                        }
-                    }
-                } catch (ledgerErr) {
-                    console.error("Ledger fallback fetch failed:", ledgerErr);
-                }
-            }
-
-            if (!selectedCommitData) {
-                alert(`No valid salary commit data found for ${r.first_name} (${r.employee_id}). Please ensure a commitment exists for this employee before processing payment.`);
-                return;
-            }
-
-            setSelectedPaymentName(null);
-            setSelectedCommit(selectedCommitData);
-            setPaymentModalOpen(true);
-        } catch (err) {
-            console.error("Failed to process payment data:", err);
-            alert("Error preparing payment data. Please try again.");
-        } finally {
-            setLoadingEmpId(null);
-        }
-    };
 
     // Unique Departments & Designations for dropdown filters
     const departmentsList = useMemo(() => {
@@ -2178,25 +2065,11 @@ const SalaryModule: React.FC = () => {
                                                                         <Eye className="w-3 h-3" />
                                                                         Slip
                                                                     </button>
-                                                                    {isProcessed ? (
+                                                                    {isProcessed && (
                                                                         <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700/60 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold tracking-wide">
                                                                             <CheckCircle2 className="w-3 h-3" />
                                                                             Paid
                                                                         </span>
-                                                                    ) : (
-                                                                        <button
-                                                                            onClick={() => handlePayClick(r, netPay)}
-                                                                            disabled={loadingEmpId !== null}
-                                                                            title="Process Payment"
-                                                                            className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 dark:hover:text-white transition-all shadow-sm active:scale-95 disabled:opacity-50 text-[10px] font-bold"
-                                                                        >
-                                                                            {loadingEmpId === r.employee_id ? (
-                                                                                <Loader2 className="w-3 h-3 animate-spin" />
-                                                                            ) : (
-                                                                                <IndianRupee className="w-3 h-3" />
-                                                                            )}
-                                                                            Pay
-                                                                        </button>
                                                                     )}
                                                                 </div>
                                                             </td>
@@ -2576,36 +2449,6 @@ const SalaryModule: React.FC = () => {
                 </div>
             )}
 
-            {paymentModalOpen && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setPaymentModalOpen(false)}>
-                    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
-                        <div className="flex bg-zinc-50 dark:bg-zinc-800/50 px-6 py-4 border-b items-center justify-between">
-                            <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
-                                {selectedPaymentName ? "Edit Payment" : "Process Payment"}
-                            </h2>
-                            <button onClick={() => setPaymentModalOpen(false)} className="p-2 hover:bg-zinc-200 dark:bg-zinc-700 rounded-full transition-colors">
-                                <X className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
-                            </button>
-                        </div>
-                        <div className="flex-1 overflow-auto p-0">
-                            <PaymentForm
-                                docName={selectedPaymentName || undefined}
-                                commitData={selectedCommit || undefined}
-                                resolvedBudgetHead={selectedCommit ? budgetHeadMap[String(selectedCommit.accountHeadId)] : undefined}
-                                onSuccess={() => {
-                                    setPaymentModalOpen(false);
-                                    if (selectedCommit?.salary_user_details?.employee_id) {
-                                        markAsProcessed(selectedCommit.salary_user_details.employee_id);
-                                    }
-                                    fetchData();
-                                }}
-                                onCancel={() => setPaymentModalOpen(false)}
-                            />
-                        </div>
-                    </div>
-                </div>
-            )}
-
             {/* ── Scheme-wise BMR Entry Modal ── */}
             {bmrModalOpen && (() => {
                 const schemeName = (() => {
@@ -2740,6 +2583,88 @@ const SalaryModule: React.FC = () => {
                                     ) : (
                                         <><CheckCircle2 className="h-3.5 w-3.5" /> Submit BMR &amp; Process All</>
                                     )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
+            {/* ── Payment Results Modal — per-employee success/error/skipped outcomes ── */}
+            {resultsModalOpen && (() => {
+                const successCount = paymentResults.filter(o => o.status === "success").length;
+                const errorCount = paymentResults.filter(o => o.status === "error").length;
+                const skippedCount = paymentResults.filter(o => o.status === "skipped").length;
+                return (
+                    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setResultsModalOpen(false)}>
+                        <div
+                            className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-2xl dark:border-[#3F3F46] dark:bg-[#1C1C1E] animate-in fade-in zoom-in-95 duration-200"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className={cn(
+                                "h-[3px]",
+                                errorCount > 0 ? "bg-gradient-to-r from-red-400 via-amber-400 to-emerald-400" : "bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600"
+                            )} />
+
+                            {/* Header */}
+                            <div className="flex items-center justify-between border-b border-[#E4E4E7] bg-[#FAFAF9] px-6 py-4 dark:border-[#3F3F46] dark:bg-[#27272A]">
+                                <div className="flex items-center gap-3">
+                                    <div className={cn(
+                                        "flex h-9 w-9 items-center justify-center rounded-xl border",
+                                        errorCount > 0
+                                            ? "bg-amber-50 text-amber-600 border-amber-200/50 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/40"
+                                            : "bg-emerald-50 text-emerald-600 border-emerald-200/50 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/40"
+                                    )}>
+                                        {errorCount > 0 ? <AlertCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                                    </div>
+                                    <div>
+                                        <h3 className="text-[15px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">Payment Results</h3>
+                                        <p className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+                                            <span className="font-bold text-emerald-600 dark:text-emerald-400">{successCount} succeeded</span>
+                                            {errorCount > 0 && <> · <span className="font-bold text-red-600 dark:text-red-400">{errorCount} failed</span></>}
+                                            {skippedCount > 0 && <> · <span className="font-bold text-amber-600 dark:text-amber-400">{skippedCount} skipped</span></>}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setResultsModalOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#E4E4E7] text-[#71717A] hover:bg-zinc-100 dark:border-[#3F3F46] dark:hover:bg-zinc-800 transition-colors">
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
+
+                            {/* Per-employee outcome list */}
+                            <div className="max-h-96 overflow-y-auto px-6 py-4 space-y-2">
+                                {paymentResults.length === 0 ? (
+                                    <p className="text-center text-[12px] text-[#71717A] dark:text-[#A1A1AA] py-6">No results to show.</p>
+                                ) : (
+                                    paymentResults.map((o, idx) => {
+                                        const style = o.status === "success"
+                                            ? { icon: <CheckCircle2 className="h-4 w-4" />, border: "border-emerald-200/60 dark:border-emerald-900/40", bg: "bg-emerald-50/60 dark:bg-emerald-950/10", iconColor: "text-emerald-600 dark:text-emerald-400" }
+                                            : o.status === "skipped"
+                                                ? { icon: <Info className="h-4 w-4" />, border: "border-amber-200/60 dark:border-amber-900/40", bg: "bg-amber-50/60 dark:bg-amber-950/10", iconColor: "text-amber-600 dark:text-amber-400" }
+                                                : { icon: <XCircle className="h-4 w-4" />, border: "border-red-200/60 dark:border-red-900/40", bg: "bg-red-50/60 dark:bg-red-950/10", iconColor: "text-red-600 dark:text-red-400" };
+                                        return (
+                                            <div key={`${o.employeeId}-${idx}`} className={cn("flex items-start gap-2.5 rounded-lg border px-3 py-2.5", style.border, style.bg)}>
+                                                <span className={cn("shrink-0 mt-0.5", style.iconColor)}>{style.icon}</span>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <p className="text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{o.name}</p>
+                                                        <span className="shrink-0 text-[10px] font-mono text-[#71717A] dark:text-[#A1A1AA]">{o.employeeId}</span>
+                                                    </div>
+                                                    <p className="text-[11px] text-[#52525B] dark:text-[#A1A1AA] mt-0.5">{o.message}</p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex items-center justify-end gap-3 border-t border-[#E4E4E7] dark:border-[#3F3F46] px-6 py-4">
+                                <button
+                                    onClick={() => { setResultsModalOpen(false); setPaymentResults([]); }}
+                                    className="inline-flex h-9 items-center gap-2 rounded-lg bg-emerald-600 px-4 text-[12px] font-bold text-white shadow-sm transition-all hover:bg-emerald-700"
+                                >
+                                    Close
                                 </button>
                             </div>
                         </div>

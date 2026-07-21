@@ -6,6 +6,139 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { isFieldVisible } from '@/utils/evalExpression';
 import { prepareFormDataForApi } from '@/services/apiService';
+import {
+    HelpCircle, X, BookOpen, IndianRupee, Clock, CheckCircle2,
+} from 'lucide-react';
+
+// --- HELP PANEL ---
+const HelpPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => (
+    <div className="fixed inset-0 z-50 flex justify-end">
+        <button
+            className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+            onClick={onClose}
+            aria-label="Close help"
+        />
+        <aside className="relative flex h-full w-full max-w-sm flex-col overflow-y-auto bg-white dark:bg-[#27272A] shadow-2xl animate-in slide-in-from-right duration-300">
+            {/* Header */}
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] px-5 py-4">
+                <div className="flex items-center gap-2.5">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#D97757]/10 text-[#D97757]">
+                        <HelpCircle className="h-4 w-4" />
+                    </span>
+                    <div>
+                        <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#D97757]">Guide</p>
+                        <h2 className="text-[15px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
+                            Top Up Fellowship
+                        </h2>
+                    </div>
+                </div>
+                <button
+                    onClick={onClose}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-[#71717A] hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                >
+                    <X className="h-4 w-4" />
+                </button>
+            </div>
+
+            <div className="flex-1 px-5 py-5 space-y-5">
+
+                {/* What is it */}
+                <section>
+                    <div className="flex items-center gap-2 mb-2">
+                        <BookOpen className="w-3.5 h-3.5 text-[#4A6CF7]" />
+                        <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">What is this?</h3>
+                    </div>
+                    <p className="text-[13px] text-[#52525B] dark:text-[#A1A1AA] leading-relaxed">
+                        A <strong className="text-[#3F3F46] dark:text-[#E4E4E7]">Top Up Fellowship</strong> application is used to request
+                        an additional monthly payment for students working on a project, on top of any existing honorarium,
+                        stipend, or scholarship they receive.
+                    </p>
+                </section>
+
+                {/* Key Fields */}
+                <section>
+                    <div className="flex items-center gap-2 mb-2">
+                        <IndianRupee className="w-3.5 h-3.5 text-emerald-500" />
+                        <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">Key Fields</h3>
+                    </div>
+                    <div className="space-y-2">
+                        {[
+                            { field: "Project Code", desc: "The project funding the top-up. Auto-fills the project title." },
+                            { field: "Student (Email)", desc: "Pick the student — roll number, department, and name auto-fill." },
+                            { field: "Stipend / Scholarship", desc: "Mark 'Yes' if the student already receives one — this lowers their monthly cap." },
+                            { field: "Period From", desc: "The month the top-up applies to — used to check the monthly cap." },
+                            { field: "Hours per Month / Rate per Hour", desc: "Used to auto-calculate the total amount per month." },
+                        ].map(({ field, desc }) => (
+                            <div key={field} className="flex gap-2.5">
+                                <span className="mt-0.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#D97757] mt-[7px]" />
+                                <p className="text-[12.5px] text-[#52525B] dark:text-[#A1A1AA] leading-snug">
+                                    <strong className="text-[#3F3F46] dark:text-[#E4E4E7]">{field}</strong> — {desc}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+
+                {/* Monthly Cap */}
+                <section className="space-y-2.5">
+                    <div className="flex items-center gap-2 mb-2">
+                        <IndianRupee className="w-3.5 h-3.5 text-[#D97757]" />
+                        <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">Monthly Cap Rules</h3>
+                    </div>
+                    <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4">
+                        <p className="text-[12.5px] text-[#52525B] dark:text-[#A1A1AA] leading-relaxed">
+                            Each student's <strong className="text-[#3F3F46] dark:text-[#E4E4E7]">Honorarium + Top Up</strong> total
+                            for a given month cannot exceed the backend-set cap. Students already on a stipend or scholarship
+                            have a lower cap. The "Monthly Limit Status" table on the form shows how much each student has
+                            already received and how much is remaining before you save.
+                        </p>
+                    </div>
+                </section>
+
+                {/* Workflow */}
+                <section>
+                    <div className="flex items-center gap-2 mb-3">
+                        <Clock className="w-3.5 h-3.5 text-amber-500" />
+                        <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">Approval Workflow</h3>
+                    </div>
+                    <div className="space-y-0">
+                        {[
+                            { stage: "Draft", desc: "You create and save the application.", color: "bg-zinc-400" },
+                            { stage: "Pending Approval", desc: "Forwarded to the approving authority for review.", color: "bg-amber-400" },
+                            { stage: "Approved", desc: "Top-up amount is sanctioned for the students listed.", color: "bg-emerald-500" },
+                        ].map(({ stage, desc, color }, i, arr) => (
+                            <div key={stage} className="flex gap-3">
+                                <div className="flex flex-col items-center">
+                                    <span className={cn("h-2.5 w-2.5 rounded-full flex-shrink-0 mt-1", color)} />
+                                    {i < arr.length - 1 && <span className="w-px flex-1 bg-zinc-200 dark:bg-zinc-700 my-1" />}
+                                </div>
+                                <div className="pb-3">
+                                    <p className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">{stage}</p>
+                                    <p className="text-[11.5px] text-[#71717A] dark:text-[#A1A1AA]">{desc}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+
+                {/* How to apply */}
+                <section className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <p className="text-[12px] font-extrabold text-emerald-700 dark:text-emerald-400">How to apply</p>
+                    </div>
+                    <ol className="space-y-1 list-decimal list-inside text-[12.5px] text-emerald-800 dark:text-emerald-300">
+                        <li>Fill in the project and general details.</li>
+                        <li>Add each student row and select their email — details auto-fill.</li>
+                        <li>Enter Period From, hours, and rate — check the Monthly Limit Status table stays within cap.</li>
+                        <li>Tick all declaration checkboxes.</li>
+                        <li>Click <strong>Save Draft</strong> to save, then <strong>Submit Application</strong> to send for approval.</li>
+                    </ol>
+                </section>
+            </div>
+        </aside>
+    </div>
+);
 
 interface FormDataResponse {
     message: {
@@ -61,6 +194,7 @@ const TopUpFellowshipForm: React.FC = () => {
     const [savedDocName, setSavedDocName] = useState<string | null>(null);
     const [dataLoaded, setDataLoaded] = useState(false);
     const [projectTitle, setProjectTitle] = useState<string>(projectTitleFromUrl || '');
+    const [helpOpen, setHelpOpen] = useState(false);
 
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall<FormDataResponse>(
         'rndopsapp.rndopsapp.doctype.top_up_fellowship.top_up_fellowship.get_top_up_fellowship_fields'
@@ -607,6 +741,23 @@ const TopUpFellowshipForm: React.FC = () => {
                     )}
                 </form>
             </main>
+
+            {/* Floating help button */}
+            <button
+                onClick={() => setHelpOpen(true)}
+                className="fixed bottom-8 right-7 z-40 flex h-11 items-center gap-2 rounded-full border border-[#4A6CF7]/30 bg-white/95 px-3.5 text-[#1E3A8A] shadow-lg shadow-[#18181B]/10 backdrop-blur transition-all hover:-translate-y-0.5 hover:border-[#4A6CF7]/50 hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/35 dark:bg-[#27272A]/95 dark:text-[#C7D2FE]"
+                aria-label="Help"
+                title="How to fill Top Up Fellowship?"
+            >
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#4A6CF7] text-white shadow-sm">
+                    <HelpCircle className="h-4 w-4" />
+                </span>
+                <span className="hidden text-[12px] font-extrabold uppercase tracking-wide md:block">
+                    Module Guide
+                </span>
+            </button>
+
+            {helpOpen && <HelpPanel onClose={() => setHelpOpen(false)} />}
         </div>
     );
 };

@@ -74,8 +74,15 @@ export function generateSanctionSheetHtml(
 
     return ssTemplate
         .replace("{{FILE_NUMBER}}", formData.ss_file_number || "")
-        .replace("{{PROJECT_NO}}", formData.project_no || "")
+        .replace(
+            "{{PROJECT_NO}}",
+            formData.project_no || formData.project || formData.project_name || "",
+        )
         .replace("{{DOC_REF}}", formData.name || "")
+        .replace(
+            "{{DIRECT_PURCHASE_REF}}",
+            formData.direct_purchase || formData.app_id || "",
+        )
         .replace("{{DATE}}", creation)
         .replace("{{SS_APPLICANT_NAME}}", formData.ss_applicant_name || "")
         .replace(
@@ -97,5 +104,10 @@ export function generateSanctionSheetHtml(
         .replace("{{SS_WARRANTY}}", formData.ss_warranty || "")
         .replace("{{SS_DELIVERY}}", formData.ss_delivery || "")
         .replace("{{SS_PAYMENT}}", formData.ss_payment || "")
-        .replace("{{ADDITIONAL_TERMS_ROW}}", additionalTermsRow);
+        .replace("{{ADDITIONAL_TERMS_ROW}}", additionalTermsRow)
+        .replace(
+            "{{SS_DECLARATION}}",
+            formData.html_dqce ||
+                "Purchase made under direct procurement of the purchase committee up to 10 lakhs by submission of quotation(s).",
+        );
 }
