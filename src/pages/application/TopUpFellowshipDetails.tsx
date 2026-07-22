@@ -498,8 +498,8 @@ const TopUpFellowshipDetails: React.FC = () => {
                             </div>
                         )}
 
-                        {/* Commitable Balance */}
-                        <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-4 space-y-3">
+                        {/* Commitable Balance — R&D Staff only */}
+                        {isRnDStaff && <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-4 space-y-3">
                             <div className="flex items-center justify-between">
                                 <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">
                                     Commitable Balance
@@ -515,7 +515,7 @@ const TopUpFellowshipDetails: React.FC = () => {
                                 <LedgerIcon className="h-3.5 w-3.5" />
                                 View Project Ledger
                             </button>
-                        </div>
+                        </div>}
 
                         {/* Commit Payment — R&D Staff only at Pending Staff Approval */}
                         {isPendingStaff && isRnDStaff && commitDetails && (
@@ -524,6 +524,7 @@ const TopUpFellowshipDetails: React.FC = () => {
                                 docName={docName || ''}
                                 projectName={commitDetails.project_number || commitDetails.project_code || projectCode}
                                 budgetHeads={budgetHeads.length > 0 ? budgetHeads : accountHeadLabel ? [accountHeadLabel] : commitDetails.account_head ? [commitDetails.account_head] : []}
+                                defaultBudgetHead={accountHeadLabel || commitDetails.account_head || ''}
                                 actualBalance={actualBalance}
                                 commitableBalance={commitableBalance}
                                 billAmount={Number(commitDetails.total_amount) || 0}
