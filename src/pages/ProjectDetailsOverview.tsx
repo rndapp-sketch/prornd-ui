@@ -1440,7 +1440,8 @@ const QuickActions = ({
             } else if (selectedApplication === "Top Up Fellowship") {
                 try {
                     const timestamp = Date.now();
-                    const apiUrl = `/api/resource/Top%20Up%20Fellowship?fields=["name","creation","workflow_state","owner","project_code","project_title","pi_webmail","coordinating_pi_webmail","docstatus"]&filters=[["project_code","=","${projectName}"]]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    const tufProjectNo = projectNo || projectName;
+                    const apiUrl = `/api/resource/Top%20Up%20Fellowship?fields=["name","creation","workflow_state","owner","project_no","project_title","pi_webmail","coordinating_pi_webmail","docstatus"]&filters=[["project_no","=","${tufProjectNo}"]]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
                     const fetchResponse = await fetch(apiUrl, {
                         method: "GET",
                         headers: { Accept: "application/json" },
@@ -1465,7 +1466,7 @@ const QuickActions = ({
                             applicant_webmail: item.pi_webmail || item.owner,
                         }));
                     console.log(
-                        `Top Up Fellowship: fetched ${allItems.length} for project ${projectName}`,
+                        `Top Up Fellowship: fetched ${allItems.length} for project_no ${tufProjectNo}`,
                     );
                 } catch (fetchError) {
                     console.error("Top Up Fellowship fetch error:", fetchError);
