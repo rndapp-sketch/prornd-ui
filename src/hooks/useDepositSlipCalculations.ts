@@ -107,6 +107,9 @@ export const useDepositSlipCalculations = (
         })
         .join("|");
       return `rds:${total}:${overhead}:${childTableSigs}`;
+    } else if (depositSlipType === "e_non_routine") {
+      const amount = flt(formData.amount_inclusive_of_gst);
+      return `enr:${amount}`;
     }
     return "";
   };
@@ -116,7 +119,7 @@ export const useDepositSlipCalculations = (
   useEffect(() => {
     // Guard: unsupported type
     if (
-      !["research_consultancy", "t_testing", "research_deposit_slip", "d_consultancy"].includes(
+      !["research_consultancy", "t_testing", "research_deposit_slip", "d_consultancy", "e_non_routine"].includes(
         depositSlipType,
       )
     ) {
@@ -161,6 +164,13 @@ export const useDepositSlipCalculations = (
       lastSignatureRef.current = currentSignature;
       return;
     }
+    if (
+      depositSlipType === "e_non_routine" &&
+      flt(data.amount_inclusive_of_gst) <= 0
+    ) {
+      lastSignatureRef.current = currentSignature;
+      return;
+    }
 
     console.log(
       `useDepositSlipCalculations [${depositSlipType}]: Calculating...`,
@@ -179,6 +189,8 @@ export const useDepositSlipCalculations = (
       updates = calculateTTesting(data);
     } else if (depositSlipType === "research_deposit_slip") {
       updates = calculateResearchDeposit(data);
+    } else if (depositSlipType === "e_non_routine") {
+      updates = calculateENonRoutine(data);
     }
 
     setFormData((prev) => ({ ...prev, ...updates }));
@@ -186,6 +198,19 @@ export const useDepositSlipCalculations = (
 
   return null;
 };
+
+// =============================================================
+// E NON-ROUTINE CALCULATIONS
+// =============================================================
+function calculateENonRoutine(formData: FormData): FormData {
+  const E_NON_ROUTINE_OVERHEAD_MULTIPLIER = 0.3;
+  const amount = flt(formData.amount_inclusive_of_gst);
+  const overheadAmount = flt(amount * E_NON_ROUTINE_OVERHEAD_MULTIPLIER);
+  return {
+    overhead_multiplier: E_NON_ROUTINE_OVERHEAD_MULTIPLIER,
+    overhead_amount: overheadAmount,
+  };
+}
 
 // =============================================================
 // RESEARCH CONSULTANCY CALCULATIONS
