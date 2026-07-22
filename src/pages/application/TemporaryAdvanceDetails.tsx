@@ -420,7 +420,7 @@ const TemporaryAdvanceDetails: React.FC = () => {
     );
 
     const projectCode = data?.project_code || "";
-    const { heads: budgetHeads, actualBalance } = useProjectBudget(projectCode);
+    const { heads: budgetHeads, actualBalance, commitableBalance } = useProjectBudget(projectCode);
 
     const { data: cancellationStatus } = useFrappeGetCall<{ message: { has_pending: boolean } }>(
         "rndopsapp.rndopsapp.cancellation_api.get_cancellation_status",
@@ -853,6 +853,7 @@ const TemporaryAdvanceDetails: React.FC = () => {
                                 projectName={data.project_code || ""}
                                 budgetHeads={budgetHeads}
                                 actualBalance={actualBalance}
+                                commitableBalance={commitableBalance}
                                 onCommitSuccess={() => loadData()}
                                 onStagingStatusChange={(status) => setIsCommittedForGate(status)}
                             />

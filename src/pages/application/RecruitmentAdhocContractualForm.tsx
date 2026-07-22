@@ -239,7 +239,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
 
     // --- PROJECT BUDGET for commit/payment ---
     const projectCode = formData.upfa_project_code || formData.project_code || "";
-    const { budgetData, actualBalance } = useProjectBudget(projectCode);
+    const { budgetData, actualBalance, commitableBalance } = useProjectBudget(projectCode);
     const currentDocName = editDocName || savedDocName || "";
     const linkedCommitment = budgetData.find(
         (e) => (e.ref === currentDocName || e.frapAppId === currentDocName) && e.type === "commitment",
@@ -1523,6 +1523,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                                 projectName={projectCode}
                                 budgetHeads={allBudgetHeads.map(h => h.label)}
                                 actualBalance={actualBalance}
+                                commitableBalance={commitableBalance}
                                 onCommitSuccess={() => {}}
                                 onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
                             />

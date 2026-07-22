@@ -283,6 +283,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
         budgetData,
         heads: budgetHeads,
         actualBalance,
+        commitableBalance,
     } = useProjectBudget(projectTitle);
 
     const balanceApiParams = React.useMemo(
@@ -665,6 +666,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                                     projectName={projectTitle}
                                     budgetHeads={budgetHeads}
                                     actualBalance={actualBalance}
+                                    commitableBalance={commitableBalance}
                                     onCommitSuccess={() => handleRefresh()}
                                     onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
                                 />

@@ -108,13 +108,13 @@ const FrappeButton = ({
       "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-150",
       "focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500",
       variant === "primary" &&
-        "bg-[#D97757] text-white hover:bg-[#D97757] shadow-md hover:shadow-lg border border-[#C66A4E]",
+      "bg-[#D97757] text-white hover:bg-[#D97757] shadow-md hover:shadow-lg border border-[#C66A4E]",
       variant === "ghost" &&
-        "bg-transparent text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]",
+      "bg-transparent text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]",
       variant === "outline" &&
-        "bg-white border border-[#E4E4E7] text-[#3F3F46] hover:bg-[#FAFAF9] rounded-lg dark:bg-[#27272A] dark:border-[#3F3F46] dark:text-[#E4E4E7] dark:hover:bg-[#3F3F46]",
+      "bg-white border border-[#E4E4E7] text-[#3F3F46] hover:bg-[#FAFAF9] rounded-lg dark:bg-[#27272A] dark:border-[#3F3F46] dark:text-[#E4E4E7] dark:hover:bg-[#3F3F46]",
       variant === "action" &&
-        "bg-[#D97757] text-white font-bold hover:bg-[#D97757] shadow-md hover:shadow-lg border-2 border-[#C66A4E]",
+      "bg-[#D97757] text-white font-bold hover:bg-[#D97757] shadow-md hover:shadow-lg border-2 border-[#C66A4E]",
       "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
       className,
     )}
@@ -262,7 +262,7 @@ const ActionsDropdown = ({
 
   const forwardActions = workflowActions.filter((a) => categorise(a) === "forward");
   const neutralActions = workflowActions.filter((a) => categorise(a) === "neutral");
-  const rejectActions  = workflowActions.filter((a) => categorise(a) === "reject");
+  const rejectActions = workflowActions.filter((a) => categorise(a) === "reject");
 
   const itemStyle = (action: string) => {
     const cat = categorise(action);
@@ -484,7 +484,7 @@ const ReimbursementDetails: React.FC = () => {
     fetchBudgetHeads();
   }, []);
 
-  const { budgetData, heads: budgetHeads, actualBalance } = useProjectBudget(projectTitle);
+  const { budgetData, heads: budgetHeads, actualBalance, commitableBalance } = useProjectBudget(projectTitle);
 
   const balanceApiParams = React.useMemo(() => ({ project_number: projectTitle }), [projectTitle]);
   const balanceApiOptions = React.useMemo(
@@ -500,7 +500,7 @@ const ReimbursementDetails: React.FC = () => {
   );
   const projectAmountsResult =
     (projectAmountsData as any)?.message?.data ?? (projectAmountsData as any)?.data ?? {};
-  const totalCommitableBalance = projectAmountsResult?.availablePaymentAmount ?? 0;
+  const totalCommitableBalance = projectAmountsResult?.availableCommitAmount ?? 0;
 
   const linkedCommitment = budgetData.find(
     (e) => (e.ref === (id || "") || e.frapAppId === (id || "")) && e.type === "commitment",
@@ -669,8 +669,8 @@ const ReimbursementDetails: React.FC = () => {
     const formattedTime = now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
     const applicationDate = data.creation
       ? new Date(data.creation).toLocaleString("en-IN", {
-          day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true,
-        })
+        day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true,
+      })
       : "-";
 
     const totalAmount = data.table_bosk?.reduce((sum: number, item: any) => sum + (parseFloat(item.amount) || 0), 0) || 0;
@@ -1277,6 +1277,7 @@ const ReimbursementDetails: React.FC = () => {
                   projectName={data.project_name}
                   budgetHeads={budgetHeads}
                   actualBalance={actualBalance}
+                  commitableBalance={commitableBalance}
                   onCommitSuccess={() => window.location.reload()}
                   onStagingStatusChange={(status) => setIsCommittedForGate(status)}
                 />

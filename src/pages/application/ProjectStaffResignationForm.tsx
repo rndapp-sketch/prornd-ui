@@ -197,7 +197,7 @@ const ProjectStaffResignationForm: React.FC = () => {
     const fullName = basic
         ? [basic.ps_first_name, basic.ps_middle_name, basic.ps_last_name].filter(Boolean).join(" ")
         : loadedResignation?.applicant_name || currentUser || "";
-    const { heads: budgetHeads, actualBalance } = useProjectBudget(projectNo);
+    const { heads: budgetHeads, actualBalance, commitableBalance } = useProjectBudget(projectNo);
 
     const { call: fetchDoc, loading: editDocLoading } = useFrappePostCall<{ message: ResignationDoc }>(
         "frappe.client.get",
@@ -659,6 +659,7 @@ const ProjectStaffResignationForm: React.FC = () => {
                                     projectName={projectNo}
                                     budgetHeads={budgetHeads}
                                     actualBalance={actualBalance}
+                                    commitableBalance={commitableBalance}
                                     title="Make Resignation Commitment"
                                     description="Stage the project commitment required before forwarding this resignation."
                                     onCommitSuccess={() => showToast("success", "Commitment staged successfully.")}

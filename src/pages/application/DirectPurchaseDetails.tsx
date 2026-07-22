@@ -2703,6 +2703,7 @@ const DirectPurchaseDetails: React.FC = () => {
         budgetData,
         heads: budgetHeadsFromLedger,
         actualBalance,
+        commitableBalance,
     } = useProjectBudget(projectTitle);
 
     // Fetch Budget Heads directly (matching DisbursalOfHonorariumDetails / TravelDetails pattern)
@@ -3637,6 +3638,7 @@ const DirectPurchaseDetails: React.FC = () => {
                                                 projectName={projectTitle}
                                                 budgetHeads={budgetHeads}
                                                 actualBalance={actualBalance}
+                                                commitableBalance={commitableBalance}
                                                 onCommitSuccess={() => loadData()}
                                                 onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
                                             />
@@ -3649,6 +3651,7 @@ const DirectPurchaseDetails: React.FC = () => {
                                                 projectName={projectTitle}
                                                 budgetHeads={budgetHeads}
                                                 actualBalance={actualBalance}
+                                                commitableBalance={commitableBalance}
                                                 title="Additional PO Commitment"
                                                 description="Submit a linked commitment for this Purchase Order, referencing the existing commitment's transaction ID."
                                                 forcedRefDetails={poRefDetailsId ?? undefined}
@@ -3699,6 +3702,7 @@ const DirectPurchaseDetails: React.FC = () => {
                             projectName={projectTitle}
                             budgetHeads={budgetHeads}
                             actualBalance={actualBalance}
+                            commitableBalance={commitableBalance}
                             onCommitSuccess={() => loadData()}
                             onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
                         />

@@ -231,6 +231,7 @@ const TravelDetails: React.FC = () => {
         budgetData,
         heads: budgetHeads,
         actualBalance,
+        commitableBalance,
     } = useProjectBudget(projectTitle);
 
     const balanceApiParams = React.useMemo(
@@ -728,6 +729,7 @@ const TravelDetails: React.FC = () => {
                                 budgetHeads={budgetHeads}
                                 defaultBudgetHead={defaultCommitBudgetHead}
                                 actualBalance={actualBalance}
+                                commitableBalance={commitableBalance}
                                 billAmount={Number(formData.total_estimate) || undefined}
                                 onCommitSuccess={() => handleRefresh()}
                                 onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
