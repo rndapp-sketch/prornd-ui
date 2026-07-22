@@ -15,6 +15,7 @@ import { useUserRoles } from '../components/UserRole';
 import { selectionCandidateDetailsAPI, selectionCommitteeReportAPI } from '@/services/apiService';
 import {
     resolveProjectCategory,
+    normalizeProjectType,
     DOCTYPE_PR_LINKS,
     type PRLinkStrategy,
     type ProjectCategory,
@@ -543,6 +544,62 @@ const PendingTask: React.FC = () => {
         }),
         [allTasks, resolvedProjectTypes]);
 
+    // Phase-2b: resolve project_no and project_type for Top Up Fellowship tasks.
+    // Top Up Fellowship only has a `project_no` field (no `project_code` Link field
+    // exists on this DocType) — fetch it directly, then resolve project_type via
+    // the PR record matching that project_no.
+    const [tufProjectNos, setTufProjectNos] = React.useState<Map<string, string>>(new Map());
+    React.useEffect(() => {
+        const tufIds = allTasks
+            .filter(t => t.doctype === "Top Up Fellowship")
+            .map(t => t.id);
+        if (!tufIds.length) return;
+
+        const params = new URLSearchParams({
+            fields: JSON.stringify(["name", "project_no"]),
+            filters: JSON.stringify([["name", "in", tufIds.join(",")]]),
+            limit: String(tufIds.length),
+        });
+
+        fetch(`/api/resource/Top%20Up%20Fellowship?${params}`, { credentials: "include" })
+            .then(r => r.json())
+            .then(async (result) => {
+                const tufDocs: any[] = result?.data ?? [];
+                const noMap = new Map<string, string>();
+                tufDocs.forEach((rec: any) => {
+                    if (rec.project_no) noMap.set(rec.name, rec.project_no);
+                });
+
+                // Resolve project_type via the PR docs matching those project_no values
+                const projectNos = [...new Set(tufDocs.map(rec => rec.project_no).filter(Boolean))];
+                if (projectNos.length > 0) {
+                    const prParams = new URLSearchParams({
+                        fields: JSON.stringify(["name", "project_no", "project_type"]),
+                        filters: JSON.stringify([["project_no", "in", projectNos.join(",")]]),
+                        limit: String(projectNos.length),
+                    });
+                    try {
+                        const prRes = await fetch(`/api/resource/Project%20Registration?${prParams}`, { credentials: "include" });
+                        const prResult = await prRes.json();
+                        const typeByProjectNo = new Map<string, string>();
+                        (prResult?.data ?? []).forEach((pr: any) => {
+                            if (pr.project_no && pr.project_type) typeByProjectNo.set(pr.project_no, pr.project_type);
+                        });
+
+                        const typeMap = new Map<string, ProjectCategory>();
+                        tufDocs.forEach((rec: any) => {
+                            const rawType = rec.project_no ? typeByProjectNo.get(rec.project_no) : undefined;
+                            if (rawType) typeMap.set(rec.name, normalizeProjectType(rawType));
+                        });
+                        if (typeMap.size > 0) setResolvedProjectTypes(prev => new Map([...prev, ...typeMap]));
+                    } catch { /* non-critical */ }
+                }
+
+                if (noMap.size > 0) setTufProjectNos(noMap);
+            })
+            .catch(() => {});
+    }, [allTasks]);
+
     // Phase-3: fetch director_signed_pdf for all doctypes that support Director Approval flow
     const DIRECTOR_PDF_DOCTYPES = ["Indent General Form", "Selection Committee Report", "Indent Cum Sanction Sheet"];
     const [directorPdfStatus, setDirectorPdfStatus] = React.useState<Map<string, boolean>>(new Map());
@@ -897,7 +954,7 @@ const PendingTask: React.FC = () => {
                                                 </button>
                                             </td>
                                             <td className="p-3 align-middle font-mono text-zinc-500 dark:text-zinc-400 text-xs">
-                                                {task["Project Number"]}
+                                                {task.projectNo || tufProjectNos.get(task.id) || task["Project Number"]}
                                             </td>
                                             <td className="p-3 align-middle text-zinc-500 dark:text-zinc-400">
                                                 {task.creation ? new Date(task.creation).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "-"}

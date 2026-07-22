@@ -95,7 +95,8 @@ These DocTypes store Project Registration identifiers as plain `Data` fields —
 | 22 | **TA DA Settlement** | `project_no` | Data | `travel_project_number` from Travel (which fetches from PR) | ❌ No | Indirect chain: `ta_da_travel_application.travel_project_number` |
 | 23 | **Temporary Advance** | `project_code` | Data | `project_no` | ❌ No | Name pattern match |
 | 24 | **Temporary Advance** | `project_name` | Data | PR title (string) | ❌ No | Plain Data |
-| 25 | **Travel** | `travel_project_number` | Data | `project_no` | ❌ No | Companion to `travel_project_title` Link field |
+| 25 | **Top Up Fellowship** | `project_no` | Data | `project_no` | ❌ No | Sole PR reference field on this DocType — there is no `project_code` field. Stores the PR's human-readable project number directly and is used both to filter TUF records for a project and to resolve project type (Research/Consultancy/Others) via the linked PR |
+| 26 | **Travel** | `travel_project_number` | Data | `project_no` | ❌ No | Companion to `travel_project_title` Link field |
 
 ---
 
@@ -104,7 +105,7 @@ These DocTypes store Project Registration identifiers as plain `Data` fields —
 | PR Field | Field Type | Description | Referenced By |
 |----------|-----------|-------------|---------------|
 | `name` (autoname) | Data | Primary document ID — format: `YYYYMMDDnFUND######` | All 24 direct Link fields |
-| `project_no` | Data | Human-readable project number (assigned internally) | 10+ DocTypes via `fetch_from` or direct Data fields |
+| `project_no` | Data | Human-readable project number (assigned internally) | 10+ DocTypes via `fetch_from` or direct Data fields, incl. `Top Up Fellowship` |
 | `project_type` | Select | Research / Consultancy / Other | `Fund Sanction` → `project_type_linked` |
 | `consultancy_gstin` | Data | GSTIN of funding agency | `Research Consultancy Deposit Slip` → `gstin_of_funding_agency` |
 | `pi_userid` | Link (User) | Principal Investigator user | `Research Consultancy Deposit Slip` → `principal_investigator` |
@@ -131,9 +132,9 @@ These DocTypes store Project Registration identifiers as plain `Data` fields —
 |----------|-------|
 | DocTypes with **Direct Links** (DB confirmed) | **24** |
 | Unique PR fields referenced via `fetch_from` | **6** (`project_no`, `project_type`, `consultancy_gstin`, `pi_userid`, `funding_agen`, `other_project_type_name`) |
-| DocTypes with **Indirect Data references only** | **14 additional** |
+| DocTypes with **Indirect Data references only** | **15 additional** (incl. `Top Up Fellowship.project_no`) |
 | Anomalous `Data` fields with `options=Project Registration` | **2** |
-| Total DocTypes with any PR relationship | **35** |
+| Total DocTypes with any PR relationship | **36** |
 
 ---
 
@@ -174,5 +175,6 @@ These DocTypes store Project Registration identifiers as plain `Data` fields —
 | T Testing Deposit Slip | `project_title` | `name` | — | — |
 | TA DA Settlement | — | — | — | `project_no` (via Travel chain) |
 | Temporary Advance | — | — | — | `project_code`, `project_name` |
+| Top Up Fellowship | — | — | — | `project_no` |
 | Travel | `travel_project_title` | `name` | — | `travel_project_number` |
 | UC Request | `project_id` | `name` | — | — |
