@@ -105,7 +105,7 @@ const {
 ```
 
 `budgetHeads` (string[]) is used by `CommitPayment` to show a head selector.
-`actualBalance` is shown in the sidebar.
+`commitableBalance` is shown in the sidebar "Commitable Balance" card. `actualBalance` (received − paid) is a separate value — don't confuse them.
 
 ### Step 5 — Add the sidebar balance card
 
@@ -116,7 +116,7 @@ const {
             Commitable Balance
         </span>
         <span className="text-base font-bold text-[#D97757]">
-            ₹ {(actualBalance || 0).toLocaleString("en-IN")}
+            ₹ {(commitableBalance || 0).toLocaleString("en-IN")}
         </span>
     </div>
     <button
@@ -160,7 +160,8 @@ const [selectedCommitHead, setSelectedCommitHead] = useState("");
         docName={id || ""}
         projectName={projectCode}              // ← project CODE
         budgetHeads={fundedBudgetHeads}        // ← heads with received > 0
-        actualBalance={actualBalance}          // ← from useProjectBudget
+        actualBalance={actualBalance}          // ← from useProjectBudget (payment balance)
+        commitableBalance={commitableBalance}  // ← from useProjectBudget (commitment balance) — REQUIRED
         headBalances={headBalances}            // ← per-head balance map
         defaultBudgetHead={accountHeadLabel}   // ← resolved human-readable head name
         onHeadChange={setSelectedCommitHead}   // ← keeps sidebar in sync
@@ -171,9 +172,16 @@ const [selectedCommitHead, setSelectedCommitHead] = useState("");
 ```
 
 ### `headBalances` prop behaviour in `CommitPayment`
-- "Available" line below the dropdown shows `headBalances[commitHead].commitable` for the selected head (falls back to `actualBalance` if the map is not provided or the head is not in it)
+- "Available" line below the head dropdown shows:
+  - `headBalances[commitHead].commitable` when a head is selected
+  - `commitableBalance` (total committable) when no head is selected yet — **always pass this prop**
+  - Falls back to `actualBalance` only if `commitableBalance` is not provided (avoid this)
 - Submit is **blocked** with an inline error if the entered amount exceeds `headBalances[commitHead].commitable`
 - The confirm dialog shows the per-head available balance (not total)
+
+> **Why two balance props?**
+> `actualBalance` = fund received − paid (ignores committed amounts). Used as a last-resort fallback only.
+> `commitableBalance` = fund received − committed − paid. This is what the "Available" display should show so users know how much uncommitted budget they actually have.
 
 ### Sidebar sync via `onHeadChange`
 `onHeadChange` fires on every head change (including auto-select). Use `selectedCommitHead` to highlight the active row and update the sidebar balance header:

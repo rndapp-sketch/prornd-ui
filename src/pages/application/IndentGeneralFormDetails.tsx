@@ -285,7 +285,7 @@ const IndentGeneralFormDetails: React.FC = () => {
     // igf_project_title is the Frappe Link value (auto-ID) used for ProjectDetailsOverview
     const projectCode = formData.igf_project_code || "";
     const projectName = formData.igf_project_title || "";
-    const { budgetData, heads: budgetHeads, headBalances, actualBalance } = useProjectBudget(projectCode);
+    const { budgetData, heads: budgetHeads, headBalances, actualBalance, commitableBalance } = useProjectBudget(projectCode);
 
     // Only pass heads that have received funds to CommitPayment
     const fundedBudgetHeads = budgetHeads.filter((h) => (headBalances[h]?.received ?? 0) > 0);
@@ -982,6 +982,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                                 projectName={projectCode}
                                 budgetHeads={fundedBudgetHeads}
                                 actualBalance={actualBalance}
+                                commitableBalance={commitableBalance}
                                 headBalances={headBalances}
                                 defaultBudgetHead={igfAccountHeadLabel}
                                 onHeadChange={setSelectedCommitHead}

@@ -52,7 +52,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
     const [commitSuccess, setCommitSuccess] = useState<{ amount: number; head: string } | null>(null);
 
     // Head-wise balances from ledger API
-    const { heads: budgetHeads, headBalances, actualBalance } = useProjectBudget(projectName || "");
+    const { heads: budgetHeads, headBalances, actualBalance, commitableBalance } = useProjectBudget(projectName || "");
 
     // Fetch Budget Heads list (needed by ProjectLedgerModal and PaymentModal)
     const [budgetHeadList, setBudgetHeadList] = useState<{ name: string; id: number | string }[]>([]);
@@ -108,6 +108,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
                     projectName={projectName}
                     budgetHeads={budgetHeadNames}
                     actualBalance={actualBalance}
+                    commitableBalance={commitableBalance}
                     billAmount={billAmount}
                     parentAppId={parentAppId}
                     defaultBudgetHead={defaultBudgetHead}

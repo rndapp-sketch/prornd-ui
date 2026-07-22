@@ -1973,6 +1973,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     budgetData,
     heads: budgetHeads,
     actualBalance,
+    commitableBalance,
   } = useProjectBudget(projectCode);
   const balanceApiParams = React.useMemo(
     () => ({ project_number: projectCode }),
@@ -6168,6 +6169,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                 budgetHeads={budgetHeads}
                 defaultBudgetHead={defaultCommitBudgetHead}
                 actualBalance={actualBalance}
+                commitableBalance={commitableBalance}
                 billAmount={getIcssApprovalAmount(formData) || undefined}
                 triggerState="Pending PO Generation"
                 onStagingStatusChange={(committed) =>
@@ -6190,6 +6192,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                   budgetHeads={budgetHeads}
                   defaultBudgetHead={defaultCommitBudgetHead}
                   actualBalance={actualBalance}
+                  commitableBalance={commitableBalance}
                   billAmount={poCommitAmount || undefined}
                   forcedRefDetails={previousIcssCommitmentTid || undefined}
                   includeBillAmount

@@ -239,6 +239,7 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
         budgetData,
         heads: budgetHeads,
         actualBalance,
+        commitableBalance,
     } = useProjectBudget(projectTitle);
 
     const balanceApiParams = React.useMemo(
@@ -705,6 +706,7 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                                     projectName={projectTitle}
                                     budgetHeads={budgetHeads}
                                     actualBalance={actualBalance}
+                                    commitableBalance={commitableBalance}
                                     onCommitSuccess={(head, amount) => {
                                         setStagedCommit({ head, amount });
                                     }}

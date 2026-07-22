@@ -44,8 +44,10 @@ export interface CommitPaymentProps {
     projectName: string;
     /** Available budget heads as string labels */
     budgetHeads?: string[];
-    /** Available balance to display */
+    /** Available balance to display (payment balance — used as fallback only) */
     actualBalance?: number;
+    /** Total committable balance — used as the displayed "Available" fallback when no head is selected */
+    commitableBalance?: number;
     /** Optional: bill amount to pre-fill the commit amount field */
     billAmount?: number;
     /** Optional: bmr value */
@@ -392,6 +394,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     projectName,
     budgetHeads = [],
     actualBalance = 0,
+    commitableBalance,
     billAmount,
     bmr = "",
     parentAppId,
@@ -545,10 +548,10 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
         checkStagingRecord();
     }, [checkStagingRecord]);
 
-    // Commitable balance for the currently selected head (falls back to total actualBalance)
+    // Commitable balance for the currently selected head (falls back to total committable, then actual)
     const selectedHeadBalance = commitHead && headBalances?.[commitHead] != null
         ? headBalances[commitHead].commitable
-        : actualBalance;
+        : (commitableBalance ?? actualBalance);
 
     // ── Validate & open confirmation dialog ─────────────────────────────────
     const handleSubmitClick = () => {
