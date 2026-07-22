@@ -18,6 +18,7 @@ import { useUserRoles } from '@/components/UserRole';
 import TopUpFellowshipActionButtons from '@/components/TopUpFellowshipActionButtons';
 import { useProjectBudget } from '@/hooks/useProjectBudget';
 import { ProjectLedgerModal } from '@/components/ProjectLedgerModal';
+import ViewProjectButton from '@/components/ViewProjectButton';
 
 // ---------------------------------------------------------------------------
 // Workflow stages
@@ -331,6 +332,7 @@ const TopUpFellowshipDetails: React.FC = () => {
                     projectName={projectTitle || projectCode}
                     projectNumber={projectCode}
                 >
+                    <ViewProjectButton doctype="Top Up Fellowship" data={formData} />
                     {facultyPdfUrl && isPendingStaff && (
                         <a
                             href={facultyPdfUrl}

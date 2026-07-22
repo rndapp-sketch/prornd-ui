@@ -1440,7 +1440,7 @@ const QuickActions = ({
             } else if (selectedApplication === "Top Up Fellowship") {
                 try {
                     const timestamp = Date.now();
-                    const apiUrl = `/api/resource/Top%20Up%20Fellowship?fields=["name","creation","workflow_state","owner","project_code","project_title","pi_webmail","coordinating_pi_webmail","docstatus"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    const apiUrl = `/api/resource/Top%20Up%20Fellowship?fields=["name","creation","workflow_state","owner","project_code","project_title","pi_webmail","coordinating_pi_webmail","docstatus"]&filters=[["project_code","=","${projectName}"]]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
                     const fetchResponse = await fetch(apiUrl, {
                         method: "GET",
                         headers: { Accept: "application/json" },
@@ -1453,14 +1453,7 @@ const QuickActions = ({
                     const result = await fetchResponse.json();
                     const allItems = result?.data || [];
 
-                    data = allItems
-                        .filter((item: any) => {
-                            const matchesProject =
-                                item.project_code === projectName ||
-                                item.project_code === projectNo;
-                            return matchesProject;
-                        })
-                        .map((item: any) => ({
+                    data = allItems.map((item: any) => ({
                             ...item,
                             workflow_state:
                                 item.workflow_state ||
@@ -1472,7 +1465,7 @@ const QuickActions = ({
                             applicant_webmail: item.pi_webmail || item.owner,
                         }));
                     console.log(
-                        `Top Up Fellowship: fetched ${allItems.length}, filtered to ${data.length} for project ${projectName || projectNo}`,
+                        `Top Up Fellowship: fetched ${allItems.length} for project ${projectName}`,
                     );
                 } catch (fetchError) {
                     console.error("Top Up Fellowship fetch error:", fetchError);
