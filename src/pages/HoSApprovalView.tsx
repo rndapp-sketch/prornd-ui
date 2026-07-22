@@ -169,8 +169,12 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
             .catch(() => {});
     }, [fundReceived]);
 
-    // Fetch deposit slip by searching across all doctypes for fund_received_ref
+    // Fetch deposit slip by searching across all doctypes for fund_received_ref.
+    // `fund_received_ref` is a plain Data field on the deposit slip doctypes, and depending on
+    // when the record was created it may store either the Fund Received docname or the separate
+    // `fund_received_ref_number` value (e.g. "124") — so both candidates must be checked.
     useEffect(() => {
+        let cancelled = false;
         const fetchDepositSlip = async () => {
             if (!fundReceivedName) return;
 
@@ -178,6 +182,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
             setSlipError(null);
 
             const csrfToken = (window as any).csrf_token || "";
+            const refCandidates = [...new Set([fundReceivedName, fundReceived?.fund_received_ref_number].filter(Boolean))];
 
             for (const doctype of depositSlipDoctypes) {
                 try {
@@ -191,7 +196,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                         credentials: "include",
                         body: JSON.stringify({
                             doctype,
-                            filters: [["fund_received_ref", "=", fundReceivedName]],
+                            filters: [["fund_received_ref", "in", refCandidates]],
                             fields: ["name"],
                             limit_page_length: 1,
                             order_by: "creation desc",
@@ -218,9 +223,11 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                         });
                         if (docRes.ok) {
                             const docJson = await docRes.json();
-                            setDepositSlip(docJson.message);
-                            setDepositSlipDoctype(doctype);
-                            setSlipLoading(false);
+                            if (!cancelled) {
+                                setDepositSlip(docJson.message);
+                                setDepositSlipDoctype(doctype);
+                                setSlipLoading(false);
+                            }
                             return;
                         }
                     }
@@ -230,12 +237,15 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
             }
 
             // No deposit slip found in any doctype
-            setSlipLoading(false);
-            setSlipError({ message: "No linked deposit slip found" });
+            if (!cancelled) {
+                setSlipLoading(false);
+                setSlipError({ message: "No linked deposit slip found" });
+            }
         };
 
         fetchDepositSlip();
-    }, [fundReceivedName]);
+        return () => { cancelled = true; };
+    }, [fundReceivedName, fundReceived?.fund_received_ref_number]);
 
     // Resolve budget head names from account_head IDs (numeric id field)
     useEffect(() => {

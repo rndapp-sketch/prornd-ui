@@ -324,7 +324,14 @@ const FundReceivedDetails = () => {
     const [linkedDepositSlip, setLinkedDepositSlip] = useState<{ name: string; doctype: string } | null>(null);
     const [slipRefreshKey, setSlipRefreshKey] = useState(0);
 
-    // Find deposit slip linked to this Fund Received document across all deposit slip doctypes
+    const { data: docData, isLoading: docLoading, error: docError } = useFrappeGetDoc("Fund Received", name || "");
+
+    // Find deposit slip linked to this Fund Received document across all deposit slip doctypes.
+    // `fund_received_ref` on the deposit slip doctypes is a plain Data field, and depending on
+    // when the record was created it may store either the Fund Received docname (e.g.
+    // "REC_1007261745-prjreg_refnum") or the separate `fund_received_ref_number` value (e.g. "124") —
+    // so both candidates must be checked. `fund_received_ref_number` is fetched directly here
+    // (rather than relying on `docData`) so the search isn't gated behind that separate load.
     React.useEffect(() => {
         if (!name) return;
         const doctypes = [
@@ -334,6 +341,20 @@ const FundReceivedDetails = () => {
         ];
         let cancelled = false;
         (async () => {
+            let refCandidates: string[] = [name];
+            try {
+                const frRes = await fetch(
+                    `/api/v2/document/Fund%20Received/${encodeURIComponent(name)}?fields=["fund_received_ref_number"]`,
+                    { credentials: "include" },
+                );
+                if (frRes.ok) {
+                    const frJson = await frRes.json();
+                    const refNo = frJson?.data?.fund_received_ref_number;
+                    if (refNo) refCandidates = [...new Set([name, refNo])];
+                }
+            } catch {}
+            if (cancelled) return;
+
             for (const doctype of doctypes) {
                 try {
                     // Primary: POST-based get_list (reliable across all Frappe versions)
@@ -343,7 +364,7 @@ const FundReceivedDetails = () => {
                         credentials: "include",
                         body: JSON.stringify({
                             doctype,
-                            filters: [["fund_received_ref", "=", name]],
+                            filters: [["fund_received_ref", "in", refCandidates]],
                             fields: ["name"],
                             limit_page_length: 1,
                             order_by: "creation desc",
@@ -359,7 +380,7 @@ const FundReceivedDetails = () => {
                     }
                     // Fallback: v2 document list API (without fields param to avoid encoding issues)
                     const res2 = await fetch(
-                        `/api/v2/document/${encodeURIComponent(doctype)}?filters=[["fund_received_ref","=","${name}"]]&order_by=creation desc&limit_page_length=1`,
+                        `/api/v2/document/${encodeURIComponent(doctype)}?filters=${encodeURIComponent(JSON.stringify([["fund_received_ref", "in", refCandidates]]))}&order_by=creation desc&limit_page_length=1`,
                         { credentials: "include" },
                     );
                     if (!res2.ok) continue;
@@ -375,7 +396,6 @@ const FundReceivedDetails = () => {
         return () => { cancelled = true; };
     }, [name, slipRefreshKey]);
 
-    const { data: docData, isLoading: docLoading, error: docError } = useFrappeGetDoc("Fund Received", name || "");
     const effectivePrjregTitle = prjreg_title || docData?.prjreg_title;
     const { data: apiData, isLoading: listLoading, error: listError, mutate } = useFrappeGetCall(
         "rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg",
