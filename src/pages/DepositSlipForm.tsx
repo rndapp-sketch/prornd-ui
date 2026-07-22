@@ -224,84 +224,84 @@ const PROJECT_AUTOFILL_TARGET_FIELDS = new Set([
 // Mirrors the field definitions in the backend spec exactly.
 
 const E_NON_ROUTINE_FIELDS = [
-    { fieldname: "project_title",             label: "Project Title",                fieldtype: "Link",     options: "Project Registration", mandatory: 1, read_only: 0, hidden: 0 },
-    { fieldname: "principal_investigator",    label: "Principal Investigator",       fieldtype: "Link",     options: "User",                 mandatory: 1, read_only: 0, hidden: 0 },
-    { fieldname: "client",                    label: "Client",                       fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
-    { fieldname: "funding_agency",            label: "Funding Agency",               fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
-    { fieldname: "gstin_of_funding_agency",   label: "GSTIN of Funding Agency",      fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
-    { fieldname: "ecs_ac_no",                 label: "ECS A/C No.",                  fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
-    { fieldname: "bank",                      label: "Bank",                         fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
-    { fieldname: "calculations_section",      label: "Calculations",                 fieldtype: "Section Break" },
-    { fieldname: "amount_inclusive_of_gst",   label: "Amount Inclusive of GST",      fieldtype: "Currency", mandatory: 1, read_only: 0, hidden: 0 },
-    { fieldname: "igst_18",                   label: "IGST @18%",                    fieldtype: "Currency", mandatory: 0, read_only: 1, hidden: 0 },
-    { fieldname: "consultancy_fee_x",         label: "Consultancy Fee X",            fieldtype: "Currency", mandatory: 0, read_only: 1, hidden: 0, description: "Consultancy Fee (After GST Deduction)" },
-    { fieldname: "overhead_multiplier",       label: "Overhead Multiplier",          fieldtype: "Float",    default: 0.1, read_only: 0, hidden: 1 },
-    { fieldname: "overhead_amount",           label: "Overhead Amount",              fieldtype: "Currency", read_only: 1, hidden: 0 },
-    { fieldname: "credit_distribution_section", label: "Credit Distribution",        fieldtype: "Section Break" },
-    { fieldname: "credit_distribution",       label: "Credit as follows",            fieldtype: "Table",    options: "Deposit Slip Credit Distribution" },
-    { fieldname: "totals_section",            label: "Totals",                       fieldtype: "Section Break" },
-    { fieldname: "total_gst",                 label: "Total GST",                    fieldtype: "Currency", read_only: 0, hidden: 0 },
-    { fieldname: "total_budget",              label: "Total Budget",                 fieldtype: "Currency", read_only: 1, hidden: 0 },
+    { fieldname: "project_title", label: "Project Title", fieldtype: "Link", options: "Project Registration", mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "principal_investigator", label: "Principal Investigator", fieldtype: "Link", options: "User", mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "client", label: "Client", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "funding_agency", label: "Funding Agency", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "gstin_of_funding_agency", label: "GSTIN of Funding Agency", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "ecs_ac_no", label: "ECS A/C No.", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "bank", label: "Bank", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "calculations_section", label: "Calculations", fieldtype: "Section Break" },
+    { fieldname: "amount_inclusive_of_gst", label: "Amount Inclusive of GST", fieldtype: "Currency", mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "igst_18", label: "IGST @18%", fieldtype: "Currency", mandatory: 0, read_only: 1, hidden: 0 },
+    { fieldname: "consultancy_fee_x", label: "Consultancy Fee X", fieldtype: "Currency", mandatory: 0, read_only: 1, hidden: 0, description: "Consultancy Fee (After GST Deduction)" },
+    { fieldname: "overhead_multiplier", label: "Overhead Multiplier", fieldtype: "Float", default: 0.3, read_only: 0, hidden: 1 },
+    { fieldname: "overhead_amount", label: "Overhead Amount", fieldtype: "Currency", read_only: 1, hidden: 0 },
+    { fieldname: "credit_distribution_section", label: "Credit Distribution", fieldtype: "Section Break" },
+    { fieldname: "credit_distribution", label: "Credit as follows", fieldtype: "Table", options: "Deposit Slip Credit Distribution" },
+    { fieldname: "totals_section", label: "Totals", fieldtype: "Section Break" },
+    { fieldname: "total_gst", label: "Total GST", fieldtype: "Currency", read_only: 0, hidden: 0 },
+    { fieldname: "total_budget", label: "Total Budget", fieldtype: "Currency", read_only: 1, hidden: 0 },
 ];
 
 const T_TESTING_FIELDS = [
-    { fieldname: "project_title",             label: "Project Title",                fieldtype: "Link",     options: "Project Registration", mandatory: 1, read_only: 0, hidden: 0 },
-    { fieldname: "principal_investigator",    label: "Principal Investigator",       fieldtype: "Link",     options: "User",                 mandatory: 1, read_only: 0, hidden: 0 },
-    { fieldname: "client",                    label: "Client",                       fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
-    { fieldname: "gstin_of_funding_agency",   label: "Funding Agency",               fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
-    { fieldname: "ecs_ac_no",                 label: "ECS A/C No.",                  fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
-    { fieldname: "bank",                      label: "Bank",                         fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
-    { fieldname: "calculations_section",      label: "Calculations",                 fieldtype: "Section Break" },
-    { fieldname: "amount_inclusive_of_gst",   label: "Amount Inclusive of GST",      fieldtype: "Currency", mandatory: 1, read_only: 0, hidden: 0 },
-    { fieldname: "cgst_9",                    label: "CGST @9%",                     fieldtype: "Currency", read_only: 1, hidden: 0 },
-    { fieldname: "sgst_9",                    label: "SGST @9%",                     fieldtype: "Currency", read_only: 1, hidden: 0 },
-    { fieldname: "consultancy_fee_x",         label: "Consultancy Fee X",            fieldtype: "Currency", read_only: 1, hidden: 0, description: "Consultancy Fee (After GST Deduction)" },
-    { fieldname: "overhead_multiplier",       label: "Overhead Multiplier",          fieldtype: "Float",    default: 0.7, read_only: 0, hidden: 1 },
-    { fieldname: "overhead_amount",           label: "Overhead Amount",              fieldtype: "Currency", read_only: 1, hidden: 0 },
-    { fieldname: "credit_distribution_section", label: "Credit Distribution",        fieldtype: "Section Break" },
-    { fieldname: "idf_t_testing_fee",         label: "(a.) IDF",                     fieldtype: "Data",     read_only: 1, hidden: 0, description: "(40% of the Consultancy fee)" },
-    { fieldname: "dpf_t_testing_fee",         label: "(b.) DPF/CE",                 fieldtype: "Data",     read_only: 1, hidden: 0, description: "(50% of the Consultancy fee)" },
-    { fieldname: "staff_welfare_t_testing_fund",  label: "(c.) Staff Welfare fund",  fieldtype: "Data",     read_only: 1, hidden: 0, description: "(5% of Overhead amount)" },
-    { fieldname: "student_welfare_t_testing_fund", label: "(d.) Student Welfare fund", fieldtype: "Data",  read_only: 1, hidden: 0, description: "(5% of Overhead amount)" },
-    { fieldname: "totals_section",            label: "Totals",                       fieldtype: "Section Break" },
-    { fieldname: "total_gst",                 label: "Total GST",                    fieldtype: "Currency", read_only: 0, hidden: 0 },
-    { fieldname: "total_budget",              label: "Total Budget",                 fieldtype: "Currency", read_only: 1, hidden: 0 },
+    { fieldname: "project_title", label: "Project Title", fieldtype: "Link", options: "Project Registration", mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "principal_investigator", label: "Principal Investigator", fieldtype: "Link", options: "User", mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "client", label: "Client", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "gstin_of_funding_agency", label: "Funding Agency", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "ecs_ac_no", label: "ECS A/C No.", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "bank", label: "Bank", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "calculations_section", label: "Calculations", fieldtype: "Section Break" },
+    { fieldname: "amount_inclusive_of_gst", label: "Amount Inclusive of GST", fieldtype: "Currency", mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "cgst_9", label: "CGST @9%", fieldtype: "Currency", read_only: 1, hidden: 0 },
+    { fieldname: "sgst_9", label: "SGST @9%", fieldtype: "Currency", read_only: 1, hidden: 0 },
+    { fieldname: "consultancy_fee_x", label: "Consultancy Fee X", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Consultancy Fee (After GST Deduction)" },
+    { fieldname: "overhead_multiplier", label: "Overhead Multiplier", fieldtype: "Float", default: 0.7, read_only: 0, hidden: 1 },
+    { fieldname: "overhead_amount", label: "Overhead Amount", fieldtype: "Currency", read_only: 1, hidden: 0 },
+    { fieldname: "credit_distribution_section", label: "Credit Distribution", fieldtype: "Section Break" },
+    { fieldname: "idf_t_testing_fee", label: "(a.) IDF", fieldtype: "Data", read_only: 1, hidden: 0, description: "(40% of the Consultancy fee)" },
+    { fieldname: "dpf_t_testing_fee", label: "(b.) DPF/CE", fieldtype: "Data", read_only: 1, hidden: 0, description: "(50% of the Consultancy fee)" },
+    { fieldname: "staff_welfare_t_testing_fund", label: "(c.) Staff Welfare fund", fieldtype: "Data", read_only: 1, hidden: 0, description: "(5% of Overhead amount)" },
+    { fieldname: "student_welfare_t_testing_fund", label: "(d.) Student Welfare fund", fieldtype: "Data", read_only: 1, hidden: 0, description: "(5% of Overhead amount)" },
+    { fieldname: "totals_section", label: "Totals", fieldtype: "Section Break" },
+    { fieldname: "total_gst", label: "Total GST", fieldtype: "Currency", read_only: 0, hidden: 0 },
+    { fieldname: "total_budget", label: "Total Budget", fieldtype: "Currency", read_only: 1, hidden: 0 },
 ];
 
 const D_CONSULTANCY_FIELDS = [
-    { fieldname: "primary_details",           label: "Primary Details",              fieldtype: "Section Break" },
-    { fieldname: "consultancy_title",         label: "Consultancy Title",            fieldtype: "Data",     mandatory: 1, read_only: 0, hidden: 0 },
-    { fieldname: "category_d",               label: "Category",                     fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
-    { fieldname: "principal_consultant",      label: "Principal Consultant",         fieldtype: "Link",     options: "User", mandatory: 1, read_only: 0, hidden: 0 },
-    { fieldname: "client",                    label: "Client",                       fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
-    { fieldname: "funding_agency",            label: "Funding Agency",               fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
-    { fieldname: "gstin_of_funding_agency",   label: "GSTIN of Funding Agency",      fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
-    { fieldname: "iitg_invoice_no",           label: "IITG Invoice No.",             fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
-    { fieldname: "bank",                      label: "Bank",                         fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
-    { fieldname: "ecs_ac_no",                 label: "ECS A/C No.",                  fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
-    { fieldname: "section_break_mqkq",        label: "GST and Fee Calculations",     fieldtype: "Section Break" },
-    { fieldname: "amount_inclusive_of_gst",   label: "Amount Inclusive of GST",      fieldtype: "Currency", mandatory: 1, read_only: 0, hidden: 0, description: "Enter the total amount inclusive of 18% GST" },
-    { fieldname: "igst_18_on_consultancy",    label: "IGST @18% on Consultancy Fee", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Taxable Amount × 0.18 (where Taxable Amount = Amount ÷ 1.18)" },
-    { fieldname: "amount_after_gst_tds",      label: "Amount after GST TDS @ 2%",    fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Amount Inclusive - TDS Amount (2% of Taxable Amount, rounded)" },
-    { fieldname: "total_cost_x",              label: "Total Cost X",                 fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Amount after TDS - IGST (Balance after GST deduction from amount received)" },
-    { fieldname: "consultancy_charge_y",      label: "Consultancy Charge (Y)",       fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0, description: "Auto-filled as 30% of Total Cost X. Can be manually adjusted; Z will recalculate as X - Y" },
-    { fieldname: "operational_charge_z",      label: "Operational Charge (Z)",       fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0, description: "Calculated as: Total Cost X - Consultancy Charge (Y)" },
-    { fieldname: "overhead_from_y_amount",    label: "Overhead from Y (10% * Y)",    fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Consultancy Charge (Y) × 0.10" },
-    { fieldname: "overhead_from_z_amount",    label: "Overhead from Z (10% * Z)",    fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Operational Charge (Z) × 0.10" },
-    { fieldname: "total_overhead_amount",     label: "Total Overhead",               fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Overhead from Y + Overhead from Z" },
-    { fieldname: "institute_share_amount",    label: "Institute Share (20% * Y)",    fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Consultancy Charge (Y) × 0.20" },
+    { fieldname: "primary_details", label: "Primary Details", fieldtype: "Section Break" },
+    { fieldname: "consultancy_title", label: "Consultancy Title", fieldtype: "Data", mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "category_d", label: "Category", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "principal_consultant", label: "Principal Consultant", fieldtype: "Link", options: "User", mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "client", label: "Client", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "funding_agency", label: "Funding Agency", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "gstin_of_funding_agency", label: "GSTIN of Funding Agency", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "iitg_invoice_no", label: "IITG Invoice No.", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "bank", label: "Bank", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "ecs_ac_no", label: "ECS A/C No.", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "section_break_mqkq", label: "GST and Fee Calculations", fieldtype: "Section Break" },
+    { fieldname: "amount_inclusive_of_gst", label: "Amount Inclusive of GST", fieldtype: "Currency", mandatory: 1, read_only: 0, hidden: 0, description: "Enter the total amount inclusive of 18% GST" },
+    { fieldname: "igst_18_on_consultancy", label: "IGST @18% on Consultancy Fee", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Taxable Amount × 0.18 (where Taxable Amount = Amount ÷ 1.18)" },
+    { fieldname: "amount_after_gst_tds", label: "Amount after GST TDS @ 2%", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Amount Inclusive - TDS Amount (2% of Taxable Amount, rounded)" },
+    { fieldname: "total_cost_x", label: "Total Cost X", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Amount after TDS - IGST (Balance after GST deduction from amount received)" },
+    { fieldname: "consultancy_charge_y", label: "Consultancy Charge (Y)", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0, description: "Auto-filled as 30% of Total Cost X. Can be manually adjusted; Z will recalculate as X - Y" },
+    { fieldname: "operational_charge_z", label: "Operational Charge (Z)", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0, description: "Calculated as: Total Cost X - Consultancy Charge (Y)" },
+    { fieldname: "overhead_from_y_amount", label: "Overhead from Y (10% * Y)", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Consultancy Charge (Y) × 0.10" },
+    { fieldname: "overhead_from_z_amount", label: "Overhead from Z (10% * Z)", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Operational Charge (Z) × 0.10" },
+    { fieldname: "total_overhead_amount", label: "Total Overhead", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Overhead from Y + Overhead from Z" },
+    { fieldname: "institute_share_amount", label: "Institute Share (20% * Y)", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Consultancy Charge (Y) × 0.20" },
     { fieldname: "total_overhead_institute_share", label: "Overhead + Institute Share", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Total Overhead + Institute Share (Base for all credit distributions)" },
-    { fieldname: "credit_distribution_section", label: "Credit Distribution",        fieldtype: "Section Break", description: "Total allocation must equal 100%: IDF% + DPF% (sum of rows) + Staff 5% + Student 5% = 100%" },
-    { fieldname: "idf_percentage",            label: "IDF % age",                    fieldtype: "Float",    read_only: 0, hidden: 0, default: 40, description: "User-editable IDF percentage (default: 40%). Enter custom percentage; DPF will adjust to maintain 100% total." },
-    { fieldname: "idf_amount",                label: "IDF Amount",                   fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: (Overhead + Institute Share) × (IDF % / 100)" },
-    { fieldname: "dpf_amount",                label: "Total DPF/CE Amount",          fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: (Overhead + Institute Share) × (Remaining % / 100) where Remaining = 100% - IDF% - 5% - 5%" },
-    { fieldname: "staff_welfare_amount",      label: "Staff Welfare Amount",         fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: (Overhead + Institute Share) × 0.05 (5% - Fixed)" },
-    { fieldname: "student_welfare_amount",    label: "Student Welfare Amount",       fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: (Overhead + Institute Share) × 0.05 (5% - Fixed)" },
-    { fieldname: "final_totals",              label: "Final Totals",                 fieldtype: "Section Break" },
-    { fieldname: "balance_consultancy_fee",   label: "Balance Consultancy Fee",      fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Y - Overhead(Y) - Institute Share = Y × 0.70" },
-    { fieldname: "balance_operation_charge",  label: "Balance Operation Charge",     fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Z - Overhead(Z) = Z × 0.90" },
-    { fieldname: "total_gst",                 label: "Total GST",                    fieldtype: "Currency", read_only: 0, hidden: 0, description: "Equals IGST @18% calculated at the top" },
-    { fieldname: "total_amount",              label: "Total Amount",                 fieldtype: "Currency", read_only: 1, hidden: 0, description: "Equals Amount after GST TDS @ 2%" },
+    { fieldname: "credit_distribution_section", label: "Credit Distribution", fieldtype: "Section Break", description: "Total allocation must equal 100%: IDF% + DPF% (sum of rows) + Staff 5% + Student 5% = 100%" },
+    { fieldname: "idf_percentage", label: "IDF % age", fieldtype: "Float", read_only: 0, hidden: 0, default: 40, description: "User-editable IDF percentage (default: 40%). Enter custom percentage; DPF will adjust to maintain 100% total." },
+    { fieldname: "idf_amount", label: "IDF Amount", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: (Overhead + Institute Share) × (IDF % / 100)" },
+    { fieldname: "dpf_amount", label: "Total DPF/CE Amount", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: (Overhead + Institute Share) × (Remaining % / 100) where Remaining = 100% - IDF% - 5% - 5%" },
+    { fieldname: "staff_welfare_amount", label: "Staff Welfare Amount", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: (Overhead + Institute Share) × 0.05 (5% - Fixed)" },
+    { fieldname: "student_welfare_amount", label: "Student Welfare Amount", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: (Overhead + Institute Share) × 0.05 (5% - Fixed)" },
+    { fieldname: "final_totals", label: "Final Totals", fieldtype: "Section Break" },
+    { fieldname: "balance_consultancy_fee", label: "Balance Consultancy Fee", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Y - Overhead(Y) - Institute Share = Y × 0.70" },
+    { fieldname: "balance_operation_charge", label: "Balance Operation Charge", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Z - Overhead(Z) = Z × 0.90" },
+    { fieldname: "total_gst", label: "Total GST", fieldtype: "Currency", read_only: 0, hidden: 0, description: "Equals IGST @18% calculated at the top" },
+    { fieldname: "total_amount", label: "Total Amount", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Equals Amount after GST TDS @ 2%" },
 ];
 
 // Map from deposit slip type key → static field definitions
@@ -566,8 +566,8 @@ const DepositSlipForm: React.FC = () => {
                     [amountKey]:
                         percentage > 0
                             ? formatNumericInput(
-                                  roundToTwo((totalAmount * percentage) / 100),
-                              )
+                                roundToTwo((totalAmount * percentage) / 100),
+                            )
                             : "",
                 };
             }),
@@ -652,6 +652,8 @@ const DepositSlipForm: React.FC = () => {
                 if (f.default !== undefined && f.default !== null)
                     initialValues[f.fieldname] = f.default;
             });
+            // Force correct overhead multiplier regardless of backend DocType default
+            if (type === "e_non_routine") initialValues.overhead_multiplier = 0.3;
             setFormValues(initialValues);
 
             if (prefill_data) {
@@ -682,7 +684,7 @@ const DepositSlipForm: React.FC = () => {
                 const loaded =
                     dt === "Project Registration"
                         ? alreadyLoaded?.["project_title"] ||
-                          alreadyLoaded?.["Project Registration"]
+                        alreadyLoaded?.["Project Registration"]
                         : alreadyLoaded?.[dt];
                 if (loaded) continue;
                 try {
@@ -698,12 +700,12 @@ const DepositSlipForm: React.FC = () => {
                                     dt === "User"
                                         ? ["name", "full_name"]
                                         : dt === "Department_prornd"
-                                          ? ["name", "dept_name"]
-                                          : dt === "Budget Head"
-                                            ? ["*"]
-                                            : dt === "Project Registration"
-                                              ? ["name", "project_title"]
-                                              : ["name"],
+                                            ? ["name", "dept_name"]
+                                            : dt === "Budget Head"
+                                                ? ["*"]
+                                                : dt === "Project Registration"
+                                                    ? ["name", "project_title"]
+                                                    : ["name"],
                                 limit_page_length: 0,
                             }),
                         },
@@ -999,8 +1001,8 @@ const DepositSlipForm: React.FC = () => {
                 const errData = await response.json().catch(() => null);
                 throw new Error(
                     errData?.exc_type ||
-                        errData?._server_messages ||
-                        `Server error: ${response.status}`,
+                    errData?._server_messages ||
+                    `Server error: ${response.status}`,
                 );
             }
 
@@ -1115,9 +1117,9 @@ const DepositSlipForm: React.FC = () => {
                 const selectOpts =
                     typeof field.options === "string"
                         ? field.options
-                              .split("\n")
-                              .filter((o) => o)
-                              .map((o) => ({ value: o, label: o }))
+                            .split("\n")
+                            .filter((o) => o)
+                            .map((o) => ({ value: o, label: o }))
                         : [];
                 return (
                     <select {...commonProps}>
@@ -1794,7 +1796,7 @@ const DepositSlipForm: React.FC = () => {
                                                                         idx
                                                                     ] = {
                                                                         ...newRows[
-                                                                            idx
+                                                                        idx
                                                                         ],
                                                                         employee_id:
                                                                             e
@@ -1829,7 +1831,7 @@ const DepositSlipForm: React.FC = () => {
                                                                         idx
                                                                     ] = {
                                                                         ...newRows[
-                                                                            idx
+                                                                        idx
                                                                         ],
                                                                         pdf_percentage:
                                                                             e
@@ -1914,17 +1916,17 @@ const DepositSlipForm: React.FC = () => {
                                             )}
                                             {pdfCreditDistribution.length ===
                                                 0 && (
-                                                <tr>
-                                                    <td
-                                                        colSpan={5}
-                                                        className="p-6 text-center text-zinc-400 text-sm italic"
-                                                    >
-                                                        No PDF credit
-                                                        distribution rows added
-                                                        yet
-                                                    </td>
-                                                </tr>
-                                            )}
+                                                    <tr>
+                                                        <td
+                                                            colSpan={5}
+                                                            className="p-6 text-center text-zinc-400 text-sm italic"
+                                                        >
+                                                            No PDF credit
+                                                            distribution rows added
+                                                            yet
+                                                        </td>
+                                                    </tr>
+                                                )}
                                         </tbody>
                                     </table>
                                 </div>
@@ -2012,7 +2014,7 @@ const DepositSlipForm: React.FC = () => {
                                                                         idx
                                                                     ] = {
                                                                         ...newRows[
-                                                                            idx
+                                                                        idx
                                                                         ],
                                                                         select_dpf_dept_center_school:
                                                                             e
@@ -2067,7 +2069,7 @@ const DepositSlipForm: React.FC = () => {
                                                                         idx
                                                                     ] = {
                                                                         ...newRows[
-                                                                            idx
+                                                                        idx
                                                                         ],
                                                                         department_id:
                                                                             e
@@ -2113,8 +2115,8 @@ const DepositSlipForm: React.FC = () => {
                                                                         // For other types, use distributionBaseAmount
                                                                         amount = percentage > 0
                                                                             ? formatNumericInput(
-                                                                                  roundToTwo((distributionBaseAmount * percentage) / 100),
-                                                                              )
+                                                                                roundToTwo((distributionBaseAmount * percentage) / 100),
+                                                                            )
                                                                             : "";
                                                                     }
 
@@ -2122,7 +2124,7 @@ const DepositSlipForm: React.FC = () => {
                                                                         idx
                                                                     ] = {
                                                                         ...newRows[
-                                                                            idx
+                                                                        idx
                                                                         ],
                                                                         dpf_percentage:
                                                                             e
@@ -2201,17 +2203,17 @@ const DepositSlipForm: React.FC = () => {
                                             )}
                                             {dpfCreditDistributions.length ===
                                                 0 && (
-                                                <tr>
-                                                    <td
-                                                        colSpan={5}
-                                                        className="p-6 text-center text-zinc-400 text-sm italic"
-                                                    >
-                                                        No DPF credit
-                                                        distribution rows added
-                                                        yet
-                                                    </td>
-                                                </tr>
-                                            )}
+                                                    <tr>
+                                                        <td
+                                                            colSpan={5}
+                                                            className="p-6 text-center text-zinc-400 text-sm italic"
+                                                        >
+                                                            No DPF credit
+                                                            distribution rows added
+                                                            yet
+                                                        </td>
+                                                    </tr>
+                                                )}
                                         </tbody>
                                     </table>
                                 </div>
