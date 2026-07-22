@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import {
     ActivityIcon, CheckCircle2, Clock, XCircle, ChevronRight,
     UserIcon, GraduationCapIcon, BuildingIcon, FileTextIcon, ExternalLink,
+    FileSpreadsheetIcon as LedgerIcon,
 } from 'lucide-react';
 import { AppSidebar } from '@/components/RndSidebar';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -15,6 +16,8 @@ import { CommitPayment } from '@/components/CommitPayment';
 import { BudgetHeadName } from '@/components/BudgetHeadName';
 import { useUserRoles } from '@/components/UserRole';
 import TopUpFellowshipActionButtons from '@/components/TopUpFellowshipActionButtons';
+import { useProjectBudget } from '@/hooks/useProjectBudget';
+import { ProjectLedgerModal } from '@/components/ProjectLedgerModal';
 
 // ---------------------------------------------------------------------------
 // Workflow stages
@@ -187,6 +190,8 @@ const TopUpFellowshipDetails: React.FC = () => {
     const [commitDetails, setCommitDetails] = useState<any>(null);
     const [accountHeadLabel, setAccountHeadLabel] = useState<string>('');
     const [refreshKey, setRefreshKey] = useState(0);
+    const [isLedgerOpen, setIsLedgerOpen] = useState(false);
+    const [budgetHeadList, setBudgetHeadList] = useState<{ name: string; id: string }[]>([]);
 
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
@@ -254,6 +259,21 @@ const TopUpFellowshipDetails: React.FC = () => {
 
     const handleRefresh = () => setRefreshKey(k => k + 1);
 
+    useEffect(() => {
+        fetch('/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0', { credentials: 'include' })
+            .then(r => r.json())
+            .then(result => {
+                if (result?.data)
+                    setBudgetHeadList(result.data.map((item: any) => ({ name: item.budget_head, id: item.id })));
+            })
+            .catch(() => {});
+    }, []);
+
+    // Derive projectCode before the early return so useProjectBudget is always called
+    // project_no / project_number hold the human-readable number for the ledger API
+    const projectCode = formData.project_no || formData.project_number || formData.project_code || '';
+    const { heads: budgetHeads, actualBalance, commitableBalance } = useProjectBudget(projectCode);
+
     if (loading) return <GlobalLoader isLoading delay={0} />;
 
     const workflowState: string = formData.workflow_state || 'Draft';
@@ -261,7 +281,6 @@ const TopUpFellowshipDetails: React.FC = () => {
     const sentToFa = !!formData.send_to_faculty_admission;
     const facultyPdfUrl = String(formData.faculty_admission_pdf || '').trim();
     const hasFacultyPdf = !!facultyPdfUrl;
-    const projectCode = formData.project_code || formData.project_number || '';
     const projectTitle = formData.project_title || formData.project_name || '';
 
     // Separate display fields by section
@@ -477,21 +496,36 @@ const TopUpFellowshipDetails: React.FC = () => {
                             </div>
                         )}
 
+                        {/* Commitable Balance */}
+                        <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">
+                                    Commitable Balance
+                                </p>
+                                <p className="text-base font-bold text-[#D97757]">
+                                    ₹ {(commitableBalance || 0).toLocaleString('en-IN')}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setIsLedgerOpen(true)}
+                                className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-[#E4E4E7] dark:border-[#3F3F46] text-[#D97757] font-semibold text-xs hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                            >
+                                <LedgerIcon className="h-3.5 w-3.5" />
+                                View Project Ledger
+                            </button>
+                        </div>
+
                         {/* Commit Payment — R&D Staff only at Pending Staff Approval */}
                         {isPendingStaff && isRnDStaff && commitDetails && (
                             <CommitPayment
                                 doctype="Top Up Fellowship"
                                 docName={docName || ''}
                                 projectName={commitDetails.project_number || commitDetails.project_code || projectCode}
-                                budgetHeads={
-                                    accountHeadLabel
-                                        ? [accountHeadLabel]
-                                        : commitDetails.account_head
-                                            ? [commitDetails.account_head]
-                                            : []
-                                }
+                                budgetHeads={budgetHeads.length > 0 ? budgetHeads : accountHeadLabel ? [accountHeadLabel] : commitDetails.account_head ? [commitDetails.account_head] : []}
+                                actualBalance={actualBalance}
+                                commitableBalance={commitableBalance}
                                 billAmount={Number(commitDetails.total_amount) || 0}
-                                onCommitSuccess={() => setIsCommitted(true)}
+                                onCommitSuccess={() => { setIsCommitted(true); handleRefresh(); }}
                                 onStagingStatusChange={setIsCommitted}
                             />
                         )}
@@ -532,6 +566,13 @@ const TopUpFellowshipDetails: React.FC = () => {
             </main>
 
             <FloatingActivityLogButton doctype="Top Up Fellowship" docname={docName || ''} />
+
+            <ProjectLedgerModal
+                isOpen={isLedgerOpen}
+                onClose={() => setIsLedgerOpen(false)}
+                projectName={projectCode}
+                budgetHeadList={budgetHeadList}
+            />
         </div>
     );
 };

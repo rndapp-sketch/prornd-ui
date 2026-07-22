@@ -353,6 +353,34 @@ const TopUpFellowshipForm: React.FC = () => {
                 // Note: pi_webmail (Supervisor / Faculty Adviser) is intentionally
                 // left blank — user picks from the Permanent Employee dropdown.
 
+                // Pre-fill project_code with project_no from Project Registration when
+                // opened from a project context (e.g. ?project=<frappe-doc-id>).
+                // Always overrides whatever the backend prefill returned for project_code.
+                if (projectFromUrl && !editDocName) {
+                    try {
+                        const projectDoc = await fetchProjectDetails({
+                            doctype: 'Project Registration',
+                            name: projectFromUrl,
+                        });
+                        if (projectDoc?.message) {
+                            const doc = projectDoc.message;
+                            const projectNo = doc.project_no || doc.name || projectFromUrl;
+                            initialData.project_no = projectNo;
+                            initialData.project_number = projectNo;
+                            const title = doc.project_title || doc.title || '';
+                            if (title) {
+                                initialData.project_title = title;
+                                setProjectTitle(title);
+                            }
+                            if (doc.pi_webmail) {
+                                initialData.coordinating_pi_webmail = initialData.coordinating_pi_webmail || doc.pi_webmail;
+                            }
+                        }
+                    } catch (err) {
+                        console.warn('Could not fetch project for pre-fill:', err);
+                    }
+                }
+
                 // Start the table empty so the user explicitly adds rows
                 if (!initialData.students) initialData.students = [];
 
@@ -401,15 +429,19 @@ const TopUpFellowshipForm: React.FC = () => {
                     name: value,
                 });
                 if (projectDoc?.message) {
-                    const apiTitle = projectDoc.message.project_title || projectDoc.message.title || '';
+                    const doc = projectDoc.message;
+                    const apiTitle = doc.project_title || doc.title || '';
                     if (apiTitle) {
                         setProjectTitle(apiTitle);
                         setFormData(prev => ({ ...prev, project_title: apiTitle }));
                     }
-                    if (projectDoc.message.pi_webmail) {
+                    // Store project_no for ledger API use on the details page
+                    const projectNo = doc.project_no || doc.name || value;
+                    setFormData(prev => ({ ...prev, project_no: projectNo, project_number: projectNo }));
+                    if (doc.pi_webmail) {
                         setFormData(prev => ({
                             ...prev,
-                            coordinating_pi_webmail: prev.coordinating_pi_webmail || projectDoc.message.pi_webmail,
+                            coordinating_pi_webmail: prev.coordinating_pi_webmail || doc.pi_webmail,
                         }));
                     }
                 }
