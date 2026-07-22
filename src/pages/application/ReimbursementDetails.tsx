@@ -353,7 +353,9 @@ const ActionsDropdown = ({
                     <React.Fragment key={gi}>
                       {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
                       {group.map((action) => {
-                        const blocked = commitRequired;
+                        const a = action.toLowerCase();
+                        const exempt = categorise(action) === "reject" || a.includes("put back");
+                        const blocked = commitRequired && !exempt;
                         const { icon, cls, iconCls } = itemStyle(action);
                         return (
                           <div key={action} className="relative group/item">
