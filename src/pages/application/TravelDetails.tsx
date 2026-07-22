@@ -327,9 +327,10 @@ const TravelDetails: React.FC = () => {
             r === "R&D Staff" ||
             r === "Research and Development Staff" ||
             r === "System Manager" ||
-            r === "staff, RnD" ||
-            r === "Hos, RnD (Head of Section, RnD)",
+            r === "staff, RnD",
     );
+
+    const isHoS = roles.some((r) => r === "Hos, RnD (Head of Section, RnD)");
 
     // Advance / Settle logic
     const needsAdvance = formData.travel_financial_assistance === "Yes";
@@ -347,6 +348,13 @@ const TravelDetails: React.FC = () => {
     // Show commit section for any in-progress workflow state (not Draft/Rejected/Cancelled)
     const showCommitSection =
         isRnDStaff &&
+        formData.workflow_state &&
+        !["Draft", "Rejected", "Cancelled"].includes(formData.workflow_state);
+
+    // HoS sees a read-only view of the commitment made by R&D Staff
+    const showCommitReadOnly =
+        isHoS &&
+        isCommitted &&
         formData.workflow_state &&
         !["Draft", "Rejected", "Cancelled"].includes(formData.workflow_state);
 
@@ -719,6 +727,28 @@ const TravelDetails: React.FC = () => {
                                 {isAddingComment ? "Submitting..." : "Submit Comment"}
                             </FrappeButton>
                         </div>
+
+                        {/* HoS read-only commitment view */}
+                        {showCommitReadOnly && (
+                            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
+                                    Commitment by R&D Staff
+                                </h3>
+                                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800 flex flex-col gap-1">
+                                    <p className="text-xs text-blue-600 dark:text-blue-400 font-semibold uppercase tracking-wide">
+                                        Linked Commitment
+                                    </p>
+                                    <div className="flex justify-between items-end">
+                                        <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
+                                            {displayCommitment?.head}
+                                        </p>
+                                        <p className="text-lg font-bold text-blue-700 dark:text-blue-300">
+                                            ₹ {Number(displayCommitment?.committed || 0).toLocaleString("en-IN")}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Commit Payment — centralised component handles staging check + form/display card */}
                         {showCommitSection && (
