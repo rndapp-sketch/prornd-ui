@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppSidebar } from '@/components/RndSidebar';
 import { useFrappePostCall } from 'frappe-react-sdk';
@@ -147,12 +148,62 @@ const EstimateValidation = ({ formData }: { formData: Record<string, any> }) => 
     );
 };
 
+// --- IMPORTANT NOTICE (must be accepted before a new application can be filled in) ---
+const ImportantTravelNotice: React.FC<{ onAccept: () => void }> = ({ onAccept }) => {
+    return createPortal(
+        <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+            style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+        >
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-700 w-full max-w-lg">
+                <div className="flex items-center gap-2.5 px-5 py-4 border-b border-zinc-200 dark:border-zinc-700">
+                    <AlertCircle className="w-5 h-5 text-[#D97757] flex-shrink-0" />
+                    <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Important Notice</h2>
+                </div>
+                <div className="px-5 py-4 space-y-3 text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed max-h-[60vh] overflow-y-auto">
+                    <p>
+                        Kindly be informed that tickets must mandatorily be booked through{" "}
+                        <strong>Balmer &amp; Lawrie, IRCTC, or Ashoka Tours and Travels</strong> as per Circular
+                        Number SKM_458e22021611540 - DoE_OM dated 16.02.2022.
+                    </p>
+                    <p className="font-semibold text-red-600 dark:text-red-400">
+                        Failing to comply will result in tickets not being reimbursed or settled.
+                    </p>
+                    <p>
+                        Additionally, as per Circular No. IITG/F&amp;A/COR/2023-24/152 dated 30.08.2023, the
+                        reimbursement for taxi fares between IIT Guwahati Campus and Guwahati Airport/Guwahati
+                        Rail Station is capped at a maximum of <strong>Rs. 800</strong>.
+                    </p>
+                    <p className="font-semibold text-red-600 dark:text-red-400">
+                        Any amount claimed exceeding this limit will not be processed.
+                    </p>
+                    <p>Participation certificate/proof of attendance is mandatory.</p>
+                </div>
+                <div className="flex items-center justify-end px-5 py-4 border-t border-zinc-200 dark:border-zinc-700">
+                    <button
+                        type="button"
+                        onClick={onAccept}
+                        className="px-5 py-2 text-sm font-semibold text-white bg-[#D97757] hover:bg-[#c66a4e] rounded-lg transition-colors shadow-sm"
+                    >
+                        Accept &amp; Continue
+                    </button>
+                </div>
+            </div>
+        </div>,
+        document.body,
+    );
+};
+
 // --- MAIN COMPONENT ---
 const TravelForm: React.FC = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const projectName = searchParams.get('project') || '';
     const editDocName = searchParams.get('edit') || '';
+
+    // Important Notice — must be accepted before a *new* application can be
+    // filled in (not shown again when editing an existing Draft).
+    const [noticeAccepted, setNoticeAccepted] = useState(false);
 
     const [fields, setFields] = useState<FormField[]>([]);
     const [formData, setFormData] = useState<Record<string, any>>({});
@@ -228,7 +279,7 @@ const TravelForm: React.FC = () => {
         formData.travel_leave_to_date,
     ]);
 
-    const sclFieldMessages = useMemo<Record<string, FieldMessage>>(() => {
+    const sclFieldMessages = useMemo((): Record<string, FieldMessage> => {
         if (formData.travel_special_casual_leave !== "Required") return {};
         if (isSclLoading) {
             return {
@@ -818,6 +869,11 @@ const TravelForm: React.FC = () => {
     }, [fields, formData]);
 
     // --- RENDER LOGIC ---
+    // New applications must accept the Important Notice before the form is shown.
+    if (!editDocName && !noticeAccepted) {
+        return <ImportantTravelNotice onAccept={() => setNoticeAccepted(true)} />;
+    }
+
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
@@ -890,7 +946,7 @@ const TravelForm: React.FC = () => {
                                     onAddTableRow={addTableRow}
                                     onDeleteTableRow={deleteTableRow}
                                     onFieldChangeWithSideEffects={handleFieldChangeWithSideEffects}
-                                    readOnly={formData.docstatus === 1}
+                                    readOnly={!!formData.workflow_state && formData.workflow_state !== "Draft"}
                                     autocompleteFields={TRAVEL_AUTOCOMPLETE_FIELDS}
                                     fieldMessages={sclFieldMessages}
                                 />
@@ -899,7 +955,7 @@ const TravelForm: React.FC = () => {
                                 <EstimateValidation formData={formData} />
                             </FrappeCard>
 
-                            {(!editDocName || formData.docstatus === 0) && (
+                            {(!editDocName || !formData.workflow_state || formData.workflow_state === "Draft") && (
                                 <div className="mt-8 flex justify-end gap-3">
                                     <FrappeButton
                                         onClick={handleSave}

@@ -36,6 +36,8 @@ export const travelAPI = {
     getWorkflowActions: `${API_BASE}.travel.travel.get_travel_workflow_actions`,
     performAction: `${API_BASE}.travel.travel.perform_travel_action`,
     getSclBalance: `${API_BASE}.travel.travel.get_special_leave_balance_for_travel`,
+    attachDirectorPdf: `${API_BASE}.travel.travel.attach_director_pdf_travel`,
+    getPendingDirectorUploads: `${API_BASE}.travel.travel.get_pending_travel_director_uploads`,
 };
 
 // TA DA Settlement API endpoints
@@ -273,6 +275,7 @@ export const miscellaneousCommitAPI = {
 export const commonAPI = {
     getUserDetails: `${API_BASE}.project_registration.project_registration.get_user_details_for_pi`,
     getUserDetailsByEmail: `rndopsapp.rndopsapp.api.get_user_details`,
+    addComment: `rndopsapp.rndopsapp.api.add_project_comment`,
 };
 
 // Delegate User API endpoints

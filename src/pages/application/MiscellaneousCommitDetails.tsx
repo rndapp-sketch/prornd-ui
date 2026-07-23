@@ -14,6 +14,7 @@ import { miscellaneousCommitAPI, prepareFormDataForApi } from '@/services/apiSer
 import { DepartmentName } from '@/components/DepartmentName';
 import MiscellaneousCommitActionButtons from '@/components/MiscellaneousCommitActionButtons';
 import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButton';
+import ViewProjectButton from '@/components/ViewProjectButton';
 
 // --- FIELD GROUP DEFINITIONS (same as form) ---
 const GROUP_A_FIELDS = new Set([
@@ -305,6 +306,13 @@ const MiscellaneousCommitDetails: React.FC = () => {
                     status={workflowState}
                     projectNumber={resolvedProjectNo}
                 >
+                    <ViewProjectButton doctype="Miscellaneous Commit" data={formData} />
+                    {id && !isDraft && (
+                        <MiscellaneousCommitActionButtons
+                            docname={id!}
+                            onActionComplete={handleRefresh}
+                        />
+                    )}
                     {isDraft && id && (
                         <>
                             <button
@@ -330,16 +338,6 @@ const MiscellaneousCommitDetails: React.FC = () => {
                 <div className="mt-6">
                     <WorkflowTimeline currentState={workflowState} />
                 </div>
-
-                {/* Action Buttons */}
-                {id && !isDraft && (
-                    <div className="mt-4">
-                        <MiscellaneousCommitActionButtons
-                            docname={id!}
-                            onActionComplete={handleRefresh}
-                        />
-                    </div>
-                )}
 
                 {/* Main Content */}
                 <div className="mt-5 grid grid-cols-1 lg:grid-cols-4 gap-5">
