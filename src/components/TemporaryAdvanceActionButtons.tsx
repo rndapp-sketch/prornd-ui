@@ -65,6 +65,24 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
         setIsPerforming(true);
         try {
             await performAction({ docname, action: pendingAction, comment: comment.trim() });
+            const trimmedComment = comment.trim();
+            if (trimmedComment) {
+                await fetch("/api/method/frappe.desk.form.utils.add_comment", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Frappe-CSRF-Token": (window as any).csrf_token || "",
+                    },
+                    credentials: "include",
+                    body: JSON.stringify({
+                        reference_doctype: "Temporary Advance",
+                        reference_name: docname,
+                        content: trimmedComment,
+                        comment_email: "",
+                        comment_by: "",
+                    }),
+                });
+            }
             await refetchActions();
             setModalOpen(false);
             onActionComplete();
