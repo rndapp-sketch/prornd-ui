@@ -57,6 +57,7 @@ import { ActivityLog, clearActivityLogCache } from "@/components/ActivityLog";
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { CommitPayment } from "@/components/CommitPayment";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
+import DirectPurchaseHelpGuide from "@/components/DirectPurchaseHelpGuide";
 
 // --- TYPE DEFINITIONS ---
 interface DirectPurchaseData {
@@ -3712,6 +3713,7 @@ const DirectPurchaseDetails: React.FC = () => {
                 </div>{/* end outer grid */}
 
                 {id && <FloatingActivityLogButton doctype="Direct Purchase" docname={id} />}
+                <DirectPurchaseHelpGuide />
             </main>
         </div>
     );
