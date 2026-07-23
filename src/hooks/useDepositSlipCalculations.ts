@@ -210,7 +210,7 @@ export const useDepositSlipCalculations = (
 // =============================================================
 const ENR_DEFAULT_ROWS = [
   { label: "IDF", percentage_of_overhead: 40 },
-  { label: "DPF (CE)", percentage_of_overhead: 50 },
+  { label: "DPF", percentage_of_overhead: 50 },
   { label: "Student Welfare Fund", percentage_of_overhead: 5 },
   { label: "Staff Welfare Fund", percentage_of_overhead: 5 },
 ];
