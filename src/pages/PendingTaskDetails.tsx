@@ -113,6 +113,10 @@ const CommentModal = ({
 }) => {
     const [comment, setComment] = React.useState("");
 
+    React.useEffect(() => {
+        if (isOpen) setComment("");
+    }, [isOpen]);
+
     if (!isOpen) return null;
 
     return (
@@ -166,6 +170,7 @@ const ReimbursementWorkflowActions = ({
     const { call: performAction, loading: actionLoading } = useFrappePostCall(
         "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.perform_reimbursement_action",
     );
+    const { call: addComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
 
     const [modalOpen, setModalOpen] = React.useState(false);
     const [selectedAction, setSelectedAction] = React.useState("");
@@ -178,6 +183,9 @@ const ReimbursementWorkflowActions = ({
     const handleConfirmAction = async (comment: string) => {
         try {
             await performAction({ docname, action: selectedAction, comment });
+            if (comment.trim()) {
+                addComment({ doctype: "Reimbursement", docname, content: comment.trim() }).catch(() => {});
+            }
             setModalOpen(false);
             onActionComplete();
         } catch (error) {
@@ -301,6 +309,7 @@ const FundSanctionWorkflowActions = ({
     const { call: performAction, loading: actionLoading } = useFrappePostCall(
         "rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.perform_fund_sanction_action",
     );
+    const { call: addComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
 
     const [modalOpen, setModalOpen] = React.useState(false);
     const [selectedAction, setSelectedAction] = React.useState("");
@@ -330,6 +339,9 @@ const FundSanctionWorkflowActions = ({
     const handleConfirmAction = async (comment: string) => {
         try {
             await performAction({ docname, action: selectedAction, comment });
+            if (comment.trim()) {
+                addComment({ doctype: "Fund Sanction", docname, content: comment.trim() }).catch(() => {});
+            }
             setModalOpen(false);
             onActionComplete();
         } catch (error) {
@@ -481,6 +493,7 @@ const TravelWorkflowActions = ({
     const { call: performAction, loading: actionLoading } = useFrappePostCall(
         "rndopsapp.rndopsapp.doctype.travel.travel.perform_travel_action",
     );
+    const { call: addComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
 
     const [modalOpen, setModalOpen] = React.useState(false);
     const [selectedAction, setSelectedAction] = React.useState("");
@@ -493,6 +506,9 @@ const TravelWorkflowActions = ({
     const handleConfirmAction = async (comment: string) => {
         try {
             await performAction({ docname, action: selectedAction, comment });
+            if (comment.trim()) {
+                addComment({ doctype: "Travel", docname, content: comment.trim() }).catch(() => {});
+            }
             setModalOpen(false);
             onActionComplete();
         } catch (error) {
@@ -683,6 +699,7 @@ const TopUpFellowshipWorkflowActions = ({
     const { call: performAction, loading: actionLoading } = useFrappePostCall(
         "rndopsapp.rndopsapp.doctype.top_up_fellowship.top_up_fellowship.perform_top_up_fellowship_action",
     );
+    const { call: addComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
 
     const { call: markSendToFa, loading: markLoading } = useFrappePostCall(
         "rndopsapp.rndopsapp.doctype.top_up_fellowship.top_up_fellowship.mark_send_to_faculty_admission",
@@ -780,6 +797,9 @@ const TopUpFellowshipWorkflowActions = ({
             if (res?.message?.status === "error") {
                 alert(res.message.message || `Action "${selectedTufAction}" failed.`);
                 return;
+            }
+            if (comment?.trim()) {
+                addComment({ doctype: "Top Up Fellowship", docname, content: comment.trim() }).catch(() => {});
             }
             setActionModalOpen(false);
             onActionComplete();
@@ -1026,11 +1046,29 @@ const RecruitmentAdhocContractualWorkflowActions = ({
     const { call: performAction, loading: actionLoading } = useFrappePostCall(
         recruitmentAdhocContractualAPI.performAction,
     );
+    const { call: addComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
 
     const [modalOpen, setModalOpen] = React.useState(false);
     const [selectedAction, setSelectedAction] = React.useState("");
+    const [dropdownOpen, setDropdownOpen] = React.useState(false);
+    const [dropdownPos, setDropdownPos] = React.useState({ top: 0, right: 0 });
+    const toggleBtnRef = React.useRef<HTMLButtonElement>(null);
+    const dropdownPortalRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        if (!dropdownOpen) return;
+        const handleOutside = (e: MouseEvent) => {
+            const target = e.target as Node;
+            if (!toggleBtnRef.current?.contains(target) && !dropdownPortalRef.current?.contains(target)) {
+                setDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleOutside);
+        return () => document.removeEventListener("mousedown", handleOutside);
+    }, [dropdownOpen]);
 
     const handleActionClick = (action: string) => {
+        setDropdownOpen(false);
         setSelectedAction(action);
         setModalOpen(true);
     };
@@ -1038,6 +1076,9 @@ const RecruitmentAdhocContractualWorkflowActions = ({
     const handleConfirmAction = async (comment: string) => {
         try {
             await performAction({ docname, action: selectedAction, comment });
+            if (comment.trim()) {
+                addComment({ doctype: "Recruitment Adhoc Contractual", docname, content: comment.trim() }).catch(() => {});
+            }
             setModalOpen(false);
             onActionComplete();
         } catch (error) {
@@ -1055,19 +1096,100 @@ const RecruitmentAdhocContractualWorkflowActions = ({
         );
     }
 
+    const categorise = (action: string) => {
+        const a = action.toLowerCase();
+        if (a.includes("forward") || a.includes("approve") || a.includes("submit")) return "forward";
+        if (a.includes("reject")) return "reject";
+        return "neutral";
+    };
+
+    const visibleActions = data.message;
+    const forwardActions = visibleActions.filter(a => categorise(a) === "forward");
+    const neutralActions = visibleActions.filter(a => categorise(a) === "neutral");
+    const rejectActions  = visibleActions.filter(a => categorise(a) === "reject");
+    const groups = [forwardActions, neutralActions, rejectActions].filter(g => g.length > 0);
+
+    const itemStyle = (action: string) => {
+        const cat = categorise(action);
+        if (cat === "forward") return {
+            icon: <CheckCircleIcon className="h-3.5 w-3.5" />,
+            cls: "text-[#D97757] hover:bg-orange-50 dark:hover:bg-orange-900/20",
+            iconCls: "text-[#D97757]",
+        };
+        if (cat === "reject") return {
+            icon: <XCircleIcon className="h-3.5 w-3.5" />,
+            cls: "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20",
+            iconCls: "text-red-500",
+        };
+        return {
+            icon: <ChevronRight className="h-3.5 w-3.5" />,
+            cls: "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700",
+            iconCls: "text-zinc-400 dark:text-zinc-500",
+        };
+    };
+
+    const handleToggleDropdown = () => {
+        if (!dropdownOpen && toggleBtnRef.current) {
+            const rect = toggleBtnRef.current.getBoundingClientRect();
+            setDropdownPos({ top: rect.bottom + window.scrollY + 4, right: window.innerWidth - rect.right });
+        }
+        setDropdownOpen(o => !o);
+    };
+
     return (
         <>
-            <div className="flex gap-2">
-                {data.message.map((action) => (
-                    <FrappeButton
-                        key={action}
-                        onClick={() => handleActionClick(action)}
-                        disabled={actionLoading}
-                        className="bg-[#D97757] hover:bg-[#c66a4e] text-white"
+            <div className="relative">
+                <button
+                    ref={toggleBtnRef}
+                    onClick={handleToggleDropdown}
+                    disabled={actionLoading}
+                    className={cn(
+                        "inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg shadow-sm transition-all disabled:opacity-50",
+                        dropdownOpen
+                            ? "bg-[#D97757] text-white border border-[#c66a4e]"
+                            : "bg-[#FFF7ED] dark:bg-[#D97757]/15 text-[#D97757] border border-[#D97757]/40 hover:bg-[#D97757] hover:text-white dark:hover:bg-[#D97757]/30",
+                    )}
+                >
+                    {actionLoading ? "Processing…" : "Actions"}
+                    <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-150", dropdownOpen && "rotate-180")} />
+                </button>
+
+                {dropdownOpen && createPortal(
+                    <div
+                        ref={dropdownPortalRef}
+                        style={{ position: "absolute", top: dropdownPos.top, right: dropdownPos.right, zIndex: 9999 }}
+                        className="min-w-[210px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden"
                     >
-                        {action}
-                    </FrappeButton>
-                ))}
+                        <div className="px-4 py-2 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-100 dark:border-zinc-700">
+                            <span className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                                Workflow Actions
+                            </span>
+                        </div>
+                        {groups.map((group, gi) => (
+                            <React.Fragment key={gi}>
+                                {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
+                                {group.map((action) => {
+                                    const { icon, cls, iconCls } = itemStyle(action);
+                                    return (
+                                        <button
+                                            key={action}
+                                            onClick={() => handleActionClick(action)}
+                                            disabled={actionLoading}
+                                            className={cn(
+                                                "w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left transition-colors disabled:cursor-not-allowed",
+                                                cls,
+                                            )}
+                                        >
+                                            <span className={iconCls}>{icon}</span>
+                                            {action}
+                                        </button>
+                                    );
+                                })}
+                            </React.Fragment>
+                        ))}
+                    </div>,
+                    document.body,
+                )}
             </div>
             <CommentModal
                 isOpen={modalOpen}
