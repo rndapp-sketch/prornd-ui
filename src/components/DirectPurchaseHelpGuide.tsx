@@ -102,6 +102,24 @@ const DirectPurchaseGuidePanel = ({ onClose }: { onClose: () => void }) => {
             {/* Body */}
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
 
+                {/* Top notices */}
+                <div className="space-y-2">
+                    <div className="flex items-start gap-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-xl px-4 py-3">
+                        <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
+                        <div className="space-y-0.5">
+                            <p className="text-xs font-bold text-red-700 dark:text-red-400">Purchase Committee Required Above ₹2,00,000</p>
+                            <p className="text-xs text-red-600 dark:text-red-300 leading-snug">If the total exceeds ₹2,00,000, a Purchase Committee section will appear. You must add at least 3 permanent faculty members as committee members before you can submit.</p>
+                        </div>
+                    </div>
+                    <div className="flex items-start gap-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800/40 rounded-xl px-4 py-3">
+                        <AlertCircle className="h-4 w-4 text-orange-500 flex-shrink-0 mt-0.5" />
+                        <div className="space-y-0.5">
+                            <p className="text-xs font-bold text-orange-700 dark:text-orange-400">Director Approval Required Above ₹3,00,000</p>
+                            <p className="text-xs text-orange-600 dark:text-orange-300 leading-snug">If you selected Consumable or Contingency as the budget head and the total exceeds ₹3,00,000, the Dean will escalate the approval to the Director before it can be finalized.</p>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Who Is This For */}
                 <Section title="Who can raise a Direct Purchase?" icon={<Users className="h-4 w-4" />} accent="blue" defaultOpen>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">Your role decides your approval path:</p>
@@ -253,14 +271,14 @@ const DirectPurchaseHelpGuide = () => {
             {/* Floating trigger button */}
             <button
                 onClick={() => setOpen(true)}
-                title="Direct Purchase Guide"
                 className={cn(
-                    "fixed bottom-20 right-5 z-40 w-11 h-11 rounded-full shadow-lg flex items-center justify-center transition-all duration-200",
-                    "bg-white dark:bg-zinc-800 border-2 border-[#D97757]/30 text-[#D97757]",
-                    "hover:bg-[#D97757] hover:text-white hover:border-[#D97757] hover:scale-110",
+                    "fixed bottom-20 right-5 z-40 h-10 px-4 rounded-full shadow-lg flex items-center gap-2 transition-all duration-200",
+                    "bg-white dark:bg-zinc-800 border-2 border-[#D97757]/40 text-[#D97757]",
+                    "hover:bg-[#D97757] hover:text-white hover:border-[#D97757] hover:scale-105",
                 )}
             >
-                <HelpCircle className="h-5 w-5" />
+                <HelpCircle className="h-4 w-4 flex-shrink-0" />
+                <span className="text-xs font-bold tracking-wide">Help Guide</span>
             </button>
 
             {/* Overlay + slide-in panel */}
