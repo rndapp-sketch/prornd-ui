@@ -109,7 +109,13 @@ export const useDepositSlipCalculations = (
       return `rds:${total}:${overhead}:${childTableSigs}`;
     } else if (depositSlipType === "e_non_routine") {
       const amount = flt(formData.amount_inclusive_of_gst);
-      return `enr:${amount}`;
+      const incomeTaxTds = flt(formData.income_tax_tds);
+      const gstTds2 = flt(formData.gst_tds_2);
+      const cgst9 = flt(formData.cgst_9);
+      const sgst9 = flt(formData.sgst_9);
+      const igst18 = flt(formData.igst_18);
+      const multiplier = flt(formData.overhead_multiplier) || 0.3;
+      return `enr:${amount}:${incomeTaxTds}:${gstTds2}:${cgst9}:${sgst9}:${igst18}:${multiplier}`;
     }
     return "";
   };
@@ -202,13 +208,52 @@ export const useDepositSlipCalculations = (
 // =============================================================
 // E NON-ROUTINE CALCULATIONS
 // =============================================================
+const ENR_DEFAULT_ROWS = [
+  { label: "IDF", percentage_of_overhead: 40 },
+  { label: "DPF (CE)", percentage_of_overhead: 50 },
+  { label: "Student Welfare Fund", percentage_of_overhead: 5 },
+  { label: "Staff Welfare Fund", percentage_of_overhead: 5 },
+];
+
 function calculateENonRoutine(formData: FormData): FormData {
-  const E_NON_ROUTINE_OVERHEAD_MULTIPLIER = 0.3;
-  const amount = flt(formData.amount_inclusive_of_gst);
-  const overheadAmount = flt(amount * E_NON_ROUTINE_OVERHEAD_MULTIPLIER);
+  const amountInclGst = flt(formData.amount_inclusive_of_gst);
+  const incomeTaxTds = flt(formData.income_tax_tds);
+  const gstTds2 = flt(formData.gst_tds_2);
+  const cgst9 = flt(formData.cgst_9);
+  const sgst9 = flt(formData.sgst_9);
+  const igst18 = flt(formData.igst_18);
+  const multiplier = flt(formData.overhead_multiplier) || 0.3;
+
+  // Step 1: Amount Actually Received
+  const amountActuallyReceived = flt(amountInclGst - incomeTaxTds - gstTds2);
+
+  // Step 2: Consultancy Fee X (after GST deduction)
+  let consultancyFeeX: number;
+  if (igst18 > 0) {
+    consultancyFeeX = flt(amountActuallyReceived - igst18);
+  } else {
+    consultancyFeeX = flt(amountActuallyReceived - cgst9 - sgst9);
+  }
+
+  // Step 3: Overhead
+  const overheadAmount = flt(multiplier * consultancyFeeX);
+
+  // Step 4: credit_distribution — pre-fill if empty, always recalculate amounts
+  const existingRows: any[] = Array.isArray(formData.credit_distribution) && formData.credit_distribution.length > 0
+    ? formData.credit_distribution
+    : ENR_DEFAULT_ROWS.map(r => ({ ...r }));
+
+  const creditDistribution = existingRows.map((row: any) => ({
+    ...row,
+    amount: flt(overheadAmount * (flt(row.percentage_of_overhead) / 100)),
+  }));
+
   return {
-    overhead_multiplier: E_NON_ROUTINE_OVERHEAD_MULTIPLIER,
+    overhead_multiplier: multiplier,
+    amount_actually_received: amountActuallyReceived,
+    consultancy_fee_x: consultancyFeeX,
     overhead_amount: overheadAmount,
+    credit_distribution: creditDistribution,
   };
 }
 
