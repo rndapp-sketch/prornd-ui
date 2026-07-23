@@ -157,8 +157,8 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                 const recipient = (item.recipient_name || '').trim();
                 const isDateString = /^\d{4}-\d{2}-\d{2}/.test(recipient);
                 const displayLabel = recipient && recipient !== label && !isDateString
-                    ? `${label} / ${recipient} (${pct}%)`
-                    : `${label} (${pct}%)`;
+                    ? `${label} / ${recipient} (${pct}% of Overhead Amount)`
+                    : `${label} (${pct}% of Overhead Amount)`;
                 items.push({ label: displayLabel, amount: parseFloat(item.amount) || 0 });
             });
         }
@@ -424,17 +424,17 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
-                                <td className="border border-black p-1">CGST @ 9% on Total fees</td>
+                                <td className="border border-black p-1">CGST @ 9%</td>
                                 <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(depositSlip.cgst_amount || depositSlip.cgst || depositSlip.cgst_9)}</td>
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
-                                <td className="border border-black p-1">SGST @ 9% on Total fees</td>
+                                <td className="border border-black p-1">SGST @ 9%</td>
                                 <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(depositSlip.sgst_amount || depositSlip.sgst || depositSlip.sgst_9)}</td>
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
-                                <td className="border border-black p-1">IGST @ 18% on Consultancy Fee</td>
+                                <td className="border border-black p-1">IGST @ 18%</td>
                                 <td colSpan={2} className="border border-black p-1 text-right">
                                     {formatCurrency(depositSlip.igst_18 || depositSlip.igst_amount || depositSlip.igst)}
                                 </td>
@@ -481,7 +481,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                         <td className="border border-black p-1">
                             {type === 'consultancy_d' ? 'Total Overhead (0.1 * Y + 0.1 * Z)' :
                                 (type === 'consultancy_e' || type === 'consultancy_t')
-                                    ? `Overhead (${depositSlip.overhead_multiplier ?? (type === 'consultancy_t' ? 0.7 : 0.1)} × X)`
+                                    ? `Overhead (${depositSlip.overhead_multiplier ?? (type === 'consultancy_t' ? 0.7 : 0.3)} × X)`
                                     : 'Overhead Amount @ 15% (inclusive)'}
                         </td>
                         <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(depositSlip.overhead_amount)}</td>
