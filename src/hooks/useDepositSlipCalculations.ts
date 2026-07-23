@@ -248,12 +248,21 @@ function calculateENonRoutine(formData: FormData): FormData {
     amount: flt(overheadAmount * (flt(row.percentage_of_overhead) / 100)),
   }));
 
+  // Step 5: Balance In Project & Total Budget
+  // GST component: use IGST if non-zero, otherwise CGST+SGST
+  const gstComponent = igst18 > 0 ? igst18 : flt(cgst9 + sgst9);
+  const balanceInProject = flt(consultancyFeeX - overheadAmount);
+  const creditSum = creditDistribution.reduce((s: number, r: any) => s + flt(r.amount), 0);
+  const totalBudget = flt(creditSum + gstComponent + balanceInProject);
+
   return {
     overhead_multiplier: multiplier,
     amount_actually_received: amountActuallyReceived,
     consultancy_fee_x: consultancyFeeX,
     overhead_amount: overheadAmount,
     credit_distribution: creditDistribution,
+    balance_in_project: balanceInProject,
+    total_budget: totalBudget,
   };
 }
 
