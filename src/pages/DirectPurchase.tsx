@@ -8,6 +8,7 @@ import { directPurchaseAPI } from '@/services/apiService';
 import { CommentModal } from '@/components/CommentModal';
 import { Plus, Trash2 } from 'lucide-react';
 import { DepartmentName } from "@/components/DepartmentName";
+import DirectPurchaseHelpGuide from "@/components/DirectPurchaseHelpGuide";
 
 // --- TYPE DEFINITIONS ---
 interface ChildField {
@@ -1355,6 +1356,7 @@ const DirectPurchase: React.FC = () => {
                 action="Submit Direct Purchase"
                 isLoading={isSubmitting}
             />
+            <DirectPurchaseHelpGuide />
         </div>
     );
 };
