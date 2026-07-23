@@ -600,6 +600,55 @@ const PendingTask: React.FC = () => {
             .catch(() => {});
     }, [allTasks]);
 
+    // Phase-2c: fetch project_no for PSD tasks, then resolve project title from Project Registration
+    const [psdProjectNos, setPsdProjectNos] = React.useState<Map<string, string>>(new Map());
+    const [psdProjectTitles, setPsdProjectTitles] = React.useState<Map<string, string>>(new Map());
+    React.useEffect(() => {
+        const psdIds = allTasks
+            .filter(t => t.doctype === "Project Staff Details")
+            .map(t => t.id);
+        if (!psdIds.length) return;
+
+        const params = new URLSearchParams({
+            fields: JSON.stringify(["name", "project_no"]),
+            filters: JSON.stringify([["name", "in", psdIds.join(",")]]),
+            limit: String(psdIds.length),
+        });
+
+        fetch(`/api/resource/Project%20Staff%20Details?${params}`, { credentials: "include" })
+            .then(r => r.json())
+            .then(async (result) => {
+                const docs: any[] = result?.data ?? [];
+                const noMap = new Map<string, string>();
+                docs.forEach((rec: any) => { if (rec.project_no) noMap.set(rec.name, rec.project_no); });
+                if (noMap.size > 0) setPsdProjectNos(new Map(noMap));
+
+                // Resolve project titles from Project Registration using project_no values
+                const projectNos = [...new Set(docs.map((r: any) => r.project_no).filter(Boolean))];
+                if (!projectNos.length) return;
+
+                const prParams = new URLSearchParams({
+                    fields: JSON.stringify(["project_no", "project_title"]),
+                    filters: JSON.stringify([["project_no", "in", projectNos.join(",")]]),
+                    limit: String(projectNos.length),
+                });
+                const prRes = await fetch(`/api/resource/Project%20Registration?${prParams}`, { credentials: "include" });
+                const prResult = await prRes.json();
+                const titleByNo = new Map<string, string>();
+                (prResult?.data ?? []).forEach((pr: any) => {
+                    if (pr.project_no && pr.project_title) titleByNo.set(pr.project_no, pr.project_title);
+                });
+
+                const titleMap = new Map<string, string>();
+                docs.forEach((rec: any) => {
+                    const title = rec.project_no ? titleByNo.get(rec.project_no) : undefined;
+                    if (title) titleMap.set(rec.name, title);
+                });
+                if (titleMap.size > 0) setPsdProjectTitles(new Map(titleMap));
+            })
+            .catch(() => {});
+    }, [allTasks]);
+
     // Phase-3: fetch director_signed_pdf for all doctypes that support Director Approval flow
     const DIRECTOR_PDF_DOCTYPES = ["Indent General Form", "Selection Committee Report", "Indent Cum Sanction Sheet"];
     const [directorPdfStatus, setDirectorPdfStatus] = React.useState<Map<string, boolean>>(new Map());
@@ -949,12 +998,15 @@ const PendingTask: React.FC = () => {
                                                     onClick={() => setSelectedTask({ doctype: task.doctype, docname: task.id, title: task.title })}
                                                     title="Click to preview activity log"
                                                 >
-                                                    {task.title.length > 40 ? `${task.title.substring(0, 40)}...` : task.title}
+                                                    {(() => {
+                                                        const display = psdProjectTitles.get(task.id) || task.title;
+                                                        return display.length > 40 ? `${display.substring(0, 40)}...` : display;
+                                                    })()}
                                                     <ActivityIcon className="w-3.5 h-3.5 opacity-0 group-hover/title:opacity-100 text-[#D97757] flex-shrink-0 transition-opacity" />
                                                 </button>
                                             </td>
                                             <td className="p-3 align-middle font-mono text-zinc-500 dark:text-zinc-400 text-xs">
-                                                {task.projectNo || tufProjectNos.get(task.id) || task["Project Number"]}
+                                                {psdProjectNos.get(task.id) || task.projectNo || tufProjectNos.get(task.id) || task["Project Number"]}
                                             </td>
                                             <td className="p-3 align-middle text-zinc-500 dark:text-zinc-400">
                                                 {task.creation ? new Date(task.creation).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "-"}
