@@ -291,7 +291,7 @@ const DirectPurchaseHelpGuide = () => {
                     />
 
                     {/* Panel */}
-                    <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-sm shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
+                    <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-xl shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
                         <DirectPurchaseGuidePanel onClose={() => setOpen(false)} />
                     </div>
                 </>,
