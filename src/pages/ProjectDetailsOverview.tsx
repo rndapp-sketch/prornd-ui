@@ -2524,7 +2524,19 @@ const QuickActions = ({
                                                         item.type ===
                                                         "Travel Apply" &&
                                                         item.workflow_state ===
-                                                        "Approved" && (
+                                                        "Approved" &&
+                                                        // Only the applicant who initiated this Travel request
+                                                        // should see "Settle" — not approvers browsing the project.
+                                                        !!quickActionsCurrentUser &&
+                                                        !!item.webmail_id_travel &&
+                                                        quickActionsCurrentUser.toLowerCase() ===
+                                                        String(item.webmail_id_travel).toLowerCase() &&
+                                                        // Hide once a TA/DA Settlement has already been raised for this travel.
+                                                        !applicationData.some(
+                                                            (row: any) =>
+                                                                row.type === "TA DA Settlement" &&
+                                                                row.ta_da_travel_application === item.name,
+                                                        ) && (
                                                             <button
                                                                 onClick={() =>
                                                                     handleTravelSettleClick(

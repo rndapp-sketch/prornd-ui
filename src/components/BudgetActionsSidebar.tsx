@@ -18,6 +18,10 @@ interface BudgetActionsSidebarProps {
     billAmount?: number;
     /** Callback to notify parent of Kafka staging status, used to gate workflow actions */
     onStagingStatusChange?: (isCommitted: boolean) => void;
+    /** Budget Head label to pre-select in "Make a Commitment" when it exists in the fetched budget head list (e.g. the resolved "Account Head from Travel" on a TA DA Settlement) */
+    defaultBudgetHead?: string;
+    /** Optional helper note shown under the "Make a Commitment" title (e.g. clarifying what the pre-filled amount represents) */
+    commitAmountNote?: string;
 }
 
 export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
@@ -28,6 +32,8 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
     parentAppId,
     billAmount,
     onStagingStatusChange,
+    defaultBudgetHead,
+    commitAmountNote,
 }) => {
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
@@ -89,6 +95,10 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
     // handleCommit moved to CommitPayment component
 
     const budgetHeadNames = useMemo(() => budgetHeadList.map(h => h.name), [budgetHeadList]);
+    const budgetHeadIds = useMemo(
+        () => Object.fromEntries(budgetHeadList.map(h => [h.name, h.id])),
+        [budgetHeadList],
+    );
 
     if (!isStaff || !isRndStaff) return null;
 
@@ -121,9 +131,12 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
                     docName={docName || ""}
                     projectName={projectName}
                     budgetHeads={budgetHeadNames}
+                    budgetHeadIds={budgetHeadIds}
                     actualBalance={actualBalance}
                     billAmount={billAmount}
                     parentAppId={parentAppId}
+                    defaultBudgetHead={defaultBudgetHead}
+                    description={commitAmountNote}
                     onCommitSuccess={(head, amount) => setCommitSuccess({ head, amount })}
                     onStagingStatusChange={onStagingStatusChange}
                 />

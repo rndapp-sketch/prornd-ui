@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useSWRConfig } from "swr";
 import { useParams, useNavigate } from "react-router-dom";
@@ -65,6 +65,7 @@ import { POEditor } from "@/components/POEditor";
 import { DeclarationFields } from "@/components/DeclarationFields";
 import { AutocompleteEmail } from "@/components/AutocompleteEmail";
 import { getFileUrl } from "@/utils/fileUtils";
+import { resolveBudgetHeadLabel } from "@/utils/resolveBudgetHeadLabel";
 
 // Fields to hide from the overview
 const HIDDEN_FIELDS = [
@@ -2150,6 +2151,110 @@ const PendingTaskDetails: React.FC = () => {
         (r) => r === "staff, RnD" || r === "System Manager",
     );
 
+    // TA DA Settlement — "For Office Use" section: staff, RnD only, and only
+    // while the settlement sits at "Pending Staff Approval". Hidden from the
+    // applicant entirely; visible read-only to approvers further down the chain.
+    const TADA_OFFICE_USE_SECTION_FIELDNAME = "for_office_use_section";
+    const TADA_OFFICE_USE_INPUT_FIELDNAMES = [
+        "railways_air_steamer_busfare",
+        "road_mileage",
+        "local_conveyance",
+        "food_charges",
+        "cccommodation_charges",
+        "registration_fee_other",
+        "less_advance_paid_to_applicant",
+    ];
+    const TADA_OFFICE_USE_COMPUTED_FIELDNAMES = ["total_admissible_amount", "net_amount"];
+    const TADA_OFFICE_USE_FIELDNAMES = new Set([
+        ...TADA_OFFICE_USE_INPUT_FIELDNAMES,
+        ...TADA_OFFICE_USE_COMPUTED_FIELDNAMES,
+    ]);
+    const TADA_OFFICE_USE_CHARGE_FIELDNAMES = TADA_OFFICE_USE_INPUT_FIELDNAMES.filter(
+        (f) => f !== "less_advance_paid_to_applicant",
+    );
+    const TADA_OFFICE_USE_VIEW_ONLY_ROLES = [
+        "Hos, RnD (Head of Section, RnD)",
+        "Ado_RnD",
+        "Dean, RnD",
+        "Director",
+    ];
+    const canEditTadaOfficeUse = roles.some(
+        (r) => r === "staff, RnD" || r === "System Manager",
+    );
+    const isTadaOfficeUseViewer =
+        canEditTadaOfficeUse || roles.some((r) => TADA_OFFICE_USE_VIEW_ONLY_ROLES.includes(r));
+    const isTadaPendingStaffApproval = data?.workflow_state === "Pending Staff Approval";
+    const tadaOfficeUseEditable = canEditTadaOfficeUse && isTadaPendingStaffApproval;
+
+    const { call: saveTadaOfficeUse } = useFrappePostCall<{ message: any }>(tadaAPI.save);
+
+    // Local draft of the "For Office Use" figures — kept separate from `displayData`
+    // (which gets clobbered by every SWR revalidation of `data`) so in-progress
+    // edits aren't lost mid-typing.
+    const [tadaOfficeUseDraft, setTadaOfficeUseDraft] = useState<Record<string, any>>({});
+    const [isSavingTadaOfficeUse, setIsSavingTadaOfficeUse] = useState(false);
+
+    useEffect(() => {
+        if (doctype !== "TA DA Settlement" || !data) return;
+        const draft: Record<string, any> = {};
+        for (const fieldname of TADA_OFFICE_USE_INPUT_FIELDNAMES) {
+            draft[fieldname] = (data as any)[fieldname] ?? "";
+        }
+        draft.total_admissible_amount = (data as any).total_admissible_amount ?? 0;
+        draft.net_amount = (data as any).net_amount ?? 0;
+        setTadaOfficeUseDraft(draft);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [doctype, (data as any)?.name, (data as any)?.modified]);
+
+    // Recalculate Total Admissible Amount / Net Amount as staff types
+    useEffect(() => {
+        if (!tadaOfficeUseEditable) return;
+        const totalAdmissible = TADA_OFFICE_USE_CHARGE_FIELDNAMES.reduce(
+            (sum, fieldname) => sum + (parseFloat(tadaOfficeUseDraft[fieldname]) || 0),
+            0,
+        );
+        if (tadaOfficeUseDraft.total_admissible_amount !== totalAdmissible) {
+            setTadaOfficeUseDraft((prev) => ({ ...prev, total_admissible_amount: totalAdmissible }));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tadaOfficeUseEditable, ...TADA_OFFICE_USE_CHARGE_FIELDNAMES.map((f) => tadaOfficeUseDraft[f])]);
+
+    useEffect(() => {
+        if (!tadaOfficeUseEditable) return;
+        const totalAdmissible = parseFloat(tadaOfficeUseDraft.total_admissible_amount) || 0;
+        const advancePaid = parseFloat(tadaOfficeUseDraft.less_advance_paid_to_applicant) || 0;
+        const net = totalAdmissible - advancePaid;
+        if (tadaOfficeUseDraft.net_amount !== net) {
+            setTadaOfficeUseDraft((prev) => ({ ...prev, net_amount: net }));
+        }
+    }, [tadaOfficeUseEditable, tadaOfficeUseDraft.total_admissible_amount, tadaOfficeUseDraft.less_advance_paid_to_applicant]);
+
+    const handleTadaOfficeUseChange = (fieldname: string, value: any) => {
+        setTadaOfficeUseDraft((prev) => ({ ...prev, [fieldname]: value }));
+    };
+
+    const handleSaveTadaOfficeUse = async () => {
+        if (!name) return;
+        setIsSavingTadaOfficeUse(true);
+        try {
+            const payload: Record<string, any> = { name };
+            for (const fieldname of TADA_OFFICE_USE_INPUT_FIELDNAMES) {
+                payload[fieldname] = tadaOfficeUseDraft[fieldname];
+            }
+            const res = await saveTadaOfficeUse({ doc_data: JSON.stringify(payload) });
+            if ((res as any)?.message?.status !== "success") {
+                throw new Error((res as any)?.message?.message || "Save failed");
+            }
+            await mutate();
+            refreshAll();
+            alert("Office Use details saved successfully.");
+        } catch (e: any) {
+            alert("Failed to save Office Use details: " + (e?.message || "Unknown error"));
+        } finally {
+            setIsSavingTadaOfficeUse(false);
+        }
+    };
+
     // Fund Sanction — editable account details
     const [fsAcctPfms, setFsAcctPfms] = useState('');
     const [fsAcctSchemeName, setFsAcctSchemeName] = useState('');
@@ -2606,9 +2711,65 @@ const PendingTaskDetails: React.FC = () => {
         }
     }, [data]);
 
+    // TA DA Settlement — merge the staff, RnD "For Office Use" draft on top of
+    // displayData so live edits/computed totals show immediately.
+    const tadaDisplayData = useMemo(
+        () => ({ ...displayData, ...tadaOfficeUseDraft }),
+        [displayData, tadaOfficeUseDraft],
+    );
+
+    const tadaProcessedFields = useMemo(() => {
+        return tadaFields.map((field) => {
+            // "Select Travel Application" links the settlement to a specific Travel
+            // record — never user-editable, regardless of who's viewing.
+            if (field.fieldname === "ta_da_travel_application") {
+                return { ...field, read_only: 1 };
+            }
+
+            if (
+                field.fieldname !== TADA_OFFICE_USE_SECTION_FIELDNAME &&
+                !TADA_OFFICE_USE_FIELDNAMES.has(field.fieldname)
+            ) {
+                // The global `readOnly` prop is turned off while staff, RnD is
+                // editing the office-use section (so those fields unlock) — force
+                // every other field to stay locked instead of unlocking with it.
+                return tadaOfficeUseEditable ? { ...field, read_only: 1 } : field;
+            }
+            const f = { ...field };
+            if (!isTadaOfficeUseViewer) {
+                f.hidden = 1;
+                return f;
+            }
+            f.hidden = 0;
+            if (TADA_OFFICE_USE_COMPUTED_FIELDNAMES.includes(field.fieldname)) {
+                f.read_only = 1;
+            } else {
+                f.read_only = tadaOfficeUseEditable ? 0 : 1;
+            }
+            return f;
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tadaFields, isTadaOfficeUseViewer, tadaOfficeUseEditable]);
+
     const [resolvedAccountHead, setResolvedAccountHead] = useState<string>("");
     const [resolvedProjectTitle, setResolvedProjectTitle] = useState<string>("");
     const [resolvedApplicantName, setResolvedApplicantName] = useState<string>("");
+    // Resolved label for TA DA Settlement's "Account Head from Travel" — used to
+    // pre-select the same Budget Head in staff, RnD's "Make a Commitment" widget.
+    const [resolvedTadaAccountHead, setResolvedTadaAccountHead] = useState<string>("");
+    useEffect(() => {
+        if (doctype !== "TA DA Settlement" || !data?.ta_da_account_head) {
+            setResolvedTadaAccountHead("");
+            return;
+        }
+        let cancelled = false;
+        resolveBudgetHeadLabel(data.ta_da_account_head).then((label) => {
+            if (!cancelled) setResolvedTadaAccountHead(label);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [doctype, data?.ta_da_account_head]);
 
     useEffect(() => {
         if (doctype === "Temporary Advance" && data) {
@@ -3644,17 +3805,31 @@ const PendingTaskDetails: React.FC = () => {
                             ) : tadaFields.length > 0 ? (
                                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-6">
                                     <DynamicFormRenderer
-                                        fields={tadaFields}
-                                        formData={displayData}
+                                        fields={tadaProcessedFields}
+                                        formData={tadaDisplayData}
                                         linkOptions={tadaLinkOptions}
-                                        onChange={() => { }}
+                                        onChange={handleTadaOfficeUseChange}
                                         onFileChange={() => { }}
                                         onTableRowChange={() => { }}
                                         onTableFileChange={() => { }}
                                         onAddTableRow={() => { }}
                                         onDeleteTableRow={() => { }}
-                                        readOnly={true}
+                                        readOnly={!tadaOfficeUseEditable}
                                     />
+                                    {tadaOfficeUseEditable && (
+                                        <div className="mt-6 flex flex-col items-end gap-2 border-t border-zinc-100 dark:border-zinc-800 pt-4">
+                                            <button
+                                                onClick={handleSaveTadaOfficeUse}
+                                                disabled={isSavingTadaOfficeUse}
+                                                className="inline-flex items-center justify-center gap-2 h-9 px-5 text-xs font-bold uppercase tracking-wide rounded-lg bg-[#D97757] text-white hover:bg-opacity-90 shadow-sm transition-all disabled:opacity-50"
+                                            >
+                                                {isSavingTadaOfficeUse ? "Saving..." : "Save Office Use Details"}
+                                            </button>
+                                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                                                Save these figures before forwarding this settlement.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 renderGenericDetails()
@@ -4520,7 +4695,9 @@ const PendingTaskDetails: React.FC = () => {
                                         docName={name}
                                         doctype={doctype}
                                         parentAppId={data?.ta_da_travel_application || undefined}
-                                        billAmount={data?.net_claimed ?? data?.ta_da_net_claimed ?? undefined}
+                                        billAmount={data?.ta_da_total_claimed ?? data?.total_claimed ?? undefined}
+                                        defaultBudgetHead={resolvedTadaAccountHead || undefined}
+                                        commitAmountNote="For TA/DA Settlement, the commitment amount is the new total commitment amount (Total Amount Claimed), not the difference from the amount already committed at the time of travel advance."
                                     />
                                 )}
                             {/* Setup for Direct Purchase */}

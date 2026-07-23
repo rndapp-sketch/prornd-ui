@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import { useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, FileSpreadsheetIcon as LedgerIcon, EditIcon, Send, ReceiptText, AlertTriangle } from 'lucide-react';
+import { CalendarIcon, FileSpreadsheetIcon as LedgerIcon, EditIcon, Send, ReceiptText, AlertTriangle, CheckCircle2, XCircle, Clock, ChevronRight } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,6 +17,11 @@ import { CommitPayment } from '@/components/CommitPayment';
 import { ActivityLog } from '@/components/ActivityLog';
 import ViewProjectButton from '@/components/ViewProjectButton';
 import TravelApplicantSummary from '@/components/TravelApplicantSummary';
+import { generateTravelDirectorReviewHtml, buildSclBalanceRow, type SclBalanceData } from '@/utils/travelDirectorPrint';
+import { resolveDepartmentLabel } from '@/utils/resolveDepartmentLabel';
+import { fetchDeclarationFields } from '@/utils/fetchDeclarationHtml';
+import { fetchActivityLogHtml } from '@/utils/fetchActivityLogHtml';
+import { Printer, Download, UploadCloud } from 'lucide-react';
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -24,6 +29,7 @@ interface FormDataResponse {
         fields: FormField[];
         link_options: Record<string, LinkOption[]>;
         prefill_data: Record<string, any>;
+        scl_balance?: SclBalanceData;
     };
 }
 
@@ -139,6 +145,130 @@ const ActivityStream = ({
     );
 };
 
+// --- WORKFLOW TIMELINE ---
+// Core forward path for a Travel application. `Pending PI Approval` /
+// `Pending Mentor Approval` only apply to Student/project staff and
+// Independent Researcher applicants respectively — Permanent Employee
+// (the common case) skips straight from Draft to Pending Head Approval.
+const TRAVEL_CORE_STAGES = [
+    'Pending Head Approval',
+    'Pending Staff Approval',
+    'Pending HoS Approval',
+    'Pending Dean Approval',
+    'Approved',
+];
+
+// International travel routes through a real "Pending Director Approval"
+// workflow state between Dean approval and final Approved — see
+// docs/travel-director-approval-implementation.md
+const TRAVEL_DIRECTOR_STAGES = [
+    'Pending Head Approval',
+    'Pending Staff Approval',
+    'Pending HoS Approval',
+    'Pending Dean Approval',
+    'Pending Director Approval',
+    'Approved',
+];
+
+type StageStatus = 'completed' | 'in-progress' | 'pending' | 'rejected';
+
+function buildTravelTimelineStages(
+    currentState: string,
+    isInternational: boolean,
+): { label: string; status: StageStatus }[] {
+    const isApproved = currentState === 'Approved';
+    const isRejected = currentState === 'Rejected';
+    const entryStage =
+        currentState === 'Pending PI Approval' || currentState === 'Pending Mentor Approval'
+            ? currentState
+            : null;
+
+    const coreStages =
+        isInternational || currentState === 'Pending Director Approval'
+            ? TRAVEL_DIRECTOR_STAGES
+            : TRAVEL_CORE_STAGES;
+    const stages = ['Draft', ...(entryStage ? [entryStage] : []), ...coreStages];
+    const stagesForRejected = [...stages.slice(0, -1), 'Rejected'];
+    const activeStages = isRejected ? stagesForRejected : stages;
+
+    let currentIdx = activeStages.findIndex((s) => s === currentState);
+    if (currentIdx === -1) currentIdx = currentState ? 1 : 0;
+
+    return activeStages.map((stage, idx) => {
+        if (isApproved) return { label: stage, status: 'completed' };
+        if (isRejected) {
+            if (idx === activeStages.length - 1) return { label: stage, status: 'rejected' };
+            return { label: stage, status: 'pending' };
+        }
+        if (idx < currentIdx) return { label: stage, status: 'completed' };
+        if (idx === currentIdx) return { label: stage, status: 'in-progress' };
+        return { label: stage, status: 'pending' };
+    });
+}
+
+const WorkflowTimeline: React.FC<{ currentState: string; isInternational?: boolean }> = ({ currentState, isInternational = false }) => {
+    const stages = buildTravelTimelineStages(currentState || 'Draft', isInternational);
+
+    const iconForStatus = (status: StageStatus) => {
+        if (status === 'completed') return <CheckCircle2 className="w-4 h-4 text-white" />;
+        if (status === 'in-progress') return <Clock className="w-4 h-4 text-white" />;
+        if (status === 'rejected') return <XCircle className="w-4 h-4 text-white" />;
+        return <span className="w-2 h-2 rounded-full bg-white/60" />;
+    };
+
+    const bgForStatus = (status: StageStatus) => {
+        if (status === 'completed') return 'bg-emerald-500';
+        if (status === 'in-progress') return 'bg-[#D97757]';
+        if (status === 'rejected') return 'bg-red-500';
+        return 'bg-zinc-300 dark:bg-zinc-600';
+    };
+
+    const connectorColor = (status: StageStatus) =>
+        status === 'completed' ? 'bg-emerald-400' : 'bg-zinc-200 dark:bg-zinc-700';
+
+    return (
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-5">
+            <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
+                Workflow Progress
+            </h3>
+            <div className="flex items-start overflow-x-auto pb-1">
+                {stages.map((stage, idx) => (
+                    <React.Fragment key={stage.label}>
+                        <div className="flex flex-col items-center min-w-[90px] max-w-[110px]">
+                            <div className={cn(
+                                'w-8 h-8 rounded-full flex items-center justify-center shadow-sm flex-shrink-0',
+                                bgForStatus(stage.status),
+                            )}>
+                                {iconForStatus(stage.status)}
+                            </div>
+                            <p className={cn(
+                                'mt-2 text-center text-xs leading-tight px-1',
+                                stage.status === 'in-progress' ? 'font-bold text-[#D97757]' : '',
+                                stage.status === 'completed' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : '',
+                                stage.status === 'pending' ? 'text-zinc-400 dark:text-zinc-500' : '',
+                                stage.status === 'rejected' ? 'text-red-500 font-bold' : '',
+                            )}>
+                                {stage.label}
+                            </p>
+                            {stage.status === 'in-progress' && (
+                                <span className="mt-1 text-[10px] font-bold text-white bg-[#D97757] px-2 py-0.5 rounded-full">
+                                    Pending Here
+                                </span>
+                            )}
+                        </div>
+                        {idx < stages.length - 1 && (
+                            <div className="flex-1 flex items-center pt-4 min-w-[20px]">
+                                <div className={cn('h-1 w-full rounded', connectorColor(stage.status))} />
+                                <ChevronRight className="w-3 h-3 text-zinc-400 flex-shrink-0 -ml-1" />
+                            </div>
+                        )}
+                    </React.Fragment>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 // --- MAIN COMPONENT ---
 const TravelDetails: React.FC = () => {
     const { docName } = useParams<{ docName: string }>();
@@ -147,6 +277,10 @@ const TravelDetails: React.FC = () => {
     const [fields, setFields] = useState<FormField[]>([]);
     const [formData, setFormData] = useState<Record<string, any>>({});
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    // Real, per-applicant SCL balance computed server-side (see get_travel_fields),
+    // used to print a compact balance row instead of the large styled card shown
+    // on the live form.
+    const [sclBalanceData, setSclBalanceData] = useState<SclBalanceData | null>(null);
 
     // Override account_head fieldtype to Link so DynamicFormRenderer uses BudgetHeadName overlay
     const renderedFields = useMemo(() =>
@@ -173,12 +307,18 @@ const TravelDetails: React.FC = () => {
     // the Frappe docname of Project Registration (may be an internal ID like "110001").
     // We fetch the actual project_no from that document to use for budget lookups & display.
     const [resolvedProjectNo, setResolvedProjectNo] = useState<string>("");
+    // travel_project_title is also a Link to the same Project Registration
+    // docname (not free text) — resolve its actual project_title alongside
+    // project_no in the same fetch below.
+    const [resolvedProjectTitle, setResolvedProjectTitle] = useState<string>("");
 
     // --- API HOOKS ---
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall<FormDataResponse>(travelAPI.getFields);
     const { call: fetchDocument } = useFrappePostCall<{ message: any }>('frappe.client.get');
     const { call: submitDocument } = useFrappePostCall<{ message: any }>(travelAPI.submit);
     const { call: addComment } = useFrappePostCall('rndopsapp.rndopsapp.api.add_project_comment');
+    const { call: performTravelAction, loading: isSendingToDirector } = useFrappePostCall(travelAPI.performAction);
+    const { call: attachDirectorPdf, loading: isUploadingDirectorPdf } = useFrappePostCall(travelAPI.attachDirectorPdf);
 
     // Fetch linked TA/DA Settlement status
     const { data: tadaListData } = useFrappeGetCall<{ message: { name: string; workflow_state: string }[] }>(
@@ -217,6 +357,7 @@ const TravelDetails: React.FC = () => {
                     // Fallback: use the raw link value if project_no not found
                     setResolvedProjectNo(linkedName);
                 }
+                setResolvedProjectTitle(projectDoc?.project_title || "");
             })
             .catch(() => {
                 setResolvedProjectNo(linkedName);
@@ -330,11 +471,46 @@ const TravelDetails: React.FC = () => {
             r === "Hos, RnD (Head of Section, RnD)",
     );
 
+    // Only staff, RnD (not Hos, RnD) actually submit a commitment — HoS is an
+    // approver and should only ever see what staff, RnD already committed.
+    const canSubmitCommitment = roles.some(
+        (r) =>
+            r === "RnD Staff" ||
+            r === "R&D Staff" ||
+            r === "Research and Development Staff" ||
+            r === "System Manager" ||
+            r === "staff, RnD",
+    );
+
+    const isDeanRnd = roles.some((r) => r === "Dean, RnD" || r === "System Manager");
+
+    // Director approval (International travel) — a real Workflow branch, see
+    // docs/travel-director-approval-implementation.md. "Pending Director
+    // Approval" is a genuine workflow_state (added via
+    // rndopsapp.patchs.add_travel_director_approval_workflow), not a flag —
+    // the backend only offers "Send for Director Approval" / "Approve" as
+    // available actions when their transition conditions are met, so no
+    // client-side gating is needed beyond showing/hiding this panel.
+    const isInternational = formData.nature_of_travel === "International";
+    const directorSignedPdf = formData.director_signed_pdf || "";
+    const isPendingDeanApproval = formData.workflow_state === "Pending Dean Approval";
+    const isPendingDirectorApproval = formData.workflow_state === "Pending Director Approval";
+    const showDirectorPanel =
+        isPendingDirectorApproval || (isPendingDeanApproval && isInternational);
+
     // Advance / Settle logic
     const needsAdvance = formData.travel_financial_assistance === "Yes";
     const isApproved = formData.workflow_state === "Approved";
-    // Settle: after Dean approval; if advance needed, only after payment recorded
-    const showSettleButton = isApproved && (needsAdvance ? !!linkedPayment : true);
+    // Only the applicant who initiated this Travel application should see "Settle Travel" —
+    // not the approvers (HoS/Dean/Ado_RnD/etc.) reviewing/approving it.
+    const isApplicant =
+        !!currentUser &&
+        !!formData.webmail_id_travel &&
+        currentUser.toLowerCase() === String(formData.webmail_id_travel).toLowerCase();
+    // Settle: after Dean approval; if advance needed, only after payment recorded;
+    // and only when a TA/DA Settlement hasn't already been raised for this travel.
+    const showSettleButton = isApplicant && isApproved && !tadaSettlement && (needsAdvance ? !!linkedPayment : true);
+
 
     // Block "Forward" when R&D Staff hasn't committed yet but advance is required
     const commitRequired =
@@ -408,9 +584,10 @@ const TravelDetails: React.FC = () => {
     useEffect(() => {
         const loadDocument = async () => {
             if (formDataResult?.message && docName) {
-                const { fields: apiFields, link_options } = formDataResult.message;
+                const { fields: apiFields, link_options, scl_balance } = formDataResult.message;
                 setFields(apiFields || []);
                 setLinkOptions(link_options || {});
+                setSclBalanceData(scl_balance || null);
 
                 try {
                     const doc = await fetchDocument({
@@ -456,6 +633,91 @@ const TravelDetails: React.FC = () => {
             alert(`Submission failed: ${err.message || "Unknown error"}`);
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    // --- DIRECTOR APPROVAL (International travel) ---
+    // See docs/travel-director-approval-implementation.md
+    const openDirectorReviewPrintWindow = async () => {
+        const [resolvedDepartment, declarationFields, activityLogHtml] = await Promise.all([
+            resolveDepartmentLabel(formData.department_travel),
+            fetchDeclarationFields("Travel"),
+            fetchActivityLogHtml("Travel", docName || ""),
+        ]);
+        // travel_leave_balance_html isn't a declaration — it's the applicant's
+        // SCL balance card, which prints as its own compact table row (built
+        // from the real, per-applicant scl_balance data — see sclBalanceData)
+        // instead of being shown here or as the large styled card.
+        const declarationsHtml = Object.entries(declarationFields)
+            .filter(([fieldname]) => fieldname !== "travel_leave_balance_html")
+            .map(([, html]) => html)
+            .join("");
+        const sclBalanceRow = buildSclBalanceRow(sclBalanceData);
+        const html = generateTravelDirectorReviewHtml(
+            formData,
+            defaultCommitBudgetHead,
+            resolvedDepartment,
+            declarationsHtml,
+            activityLogHtml,
+            sclBalanceRow,
+            resolvedProjectTitle,
+        );
+        const printWindow = window.open("", "_blank");
+        if (printWindow) {
+            printWindow.document.write(html);
+            printWindow.document.close();
+            setTimeout(() => printWindow.print(), 500);
+        }
+    };
+
+    // First time: print the review copy AND perform the real "Send for
+    // Director Approval" workflow transition, in one click, per the
+    // requirement — this moves workflow_state to "Pending Director Approval".
+    const handlePrintAndSendToDirector = async () => {
+        if (!docName) return;
+        openDirectorReviewPrintWindow();
+        try {
+            const res = await performTravelAction({ docname: docName, action: "Send for Director Approval" });
+            if (res?.message?.status && res.message.status !== "success") {
+                throw new Error(res.message.message || "Action failed");
+            }
+            handleRefresh();
+        } catch (err: any) {
+            alert(`Failed to send for Director approval: ${err.message || "Unknown error"}`);
+        }
+    };
+
+    // Any time after that: reprint only, no API call — covers a lost/forgotten
+    // hard copy without re-triggering the status flip.
+    const handleDownloadDirectorReview = () => {
+        openDirectorReviewPrintWindow();
+    };
+
+    const handleDirectorPdfFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = "";
+        if (!file || !docName) return;
+        try {
+            const fd = new FormData();
+            fd.append("file", file, file.name);
+            fd.append("doctype", "Travel");
+            fd.append("docname", docName);
+            fd.append("fieldname", "director_signed_pdf");
+            fd.append("is_private", "1");
+            const uploadRes = await fetch("/api/method/upload_file", {
+                method: "POST",
+                body: fd,
+                credentials: "include",
+            });
+            const uploadJson = await uploadRes.json();
+            const fileUrl = uploadJson?.message?.file_url;
+            if (!uploadRes.ok || !fileUrl) {
+                throw new Error(uploadJson?.message?.message || "Upload failed");
+            }
+            await attachDirectorPdf({ docname: docName, file_url: fileUrl });
+            handleRefresh();
+        } catch (err: any) {
+            alert(`Failed to upload Director-signed copy: ${err.message || "Unknown error"}`);
         }
     };
 
@@ -518,10 +780,17 @@ const TravelDetails: React.FC = () => {
                 <PageHeader
                     title={formData.name || docName || "Travel"}
                     status={formData.workflow_state || "Draft"}
-                    projectName={formData.travel_project_title}
+                    projectName={resolvedProjectTitle || formData.travel_project_title}
                     projectNumber={resolvedProjectNo || formData.travel_project_number}
                 >
                     <ViewProjectButton doctype="Travel" data={formData} />
+                    {!cancellationStatus?.message?.has_pending && docName && formData.workflow_state && formData.workflow_state !== "Draft" && (
+                        <TravelActionButtons
+                            docName={docName}
+                            onActionComplete={handleRefresh}
+                            commitRequired={commitRequired}
+                        />
+                    )}
                     {(formData.workflow_state === "Draft" || !formData.workflow_state) && docName && (
                         <>
                             <button
@@ -552,6 +821,11 @@ const TravelDetails: React.FC = () => {
                     )}
                 </PageHeader>
 
+                {/* Workflow Timeline */}
+                <div className="mt-6 mb-6">
+                    <WorkflowTimeline currentState={formData.workflow_state || 'Draft'} isInternational={isInternational} />
+                </div>
+
                 {/* Warning Banner if there's a pending cancellation */}
                 {cancellationStatus?.message?.has_pending && (
                     <div className="mb-6 p-4 rounded-xl border border-red-200 dark:border-red-800/40 bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-300 flex items-center gap-3 shadow-sm">
@@ -559,17 +833,6 @@ const TravelDetails: React.FC = () => {
                         <div className="text-sm font-medium">
                             This application has a pending cancellation request. No further workflow actions can be performed on it.
                         </div>
-                    </div>
-                )}
-
-                {/* Workflow Action Buttons */}
-                {!cancellationStatus?.message?.has_pending && docName && formData.workflow_state && formData.workflow_state !== "Draft" && (
-                    <div className="mb-6">
-                        <TravelActionButtons
-                            docName={docName}
-                            onActionComplete={handleRefresh}
-                            commitRequired={commitRequired}
-                        />
                     </div>
                 )}
 
@@ -657,6 +920,84 @@ const TravelDetails: React.FC = () => {
                             </div>
                         </div>
 
+                        {/* Director Approval — International travel only.
+                            See docs/travel-director-approval-implementation.md */}
+                        {showDirectorPanel && (
+                            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
+                                    Director Approval
+                                </h3>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4 leading-relaxed">
+                                    This is an International travel application and requires Director
+                                    approval before the Dean can give final approval.
+                                </p>
+
+                                <div className="space-y-3">
+                                    {/* Dean: first-time print & send (real "Send for Director Approval" transition) */}
+                                    {isDeanRnd && isPendingDeanApproval && (
+                                        <button
+                                            onClick={handlePrintAndSendToDirector}
+                                            disabled={isSendingToDirector}
+                                            className="w-full flex items-center justify-center gap-2 bg-[#D97757] hover:bg-[#c66a4e] text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm disabled:opacity-50"
+                                        >
+                                            <Printer className="w-4 h-4" />
+                                            {isSendingToDirector ? "Sending…" : "Print & Send for Director Approval"}
+                                        </button>
+                                    )}
+
+                                    {/* Dean: reprint any time after the first send, while the signed copy is outstanding */}
+                                    {isDeanRnd && isPendingDirectorApproval && !directorSignedPdf && (
+                                        <button
+                                            onClick={handleDownloadDirectorReview}
+                                            className="w-full flex items-center justify-center gap-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm"
+                                        >
+                                            <Download className="w-4 h-4" />
+                                            Download for Director Approval
+                                        </button>
+                                    )}
+
+                                    {/* staff, RnD: upload the Director-signed copy once sent */}
+                                    {isRnDStaff && isPendingDirectorApproval && !directorSignedPdf && (
+                                        <label className="w-full flex items-center justify-center gap-2 bg-[#D97757] hover:bg-[#c66a4e] text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm cursor-pointer disabled:opacity-50">
+                                            <UploadCloud className="w-4 h-4" />
+                                            {isUploadingDirectorPdf ? "Uploading…" : "Upload Director-Signed Copy"}
+                                            <input
+                                                type="file"
+                                                accept="application/pdf,image/*"
+                                                className="hidden"
+                                                disabled={isUploadingDirectorPdf}
+                                                onChange={handleDirectorPdfFileChange}
+                                            />
+                                        </label>
+                                    )}
+
+                                    {isPendingDeanApproval && !isDeanRnd && (
+                                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                            Awaiting the Dean to send this application for Director approval.
+                                        </p>
+                                    )}
+
+                                    {isPendingDirectorApproval && !directorSignedPdf && !isRnDStaff && !isDeanRnd && (
+                                        <p className="text-xs text-amber-700 dark:text-amber-300">
+                                            Sent for Director approval — awaiting the signed copy from staff, RnD.
+                                        </p>
+                                    )}
+
+                                    {directorSignedPdf && (
+                                        <a
+                                            href={directorSignedPdf}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg px-3 py-2.5"
+                                        >
+                                            <Download className="w-4 h-4" />
+                                            View Director-Signed Copy
+                                        </a>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Project Budget */}
                         <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
                             <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
@@ -729,6 +1070,8 @@ const TravelDetails: React.FC = () => {
                                 defaultBudgetHead={defaultCommitBudgetHead}
                                 actualBalance={actualBalance}
                                 billAmount={Number(formData.total_estimate) || undefined}
+                                disabled={!canSubmitCommitment}
+                                disabledReason="Only staff, RnD can submit a commitment. Hos, RnD can view what staff, RnD already committed here."
                                 onCommitSuccess={() => handleRefresh()}
                                 onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
                             />

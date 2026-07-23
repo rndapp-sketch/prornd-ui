@@ -13,12 +13,12 @@ import {
     XIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { selectionCommitteeReportAPI, icssAPI, indentGeneralFormAPI } from "@/services/apiService";
+import { selectionCommitteeReportAPI, icssAPI, indentGeneralFormAPI, travelAPI } from "@/services/apiService";
 import { DepartmentName } from "@/components/DepartmentName";
 
 type PendingDoc = {
     name: string;
-    _doctype: "Selection Committee Report" | "Indent Cum Sanction Sheet" | "Indent General Form";
+    _doctype: "Selection Committee Report" | "Indent Cum Sanction Sheet" | "Indent General Form" | "Travel";
     _attachApi: string;
     interview_id?: string;
     principal_investigator?: string;
@@ -30,7 +30,7 @@ type PendingDoc = {
     modified?: string;
 };
 
-type ModuleFilter = "" | "Indent Cum Sanction Sheet" | "Selection Committee Report" | "Indent General Form";
+type ModuleFilter = "" | "Indent Cum Sanction Sheet" | "Selection Committee Report" | "Indent General Form" | "Travel";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -39,6 +39,7 @@ const MODULE_OPTIONS: { label: string; short: string; value: ModuleFilter }[] = 
     { label: "Indent Cum Sanction Sheet", short: "ICSS", value: "Indent Cum Sanction Sheet" },
     { label: "Selection Committee Report", short: "SCR", value: "Selection Committee Report" },
     { label: "Indent General Form", short: "IGF", value: "Indent General Form" },
+    { label: "Travel", short: "Travel", value: "Travel" },
 ];
 
 const MODULE_BADGE: Record<string, { bg: string; text: string }> = {
@@ -54,6 +55,17 @@ const MODULE_BADGE: Record<string, { bg: string; text: string }> = {
         bg: "bg-emerald-100 dark:bg-emerald-900/40",
         text: "text-emerald-700 dark:text-emerald-300",
     },
+    "Travel": {
+        bg: "bg-orange-100 dark:bg-orange-900/40",
+        text: "text-orange-700 dark:text-orange-300",
+    },
+};
+
+const MODULE_SHORT: Record<string, string> = {
+    "Indent Cum Sanction Sheet": "ICSS",
+    "Selection Committee Report": "SCR",
+    "Indent General Form": "IGF",
+    "Travel": "Travel",
 };
 
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
@@ -106,8 +118,27 @@ const DirectorPdfUpload = () => {
         {},
     );
 
-    const isLoading = scrLoading || icssLoading || igfLoading;
-    const error = scrError || icssError || igfError;
+    const {
+        data: travelData,
+        isLoading: travelLoading,
+        error: travelError,
+        mutate: travelMutate,
+    } = useFrappeGetCall<{ message: { status: string; data: any[] } }>(
+        travelAPI.getPendingDirectorUploads,
+        {},
+    );
+
+    const isLoading = scrLoading || icssLoading || igfLoading || travelLoading;
+    // Only block the whole page if every module failed — a single module's
+    // endpoint being down (e.g. Indent General Form's director-approval
+    // backend isn't implemented yet) shouldn't hide data from the others.
+    const error = scrError && icssError && igfError && travelError;
+    const partiallyFailedModules = [
+        scrError && "Selection Committee Report",
+        icssError && "Indent Cum Sanction Sheet",
+        igfError && "Indent General Form",
+        travelError && "Travel",
+    ].filter(Boolean) as string[];
 
     const allDocs: PendingDoc[] = useMemo(() => [
         ...(icssData?.message?.data ?? []).map((d: any) => ({
@@ -129,7 +160,15 @@ const DirectorPdfUpload = () => {
             project_name: d.igf_project_title,
             upfa_department: d.igf_department_centre_section,
         })),
-    ], [icssData, scrData, igfData]);
+        ...(travelData?.message?.data ?? []).map((d: any) => ({
+            ...d,
+            _doctype: "Travel" as const,
+            _attachApi: travelAPI.attachDirectorPdf,
+            principal_investigator: d.applicant_name_travel,
+            project_number: d.travel_project_number,
+            upfa_department: d.department_travel,
+        })),
+    ], [icssData, scrData, igfData, travelData]);
 
     const uploadedCount = allDocs.filter((d) => d.director_signed_pdf?.trim()).length;
     const pendingCount = allDocs.length - uploadedCount;
@@ -161,6 +200,7 @@ const DirectorPdfUpload = () => {
         scrMutate();
         icssMutate();
         igfMutate();
+        travelMutate();
     };
 
     const handleModuleChange = (val: ModuleFilter) => {
@@ -208,6 +248,15 @@ const DirectorPdfUpload = () => {
                         </button>
                     </div>
                 </FrappeCard>
+
+                {/* Partial-failure notice — one module's endpoint being down
+                    shouldn't hide data from the others */}
+                {!isLoading && !error && partiallyFailedModules.length > 0 && (
+                    <div className="mb-5 flex items-center gap-2 px-4 py-2.5 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 text-[12px] font-medium text-amber-800 dark:text-amber-300">
+                        <AlertCircleIcon className="w-4 h-4 shrink-0" />
+                        Could not load: {partiallyFailedModules.join(", ")}. Other modules are shown below.
+                    </div>
+                )}
 
                 {/* Stat row */}
                 {!isLoading && !error && (
@@ -416,7 +465,7 @@ const TableRow = ({ doc, onDone }: { doc: PendingDoc; onDone: () => void }) => {
 
     const uploaded = !!(doc.director_signed_pdf?.trim());
     const badge = MODULE_BADGE[doc._doctype];
-    const short = doc._doctype === "Indent Cum Sanction Sheet" ? "ICSS" : "SCR";
+    const short = MODULE_SHORT[doc._doctype] ?? doc._doctype;
 
     const onView = () => {
         if (doc.director_signed_pdf) window.open(doc.director_signed_pdf, "_blank");

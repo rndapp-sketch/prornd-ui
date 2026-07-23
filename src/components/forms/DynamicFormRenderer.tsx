@@ -281,7 +281,12 @@ const MemoizedFormField = memo(
                         field.fieldname === "applicant_department" ||
                         field.fieldname === "account_head") &&
                         value)
-                        ? "text-transparent focus:text-zinc-900 dark:focus:text-zinc-100 disabled:text-transparent dark:disabled:text-transparent bg-transparent relative z-10"
+                        // Keep the native select's own text permanently transparent
+                        // (not just on blur) — the overlay div below is the only
+                        // thing that should ever be visible, otherwise the two
+                        // labels render on top of each other once the select
+                        // regains focus (e.g. right after picking a value).
+                        ? "text-transparent disabled:text-transparent dark:disabled:text-transparent bg-transparent relative z-10"
                         : "",
                     )}
                   >
@@ -330,7 +335,9 @@ const MemoizedFormField = memo(
                       field.fieldname === "applicant_department" ||
                       field.fieldname === "account_head") &&
                       value)
-                      ? "text-transparent focus:text-zinc-900 dark:focus:text-zinc-100 placeholder:text-transparent focus:placeholder:text-zinc-400 disabled:text-transparent dark:disabled:text-transparent relative z-10"
+                      // Keep text permanently transparent (not just on blur) so it
+                      // never renders on top of the resolved-label overlay below.
+                      ? "text-transparent placeholder:text-transparent disabled:text-transparent dark:disabled:text-transparent relative z-10"
                       : "",
                     "pr-10",
                   )}
@@ -726,6 +733,19 @@ const MemoizedFormField = memo(
             return (
               <div className="flex min-h-10 w-full rounded-md border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]/60 px-3 py-2 text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5] whitespace-normal break-words leading-relaxed">
                 <DepartmentName name={value} />
+              </div>
+            );
+          }
+
+          // "Account Head from Travel" (TA DA Settlement) is a plain Data field,
+          // auto-fetched from the linked Travel doc's account_head, that stores
+          // a Budget Head doc id/name — not something a user hand-types. Always
+          // show the resolved budget_head label (both read-only and editable
+          // views) instead of the raw id, same as the Link-typed account_head fields.
+          if (value && field.fieldname === "ta_da_account_head") {
+            return (
+              <div className="flex min-h-10 w-full rounded-md border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]/60 px-3 py-2 text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5] whitespace-normal break-words leading-relaxed">
+                <BudgetHeadName id={value} />
               </div>
             );
           }
