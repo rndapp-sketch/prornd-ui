@@ -89,9 +89,17 @@ const DEPOSIT_SLIP_STATIC_FIELDS: Record<string, any[]> = {
         { fieldname: "bank", label: "Bank", fieldtype: "Data", mandatory: false, read_only: false, hidden: false },
         { fieldname: "calculations_section", label: "Calculations", fieldtype: "Section Break" },
         { fieldname: "amount_inclusive_of_gst", label: "Amount Inclusive of GST", fieldtype: "Currency", mandatory: true, read_only: false, hidden: false },
-        { fieldname: "igst_18", label: "IGST @18%", fieldtype: "Currency", mandatory: false, read_only: true, hidden: false },
-        { fieldname: "consultancy_fee_x", label: "Consultancy Fee X", fieldtype: "Currency", mandatory: false, read_only: true, hidden: false, description: "Consultancy Fee (After GST Deduction)" },
-        { fieldname: "overhead_amount", label: "Overhead Amount", fieldtype: "Currency", read_only: true, hidden: false },
+        { fieldname: "income_tax_tds", label: "Income Tax TDS", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "gst_tds_2", label: "GST TDS", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "amount_actually_received", label: "Amount Actually Received", fieldtype: "Currency", mandatory: false, read_only: true, hidden: false, description: "Amount Inclusive of GST − Income Tax TDS − GST TDS" },
+        { fieldname: "cgst_9", label: "CGST @9%", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "sgst_9", label: "SGST @9%", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "igst_18", label: "IGST @18%", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "consultancy_fee_x", label: "Consultancy Fee X", fieldtype: "Currency", mandatory: false, read_only: true, hidden: false, description: "Amount Actually Received − GST (CGST+SGST or IGST)" },
+        { fieldname: "overhead_multiplier", label: "Overhead Multiplier", fieldtype: "Float", mandatory: false, read_only: false, hidden: false, default: "0.3", description: "Default: 0.3 (30%)" },
+        { fieldname: "overhead_amount", label: "Overhead Amount", fieldtype: "Currency", read_only: true, hidden: false, description: "Overhead Multiplier × Consultancy Fee X" },
+        { fieldname: "credit_distribution_section", label: "Credit Distribution", fieldtype: "Section Break" },
+        { fieldname: "credit_distribution", label: "Credit Distribution", fieldtype: "Table", read_only: false, hidden: false },
         { fieldname: "totals_section", label: "Totals", fieldtype: "Section Break" },
         { fieldname: "total_gst", label: "Total GST", fieldtype: "Currency", read_only: false, hidden: false },
         { fieldname: "total_budget", label: "Total Budget", fieldtype: "Currency", read_only: true, hidden: false },
@@ -664,6 +672,19 @@ const FundReceivedDetails = () => {
                 client_scripts = payload.client_scripts;
                 related_data = payload.related_data || null;
                 if (payload.child_table_meta) setChildTableMeta(payload.child_table_meta);
+                // Inject e_non_routine credit_distribution meta if backend doesn't return it
+                if (type === "e_non_routine" && (!payload.child_table_meta || !payload.child_table_meta.credit_distribution)) {
+                    setChildTableMeta(prev => ({
+                        ...prev,
+                        credit_distribution: {
+                            fields: [
+                                { fieldname: "label", label: "Account", fieldtype: "Data", read_only: false },
+                                { fieldname: "percentage_of_overhead", label: "Percentage (%)", fieldtype: "Float", read_only: false },
+                                { fieldname: "amount", label: "Amount", fieldtype: "Currency", read_only: true },
+                            ],
+                        },
+                    }));
+                }
                 console.log(`[DepositSlip] apiFields from backend: ${apiFields?.length ?? 0} fields`);
             } else {
                 console.log(`[DepositSlip] backend returned no usable payload — will use static fallback`);
@@ -689,6 +710,10 @@ const FundReceivedDetails = () => {
             setFields(processedFields);
             const initialData: FormData = {};
             processedFields.forEach((f: Field) => { if (f.default) initialData[f.fieldname] = f.default; });
+            // Ensure e_non_routine defaults
+            if (type === "e_non_routine" && !initialData.overhead_multiplier) {
+                initialData.overhead_multiplier = 0.3;
+            }
 
             // Step 3: auto-fill from project registration — type-aware field mapping.
             // Bank/ECS fill is unconditional (from the Fund Received doc itself).
