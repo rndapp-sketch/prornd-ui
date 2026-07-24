@@ -56,6 +56,12 @@ export const useDepositSlipCalculations = (
         .join("|");
 
       return `rc:${amount}:${multiplier}:${tableSig}`;
+    } else if (depositSlipType === "d_consultancy") {
+      // For D Consultancy, track ONLY the amount that triggers full recalculation
+      // Do NOT track Y or Z in signature to allow user manual edits without interference
+      const amount = flt(formData.amount_inclusive_of_gst);
+
+      return `dc:${amount}`;
     } else if (depositSlipType === "t_testing") {
       const amount = flt(formData.amount_inclusive_of_gst);
       const cgst = flt(formData.cgst_9);
@@ -101,6 +107,15 @@ export const useDepositSlipCalculations = (
         })
         .join("|");
       return `rds:${total}:${overhead}:${childTableSigs}`;
+    } else if (depositSlipType === "e_non_routine") {
+      const amount = flt(formData.amount_inclusive_of_gst);
+      const incomeTaxTds = flt(formData.income_tax_tds);
+      const gstTds2 = flt(formData.gst_tds_2);
+      const cgst9 = flt(formData.cgst_9);
+      const sgst9 = flt(formData.sgst_9);
+      const igst18 = flt(formData.igst_18);
+      const multiplier = flt(formData.overhead_multiplier) || 0.3;
+      return `enr:${amount}:${incomeTaxTds}:${gstTds2}:${cgst9}:${sgst9}:${igst18}:${multiplier}`;
     }
     return "";
   };
@@ -110,7 +125,7 @@ export const useDepositSlipCalculations = (
   useEffect(() => {
     // Guard: unsupported type
     if (
-      !["research_consultancy", "t_testing", "research_deposit_slip"].includes(
+      !["research_consultancy", "t_testing", "research_deposit_slip", "d_consultancy", "e_non_routine"].includes(
         depositSlipType,
       )
     ) {
@@ -132,6 +147,13 @@ export const useDepositSlipCalculations = (
       return;
     }
     if (
+      depositSlipType === "d_consultancy" &&
+      flt(data.amount_inclusive_of_gst) <= 0
+    ) {
+      lastSignatureRef.current = currentSignature;
+      return;
+    }
+    if (
       depositSlipType === "t_testing" &&
       flt(data.amount_inclusive_of_gst) <= 0
     ) {
@@ -148,6 +170,13 @@ export const useDepositSlipCalculations = (
       lastSignatureRef.current = currentSignature;
       return;
     }
+    if (
+      depositSlipType === "e_non_routine" &&
+      flt(data.amount_inclusive_of_gst) <= 0
+    ) {
+      lastSignatureRef.current = currentSignature;
+      return;
+    }
 
     console.log(
       `useDepositSlipCalculations [${depositSlipType}]: Calculating...`,
@@ -160,10 +189,14 @@ export const useDepositSlipCalculations = (
 
     if (depositSlipType === "research_consultancy") {
       updates = calculateResearchConsultancy(data);
+    } else if (depositSlipType === "d_consultancy") {
+      updates = calculateDConsultancy(data);
     } else if (depositSlipType === "t_testing") {
       updates = calculateTTesting(data);
     } else if (depositSlipType === "research_deposit_slip") {
       updates = calculateResearchDeposit(data);
+    } else if (depositSlipType === "e_non_routine") {
+      updates = calculateENonRoutine(data);
     }
 
     setFormData((prev) => ({ ...prev, ...updates }));
@@ -173,21 +206,82 @@ export const useDepositSlipCalculations = (
 };
 
 // =============================================================
+// E NON-ROUTINE CALCULATIONS
+// =============================================================
+const ENR_DEFAULT_ROWS = [
+  { label: "IDF", percentage_of_overhead: 40 },
+  { label: "DPF", percentage_of_overhead: 50 },
+  { label: "Student Welfare Fund", percentage_of_overhead: 5 },
+  { label: "Staff Welfare Fund", percentage_of_overhead: 5 },
+];
+
+function calculateENonRoutine(formData: FormData): FormData {
+  const amountInclGst = flt(formData.amount_inclusive_of_gst);
+  const incomeTaxTds = flt(formData.income_tax_tds);
+  const gstTds2 = flt(formData.gst_tds_2);
+  const cgst9 = flt(formData.cgst_9);
+  const sgst9 = flt(formData.sgst_9);
+  const igst18 = flt(formData.igst_18);
+  const multiplier = flt(formData.overhead_multiplier) || 0.3;
+
+  // Step 1: Amount Actually Received
+  const amountActuallyReceived = flt(amountInclGst - incomeTaxTds - gstTds2);
+
+  // Step 2: Consultancy Fee X (after GST deduction)
+  let consultancyFeeX: number;
+  if (igst18 > 0) {
+    consultancyFeeX = flt(amountActuallyReceived - igst18);
+  } else {
+    consultancyFeeX = flt(amountActuallyReceived - cgst9 - sgst9);
+  }
+
+  // Step 3: Overhead
+  const overheadAmount = flt(multiplier * consultancyFeeX);
+
+  // Step 4: credit_distribution — pre-fill if empty, always recalculate amounts
+  const existingRows: any[] = Array.isArray(formData.credit_distribution) && formData.credit_distribution.length > 0
+    ? formData.credit_distribution
+    : ENR_DEFAULT_ROWS.map(r => ({ ...r }));
+
+  const creditDistribution = existingRows.map((row: any) => ({
+    ...row,
+    amount: flt(overheadAmount * (flt(row.percentage_of_overhead) / 100)),
+  }));
+
+  // Step 5: Balance In Project & Total Budget
+  // GST component: use IGST if non-zero, otherwise CGST+SGST
+  const gstComponent = igst18 > 0 ? igst18 : flt(cgst9 + sgst9);
+  const balanceInProject = flt(consultancyFeeX - overheadAmount);
+  const creditSum = creditDistribution.reduce((s: number, r: any) => s + flt(r.amount), 0);
+  const totalBudget = flt(creditSum + gstComponent + balanceInProject);
+
+  return {
+    overhead_multiplier: multiplier,
+    amount_actually_received: amountActuallyReceived,
+    consultancy_fee_x: consultancyFeeX,
+    overhead_amount: overheadAmount,
+    credit_distribution: creditDistribution,
+    balance_in_project: balanceInProject,
+    total_budget: totalBudget,
+  };
+}
+
+// =============================================================
 // RESEARCH CONSULTANCY CALCULATIONS
 // =============================================================
 function calculateResearchConsultancy(formData: FormData): FormData {
   const totalInclusive = flt(formData.amount_inclusive_gst_capital);
   const multiplier = flt(formData.overhead_multiplier) || 15;
 
-  const projectBalance = totalInclusive / 1.18;
-  const cgst = projectBalance * 0.09;
-  const sgst = projectBalance * 0.09;
-  const overheadAmount = projectBalance * (multiplier / (100 + multiplier));
-  const projectAmount = projectBalance - overheadAmount;
-  const idfAmt = overheadAmount * (RC_PCT_IDF / 100);
-  const dpfAmt = overheadAmount * (RC_PCT_DPF / 100);
-  const staffAmt = overheadAmount * (RC_PCT_STAFF_WELFARE / 100);
-  const studentAmt = overheadAmount * (RC_PCT_STUDENT_WELFARE / 100);
+  const projectBalance = flt(totalInclusive / 1.18);
+  const cgst = flt(projectBalance * 0.09);
+  const sgst = flt(projectBalance * 0.09);
+  const overheadAmount = flt(projectBalance * (multiplier / (100 + multiplier)));
+  const projectAmount = flt(projectBalance - overheadAmount);
+  const idfAmt = flt(overheadAmount * (RC_PCT_IDF / 100));
+  const dpfAmt = flt(overheadAmount * (RC_PCT_DPF / 100));
+  const staffAmt = flt(overheadAmount * (RC_PCT_STAFF_WELFARE / 100));
+  const studentAmt = flt(overheadAmount * (RC_PCT_STUDENT_WELFARE / 100));
 
   // Handle credit distribution
   const currentDist = formData.credit_distribution || [];
@@ -409,4 +503,111 @@ function calculateResearchDeposit(formData: FormData): FormData {
       ...zeroedTables,
     };
   }
+}
+
+// =============================================================
+// D CONSULTANCY CALCULATIONS (Frappe Backend Logic)
+// =============================================================
+function calculateDConsultancy(formData: FormData): FormData {
+  const amountInclGst = flt(formData.amount_inclusive_of_gst);
+
+  if (amountInclGst <= 0) {
+    return {
+      igst_18_on_consultancy: 0,
+      amount_after_gst_tds: 0,
+      total_cost_x: 0,
+      consultancy_charge_y: 0,
+      operational_charge_z: 0,
+      overhead_from_y_amount: 0,
+      overhead_from_z_amount: 0,
+      total_overhead_amount: 0,
+      institute_share_amount: 0,
+      total_overhead_institute_share: 0,
+      idf_percentage: 40,
+      idf_amount: 0,
+      dpf_amount: 0,
+      staff_welfare_amount: 0,
+      student_welfare_amount: 0,
+      balance_consultancy_fee: 0,
+      balance_operation_charge: 0,
+      total_gst: 0,
+      total_amount: 0,
+    };
+  }
+
+  // === GST CALCULATIONS ===
+  const taxableAmount = flt(amountInclGst / 1.18);
+  const igstAmount = flt(taxableAmount * 0.18);
+  const tdsAmount = Math.round(taxableAmount * 0.02);
+  const amountAfterTds = flt(amountInclGst - tdsAmount);
+  const totalCostX = flt(amountAfterTds - igstAmount);
+
+  // === Y AND Z SPLIT ===
+  const chargeY = flt(totalCostX * 0.30);
+  const chargeZ = flt(totalCostX - chargeY);
+
+  // === OVERHEAD AND DISTRIBUTION CALCULATIONS ===
+  const overheadFromY = flt(chargeY * 0.1);
+  const overheadFromZ = flt(chargeZ * 0.1);
+  const totalOverhead = flt(overheadFromY + overheadFromZ);
+  const instituteShare = flt(chargeY * 0.2);
+  const totalOverheadAndShare = flt(totalOverhead + instituteShare);
+
+  // === CREDIT DISTRIBUTION ===
+  // IDF percentage defaults to 40% (user-editable)
+  const idfPercentage = flt(formData.idf_percentage) || 40;
+  const idfAmt = flt(totalOverheadAndShare * (idfPercentage / 100));
+
+  // Staff and Student welfare are FIXED at 5% each
+  const staffWelfareAmt = flt(totalOverheadAndShare * 0.05);
+  const studentWelfareAmt = flt(totalOverheadAndShare * 0.05);
+
+  // DPF total is calculated based on user-entered row percentages
+  // Total DPF = 100% - IDF% - Staff 5% - Student 5%
+  const totalDpfPercentage = flt(100 - idfPercentage - 5 - 5);
+  const dpfAmt = flt(totalOverheadAndShare * (totalDpfPercentage / 100));
+
+  // === UPDATE DPF CHILD TABLE (Similar to Research Consultancy) ===
+  const currentDpfDist = formData.dpf_credit_distributions || [];
+  let updatedDpfDist = [...currentDpfDist];
+
+  if (currentDpfDist.length > 0) {
+    updatedDpfDist = currentDpfDist.map((row: any) => {
+      const rowPercentage = flt(row.dpf_percentage || 0);
+      const rowAmount = flt(totalOverheadAndShare * (rowPercentage / 100));
+      return {
+        ...row,
+        dpf_amount: rowAmount,
+      };
+    });
+  }
+
+  // === FINAL BALANCES ===
+  const balanceConsultancyFee = flt(chargeY - overheadFromY - instituteShare);
+  const balanceOperationCharge = flt(chargeZ - overheadFromZ);
+  const totalGst = igstAmount;
+  const totalAmount = amountAfterTds;
+
+  return {
+    igst_18_on_consultancy: igstAmount,
+    amount_after_gst_tds: amountAfterTds,
+    total_cost_x: totalCostX,
+    consultancy_charge_y: chargeY,
+    operational_charge_z: chargeZ,
+    overhead_from_y_amount: overheadFromY,
+    overhead_from_z_amount: overheadFromZ,
+    total_overhead_amount: totalOverhead,
+    institute_share_amount: instituteShare,
+    total_overhead_institute_share: totalOverheadAndShare,
+    idf_percentage: idfPercentage,
+    idf_amount: idfAmt,
+    dpf_amount: dpfAmt,
+    staff_welfare_amount: staffWelfareAmt,
+    student_welfare_amount: studentWelfareAmt,
+    balance_consultancy_fee: balanceConsultancyFee,
+    balance_operation_charge: balanceOperationCharge,
+    total_gst: totalGst,
+    total_amount: totalAmount,
+    dpf_credit_distributions: updatedDpfDist,
+  };
 }

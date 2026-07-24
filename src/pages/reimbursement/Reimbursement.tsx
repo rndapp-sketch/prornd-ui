@@ -48,6 +48,21 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
     </button>
 );
 
+// Maps Frappe mandatory-error field names to readable labels using the loaded fields list.
+// Frappe error format: "[DocType, docname]: field1, field2"
+const parseFrappeError = (errMsg: string, fieldsList: FormField[]): string => {
+    const mandatoryMatch = errMsg.match(/\[.*?\]:\s*(.+)$/s);
+    if (mandatoryMatch) {
+        const rawFields = mandatoryMatch[1].split(',').map((f) => f.trim()).filter(Boolean);
+        const labels = rawFields.map((fn) => {
+            const found = fieldsList.find((f) => f.fieldname === fn);
+            return found?.label || fn.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+        });
+        return `The following required fields are missing or incomplete:\n• ${labels.join('\n• ')}`;
+    }
+    return errMsg;
+};
+
 // --- MAIN REIMBURSEMENT COMPONENT ---
 const AUTOCOMPLETE_FIELDS = ['applicant_webmail', 'reimbursement_for_id'];
 
@@ -68,6 +83,7 @@ const Reimbursement: React.FC = () => {
     const [savedDocName, setSavedDocName] = useState<string | null>(null);
     const [dataLoaded, setDataLoaded] = useState(false);
     const [projectTitle, setProjectTitle] = useState<string>('');
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
     // --- API HOOKS ---
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall<FormDataResponse>('rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_reimbursement_fields');
@@ -363,6 +379,7 @@ const Reimbursement: React.FC = () => {
 
     const handleSave = async () => {
         if (isSubmitting) return;
+        setErrorMsg(null);
 
         // Validate all visible declaration checkboxes are checked before saving
         const uncheckedFields = fields.filter(f =>
@@ -372,7 +389,7 @@ const Reimbursement: React.FC = () => {
         );
         if (uncheckedFields.length > 0) {
             const names = uncheckedFields.map(f => f.label || f.fieldname).join(', ');
-            alert(`Please select all declaration checkboxes before saving: ${names}`);
+            setErrorMsg(`Please select all declaration checkboxes before saving: ${names}`);
             return;
         }
 
@@ -390,7 +407,6 @@ const Reimbursement: React.FC = () => {
 
             if (res?.message?.status === 'success') {
                 setIsSaved(true);
-                // Remember the docname so future saves/submits update the same document
                 const newDocName = res.message.docname || effectiveDocName;
                 if (newDocName) setSavedDocName(newDocName);
                 alert(effectiveDocName ? "Reimbursement updated successfully!" : "Draft saved successfully!");
@@ -402,7 +418,7 @@ const Reimbursement: React.FC = () => {
             }
         } catch (err: any) {
             console.error(effectiveDocName ? editError : saveError || err);
-            alert(`Save failed: ${err.message || "Unknown error"}`);
+            setErrorMsg(parseFrappeError(err.message || "Unknown error", fields));
         } finally {
             setIsSubmitting(false);
         }
@@ -411,6 +427,7 @@ const Reimbursement: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (isSubmitting) return;
+        setErrorMsg(null);
         setIsSubmitting(true);
         try {
             const data = await prepareFormDataForApi(formData);
@@ -428,7 +445,6 @@ const Reimbursement: React.FC = () => {
             }
 
             const docname = saveRes.message.docname || effectiveDocName;
-            // Remember it in case submit fails and user retries
             if (docname) setSavedDocName(docname);
 
             const submitRes = await submitForm({ docname });
@@ -440,7 +456,7 @@ const Reimbursement: React.FC = () => {
             }
         } catch (err: any) {
             console.error(submitError || err);
-            alert(`Submission failed: ${err.message || "Please check the console for details."}`);
+            setErrorMsg(parseFrappeError(err.message || "Please check the console for details.", fields));
         } finally {
             setIsSubmitting(false);
         }
@@ -487,6 +503,12 @@ const Reimbursement: React.FC = () => {
                             autocompleteFields={AUTOCOMPLETE_FIELDS}
                         />
                     </FrappeCard>
+
+                    {errorMsg && (
+                        <div className="mt-6 p-4 rounded-xl border border-red-200 dark:border-red-800/40 bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-300 text-sm font-medium whitespace-pre-line">
+                            {errorMsg}
+                        </div>
+                    )}
 
                     {(!editDocName || formData.docstatus === 0) && (
                         <div className="mt-8 flex justify-end gap-4">

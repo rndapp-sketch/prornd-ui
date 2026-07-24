@@ -28,7 +28,8 @@ export const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamPro
         const [isSubmitting, setIsSubmitting] = useState(false);
         const { data: activityData, mutate: refetchActivity } = useFrappeGetCall<{ message: ActivityItem[] }>(
             "rndopsapp.rndopsapp.api.get_project_activity",
-            { doctype, docname }
+            { doctype, docname },
+            doctype && docname ? undefined : null
         );
         const visibleActivity = commentsOnly
             ? (activityData?.message ?? []).filter((item) => item.comment_type === "Comment")

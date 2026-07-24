@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
 import { AppSidebar } from "../../components/RndSidebar";
 import {
@@ -13,16 +14,21 @@ import {
   UserIcon,
   DownloadIcon,
   FileSpreadsheetIcon as LedgerIcon,
+  ChevronDown,
+  ChevronRight,
+  CheckCircle2 as CheckCircleIcon,
+  XCircle as XCircleIcon,
+  Pencil as PencilIcon,
+  AlertTriangle,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { useUserRoles } from "../../components/UserRole";
 import { ProjectLedgerModal } from "../../components/ProjectLedgerModal";
-import { Textarea } from "@/components/ui/textarea"; // Assuming this exists, if not use standard textarea
 import { DeclarationFields } from "@/components/DeclarationFields";
 import { CommitPayment } from "@/components/CommitPayment";
-import { ActivityLog } from "@/components/ActivityLog";
+import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import ViewProjectButton from "@/components/ViewProjectButton";
 
 // --- TYPE DEFINITIONS ---
@@ -55,7 +61,7 @@ interface ReimbursementData {
   [key: string]: any;
 }
 
-// Frappe-styled components
+// --- DESIGN SYSTEM ---
 const FrappeCard = ({
   title,
   children,
@@ -67,18 +73,18 @@ const FrappeCard = ({
 }) => (
   <div
     className={cn(
-      "bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl shadow-sm",
+      "bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm overflow-hidden",
       className,
     )}
   >
     {title && (
-      <div className="px-6 py-4 border-b border-zinc-300 dark:border-zinc-700">
-        <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">
+      <div className="px-[22px] py-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
+        <h3 className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">
           {title}
         </h3>
       </div>
     )}
-    <div className="p-6">{children}</div>
+    <div className="p-[18px] md:p-6">{children}</div>
   </div>
 );
 
@@ -104,9 +110,9 @@ const FrappeButton = ({
       variant === "primary" &&
       "bg-[#D97757] text-white hover:bg-[#D97757] shadow-md hover:shadow-lg border border-[#C66A4E]",
       variant === "ghost" &&
-      "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100",
+      "bg-transparent text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]",
       variant === "outline" &&
-      "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-lg dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800",
+      "bg-white border border-[#E4E4E7] text-[#3F3F46] hover:bg-[#FAFAF9] rounded-lg dark:bg-[#27272A] dark:border-[#3F3F46] dark:text-[#E4E4E7] dark:hover:bg-[#3F3F46]",
       variant === "action" &&
       "bg-[#D97757] text-white font-bold hover:bg-[#D97757] shadow-md hover:shadow-lg border-2 border-[#C66A4E]",
       "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
@@ -115,6 +121,18 @@ const FrappeButton = ({
   >
     {children}
   </button>
+);
+
+const FieldLabel = ({ children }: { children: React.ReactNode }) => (
+  <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">
+    {children}
+  </label>
+);
+
+const FieldValue = ({ children }: { children: React.ReactNode }) => (
+  <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
+    {children}
+  </div>
 );
 
 // --- COMMENT MODAL ---
@@ -137,30 +155,20 @@ const CommentModal = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-md">
-        <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
+      <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-6 rounded-2xl shadow-lg w-full max-w-md">
+        <h3 className="text-lg font-semibold text-[#3F3F46] dark:text-[#E4E4E7] mb-4">
           Confirm {action}
         </h3>
         <textarea
-          className="w-full border border-zinc-300 dark:border-zinc-700 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757]"
+          className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757]"
           rows={4}
           placeholder="Add a comment (optional)..."
           value={comment}
           onChange={(e) => setComment(e.target.value)}
         />
         <div className="flex justify-end gap-2">
-          <FrappeButton
-            variant="outline"
-            onClick={onClose}
-            disabled={isLoading}
-          >
-            Cancel
-          </FrappeButton>
-          <FrappeButton
-            variant="primary"
-            onClick={() => onSubmit(comment)}
-            disabled={isLoading}
-          >
+          <FrappeButton variant="outline" onClick={onClose} disabled={isLoading}>Cancel</FrappeButton>
+          <FrappeButton variant="primary" onClick={() => onSubmit(comment)} disabled={isLoading}>
             {isLoading ? "Processing..." : "Confirm"}
           </FrappeButton>
         </div>
@@ -169,31 +177,63 @@ const CommentModal = ({
   );
 };
 
-// --- WORKFLOW ACTIONS COMPONENT ---
-const ReimbursementWorkflowActions = ({
+// --- ACTIONS DROPDOWN ---
+const ActionsDropdown = ({
   docname,
+  workflowState,
   onActionComplete,
+  onEdit,
+  onSubmit,
+  onDownload,
+  isSubmitting,
   commitRequired = false,
 }: {
   docname: string;
+  workflowState: string;
   onActionComplete: () => void;
+  onEdit: () => void;
+  onSubmit: () => void;
+  onDownload: () => void;
+  isSubmitting: boolean;
   commitRequired?: boolean;
 }) => {
-  const { data, isLoading: actionsLoading } = useFrappeGetCall<{
-    message: string[];
-  }>(
+  const { data, isLoading: actionsLoading } = useFrappeGetCall<{ message: string[] }>(
     "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_reimbursement_workflow_actions",
     { docname },
   );
-
   const { call: performAction, loading: actionLoading } = useFrappePostCall(
     "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.perform_reimbursement_action",
   );
 
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedAction, setSelectedAction] = useState("");
+  const toggleBtnRef = React.useRef<HTMLButtonElement>(null);
+  const dropdownPortalRef = React.useRef<HTMLDivElement>(null);
 
-  const handleActionClick = (action: string) => {
+  React.useEffect(() => {
+    if (!dropdownOpen) return;
+    const handleOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (!toggleBtnRef.current?.contains(target) && !dropdownPortalRef.current?.contains(target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [dropdownOpen]);
+
+  const handleToggleDropdown = () => {
+    if (!dropdownOpen && toggleBtnRef.current) {
+      const rect = toggleBtnRef.current.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom + window.scrollY + 4, right: window.innerWidth - rect.right });
+    }
+    setDropdownOpen((o) => !o);
+  };
+
+  const handleWorkflowClick = (action: string) => {
+    setDropdownOpen(false);
     setSelectedAction(action);
     setModalOpen(true);
   };
@@ -209,33 +249,159 @@ const ReimbursementWorkflowActions = ({
     }
   };
 
-  // Filter out "Submit" since the header already has a dedicated Submit button for Draft state
-  const filteredActions = (data?.message || []).filter(
-    (action) => action.toLowerCase() !== "submit",
-  );
+  const isDraft = workflowState === "Draft" || !workflowState;
+  // workflow actions from API, excluding "Submit" (handled by our own submit logic)
+  const workflowActions = (data?.message || []).filter((a) => a.toLowerCase() !== "submit");
 
-  if (actionsLoading || !filteredActions.length) return null;
+  const categorise = (action: string) => {
+    const a = action.toLowerCase();
+    if (a.includes("forward") || a.includes("approve")) return "forward";
+    if (a.includes("reject")) return "reject";
+    return "neutral";
+  };
+
+  const forwardActions = workflowActions.filter((a) => categorise(a) === "forward");
+  const neutralActions = workflowActions.filter((a) => categorise(a) === "neutral");
+  const rejectActions = workflowActions.filter((a) => categorise(a) === "reject");
+
+  const itemStyle = (action: string) => {
+    const cat = categorise(action);
+    if (cat === "forward") return {
+      icon: <CheckCircleIcon className="h-3.5 w-3.5" />,
+      cls: "text-[#D97757] hover:bg-orange-50 dark:hover:bg-orange-900/20",
+      iconCls: "text-[#D97757]",
+    };
+    if (cat === "reject") return {
+      icon: <XCircleIcon className="h-3.5 w-3.5" />,
+      cls: "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20",
+      iconCls: "text-red-500",
+    };
+    return {
+      icon: <ChevronRight className="h-3.5 w-3.5" />,
+      cls: "text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-700",
+      iconCls: "text-zinc-400 dark:text-zinc-500",
+    };
+  };
+
+  const isLoading = actionsLoading || actionLoading || isSubmitting;
 
   return (
     <>
-      {commitRequired && (
-        <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300 font-medium mb-4">
-          A commitment must be submitted before forwarding this application.
-        </div>
-      )}
-      <div className="flex gap-2 mb-4">
-        {filteredActions.map((action) => (
-          <FrappeButton
-            key={action}
-            onClick={() => handleActionClick(action)}
-            disabled={actionLoading || commitRequired}
-            variant={commitRequired ? "outline" : "action"}
-            className={commitRequired ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed border-0" : ""}
+      <div className="relative">
+        <button
+          ref={toggleBtnRef}
+          onClick={handleToggleDropdown}
+          disabled={isLoading}
+          className={cn(
+            "inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg shadow-sm transition-all disabled:opacity-50",
+            dropdownOpen
+              ? "bg-[#D97757] text-white border border-[#c66a4e]"
+              : "bg-[#FFF7ED] dark:bg-[#D97757]/15 text-[#D97757] border border-[#D97757]/40 hover:bg-[#D97757] hover:text-white dark:hover:bg-[#D97757]/30",
+          )}
+        >
+          {isLoading ? "Processing…" : "Actions"}
+          <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-150", dropdownOpen && "rotate-180")} />
+        </button>
+
+        {dropdownOpen && createPortal(
+          <div
+            ref={dropdownPortalRef}
+            style={{ position: "absolute", top: dropdownPos.top, right: dropdownPos.right, zIndex: 9999 }}
+            className="min-w-[210px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden"
           >
-            {action}
-          </FrappeButton>
-        ))}
+            <div className="px-4 py-2 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-100 dark:border-zinc-700">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                Actions
+              </span>
+            </div>
+
+            {/* Commit gate warning */}
+            {commitRequired && (
+              <div className="mx-3 mt-3 mb-1 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+                A commitment must be submitted before proceeding.
+              </div>
+            )}
+
+            {/* Draft actions: Edit + Submit */}
+            {isDraft && (
+              <>
+                <button
+                  onClick={() => { setDropdownOpen(false); onEdit(); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+                >
+                  <span className="text-zinc-400"><PencilIcon className="h-3.5 w-3.5" /></span>
+                  Edit
+                </button>
+                <button
+                  onClick={() => { setDropdownOpen(false); onSubmit(); }}
+                  disabled={isSubmitting}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left text-[#D97757] hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors disabled:opacity-50"
+                >
+                  <span className="text-[#D97757]"><CheckCircleIcon className="h-3.5 w-3.5" /></span>
+                  Submit
+                </button>
+              </>
+            )}
+
+            {/* Workflow actions from API */}
+            {(forwardActions.length > 0 || neutralActions.length > 0 || rejectActions.length > 0) && (
+              <>
+                {isDraft && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
+                {[forwardActions, neutralActions, rejectActions]
+                  .filter((g) => g.length > 0)
+                  .map((group, gi) => (
+                    <React.Fragment key={gi}>
+                      {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
+                      {group.map((action) => {
+                        const a = action.toLowerCase();
+                        const exempt = categorise(action) === "reject" || a.includes("put back");
+                        const blocked = commitRequired && !exempt;
+                        const { icon, cls, iconCls } = itemStyle(action);
+                        return (
+                          <div key={action} className="relative group/item">
+                            <button
+                              onClick={() => { if (!blocked) handleWorkflowClick(action); }}
+                              disabled={actionLoading || blocked}
+                              className={cn(
+                                "w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left transition-colors disabled:cursor-not-allowed",
+                                blocked ? "opacity-40" : cls,
+                              )}
+                            >
+                              <span className={iconCls}>{icon}</span>
+                              {action}
+                              {blocked && (
+                                <span className="ml-auto text-[10px] font-normal text-zinc-400">blocked</span>
+                              )}
+                            </button>
+                            {blocked && (
+                              <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/item:block z-[9999]">
+                                <div className="bg-zinc-900 text-white text-[11px] rounded-lg px-3 py-1.5 shadow-lg whitespace-nowrap">
+                                  A commitment must be submitted before proceeding.
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </React.Fragment>
+                  ))}
+              </>
+            )}
+
+            {/* Download — always visible */}
+            <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />
+            <button
+              onClick={() => { setDropdownOpen(false); onDownload(); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+            >
+              <span className="text-zinc-400"><DownloadIcon className="h-3.5 w-3.5" /></span>
+              Download / Print
+            </button>
+          </div>,
+          document.body,
+        )}
       </div>
+
       <CommentModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -247,87 +413,27 @@ const ReimbursementWorkflowActions = ({
   );
 };
 
-// --- Activity Stream Component ---
-interface ActivityItem {
-  owner: string;
-  creation: string;
-  content: string;
-  comment_type: string;
-}
-
-const ActivityStream = ({
-  doctype,
-  docname,
-}: {
-  doctype: string;
-  docname: string;
-}) => {
-  const { data: activityData, mutate: refetchActivity } = useFrappeGetCall<{
-    message: ActivityItem[];
-  }>("rndopsapp.rndopsapp.api.get_project_activity", { doctype, docname });
-
-  // Initial refetch when mounted
-  useEffect(() => {
-    refetchActivity();
-  }, [docname]);
-
-  return (
-    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
-      {activityData?.message && activityData.message.length > 0 ? (
-        activityData.message.map((activity, idx) => (
-          <div key={idx} className="flex items-start gap-3">
-            <div className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center font-bold text-[#D97757] text-xs">
-              {activity.owner?.charAt(0).toUpperCase() || "U"}
-            </div>
-            <div className="min-w-0">
-              <div
-                className="text-sm text-zinc-800 dark:text-zinc-200 line-clamp-2 prose prose-sm max-w-none"
-                dangerouslySetInnerHTML={{ __html: activity.content }}
-              />
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                {activity.owner} ·{" "}
-                {activity.creation
-                  ? new Date(activity.creation).toLocaleString()
-                  : ""}
-              </p>
-            </div>
-          </div>
-        ))
-      ) : (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400 italic">
-          No recent activity found.
-        </p>
-      )}
-    </div>
-  );
-};
-
 const ReimbursementDetails: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [data, setData] = useState<ReimbursementData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [resolvedNames, setResolvedNames] = useState<Record<string, string>>(
-    {},
-  );
+  const [resolvedNames, setResolvedNames] = useState<Record<string, string>>({});
   const [projectNo, setProjectNo] = useState<string>("");
 
   const { call: fetchDoc } = useFrappePostCall<{ message: ReimbursementData }>(
     "frappe.client.get",
   );
-
   const { call: fetchLinkValue } = useFrappePostCall<{ message: any }>(
     "frappe.client.get_value",
   );
-
   const { call: submitDoc } = useFrappePostCall<{ message: any }>(
     "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.submit_reimbursement",
   );
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Function to resolve a link field ID to its display name
   const resolveLinkName = async (
     doctype: string,
     docId: string,
@@ -336,61 +442,41 @@ const ReimbursementDetails: React.FC = () => {
     if (!docId) return "";
     try {
       const result = await fetchLinkValue({
-        doctype: doctype,
+        doctype,
         filters: { name: docId },
-        fieldname: fieldname,
+        fieldname,
       });
-      const resolvedValue = result?.message?.[fieldname] || docId;
-      return resolvedValue;
-    } catch (err) {
-      console.error(`Error resolving ${doctype}/${docId}:`, err);
+      return result?.message?.[fieldname] || docId;
+    } catch {
       return docId;
     }
   };
 
-  // Handle submit for draft reimbursement
   const { currentUser } = useFrappeAuth();
   const { roles } = useUserRoles(currentUser ?? null);
 
-  // Sidebar State
-  const [sidebarComment, setSidebarComment] = useState("");
-  const [isAddingComment, setIsAddingComment] = useState(false);
-  const { call: addComment } = useFrappePostCall(
-    "rndopsapp.rndopsapp.api.add_project_comment",
-  );
-
-  // Commitment Widget State
-  const [commitHead, setCommitHead] = useState("");
-  const [paymentAmount, setPaymentAmount] = useState(""); // Payment State
   const [isLedgerOpen, setIsLedgerOpen] = useState(false);
+  const [commitHead, setCommitHead] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState("");
   const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
 
-  // API Hooks for Commit/Payment
-  // submitCommit moved to CommitPayment component
   const { call: submitPayment, loading: isPaying } = useFrappePostCall(
     "rndopsapp.rndopsapp.commitPayment.submit_payment_data",
   );
 
-  // Fetch Project Budget Data
-  const projectTitle = projectNo || data?.project_number || ""; // Use project number for ledger API
-  const [budgetHeadList, setBudgetHeadList] = useState<
-    { name: string; id: string }[]
-  >([]);
+  const projectTitle = projectNo || data?.project_number || "";
+  const [budgetHeadList, setBudgetHeadList] = useState<{ name: string; id: string }[]>([]);
 
-  // Fetch Budget Head List for Ledger Modal (needs IDs) matching ProjectDetailsOverview
   useEffect(() => {
     const fetchBudgetHeads = async () => {
       try {
         const response = await fetch(
-          '/api/v2/document/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc',
+          '/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0',
         );
         const result = await response.json();
         if (result?.data) {
           setBudgetHeadList(
-            result.data.map((item: any) => ({
-              name: item.budget_head,
-              id: item.id,
-            })),
+            result.data.map((item: any) => ({ name: item.budget_head, id: item.id })),
           );
         }
       } catch (err) {
@@ -400,69 +486,55 @@ const ReimbursementDetails: React.FC = () => {
     fetchBudgetHeads();
   }, []);
 
-  const {
-    budgetData,
-    heads: budgetHeads,
-    actualBalance,
-    commitableBalance,
-  } = useProjectBudget(projectTitle);
+  const { budgetData, heads: budgetHeads, actualBalance, commitableBalance } = useProjectBudget(projectTitle);
 
-  // Fetch overall project commitable balance from Frappe API
-  const balanceApiParams = React.useMemo(
-    () => ({ project_number: projectTitle }),
-    [projectTitle],
-  );
+  const balanceApiParams = React.useMemo(() => ({ project_number: projectTitle }), [projectTitle]);
   const balanceApiOptions = React.useMemo(
-    () => ({
-      revalidateOnFocus: false,
-      isPaused: () => !projectTitle,
-    }),
+    () => ({ revalidateOnFocus: false, isPaused: () => !projectTitle }),
     [projectTitle],
   );
   const { data: projectAmountsData } = useFrappeGetCall<{
-    message: {
-      status: string;
-      data: {
-        availableCommitAmount: number;
-        availablePaymentAmount: number;
-      };
-    };
+    message: { status: string; data: { availableCommitAmount: number; availablePaymentAmount: number } };
   }>(
     "rndopsapp.rndopsapp.commitPayment.get_project_available_amounts",
     balanceApiParams,
     balanceApiOptions,
   );
   const projectAmountsResult =
-    (projectAmountsData as any)?.message?.data ??
-    (projectAmountsData as any)?.data ??
-    {};
-  const totalCommitableBalance =
-    projectAmountsResult?.availablePaymentAmount ?? 0;
+    (projectAmountsData as any)?.message?.data ?? (projectAmountsData as any)?.data ?? {};
+  const totalCommitableBalance = projectAmountsResult?.availableCommitAmount ?? 0;
 
-  // Find existing commitment for this document (match by ref or frapAppId)
   const linkedCommitment = budgetData.find(
-    (e) =>
-      (e.ref === (id || "") || e.frapAppId === (id || "")) &&
-      e.type === "commitment",
+    (e) => (e.ref === (id || "") || e.frapAppId === (id || "")) && e.type === "commitment",
   );
   const isCommitted = !!linkedCommitment;
 
-  // Set default commit head
+  const { data: cancellationStatus } = useFrappeGetCall<{
+    message: {
+      has_pending: boolean;
+      has_cancellation: boolean;
+      cancellation_requests: any[];
+    };
+  }>(
+    "rndopsapp.rndopsapp.cancellation_api.get_cancellation_status",
+    {
+      reference_doctype: "Reimbursement",
+      reference_name: id,
+    },
+    id ? undefined : null
+  );
+
   useEffect(() => {
-    if (budgetHeads.length > 0 && !commitHead) {
-      setCommitHead(budgetHeads[0]);
-    }
+    if (budgetHeads.length > 0 && !commitHead) setCommitHead(budgetHeads[0]);
   }, [budgetHeads]);
 
-  // Set Payment defaults from Commitment
   useEffect(() => {
     if (linkedCommitment) {
-      setCommitHead(linkedCommitment.head || ""); // Lock/Prefill head for visibility
+      setCommitHead(linkedCommitment.head || "");
       if (!paymentAmount) setPaymentAmount(String(linkedCommitment.committed));
     }
   }, [linkedCommitment]);
 
-  // Role Check
   const isRnDStaff = roles.some(
     (r) =>
       r === "RnD Staff" ||
@@ -472,36 +544,12 @@ const ReimbursementDetails: React.FC = () => {
       r === "staff, RnD" ||
       r === "Hos, RnD (Head of Section, RnD)",
   );
-  // console.log("User Roles:", roles, "Is RnD Staff:", isRnDStaff, "Workflow State:", data?.workflow_state);
-
-  const handleSidebarCommentSubmit = async () => {
-    if (!sidebarComment.trim() || !id) return;
-    setIsAddingComment(true);
-    try {
-      await addComment({
-        doctype: "Reimbursement",
-        docname: id,
-        content: sidebarComment,
-      });
-      setSidebarComment("");
-      // Ideally refetch activity stream here, but it polls or we can trigger a global verify
-      window.location.reload(); // Simple refresh for now to show new comment in activity
-    } catch (error) {
-      console.error("Failed to add comment:", error);
-      alert("Failed to submit comment.");
-    } finally {
-      setIsAddingComment(false);
-    }
-  };
-
-  // handleCommit moved to CommitPayment component
 
   const handlePayment = async () => {
     if (!paymentAmount || !commitHead || !id || !data) {
       alert("Please select a budget head and enter an amount.");
       return;
     }
-
     try {
       await submitPayment({
         doctype: "Reimbursement",
@@ -509,7 +557,7 @@ const ReimbursementDetails: React.FC = () => {
         project_name: data.project_name,
         payment_amount: parseFloat(paymentAmount),
         budget_head: commitHead,
-        bmr: "", // Optional BMR
+        bmr: "",
       });
       alert("Payment recorded successfully!");
       setPaymentAmount("");
@@ -522,32 +570,14 @@ const ReimbursementDetails: React.FC = () => {
 
   const handleSubmit = async () => {
     if (!data || isSubmitting) return;
-
-    if (
-      !confirm(
-        "Are you sure you want to submit this reimbursement application? This action cannot be undone.",
-      )
-    ) {
-      return;
-    }
+    if (!confirm("Are you sure you want to submit this reimbursement application? This action cannot be undone.")) return;
 
     setIsSubmitting(true);
     try {
-      const response = await submitDoc({
-        docname: data.name,
-      });
-
-      console.log("Submit response:", response);
+      await submitDoc({ docname: data.name });
       alert("Reimbursement submitted successfully!");
-
-      // Reload the data to get updated status
-      const refreshed = await fetchDoc({
-        doctype: "Reimbursement",
-        name: data.name,
-      });
-      if (refreshed?.message) {
-        setData(refreshed.message);
-      }
+      const refreshed = await fetchDoc({ doctype: "Reimbursement", name: data.name });
+      if (refreshed?.message) setData(refreshed.message);
     } catch (err: any) {
       console.error("Error submitting reimbursement:", err);
       alert(`Failed to submit: ${err.message || "Unknown error"}`);
@@ -563,65 +593,36 @@ const ReimbursementDetails: React.FC = () => {
         setLoading(false);
         return;
       }
-
       try {
-        const response = await fetchDoc({
-          doctype: "Reimbursement",
-          name: id,
-        });
-
+        const response = await fetchDoc({ doctype: "Reimbursement", name: id });
         if (response?.message) {
           const docData = response.message;
           setData(docData);
 
-          // Resolve linked field names
           const nameMap: Record<string, string> = {};
-
-          // Resolve department names (Department_prornd doctype with dept_name field)
           if (docData.reimbursement_for_department) {
             nameMap.reimbursement_for_department = await resolveLinkName(
-              "Department_prornd",
-              docData.reimbursement_for_department,
-              "dept_name",
+              "Department_prornd", docData.reimbursement_for_department, "dept_name",
             );
           }
           if (docData.applicant_department) {
             nameMap.applicant_department = await resolveLinkName(
-              "Department_prornd",
-              docData.applicant_department,
-              "dept_name",
+              "Department_prornd", docData.applicant_department, "dept_name",
             );
           }
-
-          // Resolve account head name (Budget Head doctype with budget_head field)
           if (docData.account_head) {
-            nameMap.account_head = await resolveLinkName(
-              "Budget Head",
-              docData.account_head,
-              "budget_head",
-            );
+            nameMap.account_head = await resolveLinkName("Budget Head", docData.account_head, "budget_head");
           }
-
-          // Resolve project name (Project Registration doctype with project_title field)
+          if (docData.applicant_webmail) {
+            nameMap.applicant_name = await resolveLinkName("User", docData.applicant_webmail, "full_name");
+          }
           if (docData.project_name) {
-            nameMap.project_name = await resolveLinkName(
-              "Project Registration",
-              docData.project_name,
-              "project_title",
-            );
-            // Fallback to title if project_title is empty
+            nameMap.project_name = await resolveLinkName("Project Registration", docData.project_name, "project_title");
             if (nameMap.project_name === docData.project_name) {
-              const altTitle = await resolveLinkName(
-                "Project Registration",
-                docData.project_name,
-                "title",
-              );
-              if (altTitle !== docData.project_name) {
-                nameMap.project_name = altTitle;
-              }
+              const altTitle = await resolveLinkName("Project Registration", docData.project_name, "title");
+              if (altTitle !== docData.project_name) nameMap.project_name = altTitle;
             }
           }
-
           setResolvedNames(nameMap);
         } else {
           setError("Reimbursement not found");
@@ -633,88 +634,49 @@ const ReimbursementDetails: React.FC = () => {
         setLoading(false);
       }
     };
-
     loadData();
-  }, [id, fetchDoc, fetchLinkValue]);
+  }, [id]);
 
-  // Fetch Project No
   useEffect(() => {
     const fetchProjectNo = async () => {
       if (!data?.project_name) return;
       try {
-        // Try fetching from Project Proposal first (most likely)
         const response = await fetch(
           `/api/v2/document/Project%20Proposal/${data.project_name}?fields=["project_no","project_title"]`,
         );
         if (response.ok) {
           const json = await response.json();
-          if (json.data?.project_no) {
-            setProjectNo(json.data.project_no);
-            return;
-          }
+          if (json.data?.project_no) { setProjectNo(json.data.project_no); return; }
         }
-
-        // Fallback: Try 'Project' doctype if needed, or check link value
-        // For now, assuming Project Proposal is the source for project_no
-        if (data.project_number) {
-          setProjectNo(data.project_number);
-        }
-      } catch (error) {
-        console.error("Error fetching project no:", error);
+        if (data.project_number) setProjectNo(data.project_number);
+      } catch {
         if (data.project_number) setProjectNo(data.project_number);
       }
     };
-
     fetchProjectNo();
   }, [data?.project_name, data?.project_number]);
 
-  // Format date for display
   const formatDate = (dateStr: string) => {
     if (!dateStr) return "-";
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+    return new Date(dateStr).toLocaleDateString("en-IN", {
+      day: "2-digit", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
     });
   };
 
-  // Generate HTML for download/print
   const generateDownloadHTML = () => {
     if (!data) return "";
-
     const now = new Date();
-    const formattedDate = now.toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-    const formattedTime = now.toLocaleTimeString("en-IN", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
+    const formattedDate = now.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    const formattedTime = now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
     const applicationDate = data.creation
       ? new Date(data.creation).toLocaleString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
+        day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true,
       })
       : "-";
 
-    // Calculate total amount from items
-    const totalAmount =
-      data.table_bosk?.reduce(
-        (sum: number, item: any) => sum + (parseFloat(item.amount) || 0),
-        0,
-      ) || 0;
+    const totalAmount = data.table_bosk?.reduce((sum: number, item: any) => sum + (parseFloat(item.amount) || 0), 0) || 0;
 
-    // Generate expenditure rows
     const expenditureRows =
       data.table_bosk
         ?.map(
@@ -732,18 +694,18 @@ const ReimbursementDetails: React.FC = () => {
         .join("") ||
       '<tr><td colspan="6" style="text-align: center;">No items</td></tr>';
 
-    // Declaration items
     const declarations = [
       "None of the items are purchased or under rate contract.",
       "The items purchased were approved by the funding agency and I have enclosed the original cash memo/ retail invoice/ money receipt initialed by the Drawer.",
       '"I, am personally satisfied that goods purchased are of the requisite quality and specification and have been purchased from a reliable supplier at a reasonable price."',
       "I stock entered the items, and entered the stock entry details on the reverse side of the cash memo/ money receipt with my signature.",
     ];
-
     const acceptedDeclarations = declarations
       .filter((_, i) => data[`dec${i + 1}`])
       .map((dec) => `<li>${dec}</li>`)
       .join("");
+
+    const applicantName = resolvedNames.applicant_name || data.applicant_webmail || "-";
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -752,184 +714,246 @@ const ReimbursementDetails: React.FC = () => {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reimbursement - ${data.name}</title>
     <style>
-        @page { size: A4; margin: 10mm; }
-        * { box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; font-size: 11px; line-height: 1.3; color: #333; margin: 0; padding: 10px; background-color: #f0f0f0; }
-        .page { width: 190mm; max-width: 100%; margin: 0 auto; background-color: white; padding: 15px 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); position: relative; min-height: 277mm; }
-        .top-meta { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 8px; color: #666; }
-        .header-box { border: 1px solid #000; padding: 8px 12px; display: flex; align-items: center; margin-bottom: 8px; }
-        .logo-img { width: 60px; height: 60px; margin-right: 15px; object-fit: contain; }
-        .header-text h1 { margin: 0; font-size: 16px; color: #2d3e8b; text-transform: uppercase; }
-        .header-text h2 { margin: 0; font-size: 14px; color: #2d3e8b; }
-        .header-text p { margin: 2px 0 0; font-weight: bold; font-size: 11px; }
-        .barcode-container { margin-top: 5px; text-align: left; font-size: 10px; }
-        .barcode { width: 150px; height: 25px; background: linear-gradient(90deg, #000 2%, transparent 2%, transparent 4%, #000 4%, #000 5%, transparent 5%, transparent 7%, #000 7%, #000 10%, transparent 10%, transparent 12%, #000 12%, #000 13%, transparent 13%, transparent 15%, #000 15%); background-size: 15px 100%; }
-        .date-line { text-align: right; margin-bottom: 10px; font-size: 11px; }
-        h2.main-title { text-align: center; font-weight: normal; font-size: 16px; margin: 10px 0 15px; }
-        .details-grid { display: flex; gap: 20px; margin-bottom: 10px; }
-        .details-section { flex: 1; }
-        .section-header { border: 1px solid #000; text-align: center; font-weight: bold; padding: 4px; margin-bottom: 6px; background-color: #f5f5f5; font-size: 11px; }
-        .info-row { display: flex; margin-bottom: 6px; font-size: 10px; }
-        .info-label { width: 110px; font-weight: normal; color: #555; }
-        .info-value { flex: 1; font-weight: 500; }
-        .comments-box { border: 1px solid #000; margin-top: 10px; }
-        .comment-content { padding: 6px 8px; font-size: 10px; }
-        .comment-timestamp { text-align: right; padding: 2px 8px; color: #666; font-size: 9px; }
-        .declaration-box { margin-top: 10px; border: 1px solid #000; }
-        .declaration-content { padding: 6px 8px; font-size: 9px; }
-        .declaration-content ol { padding-left: 15px; margin: 5px 0; }
-        .declaration-content li { margin-bottom: 6px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10px; }
-        th, td { border: 1px solid #000; padding: 5px; text-align: left; vertical-align: top; }
-        th { background-color: #f5f5f5; text-align: center; font-size: 10px; }
-        .footer-info { margin-top: 15px; font-size: 10px; }
-        .footer-info p { margin: 3px 0; }
-        .bottom-meta { position: absolute; bottom: 8px; left: 20px; right: 20px; display: flex; justify-content: space-between; font-size: 9px; border-top: 1px solid #ddd; padding-top: 4px; color: #666; }
+        @page { size: A4; margin: 12mm 14mm; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Arial', sans-serif; font-size: 10.5px; line-height: 1.45; color: #1a1a2e; background: #e8e8e8; padding: 12px; }
+        .page { width: 182mm; max-width: 100%; margin: 0 auto; background: #fff; padding: 18px 22px 60px; box-shadow: 0 2px 16px rgba(0,0,0,0.13); position: relative; min-height: 257mm; }
+
+        /* Header */
+        .header { display: flex; align-items: center; border-bottom: 3px solid #1a3a6b; padding-bottom: 10px; margin-bottom: 10px; }
+        .logo-img { width: 58px; height: 58px; object-fit: contain; margin-right: 14px; flex-shrink: 0; }
+        .header-text { flex: 1; }
+        .header-text .inst-hi { font-size: 13.5px; font-weight: 700; color: #1a3a6b; letter-spacing: 0.3px; }
+        .header-text .inst-en { font-size: 12px; font-weight: 700; color: #1a3a6b; letter-spacing: 0.5px; text-transform: uppercase; }
+        .header-text .dept { font-size: 9.5px; color: #555; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; margin-top: 2px; }
+        .header-right { text-align: right; flex-shrink: 0; }
+        .header-right .doc-id { font-size: 9px; font-weight: 700; color: #1a3a6b; letter-spacing: 0.5px; border: 1.5px solid #1a3a6b; padding: 3px 8px; border-radius: 4px; display: inline-block; }
+        .header-right .doc-date { font-size: 9px; color: #666; margin-top: 4px; }
+
+        /* Title band */
+        .title-band { background: #1a3a6b; color: #fff; text-align: center; padding: 7px 0; font-size: 13px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; border-radius: 4px; margin: 10px 0; }
+
+        /* Status badge */
+        .status-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .status-badge { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; padding: 3px 10px; border-radius: 20px; background: #e8f0fe; color: #1a3a6b; border: 1.5px solid #1a3a6b; }
+        .app-date { font-size: 9px; color: #666; }
+
+        /* Two-column info grid */
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .info-card { border: 1px solid #dde2ee; border-radius: 6px; overflow: hidden; }
+        .info-card-full { grid-column: span 2; border: 1px solid #dde2ee; border-radius: 6px; overflow: hidden; }
+        .card-header { background: #f0f4fb; border-bottom: 1px solid #dde2ee; padding: 5px 10px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #1a3a6b; }
+        .card-body { padding: 8px 10px; }
+        .field-row { display: flex; align-items: baseline; margin-bottom: 5px; }
+        .field-row:last-child { margin-bottom: 0; }
+        .field-label { width: 110px; flex-shrink: 0; font-size: 9px; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+        .field-value { font-size: 10px; font-weight: 600; color: #1a1a2e; flex: 1; }
+        .field-value.highlight { color: #1a3a6b; font-weight: 700; font-size: 11px; }
+        .field-value.mono { font-family: 'Courier New', monospace; letter-spacing: 0.5px; }
+
+        /* Expenditure table */
+        .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #1a3a6b; border-bottom: 2px solid #1a3a6b; padding-bottom: 4px; margin: 12px 0 6px; }
+        table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+        thead tr { background: #1a3a6b; color: #fff; }
+        thead th { padding: 5px 7px; font-weight: 700; text-align: left; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #1a3a6b; }
+        thead th.center { text-align: center; }
+        thead th.right { text-align: right; }
+        tbody tr { border-bottom: 1px solid #e8eaf0; }
+        tbody tr:nth-child(even) { background: #f7f9fc; }
+        tbody td { padding: 5px 7px; border: 1px solid #dde2ee; vertical-align: top; }
+        tbody td.center { text-align: center; }
+        tbody td.right { text-align: right; font-weight: 600; }
+        tfoot tr { background: #f0f4fb; font-weight: 700; }
+        tfoot td { padding: 5px 7px; border: 1px solid #dde2ee; }
+        tfoot td.right { text-align: right; color: #1a3a6b; font-size: 11px; }
+
+        /* Declaration */
+        .declaration-box { border: 1px solid #dde2ee; border-radius: 6px; overflow: hidden; margin-top: 10px; }
+        .decl-header { background: #f0f4fb; border-bottom: 1px solid #dde2ee; padding: 5px 10px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #1a3a6b; }
+        .decl-body { padding: 7px 10px; font-size: 9px; color: #333; }
+        .decl-body ol { padding-left: 16px; }
+        .decl-body li { margin-bottom: 4px; line-height: 1.4; }
+
+        /* Comments */
+        .comment-box { border: 1px solid #dde2ee; border-radius: 6px; margin-top: 10px; overflow: hidden; }
+        .comment-header { background: #fffbea; border-bottom: 1px solid #e8d96a; padding: 5px 10px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #7a6100; }
+        .comment-body { padding: 7px 10px; font-size: 9.5px; color: #333; font-style: italic; }
+
+        /* Footer */
+        .page-footer { position: absolute; bottom: 12px; left: 22px; right: 22px; border-top: 1px solid #dde2ee; padding-top: 6px; display: flex; justify-content: space-between; align-items: center; }
+        .footer-note { font-size: 8.5px; color: #888; font-style: italic; }
+        .footer-meta { font-size: 8.5px; color: #999; text-align: right; }
+
         @media print {
             body { background: none; padding: 0; }
-            .page { box-shadow: none; margin: 0; width: 100%; min-height: auto; padding: 10mm; }
+            .page { box-shadow: none; margin: 0; width: 100%; padding: 0; min-height: auto; }
         }
     </style>
 </head>
 <body>
 <div class="page">
-    <div class="top-meta">
-        <span>${data.name}</span>
-        <span>https://rndops.iitg.ac.in</span>
-    </div>
 
-    <div class="header-box">
+    <!-- Header -->
+    <div class="header">
         <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo" class="logo-img" />
         <div class="header-text">
-            <h1>भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</h1>
-            <h2>INDIAN INSTITUTE OF TECHNOLOGY GUWAHATI</h2>
-            <p>RESEARCH AND DEVELOPMENT CELL</p>
+            <div class="inst-hi">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
+            <div class="inst-en">Indian Institute of Technology Guwahati</div>
+            <div class="dept">Research and Development Cell</div>
+        </div>
+        <div class="header-right">
+            <div class="doc-id">${data.name}</div>
+            <div class="doc-date">Date: ${formattedDate}</div>
         </div>
     </div>
 
-    <div class="barcode-container">
-        <div class="barcode"></div>
-        <div>${data.name}</div>
+    <!-- Title Band -->
+    <div class="title-band">Application for Reimbursement</div>
+
+    <!-- Status Row -->
+    <div class="status-row">
+        <span class="status-badge">${data.workflow_state || "Draft"}</span>
+        <span class="app-date">Submitted: ${applicationDate}</span>
     </div>
 
-    <div class="date-line">Date: ${formattedDate}</div>
+    <!-- Info Grid -->
+    <div class="info-grid">
 
-    <h2 class="main-title">Application for Reimbursement</h2>
-
-    <div class="details-grid">
-        <div class="details-section">
-            <div class="section-header">Applicant Details</div>
-            <div class="info-row"><div class="info-label">Name:</div><div class="info-value">${data.account_holder_name || data.applicant_webmail || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Department:</div><div class="info-value">${resolvedNames.applicant_department || data.applicant_department || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Designation:</div><div class="info-value">${data.applicant_designation || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Email ID:</div><div class="info-value">${data.applicant_webmail || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Application Initiated by:</div><div class="info-value">${data.owner || "-"}</div></div>
-
-            ${data.comment
-        ? `
-            <div class="comments-box">
-                <div class="section-header">Comments</div>
-                <div class="comment-content">${data.comment}</div>
-                <div class="comment-timestamp">${applicationDate} ➔</div>
-            </div>`
-        : ""
-      }
-
-            ${acceptedDeclarations
-        ? `
-            <div class="declaration-box">
-                <div class="section-header">Applicant's Declaration</div>
-                <div class="declaration-content">
-                    <ol>${acceptedDeclarations}</ol>
+        <!-- Applicant Details -->
+        <div class="info-card">
+            <div class="card-header">Applicant Details</div>
+            <div class="card-body">
+                <div class="field-row">
+                    <div class="field-label">Name</div>
+                    <div class="field-value highlight">${applicantName}</div>
                 </div>
-            </div>`
-        : ""
-      }
+                <div class="field-row">
+                    <div class="field-label">Department</div>
+                    <div class="field-value">${resolvedNames.applicant_department || data.applicant_department || "-"}</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">Designation</div>
+                    <div class="field-value">${data.applicant_designation || "-"}</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">Email ID</div>
+                    <div class="field-value mono">${data.applicant_webmail || "-"}</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">Initiated by</div>
+                    <div class="field-value mono">${data.owner || "-"}</div>
+                </div>
+            </div>
         </div>
 
-        <div class="details-section">
-            <div class="section-header">Form Details</div>
-            <div class="info-row"><div class="info-label">Own/ Other Project:</div><div class="info-value">${data.self_other || "Own"}</div></div>
-            <div class="info-row"><div class="info-label">Project Number:</div><div class="info-value">${data.project_number || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Project Name:</div><div class="info-value">${resolvedNames.project_name || data.project_name || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Account Head:</div><div class="info-value">${resolvedNames.account_head || data.account_head || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Total Amount (₹):</div><div class="info-value">${totalAmount.toLocaleString("en-IN")}</div></div>
-            <div class="info-row"><div class="info-label">Date and Time:</div><div class="info-value">${applicationDate}</div></div>
-            <div class="info-row"><div class="info-label">Bank Name:</div><div class="info-value">${data.bank_name || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Bank Account Number:</div><div class="info-value">${data.bank_account_number || "-"}</div></div>
-            <div class="info-row"><div class="info-label">IFSC Code:</div><div class="info-value">${data.ifsc_code || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Status:</div><div class="info-value">${data.workflow_state || "Draft"}</div></div>
+        <!-- Project Details -->
+        <div class="info-card">
+            <div class="card-header">Project Details</div>
+            <div class="card-body">
+                <div class="field-row">
+                    <div class="field-label">Project No.</div>
+                    <div class="field-value mono">${data.project_number || "-"}</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">Project Name</div>
+                    <div class="field-value">${resolvedNames.project_name || data.project_name || "-"}</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">Account Head</div>
+                    <div class="field-value">${resolvedNames.account_head || data.account_head || "-"}</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">Own / Other</div>
+                    <div class="field-value">${data.self_other || "Own"}</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">Total Amount</div>
+                    <div class="field-value highlight">₹ ${totalAmount.toLocaleString("en-IN")}</div>
+                </div>
+            </div>
         </div>
+
+        <!-- Bank Details -->
+        <div class="info-card info-card-full">
+            <div class="card-header">Bank Details</div>
+            <div class="card-body" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 20px;">
+                <div class="field-row">
+                    <div class="field-label">Bank Name</div>
+                    <div class="field-value">${data.bank_name || "-"}</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">Account No.</div>
+                    <div class="field-value mono">${data.bank_account_number || "-"}</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">IFSC Code</div>
+                    <div class="field-value mono">${data.ifsc_code || "-"}</div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
-    <h3 style="text-align: center; margin-top: 30px;">Expenditure Details</h3>
-
+    <!-- Expenditure Table -->
+    <div class="section-title">Expenditure Details</div>
     <table>
         <thead>
             <tr>
-                <th>Sl No.</th>
-                <th>Date</th>
+                <th class="center" style="width: 28px;">Sl.</th>
+                <th style="width: 70px;">Date</th>
                 <th>Particulars</th>
-                <th>Vendors Name</th>
-                <th>Amount (Rs.)</th>
-                <th>Attachments</th>
+                <th>Vendor's Name</th>
+                <th class="right" style="width: 80px;">Amount (₹)</th>
+                <th class="center" style="width: 70px;">Attachment</th>
             </tr>
         </thead>
-        <tbody>
-            ${expenditureRows}
-        </tbody>
+        <tbody>${expenditureRows}</tbody>
+        <tfoot>
+            <tr>
+                <td colspan="4" style="text-align: right; font-weight: 700; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: #555;">Total Amount</td>
+                <td class="right" style="color: #1a3a6b; font-size: 11px;">₹ ${totalAmount.toLocaleString("en-IN")}</td>
+                <td></td>
+            </tr>
+        </tfoot>
     </table>
 
-    <div class="footer-info">
-        <p>Application Status: ${data.workflow_state || "Draft"}</p>
-        <p>Approved By:</p>
-        <p style="margin-top: 20px;">N.B. This is a system generated form. Signature is not required.</p>
+    ${acceptedDeclarations ? `
+    <div class="declaration-box">
+        <div class="decl-header">Applicant's Declaration</div>
+        <div class="decl-body"><ol>${acceptedDeclarations}</ol></div>
+    </div>` : ""}
+
+    ${data.comment ? `
+    <div class="comment-box">
+        <div class="comment-header">Remarks / Comments</div>
+        <div class="comment-body">${data.comment}</div>
+    </div>` : ""}
+
+    <!-- Footer -->
+    <div class="page-footer">
+        <div class="footer-note">N.B. This is a system-generated document. No signature required.</div>
+        <div class="footer-meta">
+            <div>rndops.iitg.ac.in</div>
+            <div>${formattedDate}, ${formattedTime}</div>
+        </div>
     </div>
 
-    <div class="bottom-meta">
-        <span>1 of 1</span>
-        <span>${formattedDate}, ${formattedTime}</span>
-    </div>
 </div>
 </body>
 </html>`;
   };
 
-  // Handle download/print
   const handleDownload = () => {
     const htmlContent = generateDownloadHTML();
     const printWindow = window.open("", "_blank");
     if (printWindow) {
       printWindow.document.write(htmlContent);
       printWindow.document.close();
-      // Auto-trigger print dialog after a short delay for rendering
-      setTimeout(() => {
-        printWindow.print();
-      }, 500);
+      setTimeout(() => { printWindow.print(); }, 500);
     }
   };
 
-  // Detail row component
-  const DetailRow = ({
-    label,
-    value,
-  }: {
-    label: string;
-    value: string | number | null | undefined;
-  }) => (
-    <div className="flex justify-between py-2 border-b border-zinc-200 dark:border-zinc-800 last:border-0">
-      <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-        {label}
-      </span>
-      <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-        {value || "-"}
-      </span>
-    </div>
-  );
-
-  if (loading) {
-    return <GlobalLoader isLoading={true} />;
-  }
+  if (loading) return <GlobalLoader isLoading={true} />;
 
   if (error || !data) {
     return (
@@ -938,15 +962,11 @@ const ReimbursementDetails: React.FC = () => {
         <main className="flex-1 p-4 md:p-8">
           <FrappeCard className="text-center py-16">
             <FileTextIcon className="w-16 h-16 mx-auto text-zinc-400 dark:text-zinc-500 mb-4" />
-            <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2 uppercase">
+            <h2 className="text-xl font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-2 uppercase">
               Error Loading Reimbursement
             </h2>
-            <p className="text-zinc-900 dark:text-zinc-100 mb-6">
-              {error || "Reimbursement not found"}
-            </p>
-            <FrappeButton variant="primary" onClick={() => navigate(-1)}>
-              Go Back
-            </FrappeButton>
+            <p className="text-[#3F3F46] dark:text-[#E4E4E7] mb-6">{error || "Reimbursement not found"}</p>
+            <FrappeButton variant="primary" onClick={() => navigate(-1)}>Go Back</FrappeButton>
           </FrappeCard>
         </main>
       </div>
@@ -965,9 +985,9 @@ const ReimbursementDetails: React.FC = () => {
           projectName={data.project_name}
           projectNumber={projectNo || data.project_number}
         >
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <ViewProjectButton doctype="Reimbursement" data={data} />
-            <div className="text-right text-sm text-zinc-900 dark:text-zinc-100 hidden md:block">
+            <div className="text-right text-sm text-[#3F3F46] dark:text-[#E4E4E7] hidden md:block">
               <div className="flex items-center gap-1 font-medium justify-end">
                 <CalendarIcon className="w-4 h-4" />
                 Created: {formatDate(data.creation)}
@@ -977,223 +997,197 @@ const ReimbursementDetails: React.FC = () => {
                 By: {data.owner}
               </div>
             </div>
-            {/* Edit and Submit buttons - only show for Draft */}
-            {(data.workflow_state === "Draft" || !data.workflow_state) && (
-              <>
-                <FrappeButton
-                  variant="outline"
-                  onClick={() => navigate(`/reimbursement?edit=${data.name}`)}
-                >
-                  Edit
-                </FrappeButton>
-                <FrappeButton
-                  variant="primary"
-                  onClick={handleSubmit}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? "Submitting..." : "Submit"}
-                </FrappeButton>
-              </>
+            {!cancellationStatus?.message?.has_pending && (
+              <ActionsDropdown
+                docname={data.name}
+                workflowState={data.workflow_state || "Draft"}
+                onActionComplete={() => window.location.reload()}
+                onEdit={() => navigate(`/reimbursement?edit=${data.name}`)}
+                onSubmit={handleSubmit}
+                onDownload={handleDownload}
+                isSubmitting={isSubmitting}
+                commitRequired={
+                  isRnDStaff &&
+                  isCommittedForGate === false &&
+                  data.workflow_state === "Pending Staff Approval"
+                }
+              />
             )}
-            {/* Download button - always visible */}
-            <FrappeButton variant="outline" onClick={handleDownload}>
-              <DownloadIcon className="w-4 h-4" />
-            </FrappeButton>
+            {cancellationStatus?.message?.has_pending && (
+              <FrappeButton variant="outline" onClick={handleDownload}>
+                <DownloadIcon className="w-4 h-4" />
+              </FrappeButton>
+            )}
           </div>
-          {data.workflow_state && (
-            <ReimbursementWorkflowActions
-              docname={data.name}
-              onActionComplete={() => window.location.reload()}
-              commitRequired={isRnDStaff && isCommittedForGate === false && data.workflow_state === "Pending Staff Approval"}
-            />
-          )}
         </PageHeader>
-        {/* Content Grid with Sidebar */}
+
+        {/* Warning Banner if there's a pending cancellation */}
+        {cancellationStatus?.message?.has_pending && (
+          <div className="mb-6 p-4 rounded-xl border border-red-200 dark:border-red-800/40 bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-300 flex items-center gap-3 shadow-sm">
+            <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
+            <div className="text-sm font-medium">
+              This application has a pending cancellation request. No further workflow actions can be performed on it.
+            </div>
+          </div>
+        )}
+        {/* Content Grid */}
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
           {/* Main Content (3 cols) */}
           <div className="xl:col-span-3 space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Applicant Details - span full width if Reimbursement For card is hidden */}
+              {/* Applicant Details */}
               <FrappeCard
                 title="Applicant Details"
                 className={
-                  !(
-                    data.reimbursement_for_id ||
-                    data.reimbursement_for_department ||
-                    data.reimbursement_for_designation
-                  )
+                  !(data.reimbursement_for_id || data.reimbursement_for_department || data.reimbursement_for_designation)
                     ? "lg:col-span-2"
                     : ""
                 }
               >
-                <div className="space-y-1">
-                  <DetailRow
-                    label="Applicant Webmail"
-                    value={data.applicant_webmail}
-                  />
-                  <DetailRow
-                    label="Department"
-                    value={
-                      resolvedNames.applicant_department ||
-                      data.applicant_department
-                    }
-                  />
-                  <DetailRow
-                    label="Designation"
-                    value={data.applicant_designation}
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <FieldLabel>Name</FieldLabel>
+                    <FieldValue>{resolvedNames.applicant_name || data.applicant_webmail || "-"}</FieldValue>
+                  </div>
+                  <div>
+                    <FieldLabel>Applicant Webmail</FieldLabel>
+                    <FieldValue>{data.applicant_webmail || "-"}</FieldValue>
+                  </div>
+                  <div>
+                    <FieldLabel>Department</FieldLabel>
+                    <FieldValue>
+                      {resolvedNames.applicant_department || data.applicant_department || "-"}
+                    </FieldValue>
+                  </div>
+                  <div>
+                    <FieldLabel>Designation</FieldLabel>
+                    <FieldValue>{data.applicant_designation || "-"}</FieldValue>
+                  </div>
                 </div>
               </FrappeCard>
 
-              {/* Reimbursement For - only show if at least one field has data */}
-              {(data.reimbursement_for_id ||
-                data.reimbursement_for_department ||
-                data.reimbursement_for_designation) && (
-                  <FrappeCard title="Reimbursement For">
-                    <div className="space-y-1">
-                      <DetailRow
-                        label="Webmail ID"
-                        value={data.reimbursement_for_id}
-                      />
-                      <DetailRow
-                        label="Department"
-                        value={
-                          resolvedNames.reimbursement_for_department ||
-                          data.reimbursement_for_department
-                        }
-                      />
-                      <DetailRow
-                        label="Designation"
-                        value={data.reimbursement_for_designation}
-                      />
+              {/* Reimbursement For */}
+              {(data.reimbursement_for_id || data.reimbursement_for_department || data.reimbursement_for_designation) && (
+                <FrappeCard title="Reimbursement For">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <FieldLabel>Webmail ID</FieldLabel>
+                      <FieldValue>{data.reimbursement_for_id || "-"}</FieldValue>
                     </div>
-                  </FrappeCard>
-                )}
+                    <div>
+                      <FieldLabel>Department</FieldLabel>
+                      <FieldValue>
+                        {resolvedNames.reimbursement_for_department || data.reimbursement_for_department || "-"}
+                      </FieldValue>
+                    </div>
+                    <div>
+                      <FieldLabel>Designation</FieldLabel>
+                      <FieldValue>{data.reimbursement_for_designation || "-"}</FieldValue>
+                    </div>
+                  </div>
+                </FrappeCard>
+              )}
 
               {/* Bank Details */}
               <FrappeCard title="Bank Details">
-                <div className="space-y-1">
-                  <DetailRow label="Bank Name" value={data.bank_name} />
-                  <DetailRow
-                    label="Account Holder"
-                    value={data.account_holder_name}
-                  />
-                  <DetailRow
-                    label="Account Number"
-                    value={data.bank_account_number}
-                  />
-                  <DetailRow label="IFSC Code" value={data.ifsc_code} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <FieldLabel>Bank Name</FieldLabel>
+                    <FieldValue>{data.bank_name || "-"}</FieldValue>
+                  </div>
+                  <div>
+                    <FieldLabel>Account Holder</FieldLabel>
+                    <FieldValue>{data.account_holder_name || "-"}</FieldValue>
+                  </div>
+                  <div>
+                    <FieldLabel>Account Number</FieldLabel>
+                    <FieldValue>
+                      <span className="font-mono">{data.bank_account_number || "-"}</span>
+                    </FieldValue>
+                  </div>
+                  <div>
+                    <FieldLabel>IFSC Code</FieldLabel>
+                    <FieldValue>
+                      <span className="font-mono">{data.ifsc_code || "-"}</span>
+                    </FieldValue>
+                  </div>
                 </div>
               </FrappeCard>
 
               {/* Project Details */}
               <FrappeCard title="Project Details">
-                <div className="space-y-1">
-                  <DetailRow
-                    label="Project Number"
-                    value={data.project_number}
-                  />
-                  <DetailRow label="Project Name" value={resolvedNames.project_name || data.project_name} />
-                  <DetailRow
-                    label="Account Head"
-                    value={resolvedNames.account_head || data.account_head}
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <FieldLabel>Project Number</FieldLabel>
+                    <FieldValue>{data.project_number || "-"}</FieldValue>
+                  </div>
+                  <div>
+                    <FieldLabel>Project Name</FieldLabel>
+                    <FieldValue>{resolvedNames.project_name || data.project_name || "-"}</FieldValue>
+                  </div>
+                  <div>
+                    <FieldLabel>Account Head</FieldLabel>
+                    <FieldValue>{resolvedNames.account_head || data.account_head || "-"}</FieldValue>
+                  </div>
                   {data.other_head && (
-                    <DetailRow label="Other Head" value={data.other_head} />
+                    <div>
+                      <FieldLabel>Other Head</FieldLabel>
+                      <FieldValue>{data.other_head}</FieldValue>
+                    </div>
                   )}
+                  <div>
+                    <FieldLabel>Own / Other Project</FieldLabel>
+                    <FieldValue>{data.self_other || "Own"}</FieldValue>
+                  </div>
                 </div>
               </FrappeCard>
 
-              {/* Particulars of Items Table */}
+              {/* Expenditure Table */}
               {data.table_bosk && data.table_bosk.length > 0 && (
-                <FrappeCard
-                  title="Particulars of Items"
-                  className="lg:col-span-2"
-                >
-                  <div className="overflow-x-auto border border-zinc-300 dark:border-zinc-700 rounded-lg">
-                    <table className="min-w-full divide-y divide-gray-300">
-                      <thead className="bg-zinc-200 dark:bg-zinc-700">
-                        <tr className="divide-x divide-gray-300">
-                          <th className="px-4 py-3 text-left text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase">
-                            Date
-                          </th>
-                          <th className="px-4 py-3 text-left text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase">
-                            Vendor's Name
-                          </th>
-                          <th className="px-4 py-3 text-left text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase">
-                            Particulars
-                          </th>
-                          <th className="px-4 py-3 text-right text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase">
-                            Amount
-                          </th>
-                          <th className="px-4 py-3 text-left text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase">
-                            Attachment
-                          </th>
+                <FrappeCard title="Particulars of Items" className="lg:col-span-2">
+                  <div className="overflow-x-auto border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl">
+                    <table className="min-w-full divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
+                      <thead className="bg-[#FAFAF9] dark:bg-[#18181B]">
+                        <tr className="divide-x divide-[#E4E4E7] dark:divide-[#3F3F46]">
+                          <th className="px-4 py-3 text-left text-[11px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">Date</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">Vendor's Name</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">Particulars</th>
+                          <th className="px-4 py-3 text-right text-[11px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">Amount</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">Attachment</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-300 bg-white dark:bg-zinc-900">
+                      <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46] bg-white dark:bg-[#27272A]">
                         {data.table_bosk.map((item: any, index: number) => (
-                          <tr
-                            key={item.name || index}
-                            className="hover:bg-zinc-50 dark:bg-zinc-800/50 divide-x divide-gray-300"
-                          >
-                            <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 font-mono">
-                              {item.r_date
-                                ? new Date(item.r_date).toLocaleDateString(
-                                  "en-IN",
-                                )
-                                : "-"}
+                          <tr key={item.name || index} className="hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] divide-x divide-[#E4E4E7] dark:divide-[#3F3F46]">
+                            <td className="px-4 py-3 text-sm text-[#3F3F46] dark:text-[#E4E4E7] font-mono">
+                              {item.r_date ? new Date(item.r_date).toLocaleDateString("en-IN") : "-"}
                             </td>
-                            <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 font-medium">
-                              {item.vendors_name || "-"}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100">
-                              {item.particulars || "-"}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 font-bold text-right">
-                              ₹
-                              {(parseFloat(item.amount) || 0).toLocaleString(
-                                "en-IN",
-                              )}
+                            <td className="px-4 py-3 text-sm font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{item.vendors_name || "-"}</td>
+                            <td className="px-4 py-3 text-sm text-[#3F3F46] dark:text-[#E4E4E7]">{item.particulars || "-"}</td>
+                            <td className="px-4 py-3 text-sm font-bold text-right text-[#3F3F46] dark:text-[#E4E4E7]">
+                              ₹{(parseFloat(item.amount) || 0).toLocaleString("en-IN")}
                             </td>
                             <td className="px-4 py-3 text-sm">
                               {item.uploads ? (
-                                <a
-                                  href={item.uploads}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-[#D97757] font-bold hover:underline"
-                                >
+                                <a href={item.uploads} target="_blank" rel="noopener noreferrer" className="text-[#D97757] font-bold hover:underline">
                                   View File
                                 </a>
                               ) : (
-                                <span className="text-zinc-500 dark:text-zinc-400">
-                                  No file
-                                </span>
+                                <span className="text-[#71717A] dark:text-[#A1A1AA]">No file</span>
                               )}
                             </td>
                           </tr>
                         ))}
                       </tbody>
-                      <tfoot className="bg-claude-bg dark:bg-zinc-900 border-t-2 border-zinc-300 dark:border-zinc-700">
+                      <tfoot className="bg-[#FAFAF9] dark:bg-[#18181B] border-t-2 border-[#E4E4E7] dark:border-[#3F3F46]">
                         <tr>
-                          <td
-                            colSpan={3}
-                            className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right uppercase"
-                          >
+                          <td colSpan={3} className="px-4 py-3 text-sm font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-right uppercase tracking-wider">
                             Total Amount:
                           </td>
-                          <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right">
-                            ₹
-                            {data.table_bosk
-                              .reduce(
-                                (sum: number, item: any) =>
-                                  sum + (parseFloat(item.amount) || 0),
-                                0,
-                              )
-                              .toLocaleString("en-IN")}
+                          <td className="px-4 py-3 text-sm font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-right">
+                            ₹{data.table_bosk.reduce((sum: number, item: any) => sum + (parseFloat(item.amount) || 0), 0).toLocaleString("en-IN")}
                           </td>
-                          <td></td>
+                          <td />
                         </tr>
                       </tfoot>
                     </table>
@@ -1204,7 +1198,7 @@ const ReimbursementDetails: React.FC = () => {
               {/* Comments */}
               {data.comment && (
                 <FrappeCard title="Comments" className="lg:col-span-2">
-                  <p className="text-zinc-900 dark:text-zinc-100 whitespace-pre-wrap font-medium">
+                  <p className="text-[#3F3F46] dark:text-[#E4E4E7] whitespace-pre-wrap font-medium">
                     {data.comment}
                   </p>
                 </FrappeCard>
@@ -1217,32 +1211,50 @@ const ReimbursementDetails: React.FC = () => {
 
               {/* Meta Information */}
               <FrappeCard title="Meta Information" className="lg:col-span-2">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <DetailRow
-                    label="Created"
-                    value={formatDate(data.creation)}
-                  />
-                  <DetailRow
-                    label="Last Modified"
-                    value={formatDate(data.modified)}
-                  />
-                  <DetailRow label="Owner" value={data.owner} />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <FieldLabel>Created</FieldLabel>
+                    <FieldValue>
+                      <span className="flex items-center gap-2">
+                        <CalendarIcon className="w-4 h-4 text-zinc-400" />
+                        {formatDate(data.creation)}
+                      </span>
+                    </FieldValue>
+                  </div>
+                  <div>
+                    <FieldLabel>Last Modified</FieldLabel>
+                    <FieldValue>
+                      <span className="flex items-center gap-2">
+                        <CalendarIcon className="w-4 h-4 text-zinc-400" />
+                        {formatDate(data.modified)}
+                      </span>
+                    </FieldValue>
+                  </div>
+                  <div>
+                    <FieldLabel>Owner</FieldLabel>
+                    <FieldValue>
+                      <span className="flex items-center gap-2">
+                        <UserIcon className="w-4 h-4 text-zinc-400" />
+                        {data.owner}
+                      </span>
+                    </FieldValue>
+                  </div>
                 </div>
               </FrappeCard>
             </div>
           </div>
 
-          {/* Right Sidebar (1 col) */}
+          {/* Right Sidebar */}
           <aside className="xl:col-span-1 space-y-6">
-            {/* Section 0: Project Budget Overview */}
-            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-              <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4">
+            {/* Project Budget */}
+            <div className="bg-white dark:bg-[#27272A] p-5 rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
+              <h3 className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-4">
                 Project Budget
               </h3>
               <div className="flex flex-col gap-4">
-                <div className="flex justify-between items-center bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800">
-                  <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                    Total Commitable Balance
+                <div className="flex justify-between items-center bg-[#FAFAF9] dark:bg-[#18181B] p-3 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46]">
+                  <p className="text-sm font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
+                    Commitable Balance
                   </p>
                   <p className="text-xl font-bold text-[#D97757]">
                     ₹ {totalCommitableBalance.toLocaleString("en-IN")}
@@ -1250,7 +1262,7 @@ const ReimbursementDetails: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setIsLedgerOpen(true)}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-[#D97757] font-bold text-sm hover:bg-[#B2DFDB] transition-colors"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] text-[#D97757] font-bold text-sm hover:bg-[#F4F4F5] dark:hover:bg-[#27272A] transition-colors"
                 >
                   <LedgerIcon className="w-4 h-4" />
                   View Project Ledger
@@ -1258,130 +1270,107 @@ const ReimbursementDetails: React.FC = () => {
               </div>
             </div>
 
-            {/* Section 1: Latest Activity */}
-            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-              <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center justify-between">
-                Latest Activity
-              </h3>
-              {id && <ActivityStream doctype="Reimbursement" docname={id} />}
-            </div>
-
-            {/* Section 1b: Document Activity Log (new endpoint) */}
-            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-              {id && <ActivityLog doctype="Reimbursement" docname={id} />}
-            </div>
-
-            {/* Section 2: Add Comment */}
-            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-              <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-3">
-                Add Comment
-              </h3>
-              <Textarea
-                className="w-full border border-zinc-300 dark:border-zinc-700 p-3 rounded-lg text-sm mb-3 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
-                rows={3}
-                placeholder="Type your comment here..."
-                value={sidebarComment}
-                onChange={(e) => setSidebarComment(e.target.value)}
-              />
-              <FrappeButton
-                className="w-full"
-                variant="primary"
-                onClick={handleSidebarCommentSubmit}
-                disabled={isAddingComment}
-              >
-                {isAddingComment ? "Submitting..." : "Submit Comment"}
-              </FrappeButton>
-            </div>
-
-            {/* Section 3: Make a Commitment (Conditional) */}
-            {(data.workflow_state === "Approved" ||
-              data.workflow_state === "Pending Staff Approval") &&
-              isRnDStaff && (
+            {/* Commit & Payment (Staff only) */}
+            {(data.workflow_state === "Approved" || data.workflow_state === "Pending Staff Approval") && isRnDStaff && (
+              <>
                 <CommitPayment
-                    doctype="Reimbursement"
-                    docName={id || ""}
-                    projectName={data.project_name}
-                    budgetHeads={budgetHeads}
-                    actualBalance={actualBalance}
-                    onCommitSuccess={() => window.location.reload()}
-                    onStagingStatusChange={(status) => setIsCommittedForGate(status)}
+                  doctype="Reimbursement"
+                  docName={id || ""}
+                  projectName={data.project_name}
+                  budgetHeads={budgetHeads}
+                  actualBalance={actualBalance}
+                  commitableBalance={commitableBalance}
+                  onCommitSuccess={() => window.location.reload()}
+                  onStagingStatusChange={(status) => setIsCommittedForGate(status)}
                 />
-              )}
 
-            {/* Section 4: Record Payment (Conditional) */}
-            {(data.workflow_state === "Approved" ||
-              data.workflow_state === "Pending Staff Approval") &&
-              isRnDStaff && (
-                <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                  <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4">
+                <div className="bg-white dark:bg-[#27272A] p-5 rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
+                  <h3 className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-4">
                     Record Payment
                   </h3>
                   {isCommitted ? (
                     <div className="space-y-4">
-                      <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex flex-col gap-1">
-                        <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
+                      <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-100 dark:border-blue-800 flex flex-col gap-1">
+                        <p className="text-xs text-blue-600 dark:text-blue-400 font-semibold uppercase tracking-wide">
                           Linked Commitment
                         </p>
                         <div className="flex justify-between items-end">
-                          <p className="text-sm font-medium text-blue-900">
-                            {linkedCommitment?.head}
-                          </p>
-                          <p className="text-lg font-bold text-blue-700">
-                            ₹{" "}
-                            {linkedCommitment?.committed.toLocaleString(
-                              "en-IN",
-                            )}
+                          <p className="text-sm font-medium text-blue-900 dark:text-blue-200">{linkedCommitment?.head}</p>
+                          <p className="text-lg font-bold text-blue-700 dark:text-blue-300">
+                            ₹ {linkedCommitment?.committed.toLocaleString("en-IN")}
                           </p>
                         </div>
                       </div>
-
                       <div>
-                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                          Payment Amount (₹)
-                        </label>
+                        <FieldLabel>Payment Amount (₹)</FieldLabel>
                         <input
                           type="number"
-                          className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
+                          className="w-full px-3 py-2 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl text-sm bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] mt-1"
                           placeholder="e.g., 5000"
                           value={paymentAmount}
                           onChange={(e) => setPaymentAmount(e.target.value)}
                           max={linkedCommitment?.committed}
                         />
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                          Paying against commitment. Max: ₹
-                          {linkedCommitment?.committed.toLocaleString("en-IN")}
+                        <p className="text-xs text-[#71717A] dark:text-[#A1A1AA] mt-1">
+                          Max: ₹{linkedCommitment?.committed.toLocaleString("en-IN")}
                         </p>
                       </div>
                       <FrappeButton
                         className="w-full"
                         variant="outline"
                         onClick={handlePayment}
-                        disabled={
-                          isPaying ||
-                          !paymentAmount ||
-                          parseFloat(paymentAmount) >
-                          (linkedCommitment?.committed || 0)
-                        }
+                        disabled={isPaying || !paymentAmount || parseFloat(paymentAmount) > (linkedCommitment?.committed || 0)}
                       >
                         {isPaying ? "Processing..." : "Submit Payment"}
                       </FrappeButton>
                     </div>
                   ) : (
-                    <div className="text-center py-6 px-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-800 border-dashed">
-                      <div className="mx-auto w-10 h-10 bg-zinc-200 dark:bg-zinc-700 rounded-full flex items-center justify-center mb-3 text-zinc-400 dark:text-zinc-500">
+                    <div className="text-center py-6 px-4 bg-[#FAFAF9] dark:bg-[#18181B] rounded-xl border border-dashed border-[#E4E4E7] dark:border-[#3F3F46]">
+                      <div className="mx-auto w-10 h-10 bg-[#F4F4F5] dark:bg-[#3F3F46] rounded-full flex items-center justify-center mb-3 text-[#71717A] dark:text-[#A1A1AA]">
                         <LedgerIcon className="w-5 h-5" />
                       </div>
-                      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                        Commitment Required
-                      </p>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                        Please make a commitment above before recording payment
-                        for this reimbursement.
+                      <p className="text-sm font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">Commitment Required</p>
+                      <p className="text-xs text-[#71717A] dark:text-[#A1A1AA] mt-1">
+                        Please make a commitment above before recording payment.
                       </p>
                     </div>
                   )}
                 </div>
-              )}
+              </>
+            )}
+
+            {/* Meta Info (sidebar) */}
+            <FrappeCard>
+              <div className="space-y-4">
+                <div>
+                  <FieldLabel>Created On</FieldLabel>
+                  <FieldValue>
+                    <span className="flex items-center gap-2">
+                      <CalendarIcon className="w-4 h-4 text-zinc-400" />
+                      {formatDate(data.creation)}
+                    </span>
+                  </FieldValue>
+                </div>
+                <div>
+                  <FieldLabel>Last Modified</FieldLabel>
+                  <FieldValue>
+                    <span className="flex items-center gap-2">
+                      <CalendarIcon className="w-4 h-4 text-zinc-400" />
+                      {formatDate(data.modified)}
+                    </span>
+                  </FieldValue>
+                </div>
+                <div>
+                  <FieldLabel>Owner</FieldLabel>
+                  <FieldValue>
+                    <span className="flex items-center gap-2">
+                      <UserIcon className="w-4 h-4 text-zinc-400" />
+                      {data.owner}
+                    </span>
+                  </FieldValue>
+                </div>
+              </div>
+            </FrappeCard>
           </aside>
         </div>
       </main>
@@ -1395,6 +1384,9 @@ const ReimbursementDetails: React.FC = () => {
           budgetHeadList={budgetHeadList}
         />
       )}
+
+      {/* Floating Activity Log */}
+      {id && <FloatingActivityLogButton doctype="Reimbursement" docname={id} />}
     </div>
   );
 };

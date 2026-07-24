@@ -5,8 +5,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useFrappePostCall } from "frappe-react-sdk";
-import { ArrowLeft, Save, Loader2, FileText } from "lucide-react";
-// import { ArrowLeft, Save, Loader2, FileText, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Save, Loader2, FileText, ArrowRight, Users, Upload, CheckCircle2, ShieldCheck } from "lucide-react";
 import DynamicFormRenderer from "@/components/forms/DynamicFormRenderer";
 import {
     universalRegistrationAPI,
@@ -68,12 +67,15 @@ export default function UniversalRegistrationForm({
                     prefill_data,
                 } = response.message;
 
-                // Force Account Type to be non-readonly
+                // Force Account Type to be non-readonly and ensure nationality field is not autocomplete
                 const enableAccountType = (fieldsList: any[]) => {
                     fieldsList.forEach((f) => {
                         if (f.fieldname === "account_type_u_r" || f.label === "Account Type") {
                             f.read_only = 0;
                             f.read_only_depends_on = null;
+                        }
+                        if (f.fieldname === "nationality_u_r") {
+                            f.autocomplete_off = true;
                         }
                         if (f.child_fields && Array.isArray(f.child_fields)) {
                             enableAccountType(f.child_fields);
@@ -115,7 +117,13 @@ export default function UniversalRegistrationForm({
                     }
 
                     const personalFnames = ["full_name_u_r", "gender_u_r", "nationality_u_r", "guardian_name_u_r", "dob_u_r"];
-                    const personalExtracted = personalFnames.map(f => pullField(f)).filter(Boolean);
+                    const personalExtracted = personalFnames.map(f => {
+                        const field = pullField(f);
+                        if (field && field.fieldname === "nationality_u_r") {
+                            field.autocomplete = 0;
+                        }
+                        return field;
+                    }).filter(Boolean);
 
                     const contactFnames = ["mobile_number_u_r", "same_as_mobile_number_u_r", "whatsapp_number_u_r", "alternate_mobile_number_u_r"];
                     const contactExtracted = contactFnames.map(f => pullField(f)).filter(Boolean);
@@ -289,8 +297,206 @@ export default function UniversalRegistrationForm({
                     setFields([]);
                 }
 
-                // Set Link Options
-                setLinkOptions(link_options || {});
+                // Set Link Options with fallback for nationality
+                const processedLinkOptions = link_options || {};
+                if (!processedLinkOptions.nationality_u_r) {
+                    processedLinkOptions.nationality_u_r = [
+                        { value: "India", label: "India" },
+                        { value: "Afghanistan", label: "Afghanistan" },
+                        { value: "Albania", label: "Albania" },
+                        { value: "Algeria", label: "Algeria" },
+                        { value: "Andorra", label: "Andorra" },
+                        { value: "Angola", label: "Angola" },
+                        { value: "Argentina", label: "Argentina" },
+                        { value: "Australia", label: "Australia" },
+                        { value: "Austria", label: "Austria" },
+                        { value: "Azerbaijan", label: "Azerbaijan" },
+                        { value: "Bahamas", label: "Bahamas" },
+                        { value: "Bahrain", label: "Bahrain" },
+                        { value: "Bangladesh", label: "Bangladesh" },
+                        { value: "Barbados", label: "Barbados" },
+                        { value: "Belarus", label: "Belarus" },
+                        { value: "Belgium", label: "Belgium" },
+                        { value: "Belize", label: "Belize" },
+                        { value: "Benin", label: "Benin" },
+                        { value: "Bhutan", label: "Bhutan" },
+                        { value: "Bolivia", label: "Bolivia" },
+                        { value: "Bosnia and Herzegovina", label: "Bosnia and Herzegovina" },
+                        { value: "Botswana", label: "Botswana" },
+                        { value: "Brazil", label: "Brazil" },
+                        { value: "Brunei", label: "Brunei" },
+                        { value: "Bulgaria", label: "Bulgaria" },
+                        { value: "Burkina Faso", label: "Burkina Faso" },
+                        { value: "Burundi", label: "Burundi" },
+                        { value: "Cambodia", label: "Cambodia" },
+                        { value: "Cameroon", label: "Cameroon" },
+                        { value: "Canada", label: "Canada" },
+                        { value: "Cape Verde", label: "Cape Verde" },
+                        { value: "Central African Republic", label: "Central African Republic" },
+                        { value: "Chad", label: "Chad" },
+                        { value: "Chile", label: "Chile" },
+                        { value: "China", label: "China" },
+                        { value: "Colombia", label: "Colombia" },
+                        { value: "Comoros", label: "Comoros" },
+                        { value: "Congo", label: "Congo" },
+                        { value: "Costa Rica", label: "Costa Rica" },
+                        { value: "Croatia", label: "Croatia" },
+                        { value: "Cuba", label: "Cuba" },
+                        { value: "Cyprus", label: "Cyprus" },
+                        { value: "Czech Republic", label: "Czech Republic" },
+                        { value: "Denmark", label: "Denmark" },
+                        { value: "Djibouti", label: "Djibouti" },
+                        { value: "Dominica", label: "Dominica" },
+                        { value: "Dominican Republic", label: "Dominican Republic" },
+                        { value: "East Timor", label: "East Timor" },
+                        { value: "Ecuador", label: "Ecuador" },
+                        { value: "Egypt", label: "Egypt" },
+                        { value: "El Salvador", label: "El Salvador" },
+                        { value: "Equatorial Guinea", label: "Equatorial Guinea" },
+                        { value: "Eritrea", label: "Eritrea" },
+                        { value: "Estonia", label: "Estonia" },
+                        { value: "Ethiopia", label: "Ethiopia" },
+                        { value: "Fiji", label: "Fiji" },
+                        { value: "Finland", label: "Finland" },
+                        { value: "France", label: "France" },
+                        { value: "Gabon", label: "Gabon" },
+                        { value: "Gambia", label: "Gambia" },
+                        { value: "Georgia", label: "Georgia" },
+                        { value: "Germany", label: "Germany" },
+                        { value: "Ghana", label: "Ghana" },
+                        { value: "Greece", label: "Greece" },
+                        { value: "Grenada", label: "Grenada" },
+                        { value: "Guatemala", label: "Guatemala" },
+                        { value: "Guinea", label: "Guinea" },
+                        { value: "Guinea-Bissau", label: "Guinea-Bissau" },
+                        { value: "Guyana", label: "Guyana" },
+                        { value: "Haiti", label: "Haiti" },
+                        { value: "Honduras", label: "Honduras" },
+                        { value: "Hungary", label: "Hungary" },
+                        { value: "Iceland", label: "Iceland" },
+                        { value: "Indonesia", label: "Indonesia" },
+                        { value: "Iran", label: "Iran" },
+                        { value: "Iraq", label: "Iraq" },
+                        { value: "Ireland", label: "Ireland" },
+                        { value: "Israel", label: "Israel" },
+                        { value: "Italy", label: "Italy" },
+                        { value: "Jamaica", label: "Jamaica" },
+                        { value: "Japan", label: "Japan" },
+                        { value: "Jordan", label: "Jordan" },
+                        { value: "Kazakhstan", label: "Kazakhstan" },
+                        { value: "Kenya", label: "Kenya" },
+                        { value: "Kiribati", label: "Kiribati" },
+                        { value: "Kosovo", label: "Kosovo" },
+                        { value: "Kuwait", label: "Kuwait" },
+                        { value: "Kyrgyzstan", label: "Kyrgyzstan" },
+                        { value: "Laos", label: "Laos" },
+                        { value: "Latvia", label: "Latvia" },
+                        { value: "Lebanon", label: "Lebanon" },
+                        { value: "Lesotho", label: "Lesotho" },
+                        { value: "Liberia", label: "Liberia" },
+                        { value: "Libya", label: "Libya" },
+                        { value: "Liechtenstein", label: "Liechtenstein" },
+                        { value: "Lithuania", label: "Lithuania" },
+                        { value: "Luxembourg", label: "Luxembourg" },
+                        { value: "Madagascar", label: "Madagascar" },
+                        { value: "Malawi", label: "Malawi" },
+                        { value: "Malaysia", label: "Malaysia" },
+                        { value: "Maldives", label: "Maldives" },
+                        { value: "Mali", label: "Mali" },
+                        { value: "Malta", label: "Malta" },
+                        { value: "Marshall Islands", label: "Marshall Islands" },
+                        { value: "Mauritania", label: "Mauritania" },
+                        { value: "Mauritius", label: "Mauritius" },
+                        { value: "Mexico", label: "Mexico" },
+                        { value: "Micronesia", label: "Micronesia" },
+                        { value: "Moldova", label: "Moldova" },
+                        { value: "Monaco", label: "Monaco" },
+                        { value: "Mongolia", label: "Mongolia" },
+                        { value: "Montenegro", label: "Montenegro" },
+                        { value: "Morocco", label: "Morocco" },
+                        { value: "Mozambique", label: "Mozambique" },
+                        { value: "Myanmar", label: "Myanmar" },
+                        { value: "Namibia", label: "Namibia" },
+                        { value: "Nauru", label: "Nauru" },
+                        { value: "Nepal", label: "Nepal" },
+                        { value: "Netherlands", label: "Netherlands" },
+                        { value: "New Zealand", label: "New Zealand" },
+                        { value: "Nicaragua", label: "Nicaragua" },
+                        { value: "Niger", label: "Niger" },
+                        { value: "Nigeria", label: "Nigeria" },
+                        { value: "North Korea", label: "North Korea" },
+                        { value: "North Macedonia", label: "North Macedonia" },
+                        { value: "Norway", label: "Norway" },
+                        { value: "Oman", label: "Oman" },
+                        { value: "Pakistan", label: "Pakistan" },
+                        { value: "Palau", label: "Palau" },
+                        { value: "Palestine", label: "Palestine" },
+                        { value: "Panama", label: "Panama" },
+                        { value: "Papua New Guinea", label: "Papua New Guinea" },
+                        { value: "Paraguay", label: "Paraguay" },
+                        { value: "Peru", label: "Peru" },
+                        { value: "Philippines", label: "Philippines" },
+                        { value: "Poland", label: "Poland" },
+                        { value: "Portugal", label: "Portugal" },
+                        { value: "Qatar", label: "Qatar" },
+                        { value: "Romania", label: "Romania" },
+                        { value: "Russia", label: "Russia" },
+                        { value: "Rwanda", label: "Rwanda" },
+                        { value: "Saint Kitts and Nevis", label: "Saint Kitts and Nevis" },
+                        { value: "Saint Lucia", label: "Saint Lucia" },
+                        { value: "Saint Vincent and the Grenadines", label: "Saint Vincent and the Grenadines" },
+                        { value: "Samoa", label: "Samoa" },
+                        { value: "San Marino", label: "San Marino" },
+                        { value: "Sao Tome and Principe", label: "Sao Tome and Principe" },
+                        { value: "Saudi Arabia", label: "Saudi Arabia" },
+                        { value: "Senegal", label: "Senegal" },
+                        { value: "Serbia", label: "Serbia" },
+                        { value: "Seychelles", label: "Seychelles" },
+                        { value: "Sierra Leone", label: "Sierra Leone" },
+                        { value: "Singapore", label: "Singapore" },
+                        { value: "Slovakia", label: "Slovakia" },
+                        { value: "Slovenia", label: "Slovenia" },
+                        { value: "Solomon Islands", label: "Solomon Islands" },
+                        { value: "Somalia", label: "Somalia" },
+                        { value: "South Africa", label: "South Africa" },
+                        { value: "South Korea", label: "South Korea" },
+                        { value: "South Sudan", label: "South Sudan" },
+                        { value: "Spain", label: "Spain" },
+                        { value: "Sri Lanka", label: "Sri Lanka" },
+                        { value: "Sudan", label: "Sudan" },
+                        { value: "Suriname", label: "Suriname" },
+                        { value: "Sweden", label: "Sweden" },
+                        { value: "Switzerland", label: "Switzerland" },
+                        { value: "Syria", label: "Syria" },
+                        { value: "Taiwan", label: "Taiwan" },
+                        { value: "Tajikistan", label: "Tajikistan" },
+                        { value: "Tanzania", label: "Tanzania" },
+                        { value: "Thailand", label: "Thailand" },
+                        { value: "Timor-Leste", label: "Timor-Leste" },
+                        { value: "Togo", label: "Togo" },
+                        { value: "Tonga", label: "Tonga" },
+                        { value: "Trinidad and Tobago", label: "Trinidad and Tobago" },
+                        { value: "Tunisia", label: "Tunisia" },
+                        { value: "Turkey", label: "Turkey" },
+                        { value: "Turkmenistan", label: "Turkmenistan" },
+                        { value: "Tuvalu", label: "Tuvalu" },
+                        { value: "Uganda", label: "Uganda" },
+                        { value: "Ukraine", label: "Ukraine" },
+                        { value: "United Arab Emirates", label: "United Arab Emirates" },
+                        { value: "United Kingdom", label: "United Kingdom" },
+                        { value: "United States", label: "United States" },
+                        { value: "Uruguay", label: "Uruguay" },
+                        { value: "Uzbekistan", label: "Uzbekistan" },
+                        { value: "Vanuatu", label: "Vanuatu" },
+                        { value: "Vatican City", label: "Vatican City" },
+                        { value: "Venezuela", label: "Venezuela" },
+                        { value: "Vietnam", label: "Vietnam" },
+                        { value: "Yemen", label: "Yemen" },
+                        { value: "Zambia", label: "Zambia" },
+                        { value: "Zimbabwe", label: "Zimbabwe" },
+                    ];
+                }
+                setLinkOptions(processedLinkOptions);
 
                 // Default status
                 let initialData: any = { status_u_r: "Draft" };
@@ -1202,131 +1408,204 @@ export default function UniversalRegistrationForm({
     // ── Step 1: Instructions screen ─────────────────────────────────────────
     if (step === 'instructions') {
         return (
-            <div className="flex-1 w-full bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen text-[#3F3F46] dark:text-[#E4E4E7]">
-                <div className="max-w-[1240px] px-6 md:px-8 py-8 md:py-10 mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
-                    {/* Back + Title */}
-                    <div className="flex items-start gap-4 mb-8 mt-4">
+            <div className="flex-1 w-full bg-[#F4F4F5] dark:bg-[#0F0F10] min-h-screen">
+                <div className="w-full px-4 md:px-8 py-8">
+
+                    {/* Page header */}
+                    <div className="flex items-center gap-3 mb-6">
                         <button onClick={() => navigate(-1)}
-                            className="mt-0.5 p-1.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] hover:bg-[#EFF6FF] dark:hover:bg-[#2563EB]/10 hover:border-[#2563EB]/40 transition-all flex-shrink-0">
-                            <ArrowLeft className="h-4 w-4 text-[#2563EB] dark:text-[#60A5FA]" />
+                            className="p-1.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] transition-colors">
+                            <ArrowLeft className="h-4 w-4 text-[#71717A] dark:text-[#A1A1AA]" />
                         </button>
                         <div>
-                            <h1 className="text-[22px] font-extrabold tracking-[-0.02em] text-[#3F3F46] dark:text-[#E4E4E7] leading-tight mb-1">
-                                Stakeholder Registration
-                            </h1>
-                            <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] font-medium">
-                                Register as a new stakeholder to participate in research projects.
-                            </p>
+                            <h1 className="text-[18px] font-extrabold text-[#18181B] dark:text-[#FAFAFA] leading-tight">Stakeholder Registration</h1>
+                            <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] font-medium mt-0.5">Read this guide before filling the form</p>
                         </div>
                     </div>
 
-                    {/* Instructions Card */}
-                    <div className="bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-2xl shadow-sm overflow-hidden">
-                        {/* Card header accent */}
-                        <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-transparent" />
-                        {/* Section header */}
-                        <div className="section-header-lg">
-                            <div className="section-header-lg-accent" />
-                            <div className="section-header-lg-icon">
-                                <FileText className="h-4 w-4" />
+                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+
+                        {/* LEFT — Steps */}
+                        <div className="lg:col-span-3 space-y-4">
+
+                            {/* Step 1 — Profile type */}
+                            <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-[#E4E4E7] dark:border-[#2E2E30] overflow-hidden">
+                                <div className="bg-[#4A6CF7] px-5 py-3.5 flex items-center gap-2.5">
+                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white text-[12px] font-extrabold">1</span>
+                                    <div>
+                                        <p className="text-[13px] font-extrabold text-white leading-tight">Select Your Profile Type</p>
+                                        <p className="text-[10px] text-blue-100 mt-0.5">Choose the category that best describes you</p>
+                                    </div>
+                                </div>
+
+                                {/* Individual */}
+                                <div className="border-b border-[#F4F4F5] dark:border-[#2E2E30] px-5 py-4">
+                                    <div className="flex items-start gap-3">
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-900/20 mt-0.5">
+                                            <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <p className="text-[14px] font-extrabold text-[#18181B] dark:text-[#FAFAFA]">Individual</p>
+                                                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">For Honorarium</span>
+                                            </div>
+                                            <p className="text-[12px] font-medium text-[#52525B] dark:text-[#A1A1AA] leading-relaxed mb-2">For individuals invited to participate in academic or research activities who will receive honorarium payments.</p>
+                                            <div className="space-y-1 text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
+                                                <p>→ Guest lecturers, keynote speakers, workshop facilitators</p>
+                                                <p>→ External subject-matter experts, consultants, or reviewers</p>
+                                                <p>→ Jury members, evaluators, or examiners</p>
+                                            </div>
+                                            <div className="mt-2.5 flex items-start gap-2 rounded-lg bg-[#F4F4F5] dark:bg-[#2E2E30] px-3 py-2">
+                                                <ShieldCheck className="h-3.5 w-3.5 text-[#4A6CF7] shrink-0 mt-0.5" />
+                                                <p className="text-[11px] font-semibold text-[#52525B] dark:text-[#A1A1AA]"><strong className="text-[#27272A] dark:text-[#E4E4E7]">Documents required:</strong> Aadhaar + PAN (Indian nationals) or valid government-issued ID (foreign nationals), bank account details.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* PI / Co-PI */}
+                                <div className="px-5 py-4">
+                                    <div className="flex items-start gap-3">
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-50 dark:bg-violet-900/20 mt-0.5">
+                                            <Users className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <p className="text-[14px] font-extrabold text-[#18181B] dark:text-[#FAFAFA]">PI / Co-PI</p>
+                                                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">External only</span>
+                                            </div>
+                                            <p className="text-[12px] font-medium text-[#52525B] dark:text-[#A1A1AA] leading-relaxed mb-2">For Principal Investigators or Co-PIs employed at another institute/university collaborating on a project registered here.</p>
+                                            <div className="space-y-1 text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
+                                                <p>→ Faculty members or researchers from other universities/institutes</p>
+                                                <p>→ Scientists from CSIR, DRDO, ISRO, or similar government labs</p>
+                                                <p>→ International collaborators holding a PI/Co-PI role on a funded project</p>
+                                            </div>
+                                            <div className="mt-2.5 flex items-start gap-2 rounded-lg bg-[#F4F4F5] dark:bg-[#2E2E30] px-3 py-2">
+                                                <ShieldCheck className="h-3.5 w-3.5 text-violet-600 shrink-0 mt-0.5" />
+                                                <p className="text-[11px] font-semibold text-[#52525B] dark:text-[#A1A1AA]"><strong className="text-[#27272A] dark:text-[#E4E4E7]">Documents required:</strong> Aadhaar + PAN (Indian nationals) or valid government-issued ID (foreign nationals), institutional affiliation details, bank account details.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div>
-                                <div className="section-header-lg-title">Registration Instructions</div>
-                                <div className="section-header-lg-subtitle">How to Register — Please follow the steps below</div>
+
+                            {/* Steps 2–4 */}
+                            <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-[#E4E4E7] dark:border-[#2E2E30] overflow-hidden">
+                                <div className="bg-emerald-600 px-5 py-3.5 flex items-center gap-2.5">
+                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white text-[12px] font-extrabold">→</span>
+                                    <div>
+                                        <p className="text-[13px] font-extrabold text-white leading-tight">How to Complete the Form</p>
+                                        <p className="text-[10px] text-emerald-100 mt-0.5">Follow these steps to register successfully</p>
+                                    </div>
+                                </div>
+                                <div className="divide-y divide-[#F4F4F5] dark:divide-[#2E2E30]">
+                                    {[
+                                        { num: "2", icon: FileText, bg: "bg-[#EEF2FF] dark:bg-[#4A6CF7]/15", color: "text-[#4A6CF7]", title: "Fill in the required details", body: "Complete all fields marked with a red asterisk *. These are mandatory for successful registration. Double-check names, ID numbers, and bank details for accuracy." },
+                                        { num: "3", icon: Upload, bg: "bg-orange-50 dark:bg-orange-900/20", color: "text-orange-600", title: "Upload supporting documents", body: "Attach required identification — Aadhaar & PAN for Indian nationals, or a valid government-issued ID for foreign nationals. Ensure documents are clear and readable." },
+                                        { num: "4", icon: CheckCircle2, bg: "bg-emerald-50 dark:bg-emerald-900/20", color: "text-emerald-600", title: "Submit your registration", body: "Once all details are filled and documents are uploaded, click Save & Submit at the bottom of the form to complete your registration." },
+                                    ].map((s) => (
+                                        <div key={s.num} className="flex gap-4 px-5 py-4">
+                                            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl mt-0.5 ${s.bg}`}>
+                                                <s.icon className={`h-4 w-4 ${s.color}`} />
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1.5">
+                                                    <span className="text-[10px] font-extrabold text-[#A1A1AA] dark:text-[#71717A] uppercase tracking-wide">Step {s.num}</span>
+                                                    <span className="text-[14px] font-extrabold text-[#18181B] dark:text-[#FAFAFA]">{s.title}</span>
+                                                </div>
+                                                <p className="text-[13px] font-medium leading-relaxed text-[#52525B] dark:text-[#A1A1AA]">{s.body}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
 
-                        <div className="px-8 py-7">
-                            <ol className="space-y-6">
-                                {/* Step 1 */}
-                                <li className="flex gap-4">
-                                    <span className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#EEF2FF] dark:bg-[#4A6CF7]/20 text-[#4A6CF7] dark:text-[#818CF8] font-extrabold text-[12px] mt-0.5 border border-[#C7D2FE] dark:border-[#4A6CF7]/30">1</span>
-                                    <div className="text-[13px] text-[#52525B] dark:text-[#A1A1AA] leading-relaxed">
-                                        <strong className="text-[#27272A] dark:text-[#E4E4E7] block mb-1 font-bold">Select your Profile Type</strong>
-                                        Choose the category that best describes you:
-                                        <ul className="mt-3 ml-1 space-y-3">
-                                            {/* Individual */}
-                                            <li className="rounded-xl border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]/60 p-4">
-                                                <div className="flex gap-2 mb-1.5">
-                                                    <span className="text-[#4A6CF7] font-extrabold mt-0.5">•</span>
-                                                    <strong className="text-[#27272A] dark:text-[#E4E4E7] text-[13px]">Individual (For Honorarium)</strong>
+                        {/* RIGHT — Quick info */}
+                        <div className="lg:col-span-2 space-y-4">
+
+                            {/* Documents checklist */}
+                            <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-[#E4E4E7] dark:border-[#2E2E30] overflow-hidden">
+                                <div className="px-5 py-3.5 border-b border-[#F4F4F5] dark:border-[#2E2E30] bg-slate-100 dark:bg-slate-800/50">
+                                    <p className="text-[13px] font-extrabold text-[#18181B] dark:text-[#FAFAFA]">Documents Checklist</p>
+                                    <p className="text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA] mt-0.5">Keep these ready before you begin</p>
+                                </div>
+                                <div className="px-5 py-4 space-y-3">
+                                    <div>
+                                        <p className="text-[11px] font-extrabold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide mb-2">Indian Nationals</p>
+                                        <div className="space-y-1.5">
+                                            {["Aadhaar Card", "PAN Card", "Bank account details (account number & IFSC)"].map((doc) => (
+                                                <div key={doc} className="flex gap-2 items-center text-[12px] font-semibold text-[#27272A] dark:text-[#E4E4E7]">
+                                                    <span className="h-1.5 w-1.5 rounded-full bg-[#4A6CF7] shrink-0" />
+                                                    {doc}
                                                 </div>
-                                                <p className="ml-4 text-[#71717A] dark:text-[#A1A1AA] mb-2 text-[12px]">For individuals invited to participate in academic or research activities who will receive honorarium payments.</p>
-                                                <ul className="ml-4 space-y-1 text-[#71717A] dark:text-[#A1A1AA] text-[12px]">
-                                                    <li className="flex gap-1.5"><span className="text-[#A1A1AA]">–</span> Guest lecturers, keynote speakers, workshop facilitators</li>
-                                                    <li className="flex gap-1.5"><span className="text-[#A1A1AA]">–</span> External subject-matter experts, consultants, or reviewers</li>
-                                                    <li className="flex gap-1.5"><span className="text-[#A1A1AA]">–</span> Jury members, evaluators, or examiners</li>
-                                                    <li className="flex gap-1.5"><span className="text-[#A1A1AA]">–</span> <span><strong className="text-[#52525B] dark:text-[#D4D4D8]">Required documents:</strong> Aadhaar Card + PAN Card (Indian nationals) or valid government-issued ID (foreign nationals), bank account details for payment.</span></li>
-                                                </ul>
-                                            </li>
-
-                                            {/* PI / Co-PI External */}
-                                            <li className="rounded-xl border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]/60 p-4">
-                                                <div className="flex gap-2 mb-1.5">
-                                                    <span className="text-[#4A6CF7] font-extrabold mt-0.5">•</span>
-                                                    <strong className="text-[#27272A] dark:text-[#E4E4E7] text-[13px]">PI / Co-PI (External only)</strong>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="border-t border-[#F4F4F5] dark:border-[#2E2E30] pt-3">
+                                        <p className="text-[11px] font-extrabold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide mb-2">Foreign Nationals</p>
+                                        <div className="space-y-1.5">
+                                            {["Valid government-issued photo ID", "Bank account details"].map((doc) => (
+                                                <div key={doc} className="flex gap-2 items-center text-[12px] font-semibold text-[#27272A] dark:text-[#E4E4E7]">
+                                                    <span className="h-1.5 w-1.5 rounded-full bg-violet-500 shrink-0" />
+                                                    {doc}
                                                 </div>
-                                                <p className="ml-4 text-[#71717A] dark:text-[#A1A1AA] mb-2 text-[12px]">For Principal Investigators or Co-Principal Investigators employed at another institute/university collaborating on a research project registered at this institution.</p>
-                                                <ul className="ml-4 space-y-1 text-[#71717A] dark:text-[#A1A1AA] text-[12px]">
-                                                    <li className="flex gap-1.5"><span className="text-[#A1A1AA]">–</span> Faculty members or researchers from other universities/institutes</li>
-                                                    <li className="flex gap-1.5"><span className="text-[#A1A1AA]">–</span> Scientists from government labs or research organisations (e.g., CSIR, DRDO, ISRO)</li>
-                                                    <li className="flex gap-1.5"><span className="text-[#A1A1AA]">–</span> International collaborators holding a PI/Co-PI role on a funded project</li>
-                                                    <li className="flex gap-1.5"><span className="text-[#A1A1AA]">–</span> <span><strong className="text-[#52525B] dark:text-[#D4D4D8]">Required documents:</strong> Aadhaar Card + PAN Card (Indian nationals) or valid government-issued ID (foreign nationals), institutional affiliation details, bank account details.</span></li>
-                                                </ul>
-                                            </li>
-                                        </ul>
+                                            ))}
+                                        </div>
                                     </div>
-                                </li>
-
-                                {/* Step 2 */}
-                                <li className="flex gap-4">
-                                    <span className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#EEF2FF] dark:bg-[#4A6CF7]/20 text-[#4A6CF7] dark:text-[#818CF8] font-extrabold text-[12px] mt-0.5 border border-[#C7D2FE] dark:border-[#4A6CF7]/30">2</span>
-                                    <div className="text-[13px] text-[#52525B] dark:text-[#A1A1AA] leading-relaxed">
-                                        <strong className="text-[#27272A] dark:text-[#E4E4E7] block mb-1 font-bold">Fill in the required details</strong>
-                                        Complete all fields marked with a red asterisk <span className="text-red-500 font-bold">*</span>. These are mandatory for successful registration.
+                                    <div className="border-t border-[#F4F4F5] dark:border-[#2E2E30] pt-3">
+                                        <p className="text-[11px] font-extrabold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide mb-2">PI / Co-PI (External) — Additional</p>
+                                        <div className="space-y-1.5">
+                                            {["Institutional affiliation letter or ID card"].map((doc) => (
+                                                <div key={doc} className="flex gap-2 items-center text-[12px] font-semibold text-[#27272A] dark:text-[#E4E4E7]">
+                                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                                    {doc}
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
-                                </li>
+                                </div>
+                            </div>
 
-                                {/* Step 3 */}
-                                <li className="flex gap-4">
-                                    <span className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#EEF2FF] dark:bg-[#4A6CF7]/20 text-[#4A6CF7] dark:text-[#818CF8] font-extrabold text-[12px] mt-0.5 border border-[#C7D2FE] dark:border-[#4A6CF7]/30">3</span>
-                                    <div className="text-[13px] text-[#52525B] dark:text-[#A1A1AA] leading-relaxed">
-                                        <strong className="text-[#27272A] dark:text-[#E4E4E7] block mb-1 font-bold">Upload supporting documents</strong>
-                                        Attach required identification documents — Aadhaar &amp; PAN for Indian nationals, or a valid government-issued ID for foreign nationals.
-                                    </div>
-                                </li>
-
-                                {/* Step 4 */}
-                                <li className="flex gap-4">
-                                    <span className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#EEF2FF] dark:bg-[#4A6CF7]/20 text-[#4A6CF7] dark:text-[#818CF8] font-extrabold text-[12px] mt-0.5 border border-[#C7D2FE] dark:border-[#4A6CF7]/30">4</span>
-                                    <div className="text-[13px] text-[#52525B] dark:text-[#A1A1AA] leading-relaxed">
-                                        <strong className="text-[#27272A] dark:text-[#E4E4E7] block mb-1 font-bold">Submit your registration</strong>
-                                        Once all details are filled, click the <strong className="text-[#4A6CF7]">Save &amp; Submit</strong> button at the bottom of the form to complete your registration.
-                                    </div>
-                                </li>
-                            </ol>
-
-                            {/* CTA */}
-                            <div className="mt-8 pt-6 border-t border-[#E4E4E7] dark:border-[#3F3F46] flex justify-end">
-                                <button
-                                    onClick={() => setStep('form')}
-                                    disabled={isLoadingFields}
-                                    className="btn-primary-accent disabled:opacity-50"
-                                >
-                                    {isLoadingFields ? (
-                                        <>
-                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                            Loading Form...
-                                        </>
-                                    ) : (
-                                        <>
-                                            Next: Start Registration
-                                            <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
-                                        </>
-                                    )}
-                                </button>
+                            {/* Quick tips */}
+                            <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-[#E4E4E7] dark:border-[#2E2E30] px-5 py-4">
+                                <p className="text-[13px] font-extrabold text-[#27272A] dark:text-[#E4E4E7] mb-2.5">Quick Tips</p>
+                                <ul className="space-y-2">
+                                    {[
+                                        "Fields marked with * are mandatory — do not leave them blank.",
+                                        "Ensure your name matches exactly as it appears on your ID documents.",
+                                        "Upload clear, readable scans or photos of your documents.",
+                                        "Bank details must belong to the same person being registered.",
+                                    ].map((tip, i) => (
+                                        <li key={i} className="flex gap-2 items-start text-[12px] font-semibold text-[#52525B] dark:text-[#A1A1AA] leading-relaxed">
+                                            <span className="text-[#4A6CF7] mt-0.5 shrink-0 font-extrabold">→</span>
+                                            {tip}
+                                        </li>
+                                    ))}
+                                </ul>
                             </div>
                         </div>
+                    </div>
+
+                    {/* Floating CTA */}
+                    <div className="fixed bottom-6 right-8 z-50">
+                        <button
+                            onClick={() => setStep('form')}
+                            disabled={isLoadingFields}
+                            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-[#4A6CF7] hover:bg-[#3558E8] text-white text-[13px] font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all disabled:opacity-50"
+                        >
+                            {isLoadingFields ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Loading Form...
+                                </>
+                            ) : (
+                                <>
+                                    Start Registration
+                                    <ArrowRight className="h-4 w-4" />
+                                </>
+                            )}
+                        </button>
                     </div>
                 </div>
             </div>

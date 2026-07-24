@@ -106,6 +106,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
     const [fundReceived, setFundReceived] = useState<any>(null);
     const [fundLoading, setFundLoading] = useState(true);
     const [fundError, setFundError] = useState<any>(null);
+    const [prjregProjectNo, setPrjregProjectNo] = useState<string>("");
 
     // Replace useFrappeGetDoc with manual fetch for better control and debugging
     useEffect(() => {
@@ -153,117 +154,119 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
         fetchFundReceived();
     }, [fundReceivedName]);
 
-    // Fetch deposit slip by searching across all doctypes for fund_received_ref
+    // Fetch project_no from Project Registration once fundReceived is available
     useEffect(() => {
+        const prjregName = fundReceived?.prjreg_title || fundReceived?.project_reference;
+        if (!prjregName) return;
+        fetch(`/api/v2/document/Project%20Registration/${encodeURIComponent(prjregName)}?fields=["project_no"]`, {
+            credentials: "include",
+        })
+            .then((r) => r.ok ? r.json() : null)
+            .then((json) => {
+                const no = json?.data?.project_no;
+                if (no) setPrjregProjectNo(no);
+            })
+            .catch(() => {});
+    }, [fundReceived]);
+
+    // Fetch deposit slip by searching across all doctypes for fund_received_ref.
+    // `fund_received_ref` is a plain Data field on the deposit slip doctypes, and depending on
+    // when the record was created it may store either the Fund Received docname or the separate
+    // `fund_received_ref_number` value (e.g. "124") — so both candidates must be checked.
+    useEffect(() => {
+        let cancelled = false;
         const fetchDepositSlip = async () => {
             if (!fundReceivedName) return;
 
             setSlipLoading(true);
             setSlipError(null);
 
+            const csrfToken = (window as any).csrf_token || "";
+            const refCandidates = [...new Set([fundReceivedName, fundReceived?.fund_received_ref_number].filter(Boolean))];
+
             for (const doctype of depositSlipDoctypes) {
                 try {
-                    // Use /api/v2/document/ endpoint for filtering
-                    const response = await fetch(
-                        `/api/v2/document/${encodeURIComponent(doctype)}?filters=[["fund_received_ref","=","${fundReceivedName}"]]&order_by=creation desc&limit_page_length=1`,
-                        { credentials: "include" },
-                    );
+                    // POST to frappe.client.get_list — same approach used in FundReceivedDetails (staff view)
+                    const res = await fetch("/api/method/frappe.client.get_list", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-Frappe-CSRF-Token": csrfToken,
+                        },
+                        credentials: "include",
+                        body: JSON.stringify({
+                            doctype,
+                            filters: [["fund_received_ref", "in", refCandidates]],
+                            fields: ["name"],
+                            limit_page_length: 1,
+                            order_by: "creation desc",
+                        }),
+                    });
 
-                    // Skip if not found or error (some doctypes may not have fund_received_ref field)
-                    if (!response.ok) {
-                        console.log(`Skipping ${doctype}: ${response.status}`);
+                    if (!res.ok) {
+                        console.log(`Skipping ${doctype}: ${res.status}`);
                         continue;
                     }
 
-                    const result = await response.json();
-                    if (result.data && result.data.length > 0) {
-                        // Found a matching deposit slip, fetch full document
-                        const docName = result.data[0].name;
-                        console.log("doctype:", doctype);
-                        const docResponse = await fetch(
-                            `/api/v2/document/${encodeURIComponent(doctype)}/${encodeURIComponent(docName)}`,
-                            { credentials: "include" },
-                        );
-                        if (docResponse.ok) {
-                            const docResult = await docResponse.json();
-                            setDepositSlip(docResult.data);
-                            setDepositSlipDoctype(doctype);
-                            setSlipLoading(false);
-                            console.log("docResult", docResult.data);
-                            return; // Found it, stop searching
+                    const json = await res.json();
+                    if (json.message?.length > 0) {
+                        const docName = json.message[0].name;
+                        // Fetch full document via frappe.client.get
+                        const docRes = await fetch("/api/method/frappe.client.get", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-Frappe-CSRF-Token": csrfToken,
+                            },
+                            credentials: "include",
+                            body: JSON.stringify({ doctype, name: docName }),
+                        });
+                        if (docRes.ok) {
+                            const docJson = await docRes.json();
+                            if (!cancelled) {
+                                setDepositSlip(docJson.message);
+                                setDepositSlipDoctype(doctype);
+                                setSlipLoading(false);
+                            }
+                            return;
                         }
                     }
                 } catch (err) {
                     console.log(`Skipping ${doctype} due to error:`, err);
-                    // Continue to next doctype
                 }
             }
 
             // No deposit slip found in any doctype
-            setSlipLoading(false);
-            setSlipError({ message: "No linked deposit slip found" });
+            if (!cancelled) {
+                setSlipLoading(false);
+                setSlipError({ message: "No linked deposit slip found" });
+            }
         };
 
         fetchDepositSlip();
-    }, [fundReceivedName]);
+        return () => { cancelled = true; };
+    }, [fundReceivedName, fundReceived?.fund_received_ref_number]);
 
-    // Resolve budget head names from account_head IDs
+    // Resolve budget head names from account_head IDs (numeric id field)
     useEffect(() => {
         const resolveBudgetHeadNames = async () => {
             if (!fundReceived?.received_amt_breakup) return;
-
-            const breakup = fundReceived.received_amt_breakup;
-            const uniqueHeadIds = [
-                ...new Set(breakup.map((row: any) => row.account_head).filter(Boolean)),
-            ];
-
-            const nameMap: Record<string, string> = {}; // { id: name }
-
-            for (const headId of uniqueHeadIds) {
-                try {
-                    // Optimized: Check if we can get it from v2 API first (simpler)
-                    const response = await fetch(
-                        `/api/v2/document/Budget%20Head/${headId}`,
-                        {
-                            credentials: "include",
-                        },
-                    );
-
-                    if (response.ok) {
-                        const json = await response.json();
-                        if (json.data) {
-                            nameMap[headId as string] =
-                                json.data.budget_head || json.data.name;
-                            continue;
-                        }
-                    }
-
-                    // Fallback to get_list for robust search
-                    const listResp = await fetch("/api/method/frappe.client.get_list", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        credentials: "include",
-                        body: JSON.stringify({
-                            doctype: "Budget Head",
-                            filters: { name: headId },
-                            fields: ["name", "budget_head"],
-                            limit_page_length: 1,
-                        }),
-                    });
-
-                    if (listResp.ok) {
-                        const result = await listResp.json();
-                        const list = result.message;
-                        if (list && list.length > 0) {
-                            const d = list[0];
-                            nameMap[headId as string] = d.budget_head || d.name;
-                        }
-                    }
-                } catch (err) {
-                    console.error(`Failed to resolve budget head: ${headId}`, err);
+            try {
+                const response = await fetch(
+                    '/api/resource/Budget%20Head?fields=["budget_head","id"]&limit_page_length=0',
+                    { credentials: "include" },
+                );
+                if (!response.ok) return;
+                const json = await response.json();
+                const nameMap: Record<string, string> = {};
+                for (const bh of json.data || []) {
+                    if (bh.id != null) nameMap[String(bh.id)] = bh.budget_head;
+                    if (bh.name) nameMap[bh.name] = bh.budget_head;
                 }
+                setResolvedHeadNames(nameMap);
+            } catch (err) {
+                console.error("Failed to resolve budget head names", err);
             }
-            setResolvedHeadNames(nameMap);
         };
         resolveBudgetHeadNames();
     }, [fundReceived]);
@@ -468,7 +471,12 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                     {/* Deposit Slip Document */}
                     <div className="deposit-slip-print-area">
                         <DepositSlipDocument
-                            depositSlip={depositSlip}
+                            depositSlip={{
+                                ...depositSlip,
+                                project_no: depositSlip.project_no
+                                    || prjregProjectNo
+                                    || depositSlip.project_registration,
+                            }}
                             type={(() => {
                                 // Detect deposit type from the actual doctype that was found
                                 switch (depositSlipDoctype) {

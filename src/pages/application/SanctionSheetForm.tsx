@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { AppSidebar } from "@/components/RndSidebar";
 import { useFrappePostCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
-import { AlertCircle, FolderOpen, Printer, X } from "lucide-react";
+import { AlertCircle, Printer } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import {
     DynamicFormRenderer,
@@ -14,6 +14,44 @@ import { sanctionSheetAPI, prepareFormDataForApi } from "@/services/apiService";
 import { generateSanctionSheetHtml } from "@/utils/sanctionSheetPrint";
 import { P11PrintModal } from "@/components/P11PrintModal";
 import ProjectDetailsOverview from "@/pages/ProjectDetailsOverview";
+import ViewProjectButton from "@/components/ViewProjectButton";
+
+// --- ASYNC SEARCH HELPERS ---
+async function frappeSearch(
+    doctype: string,
+    valueField: string,
+    labelField: string,
+    query: string,
+    limit = 50,
+): Promise<{ value: string; label: string }[]> {
+    const csrf = (window as any).csrf_token || "";
+    const body: Record<string, any> = {
+        doctype,
+        fields: ["name", valueField, labelField],
+        order_by: `${labelField} asc`,
+        limit_page_length: limit,
+    };
+    if (query) body.filters = [[labelField, "like", `%${query}%`]];
+    const res = await fetch("/api/method/frappe.client.get_list", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+            "Content-Type": "application/json",
+            "X-Frappe-CSRF-Token": csrf,
+            Accept: "application/json",
+        },
+        body: JSON.stringify(body),
+    })
+        .then((r) => r.json())
+        .catch(() => ({ message: [] }));
+    return (res?.message ?? []).map((item: any) => ({
+        value: item[valueField] || item.name,
+        label: item[labelField] || item[valueField] || item.name,
+    }));
+}
+
+const searchBudgetHead = (q: string) => frappeSearch("Budget Head", "budget_head", "budget_head", q, 50);
+const searchFundingAgency = (q: string) => frappeSearch("fundingagency_", "name", "funding_agency_name", q, 500);
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -93,8 +131,9 @@ const SanctionSheetForm: React.FC = () => {
     );
 
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
-    const [prPreviewName, setPrPreviewName] = useState<string | null>(null);
-    const [prPreviewLoading, setPrPreviewLoading] = useState(false);
+
+    // Holds the raw Direct Purchase document — used to drive ViewProjectButton
+    const [dpDocData, setDpDocData] = useState<Record<string, any> | null>(null);
 
     // Workflow state
     const [workflowActions, setWorkflowActions] = useState<string[]>([]);
@@ -142,7 +181,9 @@ const SanctionSheetForm: React.FC = () => {
                     prefill_data,
                     link_options,
                 } = formDataResult.message;
-                setLinkOptions(link_options || {});
+                setLinkOptions({
+                    ...(link_options || {}),
+                });
 
                 let initialData = { ...prefill_data };
                 let overrideFields = apiFields || [];
@@ -159,6 +200,13 @@ const SanctionSheetForm: React.FC = () => {
                                 ...initialData,
                                 ...existingDoc.message,
                             };
+                            // Fetch the linked DP doc so ViewProjectButton works
+                            const dpRef = existingDoc.message.direct_purchase || existingDoc.message.app_id;
+                            if (dpRef) {
+                                fetchExistingDoc({ doctype: "Direct Purchase", name: dpRef })
+                                    .then((r) => { if (r?.message) setDpDocData(r.message); })
+                                    .catch(() => {});
+                            }
                         }
                         const actionsRes = await fetchWorkflowActions({
                             docname: editDocName,
@@ -198,6 +246,7 @@ const SanctionSheetForm: React.FC = () => {
                         ]);
 
                         const dpData = dpRes?.message || {};
+                        setDpDocData(dpData);
                         const p11Name = p11ListRes?.data?.[0]?.name || "";
 
                         // Step 2: fetch full P11 doc by name to get child table rows
@@ -306,6 +355,17 @@ const SanctionSheetForm: React.FC = () => {
                         return field;
                     });
                 }
+
+                // Ensure account head and funding agency render as dropdowns
+                overrideFields = overrideFields.map((field: FormField) => {
+                    if (
+                        field.fieldname === "ss_account_head" ||
+                        field.fieldname === "ss_funding_agency"
+                    ) {
+                        return { ...field, fieldtype: "Link" };
+                    }
+                    return field;
+                });
 
                 setFields(overrideFields);
 
@@ -431,16 +491,22 @@ const SanctionSheetForm: React.FC = () => {
                 const docname = res.message.docname || editDocName;
                 setSavedDocName(docname);
 
+                const dpRef = appId || formData.direct_purchase || formData.app_id || "";
+
                 if (editDocName) {
-                    // If editing, go back
                     alert("Sanction Sheet updated successfully!");
-                    navigate(-1);
+                    if (dpRef) {
+                        navigate(`/direct-purchase/${dpRef}?tab=sanction`);
+                    } else {
+                        navigate(-1);
+                    }
                 } else {
-                    // If creating new, redirect to edit mode to show workflow actions
-                    alert(
-                        "Sanction sheet saved successfully. Please wait for the staff to generate the Purchase Order.",
-                    );
-                    navigate(`/sanction-sheet/${docname}`);
+                    alert("Sanction sheet saved successfully!");
+                    if (dpRef) {
+                        navigate(`/direct-purchase/${dpRef}?tab=sanction&highlight_action=1`);
+                    } else {
+                        navigate(`/sanction-sheet/${docname}`);
+                    }
                 }
             } else {
                 throw new Error(res?.message?.message || "Save failed");
@@ -492,7 +558,7 @@ const SanctionSheetForm: React.FC = () => {
             } else {
                 throw new Error(
                     res?.message?.message ||
-                        `Failed to perform action '${action}'.`,
+                    `Failed to perform action '${action}'.`,
                 );
             }
         } catch (err: any) {
@@ -554,32 +620,10 @@ const SanctionSheetForm: React.FC = () => {
                         projectName={projectName}
                     />
                     <div className="flex items-center gap-2 shrink-0">
-                        {(projectName || projectNo) && (
-                            <button
-                                type="button"
-                                disabled={prPreviewLoading}
-                                onClick={async () => {
-                                    if (projectName) { setPrPreviewName(projectName); return; }
-                                    setPrPreviewLoading(true);
-                                    try {
-                                        const params = new URLSearchParams({
-                                            filters: JSON.stringify([['project_no', '=', projectNo]]),
-                                            fields: JSON.stringify(['name']),
-                                            limit: '1',
-                                        });
-                                        const res = await fetch(`/api/resource/Project%20Registration?${params}`, { credentials: 'include' }).then(r => r.json());
-                                        const prName = (res?.data ?? res?.message ?? [])[0]?.name;
-                                        if (prName) setPrPreviewName(prName);
-                                    } finally {
-                                        setPrPreviewLoading(false);
-                                    }
-                                }}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-[#D97757] hover:text-[#D97757] transition-colors disabled:opacity-60"
-                            >
-                                <FolderOpen className="w-4 h-4" />
-                                {prPreviewLoading ? 'Loading…' : 'View Project'}
-                            </button>
-                        )}
+                        <ViewProjectButton
+                            doctype={dpDocData ? "Direct Purchase" : "sanction_sheet"}
+                            data={dpDocData ?? formData}
+                        />
                         {editDocName && (
                             <button
                                 onClick={() => setIsPrintModalOpen(true)}
@@ -612,6 +656,11 @@ const SanctionSheetForm: React.FC = () => {
                                 fields={visibleFields}
                                 formData={formData}
                                 linkOptions={linkOptions}
+                                autocompleteFields={["ss_account_head", "ss_funding_agency"]}
+                                asyncSearchFields={{
+                                    ss_account_head: searchBudgetHead,
+                                    ss_funding_agency: searchFundingAgency,
+                                }}
                                 onChange={handleChange}
                                 onFileChange={handleFileChange}
                                 onTableRowChange={handleTableRowChange}
@@ -638,60 +687,60 @@ const SanctionSheetForm: React.FC = () => {
                             {/* Workflow Action Buttons */}
                             {editDocName && workflowActions.length > 0
                                 ? workflowActions.map((action, idx) => {
-                                      const isRejectAction = action
-                                          .toLowerCase()
-                                          .includes("reject");
-                                      const isPutBackAction = action
-                                          .toLowerCase()
-                                          .includes("put back");
+                                    const isRejectAction = action
+                                        .toLowerCase()
+                                        .includes("reject");
+                                    const isPutBackAction = action
+                                        .toLowerCase()
+                                        .includes("put back");
 
-                                      let buttonClass =
-                                          "bg-[#D97757] text-white hover:bg-[#c66a4e]"; // Default to orange
+                                    let buttonClass =
+                                        "bg-[#D97757] text-white hover:bg-[#c66a4e]"; // Default to orange
 
-                                      if (isRejectAction) {
-                                          buttonClass =
-                                              "bg-red-600 text-white hover:bg-red-700";
-                                      } else if (isPutBackAction) {
-                                          buttonClass =
-                                              "bg-amber-600 text-white hover:bg-amber-700";
-                                      } else if (
-                                          action
-                                              .toLowerCase()
-                                              .includes("approve") ||
-                                          action
-                                              .toLowerCase()
-                                              .includes("print taken") ||
-                                          action
-                                              .toLowerCase()
-                                              .includes("verified")
-                                      ) {
-                                          buttonClass =
-                                              "bg-emerald-600 text-white hover:bg-emerald-700";
-                                      }
+                                    if (isRejectAction) {
+                                        buttonClass =
+                                            "bg-red-600 text-white hover:bg-red-700";
+                                    } else if (isPutBackAction) {
+                                        buttonClass =
+                                            "bg-amber-600 text-white hover:bg-amber-700";
+                                    } else if (
+                                        action
+                                            .toLowerCase()
+                                            .includes("approve") ||
+                                        action
+                                            .toLowerCase()
+                                            .includes("print taken") ||
+                                        action
+                                            .toLowerCase()
+                                            .includes("verified")
+                                    ) {
+                                        buttonClass =
+                                            "bg-emerald-600 text-white hover:bg-emerald-700";
+                                    }
 
-                                      return (
-                                          <FrappeButton
-                                              key={idx}
-                                              onClick={() =>
-                                                  handleWorkflowAction(action)
-                                              }
-                                              disabled={isSubmitting}
-                                              className={buttonClass}
-                                          >
-                                              {action}
-                                          </FrappeButton>
-                                      );
-                                  })
+                                    return (
+                                        <FrappeButton
+                                            key={idx}
+                                            onClick={() =>
+                                                handleWorkflowAction(action)
+                                            }
+                                            disabled={isSubmitting}
+                                            className={buttonClass}
+                                        >
+                                            {action}
+                                        </FrappeButton>
+                                    );
+                                })
                                 : editDocName &&
-                                  workflowActions.length === 0 && (
-                                      <FrappeButton
-                                          onClick={handleSave}
-                                          disabled={isSubmitting}
-                                          className="bg-[#D97757] text-white hover:bg-[#c66a4e]"
-                                      >
-                                          Update Details
-                                      </FrappeButton>
-                                  )}
+                                workflowActions.length === 0 && (
+                                    <FrappeButton
+                                        onClick={handleSave}
+                                        disabled={isSubmitting}
+                                        className="bg-[#D97757] text-white hover:bg-[#c66a4e]"
+                                    >
+                                        Update Details
+                                    </FrappeButton>
+                                )}
                         </div>
                     </div>
                 </div>
@@ -704,34 +753,6 @@ const SanctionSheetForm: React.FC = () => {
                 docName={editDocName || formData.name || ''}
             />
 
-            {prPreviewName && (
-                <div
-                    className="fixed inset-0 z-50 flex flex-col bg-black/60 backdrop-blur-sm"
-                    onClick={(e) => { if (e.target === e.currentTarget) setPrPreviewName(null); }}
-                >
-                    <div className="relative flex-1 mx-auto my-4 w-full max-w-7xl flex flex-col bg-claude-bg dark:bg-zinc-900 rounded-2xl shadow-2xl overflow-hidden">
-                        <div className="flex items-center justify-between px-5 py-3 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
-                            <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
-                                <FolderOpen className="w-4 h-4 text-[#D97757]" />
-                                Project Registration Preview
-                                <span className="px-2 py-0.5 rounded-full text-xs bg-orange-50 dark:bg-zinc-800 text-[#D97757] font-mono border border-orange-100 dark:border-zinc-700">
-                                    {prPreviewName}
-                                </span>
-                            </span>
-                            <button
-                                onClick={() => setPrPreviewName(null)}
-                                className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
-                                aria-label="Close project preview"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto">
-                            <ProjectDetailsOverview projectName={prPreviewName} embedded />
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

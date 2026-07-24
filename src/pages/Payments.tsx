@@ -88,6 +88,19 @@ const Payments: React.FC = () => {
     const commitsPerPage = 50;
     const itemsPerPage = 10;
 
+    // Search + module filter for the Pending Commits tab
+    const [commitSearchQuery, setCommitSearchQuery] = useState('');
+    const [debouncedCommitSearch, setDebouncedCommitSearch] = useState('');
+    const [selectedCommitModule, setSelectedCommitModule] = useState<string>('');
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedCommitSearch(commitSearchQuery);
+            setCommitPage(1);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [commitSearchQuery]);
+
     // Payment Modal State
     const [paymentModalOpen, setPaymentModalOpen] = useState(false);
     const [selectedPaymentName, setSelectedPaymentName] = useState<string | null>(null);
@@ -135,7 +148,7 @@ const Payments: React.FC = () => {
     // Fetch Budget Heads for mapping
     const fetchBudgetHeads = useCallback(async () => {
         try {
-            const response = await fetch('/api/v2/document/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc', {
+            const response = await fetch('/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0', {
                 credentials: "include",
                 headers: { Accept: "application/json" },
             });
@@ -154,7 +167,7 @@ const Payments: React.FC = () => {
 
     // Fetch Module Registry to map moduleId (idx) -> doctype_name
     const fetchModuleRegistry = useCallback(async () => {
-        // Fallback map in case API fails
+        // Fallback map in case API fails (covers well-known modules 1–8)
         const fallbackMap: Record<string, string> = {
             '1': 'Project Registration',
             '2': 'Project Proposal',
@@ -166,18 +179,22 @@ const Payments: React.FC = () => {
             '8': 'Advance Settlement',
         };
         try {
-            const response = await fetch('/api/v2/document/Module%20Registry/pending-task', { credentials: 'include' });
+            // Use GET to avoid CSRF requirements in dev/proxy environments
+            const response = await fetch(
+                '/api/method/frappe.client.get?doctype=Module%20Registry&name=pending-task',
+                { credentials: 'include', headers: { Accept: 'application/json' } },
+            );
             const data = await response.json();
-            console.log('Module Registry response:', data);
-            if (data?.data?.doctype_name && Array.isArray(data.data.doctype_name)) {
+            const rows = data?.message?.doctype_name;
+            if (Array.isArray(rows) && rows.length > 0) {
                 const map: Record<string, string> = {};
-                data.data.doctype_name.forEach((item: any) => {
-                    map[String(item.idx)] = item.doctype_name;
+                rows.forEach((item: any) => {
+                    if (item.idx != null && item.doctype_name) {
+                        map[String(item.idx)] = item.doctype_name;
+                    }
                 });
-                console.log('Module name map:', map);
                 setModuleNameMap(map);
             } else {
-                console.warn('Module Registry: unexpected response, using fallback map');
                 setModuleNameMap(fallbackMap);
             }
         } catch (err) {
@@ -225,13 +242,76 @@ const Payments: React.FC = () => {
         }
     }, []);
 
+    // Filter out commits that have module ID '11' or resolved/raw module name 'Recruitment Adhoc Contractual'
+    const filteredPendingCommits = React.useMemo(() => {
+        return pendingCommits.filter(commit => {
+            const rawMod = String(commit.moduleId || '');
+            if (rawMod === '11' || rawMod === 'Recruitment Adhoc Contractual') {
+                return false;
+            }
+            const resolvedName = moduleNameMap[rawMod];
+            if (resolvedName === 'Recruitment Adhoc Contractual' || resolvedName === '11') {
+                return false;
+            }
+            return true;
+        });
+    }, [pendingCommits, moduleNameMap]);
+
+    // Module names present in the pending commits, for the "filter by module" dropdown
+    const commitModuleOptions = React.useMemo(() => {
+        const names = new Set<string>();
+        filteredPendingCommits.forEach(c => {
+            const name = c.moduleId ? (moduleNameMap[String(c.moduleId)] || String(c.moduleId)) : null;
+            if (name) names.add(name);
+        });
+        return Array.from(names).sort();
+    }, [filteredPendingCommits, moduleNameMap]);
+
+    // Search + module filter applied on top of filteredPendingCommits
+    const searchedPendingCommits = React.useMemo(() => {
+        let result = filteredPendingCommits;
+
+        if (selectedCommitModule) {
+            result = result.filter(c => {
+                const name = c.moduleId ? (moduleNameMap[String(c.moduleId)] || String(c.moduleId)) : '';
+                return name === selectedCommitModule;
+            });
+        }
+
+        if (debouncedCommitSearch) {
+            const q = debouncedCommitSearch.toLowerCase();
+            result = result.filter(c => {
+                const budgetHeadName = budgetHeadMap[String(c.accountHeadId)] || String(c.accountHeadId || '');
+                const moduleName = c.moduleId ? (moduleNameMap[String(c.moduleId)] || String(c.moduleId)) : '';
+                return (
+                    c.projectNumber?.toLowerCase().includes(q) ||
+                    c.frapAppId?.toLowerCase().includes(q) ||
+                    c.commitParticular?.toLowerCase().includes(q) ||
+                    c.refDetails?.toLowerCase().includes(q) ||
+                    budgetHeadName.toLowerCase().includes(q) ||
+                    moduleName.toLowerCase().includes(q)
+                );
+            });
+        }
+
+        return result;
+    }, [filteredPendingCommits, debouncedCommitSearch, selectedCommitModule, budgetHeadMap, moduleNameMap]);
+
     // Resolve module names on payments using the moduleNameMap (runs reactively when either changes)
+    // Filter out module name or id 11 or "Recruitment Adhoc Contractual"
     const resolvedPayments = React.useMemo(() => {
-        if (Object.keys(moduleNameMap).length === 0) return payments;
-        return payments.map(p => ({
+        const filtered = payments.filter(p => {
+            const rawMod = String(p.doctype || '');
+            if (rawMod === '11' || rawMod === 'Recruitment Adhoc Contractual') {
+                return false;
+            }
+            return true;
+        });
+        if (Object.keys(moduleNameMap).length === 0) return filtered;
+        return filtered.map(p => ({
             ...p,
             doctype: p.doctype && moduleNameMap[p.doctype] ? moduleNameMap[p.doctype] : (p.doctype || 'AccountHeadPayment'),
-        }));
+        })).filter(p => p.doctype !== 'Recruitment Adhoc Contractual' && p.doctype !== '11');
     }, [payments, moduleNameMap]);
 
     useEffect(() => {
@@ -399,17 +479,7 @@ const Payments: React.FC = () => {
                     >
                         Pending Commits
                     </button>
-                    <button
-                        onClick={() => setActiveTab('history')}
-                        className={cn(
-                            "h-9 flex-shrink-0 rounded-lg border px-3 text-[11px] font-extrabold uppercase tracking-wide transition-colors",
-                            activeTab === 'history'
-                                ? "bg-[#ECFDF5] border-[#10B981] text-[#065F46]"
-                                : "border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] hover:bg-[#ECFDF5]"
-                        )}
-                    >
-                        Payment History
-                    </button>
+                    {/* Payment History tab hidden temporarily */}
                 </div>
 
                 {activeTab === 'commits' && (
@@ -422,6 +492,57 @@ const Payments: React.FC = () => {
                                 These are committed funds waiting for payment or settlement.
                             </p>
                         </div>
+
+                        {/* Search + Module Filter */}
+                        <div className="p-3 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                                <div className="flex flex-1 items-center gap-4 w-full flex-wrap">
+                                    <div className="relative w-full md:w-64">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <FaSearch className="text-zinc-400 dark:text-zinc-500" />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="Search documents..."
+                                            value={commitSearchQuery}
+                                            onChange={(e) => setCommitSearchQuery(e.target.value)}
+                                            className="h-9 w-full pl-10 pr-4 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] focus:outline-none focus:border-[#4A6CF7] focus:ring-[3px] focus:ring-[#4A6CF7]/12 transition-colors"
+                                        />
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <label htmlFor="commit-module-filter" className="font-bold text-zinc-900 dark:text-zinc-100 uppercase text-sm whitespace-nowrap hidden md:block">
+                                            Module:
+                                        </label>
+                                        <select
+                                            id="commit-module-filter"
+                                            value={selectedCommitModule}
+                                            onChange={(e) => { setSelectedCommitModule(e.target.value); setCommitPage(1); }}
+                                            className="h-9 px-3 bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg font-bold text-[12px] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7]"
+                                        >
+                                            <option value="">All Modules</option>
+                                            {commitModuleOptions.map((name) => (
+                                                <option key={name} value={name}>{name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {(commitSearchQuery || selectedCommitModule) && (
+                                        <FrappeButton
+                                            onClick={() => { setCommitSearchQuery(''); setSelectedCommitModule(''); setCommitPage(1); }}
+                                            className="text-red-600 hover:bg-red-50 border border-red-200"
+                                        >
+                                            Clear Filters
+                                        </FrappeButton>
+                                    )}
+                                </div>
+
+                                <div className="text-sm text-zinc-900 dark:text-zinc-100 font-bold whitespace-nowrap">
+                                    Total: {searchedPendingCommits.length} commits
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="overflow-x-auto p-3">
                             <table className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg overflow-hidden">
                                 <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
@@ -438,8 +559,8 @@ const Payments: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                    {pendingCommits.length > 0 ? (
-                                        pendingCommits
+                                    {searchedPendingCommits.length > 0 ? (
+                                        searchedPendingCommits
                                             .slice((commitPage - 1) * commitsPerPage, commitPage * commitsPerPage)
                                             .map((commit, idx) => (
                                                 <tr key={idx} className="hover:bg-zinc-50 dark:bg-zinc-800/50">
@@ -514,10 +635,10 @@ const Payments: React.FC = () => {
                         </div>
 
                         {/* Commits Pagination */}
-                        {pendingCommits.length > commitsPerPage && (
+                        {searchedPendingCommits.length > commitsPerPage && (
                             <div className="p-4 border-t border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex justify-between items-center">
                                 <div className="text-sm text-zinc-900 dark:text-zinc-100 font-medium">
-                                    Showing {(commitPage - 1) * commitsPerPage + 1} to {Math.min(commitPage * commitsPerPage, pendingCommits.length)} of {pendingCommits.length} commits
+                                    Showing {(commitPage - 1) * commitsPerPage + 1} to {Math.min(commitPage * commitsPerPage, searchedPendingCommits.length)} of {searchedPendingCommits.length} commits
                                 </div>
                                 <div className="flex gap-1">
                                     <FrappeButton
@@ -529,7 +650,7 @@ const Payments: React.FC = () => {
                                     </FrappeButton>
                                     <FrappeButton
                                         onClick={() => setCommitPage(p => p + 1)}
-                                        disabled={commitPage * commitsPerPage >= pendingCommits.length}
+                                        disabled={commitPage * commitsPerPage >= searchedPendingCommits.length}
                                         variant="outline"
                                     >
                                         Next

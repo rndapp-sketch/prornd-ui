@@ -64,18 +64,31 @@ export function generateSanctionSheetHtml(
             : "",
     ].join("");
 
-    const additionalTermsRow = formData.additional_terms_and_conditions_if_any
-        ? `<tr><td class="label">Additional Terms</td><td colspan="3">${formData.additional_terms_and_conditions_if_any}</td></tr>`
+    const additionalTermsVal =
+        formData.additional_terms_and_conditions_if_any ||
+        formData.additional_terms_conditions ||
+        formData.additional_terms ||
+        "";
+    const additionalTermsRow = additionalTermsVal
+        ? `<tr><td class="label">Additional Terms &amp; Conditions</td><td colspan="3">${additionalTermsVal}</td></tr>`
         : "";
 
-    // const remarksRow = formData.small_text_adcz
-    //     ? `<div class="remarks"><strong>Remarks:</strong> ${formData.small_text_adcz}</div>`
-    //     : '';
+    const remarksVal = formData.small_text_adcz || formData.remarks || formData.ss_remarks || "";
+    const remarksRow = remarksVal
+        ? `<div class="remarks"><strong>Remarks:</strong> ${remarksVal}</div>`
+        : "";
 
     return ssTemplate
         .replace("{{FILE_NUMBER}}", formData.ss_file_number || "")
-        .replace("{{PROJECT_NO}}", formData.project_no || "")
+        .replace(
+            "{{PROJECT_NO}}",
+            formData.project_no || formData.project || formData.project_name || "",
+        )
         .replace("{{DOC_REF}}", formData.name || "")
+        .replace(
+            "{{DIRECT_PURCHASE_REF}}",
+            formData.direct_purchase || formData.app_id || "",
+        )
         .replace("{{DATE}}", creation)
         .replace("{{SS_APPLICANT_NAME}}", formData.ss_applicant_name || "")
         .replace(
@@ -97,5 +110,11 @@ export function generateSanctionSheetHtml(
         .replace("{{SS_WARRANTY}}", formData.ss_warranty || "")
         .replace("{{SS_DELIVERY}}", formData.ss_delivery || "")
         .replace("{{SS_PAYMENT}}", formData.ss_payment || "")
-        .replace("{{ADDITIONAL_TERMS_ROW}}", additionalTermsRow);
+        .replace("{{ADDITIONAL_TERMS_ROW}}", additionalTermsRow)
+        .replace("{{REMARKS_ROW}}", remarksRow)
+        .replace(
+            "{{SS_DECLARATION}}",
+            formData.html_dqce ||
+                "Purchase made under direct procurement of the purchase committee up to 10 lakhs by submission of quotation(s).",
+        );
 }

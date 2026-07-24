@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 interface CommentModalProps {
     isOpen: boolean;
@@ -28,8 +29,8 @@ export const CommentModal = ({
 
     const canSubmit = !requireComment || comment.trim().length > 0;
 
-    return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    return createPortal(
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-md mx-4">
                 <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
                     Confirm: {action}
@@ -67,6 +68,7 @@ export const CommentModal = ({
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 };

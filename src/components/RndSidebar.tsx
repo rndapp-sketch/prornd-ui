@@ -20,12 +20,16 @@ import {
     ChevronDownIcon,
     LogOutIcon,
     ListTodo,
+    ClipboardCheck,
     CreditCard,
     BarChart3,
     MessageCircle,
     Users as UsersIcon,
     UserCheck,
     IndianRupee,
+    Calendar,
+    HelpCircle,
+    Search,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -43,6 +47,7 @@ import { useUserRoles } from "./UserRole";
 import { selectionCommitteeReportAPI } from "@/services/apiService";
 import { useAppwriteSession } from "@/hooks/useAppwriteSession";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
+import { HelpModule } from "./HelpModule";
 
 // --- LOGIC: Interfaces (Unchanged) ---
 interface SubMenuItem {
@@ -68,6 +73,7 @@ export function AppSidebar() {
     const location = useLocation();
     const [openSubMenus, setOpenSubMenus] = useState<string[]>([]);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [isHelpOpen, setIsHelpOpen] = useState(false);
     const { mutate } = useSWRConfig();
     const appwriteSession = useAppwriteSession();
     const { unreadCount } = useUnreadCount(appwriteSession.user?.$id ?? null);
@@ -83,7 +89,10 @@ export function AppSidebar() {
 
     const { roles } = useUserRoles(currentUser || null);
     const isHeadApprover = roles?.includes("head_approver_1") ?? false;
+    const isPermanentEmployee = roles?.includes("Permanent Employee") ?? false;
     const canUploadDirectorPdf = roles?.includes("staff, RnD") ?? false;
+    const isHosRnd = roles?.includes("Hos, RnD (Head of Section, RnD)") ?? false;
+    const isAdoRnd = roles?.includes("Ado_RnD") ?? false;
 
     // Fetch projects assigned to current user as head_approver (same filter as PendingTask.tsx)
     const { data: headApproverProjects } = useFrappeGetDocList("Project Registration", {
@@ -96,6 +105,18 @@ export function AppSidebar() {
         if (!isHeadApprover || !headApproverProjects) return null;
         return new Set(headApproverProjects.map((p: { name: string }) => p.name));
     }, [isHeadApprover, headApproverProjects]);
+
+    // Fetch Leave Module names where PI matches current user (for accurate count)
+    const { data: piLeaveModules } = useFrappeGetDocList("Leave Module", {
+        filters: [["pi", "=", currentUser ?? ""]],
+        fields: ["name"],
+        limit: 500,
+    }, isPermanentEmployee && !!currentUser ? undefined : null);
+
+    const allowedLeaveNames = React.useMemo(() => {
+        if (!isPermanentEmployee || !piLeaveModules) return null;
+        return new Set(piLeaveModules.map((l: { name: string }) => l.name));
+    }, [isPermanentEmployee, piLeaveModules]);
 
     // Fetch pending task count
     const { data: pendingTaskData } = useFrappeGetCall<{
@@ -114,24 +135,43 @@ export function AppSidebar() {
         currentUser && canUploadDirectorPdf ? undefined : null,
     );
 
-    // Calculate count matching PendingTask.tsx filter logic
+    // Calculate count matching PendingTask.tsx filter logic exactly
+    const SIDEBAR_HIDDEN_DOCTYPES = new Set(["Kafka Commit Staging", "Project Number Generation"]);
     const pendingTaskCount = React.useMemo(() => {
         if (!pendingTaskData?.message?.results) return 0;
         let count = 0;
         pendingTaskData.message.results.forEach((group) => {
-            if (group.mod_vis || group.doctype === "Advance Settlement") {
-                group.records.forEach((record) => {
-                    if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name)) {
-                        return;
-                    }
-                    count++;
-                });
-            }
+            if (SIDEBAR_HIDDEN_DOCTYPES.has(group.doctype)) return;
+            const shouldIncludeGroup = group.mod_vis || group.doctype === "Advance Settlement";
+            group.records.forEach((record) => {
+                const isHosPending = record.status === "Pending HoS Approval";
+                if (!shouldIncludeGroup && !(isHosRnd && isHosPending)) return;
+                if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name) && !(isHosRnd && isHosPending)) return;
+                if (isPermanentEmployee && group.doctype === "Leave Module" && allowedLeaveNames) {
+                    if (record.status === "Pending PI Approval" && !allowedLeaveNames.has(record.name)) return;
+                }
+                if (record.status === "Endorsement Approved") return;
+                if (record.status === "Sanction Approved" && group.doctype !== "Direct Purchase") return;
+                if (isHosRnd && !isAdoRnd && record.status === "Pending Associate Dean") return;
+                if (isAdoRnd && !isHosRnd && record.status === "Pending HoS Approval") return;
+                count++;
+            });
         });
         return count;
-    }, [pendingTaskData, isHeadApprover, allowedProjectNames]);
+    }, [pendingTaskData, isHeadApprover, allowedProjectNames, isPermanentEmployee, allowedLeaveNames, isHosRnd, isAdoRnd]);
 
     const pendingDirectorPdfCount = pendingDirectorPdfData?.message?.data?.length ?? 0;
+
+    // Leave Module applications pending the current user's approval as PI —
+    // scoped server-side, so no extra client-side filtering is needed here.
+    const { data: pendingApplicationData } = useFrappeGetCall<{
+        message: { user: string; results: Array<{ name: string }> };
+    }>(
+        "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_pending_application",
+        {},
+        currentUser && isPermanentEmployee ? undefined : null,
+    );
+    const pendingApplicationCount = pendingApplicationData?.message?.results?.length ?? 0;
 
     // --- LOGIC: Menu Data (Unchanged) ---
     const isDirector = roles?.includes("Director");
@@ -199,10 +239,30 @@ export function AppSidebar() {
             path: "/delegate-user",
         },
         {
+            label: "Leave Module",
+            icon: Calendar,
+            path: "/leave-module",
+        },
+        {
+            label: "Resignation",
+            icon: FileText,
+            path: "/project-staff-resignation",
+        },
+        // ...(isPermanentEmployee ? [{
+        //     label: "Form Cancellation",
+        //     icon: FileText,
+        //     path: "/form-application",
+        // }] : []),
+        {
             label: "Pending Task",
             icon: ListTodo,
             path: "/pending-task",
         },
+        ...(isPermanentEmployee ? [{
+            label: "Pending Application",
+            icon: ClipboardCheck,
+            path: "/pending-application",
+        }] : []),
         {
             label: "Task Registry",
             icon: FileText,
@@ -217,6 +277,11 @@ export function AppSidebar() {
             label: "Upload Director PDF",
             icon: FileText,
             path: "/director-pdf-upload",
+        },
+        {
+            label: "Faculty Admission PDF Upload",
+            icon: FileText,
+            path: "/top-up-fellowship-faculty-admission",
         },
         {
             label: "Project Staff",
@@ -238,9 +303,31 @@ export function AppSidebar() {
             icon: IndianRupee,
             path: "/salary-module",
         },
+        {
+            label: "Commit / De-Commit",
+            icon: CreditCard,
+            path: "/miscellaneous-commit",
+        },
+        {
+            label: "Project Search",
+            icon: Search,
+            path: "/project-search",
+        },
     ].filter((item) => {
         if (item.label === "Upload Director PDF") {
             return canUploadDirectorPdf;
+        }
+        if (item.label === "Faculty Admission PDF Upload") {
+            return canUploadDirectorPdf;
+        }
+        if (item.label === "Salary Module") {
+            return roles?.includes("staff, RnD") ?? false;
+        }
+        if (item.label === "Commit / De-Commit") {
+            return roles?.includes("staff, RnD") ?? false;
+        }
+        if (item.label === "Project Search") {
+            return roles?.includes("staff, RnD") ?? false;
         }
         if (item.label === "Universal Forms") {
             // Visible only to staff, RnD
@@ -262,12 +349,12 @@ export function AppSidebar() {
             return roles && allowedRoles.some((role) => roles.includes(role));
         }
         if (item.label === "Task Registry") {
-            // Visible to staff, HOS, Dean, DoRnD, Head Approver - NOT permanent employees
+            // Visible to staff, HOS, Dean, DoRnD, Head Approver, Ado_RnD - NOT permanent employees
             const allowedRoles = [
                 "staff, RnD",
                 "Hos, RnD (Head of Section, RnD)",
                 "Dean, RnD",
-
+                "Ado_RnD",
                 "head_approver_1",
             ];
             return roles && allowedRoles.some((role) => roles.includes(role));
@@ -287,8 +374,18 @@ export function AppSidebar() {
         if (item.label === "Project Staff") {
             return roles?.includes("Permanent Employee") ?? false;
         }
+        if (item.label === "Stakeholder Registration") {
+            return !(roles?.includes("project staff") ?? false);
+        }
         if (item.label === "Delegate User") {
             return roles?.includes("Permanent Employee") ?? false;
+        }
+        if (item.label === "Leave Module") {
+            const allowedRoles = ["project staff", "IF - Inspired Faculty", "Independent Researcher"];
+            return roles ? allowedRoles.some((role) => roles.includes(role)) : false;
+        }
+        if (item.label === "Resignation") {
+            return roles?.includes("project staff") ?? false;
         }
         return true;
     });
@@ -470,7 +567,7 @@ export function AppSidebar() {
                                                     )}
                                                     strokeWidth={isActive ? 2 : 1.75}
                                                 />
-                                                {state === "expanded" && <span className="truncate">{item.label}</span>}
+                                                {state === "expanded" && <span className="break-words leading-tight">{item.label}</span>}
                                             </div>
 
                                             {item.label === "Pending Task" && pendingTaskCount > 0 && state === "expanded" && (
@@ -481,6 +578,17 @@ export function AppSidebar() {
                                                         : "bg-[#D97757] text-white",
                                                 )}>
                                                     {pendingTaskCount > 99 ? "99+" : pendingTaskCount}
+                                                </span>
+                                            )}
+
+                                            {item.label === "Pending Application" && pendingApplicationCount > 0 && state === "expanded" && (
+                                                <span className={cn(
+                                                    "ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold leading-none",
+                                                    isActive
+                                                        ? "bg-[#4A6CF7] text-white"
+                                                        : "bg-[#D97757] text-white",
+                                                )}>
+                                                    {pendingApplicationCount > 99 ? "99+" : pendingApplicationCount}
                                                 </span>
                                             )}
 
@@ -541,19 +649,36 @@ export function AppSidebar() {
                     <div className="px-2 py-2 space-y-0.5">
                         <SidebarMenuItem>
                             <SidebarMenuButton
+                                onClick={() => setIsHelpOpen(true)}
+                                className={cn(
+                                    "relative w-full h-8 rounded-lg text-[12px] font-medium transition-all duration-150 text-[#3F3F46] dark:text-[#A1A1AA] hover:bg-[#F4F4F5] dark:hover:bg-[#27272A] hover:text-[#18181B] dark:hover:text-[#E4E4E7]",
+                                    isHelpOpen && "bg-[#EEF2FF] text-[#1E3A8A] dark:bg-[#4A6CF7]/15 dark:text-[#93C5FD] font-semibold",
+                                    state === "expanded" ? "px-2.5 justify-start gap-2.5" : "px-0 justify-center",
+                                )}
+                                tooltip="User Manual"
+                            >
+                                <HelpCircle
+                                    className={cn(state === "expanded" ? "w-[15px] h-[15px]" : "w-5 h-5", "flex-shrink-0 text-[#71717A]")}
+                                    strokeWidth={1.75}
+                                />
+                                {state === "expanded" && <span>User Manual</span>}
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton
                                 onClick={() => navigate("/messages")}
                                 className={cn(
                                     "relative w-full h-8 rounded-lg text-[12px] font-medium transition-all duration-150 text-[#3F3F46] dark:text-[#A1A1AA] hover:bg-[#F4F4F5] dark:hover:bg-[#27272A] hover:text-[#18181B] dark:hover:text-[#E4E4E7]",
                                     isActivePath("/messages") && "bg-[#EEF2FF] text-[#1E3A8A] dark:bg-[#4A6CF7]/15 dark:text-[#93C5FD] font-semibold",
                                     state === "expanded" ? "px-2.5 justify-start gap-2.5" : "px-0 justify-center",
                                 )}
-                                tooltip="Message"
+                                tooltip="Help and Support"
                             >
                                 <MessageCircle
                                     className={cn(state === "expanded" ? "w-[15px] h-[15px]" : "w-5 h-5", "flex-shrink-0 text-[#71717A]")}
                                     strokeWidth={1.75}
                                 />
-                                {state === "expanded" && <span>Message</span>}
+                                {state === "expanded" && <span>Help and Support</span>}
                                 {unreadCount > 0 && state === "expanded" && (
                                     <span className={cn(
                                         "ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold leading-none",
@@ -620,6 +745,7 @@ export function AppSidebar() {
                     </div>
                 </SidebarFooter>
             </Sidebar>
+            <HelpModule isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
         </>
     );
 }

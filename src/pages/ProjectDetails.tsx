@@ -8,8 +8,7 @@ import React, {
     forwardRef,
     useRef,
 } from "react";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
+import { createPortal } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import {
     useFrappeGetDoc,
@@ -48,11 +47,20 @@ import {
     DownloadIcon,
     ExternalLinkIcon,
     PencilIcon,
+    SaveIcon,
+    X,
+    Plus,
+    Trash2,
     ChevronRight,
+    ChevronDown,
     CheckCircle2,
     XCircle,
     Clock,
     AlertTriangleIcon,
+    BookOpenIcon,
+    ArrowRightIcon,
+    CircleDotIcon,
+    LockIcon,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -119,158 +127,17 @@ const printEndorsementDocument = async (document: Document) => {
     document.defaultView?.print();
 };
 
-const findWhitespaceCut = (
-    canvas: HTMLCanvasElement,
-    startY: number,
-    targetY: number,
-    maxY: number,
-) => {
-    if (maxY >= canvas.height) return canvas.height;
-
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    if (!ctx) return Math.min(targetY, maxY);
-
-    const searchStart = Math.max(startY + 180, targetY - 180);
-    const searchEnd = Math.min(maxY - 40, targetY + 180);
-    if (searchEnd <= searchStart) return Math.min(targetY, maxY);
-
-    const width = canvas.width;
-    const height = searchEnd - searchStart;
-    const data = ctx.getImageData(0, searchStart, width, height).data;
-    let bestY = targetY;
-    let bestScore = Number.POSITIVE_INFINITY;
-
-    for (let localY = 0; localY < height; localY += 4) {
-        let inkScore = 0;
-        for (let x = 0; x < width; x += 12) {
-            const index = (localY * width + x) * 4;
-            const r = data[index];
-            const g = data[index + 1];
-            const b = data[index + 2];
-            const a = data[index + 3];
-            if (a > 12 && (r < 245 || g < 245 || b < 245)) {
-                inkScore += 1;
-            }
-        }
-
-        const absoluteY = searchStart + localY;
-        const distancePenalty = Math.abs(absoluteY - targetY) / 60;
-        const score = inkScore + distancePenalty;
-        if (score < bestScore) {
-            bestScore = score;
-            bestY = absoluteY;
-        }
-    }
-
-    return Math.max(startY + 120, Math.min(bestY, maxY));
-};
-
+// Vector-PDF generation via the browser's native print engine.
+// Produces selectable text, perfect fonts, and reliable underlines (no html2canvas raster).
+// The browser's print dialog opens with the destination preset to "Save as PDF" when supported;
+// the document's <title> becomes the default filename in the save dialog.
 const downloadEndorsementDocumentPdf = async (document: Document, fileName: string) => {
     await waitForDocumentAssets(document);
-    const target = document.querySelector(".print-container") as HTMLElement | null;
-    if (!target) throw new Error("Printable endorsement container not found.");
-
-    const style = document.createElement("style");
-    style.setAttribute("data-download-print-emulation", "true");
-    style.textContent = `
-        body {
-            background: #ffffff !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            display: block !important;
-        }
-        .print-container {
-            box-shadow: none !important;
-            width: 210mm !important;
-            min-height: 297mm !important;
-            margin: 0 auto !important;
-        }
-    `;
-    document.head.appendChild(style);
-
-    try {
-        const canvas = await html2canvas(target, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: "#ffffff",
-            windowWidth: target.scrollWidth,
-            windowHeight: target.scrollHeight,
-            scrollX: 0,
-            scrollY: 0,
-        });
-
-        const pdf = new jsPDF("p", "mm", "a4");
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        const marginX = 15;
-        const marginY = 18;
-        const imgWidth = pageWidth - marginX * 2;
-        const pageContentHeight = pageHeight - marginY * 2;
-        const pixelsPerMm = canvas.width / imgWidth;
-        const targetSliceHeight = Math.floor(pageContentHeight * pixelsPerMm);
-
-        let sourceY = 0;
-        let pageIndex = 0;
-
-        while (sourceY < canvas.height) {
-            const remaining = canvas.height - sourceY;
-            const idealCut = sourceY + Math.min(targetSliceHeight, remaining);
-            const cutY =
-                remaining <= targetSliceHeight
-                    ? canvas.height
-                    : findWhitespaceCut(
-                        canvas,
-                        sourceY,
-                        idealCut,
-                        Math.min(canvas.height, sourceY + Math.floor(targetSliceHeight * 1.12)),
-                    );
-            const sliceHeight = Math.max(1, cutY - sourceY);
-
-            const pageCanvas = document.createElement("canvas");
-            pageCanvas.width = canvas.width;
-            pageCanvas.height = sliceHeight;
-            const pageCtx = pageCanvas.getContext("2d");
-            if (!pageCtx) throw new Error("Could not prepare PDF page.");
-            pageCtx.fillStyle = "#ffffff";
-            pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-            pageCtx.drawImage(
-                canvas,
-                0,
-                sourceY,
-                canvas.width,
-                sliceHeight,
-                0,
-                0,
-                canvas.width,
-                sliceHeight,
-            );
-
-            if (pageIndex > 0) {
-                pdf.addPage();
-            }
-
-            const sliceHeightMm = sliceHeight / pixelsPerMm;
-            pdf.addImage(
-                pageCanvas.toDataURL("image/png"),
-                "PNG",
-                marginX,
-                marginY,
-                imgWidth,
-                Math.min(sliceHeightMm, pageContentHeight),
-            );
-
-            sourceY = cutY;
-            pageIndex += 1;
-        }
-
-        if (pageIndex === 0) {
-            pdf.addPage();
-        }
-
-        pdf.save(fileName);
-    } finally {
-        style.remove();
-    }
+    // Strip ".pdf" — the browser appends the correct extension based on destination.
+    const titleBase = fileName.replace(/\.pdf$/i, "");
+    document.title = titleBase;
+    document.defaultView?.focus();
+    document.defaultView?.print();
 };
 
 const getIframeSrcDoc = (html: string) =>
@@ -324,7 +191,8 @@ const downloadEndorsementPdfFromHtml = async (html: string, fileName: string) =>
         if (!iframeDocument) throw new Error("Unable to prepare endorsement PDF.");
         await downloadEndorsementDocumentPdf(iframeDocument, fileName);
     } finally {
-        iframe.remove();
+        // Defer iframe teardown so the browser's print dialog has time to render.
+        setTimeout(() => iframe.remove(), 1000);
     }
 };
 
@@ -471,13 +339,63 @@ const toSameOriginFileUrl = (src: string) => {
     return src;
 };
 
-const normalizeEndorsementHtmlForProject = (html: string, projectName?: string, workflowState?: string) => {
+const normalizeEndorsementHtmlForProject = (
+    html: string,
+    projectName?: string,
+    workflowState?: string,
+    options?: { omitSignatureImage?: boolean },
+) => {
     if (!projectName) return html;
     const refNo = `IITG-${projectName}`;
-    const shouldShowSignatureSeal = workflowState === "Endorsement Approved";
+    const omitSignatureImage = options?.omitSignatureImage === true;
+    // Show the signature block when approved OR when the caller explicitly wants the label
+    // rendered without an image (e.g., the "Download without signature" flow).
+    const shouldRenderSignatureBlock =
+        workflowState === "Endorsement Approved" || omitSignatureImage;
     const isFullDocument = /<html[\s>]/i.test(html);
     const parser = new DOMParser();
     const document = parser.parseFromString(html, "text/html");
+
+    // Inject CSS safety net for Word-pasted content.
+    const patchStyle = document.createElement("style");
+    patchStyle.setAttribute("data-endorse-patch", "1");
+    patchStyle.textContent = `
+        u { text-decoration: underline; }
+        .cert-body u, .cert-body span { text-indent: 0 !important; }
+    `;
+    document.head.appendChild(patchStyle);
+
+    // Word-pasted HTML stamps `text-indent:-36pt` onto every inline <u>/<span> inside list
+    // paragraphs. Some print engines mis-apply this to inline elements, clipping the text after
+    // the first character. Strip it from the inline `style` attribute directly.
+    const stripTextIndentInline = (el: Element) => {
+        const style = el.getAttribute("style") || "";
+        if (!/text-indent/i.test(style)) return;
+        const cleaned = style.replace(/text-indent\s*:[^;]*;?\s*/gi, "").trim();
+        if (cleaned) {
+            el.setAttribute("style", cleaned);
+        } else {
+            el.removeAttribute("style");
+        }
+    };
+
+    document.querySelectorAll(".cert-body *").forEach((el) => {
+        const tag = el.tagName.toLowerCase();
+        // Keep text-indent on block-level paragraph elements (they create the hanging indent).
+        if (tag === "p" || tag === "div" || tag === "li") return;
+        stripTextIndentInline(el);
+    });
+
+    // Ensure every <u> carries text-decoration:underline inline — survives print engines that
+    // strip UA stylesheet defaults for the <u> tag when rasterizing or generating PDFs.
+    document.querySelectorAll("u").forEach((u) => {
+        const existing = u.getAttribute("style") || "";
+        if (!/text-decoration\s*:/i.test(existing)) {
+            const trimmed = existing.trim();
+            const needsSemi = trimmed && !trimmed.endsWith(";");
+            u.setAttribute("style", `${existing}${needsSemi ? ";" : ""}text-decoration:underline;`);
+        }
+    });
 
     const refValue = document.querySelector(".ref-no .value");
     if (refValue) {
@@ -499,45 +417,48 @@ const normalizeEndorsementHtmlForProject = (html: string, projectName?: string, 
     });
 
     document.querySelectorAll(".signature").forEach((signature) => {
-        if (!shouldShowSignatureSeal) {
+        if (!shouldRenderSignatureBlock) {
             signature.remove();
             return;
         }
 
         signature.innerHTML = "";
-        const image = document.createElement("img");
-        image.src = toSameOriginFileUrl(DORND_SIGNATURE_SEAL_URL);
-        image.alt = "Signature with seal";
-        image.style.height = "112px";
-        image.style.width = "auto";
-        image.style.objectFit = "contain";
-        image.style.marginBottom = "8px";
+        if (!omitSignatureImage) {
+            const image = document.createElement("img");
+            image.src = toSameOriginFileUrl(DORND_SIGNATURE_SEAL_URL);
+            image.alt = "Signature with seal";
+            image.style.height = "112px";
+            image.style.width = "auto";
+            image.style.objectFit = "contain";
+            image.style.marginBottom = "8px";
+            signature.appendChild(image);
+        }
 
         const label = document.createElement("div");
         label.textContent = "Signature of the Dean (R&D)";
         label.style.fontWeight = "bold";
-
-        signature.appendChild(image);
         signature.appendChild(label);
     });
 
-    if (shouldShowSignatureSeal && !document.querySelector(".signature")) {
+    if (shouldRenderSignatureBlock && !document.querySelector(".signature")) {
         const container = document.querySelector(".print-container") || document.body;
         const signature = document.createElement("div");
         signature.className = "signature";
         signature.setAttribute("style", "margin-top:72px;display:flex;flex-direction:column;align-items:flex-end;");
 
-        const image = document.createElement("img");
-        image.src = toSameOriginFileUrl(DORND_SIGNATURE_SEAL_URL);
-        image.alt = "Signature with seal";
-        image.setAttribute("style", "height:112px;width:auto;object-fit:contain;margin-bottom:8px;");
+        if (!omitSignatureImage) {
+            const image = document.createElement("img");
+            image.src = toSameOriginFileUrl(DORND_SIGNATURE_SEAL_URL);
+            image.alt = "Signature with seal";
+            image.setAttribute("style", "height:112px;width:auto;object-fit:contain;margin-bottom:8px;");
+            signature.appendChild(image);
+        }
 
         const label = document.createElement("div");
         label.textContent = "Signature of the Dean (R&D)";
         label.setAttribute("style", "font-weight:bold;");
-
-        signature.appendChild(image);
         signature.appendChild(label);
+
         container.appendChild(signature);
     }
 
@@ -680,12 +601,14 @@ const TableDisplay = ({
     columns,
     icon: Icon,
     budgetHeadList = [],
+    action,
 }: {
     label: string;
     data: any[] | undefined;
     columns: { fieldname: string; label: string; render?: (value: any) => React.ReactNode }[];
     icon?: any;
     budgetHeadList?: { name: string; id: number }[];
+    action?: React.ReactNode;
 }) => {
     if (!data || data.length === 0) return null;
 
@@ -745,11 +668,14 @@ const TableDisplay = ({
     return (
         <Card className="border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden rounded-xl">
             <CardHeader className="py-3 px-5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
-                <div className="flex items-center gap-2">
-                    {Icon && <Icon className="h-3.5 w-3.5 text-[#4A6CF7] dark:text-[#93C5FD]" />}
-                    <CardTitle className="font-sans text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-[0.1em]">
-                        {label}
-                    </CardTitle>
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                        {Icon && <Icon className="h-3.5 w-3.5 text-[#4A6CF7] dark:text-[#93C5FD]" />}
+                        <CardTitle className="font-sans text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-[0.1em]">
+                            {label}
+                        </CardTitle>
+                    </div>
+                    {action && <div>{action}</div>}
                 </div>
             </CardHeader>
             <div className="overflow-x-auto p-3">
@@ -1167,6 +1093,7 @@ const WorkflowActions = ({
         bank_name?: string;
     };
 }) => {
+    // All hooks must be declared before any early returns
     const {
         data,
         error,
@@ -1175,6 +1102,23 @@ const WorkflowActions = ({
         "rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_available_workflow_actions",
         { docname },
     );
+    const [dropdownOpen, setDropdownOpen] = React.useState(false);
+    const [dropdownPos, setDropdownPos] = React.useState({ top: 0, right: 0 });
+    const toggleBtnRef = React.useRef<HTMLButtonElement>(null);
+    const dropdownPortalRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        if (!dropdownOpen) return;
+        const handleOutside = (e: MouseEvent) => {
+            const target = e.target as Node;
+            const inToggle = toggleBtnRef.current?.contains(target);
+            const inMenu = dropdownPortalRef.current?.contains(target);
+            if (!inToggle && !inMenu) setDropdownOpen(false);
+        };
+        document.addEventListener("mousedown", handleOutside);
+        return () => document.removeEventListener("mousedown", handleOutside);
+    }, [dropdownOpen]);
+
     if (isActionsLoading) {
         return (
             <div className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -1196,65 +1140,120 @@ const WorkflowActions = ({
     const isForwardBlocked =
         isStaffRnD &&
         status === "Pending Staff Approval" &&
-        (!projectNo?.trim() || !accountDetailsFilled);
+        !projectNo?.trim();
+
+    const handleToggleDropdown = () => {
+        if (!dropdownOpen && toggleBtnRef.current) {
+            const rect = toggleBtnRef.current.getBoundingClientRect();
+            setDropdownPos({ top: rect.bottom + window.scrollY + 4, right: window.innerWidth - rect.right });
+        }
+        setDropdownOpen(o => !o);
+    };
+
+    const actions = data.message;
+
+    // Categorise actions for grouping + colour
+    const categorise = (action: string) => {
+        const a = action.toLowerCase();
+        if (a.includes("forward") || a.includes("approve") || a.includes("submit")) return "forward";
+        if (a.includes("reject")) return "reject";
+        return "neutral";
+    };
+
+    const forwardActions  = actions.filter(a => categorise(a) === "forward");
+    const neutralActions  = actions.filter(a => categorise(a) === "neutral");
+    const rejectActions   = actions.filter(a => categorise(a) === "reject");
+    const groups = [forwardActions, neutralActions, rejectActions].filter(g => g.length > 0);
+
+    const itemStyle = (action: string) => {
+        const cat = categorise(action);
+        if (cat === "forward") return {
+            icon: <CheckCircleIcon className="h-3.5 w-3.5" />,
+            cls: "text-[#D97757] hover:bg-orange-50 dark:hover:bg-orange-900/20",
+            iconCls: "text-[#D97757]",
+        };
+        if (cat === "reject") return {
+            icon: <XCircleIcon className="h-3.5 w-3.5" />,
+            cls: "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20",
+            iconCls: "text-red-500",
+        };
+        return {
+            icon: <ChevronRight className="h-3.5 w-3.5" />,
+            cls: "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700",
+            iconCls: "text-zinc-400 dark:text-zinc-500",
+        };
+    };
 
     return (
-        <div className="flex items-center gap-2">
-            {data.message.map((actionString: string) => {
-                const isForward = actionString.toLowerCase() === "forward";
-                const blocked = isForward && isForwardBlocked;
-                return (
-                    <div key={actionString} className="relative group">
-                        <Button
-                            onClick={() => onAction(actionString)}
-                            variant={
-                                actionString.toLowerCase().includes("approve") ||
-                                    actionString.toLowerCase().includes("submit")
-                                    ? "default"
-                                    : actionString.toLowerCase().includes("reject")
-                                        ? "destructive"
-                                        : "secondary"
-                            }
-                            className={cn(
-                                "flex items-center gap-2 h-9 px-4 text-xs font-medium rounded-lg shadow-sm transition-all",
-                                {
-                                    "bg-[#D97757] hover:bg-[#D97757] text-white":
-                                        actionString.toLowerCase().includes("approve") ||
-                                        actionString.toLowerCase().includes("submit"),
-                                    "bg-red-500 hover:bg-red-600 text-white":
-                                        actionString.toLowerCase().includes("reject"),
-                                    "bg-white dark:bg-zinc-900 hover:bg-zinc-50 text-zinc-700 border border-zinc-200":
-                                        !["approve", "reject", "submit"].some((term) =>
-                                            actionString.toLowerCase().includes(term),
-                                        ),
-                                    "opacity-50 cursor-not-allowed": blocked,
-                                },
-                            )}
-                            disabled={isLoading || blocked}
-                        >
-                            {actionString.toLowerCase().includes("approve") && (
-                                <CheckCircleIcon className="h-3.5 w-3.5 mr-1.5" />
-                            )}
-                            {actionString.toLowerCase().includes("reject") && (
-                                <XCircleIcon className="h-3.5 w-3.5 mr-1.5" />
-                            )}
-                            {isLoading ? "Processing..." : actionString}
-                        </Button>
-                        {blocked && (
-                            <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 hidden group-hover:block z-50 w-max max-w-xs">
-                                <div className="bg-zinc-900 text-white text-xs rounded px-2.5 py-1.5 shadow-lg">
-                                    {!projectNo?.trim() && (
-                                        <div>Project Number is required before forwarding.</div>
-                                    )}
-                                    {!accountDetailsFilled && (
-                                        <div>Account Details (Account Type &amp; related fields) must be saved before forwarding.</div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
+        <div className="relative">
+            {/* Trigger button — accented so it stands out */}
+            <button
+                ref={toggleBtnRef}
+                onClick={handleToggleDropdown}
+                disabled={isLoading}
+                className={cn(
+                    "inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg shadow-sm transition-all disabled:opacity-50",
+                    dropdownOpen
+                        ? "bg-[#D97757] text-white border border-[#c66a4e]"
+                        : "bg-[#FFF7ED] dark:bg-[#D97757]/15 text-[#D97757] border border-[#D97757]/40 hover:bg-[#D97757] hover:text-white dark:hover:bg-[#D97757]/30",
+                )}
+            >
+                {isLoading ? "Processing…" : "Actions"}
+                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-150", dropdownOpen && "rotate-180")} />
+            </button>
+
+            {/* Portal dropdown */}
+            {dropdownOpen && createPortal(
+                <div
+                    ref={dropdownPortalRef}
+                    style={{ position: "absolute", top: dropdownPos.top, right: dropdownPos.right, zIndex: 9999 }}
+                    className="min-w-[210px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden"
+                >
+                    {/* Header */}
+                    <div className="px-4 py-2 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-100 dark:border-zinc-700">
+                        <span className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                            Workflow Actions
+                        </span>
                     </div>
-                );
-            })}
+
+                    {/* Grouped action items */}
+                    {groups.map((group, gi) => (
+                        <React.Fragment key={gi}>
+                            {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
+                            {group.map((action) => {
+                                const blocked = action.toLowerCase() === "forward" && isForwardBlocked;
+                                const { icon, cls, iconCls } = itemStyle(action);
+                                return (
+                                    <div key={action} className="relative group/item">
+                                        <button
+                                            onClick={() => { if (!blocked) { setDropdownOpen(false); onAction(action); } }}
+                                            disabled={isLoading || blocked}
+                                            className={cn(
+                                                "w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left transition-colors disabled:cursor-not-allowed",
+                                                blocked ? "opacity-40" : cls,
+                                            )}
+                                        >
+                                            <span className={iconCls}>{icon}</span>
+                                            {action}
+                                            {blocked && (
+                                                <span className="ml-auto text-[10px] font-normal text-zinc-400">blocked</span>
+                                            )}
+                                        </button>
+                                        {blocked && (
+                                            <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/item:block z-[9999]">
+                                                <div className="bg-zinc-900 text-white text-[11px] rounded-lg px-3 py-1.5 shadow-lg whitespace-nowrap">
+                                                    Project Number required before forwarding.
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </React.Fragment>
+                    ))}
+                </div>,
+                document.body,
+            )}
         </div>
     );
 };
@@ -1456,11 +1455,73 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     const { roles, isLoading: isRolesLoading } = useUserRoles(currentUser ?? null);
     const isRnDStaff = roles.some(r => r === "staff, RnD");
 
+    // --- Proposed Budget Breakup edit state (RnD Staff only) ---
+    type BudgetRow = {
+        account_head: string;
+        first_year_budget: number;
+        second_year_budget: number;
+        third_year_budget: number;
+        fourth_year_budget: number;
+        fifth_year_budget: number;
+    };
+    const [isEditingBudget, setIsEditingBudget] = useState(false);
+    const [editBudgetRows, setEditBudgetRows] = useState<BudgetRow[]>([]);
+    const [isSavingBudget, setIsSavingBudget] = useState(false);
+
     const { data, error, isLoading, mutate } = useFrappeGetDoc(
         "Project Registration",
         projectName ?? "",
         { enabled: !!projectName, cacheTime: 0 },
     );
+
+    // --- Proposed Budget Breakup save (RnD Staff only) — defined after mutate ---
+    const { call: updateBudgetBreakup } = useFrappePostCall(
+        "rndopsapp.rndopsapp.doctype.project_registration.project_registration.update_proposed_budget_breakup",
+    );
+
+    const startEditBudget = (budgetData: any[]) => {
+        setEditBudgetRows(
+            (budgetData ?? []).map((row: any) => ({
+                account_head: row.account_head ?? "",
+                first_year_budget: row.first_year_budget ?? 0,
+                second_year_budget: row.second_year_budget ?? 0,
+                third_year_budget: row.third_year_budget ?? 0,
+                fourth_year_budget: row.fourth_year_budget ?? 0,
+                fifth_year_budget: row.fifth_year_budget ?? 0,
+            })),
+        );
+        setIsEditingBudget(true);
+    };
+
+    const cancelEditBudget = () => {
+        setIsEditingBudget(false);
+        setEditBudgetRows([]);
+    };
+
+    const saveBudgetBreakup = async () => {
+        if (!projectName) return;
+        setIsSavingBudget(true);
+        try {
+            await updateBudgetBreakup({
+                docname: projectName,
+                rows: editBudgetRows.map((r) => ({
+                    account_head: r.account_head,
+                    first_year_budget: r.first_year_budget,
+                    second_year_budget: r.second_year_budget,
+                    third_year_budget: r.third_year_budget,
+                    fourth_year_budget: r.fourth_year_budget,
+                    fifth_year_budget: r.fifth_year_budget,
+                })),
+            });
+            await mutate();
+            setIsEditingBudget(false);
+            setEditBudgetRows([]);
+        } catch (err: any) {
+            alert(`Failed to save: ${err?.message || err}`);
+        } finally {
+            setIsSavingBudget(false);
+        }
+    };
 
     const MINIO_BASE = "http://172.16.135.118:9000";
     const attachmentsPath = `${MINIO_BASE}/prod-rnd-files/Project_Registration/${projectName}/attachments`;
@@ -1489,7 +1550,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
         const fetchBudgetHeads = async () => {
             try {
                 const response = await fetch(
-                    '/api/v2/document/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc',
+                    '/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0',
                 );
                 const result = await response.json();
                 if (result?.data) {
@@ -1597,27 +1658,32 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     const [endorsementModalOpen, setEndorsementModalOpen] = useState(false);
     const [endorsementHtml, setEndorsementHtml] = useState<string | null>(null);
     const [isDownloadingEndorsementCertificate, setIsDownloadingEndorsementCertificate] = useState(false);
+    const [isDownloadingEndorsementUnsigned, setIsDownloadingEndorsementUnsigned] = useState(false);
 
-    const fetchNormalizedEndorsementHtml = useCallback(async () => {
-        if (!projectName) return null;
-        const res = await fetchEndorsementData({
-            doctype: "Endorsement Data",
-            filters: JSON.stringify([
-                ["project_ref_num", "=", projectName],
-            ]),
-            fields: JSON.stringify(["endorsement_html"]),
-            limit_page_length: 1,
-        });
-        const records = res?.message;
-        if (records?.length > 0 && records[0].endorsement_html) {
-            return normalizeEndorsementHtmlForProject(
-                records[0].endorsement_html,
-                projectName,
-                data?.workflow_state,
-            );
-        }
-        return null;
-    }, [data?.workflow_state, fetchEndorsementData, projectName]);
+    const fetchNormalizedEndorsementHtml = useCallback(
+        async (options?: { omitSignatureImage?: boolean }) => {
+            if (!projectName) return null;
+            const res = await fetchEndorsementData({
+                doctype: "Endorsement Data",
+                filters: JSON.stringify([
+                    ["project_ref_num", "=", projectName],
+                ]),
+                fields: JSON.stringify(["endorsement_html"]),
+                limit_page_length: 1,
+            });
+            const records = res?.message;
+            if (records?.length > 0 && records[0].endorsement_html) {
+                return normalizeEndorsementHtmlForProject(
+                    records[0].endorsement_html,
+                    projectName,
+                    data?.workflow_state,
+                    options,
+                );
+            }
+            return null;
+        },
+        [data?.workflow_state, fetchEndorsementData, projectName],
+    );
 
     const handleWorkflowAction = useCallback((action: string) => {
         setSelectedAction(action);
@@ -1711,6 +1777,14 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
             activeClass: "bg-[#F4F4F5] border-[#71717A] text-[#3F3F46] shadow-sm dark:bg-[#3F3F46] dark:border-[#A1A1AA] dark:text-[#E4E4E7]",
             inactiveClass: "border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]",
             iconClass: "text-[#71717A] dark:text-[#A1A1AA]",
+        },
+        {
+            id: "help",
+            label: "Operation Guideline",
+            icon: BookOpenIcon,
+            activeClass: "bg-[#DC2626] border-[#DC2626] text-white shadow-sm",
+            inactiveClass: "border-[#FECACA] bg-[#FEF2F2]/60 text-[#B91C1C] hover:bg-[#FEF2F2] dark:border-[#EF4444]/30 dark:bg-[#EF4444]/10 dark:text-[#FCA5A5]",
+            iconClass: "text-[#DC2626] dark:text-[#F87171]",
         },
     ];
 
@@ -1850,17 +1924,6 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                             <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Project Number Not Generated</p>
                             <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
                                 A project number must be generated before this project can be forwarded. Please generate it using the form on the right.
-                            </p>
-                        </div>
-                    </div>
-                )}
-                {isRnDStaff && data?.workflow_state === "Pending Staff Approval" && !acctDetailsFilled && (
-                    <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700">
-                        <AlertTriangleIcon className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-                        <div>
-                            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Account Details Incomplete</p>
-                            <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
-                                Account Type and all related account fields must be saved before this project can be forwarded. Please fill them in using the form on the right.
                             </p>
                         </div>
                     </div>
@@ -2508,6 +2571,109 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                 )}
                                 {activeTab === "funding" && (
                                     <div className="space-y-6">
+                                        {isEditingBudget ? (
+                                            <Card className="border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden rounded-xl">
+                                                <CardHeader className="py-3 px-5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <IndianRupeeIcon className="h-3.5 w-3.5 text-[#4A6CF7] dark:text-[#93C5FD]" />
+                                                            <CardTitle className="font-sans text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-[0.1em]">
+                                                                Proposed Budget Breakup
+                                                            </CardTitle>
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="h-6 px-2 text-xs gap-1"
+                                                                onClick={cancelEditBudget}
+                                                                disabled={isSavingBudget}
+                                                            >
+                                                                <X className="h-3 w-3" />
+                                                                Cancel
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                className="h-6 px-2 text-xs gap-1 bg-[#D97757] hover:bg-[#c4673e] text-white"
+                                                                onClick={saveBudgetBreakup}
+                                                                disabled={isSavingBudget}
+                                                            >
+                                                                <SaveIcon className="h-3 w-3" />
+                                                                {isSavingBudget ? "Saving…" : "Save"}
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </CardHeader>
+                                                <div className="overflow-x-auto p-3">
+                                                    <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800 text-xs">
+                                                        <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                                                            <tr>
+                                                                <th className="px-3 py-2 text-left font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Budget Head</th>
+                                                                {(["Year 1", "Year 2", "Year 3", "Year 4", "Year 5"] as const).map((y) => (
+                                                                    <th key={y} className="px-3 py-2 text-right font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">{y}</th>
+                                                                ))}
+                                                                <th className="px-3 py-2" />
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-800">
+                                                            {editBudgetRows.map((row, idx) => (
+                                                                <tr key={idx}>
+                                                                    <td className="px-2 py-1.5">
+                                                                        <select
+                                                                            className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-2 py-1 text-xs"
+                                                                            value={row.account_head}
+                                                                            onChange={(e) => {
+                                                                                const updated = [...editBudgetRows];
+                                                                                updated[idx] = { ...updated[idx], account_head: e.target.value };
+                                                                                setEditBudgetRows(updated);
+                                                                            }}
+                                                                        >
+                                                                            <option value="">— Select —</option>
+                                                                            {budgetHeadList.map((bh) => (
+                                                                                <option key={bh.name} value={bh.name}>{bh.name}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                    </td>
+                                                                    {(["first_year_budget", "second_year_budget", "third_year_budget", "fourth_year_budget", "fifth_year_budget"] as const).map((field) => (
+                                                                        <td key={field} className="px-2 py-1.5">
+                                                                            <input
+                                                                                type="text"
+                                                                                inputMode="numeric"
+                                                                                className="w-24 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-2 py-1 text-xs text-right"
+                                                                                value={row[field] || ""}
+                                                                                onChange={(e) => {
+                                                                                    const updated = [...editBudgetRows];
+                                                                                    updated[idx] = { ...updated[idx], [field]: Number(e.target.value) };
+                                                                                    setEditBudgetRows(updated);
+                                                                                }}
+                                                                            />
+                                                                        </td>
+                                                                    ))}
+                                                                    <td className="px-2 py-1.5">
+                                                                        <button
+                                                                            type="button"
+                                                                            className="text-zinc-400 hover:text-red-500"
+                                                                            onClick={() => setEditBudgetRows(editBudgetRows.filter((_, i) => i !== idx))}
+                                                                        >
+                                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="mx-3 mb-3 h-6 px-2 text-xs gap-1"
+                                                    onClick={() => setEditBudgetRows([...editBudgetRows, { account_head: "", first_year_budget: 0, second_year_budget: 0, third_year_budget: 0, fourth_year_budget: 0, fifth_year_budget: 0 }])}
+                                                >
+                                                    <Plus className="h-3 w-3" />
+                                                    Add Row
+                                                </Button>
+                                            </Card>
+                                        ) : (
                                         <TableDisplay
                                             label="Proposed Budget Breakup"
                                             data={data?.proposed_budget_breakup}
@@ -2620,7 +2786,19 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                             })()}
                                             icon={IndianRupeeIcon}
                                             budgetHeadList={budgetHeadList}
+                                            action={isRnDStaff ? (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-6 px-2 text-xs gap-1"
+                                                    onClick={() => startEditBudget(data?.proposed_budget_breakup ?? [])}
+                                                >
+                                                    <PencilIcon className="h-3 w-3" />
+                                                    Edit
+                                                </Button>
+                                            ) : undefined}
                                         />
+                                        )}
                                         {data?.equipment_checkbox === 1 && (
                                             <TableDisplay
                                                 label="Proposed Equipment"
@@ -2810,12 +2988,43 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                         }}
                                                         disabled={
                                                             isFetchingEndorsementHtml ||
-                                                            isDownloadingEndorsementCertificate
+                                                            isDownloadingEndorsementCertificate ||
+                                                            isDownloadingEndorsementUnsigned
                                                         }
                                                         className="flex items-center gap-2 px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 hover:bg-[#B2EBF2] text-[#D97757] rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                                     >
                                                         <DownloadIcon className="h-4 w-4" />
                                                         {isDownloadingEndorsementCertificate ? "Downloading..." : "Download Certificate"}
+                                                    </button>
+                                                    <button
+                                                        onClick={async () => {
+                                                            setIsDownloadingEndorsementUnsigned(true);
+                                                            try {
+                                                                const html = await fetchNormalizedEndorsementHtml({ omitSignatureImage: true });
+                                                                if (!html) {
+                                                                    alert("No endorsement certificate found for this project.");
+                                                                    return;
+                                                                }
+                                                                await downloadEndorsementPdfFromHtml(
+                                                                    html,
+                                                                    `Endorsement_${projectName || "Certificate"}_Unsigned.pdf`,
+                                                                );
+                                                            } catch (error) {
+                                                                console.error("Download unsigned endorsement certificate error:", error);
+                                                                alert("Could not download endorsement certificate. Please open the preview and use Print.");
+                                                            } finally {
+                                                                setIsDownloadingEndorsementUnsigned(false);
+                                                            }
+                                                        }}
+                                                        disabled={
+                                                            isFetchingEndorsementHtml ||
+                                                            isDownloadingEndorsementCertificate ||
+                                                            isDownloadingEndorsementUnsigned
+                                                        }
+                                                        className="flex items-center gap-2 px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                        <DownloadIcon className="h-4 w-4" />
+                                                        {isDownloadingEndorsementUnsigned ? "Downloading..." : "Download without Signature"}
                                                     </button>
                                                 </div>
                                             </div>
@@ -2887,6 +3096,179 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                 {activeTab === "quick-actions" && (
                                     <QuickActions />
                                 )}
+
+                                {activeTab === "help" && (() => {
+                                    const wfState = (data?.workflow_state || "").toLowerCase();
+                                    const isDraft = !data?.workflow_state || wfState === "draft";
+                                    const isSubmitted = !isDraft && !wfState.includes("approved");
+                                    const isApproved = wfState.includes("approved");
+
+                                    const currentStep = isDraft ? 0 : isSubmitted ? 1 : isApproved ? 2 : 0;
+
+                                    const steps = [
+                                        {
+                                            num: 1, title: "Fill & Submit Registration", subtitle: "Complete the project form",
+                                            icon: CheckCircleIcon, color: "emerald",
+                                            done: !isDraft, active: isDraft,
+                                            description: "Fill all required sections — Project Description, PI/Co-PI details, Proposed Budget, and Clearance information. Use Save as Draft to save progress, then Submit when the form is complete.",
+                                            action: null as (() => void) | null, actionLabel: null as string | null,
+                                        },
+                                        {
+                                            num: 2, title: "Approval Workflow", subtitle: "Review by R&D office",
+                                            icon: CreditCardIcon, color: "blue",
+                                            done: isApproved, active: isSubmitted,
+                                            description: "Submitted project goes through the R&D approval pipeline: HoS R&D reviews first, then Dean R&D gives final approval. You will be notified if any correction is needed.",
+                                            action: null as (() => void) | null, actionLabel: null as string | null,
+                                        },
+                                        {
+                                            num: 3, title: "Project Proposal Approved", subtitle: "Financial operations unlocked",
+                                            icon: CheckCircle2, color: "violet",
+                                            done: false, active: isApproved,
+                                            description: "Once approved, you can access the full project dashboard to add Fund Sanction, record Fund Received installments, and submit financial applications.",
+                                            action: null as (() => void) | null, actionLabel: null as string | null,
+                                        },
+                                        {
+                                            num: 4, title: "Add Fund Sanction", subtitle: "Register grant from funding agency",
+                                            icon: ArrowRightIcon, color: "orange",
+                                            done: false, active: false,
+                                            description: "After project approval, go to the Project Overview page to add the Fund Sanction. Enter the sanction letter details, grant amount, and budget heads. This will go through R&D approval.",
+                                            action: null as (() => void) | null, actionLabel: null as string | null,
+                                        },
+                                        {
+                                            num: 5, title: "Applications Unlocked", subtitle: "Submit financial requests",
+                                            icon: CircleDotIcon, color: "purple",
+                                            done: false, active: false,
+                                            description: "Once fund is received against an approved sanction, all financial applications (Travel, TA/DA, Reimbursement, Advance, etc.) are unlocked for this project.",
+                                            action: null as (() => void) | null, actionLabel: null as string | null,
+                                        },
+                                    ];
+
+                                    type ColorKey = "emerald" | "blue" | "violet" | "orange" | "purple";
+                                    const colorMap: Record<ColorKey, { bg: string; text: string; badge: string; btn: string; line: string; border: string }> = {
+                                        emerald: { bg: "bg-emerald-50 dark:bg-emerald-900/20", text: "text-emerald-700 dark:text-emerald-300", badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300", btn: "bg-emerald-600 hover:bg-emerald-700 text-white", line: "bg-emerald-200 dark:bg-emerald-800", border: "border-emerald-200 dark:border-emerald-800/50" },
+                                        blue:    { bg: "bg-blue-50 dark:bg-blue-900/20",       text: "text-blue-700 dark:text-blue-300",       badge: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",       btn: "bg-blue-600 hover:bg-blue-700 text-white",   line: "bg-blue-200 dark:bg-blue-800",   border: "border-blue-200 dark:border-blue-800/50" },
+                                        violet:  { bg: "bg-violet-50 dark:bg-violet-900/20",   text: "text-violet-700 dark:text-violet-300",   badge: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300", btn: "bg-violet-600 hover:bg-violet-700 text-white", line: "bg-violet-200 dark:bg-violet-800", border: "border-violet-200 dark:border-violet-800/50" },
+                                        orange:  { bg: "bg-orange-50 dark:bg-orange-900/20",   text: "text-orange-700 dark:text-orange-300",   badge: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300", btn: "bg-orange-600 hover:bg-orange-700 text-white", line: "bg-orange-200 dark:bg-orange-800", border: "border-orange-200 dark:border-orange-800/50" },
+                                        purple:  { bg: "bg-purple-50 dark:bg-purple-900/20",   text: "text-purple-700 dark:text-purple-300",   badge: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300", btn: "bg-purple-600 hover:bg-purple-700 text-white", line: "bg-purple-200 dark:bg-purple-800", border: "border-purple-200 dark:border-purple-800/50" },
+                                    };
+
+                                    return (
+                                        <div>
+                                            {/* Header */}
+                                            <div className="flex items-center gap-3 p-5 border-b border-zinc-100 dark:border-zinc-800">
+                                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-100 dark:bg-cyan-900/30">
+                                                    <BookOpenIcon className="w-4.5 h-4.5 text-cyan-600 dark:text-cyan-400" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Project Operations Guide</h2>
+                                                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Step-by-step walkthrough to unlock your project</p>
+                                                </div>
+                                                {isApproved && (
+                                                    <span className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+                                                        <CheckCircleIcon className="w-3.5 h-3.5" /> Approved
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Progress bar */}
+                                            <div className="px-5 py-3 bg-zinc-50 dark:bg-zinc-800/40 border-b border-zinc-100 dark:border-zinc-800">
+                                                <div className="flex items-center justify-between mb-1.5">
+                                                    <span className="text-xs text-zinc-500 dark:text-zinc-400">Progress</span>
+                                                    <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{Math.min(currentStep, 4)} / 4 complete</span>
+                                                </div>
+                                                <div className="h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-700 overflow-hidden">
+                                                    <div
+                                                        className="h-full rounded-full bg-gradient-to-r from-blue-500 via-violet-500 to-emerald-500 transition-all duration-700"
+                                                        style={{ width: `${Math.min((currentStep / 4) * 100, 100)}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Steps */}
+                                            <div className="p-5 space-y-0">
+                                                {steps.map((step, idx) => {
+                                                    const c = colorMap[step.color as ColorKey];
+                                                    const Icon = step.icon;
+                                                    const isDone = step.done;
+                                                    const isActive = step.active;
+                                                    const isLocked = !isDone && !isActive;
+                                                    const isLast = idx === steps.length - 1;
+
+                                                    return (
+                                                        <div key={step.num} className="relative flex gap-4">
+                                                            {/* Left column: icon + line */}
+                                                            <div className="flex flex-col items-center shrink-0">
+                                                                <div className={cn(
+                                                                    "h-8 w-8 flex items-center justify-center rounded-full border-2 z-10 bg-white dark:bg-zinc-900",
+                                                                    isDone && "border-emerald-400 dark:border-emerald-600",
+                                                                    isActive && c.border,
+                                                                    isLocked && "border-zinc-200 dark:border-zinc-700",
+                                                                )}>
+                                                                    {isDone ? (
+                                                                        <CheckCircleIcon className="w-4 h-4 text-emerald-500" />
+                                                                    ) : isActive ? (
+                                                                        <Icon className={cn("w-3.5 h-3.5", c.text)} />
+                                                                    ) : (
+                                                                        <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500">{step.num}</span>
+                                                                    )}
+                                                                </div>
+                                                                {!isLast && (
+                                                                    <div className={cn(
+                                                                        "w-0.5 flex-1 mt-0.5 mb-0.5 min-h-[20px]",
+                                                                        isDone ? c.line : "bg-zinc-100 dark:bg-zinc-800"
+                                                                    )} />
+                                                                )}
+                                                            </div>
+
+                                                            {/* Right column: card */}
+                                                            <div className={cn(
+                                                                "flex-1 min-w-0 rounded-xl border p-3.5 transition-all mb-3",
+                                                                isDone && "border-emerald-100 dark:border-emerald-900/40 bg-white dark:bg-zinc-900",
+                                                                isActive && cn(c.bg, c.border, "border shadow-sm"),
+                                                                isLocked && "border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/30 dark:bg-zinc-900/20 opacity-50",
+                                                            )}>
+                                                                <div className="flex items-start justify-between gap-2 mb-0.5">
+                                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                                        <span className={cn(
+                                                                            "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
+                                                                            isDone ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
+                                                                            : isActive ? c.badge
+                                                                            : "bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500"
+                                                                        )}>Step {step.num}</span>
+                                                                        <span className={cn(
+                                                                            "text-sm font-semibold",
+                                                                            isDone ? "text-emerald-800 dark:text-emerald-200"
+                                                                            : isActive ? c.text
+                                                                            : "text-zinc-400 dark:text-zinc-500"
+                                                                        )}>{step.title}</span>
+                                                                    </div>
+                                                                    <span className="shrink-0 text-[10px] font-semibold">
+                                                                        {isDone && <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5"><CheckCircleIcon className="w-3 h-3" /> Done</span>}
+                                                                        {isActive && <span className={cn(c.text, "flex items-center gap-0.5")}><CircleDotIcon className="w-3 h-3 animate-pulse" /> Current</span>}
+                                                                        {isLocked && <span className="text-zinc-300 dark:text-zinc-600 flex items-center gap-0.5"><LockIcon className="w-3 h-3" /> Locked</span>}
+                                                                    </span>
+                                                                </div>
+                                                                <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mb-1">{step.subtitle}</p>
+                                                                {(isDone || isActive) && (
+                                                                    <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed mt-1.5">{step.description}</p>
+                                                                )}
+                                                                {isActive && step.action && (
+                                                                    <button
+                                                                        onClick={step.action}
+                                                                        className={cn("mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors", c.btn)}
+                                                                    >
+                                                                        {step.actionLabel}
+                                                                        <ArrowRightIcon className="w-3 h-3" />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                             </div>
 
                             {/* Right Column for Staff RnD */}

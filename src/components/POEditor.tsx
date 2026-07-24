@@ -19,7 +19,8 @@ import {
 } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { generatePOHtml, DEFAULT_TERMS } from "@/utils/poPrint";
+import { generatePOHtml, DEFAULT_TERMS, getFormattedTerms } from "@/utils/DpPoPrint";
+import { generatePOHtml as generateIcssPOHtml } from "@/utils/IcssPoPrint";
 
 // ── Terms Editor Modal ──────────────────────────────────────────────────────
 const icons = {
@@ -306,6 +307,10 @@ interface POEditorProps {
     dpId: string;
     isStaffRnD?: boolean;
     isPIReadOnly?: boolean;
+    sourceLabel?: string;
+    isSaved?: boolean;
+    isDirty?: boolean;
+    onChange?: (nextPoData: Record<string, any>) => void;
     onSave?: (poData: Record<string, any>) => Promise<void>;
     onUploadSignedPO?: (file: File) => Promise<void>;
 }
@@ -472,6 +477,10 @@ export const POEditor: React.FC<POEditorProps> = ({
     dpId,
     isStaffRnD = false,
     isPIReadOnly = false,
+    sourceLabel,
+    isSaved: isSavedProp = false,
+    isDirty: _isDirty,
+    onChange,
     onSave,
     onUploadSignedPO,
 }) => {
@@ -481,9 +490,17 @@ export const POEditor: React.FC<POEditorProps> = ({
     const [isTermsEditorOpen, setIsTermsEditorOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
+    const [hasSaved, setHasSaved] = useState(isSavedProp);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadedFile, setUploadedFile] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    // Track which doc we've already initialized so onChange-driven ssData updates don't reset user input
+    const lastInitKeyRef = useRef<string>("");
+
+    // Sync hasSaved if parent signals the PO is already saved (e.g., on re-load)
+    useEffect(() => {
+        if (isSavedProp) setHasSaved(true);
+    }, [isSavedProp]);
 
     // Sync uploadedFile from ssData.file_path
     useEffect(() => {
@@ -492,31 +509,40 @@ export const POEditor: React.FC<POEditorProps> = ({
         }
     }, [ssData?.file_path]);
 
-    // Initialize PO data from sanction sheet
+    // Initialize PO data from sanction sheet — only once per document identity
     useEffect(() => {
-        if (ssData && Object.keys(ssData).length > 0) {
-            setPoData({
-                ...ssData,
-                po_number: ssData.name || "",
-                po_date: new Date().toLocaleDateString("en-IN", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                }),
-                vendor_address: ssData.ss_name_of_firms || "",
-                quotation_no: "",
-                signee_name: "",
-                signee_designation: "",
-                amount_in_words: "",
-                terms_and_conditions:
-                    ssData.terms_and_conditions || DEFAULT_TERMS,
-            });
-        }
-    }, [ssData]);
+        if (!ssData || Object.keys(ssData).length === 0) return;
+        const initKey = ssData._icss_po_name || ssData.name || ssData.icss_number || dpId || "";
+        if (initKey && initKey === lastInitKeyRef.current) return;
+        lastInitKeyRef.current = initKey;
+        setPoData({
+            ...ssData,
+            po_number: ssData.po_number || ssData.name || "",
+            po_date: (() => {
+                const raw = ssData.po_date;
+                if (!raw) return new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" });
+                // Convert YYYY-MM-DD → DD/MM/YYYY
+                const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+                if (isoMatch) return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]}`;
+                return raw;
+            })(),
+            vendor_address: ssData.vendor_address || ssData.ss_name_of_firms || "",
+            quotation_no: ssData.quotation_no || "",
+            signee_name: ssData.signee_name || "",
+            signee_designation: ssData.signee_designation || "",
+            amount_in_words: ssData.amount_in_words || "",
+            terms_and_conditions:
+                ssData.terms_and_conditions || getFormattedTerms(DEFAULT_TERMS, ssData),
+        });
+    }, [ssData, dpId]);
 
     const handleFieldChange = useCallback((field: string, value: string) => {
-        setPoData((prev) => ({ ...prev, [field]: value }));
-    }, []);
+        setPoData((prev) => {
+            const next = { ...prev, [field]: value };
+            onChange?.(next);
+            return next;
+        });
+    }, [onChange]);
 
     const handleSave = async () => {
         if (!onSave) return;
@@ -525,6 +551,7 @@ export const POEditor: React.FC<POEditorProps> = ({
         try {
             await onSave(poData);
             setSaveSuccess(true);
+            setHasSaved(true);
             setTimeout(() => setSaveSuccess(false), 3000);
         } catch (err) {
             console.error("Save failed:", err);
@@ -566,7 +593,7 @@ export const POEditor: React.FC<POEditorProps> = ({
         }
     };
 
-    // Editable fields config
+    // PO header fields — amount_in_words and signee fields rendered separately after prefilled section
     const editableFields = [
         {
             key: "vendor_address",
@@ -578,17 +605,6 @@ export const POEditor: React.FC<POEditorProps> = ({
         {
             key: "quotation_no",
             label: "Quotation Reference No.",
-            type: "text" as const,
-        },
-        {
-            key: "amount_in_words",
-            label: "Amount in Words",
-            type: "text" as const,
-        },
-        { key: "signee_name", label: "Signee Name", type: "text" as const },
-        {
-            key: "signee_designation",
-            label: "Signee Designation",
             type: "text" as const,
         },
     ];
@@ -609,6 +625,11 @@ export const POEditor: React.FC<POEditorProps> = ({
                 </div>
                 {isStaffRnD && (
                     <div className="flex items-center gap-2 flex-wrap">
+                        {hasSaved && !saveSuccess && (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Saved
+                            </span>
+                        )}
                         {onSave && (
                             <button
                                 onClick={handleSave}
@@ -630,8 +651,10 @@ export const POEditor: React.FC<POEditorProps> = ({
                             </button>
                         )}
                         <button
-                            onClick={() => setIsPreviewOpen(true)}
-                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-bold bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
+                            onClick={() => hasSaved && setIsPreviewOpen(true)}
+                            disabled={!hasSaved}
+                            title={!hasSaved ? "Save the PO first to enable preview" : undefined}
+                            className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-bold ${hasSaved ? "bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed opacity-50"}`}
                         >
                             <FileText className="w-4 h-4" /> Preview & Print
                         </button>
@@ -682,9 +705,10 @@ export const POEditor: React.FC<POEditorProps> = ({
                                 className="hidden"
                             />
                             <button
-                                onClick={handleUploadClick}
-                                disabled={isUploading}
-                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60"
+                                onClick={hasSaved ? handleUploadClick : undefined}
+                                disabled={isUploading || !hasSaved}
+                                title={!hasSaved ? "Save the PO first to enable upload" : undefined}
+                                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-bold ${hasSaved ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-emerald-200 dark:bg-emerald-900/30 text-emerald-400 dark:text-emerald-600 cursor-not-allowed"} disabled:opacity-60`}
                             >
                                 {isUploading ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -754,9 +778,7 @@ export const POEditor: React.FC<POEditorProps> = ({
                     {editableFields.map(({ key, label, type }) => (
                         <div
                             key={key}
-                            className={
-                                type === "textarea" ? "md:col-span-2" : ""
-                            }
+                            className={type === "textarea" ? "md:col-span-2" : ""}
                         >
                             <label className="block text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
                                 {label}
@@ -764,12 +786,8 @@ export const POEditor: React.FC<POEditorProps> = ({
                             {type === "textarea" ? (
                                 <textarea
                                     value={poData[key] || ""}
-                                    onChange={(e) =>
-                                        handleFieldChange(key, e.target.value)
-                                    }
-                                    rows={
-                                        key === "terms_and_conditions" ? 6 : 3
-                                    }
+                                    onChange={(e) => handleFieldChange(key, e.target.value)}
+                                    rows={3}
                                     disabled={isPIReadOnly}
                                     className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-[12px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] resize-y disabled:bg-zinc-50 dark:disabled:bg-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-500"
                                 />
@@ -777,9 +795,7 @@ export const POEditor: React.FC<POEditorProps> = ({
                                 <input
                                     type="text"
                                     value={poData[key] || ""}
-                                    onChange={(e) =>
-                                        handleFieldChange(key, e.target.value)
-                                    }
+                                    onChange={(e) => handleFieldChange(key, e.target.value)}
                                     disabled={isPIReadOnly}
                                     className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-[12px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] disabled:bg-zinc-50 dark:disabled:bg-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-500"
                                 />
@@ -819,8 +835,12 @@ export const POEditor: React.FC<POEditorProps> = ({
                 </div>
 
                 {/* Items table */}
-                {Array.isArray(poData.table_bttk) &&
-                    poData.table_bttk.length > 0 && (
+                {Array.isArray(poData.table_bttk) && poData.table_bttk.length > 0 && (() => {
+                    const isRateContract = String(poData.po_source_indent_type || poData.indent_type || "").toLowerCase().includes("rate contract");
+                    const headers = isRateContract
+                        ? ["#", "Item Description", "Cat No.", "Page No.", "Qty", "Unit Rate", "Discount (%)", "GST (%)", "Total"]
+                        : ["#", "Item", "Make", "Model", "Qty", "Unit Price", "Discount", "GST", "Total"];
+                    return (
                         <div className="px-4 pb-4">
                             <p className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">
                                 Items
@@ -829,68 +849,60 @@ export const POEditor: React.FC<POEditorProps> = ({
                                 <table className="w-full table-fixed text-[11px]">
                                     <thead className="bg-zinc-50 dark:bg-zinc-800">
                                         <tr>
-                                            {[
-                                                "#",
-                                                "Item",
-                                                "Make",
-                                                "Model",
-                                                "Qty",
-                                                "Unit Price",
-                                                "Discount",
-                                                "GST",
-                                                "Total",
-                                            ].map((h) => (
-                                                <th
-                                                    key={h}
-                                                    className="px-2 py-2 text-left text-[10px] font-extrabold uppercase text-zinc-500 dark:text-zinc-400 break-words"
-                                                >
+                                            {headers.map((h) => (
+                                                <th key={h} className="px-2 py-2 text-left text-[10px] font-extrabold uppercase text-zinc-500 dark:text-zinc-400 break-words">
                                                     {h}
                                                 </th>
                                             ))}
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {poData.table_bttk.map(
-                                            (row: any, i: number) => (
-                                                <tr
-                                                    key={i}
-                                                    className="border-t border-zinc-100 dark:border-zinc-800"
-                                                >
-                                                    <td className="px-2 py-2 align-top text-zinc-500">
-                                                        {i + 1}
-                                                    </td>
-                                                    <td className="px-2 py-2 align-top break-words">
-                                                        {row.item_name}
-                                                    </td>
-                                                    <td className="px-2 py-2 align-top break-words">
-                                                        {row.item_make}
-                                                    </td>
-                                                    <td className="px-2 py-2 align-top break-words">
-                                                        {row.item_model}
-                                                    </td>
-                                                    <td className="px-2 py-2 align-top break-words">
-                                                        {row.item_quantity}
-                                                    </td>
-                                                    <td className="px-2 py-2 align-top break-words">
-                                                        {row.item_unit_price}
-                                                    </td>
-                                                    <td className="px-2 py-2 align-top break-words">
-                                                        {row.item_discount}
-                                                    </td>
-                                                    <td className="px-2 py-2 align-top break-words">
-                                                        {row.item_gst}
-                                                    </td>
-                                                    <td className="px-2 py-2 align-top font-medium break-words">
-                                                        {row.dp_total_price}
-                                                    </td>
-                                                </tr>
-                                            ),
-                                        )}
+                                        {poData.table_bttk.map((row: any, i: number) => (
+                                            <tr key={i} className="border-t border-zinc-100 dark:border-zinc-800">
+                                                <td className="px-2 py-2 align-top text-zinc-500">{i + 1}</td>
+                                                {isRateContract ? (
+                                                    <>
+                                                        <td className="px-2 py-2 align-top break-words">{row.item_description}</td>
+                                                        <td className="px-2 py-2 align-top break-words">{row.item_cat_no}</td>
+                                                        <td className="px-2 py-2 align-top break-words">{row.item_page_no}</td>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <td className="px-2 py-2 align-top break-words">{row.item_name}</td>
+                                                        <td className="px-2 py-2 align-top break-words">{row.item_make}</td>
+                                                        <td className="px-2 py-2 align-top break-words">{row.item_model}</td>
+                                                    </>
+                                                )}
+                                                <td className="px-2 py-2 align-top break-words">{row.item_quantity}</td>
+                                                <td className="px-2 py-2 align-top break-words">{row.item_unit_price}</td>
+                                                <td className="px-2 py-2 align-top break-words">{row.item_discount_percent ?? row.item_discount}</td>
+                                                <td className="px-2 py-2 align-top break-words">{row.item_gst_percent ?? row.item_gst}</td>
+                                                <td className="px-2 py-2 align-top font-medium break-words">{row.dp_total_price}</td>
+                                            </tr>
+                                        ))}
                                     </tbody>
                                 </table>
                             </div>
                         </div>
-                    )}
+                    );
+                })()}
+            </div>
+
+            {/* Amount in Words — after prefilled/items, before Terms — read-only */}
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+                <div className="px-5 py-3 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
+                    <h4 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
+                        Amount in Words
+                    </h4>
+                </div>
+                <div className="p-4">
+                    <p className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
+                        Grand Total Amount in Words
+                    </p>
+                    <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 break-words">
+                        {poData.amount_in_words || "—"}
+                    </p>
+                </div>
             </div>
 
             {/* Terms & Conditions */}
@@ -910,16 +922,39 @@ export const POEditor: React.FC<POEditorProps> = ({
                 </div>
                 <div
                     className="p-5 text-sm text-zinc-900 dark:text-zinc-100 prose dark:prose-invert max-w-none [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
-                    dangerouslySetInnerHTML={{
-                        __html: poData.terms_and_conditions || DEFAULT_TERMS,
-                    }}
+                    dangerouslySetInnerHTML={{ __html: poData.terms_and_conditions || getFormattedTerms(DEFAULT_TERMS, poData) }}
                 />
+            </div>
+
+            {/* Signatory Details — last */}
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+                <div className="px-5 py-3 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
+                    <h4 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
+                        Signatory Details
+                    </h4>
+                </div>
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {(["signee_name", "signee_designation"] as const).map((key) => (
+                        <div key={key}>
+                            <label className="block text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
+                                {key === "signee_name" ? "Signee Name" : "Signee Designation"}
+                            </label>
+                            <input
+                                type="text"
+                                value={poData[key] || ""}
+                                onChange={(e) => handleFieldChange(key, e.target.value)}
+                                disabled={isPIReadOnly}
+                                className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-[12px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] disabled:bg-zinc-50 dark:disabled:bg-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-500"
+                            />
+                        </div>
+                    ))}
+                </div>
             </div>
 
             {/* Terms Editor Modal */}
             <TermsEditorModal
                 isOpen={isTermsEditorOpen}
-                initialHtml={poData.terms_and_conditions || DEFAULT_TERMS}
+                initialHtml={poData.terms_and_conditions || getFormattedTerms(DEFAULT_TERMS, poData)}
                 onClose={() => setIsTermsEditorOpen(false)}
                 onSave={(html) =>
                     handleFieldChange("terms_and_conditions", html)
@@ -930,7 +965,7 @@ export const POEditor: React.FC<POEditorProps> = ({
             <PreviewModal
                 isOpen={isPreviewOpen}
                 onClose={() => setIsPreviewOpen(false)}
-                htmlContent={isPreviewOpen ? generatePOHtml(poData) : ""}
+                htmlContent={isPreviewOpen ? (sourceLabel === "ICSS" ? generateIcssPOHtml(poData) : generatePOHtml(poData)) : ""}
                 docName={poData.po_number || dpId || ""}
             />
         </div>

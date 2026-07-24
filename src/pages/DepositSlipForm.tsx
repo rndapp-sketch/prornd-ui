@@ -2,6 +2,7 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useDepositSlipCalculations } from "@/hooks/useDepositSlipCalculations";
 import {
     ArrowLeftIcon,
     ChevronDown,
@@ -166,8 +167,149 @@ const DISTRIBUTION_TOTAL_FIELDS = [
     "amount_received",
     "fund_received_amt",
     "grand_total",
+    "total_overhead_institute_share", // For D Consultancy DPF/PDF distribution
 ];
 const PDF_DPF_TOTAL_PERCENTAGE = 25;
+
+// --- PROJECT AUTO-FILL CONFIGURATION ---
+// Link fields pointing to these doctypes trigger auto-fill of project details
+const PROJECT_SOURCE_DOCTYPES = new Set([
+    "Project Registration",
+    "Project",
+    "RND Project",
+    "Research Project",
+    "Consultancy Project",
+    "Testing Project",
+]);
+
+// Fieldnames that, if present as a Link field, should trigger project auto-fill
+// regardless of what `field.options` declares. Covers backends that return
+// options as null/empty or a slightly different doctype label.
+const PROJECT_TRIGGER_FIELDNAMES = new Set([
+    "project_title",
+    "research_project",
+    "project_ref_no",
+    "project_registration",
+    "project",
+]);
+
+// Default doctype to query when the field has no resolvable `options` value.
+const DEFAULT_PROJECT_DOCTYPE = "Project Registration";
+
+// Map from project doc fieldnames → form fieldnames (first match wins per target).
+// Does NOT include project_title — that is the trigger field, not a fill target.
+const PROJECT_FIELD_MAP: Record<string, string> = {
+    principal_investigator: "principal_investigator",
+    pi: "principal_investigator",
+    pi_name: "principal_investigator",
+    funding_agency: "funding_agency",
+    funding_agen: "funding_agency", // fetch_from hint: project_title.funding_agen
+    sponsor: "funding_agency",
+    client: "client",
+    client_name: "client",
+    gstin_of_funding_agency: "gstin_of_funding_agency",
+    gstin: "gstin_of_funding_agency",
+    agency_gstin: "gstin_of_funding_agency",
+};
+
+const PROJECT_AUTOFILL_TARGET_FIELDS = new Set([
+    "principal_investigator",
+    "client",
+    "funding_agency",
+    "gstin_of_funding_agency",
+]);
+
+// --- STATIC FIELD DEFINITIONS ---
+// Used as fallback when the backend get_*_fields method is not yet implemented.
+// Mirrors the field definitions in the backend spec exactly.
+
+const E_NON_ROUTINE_FIELDS = [
+    { fieldname: "project_title", label: "Project Title", fieldtype: "Link", options: "Project Registration", mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "principal_investigator", label: "Principal Investigator", fieldtype: "Link", options: "User", mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "client", label: "Client", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "funding_agency", label: "Funding Agency", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "gstin_of_funding_agency", label: "GSTIN of Funding Agency", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "ecs_ac_no", label: "ECS A/C No.", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "bank", label: "Bank", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "calculations_section", label: "Calculations", fieldtype: "Section Break" },
+    { fieldname: "amount_inclusive_of_gst", label: "Amount Inclusive of GST", fieldtype: "Currency", mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "igst_18", label: "IGST @18%", fieldtype: "Currency", mandatory: 0, read_only: 1, hidden: 0 },
+    { fieldname: "consultancy_fee_x", label: "Consultancy Fee X", fieldtype: "Currency", mandatory: 0, read_only: 1, hidden: 0, description: "Consultancy Fee (After GST Deduction)" },
+    { fieldname: "overhead_multiplier", label: "Overhead Multiplier", fieldtype: "Float", default: 0.3, read_only: 0, hidden: 1 },
+    { fieldname: "overhead_amount", label: "Overhead Amount", fieldtype: "Currency", read_only: 1, hidden: 0 },
+    { fieldname: "credit_distribution_section", label: "Credit Distribution", fieldtype: "Section Break" },
+    { fieldname: "credit_distribution", label: "Credit as follows", fieldtype: "Table", options: "Deposit Slip Credit Distribution" },
+    { fieldname: "totals_section", label: "Totals", fieldtype: "Section Break" },
+    { fieldname: "total_gst", label: "Total GST", fieldtype: "Currency", read_only: 0, hidden: 0 },
+    { fieldname: "total_budget", label: "Total Budget", fieldtype: "Currency", read_only: 1, hidden: 0 },
+];
+
+const T_TESTING_FIELDS = [
+    { fieldname: "project_title", label: "Project Title", fieldtype: "Link", options: "Project Registration", mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "principal_investigator", label: "Principal Investigator", fieldtype: "Link", options: "User", mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "client", label: "Client", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "gstin_of_funding_agency", label: "Funding Agency", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "ecs_ac_no", label: "ECS A/C No.", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "bank", label: "Bank", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "calculations_section", label: "Calculations", fieldtype: "Section Break" },
+    { fieldname: "amount_inclusive_of_gst", label: "Amount Inclusive of GST", fieldtype: "Currency", mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "cgst_9", label: "CGST @9%", fieldtype: "Currency", read_only: 1, hidden: 0 },
+    { fieldname: "sgst_9", label: "SGST @9%", fieldtype: "Currency", read_only: 1, hidden: 0 },
+    { fieldname: "consultancy_fee_x", label: "Consultancy Fee X", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Consultancy Fee (After GST Deduction)" },
+    { fieldname: "overhead_multiplier", label: "Overhead Multiplier", fieldtype: "Float", default: 0.7, read_only: 0, hidden: 1 },
+    { fieldname: "overhead_amount", label: "Overhead Amount", fieldtype: "Currency", read_only: 1, hidden: 0 },
+    { fieldname: "credit_distribution_section", label: "Credit Distribution", fieldtype: "Section Break" },
+    { fieldname: "idf_t_testing_fee", label: "(a.) IDF", fieldtype: "Data", read_only: 1, hidden: 0, description: "(40% of the Consultancy fee)" },
+    { fieldname: "dpf_t_testing_fee", label: "(b.) DPF/CE", fieldtype: "Data", read_only: 1, hidden: 0, description: "(50% of the Consultancy fee)" },
+    { fieldname: "staff_welfare_t_testing_fund", label: "(c.) Staff Welfare fund", fieldtype: "Data", read_only: 1, hidden: 0, description: "(5% of Overhead amount)" },
+    { fieldname: "student_welfare_t_testing_fund", label: "(d.) Student Welfare fund", fieldtype: "Data", read_only: 1, hidden: 0, description: "(5% of Overhead amount)" },
+    { fieldname: "totals_section", label: "Totals", fieldtype: "Section Break" },
+    { fieldname: "total_gst", label: "Total GST", fieldtype: "Currency", read_only: 0, hidden: 0 },
+    { fieldname: "total_budget", label: "Total Budget", fieldtype: "Currency", read_only: 1, hidden: 0 },
+];
+
+const D_CONSULTANCY_FIELDS = [
+    { fieldname: "primary_details", label: "Primary Details", fieldtype: "Section Break" },
+    { fieldname: "consultancy_title", label: "Consultancy Title", fieldtype: "Data", mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "category_d", label: "Category", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "principal_consultant", label: "Principal Consultant", fieldtype: "Link", options: "User", mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "client", label: "Client", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "funding_agency", label: "Funding Agency", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "gstin_of_funding_agency", label: "GSTIN of Funding Agency", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "iitg_invoice_no", label: "IITG Invoice No.", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "bank", label: "Bank", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "ecs_ac_no", label: "ECS A/C No.", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "section_break_mqkq", label: "GST and Fee Calculations", fieldtype: "Section Break" },
+    { fieldname: "amount_inclusive_of_gst", label: "Amount Inclusive of GST", fieldtype: "Currency", mandatory: 1, read_only: 0, hidden: 0, description: "Enter the total amount inclusive of 18% GST" },
+    { fieldname: "igst_18_on_consultancy", label: "IGST @18% on Consultancy Fee", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Taxable Amount × 0.18 (where Taxable Amount = Amount ÷ 1.18)" },
+    { fieldname: "amount_after_gst_tds", label: "Amount after GST TDS @ 2%", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Amount Inclusive - TDS Amount (2% of Taxable Amount, rounded)" },
+    { fieldname: "total_cost_x", label: "Total Cost X", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Amount after TDS - IGST (Balance after GST deduction from amount received)" },
+    { fieldname: "consultancy_charge_y", label: "Consultancy Charge (Y)", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0, description: "Auto-filled as 30% of Total Cost X. Can be manually adjusted; Z will recalculate as X - Y" },
+    { fieldname: "operational_charge_z", label: "Operational Charge (Z)", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0, description: "Calculated as: Total Cost X - Consultancy Charge (Y)" },
+    { fieldname: "overhead_from_y_amount", label: "Overhead from Y (10% * Y)", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Consultancy Charge (Y) × 0.10" },
+    { fieldname: "overhead_from_z_amount", label: "Overhead from Z (10% * Z)", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Operational Charge (Z) × 0.10" },
+    { fieldname: "total_overhead_amount", label: "Total Overhead", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Overhead from Y + Overhead from Z" },
+    { fieldname: "institute_share_amount", label: "Institute Share (20% * Y)", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Consultancy Charge (Y) × 0.20" },
+    { fieldname: "total_overhead_institute_share", label: "Overhead + Institute Share", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Total Overhead + Institute Share (Base for all credit distributions)" },
+    { fieldname: "credit_distribution_section", label: "Credit Distribution", fieldtype: "Section Break", description: "Total allocation must equal 100%: IDF% + DPF% (sum of rows) + Staff 5% + Student 5% = 100%" },
+    { fieldname: "idf_percentage", label: "IDF % age", fieldtype: "Float", read_only: 0, hidden: 0, default: 40, description: "User-editable IDF percentage (default: 40%). Enter custom percentage; DPF will adjust to maintain 100% total." },
+    { fieldname: "idf_amount", label: "IDF Amount", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: (Overhead + Institute Share) × (IDF % / 100)" },
+    { fieldname: "dpf_amount", label: "Total DPF/CE Amount", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: (Overhead + Institute Share) × (Remaining % / 100) where Remaining = 100% - IDF% - 5% - 5%" },
+    { fieldname: "staff_welfare_amount", label: "Staff Welfare Amount", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: (Overhead + Institute Share) × 0.05 (5% - Fixed)" },
+    { fieldname: "student_welfare_amount", label: "Student Welfare Amount", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: (Overhead + Institute Share) × 0.05 (5% - Fixed)" },
+    { fieldname: "final_totals", label: "Final Totals", fieldtype: "Section Break" },
+    { fieldname: "balance_consultancy_fee", label: "Balance Consultancy Fee", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Y - Overhead(Y) - Institute Share = Y × 0.70" },
+    { fieldname: "balance_operation_charge", label: "Balance Operation Charge", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Z - Overhead(Z) = Z × 0.90" },
+    { fieldname: "total_gst", label: "Total GST", fieldtype: "Currency", read_only: 0, hidden: 0, description: "Equals IGST @18% calculated at the top" },
+    { fieldname: "total_amount", label: "Total Amount", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Equals Amount after GST TDS @ 2%" },
+];
+
+// Map from deposit slip type key → static field definitions
+const STATIC_FIELDS: Record<string, any[]> = {
+    e_non_routine: E_NON_ROUTINE_FIELDS,
+    t_testing: T_TESTING_FIELDS,
+    d_consultancy: D_CONSULTANCY_FIELDS,
+};
 
 const parseNumericValue = (value: any): number => {
     const parsed = parseFloat(String(value ?? "").replace(/,/g, ""));
@@ -207,6 +349,7 @@ const DepositSlipForm: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formValues, setFormValues] = useState<Record<string, any>>({});
+    const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
 
     // Table data managed in React state instead of DOM manipulation
     const [ecsDates, setEcsDates] = useState<
@@ -239,6 +382,74 @@ const DepositSlipForm: React.FC = () => {
     const [pdfPiDropdownPos, setPdfPiDropdownPos] = useState<Record<number, { top: number; left: number; width: number }>>({});
     const pdfPiInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
+    // Run auto-calculations based on deposit slip type
+    useDepositSlipCalculations(formValues, setFormValues, selectedType);
+
+    // Handle manual edits to Consultancy Charge (Y) - recalculate Z and downstream
+    useEffect(() => {
+        if (selectedType === "d_consultancy") {
+            const totalCostX = parseNumericValue(formValues.total_cost_x || 0);
+            const chargeY = parseNumericValue(formValues.consultancy_charge_y || 0);
+
+            // If Y was manually edited (and differs from default 30% of X)
+            if (chargeY > 0 && Math.abs(chargeY - totalCostX * 0.30) > 0.01) {
+                // User manually changed Y, so recalculate Z and downstream
+                const chargeZ = roundToTwo(totalCostX - chargeY);
+
+                // Recalculate overheads and distributions with the new Z
+                const ohY = roundToTwo(chargeY * 0.10);
+                const ohZ = roundToTwo(chargeZ * 0.10);
+                const totalOh = roundToTwo(ohY + ohZ);
+                const instShare = roundToTwo(chargeY * 0.20);
+                const totalOhShare = roundToTwo(totalOh + instShare);
+
+                setFormValues((prev) => ({
+                    ...prev,
+                    operational_charge_z: chargeZ,
+                    overhead_from_y_amount: ohY,
+                    overhead_from_z_amount: ohZ,
+                    total_overhead_amount: totalOh,
+                    institute_share_amount: instShare,
+                    total_overhead_institute_share: totalOhShare,
+                    idf_amount: roundToTwo(totalOhShare * 0.40),
+                    dpf_amount: roundToTwo(totalOhShare * 0.50),
+                    staff_welfare_amount: roundToTwo(totalOhShare * 0.05),
+                    student_welfare_amount: roundToTwo(totalOhShare * 0.05),
+                    balance_consultancy_fee: roundToTwo(chargeY - ohY - instShare),
+                    balance_operation_charge: roundToTwo(chargeZ - ohZ),
+                }));
+            }
+        }
+    }, [formValues.consultancy_charge_y, formValues.total_cost_x, selectedType]);
+
+    // Sync DPF row amounts based on user-entered dpf_percentage
+    // Formula: dpf_amount = total_overhead_institute_share × (dpf_percentage / 100)
+    useEffect(() => {
+        if (selectedType !== "d_consultancy") {
+            return;
+        }
+
+        // Always recalculate when base amount changes, even if rows are empty initially
+        const totalOverheadShare = parseNumericValue(formValues.total_overhead_institute_share || 0);
+
+        if (dpfCreditDistributions.length === 0) {
+            return;
+        }
+
+        // Recalculate all DPF row amounts based on their percentages
+        const updatedDpf = dpfCreditDistributions.map((row) => {
+            const dpfPct = parseNumericValue(row.dpf_percentage || 25); // Default to 25 if not set
+            const dpfAmount = roundToTwo((totalOverheadShare * dpfPct) / 100);
+
+            return {
+                ...row,
+                dpf_amount: formatNumericInput(dpfAmount),
+            };
+        });
+
+        setDpfCreditDistributions(updatedDpf);
+    }, [selectedType, formValues.total_overhead_institute_share, dpfCreditDistributions.length]);
+
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             const openEntries = Object.entries(pdfPiOpen).filter(([, v]) => v);
@@ -258,6 +469,77 @@ const DepositSlipForm: React.FC = () => {
 
     const generateId = () =>
         `row_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    const fetchAndAutoFillProjectDetails = useCallback(
+        async (projectName: string, doctype: string) => {
+            const tryDoctypes = Array.from(
+                new Set([doctype, DEFAULT_PROJECT_DOCTYPE].filter(Boolean)),
+            );
+
+            for (const dt of tryDoctypes) {
+                try {
+                    const resp = await fetch("/api/method/frappe.client.get", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify({ doctype: dt, name: projectName }),
+                    });
+                    if (!resp.ok) {
+                        console.warn(
+                            `[DepositSlip auto-fill] frappe.client.get ${dt}/${projectName} → HTTP ${resp.status}`,
+                        );
+                        continue;
+                    }
+                    const data = await resp.json();
+                    const doc = data?.message;
+                    if (!doc) {
+                        console.warn(
+                            `[DepositSlip auto-fill] No doc returned for ${dt}/${projectName}`,
+                        );
+                        continue;
+                    }
+
+                    console.log(
+                        `[DepositSlip auto-fill] Fetched ${dt}/${projectName}; keys:`,
+                        Object.keys(doc),
+                    );
+
+                    const fills: Record<string, any> = {};
+                    Object.entries(PROJECT_FIELD_MAP).forEach(
+                        ([docField, formField]) => {
+                            if (
+                                doc[docField] != null &&
+                                doc[docField] !== "" &&
+                                !(formField in fills)
+                            ) {
+                                fills[formField] = doc[docField];
+                            }
+                        },
+                    );
+
+                    if (Object.keys(fills).length > 0) {
+                        console.log(
+                            "[DepositSlip auto-fill] Filling fields:",
+                            fills,
+                        );
+                        setFormValues((prev) => ({ ...prev, ...fills }));
+                        setAutoFilledFields(new Set(Object.keys(fills)));
+                    } else {
+                        console.warn(
+                            "[DepositSlip auto-fill] No mapped fields found on project doc. Check PROJECT_FIELD_MAP vs doc keys.",
+                        );
+                    }
+                    return;
+                } catch (e) {
+                    console.error(
+                        `[DepositSlip auto-fill] Failed for ${dt}/${projectName}:`,
+                        e,
+                    );
+                }
+            }
+        },
+        [],
+    );
 
     const getDistributionBaseAmount = useCallback(
         (values: Record<string, any>) => {
@@ -284,8 +566,8 @@ const DepositSlipForm: React.FC = () => {
                     [amountKey]:
                         percentage > 0
                             ? formatNumericInput(
-                                  roundToTwo((totalAmount * percentage) / 100),
-                              )
+                                roundToTwo((totalAmount * percentage) / 100),
+                            )
                             : "",
                 };
             }),
@@ -334,6 +616,7 @@ const DepositSlipForm: React.FC = () => {
         setSelectedType(type);
         setFields([]);
         setFormValues({});
+        setAutoFilledFields(new Set());
         setEcsDates([]);
         setCreditDistribution([]);
         setPdfCreditDistribution([]);
@@ -345,128 +628,179 @@ const DepositSlipForm: React.FC = () => {
             return;
         }
 
-        try {
-            const response = await fetch(
-                `/api/method/${DEPOSIT_SLIP_TYPES[type].getFields}`,
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    credentials: "include",
-                    body: JSON.stringify({
-                        doc_name: fundReceivedName || undefined,
-                    }),
-                },
-            );
-            const result = await response.json();
-
-            if (result?.message) {
-                const {
-                    fields: apiFields,
-                    link_options,
-                    prefill_data,
-                } = result.message;
-
-                if (Array.isArray(apiFields)) {
-                    const processedFields = apiFields.map((field) => {
-                        if (
-                            field.fieldtype === "Section Break" ||
-                            field.fieldtype === "SectionBreak"
-                        )
-                            return field;
-                        if (
-                            prefill_data &&
-                            prefill_data[field.fieldname] !== undefined
-                        ) {
-                            return {
-                                ...field,
-                                default: prefill_data[field.fieldname],
-                            };
-                        }
-                        return field;
-                    });
-                    setFields(processedFields);
-
-                    const initialValues: Record<string, any> = {};
-                    processedFields.forEach((f) => {
-                        if (f.default) initialValues[f.fieldname] = f.default;
-                    });
-                    setFormValues(initialValues);
+        // Helper: apply a resolved field list + optional prefill/link_options
+        const applyFields = (
+            rawFields: any[],
+            link_options: Record<string, any> | null,
+            prefill_data: Record<string, any> | null,
+        ) => {
+            const processedFields = rawFields.map((field) => {
+                if (
+                    field.fieldtype === "Section Break" ||
+                    field.fieldtype === "SectionBreak"
+                )
+                    return field;
+                if (prefill_data && prefill_data[field.fieldname] !== undefined) {
+                    return { ...field, default: prefill_data[field.fieldname] };
                 }
-                setLinkOptions((prev) => ({
-                    ...prev,
-                    ...(link_options || {}),
-                }));
+                return field;
+            });
+            setFields(processedFields);
 
-                // Fetch missing link options for known field requirements
-                const missingDoctypes = [
-                    "Department_prornd",
-                    "User",
-                    "Budget Head",
-                ];
-                for (const dt of missingDoctypes) {
-                    if (!link_options?.[dt]) {
-                        try {
-                            const listResp = await fetch(
-                                "/api/method/frappe.client.get_list",
-                                {
-                                    method: "POST",
-                                    headers: {
-                                        "Content-Type": "application/json",
-                                    },
-                                    credentials: "include",
-                                    body: JSON.stringify({
-                                        doctype: dt,
-                                        fields:
-                                            dt === "User"
-                                                ? ["name", "full_name"]
-                                                : dt === "Department_prornd"
-                                                    ? ["name", "dept_name"]
-                                                    : dt === "Budget Head"
-                                                        ? ["*"]
-                                                        : ["name"],
-                                        limit_page_length: 0,
-                                    }),
-                                },
-                            );
-                            const listJson = await listResp.json();
-                            if (listJson.message) {
-                                const opts = listJson.message.map((d: any) => {
-                                    if (dt === "User") {
-                                        return {
-                                            label: d.full_name || d.name,
-                                            value: d.name,
-                                        };
-                                    }
-                                    return {
-                                        label:
-                                            d.dept_name ||
-                                            d.full_name ||
-                                            d.budget_head ||
-                                            d.head_name ||
-                                            d.account_head ||
-                                            d.title ||
-                                            d.name,
-                                        value: d.name,
-                                    };
-                                });
-                                setLinkOptions((prev) => ({
-                                    ...prev,
-                                    [dt]: opts,
-                                    ...(dt === "User" ? { select_copi_id: opts, principal_investigator: opts } : {}),
-                                }));
-                            }
-                        } catch (e) {
-                            console.error(
-                                `Failed to fetch options for ${dt}`,
-                                e,
-                            );
-                        }
+            const initialValues: Record<string, any> = {};
+            processedFields.forEach((f) => {
+                if (f.default !== undefined && f.default !== null)
+                    initialValues[f.fieldname] = f.default;
+            });
+            // Force correct overhead multiplier regardless of backend DocType default
+            if (type === "e_non_routine") initialValues.overhead_multiplier = 0.3;
+            setFormValues(initialValues);
+
+            if (prefill_data) {
+                const prefillKeys = new Set<string>(
+                    processedFields
+                        .filter((f) => prefill_data[f.fieldname] !== undefined)
+                        .map((f) => f.fieldname),
+                );
+                if (prefillKeys.size > 0) setAutoFilledFields(prefillKeys);
+            }
+
+            if (link_options) {
+                setLinkOptions((prev) => ({ ...prev, ...link_options }));
+            }
+        };
+
+        // Helper: fetch link options for known doctypes not already loaded
+        const fetchMissingLinkOptions = async (
+            alreadyLoaded: Record<string, any>,
+        ) => {
+            const missingDoctypes = [
+                "Department_prornd",
+                "User",
+                "Budget Head",
+                "Project Registration",
+            ];
+            for (const dt of missingDoctypes) {
+                const loaded =
+                    dt === "Project Registration"
+                        ? alreadyLoaded?.["project_title"] ||
+                        alreadyLoaded?.["Project Registration"]
+                        : alreadyLoaded?.[dt];
+                if (loaded) continue;
+                try {
+                    const listResp = await fetch(
+                        "/api/method/frappe.client.get_list",
+                        {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            credentials: "include",
+                            body: JSON.stringify({
+                                doctype: dt,
+                                fields:
+                                    dt === "User"
+                                        ? ["name", "full_name"]
+                                        : dt === "Department_prornd"
+                                            ? ["name", "dept_name"]
+                                            : dt === "Budget Head"
+                                                ? ["*"]
+                                                : dt === "Project Registration"
+                                                    ? ["name", "project_title"]
+                                                    : ["name"],
+                                limit_page_length: 0,
+                            }),
+                        },
+                    );
+                    const listJson = await listResp.json();
+                    if (listJson.message) {
+                        const opts = listJson.message.map((d: any) => {
+                            if (dt === "User")
+                                return { label: d.full_name || d.name, value: d.name };
+                            if (dt === "Project Registration")
+                                return { label: d.project_title || d.name, value: d.name };
+                            return {
+                                label:
+                                    d.dept_name ||
+                                    d.full_name ||
+                                    d.budget_head ||
+                                    d.head_name ||
+                                    d.account_head ||
+                                    d.title ||
+                                    d.name,
+                                value: d.name,
+                            };
+                        });
+                        setLinkOptions((prev) => ({
+                            ...prev,
+                            [dt]: opts,
+                            ...(dt === "User"
+                                ? { select_copi_id: opts, principal_investigator: opts, principal_consultant: opts }
+                                : {}),
+                            ...(dt === "Project Registration"
+                                ? { project_title: opts }
+                                : {}),
+                        }));
                     }
+                } catch (e) {
+                    console.error(`Failed to fetch options for ${dt}`, e);
+                }
+            }
+        };
+
+        const methodPath = DEPOSIT_SLIP_TYPES[type].getFields;
+        console.log(`[DepositSlip] Calling getFields for type="${type}":`, methodPath);
+
+        try {
+            const response = await fetch(`/api/method/${methodPath}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ doc_name: fundReceivedName || undefined }),
+            });
+            console.log(`[DepositSlip] getFields HTTP status:`, response.status, response.statusText);
+
+            const result = await response.json();
+            console.log(`[DepositSlip] getFields raw response:`, result);
+
+            const apiFields = result?.message?.fields;
+            const link_options = result?.message?.link_options || {};
+            const prefill_data = result?.message?.prefill_data || null;
+
+            console.log(`[DepositSlip] apiFields count:`, Array.isArray(apiFields) ? apiFields.length : "not an array", apiFields);
+            console.log(`[DepositSlip] link_options keys:`, Object.keys(link_options));
+            console.log(`[DepositSlip] prefill_data:`, prefill_data);
+
+            if (Array.isArray(apiFields) && apiFields.length > 0) {
+                // Backend returned fields — use them
+                applyFields(apiFields, link_options, prefill_data);
+                await fetchMissingLinkOptions(link_options);
+            } else {
+                // Backend not implemented yet — fall back to static field definitions
+                const staticFields = STATIC_FIELDS[type];
+                if (staticFields) {
+                    console.warn(
+                        `[DepositSlip] Backend returned no fields for "${type}" — using static fallback.`,
+                    );
+                    applyFields(staticFields, null, null);
+                    await fetchMissingLinkOptions({});
+                } else {
+                    console.error(
+                        `[DepositSlip] No fields from backend and no static fallback for type "${type}"`,
+                    );
                 }
             }
         } catch (err) {
-            console.error("Failed to load form fields:", err);
-            alert("Error loading form fields. Please try again.");
+            console.error("[DepositSlip] getFields threw an exception:", err);
+            // On network error, still try the static fallback
+            const staticFields = STATIC_FIELDS[type];
+            if (staticFields) {
+                console.warn(
+                    `[DepositSlip] Backend unreachable for "${type}" — using static fallback.`,
+                );
+                applyFields(staticFields, null, null);
+                await fetchMissingLinkOptions({});
+            } else {
+                alert("Error loading form fields. Please try again.");
+            }
         } finally {
             setLoading(false);
         }
@@ -498,6 +832,36 @@ const DepositSlipForm: React.FC = () => {
 
             return nextValues;
         });
+
+        // Project auto-fill: trigger when a project-like Link field changes.
+        // We match on EITHER the declared doctype options OR the fieldname,
+        // because some backends return options as null/empty for these fields.
+        const field = fields.find((f) => f.fieldname === fieldname);
+        const optionsDoctype = (field?.options || "").trim();
+        const matchesDoctype =
+            !!optionsDoctype && PROJECT_SOURCE_DOCTYPES.has(optionsDoctype);
+        const matchesFieldname = PROJECT_TRIGGER_FIELDNAMES.has(fieldname);
+        const isProjectLink =
+            field?.fieldtype === "Link" && (matchesDoctype || matchesFieldname);
+
+        if (isProjectLink) {
+            if (value) {
+                const doctype = matchesDoctype
+                    ? optionsDoctype
+                    : DEFAULT_PROJECT_DOCTYPE;
+                console.log(
+                    `[DepositSlip auto-fill] Trigger: field="${fieldname}" doctype="${doctype}" value="${value}"`,
+                );
+                fetchAndAutoFillProjectDetails(value, doctype);
+            } else {
+                setFormValues((prev) => {
+                    const next = { ...prev };
+                    PROJECT_AUTOFILL_TARGET_FIELDS.forEach((f) => delete next[f]);
+                    return next;
+                });
+                setAutoFilledFields(new Set());
+            }
+        }
     };
 
     const checkDependency = (field: Field | null | undefined) => {
@@ -637,8 +1001,8 @@ const DepositSlipForm: React.FC = () => {
                 const errData = await response.json().catch(() => null);
                 throw new Error(
                     errData?.exc_type ||
-                        errData?._server_messages ||
-                        `Server error: ${response.status}`,
+                    errData?._server_messages ||
+                    `Server error: ${response.status}`,
                 );
             }
 
@@ -660,9 +1024,10 @@ const DepositSlipForm: React.FC = () => {
         }
     };
 
-    // Fields that should always be read-only
+    // Statically read-only fields (legacy / other slip types).
+    // project_title is intentionally excluded — for E/T types the user must select it;
+    // for Research type it is covered by autoFilledFields (populated from prefill_data).
     const readOnlyFieldNames = [
-        "project_title",
         "research_project",
         "project_ref_no",
         "project_registration",
@@ -686,7 +1051,9 @@ const DepositSlipForm: React.FC = () => {
             return null;
         if (field.fieldtype === "Table") return null;
 
-        const forceReadOnly = readOnlyFieldNames.includes(field.fieldname);
+        const forceReadOnly =
+            readOnlyFieldNames.includes(field.fieldname) ||
+            autoFilledFields.has(field.fieldname);
         const isReadOnly = field.read_only === 1 || forceReadOnly;
 
         const commonProps = {
@@ -750,9 +1117,9 @@ const DepositSlipForm: React.FC = () => {
                 const selectOpts =
                     typeof field.options === "string"
                         ? field.options
-                              .split("\n")
-                              .filter((o) => o)
-                              .map((o) => ({ value: o, label: o }))
+                            .split("\n")
+                            .filter((o) => o)
+                            .map((o) => ({ value: o, label: o }))
                         : [];
                 return (
                     <select {...commonProps}>
@@ -1429,7 +1796,7 @@ const DepositSlipForm: React.FC = () => {
                                                                         idx
                                                                     ] = {
                                                                         ...newRows[
-                                                                            idx
+                                                                        idx
                                                                         ],
                                                                         employee_id:
                                                                             e
@@ -1464,7 +1831,7 @@ const DepositSlipForm: React.FC = () => {
                                                                         idx
                                                                     ] = {
                                                                         ...newRows[
-                                                                            idx
+                                                                        idx
                                                                         ],
                                                                         pdf_percentage:
                                                                             e
@@ -1549,17 +1916,17 @@ const DepositSlipForm: React.FC = () => {
                                             )}
                                             {pdfCreditDistribution.length ===
                                                 0 && (
-                                                <tr>
-                                                    <td
-                                                        colSpan={5}
-                                                        className="p-6 text-center text-zinc-400 text-sm italic"
-                                                    >
-                                                        No PDF credit
-                                                        distribution rows added
-                                                        yet
-                                                    </td>
-                                                </tr>
-                                            )}
+                                                    <tr>
+                                                        <td
+                                                            colSpan={5}
+                                                            className="p-6 text-center text-zinc-400 text-sm italic"
+                                                        >
+                                                            No PDF credit
+                                                            distribution rows added
+                                                            yet
+                                                        </td>
+                                                    </tr>
+                                                )}
                                         </tbody>
                                     </table>
                                 </div>
@@ -1647,7 +2014,7 @@ const DepositSlipForm: React.FC = () => {
                                                                         idx
                                                                     ] = {
                                                                         ...newRows[
-                                                                            idx
+                                                                        idx
                                                                         ],
                                                                         select_dpf_dept_center_school:
                                                                             e
@@ -1702,7 +2069,7 @@ const DepositSlipForm: React.FC = () => {
                                                                         idx
                                                                     ] = {
                                                                         ...newRows[
-                                                                            idx
+                                                                        idx
                                                                         ],
                                                                         department_id:
                                                                             e
@@ -1733,25 +2100,39 @@ const DepositSlipForm: React.FC = () => {
                                                                         [
                                                                             ...dpfCreditDistributions,
                                                                         ];
+                                                                    const percentage = parseNumericValue(e.target.value);
+
+                                                                    // For D Consultancy, calculate using total_overhead_institute_share
+                                                                    let amount = "";
+                                                                    if (selectedType === "d_consultancy") {
+                                                                        const baseAmount = parseNumericValue(
+                                                                            formValues.total_overhead_institute_share || 0
+                                                                        );
+                                                                        amount = formatNumericInput(
+                                                                            roundToTwo((baseAmount * percentage) / 100)
+                                                                        );
+                                                                    } else {
+                                                                        // For other types, use distributionBaseAmount
+                                                                        amount = percentage > 0
+                                                                            ? formatNumericInput(
+                                                                                roundToTwo((distributionBaseAmount * percentage) / 100),
+                                                                            )
+                                                                            : "";
+                                                                    }
+
                                                                     newRows[
                                                                         idx
                                                                     ] = {
                                                                         ...newRows[
-                                                                            idx
+                                                                        idx
                                                                         ],
                                                                         dpf_percentage:
                                                                             e
                                                                                 .target
                                                                                 .value,
+                                                                        dpf_amount: amount,
                                                                     };
-                                                                    setDpfCreditDistributions(
-                                                                        recalculateDistributionAmounts(
-                                                                            newRows,
-                                                                            "dpf_percentage",
-                                                                            "dpf_amount",
-                                                                            distributionBaseAmount,
-                                                                        ),
-                                                                    );
+                                                                    setDpfCreditDistributions(newRows);
                                                                 }}
                                                                 onWheel={
                                                                     preventScrollChange
@@ -1822,17 +2203,17 @@ const DepositSlipForm: React.FC = () => {
                                             )}
                                             {dpfCreditDistributions.length ===
                                                 0 && (
-                                                <tr>
-                                                    <td
-                                                        colSpan={5}
-                                                        className="p-6 text-center text-zinc-400 text-sm italic"
-                                                    >
-                                                        No DPF credit
-                                                        distribution rows added
-                                                        yet
-                                                    </td>
-                                                </tr>
-                                            )}
+                                                    <tr>
+                                                        <td
+                                                            colSpan={5}
+                                                            className="p-6 text-center text-zinc-400 text-sm italic"
+                                                        >
+                                                            No DPF credit
+                                                            distribution rows added
+                                                            yet
+                                                        </td>
+                                                    </tr>
+                                                )}
                                         </tbody>
                                     </table>
                                 </div>
@@ -1845,19 +2226,27 @@ const DepositSlipForm: React.FC = () => {
                                                 select_dpf_dept_center_school:
                                                     "",
                                                 department_id: "",
-                                                dpf_percentage: "",
+                                                dpf_percentage: selectedType === "d_consultancy" ? "25" : "",
                                                 dpf_amount: "",
                                             },
                                         ];
-                                        setDpfCreditDistributions(
-                                            splitDistributionRows(
-                                                nextRows,
-                                                "dpf_percentage",
-                                                "dpf_amount",
-                                                distributionBaseAmount,
-                                                PDF_DPF_TOTAL_PERCENTAGE,
-                                            ),
-                                        );
+
+                                        // For D Consultancy: Set default 25%, let sync effect calculate amount
+                                        // For others: Use split distribution logic
+                                        if (selectedType === "d_consultancy") {
+                                            setDpfCreditDistributions(nextRows);
+                                            // Sync effect will run automatically (length changed)
+                                        } else {
+                                            setDpfCreditDistributions(
+                                                splitDistributionRows(
+                                                    nextRows,
+                                                    "dpf_percentage",
+                                                    "dpf_amount",
+                                                    distributionBaseAmount,
+                                                    PDF_DPF_TOTAL_PERCENTAGE,
+                                                ),
+                                            );
+                                        }
                                     }}
                                     className="mt-4"
                                 >

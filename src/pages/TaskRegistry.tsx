@@ -1,467 +1,8 @@
-// import React, { useState, useEffect } from 'react';
-// import { FaExclamationCircle, FaArrowLeft, FaSearch } from 'react-icons/fa';
-// import { cn } from '@/lib/utils';
-// import { AppSidebar } from '@/components/RndSidebar';
-// import { useNavigate } from 'react-router-dom';
-// import { useFrappeGetCall } from 'frappe-react-sdk';
-// import { GlobalLoader } from '@/components/ui/global-loader';
-// // import { debounce } from 'lodash';
-
-// // Define interfaces for the API response
-// interface TaskRecord {
-//     name: string;
-//     title: string;
-//     status: string;
-//     creation: string;
-//     modified: string;
-//     owner: string;
-// }
-
-// interface TaskResult {
-//     doctype: string;
-//     records: TaskRecord[];
-// }
-
-// interface PaginationData {
-//     page: number;
-//     page_size: number;
-//     total_pages: number;
-//     total_count: number;
-// }
-
-// interface TaskRegistryResponse {
-//     message: {
-//         results: TaskResult[];
-//         pagination: PaginationData;
-//         filters: {
-//             search: string;
-//             doctype_filter: string[];
-//         };
-//     };
-// }
-
-// // Interface for the flattened task structure
-// interface FlattenedTask {
-//     id: string;
-//     title: string;
-//     status: string;
-//     creation: string;
-//     modified: string;
-//     owner: string;
-//     doctype: string;
-// }
-
-// // Frappe-styled components
-// const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-//     <div className={cn("bg-white dark:bg-zinc-900 rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-sm", className)}>
-//         {children}
-//     </div>
-// );
-
-// const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost' }: {
-//     children: React.ReactNode;
-//     onClick?: (e?: React.MouseEvent<HTMLButtonElement>) => void;
-//     disabled?: boolean;
-//     className?: string;
-//     variant?: 'primary' | 'ghost' | 'outline' | 'action';
-// }) => (
-//     <button
-//         onClick={onClick}
-//         disabled={disabled}
-//         className={cn(
-//             "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all duration-150",
-//             "focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500",
-//             variant === 'primary' && "bg-[#D97757] text-white hover:bg-[#D97757] shadow-md hover:shadow-lg border border-[#D97757]",
-//             variant === 'ghost' && "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100",
-//             variant === 'outline' && "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-lg dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800",
-//             variant === 'action' && "bg-[#D97757] text-white font-bold hover:bg-[#D97757] shadow-md hover:shadow-lg border-2 border-[#D97757]",
-//             "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
-//             className
-//         )}
-//     >
-//         {children}
-//     </button>
-// );
-
-// const DOCTYPE_OPTIONS = [
-//     "Project Registration",
-//     "Fund Received",
-//     "Fund Sanction",
-//     "Reimbursement",
-//     "Rate Contract",
-//     "Travel Request",
-//     "Temporary Advance",
-//     "Deposit Slip"
-// ];
-
-// const TaskRegistry: React.FC = () => {
-//     const navigate = useNavigate();
-//     const [currentPage, setCurrentPage] = useState(1);
-//     const [selectedModule, setSelectedModule] = useState<string>('');
-//     const [searchQuery, setSearchQuery] = useState('');
-//     const [debouncedSearch, setDebouncedSearch] = useState('');
-//     const itemsPerPage = 10;
-
-//     // Debounce search input
-//     useEffect(() => {
-//         const timer = setTimeout(() => {
-//             setDebouncedSearch(searchQuery);
-//             setCurrentPage(1); // Reset page on search
-//         }, 500);
-//         return () => clearTimeout(timer);
-//     }, [searchQuery]);
-
-//     // Fetch processed/forwarded documents
-//     const { data, isLoading, error } = useFrappeGetCall<TaskRegistryResponse>(
-//         "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_task_registry",
-//         {
-//             page_name: "task-registry"
-//         }
-//     );
-
-//     // import { debounce } from 'lodash'; // Removed unused import
-
-//     // ...
-
-//     // Transform API data into flattened tasks
-//     const allTasks: FlattenedTask[] = React.useMemo(() => {
-//         if (!data?.message?.results) return [];
-
-//         const tasks: FlattenedTask[] = [];
-//         data.message.results.forEach((group) => {
-//             if (group.records && Array.isArray(group.records)) {
-//                 group.records.forEach((record) => {
-//                     tasks.push({
-//                         id: record.name,
-//                         title: record.title,
-//                         status: record.status,
-//                         creation: record.creation,
-//                         modified: record.modified,
-//                         owner: record.owner,
-//                         doctype: group.doctype
-//                     });
-//                 });
-//             }
-//         });
-//         return tasks;
-//     }, [data]);
-
-//     // Client-side filtering
-//     const filteredTasks = React.useMemo(() => {
-//         let tasks = allTasks;
-
-//         if (debouncedSearch) {
-//             const lowerSearch = debouncedSearch.toLowerCase();
-//             tasks = tasks.filter(task =>
-//                 task.title.toLowerCase().includes(lowerSearch) ||
-//                 task.id.toLowerCase().includes(lowerSearch) ||
-//                 task.owner.toLowerCase().includes(lowerSearch)
-//             );
-//         }
-
-//         if (selectedModule) {
-//             tasks = tasks.filter(task => task.doctype === selectedModule);
-//         }
-
-//         return tasks;
-//     }, [allTasks, debouncedSearch, selectedModule]);
-
-//     // Client-side pagination
-//     const paginatedTasks = React.useMemo(() => {
-//         const startIndex = (currentPage - 1) * itemsPerPage;
-//         return filteredTasks.slice(startIndex, startIndex + itemsPerPage);
-//     }, [filteredTasks, currentPage, itemsPerPage]);
-
-//     const handlePageChange = (pageNumber: number) => {
-//         setCurrentPage(pageNumber);
-//     };
-
-//     const handleModuleChange = (module: string) => {
-//         setSelectedModule(module);
-//         setCurrentPage(1);
-//     };
-
-//     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-//         setSearchQuery(e.target.value);
-//     };
-
-//     const getStatusBadge = (status: string) => {
-//         const s = status?.toLowerCase();
-//         let style = "bg-blue-100 text-blue-800 border-blue-300";
-//         if (["pending", "under review", "approval pending"].some(t => s?.includes(t))) {
-//             style = "bg-amber-100 text-amber-800 border-amber-300";
-//         } else if (s?.includes("approved")) {
-//             style = "bg-emerald-100 text-emerald-800 border-emerald-300";
-//         } else if (s?.includes("draft")) {
-//             style = "bg-slate-100 text-slate-800 border-slate-300";
-//         } else if (s?.includes("rejected")) {
-//             style = "bg-red-100 text-red-800 border-red-300";
-//         } else if (s?.includes("forwarded") || s?.includes("processed")) {
-//             style = "bg-purple-100 text-purple-800 border-purple-300";
-//         }
-//         return cn("px-2.5 py-1 rounded-md text-xs font-bold border", style);
-//     };
-
-//     const getPageNumbers = () => {
-//         const totalPages = Math.ceil(filteredTasks.length / itemsPerPage) || 1;
-//         const pages: (number | string)[] = [];
-//         const maxButtons = 3;
-
-//         if (totalPages <= maxButtons) {
-//             for (let i = 1; i <= totalPages; i++) pages.push(i);
-//         } else {
-//             if (currentPage <= 3) {
-//                 pages.push(1, 2, 3, '...', totalPages);
-//             } else if (currentPage >= totalPages - 2) {
-//                 pages.push(1, '...', totalPages - 2, totalPages - 1, totalPages);
-//             } else {
-//                 pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
-//             }
-//         }
-//         return pages;
-//     };
-
-//     if (error) {
-//         return (
-//             <div className="flex h-screen items-center justify-center bg-zinc-100 dark:bg-zinc-800">
-//                 <FrappeCard className="p-8 text-center">
-//                     <FaExclamationCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
-//                     <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Error Loading Task Registry</h2>
-//                     <p className="text-zinc-900 dark:text-zinc-100">{error.message}</p>
-//                 </FrappeCard>
-//             </div>
-//         );
-//     }
-
-//     const totalPages = Math.ceil(filteredTasks.length / itemsPerPage) || 0;
-//     const totalCount = filteredTasks.length;
-//     const currentCount = paginatedTasks.length;
-//     const indexOfFirstTask = (currentPage - 1) * itemsPerPage;
-
-//     return (
-//         <div className="bg-zinc-100 dark:bg-zinc-800 min-h-screen">
-//             <GlobalLoader isLoading={isLoading} />
-//             <AppSidebar />
-
-//             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-//                 {/* Header */}
-//                 <FrappeCard className="mb-6 p-5">
-//                     <div className="flex items-center gap-4">
-//                         <button
-//                             onClick={() => navigate(-1)}
-//                             className="p-2.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg hover:bg-zinc-200 dark:bg-zinc-700 transition-colors border border-zinc-300 dark:border-zinc-700"
-//                             aria-label="Go back"
-//                         >
-//                             <FaArrowLeft className="h-5 w-5 text-zinc-900 dark:text-zinc-100" />
-//                         </button>
-//                         <div>
-//                             <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">Task Registry</h1>
-//                             <p className="text-sm text-zinc-900 dark:text-zinc-100 mt-0.5">View all processed and forwarded documents.</p>
-//                         </div>
-//                     </div>
-//                 </FrappeCard>
-
-//                 {/* Filter & Search Section */}
-//                 <FrappeCard className="mb-4 p-4">
-//                     <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-//                         <div className="flex flex-1 items-center gap-4 w-full">
-//                             {/* Search Input */}
-//                             <div className="relative w-full md:w-64">
-//                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-//                                     <FaSearch className="text-zinc-400 dark:text-zinc-500" />
-//                                 </div>
-//                                 <input
-//                                     type="text"
-//                                     placeholder="Search documents..."
-//                                     value={searchQuery}
-//                                     onChange={handleSearchChange}
-//                                     className="w-full pl-10 pr-4 py-2 border-2 border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-100 focus:ring-0 transition-colors"
-//                                 />
-//                             </div>
-
-//                             {/* Module Filter */}
-//                             <div className="flex items-center gap-2">
-//                                 <label htmlFor="module-filter" className="font-bold text-zinc-900 dark:text-zinc-100 uppercase text-sm whitespace-nowrap hidden md:block">
-//                                     Filter:
-//                                 </label>
-//                                 <select
-//                                     id="module-filter"
-//                                     value={selectedModule}
-//                                     onChange={(e) => handleModuleChange(e.target.value)}
-//                                     className="h-10 px-4 bg-white dark:bg-zinc-900 border-2 border-zinc-400 dark:border-zinc-600 rounded-lg font-bold text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 focus:border-zinc-900 dark:focus:border-zinc-100"
-//                                 >
-//                                     <option value="">All Modules</option>
-//                                     {DOCTYPE_OPTIONS.map((module) => (
-//                                         <option key={module} value={module}>
-//                                             {module}
-//                                         </option>
-//                                     ))}
-//                                 </select>
-//                                 {selectedModule && (
-//                                     <FrappeButton
-//                                         onClick={() => handleModuleChange('')}
-//                                         className="text-red-600 hover:bg-red-50 border border-red-200"
-//                                     >
-//                                         Clear
-//                                     </FrappeButton>
-//                                 )}
-//                             </div>
-//                         </div>
-
-//                         <div className="text-sm text-zinc-900 dark:text-zinc-100 font-bold whitespace-nowrap">
-//                             Total: {totalCount} documents
-//                         </div>
-//                     </div>
-//                 </FrappeCard>
-
-//                 {/* Table */}
-//                 <FrappeCard className="overflow-hidden p-0">
-//                     <div className="overflow-x-auto">
-//                         <table className="w-full divide-y divide-gray-300">
-//                             <thead className="bg-zinc-200 dark:bg-zinc-700">
-//                                 <tr className="divide-x divide-gray-300">
-//                                     <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Status</th>
-//                                     <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Module</th>
-//                                     <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Title</th>
-//                                     <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Document ID</th>
-//                                     <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Created</th>
-//                                     <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Modified</th>
-//                                     <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Owner</th>
-//                                     <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Action</th>
-//                                 </tr>
-//                             </thead>
-//                             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-//                                 {paginatedTasks.length > 0 ? (
-//                                     paginatedTasks.map((task) => (
-//                                         <tr
-//                                             key={task.id}
-//                                             onClick={() => {
-//                                                 if (task.doctype === "Fund Received") {
-//                                                     navigate(`/fund-received/${task.id}`);
-//                                                 } else if (task.doctype === "Reimbursement") {
-//                                                     navigate(`/reimbursement/${task.id}`);
-//                                                 } else if (task.doctype === "Disbursal of Consultancy") {
-//                                                     navigate(`/disbursal-of-consultancy/${task.id}`);
-//                                                 } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
-//                                                     navigate(`/project-details-overview/${task.id}`);
-//                                                 } else {
-//                                                     navigate(`/task-registry/${task.doctype}/${task.id}`);
-//                                                 }
-//                                             }}
-//                                             className="hover:bg-zinc-50 dark:bg-zinc-800/50 cursor-pointer transition-colors"
-//                                         >
-//                                             <td className="p-4">
-//                                                 <span className={getStatusBadge(task.status)}>
-//                                                     {task.status}
-//                                                 </span>
-//                                             </td>
-//                                             <td className="p-4 font-bold text-zinc-900 dark:text-zinc-100 text-sm">
-//                                                 {task.doctype}
-//                                             </td>
-//                                             <td className="p-4 font-medium text-zinc-900 dark:text-zinc-100 text-sm">
-//                                                 {task.title.length > 30 ? `${task.title.substring(0, 30)}...` : task.title}
-//                                             </td>
-//                                             <td className="p-4 text-sm font-mono text-zinc-900 dark:text-zinc-100">
-//                                                 {task.id.length > 25 ? `${task.id.substring(0, 25)}...` : task.id}
-//                                             </td>
-//                                             <td className="p-4 text-sm font-mono text-zinc-900 dark:text-zinc-100">
-//                                                 {task.creation ? new Date(task.creation).toLocaleDateString("en-IN") : "-"}
-//                                             </td>
-//                                             <td className="p-4 text-sm font-mono text-zinc-900 dark:text-zinc-100">
-//                                                 {task.modified ? new Date(task.modified).toLocaleDateString("en-IN") : "-"}
-//                                             </td>
-//                                             <td className="p-4 text-sm text-zinc-900 dark:text-zinc-100">
-//                                                 {task.owner.length > 20 ? `${task.owner.substring(0, 20)}...` : task.owner}
-//                                             </td>
-//                                             <td className="p-4">
-//                                                 <FrappeButton
-//                                                     variant="action"
-//                                                     onClick={(e) => {
-//                                                         e?.stopPropagation();
-//                                                         if (task.doctype === "Fund Received") {
-//                                                             navigate(`/fund-received/${task.id}`);
-//                                                         } else if (task.doctype === "Reimbursement") {
-//                                                             navigate(`/reimbursement/${task.id}`);
-//                                                         } else if (task.doctype === "Disbursal of Consultancy") {
-//                                                             navigate(`/disbursal-of-consultancy/${task.id}`);
-//                                                         } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
-//                                                             navigate(`/project-details-overview/${task.id}`);
-//                                                         } else {
-//                                                             navigate(`/task-registry/${task.doctype}/${task.id}`);
-//                                                         }
-//                                                     }}
-//                                                     className="text-xs px-4 py-2"
-//                                                 >
-//                                                     View
-//                                                 </FrappeButton>
-//                                             </td>
-//                                         </tr>
-//                                     ))
-//                                 ) : (
-//                                     <tr>
-//                                         <td colSpan={8} className="p-8 text-center text-zinc-900 dark:text-zinc-100 font-bold">
-//                                             {isLoading ? "Loading documents..." : "No documents found matching your criteria."}
-//                                         </td>
-//                                     </tr>
-//                                 )}
-//                             </tbody>
-//                         </table>
-//                     </div>
-
-//                     {/* Pagination Controls */}
-//                     {allTasks.length > 0 && (
-//                         <div className="p-4 border-t border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex justify-between items-center">
-//                             <div>
-//                                 <div className="text-sm text-zinc-900 dark:text-zinc-100 font-medium">
-//                                     Showing {indexOfFirstTask + 1} to {indexOfFirstTask + currentCount} of {totalCount} entries
-//                                 </div>
-//                             </div>
-//                             <div className="flex gap-1">
-//                                 <FrappeButton
-//                                     onClick={() => handlePageChange(currentPage - 1)}
-//                                     disabled={currentPage === 1}
-//                                     variant="outline"
-//                                 >
-//                                     Previous
-//                                 </FrappeButton>
-//                                 {getPageNumbers().map((page, index) => (
-//                                     <FrappeButton
-//                                         key={index}
-//                                         onClick={() => typeof page === 'number' && handlePageChange(page)}
-//                                         disabled={typeof page !== 'number'}
-//                                         variant={page === currentPage ? "primary" : "outline"}
-//                                         className={cn(typeof page !== 'number' && "cursor-default")}
-//                                     >
-//                                         {page}
-//                                     </FrappeButton>
-//                                 ))}
-//                                 <FrappeButton
-//                                     onClick={() => handlePageChange(currentPage + 1)}
-//                                     disabled={currentPage === totalPages}
-//                                     variant="outline"
-//                                 >
-//                                     Next
-//                                 </FrappeButton>
-//                             </div>
-//                         </div>
-//                     )}
-//                 </FrappeCard>
-//             </main>
-//         </div>
-//     );
-// };
-
-// export default TaskRegistry;
-
-
-
-
-
 
 import React, { useState, useEffect } from 'react';
 import { FaExclamationCircle, FaArrowLeft, FaSearch } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
-import { AppSidebar } from '@/components/RndSidebar';
+// import { AppSidebar } from '@/components/RndSidebar';
 import { useNavigate } from 'react-router-dom';
 import { useFrappeGetCall, useFrappeGetDocList } from 'frappe-react-sdk';
 import { GlobalLoader } from '@/components/ui/global-loader';
@@ -854,270 +395,291 @@ const TaskRegistry: React.FC = () => {
 
     return (
         <>
-        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
-            <GlobalLoader isLoading={isLoading} />
-            <AppSidebar />
+            <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
+                <GlobalLoader isLoading={isLoading} />
+                {/* <AppSidebar /> */}
 
-            <main className="flex-1 px-6 md:px-8 pt-7 pb-10 w-full overflow-hidden">
-                {/* Header */}
-                <FrappeCard className="mb-5 overflow-hidden p-0">
-                    <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
-                    <div className="flex items-start gap-3 px-5 py-4">
-                        <button
-                            onClick={() => navigate(-1)}
-                            className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
-                            aria-label="Go back"
-                        >
-                            <FaArrowLeft className="h-3.5 w-3.5" />
-                        </button>
-                        <div className="min-w-0">
-                            <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">Processed Documents</span>
-                            <h1 className="mt-1 text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Task Registry</h1>
-                            <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">View processed and forwarded documents.</p>
+                <main className="flex-1 px-6 md:px-8 pt-7 pb-10 w-full overflow-hidden">
+                    {/* Header */}
+                    <FrappeCard className="mb-5 overflow-hidden p-0">
+                        <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
+                        <div className="flex items-start gap-3 px-5 py-4">
+                            <button
+                                onClick={() => navigate(-1)}
+                                className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
+                                aria-label="Go back"
+                            >
+                                <FaArrowLeft className="h-3.5 w-3.5" />
+                            </button>
+                            <div className="min-w-0">
+                                <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">Processed Documents</span>
+                                <h1 className="mt-1 text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Task Registry</h1>
+                                <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">View processed and forwarded documents.</p>
+                            </div>
+                        </div>
+                    </FrappeCard>
+
+                    {/* Info banner */}
+                    <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800/50 dark:bg-amber-950/30">
+                        <div className="mt-0.5 flex-shrink-0 flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/40">
+                            <svg className="h-4 w-4 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p className="text-[13px] font-bold text-amber-800 dark:text-amber-300">This page is for record-keeping only — no actions can be performed here.</p>
+                            <p className="mt-0.5 text-[12px] font-medium leading-5 text-amber-700 dark:text-amber-400">Task Registry shows all forms processed by the concerned staff. To perform actions, approve, or forward any form, go to <span className="font-bold">Pending Tasks</span>.</p>
                         </div>
                     </div>
-                </FrappeCard>
 
-                {/* Project Type Filter */}
-                <div className="mb-4 border-t-2 border-[#4A6CF7]/35 pt-4 dark:border-[#818CF8]/35">
-                    <div className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#71717A] dark:text-[#A1A1AA]">
-                        Project Type
-                    </div>
-                    <div className="flex items-center gap-2 overflow-x-auto">
-                        {PROJECT_TYPE_TABS.map((tab) => {
-                            const active = selectedProjectType === tab;
-                            const tabColors: Record<ProjectTypeTab, string> = {
-                                Research: active ? 'bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A] shadow-sm shadow-[#4A6CF7]/10 dark:bg-[#4A6CF7]/18 dark:border-[#818CF8] dark:text-[#C7D2FE]' : 'border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/10 dark:text-[#C7D2FE]',
-                                Consultancy: active ? 'bg-[#ECFDF5] border-[#10B981] text-[#065F46] shadow-sm shadow-[#10B981]/10 dark:bg-[#10B981]/15 dark:border-[#34D399] dark:text-[#A7F3D0]' : 'border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] hover:bg-[#ECFDF5] dark:border-[#10B981]/30 dark:bg-[#10B981]/10 dark:text-[#A7F3D0]',
-                                Others: active ? 'bg-[#F4F4F5] border-[#71717A] text-[#3F3F46] shadow-sm dark:bg-[#3F3F46] dark:border-[#A1A1AA] dark:text-[#E4E4E7]' : 'border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]',
-                            };
-                            const badgeColors: Record<ProjectTypeTab, string> = {
-                                Research: active ? 'bg-[#4A6CF7] text-white' : 'bg-white/80 text-[#4A6CF7] dark:bg-[#18181B]/50',
-                                Consultancy: active ? 'bg-[#10B981] text-white' : 'bg-white/80 text-[#059669] dark:bg-[#18181B]/50',
-                                Others: active ? 'bg-[#71717A] text-white' : 'bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50',
-                            };
-                            return (
-                                <button
-                                    key={tab}
-                                    onClick={() => handleProjectTypeChange(tab)}
-                                    className={cn(
-                                        "flex h-9 flex-shrink-0 items-center gap-2 rounded-lg border px-3 text-[11px] font-extrabold uppercase tracking-wide transition-all duration-150",
-                                        tabColors[tab],
-                                    )}
-                                >
-                                    {tab}
-                                    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold leading-none", badgeColors[tab])}>
-                                        {tabCounts[tab]}
-                                    </span>
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-
-                {/* Filter & Search Section */}
-                <div className="mb-4">
-                <FrappeCard className="p-3">
-                    <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                        <div className="flex flex-1 items-center gap-3 w-full flex-wrap">
-                            {/* Search Input */}
-                            <div className="relative w-full md:w-64">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <FaSearch className="text-zinc-400 dark:text-zinc-500" />
-                                </div>
-                                <input
-                                    type="text"
-                                    placeholder="Search documents..."
-                                    value={searchQuery}
-                                    onChange={handleSearchChange}
-                                    className="h-9 w-full pl-10 pr-4 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] focus:outline-none focus:border-[#4A6CF7] focus:ring-[3px] focus:ring-[#4A6CF7]/12 transition-colors"
-                                />
-                            </div>
-
-                            {/* Module Filter */}
-                            <div className="flex items-center gap-2">
-                                <label htmlFor="module-filter" className="font-bold text-zinc-900 dark:text-zinc-100 uppercase text-sm whitespace-nowrap hidden md:block">
-                                    Filter:
-                                </label>
-                                <select
-                                    id="module-filter"
-                                    value={selectedModule}
-                                    onChange={(e) => handleModuleChange(e.target.value)}
-                                    className="h-9 px-3 bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg font-bold text-[12px] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7]"
-                                >
-                                    <option value="">All Modules</option>
-                                    {moduleNames.map((module) => (
-                                        <option key={module} value={module}>
-                                            {module}
-                                        </option>
-                                    ))}
-                                </select>
-                                {selectedModule && (
-                                    <FrappeButton
-                                        onClick={() => handleModuleChange('')}
-                                        className="text-red-600 hover:bg-red-50 border border-red-200"
+                    {/* Project Type Filter */}
+                    <div className="mb-4 border-t-2 border-[#4A6CF7]/35 pt-4 dark:border-[#818CF8]/35">
+                        <div className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#71717A] dark:text-[#A1A1AA]">
+                            Project Type
+                        </div>
+                        <div className="flex items-center gap-2 overflow-x-auto">
+                            {PROJECT_TYPE_TABS.map((tab) => {
+                                const active = selectedProjectType === tab;
+                                const tabColors: Record<ProjectTypeTab, string> = {
+                                    Research: active ? 'bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A] shadow-sm shadow-[#4A6CF7]/10 dark:bg-[#4A6CF7]/18 dark:border-[#818CF8] dark:text-[#C7D2FE]' : 'border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/10 dark:text-[#C7D2FE]',
+                                    Consultancy: active ? 'bg-[#ECFDF5] border-[#10B981] text-[#065F46] shadow-sm shadow-[#10B981]/10 dark:bg-[#10B981]/15 dark:border-[#34D399] dark:text-[#A7F3D0]' : 'border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] hover:bg-[#ECFDF5] dark:border-[#10B981]/30 dark:bg-[#10B981]/10 dark:text-[#A7F3D0]',
+                                    Others: active ? 'bg-[#F4F4F5] border-[#71717A] text-[#3F3F46] shadow-sm dark:bg-[#3F3F46] dark:border-[#A1A1AA] dark:text-[#E4E4E7]' : 'border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]',
+                                };
+                                const badgeColors: Record<ProjectTypeTab, string> = {
+                                    Research: active ? 'bg-[#4A6CF7] text-white' : 'bg-white/80 text-[#4A6CF7] dark:bg-[#18181B]/50',
+                                    Consultancy: active ? 'bg-[#10B981] text-white' : 'bg-white/80 text-[#059669] dark:bg-[#18181B]/50',
+                                    Others: active ? 'bg-[#71717A] text-white' : 'bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50',
+                                };
+                                return (
+                                    <button
+                                        key={tab}
+                                        onClick={() => handleProjectTypeChange(tab)}
+                                        className={cn(
+                                            "flex h-9 flex-shrink-0 items-center gap-2 rounded-lg border px-3 text-[11px] font-extrabold uppercase tracking-wide transition-all duration-150",
+                                            tabColors[tab],
+                                        )}
                                     >
-                                        Clear
-                                    </FrappeButton>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="text-sm text-zinc-900 dark:text-zinc-100 font-bold whitespace-nowrap">
-                            Total: {totalCount} documents
+                                        {tab}
+                                        <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold leading-none", badgeColors[tab])}>
+                                            {tabCounts[tab]}
+                                        </span>
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
-                </FrappeCard>
-                </div>
 
-                {/* Table */}
-                <FrappeCard className="overflow-hidden p-3">
-                    <div className="overflow-x-auto rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
-                        <table className="w-full">
-                            <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
-                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Module</th>
-                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Title</th>
-                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Document ID</th>
-                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Created</th>
-                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Modified</th>
-                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Owner</th>
-                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 text-xs">
-                                {paginatedTasks.length > 0 ? (
-                                    paginatedTasks.map((task) => (
-                                        <tr
-                                            key={task.id}
-                                            onClick={() => {
-                                                if (task.doctype === "Fund Received") {
-                                                    navigate(`/fund-received/${task.id}`);
-                                                } else if (task.doctype === "Reimbursement") {
-                                                    navigate(`/reimbursement/${task.id}`);
-                                                } else if (task.doctype === "Disbursal of Consultancy") {
-                                                    navigate(`/disbursal-of-consultancy/${task.id}`);
-                                                } else if (task.doctype === "Travel") {
-                                                    navigate(`/travel/${task.id}`);
-                                                } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
-                                                    navigate(`/project-details-overview/${task.id}`, { state: { fromTaskRegistry: true } });
-                                                } else {
-                                                    navigate(`/task-registry/${task.doctype}/${task.id}`);
-                                                }
-                                            }}
-                                            className="hover:bg-zinc-50 dark:bg-zinc-800/50 cursor-pointer transition-colors"
+                    {/* Filter & Search Section */}
+                    <div className="mb-4">
+                        <FrappeCard className="p-3">
+                            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                                <div className="flex flex-1 items-center gap-3 w-full flex-wrap">
+                                    {/* Search Input */}
+                                    <div className="relative w-full md:w-64">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <FaSearch className="text-zinc-400 dark:text-zinc-500" />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="Search documents..."
+                                            value={searchQuery}
+                                            onChange={handleSearchChange}
+                                            className="h-9 w-full pl-10 pr-4 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] focus:outline-none focus:border-[#4A6CF7] focus:ring-[3px] focus:ring-[#4A6CF7]/12 transition-colors"
+                                        />
+                                    </div>
+
+                                    {/* Module Filter */}
+                                    <div className="flex items-center gap-2">
+                                        <label htmlFor="module-filter" className="font-bold text-zinc-900 dark:text-zinc-100 uppercase text-sm whitespace-nowrap hidden md:block">
+                                            Filter:
+                                        </label>
+                                        <select
+                                            id="module-filter"
+                                            value={selectedModule}
+                                            onChange={(e) => handleModuleChange(e.target.value)}
+                                            className="h-9 px-3 bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg font-bold text-[12px] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7]"
                                         >
-                                            <td className="p-3">
-                                                <span className={getStatusBadge(task.status)}>
-                                                    {task.status}
-                                                </span>
-                                            </td>
-                                            <td className="p-3 font-bold text-zinc-900 dark:text-zinc-100">
-                                                {task.doctype}
-                                            </td>
-                                            <td className="p-3 font-medium text-zinc-900 dark:text-zinc-100">
-                                                <button
-                                                    className="text-left hover:text-[#D97757] transition-colors flex items-center gap-1.5 group"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setSelectedTask({ doctype: task.doctype, docname: task.id, title: task.title });
-                                                    }}
-                                                    title="Click to preview activity log"
-                                                >
-                                                    {task.title.length > 30 ? `${task.title.substring(0, 30)}...` : task.title}
-                                                    <ActivityIcon className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-[#D97757] flex-shrink-0 transition-opacity" />
-                                                </button>
-                                            </td>
-                                            <td className="p-3 font-mono text-zinc-900 dark:text-zinc-100">
-                                                {task.id.length > 25 ? `${task.id.substring(0, 25)}...` : task.id}
-                                            </td>
-                                            <td className="p-3 font-mono text-zinc-900 dark:text-zinc-100">
-                                                {task.creation ? new Date(task.creation).toLocaleDateString("en-IN") : "-"}
-                                            </td>
-                                            <td className="p-3 font-mono text-zinc-900 dark:text-zinc-100">
-                                                {task.modified ? new Date(task.modified).toLocaleDateString("en-IN") : "-"}
-                                            </td>
-                                            <td className="p-3 text-zinc-900 dark:text-zinc-100">
-                                                {task.owner.length > 20 ? `${task.owner.substring(0, 20)}...` : task.owner}
-                                            </td>
-                                            <td className="p-3">
-                                                <FrappeButton
-                                                    variant="action"
-                                                    onClick={(e) => {
-                                                        e?.stopPropagation();
-                                                        if (task.doctype === "Fund Received") {
-                                                            navigate(`/fund-received/${task.id}`);
-                                                        } else if (task.doctype === "Reimbursement") {
-                                                            navigate(`/reimbursement/${task.id}`);
-                                                        } else if (task.doctype === "Disbursal of Consultancy") {
-                                                            navigate(`/disbursal-of-consultancy/${task.id}`);
-                                                        } else if (task.doctype === "Travel") {
-                                                            navigate(`/travel/${task.id}`);
-                                                        } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
-                                                            navigate(`/project-details-overview/${task.id}`, { state: { fromTaskRegistry: true } });
-                                                        } else {
-                                                            navigate(`/task-registry/${task.doctype}/${task.id}`);
-                                                        }
-                                                    }}
-                                                    className="text-[11px] px-3 py-1.5"
-                                                >
-                                                    View
-                                                </FrappeButton>
+                                            <option value="">All Modules</option>
+                                            {moduleNames.map((module) => (
+                                                <option key={module} value={module}>
+                                                    {module}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {selectedModule && (
+                                            <FrappeButton
+                                                onClick={() => handleModuleChange('')}
+                                                className="text-red-600 hover:bg-red-50 border border-red-200"
+                                            >
+                                                Clear
+                                            </FrappeButton>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="text-sm text-zinc-900 dark:text-zinc-100 font-bold whitespace-nowrap">
+                                    Total: {totalCount} documents
+                                </div>
+                            </div>
+                        </FrappeCard>
+                    </div>
+
+                    {/* Table */}
+                    <FrappeCard className="overflow-hidden p-3">
+                        <div className="overflow-x-auto rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
+                            <table className="w-full">
+                                <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Module</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Title</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Document ID</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Created</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Modified</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Owner</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 text-xs">
+                                    {paginatedTasks.length > 0 ? (
+                                        paginatedTasks.map((task) => (
+                                            <tr
+                                                key={task.id}
+                                                onClick={() => {
+                                                    if (task.doctype === "Fund Received") {
+                                                        navigate(`/fund-received/${task.id}`);
+                                                    } else if (task.doctype === "Reimbursement") {
+                                                        navigate(`/reimbursement/${task.id}`);
+                                                    } else if (task.doctype === "Disbursal of Consultancy") {
+                                                        navigate(`/disbursal-of-consultancy/${task.id}`);
+                                                    } else if (task.doctype === "Travel") {
+                                                        navigate(`/travel/${task.id}`);
+                                                    } else if (task.doctype === "Miscellaneous Commit") {
+                                                        navigate(`/miscellaneous-commit/${task.id}`);
+                                                    } else if (task.doctype === "Loan Request") {
+                                                        navigate(`/loan-request/${task.id}`);
+                                                    } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
+                                                        navigate(`/project-details-overview/${task.id}`, { state: { fromTaskRegistry: true } });
+                                                    } else {
+                                                        navigate(`/task-registry/${task.doctype}/${task.id}`);
+                                                    }
+                                                }}
+                                                className="hover:bg-zinc-50 dark:bg-zinc-800/50 cursor-pointer transition-colors"
+                                            >
+                                                <td className="p-3">
+                                                    <span className={getStatusBadge(task.status)}>
+                                                        {task.status}
+                                                    </span>
+                                                </td>
+                                                <td className="p-3 font-bold text-zinc-900 dark:text-zinc-100">
+                                                    {task.doctype}
+                                                </td>
+                                                <td className="p-3 font-medium text-zinc-900 dark:text-zinc-100">
+                                                    <button
+                                                        className="text-left hover:text-[#D97757] transition-colors flex items-center gap-1.5 group"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedTask({ doctype: task.doctype, docname: task.id, title: task.title });
+                                                        }}
+                                                        title="Click to preview activity log"
+                                                    >
+                                                        {task.title.length > 30 ? `${task.title.substring(0, 30)}...` : task.title}
+                                                        <ActivityIcon className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-[#D97757] flex-shrink-0 transition-opacity" />
+                                                    </button>
+                                                </td>
+                                                <td className="p-3 font-mono text-zinc-900 dark:text-zinc-100">
+                                                    {task.id.length > 25 ? `${task.id.substring(0, 25)}...` : task.id}
+                                                </td>
+                                                <td className="p-3 font-mono text-zinc-900 dark:text-zinc-100">
+                                                    {task.creation ? new Date(task.creation).toLocaleDateString("en-IN") : "-"}
+                                                </td>
+                                                <td className="p-3 font-mono text-zinc-900 dark:text-zinc-100">
+                                                    {task.modified ? new Date(task.modified).toLocaleDateString("en-IN") : "-"}
+                                                </td>
+                                                <td className="p-3 text-zinc-900 dark:text-zinc-100">
+                                                    {task.owner.length > 20 ? `${task.owner.substring(0, 20)}...` : task.owner}
+                                                </td>
+                                                <td className="p-3">
+                                                    <FrappeButton
+                                                        variant="action"
+                                                        onClick={(e) => {
+                                                            e?.stopPropagation();
+                                                            if (task.doctype === "Fund Received") {
+                                                                navigate(`/fund-received/${task.id}`);
+                                                            } else if (task.doctype === "Reimbursement") {
+                                                                navigate(`/reimbursement/${task.id}`);
+                                                            } else if (task.doctype === "Disbursal of Consultancy") {
+                                                                navigate(`/disbursal-of-consultancy/${task.id}`);
+                                                            } else if (task.doctype === "Travel") {
+                                                                navigate(`/travel/${task.id}`);
+                                                            } else if (task.doctype === "Miscellaneous Commit") {
+                                                                navigate(`/miscellaneous-commit/${task.id}`);
+                                                            } else if (task.doctype === "Loan Request") {
+                                                                navigate(`/loan-request/${task.id}`);
+                                                            } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
+                                                                navigate(`/project-details-overview/${task.id}`, { state: { fromTaskRegistry: true } });
+                                                            } else {
+                                                                navigate(`/task-registry/${task.doctype}/${task.id}`);
+                                                            }
+                                                        }}
+                                                        className="text-[11px] px-3 py-1.5"
+                                                    >
+                                                        View
+                                                    </FrappeButton>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={8} className="p-8 text-center text-zinc-900 dark:text-zinc-100 font-bold">
+                                                {isLoading ? "Loading documents..." : "No documents found matching your criteria."}
                                             </td>
                                         </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan={8} className="p-8 text-center text-zinc-900 dark:text-zinc-100 font-bold">
-                                            {isLoading ? "Loading documents..." : "No documents found matching your criteria."}
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
 
-                    {/* Pagination Controls */}
-                    {allTasks.length > 0 && (
-                        <div className="p-4 border-t border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex justify-between items-center">
-                            <div>
-                                <div className="text-sm text-zinc-900 dark:text-zinc-100 font-medium">
-                                    Showing {indexOfFirstTask + 1} to {indexOfFirstTask + currentCount} of {totalCount} entries
+                        {/* Pagination Controls */}
+                        {allTasks.length > 0 && (
+                            <div className="p-4 border-t border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex justify-between items-center">
+                                <div>
+                                    <div className="text-sm text-zinc-900 dark:text-zinc-100 font-medium">
+                                        Showing {indexOfFirstTask + 1} to {indexOfFirstTask + currentCount} of {totalCount} entries
+                                    </div>
+                                </div>
+                                <div className="flex gap-1">
+                                    <FrappeButton
+                                        onClick={() => handlePageChange(currentPage - 1)}
+                                        disabled={currentPage === 1}
+                                        variant="outline"
+                                    >
+                                        Previous
+                                    </FrappeButton>
+                                    {getPageNumbers().map((page, index) => (
+                                        <FrappeButton
+                                            key={index}
+                                            onClick={() => typeof page === 'number' && handlePageChange(page)}
+                                            disabled={typeof page !== 'number'}
+                                            variant={page === currentPage ? "primary" : "outline"}
+                                            className={cn(typeof page !== 'number' && "cursor-default")}
+                                        >
+                                            {page}
+                                        </FrappeButton>
+                                    ))}
+                                    <FrappeButton
+                                        onClick={() => handlePageChange(currentPage + 1)}
+                                        disabled={currentPage === totalPages}
+                                        variant="outline"
+                                    >
+                                        Next
+                                    </FrappeButton>
                                 </div>
                             </div>
-                            <div className="flex gap-1">
-                                <FrappeButton
-                                    onClick={() => handlePageChange(currentPage - 1)}
-                                    disabled={currentPage === 1}
-                                    variant="outline"
-                                >
-                                    Previous
-                                </FrappeButton>
-                                {getPageNumbers().map((page, index) => (
-                                    <FrappeButton
-                                        key={index}
-                                        onClick={() => typeof page === 'number' && handlePageChange(page)}
-                                        disabled={typeof page !== 'number'}
-                                        variant={page === currentPage ? "primary" : "outline"}
-                                        className={cn(typeof page !== 'number' && "cursor-default")}
-                                    >
-                                        {page}
-                                    </FrappeButton>
-                                ))}
-                                <FrappeButton
-                                    onClick={() => handlePageChange(currentPage + 1)}
-                                    disabled={currentPage === totalPages}
-                                    variant="outline"
-                                >
-                                    Next
-                                </FrappeButton>
-                            </div>
-                        </div>
-                    )}
-                </FrappeCard>
-            </main>
-        </div>
+                        )}
+                    </FrappeCard>
+                </main>
+            </div>
 
             {/* Activity Log Peek Panel */}
             {selectedTask && (
@@ -1171,6 +733,8 @@ const TaskRegistry: React.FC = () => {
                                     else if (t.doctype === 'Reimbursement') navigate(`/reimbursement/${t.docname}`);
                                     else if (t.doctype === 'Disbursal of Consultancy') navigate(`/disbursal-of-consultancy/${t.docname}`);
                                     else if (t.doctype === 'Travel') navigate(`/travel/${t.docname}`);
+                                    else if (t.doctype === 'Miscellaneous Commit') navigate(`/miscellaneous-commit/${t.docname}`);
+                                    else if (t.doctype === 'Loan Request') navigate(`/loan-request/${t.docname}`);
                                     else navigate(`/task-registry/${t.doctype}/${t.docname}`);
                                 }}
                                 className="w-full py-2.5 px-4 bg-[#D97757] text-white text-sm font-bold rounded-lg hover:bg-[#c66a4e] transition-colors"

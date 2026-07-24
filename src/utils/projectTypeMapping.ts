@@ -70,6 +70,9 @@ export const DOCTYPE_PR_LINKS: Record<string, DoctypePRLink> = {
         primary:  { type: 'pr_name',       field: 'project_name' },
         fallback: { type: 'pr_project_no', field: 'project_number' },
     },
+    'Miscellaneous Commit': {
+        primary: { type: 'pr_name', field: 'project_number' },
+    },
     'myProjects': {
         primary: { type: 'pr_name', field: 'project_proposal' },
     },
@@ -156,6 +159,9 @@ export const DOCTYPE_PR_LINKS: Record<string, DoctypePRLink> = {
     },
     'Temporary Advance': {
         primary: { type: 'pr_project_no', field: 'project_code' },
+    },
+    'Top Up Fellowship': {
+        primary: { type: 'pr_project_no', field: 'project_no' },
     },
 };
 

@@ -46,7 +46,7 @@ interface FormDataResponse {
 }
 
 // --- STYLES ---
-const inputClasses = "w-full h-10 px-3 bg-white dark:bg-[#27272A] border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] rounded-[0.4375rem] text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] dark:placeholder:text-[#71717A] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7] disabled:opacity-55 disabled:bg-[#FAFAF9] dark:disabled:bg-[#27272A]/50 disabled:text-[#71717A] read-only:bg-[#FAFAF9] dark:read-only:bg-[#27272A]/50 transition-colors duration-150";
+const inputClasses = "w-full h-10 px-3 bg-white dark:bg-[#27272A] border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] rounded-[0.4375rem] text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] dark:placeholder:text-[#71717A] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7] disabled:bg-[#EEECEA] dark:disabled:bg-[#2A2A2E] disabled:text-[#27272A] dark:disabled:text-[#D4D4D8] disabled:border-[#D4D0CA] dark:disabled:border-[#3F3F46] disabled:cursor-default read-only:bg-[#EEECEA] dark:read-only:bg-[#2A2A2E] transition-colors duration-150";
 
 const formatFieldLabel = (label?: string | null, fieldname?: string) => {
     const raw = label || fieldname || "";
@@ -174,7 +174,21 @@ const MemoizedFormField = memo(({
                 );
             case "Currency":
             case "Float":
-                return <input type="number" min="0" title="Enter a positive amount" {...commonInputProps} onKeyDown={(e) => { if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) e.preventDefault(); }} />;
+                return (
+                    <input
+                        type="text"
+                        inputMode="decimal"
+                        title="Enter a positive amount"
+                        {...commonInputProps}
+                        onChange={(e) => {
+                            const raw = e.target.value;
+                            // Allow empty, digits, and a single decimal point
+                            if (raw === '' || /^\d*\.?\d*$/.test(raw)) {
+                                onChange(field.fieldname, raw);
+                            }
+                        }}
+                    />
+                );
             case "Int":
                 return <input type="number" min="0" title="Enter a positive whole number" {...commonInputProps} onKeyDown={(e) => { if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) e.preventDefault(); }} />;
             case "Date":
@@ -229,11 +243,6 @@ const MemoizedFormField = memo(({
 });
 
 // --- REUSABLE UI COMPONENTS ---
-const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white dark:bg-[#27272A] p-4 sm:p-5 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm", className)}>
-        {children}
-    </div>
-);
 
 const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: {
     children: React.ReactNode;
@@ -266,6 +275,46 @@ const NeoSection = ({ title, children }: { title: string; children: React.ReactN
     </div>
 );
 
+// Resolve project title from a project code/no.
+// Tries: (1) fetch by document name, (2) filter by project_no — across both doctypes.
+async function resolveProjectTitle(projectCode: string): Promise<string> {
+    for (const doctype of ["Project Registration", "Project Proposal"]) {
+        // Try fetching by document name (primary key)
+        try {
+            const r = await fetch(
+                `/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(projectCode)}`,
+                { credentials: "include" }
+            );
+            if (r.ok) {
+                const json = await r.json();
+                const title = json?.data?.project_title || json?.data?.title || "";
+                if (title && title !== projectCode) return title;
+            }
+        } catch { /* try next strategy */ }
+
+        // Try querying by project_no field
+        try {
+            const r = await fetch("/api/method/frappe.client.get_list", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({
+                    doctype,
+                    filters: { project_no: projectCode },
+                    fields: ["project_title"],
+                    limit_page_length: 1,
+                }),
+            });
+            if (r.ok) {
+                const json = await r.json();
+                const title = json?.message?.[0]?.project_title || "";
+                if (title) return title;
+            }
+        } catch { /* try next doctype */ }
+    }
+    return "";
+}
+
 const TemporaryAdvance: React.FC = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -279,11 +328,13 @@ const TemporaryAdvance: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [dataLoaded, setDataLoaded] = useState(false);
+    const [commentModalOpen, setCommentModalOpen] = useState(false);
+    const [draftComment, setDraftComment] = useState("");
 
     const { call: fetchFormData, result, error } = useFrappePostCall<FormDataResponse>(
         'rndopsapp.rndopsapp.doctype.temporary_advance.temporary_advance.get_temporary_advance_fields'
     );
-    const { call: submitForm, error: submitError } = useFrappePostCall(
+    const { call: submitForm, error: submitError } = useFrappePostCall<{ message: { name: string } }>(
         'rndopsapp.rndopsapp.doctype.temporary_advance.temporary_advance.save_temporary_advance'
     );
     const { call: fetchUserDetails } = useFrappePostCall<{ message: any }>(
@@ -322,7 +373,6 @@ const TemporaryAdvance: React.FC = () => {
                                 name: editDocName
                             });
                             if (existingDoc?.message) {
-                                // Merge existing document data with initial data (existing data takes precedence)
                                 initialData = { ...initialData, ...existingDoc.message };
                             }
                         } catch (err) {
@@ -345,31 +395,24 @@ const TemporaryAdvance: React.FC = () => {
                         }
                     });
 
-                    // Set project code if passed via URL
+                    // Set project code from URL if not already set (new form)
                     if (projectName && !initialData.project_code) {
                         initialData.project_code = projectName;
-                        delete link_options.project_code;
-                        console.log('Auto-fill project_code:', initialData.project_code);
                     }
+                    // Keep both fields as plain text (never render as dropdowns)
+                    delete link_options.project_code;
+                    delete link_options.project_name;
 
-                    // Set project name if passed via URL
-                    if (!initialData.project_name) {
-                        const projectId = searchParams.get('projectId') || '';
-                        let resolvedTitle = projectTitle;
-
-                        // If no projectTitle but we have projectId, look up the label from link_options
-                        if (!resolvedTitle && projectId) {
-                            const projectNameOpts = link_options?.project_name || link_options?.project_code || [];
-                            const match = projectNameOpts.find((opt: LinkOption) => opt.value === projectId);
-                            if (match) {
-                                resolvedTitle = match.label;
-                            }
-                        }
-
-                        if (resolvedTitle) {
-                            initialData.project_name = resolvedTitle;
-                            delete link_options.project_name;
-                            console.log('Auto-fill project_name:', initialData.project_name);
+                    // Resolve project title for both new form and edit mode.
+                    // Use project_code from the doc (edit) or from the URL param (new).
+                    const codeToResolve = initialData.project_code || projectName;
+                    if (codeToResolve && (!initialData.project_name || initialData.project_name === codeToResolve)) {
+                        const urlTitle = projectTitle && projectTitle !== codeToResolve ? projectTitle : '';
+                        if (urlTitle) {
+                            initialData.project_name = urlTitle;
+                        } else {
+                            const fetchedTitle = await resolveProjectTitle(codeToResolve);
+                            if (fetchedTitle) initialData.project_name = fetchedTitle;
                         }
                     }
 
@@ -411,6 +454,17 @@ const TemporaryAdvance: React.FC = () => {
     }, [result, error, projectName, editDocName, dataLoaded, fetchUserDetails, fetchExistingDoc]);
 
     const handleChange = useCallback((fieldname: string, value: any) => {
+        // When project_code changes, resolve and fill project_name
+        if (fieldname === 'project_code') {
+            setFormData(prev => ({ ...prev, project_code: value, project_name: '' }));
+            if (value) {
+                resolveProjectTitle(value).then(title => {
+                    if (title) setFormData(prev => ({ ...prev, project_name: title }));
+                });
+            }
+            return;
+        }
+
         setFormData(prev => {
             let updated = { ...prev, [fieldname]: value };
 
@@ -520,62 +574,67 @@ const TemporaryAdvance: React.FC = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [formData.applying_for_select, dataLoaded]);
 
-    // Effect to calculate amount in words when amount is prefilled
+    // Fill amount_in_words once when prefilled data loads (handleChange covers live user input)
     useEffect(() => {
-        if (dataLoaded && (formData.amount || formData.amount_applied) && !formData.amount_in_words) {
-            const amountValue = parseFloat(formData.amount || formData.amount_applied);
-            if (!isNaN(amountValue) && amountValue > 0) {
-                setFormData(prev => ({
-                    ...prev,
-                    amount_in_words: toWords.convert(amountValue)
-                }));
-            }
+        if (!dataLoaded) return;
+        const n = parseFloat(formData.amount || formData.amount_applied);
+        if (!isNaN(n) && n > 0 && !formData.amount_in_words) {
+            setFormData(prev => ({ ...prev, amount_in_words: toWords.convert(n) }));
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dataLoaded]);
 
 
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
+
+    const validateForm = (): string | null => {
+        if (!formData.declaration_settlement) return "You must agree to the 45-day settlement rule.";
+        if (!formData.declaration_rate_contract) return "You must agree to the Rate Contract declaration.";
+        return null;
+    };
+
+    const handleSaveAndSubmit = async (comment: string) => {
         if (isSubmitting) return;
-
-        // Validations
-        if (!formData.declaration_settlement) {
-            alert("You must agree to the 45-day settlement rule.");
-            return;
-        }
-        if (!formData.declaration_rate_contract) {
-            alert("You must agree to the Rate Contract declaration.");
-            return;
-        }
-
         setIsSubmitting(true);
-
+        setCommentModalOpen(false);
+        setDraftComment("");
         try {
-            const dataToSubmit = { ...formData };
-            console.log('=== TEMPORARY ADVANCE - PRE-SAVE DATA ===');
-            console.log('Full form data:', JSON.stringify(dataToSubmit, null, 2));
-            console.log('Key fields:', {
-                applicant_webmail: dataToSubmit.applicant_webmail,
-                project_code: dataToSubmit.project_code,
-                amount: dataToSubmit.amount,
-                applying_for_select: dataToSubmit.applying_for_select,
-                applicant_category: dataToSubmit.applicant_category,
-                declaration_settlement: dataToSubmit.declaration_settlement,
-                declaration_rate_contract: dataToSubmit.declaration_rate_contract,
-            });
+            const saveResult = await submitForm({ doc_data: JSON.stringify(formData) });
+const msg = saveResult?.message;
+            const docname: string =
+                (typeof msg === "object" && msg !== null)
+                    ? ((msg as any).docname || (msg as any).name || (msg as any).doc_name || "")
+                    : (typeof msg === "string" ? msg : "");
+            if (!docname) throw new Error(`Could not get document name after save. Raw response: ${JSON.stringify(saveResult)}`);
 
-            const result = await submitForm({ doc_data: JSON.stringify(dataToSubmit) });
-            console.log('Save result:', result);
+            // Patch fields the backend save may omit
+            const patchFields: Record<string, any> = {};
+            if (formData.declaration_settlement !== undefined) patchFields.declaration_settlement = formData.declaration_settlement;
+            if (formData.declaration_rate_contract !== undefined) patchFields.declaration_rate_contract = formData.declaration_rate_contract;
+            if (formData.amount_in_words) patchFields.amount_in_words = formData.amount_in_words;
+            if (Object.keys(patchFields).length > 0) {
+                await fetch("/api/method/frappe.client.set_value", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({ doctype: "Temporary Advance", name: docname, fieldname: patchFields }),
+                });
+            }
 
-            alert("Temporary Advance entry saved successfully!");
-            navigate(-1);
+            const params = new URLSearchParams({ autoSubmit: "1" });
+            if (comment.trim()) params.set("comment", comment.trim());
+            navigate(`/temporary-advance/${encodeURIComponent(docname)}?${params.toString()}`);
         } catch (err: any) {
             console.error('Submission error:', submitError || err);
-            alert(`Submission Failed: ${err.message || 'Unknown Error'}`);
-        } finally {
+            alert(`Save Failed: ${err.message || 'Unknown Error'}`);
             setIsSubmitting(false);
         }
+    };
+
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const validationError = validateForm();
+        if (validationError) { alert(validationError); return; }
+        setCommentModalOpen(true);
     };
 
     // Render HTML field content
@@ -721,6 +780,15 @@ const TemporaryAdvance: React.FC = () => {
                                             }
                                         }
 
+                                        // project_code and project_name are always read-only auto-fills
+                                        if (field.fieldname === 'project_code' || field.fieldname === 'project_name') {
+                                            isReadOnly = true;
+                                        }
+                                        // project_name renders as a multi-line text area
+                                        if (field.fieldname === 'project_name') {
+                                            field = { ...field, fieldtype: 'Small Text' };
+                                        }
+
                                         // Apply dynamic properties to field object
                                         const effectiveField = {
                                             ...field,
@@ -754,7 +822,7 @@ const TemporaryAdvance: React.FC = () => {
                         ))}
                     </div>
 
-                    {/* Submit Button */}
+                    {/* Action Button */}
                     <div className="mt-8 flex justify-end gap-3">
                         <FrappeButton
                             type="button"
@@ -768,10 +836,46 @@ const TemporaryAdvance: React.FC = () => {
                             disabled={isSubmitting}
                             className="bg-[#D97757] text-white border-[#D97757] hover:bg-[#c5694d] disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                            {isSubmitting ? 'Saving...' : 'Submit Temporary Advance'}
+                            {isSubmitting ? 'Submitting...' : 'Submit Temporary Advance'}
                         </FrappeButton>
                     </div>
                 </form>
+
+                {/* Comment Modal */}
+                {commentModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-700 w-full max-w-md mx-4 overflow-hidden">
+                            <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800">
+                                <h3 className="text-sm font-bold text-zinc-800 dark:text-zinc-100">Submit Temporary Advance</h3>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Optionally add a comment before submitting.</p>
+                            </div>
+                            <div className="px-6 py-4">
+                                <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5 uppercase tracking-wide">Comment (optional)</label>
+                                <textarea
+                                    value={draftComment}
+                                    onChange={e => setDraftComment(e.target.value)}
+                                    placeholder="Add a note about this draft…"
+                                    rows={3}
+                                    className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-800 dark:text-zinc-100 px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/40"
+                                />
+                            </div>
+                            <div className="px-6 py-3 bg-zinc-50 dark:bg-zinc-800/60 border-t border-zinc-100 dark:border-zinc-800 flex justify-end gap-2">
+                                <button
+                                    onClick={() => { setCommentModalOpen(false); setDraftComment(""); }}
+                                    className="px-4 py-2 text-xs font-semibold rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => handleSaveAndSubmit(draftComment)}
+                                    className="px-4 py-2 text-xs font-bold rounded-lg bg-[#D97757] text-white hover:bg-[#c5694d] transition-colors"
+                                >
+                                    Submit
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </main>
         </div>
     );

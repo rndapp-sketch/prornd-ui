@@ -19,7 +19,7 @@ const GROUP_A_FIELDS = new Set([
 ]);
 const GROUP_B_FIELDS = new Set([
     'loan_details_section', 'loan_account_type',
-    'section_break_hzoo', 'section_break_voiw', 'loan_amount',
+    'section_break_hzoo', 'section_break_voiw',
 ]);
 const GROUP_C_FIELDS = new Set(['account_head_fund_breakup']);
 const GROUP_D_FIELDS = new Set([
@@ -298,11 +298,9 @@ const LoanRequestForm: React.FC = () => {
         fields.filter(f => GROUP_A_FIELDS.has(f.fieldname))
               .map(f => READ_ONLY_A.has(f.fieldname) ? { ...f, read_only: 1 } : f),
     [fields]);
-    const groupB = useMemo(() => {
-        const base = fields.filter(f => GROUP_B_FIELDS.has(f.fieldname));
-        // Make loan_amount read-only (auto-calculated from table)
-        return base.map(f => f.fieldname === 'loan_amount' ? { ...f, read_only: 1 } : f);
-    }, [fields]);
+    const groupB = useMemo(() =>
+        fields.filter(f => GROUP_B_FIELDS.has(f.fieldname)),
+    [fields]);
     const groupC = useMemo(() => fields.filter(f => GROUP_C_FIELDS.has(f.fieldname)), [fields]);
     const groupD = useMemo(() => fields.filter(f => GROUP_D_FIELDS.has(f.fieldname)), [fields]);
 
@@ -374,6 +372,17 @@ const LoanRequestForm: React.FC = () => {
                         ) : (
                             <p className="text-sm text-zinc-500 italic">Fund breakup table not loaded.</p>
                         )}
+                        <div className="mt-5 pt-4 border-t border-zinc-200 dark:border-zinc-700 space-y-1.5">
+                            <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                Loan Amount (₹)
+                            </label>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                Auto-calculated from the fund breakup table above.
+                            </p>
+                            <p className="text-lg font-bold text-[#D97757]">
+                                ₹ {(formData.loan_amount || 0).toLocaleString('en-IN')}
+                            </p>
+                        </div>
                     </GroupCard>
 
                     {/* GROUP D — Agreements & Attachment */}

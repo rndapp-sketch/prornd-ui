@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { FolderOpenIcon, XIcon } from 'lucide-react';
 import ProjectDetailsOverview from '@/pages/ProjectDetailsOverview';
 import { DOCTYPE_PR_LINKS, type PRLinkStrategy } from '@/utils/projectTypeMapping';
@@ -74,6 +74,7 @@ const ViewProjectButton = ({
 
         setLoading(true);
         try {
+            // Strategy 1: filter by project_no field
             const params = new URLSearchParams({
                 filters: JSON.stringify([['project_no', '=', projectNo]]),
                 fields: JSON.stringify(['name']),
@@ -82,9 +83,30 @@ const ViewProjectButton = ({
             const res = await fetch(
                 `/api/resource/Project%20Registration?${params}`,
                 { credentials: 'include' }
-            ).then(r => r.json());
+            ).then(r => r.json()).catch(() => null);
             const prName = (res?.data ?? res?.message ?? [])[0]?.name;
-            if (prName) setPrPreviewName(prName);
+            if (prName) { setPrPreviewName(prName); return; }
+
+            // Strategy 2: direct lookup by name (when value is the PR doc name / autoname)
+            const directRes = await fetch(
+                `/api/resource/Project%20Registration/${encodeURIComponent(projectNo)}`,
+                { credentials: 'include' }
+            ).then(r => r.json()).catch(() => null);
+            const directDocName = directRes?.data?.name ?? directRes?.message?.name;
+            if (directDocName) { setPrPreviewName(directDocName); return; }
+
+            // Strategy 3: filter by name field
+            const nameParams = new URLSearchParams({
+                filters: JSON.stringify([['name', '=', projectNo]]),
+                fields: JSON.stringify(['name']),
+                limit: '1',
+            });
+            const res3 = await fetch(
+                `/api/resource/Project%20Registration?${nameParams}`,
+                { credentials: 'include' }
+            ).then(r => r.json()).catch(() => null);
+            const prName3 = (res3?.data ?? res3?.message ?? [])[0]?.name;
+            if (prName3) setPrPreviewName(prName3);
         } finally {
             setLoading(false);
         }

@@ -35,6 +35,7 @@ export default {
   "^/(app|api|assets|files|private)(/|$)": {
     // target: `http://172.16.134.81:${webserver_port}`,
     target: `http://172.16.131.206:${webserver_port}`,
+    // target: `http://172.16.134.191:${webserver_port}`,
     ws: true,
     // CRITICAL ADDITION: This changes the Host header to match the target (172.16.135.27)
     // This ensures Frappe recognizes the request context correctly.
@@ -47,6 +48,7 @@ export default {
       // Always use the correct server IP
       // return `http://172.16.134.81:${webserver_port}`;
       return `http://172.16.131.206:${webserver_port}`;
+      // return `http://172.16.134.191:${webserver_port}`;
     },
   },
   // Proxy for external Ledger API to avoid CORS
@@ -55,6 +57,10 @@ export default {
     target: "http://172.16.134.81:18080",
     changeOrigin: true,
     rewrite: (path: string) => path.replace(/^\/ledger-api/, "/api"), // Type annotation removed for JS config compatibility
+    headers: {
+      Origin: "http://172.16.134.81:18080",
+      Referer: "http://172.16.134.81:18080/",
+    }
   },
   // Proxy for MinIO file storage
   "/prod-rnd-files": {
@@ -68,6 +74,12 @@ export default {
     changeOrigin: true,
     ws: true,
     rewrite: (path: string) => path.replace(/^\/appwrite/, ""),
+  },
+  // Proxy for Attendance API (PresenceBackend) to avoid CORS in dev
+  "/attendance-api": {
+    target: "http://172.16.135.27:7078",
+    changeOrigin: true,
+    rewrite: (path: string) => path.replace(/^\/attendance-api/, "/api"),
   },
 };
 

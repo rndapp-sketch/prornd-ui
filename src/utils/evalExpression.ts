@@ -32,6 +32,9 @@ export const evaluateExpression = (
             .replace(/\band\b/g, '&&')
             .replace(/\bnot\b/g, '!');
 
+        // A fully-commented expression means the condition was disabled — treat as always true
+        if (cleanExpr.startsWith('//')) return true;
+
         // Remove trailing semicolon if present
         if (cleanExpr.endsWith(';')) {
             cleanExpr = cleanExpr.slice(0, -1);

@@ -35,8 +35,10 @@ import { RndStaffDashboard } from './pages/dashboards/RndStaffDashboard.tsx';
 import { ProjectStaffDashboard } from './pages/dashboards/ProjectStaffDashboard.tsx';
 import { DirectorDashboard } from './pages/dashboards/DirectorDashboard.tsx';
 import { AdoRndDashboard } from './pages/dashboards/AdoRndDashboard.tsx';
+import { StudentDashboard } from './pages/dashboards/StudentDashboard.tsx';
 import Reimbursement from './pages/reimbursement/Reimbursement.tsx';
 import PendingTask from './pages/PendingTask.tsx';
+import PendingApplication from './pages/PendingApplication.tsx';
 import PendingTaskDetails from './pages/PendingTaskDetails.tsx';
 import DynamicFormPage from './pages/DynamicFormPage.tsx'; // Import DynamicFormPage
 import FundReceivedDetails from './pages/FundReceivedDetails.tsx';
@@ -60,11 +62,16 @@ import AdvanceSettlementDetails from './pages/application/AdvanceSettlementDetai
 import DisbursalOfHonorarium from './pages/application/DisbursalOfHonorarium.tsx';
 import DisbursalOfHonorariumForm from './pages/application/DisbursalOfHonorariumForm.tsx';
 import DisbursalOfHonorariumDetails from './pages/application/DisbursalOfHonorariumDetails.tsx';
+import TopUpFellowshipForm from './pages/application/TopUpFellowshipForm.tsx';
+import TopUpFellowshipDetails from './pages/application/TopUpFellowshipDetails.tsx';
 import DisbursalOfConsultancy from './pages/application/DisbursalOfConsultancy.tsx';
 import DisbursalOfConsultancyForm from './pages/application/DisbursalOfConsultancyForm.tsx';
 import DisbursalOfConsultancyDetails from './pages/application/DisbursalOfConsultancyDetails.tsx';
 import LoanRequestForm from './pages/application/LoanRequestForm.tsx';
 import LoanRequestDetails from './pages/application/LoanRequestDetails.tsx';
+import MiscellaneousCommit from './pages/application/MiscellaneousCommit.tsx';
+import MiscellaneousCommitForm from './pages/application/MiscellaneousCommitForm.tsx';
+import MiscellaneousCommitDetails from './pages/application/MiscellaneousCommitDetails.tsx';
 import DirectPurchase from './pages/DirectPurchase.tsx';
 import DirectPurchaseDetails from './pages/application/DirectPurchaseDetails.tsx';
 import P11Form from './pages/application/P11Form.tsx';
@@ -89,9 +96,16 @@ import Profile from './pages/Profile.tsx';
 import { HeadOverview } from './pages/dashboards/HeadOverview.tsx';
 import MessagesPage from './pages/messages/MessagesPage.tsx';
 import DirectorPdfUpload from './pages/application/DirectorPdfUpload.tsx';
-import SalaryModule from './pages/application/SalaryModule.tsx';
+import TopUpFellowshipFacultyAdmission from './pages/application/TopUpFellowshipFacultyAdmission.tsx';
+import SalaryModule from './pages/application/SalaryModule';
+import SalaryRegisterFull from './pages/application/SalaryRegisterFull';
 import DelegateUser from './pages/DelegateUser.tsx';
 import CoProjectView from './pages/CoProjectView.tsx';
+import LeaveModule from './pages/LeaveModule.tsx';
+import LeaveModuleForm from './pages/LeaveModuleForm.tsx';
+import LeaveModuleDetails from './pages/LeaveModuleDetails.tsx';
+import FormApplication from './pages/FormApplication.tsx';
+import { ProjectSearch } from './pages/ProjectSearch.tsx';
 
 const router = createBrowserRouter(
     [
@@ -336,8 +350,16 @@ const router = createBrowserRouter(
                     element: (<AuthRouteWrapper allowedRole="staff, RnD"><RndStaffDashboard /></AuthRouteWrapper>),
                 },
                 {
+                    path: "project-search",
+                    element: (<AuthRouteWrapper allowedRole="staff, RnD"><ProjectSearch /></AuthRouteWrapper>),
+                },
+                {
                     path: "project-staff-dashboard",
                     element: (<AuthRouteWrapper allowedRole="project staff"><ProjectStaffDashboard /></AuthRouteWrapper>),
+                },
+                {
+                    path: "student-dashboard",
+                    element: (<AuthRouteWrapper allowedRole="Student"><StudentDashboard /></AuthRouteWrapper>),
                 },
                 {
                     path: "ado-rnd-dashboard",
@@ -392,9 +414,26 @@ const router = createBrowserRouter(
                             'Ado_RnD',
                             'head_approver_1',
                             'Hos, RnD (Head of Section, RnD)',
-                            'staff, RnD'
+                            'staff, RnD',
+                            'Permanent Employee'
                         ]}>
                             <PendingTask />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "pending-application",
+                    element: (
+                        <AuthRouteWrapper allowedRole={[
+                            'Director',
+                            'Dean, RnD',
+                            'Ado_RnD',
+                            'head_approver_1',
+                            'Hos, RnD (Head of Section, RnD)',
+                            'staff, RnD',
+                            'Permanent Employee'
+                        ]}>
+                            <PendingApplication />
                         </AuthRouteWrapper>
                     ),
                 },
@@ -407,7 +446,8 @@ const router = createBrowserRouter(
                             'Ado_RnD',
                             'head_approver_1',
                             'Hos, RnD (Head of Section, RnD)',
-                            'staff, RnD'
+                            'staff, RnD',
+                            'Permanent Employee'
                         ]}>
                             <PendingTaskDetails />
                         </AuthRouteWrapper>
@@ -494,6 +534,22 @@ const router = createBrowserRouter(
                     )
                 },
                 {
+                    path: "top-up-fellowship",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <TopUpFellowshipForm />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "top-up-fellowship/:id",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <TopUpFellowshipDetails />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
                     path: "disbursal-of-honorarium/:id",
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
@@ -542,6 +598,30 @@ const router = createBrowserRouter(
                     )
                 },
                 {
+                    path: "miscellaneous-commit",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <MiscellaneousCommit />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "miscellaneous-commit-form",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <MiscellaneousCommitForm />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "miscellaneous-commit/:id",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <MiscellaneousCommitDetails />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
                     path: "disbursal-of-honorarium/:id",
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
@@ -556,6 +636,7 @@ const router = createBrowserRouter(
                             'staff, RnD',
                             'Hos, RnD (Head of Section, RnD)',
                             'Dean, RnD',
+                            'Ado_RnD',
                             'Director',
                             'head_approver_1'
                         ]}>
@@ -570,6 +651,7 @@ const router = createBrowserRouter(
                             'staff, RnD',
                             'Hos, RnD (Head of Section, RnD)',
                             'Dean, RnD',
+                            'Ado_RnD',
                             'Director',
                             'head_approver_1'
                         ]}>
@@ -727,7 +809,7 @@ const router = createBrowserRouter(
                 {
                     path: "universal-registration/:id?",
                     element: (
-                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User" blockedRole="project staff">
                             <UniversalRegistrationForm />
                         </AuthRouteWrapper>
                     ),
@@ -764,6 +846,30 @@ const router = createBrowserRouter(
                         </AuthRouteWrapper>
                     ),
                 },
+                {
+                    path: "leave-module",
+                    element: (
+                        <AuthRouteWrapper allowedRole={["project staff", "IF - Inspired Faculty", "Independent Researcher"]}>
+                            <LeaveModule />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "leave-module/new",
+                    element: (
+                        <AuthRouteWrapper allowedRole={["project staff", "IF - Inspired Faculty", "Independent Researcher"]}>
+                            <LeaveModuleForm />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "leave-module/:id",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <LeaveModuleDetails />
+                        </AuthRouteWrapper>
+                    ),
+                },
 
                 {
                     path: "niq-form/:igfId?",
@@ -782,10 +888,27 @@ const router = createBrowserRouter(
                     ),
                 },
                 {
+                    path: "top-up-fellowship-faculty-admission",
+                    element: (
+                        <AuthRouteWrapper allowedRole="staff, RnD">
+                            <TopUpFellowshipFacultyAdmission />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
                     path: "salary-module",
                     element: (
-                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                        <AuthRouteWrapper allowedRole="staff, RnD">
                             <SalaryModule />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    // Full-page salary register – no sidebar/navbar wrapper
+                    path: "salary-module/register",
+                    element: (
+                        <AuthRouteWrapper allowedRole="staff, RnD">
+                            <SalaryRegisterFull />
                         </AuthRouteWrapper>
                     ),
                 },
@@ -794,6 +917,14 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <MessagesPage />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "form-application",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <FormApplication />
                         </AuthRouteWrapper>
                     ),
                 },
@@ -812,205 +943,3 @@ createRoot(document.getElementById('root') as HTMLElement).render(
         </FrappeProvider>
     </StrictMode>
 );
-
-// -=================
-//
-// //
-// import React from "react";
-// import { createRoot } from "react-dom/client";
-// import { createBrowserRouter, RouterProvider } from "react-router-dom";
-// import { FrappeProvider } from "frappe-react-sdk";
-
-// import "./index.css";
-
-// // Import Components and Pages
-// import App from "./App.tsx";
-// import Login from "./pages/Login.tsx";
-// import LandingPage from "./pages/landing.tsx";
-// import Home from "./pages/Home.tsx";
-// import PiHomePage from "./pages/PiHomePage.tsx";
-// import Dashboard from "./pages/Dashboard.tsx";
-// import AuthRouteWrapper from "./components/AuthRouteWrapper.tsx";
-// import ProjectRegistration from "./pages/ProjectRegistration.tsx";
-// import ProjectProposal from "./pages/ProjectProposal.tsx";
-// import Endorsement from "./pages/Endorsement.tsx";
-// import AddFundSanction from "./pages/AddFundSanction.tsx";
-// import ProjectsView from "./pages/ProjectsView.tsx";
-// import ProjectDetails from "./pages/ProjectDetails.tsx";
-// import ProjectDetailsOverview from "./pages/ProjectDetailsOverview.tsx";
-// import ProjectLedgerFull from "./pages/ProjectLedgerFull.tsx";
-// import HRPortal from "./pages/HRPortal.tsx";
-// import AddFundReceived from "./pages/AddFundReceived.tsx";
-// import { HosRndDashboard } from "./pages/dashboards/HosRndDashboard.tsx";
-// import { DorndDashboard } from "./pages/dashboards/DorndDashboard.tsx";
-// import { HeadDashboard } from "./pages/dashboards/HeadDashboard.tsx";
-// import { RndStaffDashboard } from "./pages/dashboards/RndStaffDashboard.tsx";
-// import { ProjectStaffDashboard } from "./pages/dashboards/ProjectStaffDashboard.tsx";
-// import { DirectorDashboard } from "./pages/dashboards/DirectorDashboard.tsx";
-// import { AdoRndDashboard } from "./pages/dashboards/AdoRndDashboard.tsx";
-// import Reimbursement from "./pages/reimbursement/Reimbursement.tsx";
-// import PendingTask from "./pages/PendingTask.tsx";
-// import PendingTaskDetails from "./pages/PendingTaskDetails.tsx";
-// import DynamicFormPage from "./pages/DynamicFormPage.tsx";
-// import FundReceivedDetails from "./pages/FundReceivedDetails.tsx";
-// import ProjectProposalDetails from "./pages/ProjectProposalDetails.tsx";
-// import EndorsementCertificateView from "./pages/EndorsementCertificateView.tsx";
-// import ProjectAnalytics from "./pages/ProjectAnalytics.tsx";
-// import DepositSlipForm from "./pages/DepositSlipForm.tsx";
-// import DepositSlipDetails from "./pages/DepositSlipDetails.tsx";
-// import TemporaryAdvance from "./pages/TemporaryAdvance.tsx";
-// import TemporaryAdvanceDetails from "./pages/application/TemporaryAdvanceDetails.tsx";
-// import AdminLogin from "./pages/AdminLogin.tsx";
-// import Profile from "./pages/Profile.tsx";
-
-// const router = createBrowserRouter(
-//     [
-//         {
-//             path: "/",
-//             element: <App />,
-//             children: [
-//                 {
-//                     path: "",
-//                     element: <LandingPage />,
-//                 },
-//                 {
-//                     path: "login",
-//                     element: <Login />,
-//                 },
-//                 {
-//                     path: "x-admin",
-//                     element: <AdminLogin />,
-//                 },
-//                 {
-//                     path: "dashboard",
-//                     element: <Dashboard />,
-//                 },
-//                 {
-//                     path: "home",
-//                     element: (
-//                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
-//                             <Home />
-//                         </AuthRouteWrapper>
-//                     ),
-//                 },
-//                 {
-//                     path: "pihomepage",
-//                     element: (
-//                         <AuthRouteWrapper allowedRole="Permanent Employee">
-//                             <PiHomePage />
-//                         </AuthRouteWrapper>
-//                     ),
-//                 },
-//                 {
-//                     path: "project-registration",
-//                     element: (
-//                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
-//                             <ProjectRegistration />
-//                         </AuthRouteWrapper>
-//                     ),
-//                 },
-//                 {
-//                     path: "project-proposal",
-//                     element: (
-//                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
-//                             <ProjectProposal />
-//                         </AuthRouteWrapper>
-//                     ),
-//                 },
-//                 {
-//                     path: "endorsement",
-//                     element: (
-//                         <AuthRouteWrapper allowedRole="Permanent Employee">
-//                             <Endorsement />
-//                         </AuthRouteWrapper>
-//                     ),
-//                 },
-//                 {
-//                     path: "projects-view",
-//                     element: (
-//                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
-//                             <ProjectsView />
-//                         </AuthRouteWrapper>
-//                     ),
-//                 },
-//                 {
-//                     path: "project-details/:projectName",
-//                     element: (
-//                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
-//                             <ProjectDetails />
-//                         </AuthRouteWrapper>
-//                     ),
-//                 },
-//                 {
-//                     path: "project-details-overview/:projectName",
-//                     element: (
-//                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
-//                             <ProjectDetailsOverview />
-//                         </AuthRouteWrapper>
-//                     ),
-//                 },
-//                 {
-//                     path: "project-ledger-full/:projectName",
-//                     element: (
-//                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
-//                             <ProjectLedgerFull />
-//                         </AuthRouteWrapper>
-//                     ),
-//                 },
-//                 {
-//                     path: "temporary-advance",
-//                     element: (
-//                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
-//                             <TemporaryAdvance />
-//                         </AuthRouteWrapper>
-//                     ),
-//                 },
-//                 {
-//                     path: "temporary-advance/:id",
-//                     element: (
-//                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
-//                             <TemporaryAdvanceDetails />
-//                         </AuthRouteWrapper>
-//                     ),
-//                 },
-//                 {
-//                     path: "pending-task",
-//                     element: (
-//                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
-//                             <PendingTask />
-//                         </AuthRouteWrapper>
-//                     ),
-//                 },
-//                 {
-//                     path: "pending-tasks/:doctype/:name",
-//                     element: (
-//                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
-//                             <PendingTaskDetails />
-//                         </AuthRouteWrapper>
-//                     ),
-//                 },
-//                 {
-//                     path: "profile",
-//                     element: (
-//                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
-//                             <Profile />
-//                         </AuthRouteWrapper>
-//                     ),
-//                 },
-//             ],
-//         },
-//     ],
-//     {
-//         basename: "/rndproj/prornd",
-//     },
-// );
-
-// createRoot(document.getElementById("root") as HTMLElement).render(
-//     <React.StrictMode>
-//         <FrappeProvider
-//             url={import.meta.env.VITE_FRAPPE_URL || "http://localhost:8000"}
-//         >
-//             <RouterProvider router={router} />
-//         </FrappeProvider>
-//     </React.StrictMode>,
-// );

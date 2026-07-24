@@ -8,13 +8,14 @@ import { cn } from '@/lib/utils';
 import { ActivityLog } from '@/components/ActivityLog';
 import { XIcon, ActivityIcon } from 'lucide-react';
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useFrappeGetCall, useFrappeAuth, useFrappeGetDocList, useFrappePostCall } from 'frappe-react-sdk';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { useUserRoles } from '../components/UserRole';
-import { selectionCandidateDetailsAPI } from '@/services/apiService';
+import { selectionCandidateDetailsAPI, selectionCommitteeReportAPI } from '@/services/apiService';
 import {
     resolveProjectCategory,
+    normalizeProjectType,
     DOCTYPE_PR_LINKS,
     type PRLinkStrategy,
     type ProjectCategory,
@@ -66,6 +67,7 @@ interface FlattenedTask {
     id: string;
     title: string;
     "Project Number": string;
+    projectNo: string;
     status: string;
     priority: string;
     creation: string;
@@ -90,6 +92,35 @@ type SCRCandidate = {
     wl_number: string;
     /** True if a Project Staff Details (joining) doc for this candidate has docstatus >= 1. */
     joining_submitted?: boolean;
+};
+
+const parseCandidateRows = (value: unknown): any[] => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === "string" && value.trim()) {
+        try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    }
+    return [];
+};
+
+const normalizeSCRCandidate = (row: any): SCRCandidate => {
+    const selectionStatus = row.selection_status || row.recommendation || "";
+    return {
+        name: row.name || row.id || "",
+        candidate_name: row.candidate_name || row.display_name || "",
+        application_id: String(row.application_id || ""),
+        candidate_id: String(row.candidate_id || ""),
+        category: row.category || "",
+        selection_status: selectionStatus,
+        appointment_order_number: row.appointment_order_number || "",
+        medical_report_number: row.medical_report_number || "",
+        joining_report_number: row.joining_report_number || "",
+        wl_number: row.wl_number || row.waitlist_no || "",
+    };
 };
 
 // ─── Hierarchical workflow button ────────────────────────────────────────────
@@ -186,10 +217,11 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost
 
 const PendingTask: React.FC = () => {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [currentPage, setCurrentPage] = useState(1);
-    const [selectedModule, setSelectedModule] = useState<string>('all');
-    const [searchQuery, setSearchQuery] = useState<string>('');
-    const [selectedProjectType, setSelectedProjectType] = useState<ProjectTypeTab>('Research');
+    const selectedModule = searchParams.get('module') ?? 'all';
+    const searchQuery = searchParams.get('q') ?? '';
+    const selectedProjectType = (searchParams.get('type') as ProjectTypeTab) ?? 'Research';
     const searchInputRef = useRef<HTMLInputElement>(null);
     const [itemsPerPage, setItemsPerPage] = useState<number>(10);
     // Activity peek panel state
@@ -199,6 +231,9 @@ const PendingTask: React.FC = () => {
     const { roles } = useUserRoles(currentUser ?? null);
     const isHeadApprover = roles?.includes("head_approver_1") ?? false;
     const isStaffRnD = roles?.includes("staff, RnD") ?? false;
+    const isPermanentEmployee = roles?.includes("Permanent Employee") ?? false;
+    const isHosRnd = roles?.includes("Hos, RnD (Head of Section, RnD)") ?? false;
+    const isAdoRnd = roles?.includes("Ado_RnD") ?? false;
     const [orderModal, setOrderModal] = useState<{
         open: boolean;
         loading: boolean;
@@ -208,12 +243,19 @@ const PendingTask: React.FC = () => {
     }>({ open: false, loading: false, error: null, scrName: '', candidates: [] });
 
     const { call: fetchCandidatesByInterview } = useFrappePostCall(selectionCandidateDetailsAPI.getByInterview);
+    const { call: fetchSCRFields } = useFrappePostCall<{ message: any }>(selectionCommitteeReportAPI.getFields);
     const { call: fetchPSDList } = useFrappePostCall<{ message: Array<{
         ps_first_name?: string;
         ps_middle_name?: string;
         ps_last_name?: string;
         docstatus?: number;
         workflow_state?: string;
+    }> }>('frappe.client.get_list');
+    const { call: fetchSCDList } = useFrappePostCall<{ message: Array<{
+        application_id?: string;
+        candidate_id?: string;
+        appointment_order_number?: string;
+        medical_report_number?: string;
     }> }>('frappe.client.get_list');
 
     // Best-effort match: normalize spaces & case so "Anil  Kumar" === "anil kumar".
@@ -228,7 +270,53 @@ const PendingTask: React.FC = () => {
                 setOrderModal(prev => ({ ...prev, loading: false, error: res.message.message || 'Failed to fetch candidates.' }));
                 return;
             }
-            const candidates: SCRCandidate[] = Array.isArray(res?.message?.data) ? res.message.data : [];
+            let candidates: SCRCandidate[] = Array.isArray(res?.message?.data) ? res.message.data : [];
+
+            if (candidates.length === 0) {
+                try {
+                    const scrRes = await fetchSCRFields({ doc_name: taskId });
+                    const prefill = scrRes?.message?.prefill_data || {};
+                    const savedRows = parseCandidateRows(prefill.candidates);
+                    candidates = savedRows
+                        .filter((row) => {
+                            const status = String(row.recommendation || row.selection_status || "").trim().toLowerCase();
+                            return status === "recommended";
+                        })
+                        .map(normalizeSCRCandidate);
+                } catch (scrErr) {
+                    console.error("Failed to fetch SCR candidate rows:", scrErr);
+                }
+
+                // Enrich fallback candidates with appointment_order_number and
+                // medical_report_number from Selection Candidate Details, since
+                // those fields are not stored on the SCR candidates table itself.
+                if (candidates.length > 0) {
+                    try {
+                        const scdRes = await fetchSCDList({
+                            doctype: 'Selection Candidate Details',
+                            filters: JSON.stringify([['scr_id', '=', taskId]]),
+                            fields: JSON.stringify(['application_id', 'candidate_id', 'appointment_order_number', 'medical_report_number']),
+                            limit_page_length: 0,
+                        });
+                        const scdRows = scdRes?.message ?? [];
+                        if (scdRows.length > 0) {
+                            const byAppId = new Map(scdRows.map(r => [String(r.application_id ?? ''), r]));
+                            const byCandId = new Map(scdRows.map(r => [String(r.candidate_id ?? ''), r]));
+                            candidates = candidates.map(c => {
+                                const scd = byAppId.get(String(c.application_id)) ?? byCandId.get(String(c.candidate_id));
+                                if (!scd) return c;
+                                return {
+                                    ...c,
+                                    appointment_order_number: scd.appointment_order_number || c.appointment_order_number,
+                                    medical_report_number: scd.medical_report_number || c.medical_report_number,
+                                };
+                            });
+                        }
+                    } catch {
+                        /* enrichment failure is non-fatal */
+                    }
+                }
+            }
 
             // Enrich with joining-submitted status by name-matching Project Staff Details
             // rows that share this SCR. Falls back silently if the lookup fails.
@@ -288,6 +376,18 @@ const PendingTask: React.FC = () => {
         return new Set(headApproverProjects.map((p: { name: string }) => p.name));
     }, [isHeadApprover, headApproverProjects]);
 
+    // Fetch Leave Module names where pi matches current user (PI sees only their assigned leaves)
+    const { data: piLeaveModules } = useFrappeGetDocList("Leave Module", {
+        filters: [["pi", "=", currentUser ?? ""]],
+        fields: ["name"],
+        limit: 500,
+    }, isPermanentEmployee && !!currentUser ? undefined : null);
+
+    const allowedLeaveNames = React.useMemo(() => {
+        if (!isPermanentEmployee || !piLeaveModules) return null;
+        return new Set(piLeaveModules.map((l: { name: string }) => l.name));
+    }, [isPermanentEmployee, piLeaveModules]);
+
     // prNameToType: PR document name (auto-id) → raw project_type
     // prNoToType:   PR project_no (human-readable) → raw project_type
     const { prNameToType, prNoToType } = React.useMemo(() => {
@@ -313,39 +413,70 @@ const PendingTask: React.FC = () => {
 
         const tasks: FlattenedTask[] = [];
         data.message.results.forEach((group) => {
-            if (group.mod_vis || group.doctype === "Advance Settlement") {
-                group.records.forEach((record) => {
-                    if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name)) {
-                        return;
-                    }
-                    if (
-                        record.status === "Endorsement Approved" ||
-                        record.status === "Sanction Approved"
-                    ) {
-                        return;
-                    }
-                    tasks.push({
-                        id: record.name,
-                        title: record.title,
-                        "Project Number": record.name,
-                        status: record.status,
-                        priority: 'Medium',
-                        creation: record.creation,
-                        modified: record.modified,
-                        owner: record.owner,
-                        doctype: group.doctype,
-                        project_type: resolveProjectCategory(
-                            record as unknown as Record<string, unknown>,
-                            group.doctype,
-                            prNameToType,
-                            prNoToType,
-                        ),
-                    });
+            // HoS users: also include records from mod_vis=0 groups if status is "Pending HoS Approval"
+            const shouldIncludeGroup = group.mod_vis || group.doctype === "Advance Settlement";
+            group.records.forEach((record) => {
+                const isHosPendingRecord = record.status === "Pending HoS Approval";
+                // Include if: normal group OR HoS user with a HoS-specific record
+                if (!shouldIncludeGroup && !(isHosRnd && isHosPendingRecord)) return;
+
+                if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name) && !(isHosRnd && isHosPendingRecord)) {
+                    return;
+                }
+                if (isPermanentEmployee && group.doctype === "Leave Module" && record.status === "Pending PI Approval" && allowedLeaveNames && !allowedLeaveNames.has(record.name)) {
+                    return;
+                }
+                if (record.status === "Endorsement Approved") {
+                    return;
+                }
+                if (
+                    record.status === "Sanction Approved" &&
+                    group.doctype !== "Direct Purchase"
+                ) {
+                    return;
+                }
+                // HoS users should not see Associate Dean tasks
+                if (isHosRnd && !isAdoRnd && record.status === "Pending Associate Dean") {
+                    return;
+                }
+                // ADO users should not see HoS-only tasks
+                if (isAdoRnd && !isHosRnd && record.status === "Pending HoS Approval") {
+                    return;
+                }
+                const projectNo =
+                    record.project_no ||
+                    record.project_number ||
+                    record.project_ref_number ||
+                    record.project_code ||
+                    record.project_id ||
+                    record.prj_num ||
+                    record.travel_project_number ||
+                    record.igf_project_code ||
+                    record.upfa_project_code ||
+                    "";
+
+                tasks.push({
+                    id: record.name,
+                    title: record.title,
+                    "Project Number": record.name,
+                    projectNo,
+                    status: record.status,
+                    priority: 'Medium',
+                    creation: record.creation,
+                    modified: record.modified,
+                    owner: record.owner,
+                    doctype: group.doctype,
+                    project_type: resolveProjectCategory(
+                        record as unknown as Record<string, unknown>,
+                        group.doctype,
+                        prNameToType,
+                        prNoToType,
+                    ),
                 });
-            }
+            });
         });
         return tasks;
-    }, [data, isHeadApprover, allowedProjectNames, prNameToType, prNoToType]);
+    }, [data, isHeadApprover, allowedProjectNames, prNameToType, prNoToType, isPermanentEmployee, allowedLeaveNames, isHosRnd, isAdoRnd]);
 
     // Phase-2: secondary fetch to resolve project_type from each doctype's actual link fields.
     // The pending-task API only returns basic fields (name, title, status…), so link fields
@@ -413,6 +544,143 @@ const PendingTask: React.FC = () => {
         }),
         [allTasks, resolvedProjectTypes]);
 
+    // Phase-2b: resolve project_no and project_type for Top Up Fellowship tasks.
+    // Top Up Fellowship only has a `project_no` field (no `project_code` Link field
+    // exists on this DocType) — fetch it directly, then resolve project_type via
+    // the PR record matching that project_no.
+    const [tufProjectNos, setTufProjectNos] = React.useState<Map<string, string>>(new Map());
+    React.useEffect(() => {
+        const tufIds = allTasks
+            .filter(t => t.doctype === "Top Up Fellowship")
+            .map(t => t.id);
+        if (!tufIds.length) return;
+
+        const params = new URLSearchParams({
+            fields: JSON.stringify(["name", "project_no"]),
+            filters: JSON.stringify([["name", "in", tufIds.join(",")]]),
+            limit: String(tufIds.length),
+        });
+
+        fetch(`/api/resource/Top%20Up%20Fellowship?${params}`, { credentials: "include" })
+            .then(r => r.json())
+            .then(async (result) => {
+                const tufDocs: any[] = result?.data ?? [];
+                const noMap = new Map<string, string>();
+                tufDocs.forEach((rec: any) => {
+                    if (rec.project_no) noMap.set(rec.name, rec.project_no);
+                });
+
+                // Resolve project_type via the PR docs matching those project_no values
+                const projectNos = [...new Set(tufDocs.map(rec => rec.project_no).filter(Boolean))];
+                if (projectNos.length > 0) {
+                    const prParams = new URLSearchParams({
+                        fields: JSON.stringify(["name", "project_no", "project_type"]),
+                        filters: JSON.stringify([["project_no", "in", projectNos.join(",")]]),
+                        limit: String(projectNos.length),
+                    });
+                    try {
+                        const prRes = await fetch(`/api/resource/Project%20Registration?${prParams}`, { credentials: "include" });
+                        const prResult = await prRes.json();
+                        const typeByProjectNo = new Map<string, string>();
+                        (prResult?.data ?? []).forEach((pr: any) => {
+                            if (pr.project_no && pr.project_type) typeByProjectNo.set(pr.project_no, pr.project_type);
+                        });
+
+                        const typeMap = new Map<string, ProjectCategory>();
+                        tufDocs.forEach((rec: any) => {
+                            const rawType = rec.project_no ? typeByProjectNo.get(rec.project_no) : undefined;
+                            if (rawType) typeMap.set(rec.name, normalizeProjectType(rawType));
+                        });
+                        if (typeMap.size > 0) setResolvedProjectTypes(prev => new Map([...prev, ...typeMap]));
+                    } catch { /* non-critical */ }
+                }
+
+                if (noMap.size > 0) setTufProjectNos(noMap);
+            })
+            .catch(() => {});
+    }, [allTasks]);
+
+    // Phase-2c: fetch project_no for PSD tasks, then resolve project title from Project Registration
+    const [psdProjectNos, setPsdProjectNos] = React.useState<Map<string, string>>(new Map());
+    const [psdProjectTitles, setPsdProjectTitles] = React.useState<Map<string, string>>(new Map());
+    React.useEffect(() => {
+        const psdIds = allTasks
+            .filter(t => t.doctype === "Project Staff Details")
+            .map(t => t.id);
+        if (!psdIds.length) return;
+
+        const params = new URLSearchParams({
+            fields: JSON.stringify(["name", "project_no"]),
+            filters: JSON.stringify([["name", "in", psdIds.join(",")]]),
+            limit: String(psdIds.length),
+        });
+
+        fetch(`/api/resource/Project%20Staff%20Details?${params}`, { credentials: "include" })
+            .then(r => r.json())
+            .then(async (result) => {
+                const docs: any[] = result?.data ?? [];
+                const noMap = new Map<string, string>();
+                docs.forEach((rec: any) => { if (rec.project_no) noMap.set(rec.name, rec.project_no); });
+                if (noMap.size > 0) setPsdProjectNos(new Map(noMap));
+
+                // Resolve project titles from Project Registration using project_no values
+                const projectNos = [...new Set(docs.map((r: any) => r.project_no).filter(Boolean))];
+                if (!projectNos.length) return;
+
+                const prParams = new URLSearchParams({
+                    fields: JSON.stringify(["project_no", "project_title"]),
+                    filters: JSON.stringify([["project_no", "in", projectNos.join(",")]]),
+                    limit: String(projectNos.length),
+                });
+                const prRes = await fetch(`/api/resource/Project%20Registration?${prParams}`, { credentials: "include" });
+                const prResult = await prRes.json();
+                const titleByNo = new Map<string, string>();
+                (prResult?.data ?? []).forEach((pr: any) => {
+                    if (pr.project_no && pr.project_title) titleByNo.set(pr.project_no, pr.project_title);
+                });
+
+                const titleMap = new Map<string, string>();
+                docs.forEach((rec: any) => {
+                    const title = rec.project_no ? titleByNo.get(rec.project_no) : undefined;
+                    if (title) titleMap.set(rec.name, title);
+                });
+                if (titleMap.size > 0) setPsdProjectTitles(new Map(titleMap));
+            })
+            .catch(() => {});
+    }, [allTasks]);
+
+    // Phase-3: fetch director_signed_pdf for all doctypes that support Director Approval flow
+    const DIRECTOR_PDF_DOCTYPES = ["Indent General Form", "Selection Committee Report", "Indent Cum Sanction Sheet"];
+    const [directorPdfStatus, setDirectorPdfStatus] = React.useState<Map<string, boolean>>(new Map());
+    React.useEffect(() => {
+        const byDoctype = new Map<string, string[]>();
+        allTasks
+            .filter(t => t.status === "Pending Director Approval" && DIRECTOR_PDF_DOCTYPES.includes(t.doctype))
+            .forEach(t => {
+                if (!byDoctype.has(t.doctype)) byDoctype.set(t.doctype, []);
+                byDoctype.get(t.doctype)!.push(t.id);
+            });
+        if (!byDoctype.size) return;
+
+        const combined = new Map<string, boolean>();
+        const fetches = Array.from(byDoctype.entries()).map(([doctype, ids]) => {
+            const params = new URLSearchParams({
+                fields: JSON.stringify(["name", "director_signed_pdf"]),
+                filters: JSON.stringify([["name", "in", ids.join(",")]]),
+                limit: String(ids.length),
+            });
+            return fetch(`/api/resource/${encodeURIComponent(doctype)}?${params}`, { credentials: "include" })
+                .then(r => r.json())
+                .then(result => {
+                    (result?.data ?? result?.message ?? []).forEach((rec: any) => {
+                        combined.set(rec.name, !!rec.director_signed_pdf);
+                    });
+                })
+                .catch(() => {});
+        });
+        Promise.all(fetches).then(() => setDirectorPdfStatus(new Map(combined)));
+    }, [allTasks]);
+
     const visibleTasks = React.useMemo(() =>
         resolvedTasks.filter(task => !(task.project_type === 'Others' && HIDDEN_OTHERS_DOCTYPES.has(task.doctype))),
         [resolvedTasks]);
@@ -438,12 +706,17 @@ const PendingTask: React.FC = () => {
         }
         if (searchQuery.trim()) {
             const q = searchQuery.toLowerCase().trim();
-            tasks = tasks.filter(task =>
-                task.title?.toLowerCase().includes(q) ||
-                task["Project Number"]?.toLowerCase().includes(q) ||
-                task.owner?.toLowerCase().includes(q) ||
-                task.doctype?.toLowerCase().includes(q)
-            );
+            tasks = tasks.filter(task => {
+                const ownerUsername = task.owner?.split("@")[0]?.toLowerCase() ?? "";
+                return (
+                    task.title?.toLowerCase().includes(q) ||
+                    task["Project Number"]?.toLowerCase().includes(q) ||
+                    task.projectNo?.toLowerCase().includes(q) ||
+                    task.owner?.toLowerCase().includes(q) ||
+                    ownerUsername.includes(q) ||
+                    task.doctype?.toLowerCase().includes(q)
+                );
+            });
         }
         return tasks;
     }, [visibleTasks, selectedProjectType, selectedModule, searchQuery]);
@@ -456,33 +729,23 @@ const PendingTask: React.FC = () => {
     const handlePageChange = (pageNumber: number) => setCurrentPage(pageNumber);
 
     const handleProjectTypeChange = (tab: ProjectTypeTab) => {
-        setSelectedProjectType(tab);
-        setSelectedModule('all');
+        setSearchParams(prev => { prev.set('type', tab); prev.delete('module'); prev.delete('q'); return prev; });
         setCurrentPage(1);
     };
 
     const handleModuleChange = (module: string) => {
-        setSelectedModule(module);
+        setSearchParams(prev => { module === 'all' ? prev.delete('module') : prev.set('module', module); return prev; });
         setCurrentPage(1);
     };
 
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setSearchQuery(e.target.value);
+        setSearchParams(prev => { e.target.value ? prev.set('q', e.target.value) : prev.delete('q'); return prev; });
         setCurrentPage(1);
     };
 
     const handleClearSearch = () => {
-        setSearchQuery('');
+        setSearchParams(prev => { prev.delete('q'); return prev; });
         searchInputRef.current?.focus();
-    };
-
-    const getPriorityBadge = (priority: string) => {
-        const styles: Record<string, string> = {
-            High: 'bg-red-50 text-red-700 border-red-200',
-            Medium: 'bg-amber-50 text-amber-700 border-amber-200',
-            Low: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-        };
-        return cn("px-2 py-0.5 rounded-full text-[10px] font-medium border", styles[priority] || 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700');
     };
 
     const getStatusBadge = (status: string) => {
@@ -556,6 +819,19 @@ const PendingTask: React.FC = () => {
                             <h1 className="mt-1 font-sans text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Pending Tasks</h1>
                             <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">Manage and track pending approvals.</p>
                         </div>
+                    </div>
+                </div>
+
+                {/* Info banner */}
+                <div className="mb-5 flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-800/50 dark:bg-blue-950/30">
+                    <div className="mt-0.5 flex-shrink-0 flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/40">
+                        <svg className="h-4 w-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p className="text-[13px] font-bold text-blue-800 dark:text-blue-300">All form processing must be done from this page.</p>
+                        <p className="mt-0.5 text-[12px] font-medium leading-5 text-blue-700 dark:text-blue-400">Approvals, forwarding, and all workflow actions are only available here in Pending Tasks. Open a task and use the action buttons to process it.</p>
                     </div>
                 </div>
 
@@ -644,7 +920,7 @@ const PendingTask: React.FC = () => {
                                 ref={searchInputRef}
                                 type="text"
                                 id="task-search"
-                                placeholder="Search tasks..."
+                                placeholder="Search by title, project no., owner…"
                                 value={searchQuery}
                                 onChange={handleSearchChange}
                                 className="h-10 pl-9 pr-9 w-56 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-200 shadow-sm transition-all"
@@ -693,7 +969,6 @@ const PendingTask: React.FC = () => {
                                     <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Project No.</th>
                                     <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
                                     <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Owner</th>
-                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Priority</th>
                                     <th className="px-4 py-3 text-end text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
                                 </tr>
                             </thead>
@@ -705,6 +980,14 @@ const PendingTask: React.FC = () => {
                                                 <span className={getStatusBadge(task.status)}>
                                                     {task.status}
                                                 </span>
+                                                {task.status === "Pending Director Approval" &&
+                                                    DIRECTOR_PDF_DOCTYPES.includes(task.doctype) &&
+                                                    directorPdfStatus.get(task.id) && (
+                                                    <span className="mt-1.5 flex items-center gap-1 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
+                                                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                        Director Approval Uploaded
+                                                    </span>
+                                                )}
                                             </td>
                                             <td className="p-3 align-middle text-zinc-600 dark:text-zinc-400 font-medium">
                                                 {task.doctype}
@@ -715,12 +998,15 @@ const PendingTask: React.FC = () => {
                                                     onClick={() => setSelectedTask({ doctype: task.doctype, docname: task.id, title: task.title })}
                                                     title="Click to preview activity log"
                                                 >
-                                                    {task.title.length > 40 ? `${task.title.substring(0, 40)}...` : task.title}
+                                                    {(() => {
+                                                        const display = psdProjectTitles.get(task.id) || task.title;
+                                                        return display.length > 40 ? `${display.substring(0, 40)}...` : display;
+                                                    })()}
                                                     <ActivityIcon className="w-3.5 h-3.5 opacity-0 group-hover/title:opacity-100 text-[#D97757] flex-shrink-0 transition-opacity" />
                                                 </button>
                                             </td>
                                             <td className="p-3 align-middle font-mono text-zinc-500 dark:text-zinc-400 text-xs">
-                                                {task["Project Number"]}
+                                                {psdProjectNos.get(task.id) || task.projectNo || tufProjectNos.get(task.id) || task["Project Number"]}
                                             </td>
                                             <td className="p-3 align-middle text-zinc-500 dark:text-zinc-400">
                                                 {task.creation ? new Date(task.creation).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "-"}
@@ -732,11 +1018,6 @@ const PendingTask: React.FC = () => {
                                                     </div>
                                                     <span className="truncate max-w-[100px]">{task.owner}</span>
                                                 </div>
-                                            </td>
-                                            <td className="p-3 align-middle">
-                                                <span className={getPriorityBadge(task.priority)}>
-                                                    {task.priority}
-                                                </span>
                                             </td>
                                             <td className="p-3 align-middle text-right">
                                                 <div className="flex items-center justify-end gap-2">
@@ -761,6 +1042,12 @@ const PendingTask: React.FC = () => {
                                                                 navigate(`/selection-committee-report/${task.id}`);
                                                             } else if (task.doctype === "Project Staff Details") {
                                                                 navigate(`/project-staff-joining?docname=${encodeURIComponent(task.id)}`);
+                                                            } else if (task.doctype === "Project Staff Resignation") {
+                                                                navigate(`/project-staff-resignation?edit=${encodeURIComponent(task.id)}`);
+                                                            } else if (task.doctype === "Miscellaneous Commit") {
+                                                                navigate(`/miscellaneous-commit/${task.id}`);
+                                                            } else if (task.doctype === "Loan Request") {
+                                                                navigate(`/loan-request/${task.id}`);
                                                             } else {
                                                                 navigate(`/pending-tasks/${task.doctype}/${task.id}`);
                                                             }
@@ -786,7 +1073,7 @@ const PendingTask: React.FC = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={8} className="p-12 text-center text-zinc-500 dark:text-zinc-400">
+                                        <td colSpan={7} className="p-12 text-center text-zinc-500 dark:text-zinc-400">
                                             No pending tasks found matching your criteria.
                                         </td>
                                     </tr>
@@ -921,7 +1208,7 @@ const PendingTask: React.FC = () => {
                                                 />
                                                 <WorkflowButton
                                                     state={wf.join}
-                                                    label="Join"
+                                                    label={wf.join === 'completed' ? 'Joined' : 'Join'}
                                                     onClick={() => navigate(`/project-staff-joining?${qs}`)}
                                                     title={wf.join === 'disabled' ? 'Save the Appointment Order number first' : undefined}
                                                 />
@@ -990,6 +1277,12 @@ const PendingTask: React.FC = () => {
                                 setSelectedTask(null);
                                 if (selectedTask.doctype === "Project Staff Details") {
                                     navigate(`/project-staff-joining?docname=${encodeURIComponent(selectedTask.docname)}`);
+                                } else if (selectedTask.doctype === "Project Staff Resignation") {
+                                    navigate(`/project-staff-resignation?edit=${encodeURIComponent(selectedTask.docname)}`);
+                                } else if (selectedTask.doctype === "Miscellaneous Commit") {
+                                    navigate(`/miscellaneous-commit/${selectedTask.docname}`);
+                                } else if (selectedTask.doctype === "Loan Request") {
+                                    navigate(`/loan-request/${selectedTask.docname}`);
                                 } else {
                                     navigate(`/pending-tasks/${encodeURIComponent(selectedTask.doctype)}/${selectedTask.docname}`);
                                 }

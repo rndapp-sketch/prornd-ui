@@ -74,6 +74,8 @@ export interface DynamicFormRendererProps {
   readOnly?: boolean;
   /** Fieldnames that should render as searchable autocomplete instead of a plain select dropdown */
   autocompleteFields?: string[];
+  /** Per-field async search functions — when provided for a field, enables real-time backend search */
+  asyncSearchFields?: Record<string, (query: string) => Promise<LinkOption[]>>;
   /** Field-level validation messages to display below specific fields */
   fieldMessages?: Record<string, FieldMessage>;
   /** Hide section-break headers when this renderer is embedded inside an already titled card */
@@ -169,6 +171,7 @@ const MemoizedFormField = memo(
     onFileChange,
     onFieldChangeWithSideEffects,
     isAutocomplete,
+    asyncSearchFn,
   }: {
     field: FormField;
     value: any;
@@ -179,6 +182,7 @@ const MemoizedFormField = memo(
     onFileChange: (fieldname: string, file: File | null) => void;
     onFieldChangeWithSideEffects?: (fieldname: string, value: any) => void;
     isAutocomplete?: boolean;
+    asyncSearchFn?: (query: string) => Promise<LinkOption[]>;
   }) => {
     if (
       !field.label &&
@@ -218,10 +222,13 @@ const MemoizedFormField = memo(
         case "Link":
           // If the field is read-only, render it as plain text finding the label from options
           if (isReadOnly) {
-            const readOnlyLabel = options?.find((opt) => opt.value === value)?.label || value;
+            const resolvedLabel = options?.find((opt) => opt.value === value)?.label;
+            const hasResolvedLabel = !!resolvedLabel && resolvedLabel !== value;
             return (
-              <div className="flex h-10 w-full rounded-md border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]/60 px-3 py-2 text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5]">
-                {(field.fieldname === "department" ||
+              <div className="flex min-h-10 w-full rounded-md border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]/60 px-3 py-2 text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5] whitespace-normal break-words leading-relaxed">
+                {hasResolvedLabel ? (
+                  resolvedLabel
+                ) : (field.fieldname === "department" ||
                   field.fieldname === "department_for" ||
                   field.fieldname === "upfa_department" ||
                   field.fieldname === "ps_department" ||
@@ -233,24 +240,26 @@ const MemoizedFormField = memo(
                 ) : (field.fieldname === "account_head" || field.fieldname === "igf_account_head") && value ? (
                   <BudgetHeadName id={value} />
                 ) : (
-                  readOnlyLabel || "-"
+                  resolvedLabel || value || "-"
                 )}
               </div>
             );
           }
 
-          // Render searchable autocomplete for fields marked via autocompleteFields prop
-          if (isAutocomplete && options && options.length > 0) {
+          // Render searchable autocomplete — async (real-time) or static
+          if (asyncSearchFn || (isAutocomplete && options && options.length > 0)) {
             return (
               <div className="relative flex flex-col pt-1">
                 <AutocompleteEmail
                   className={inputClasses}
                   value={value ?? ""}
                   onChange={(val) => handleChange(field.fieldname, val)}
-                  options={options}
+                  options={options ?? []}
                   searchByLabel
-                  placeholder={`Enter ${displayLabel}...`}
+                  showAllOnFocus
+                  placeholder={`Search ${displayLabel}...`}
                   disabled={isReadOnly}
+                  onAsyncSearch={asyncSearchFn}
                 />
               </div>
             );
@@ -612,10 +621,13 @@ const MemoizedFormField = memo(
           );
 
         case "Read Only":
-          const readOnlyLabel = options?.find(opt => opt.value === value)?.label || value;
+          const readOnlyResolvedLabel = options?.find(opt => opt.value === value)?.label;
+          const readOnlyHasResolved = !!readOnlyResolvedLabel && readOnlyResolvedLabel !== value;
           return (
-            <div className="flex h-10 w-full rounded-md border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 px-3 py-2 text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5]">
-              {(field.fieldname === "department" ||
+            <div className="flex min-h-10 w-full rounded-md border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 px-3 py-2 text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5] whitespace-normal break-words leading-relaxed">
+              {readOnlyHasResolved ? (
+                readOnlyResolvedLabel
+              ) : (field.fieldname === "department" ||
                 field.fieldname === "department_for" ||
                 field.fieldname === "upfa_department" ||
                 field.fieldname === "ps_department" ||
@@ -626,7 +638,7 @@ const MemoizedFormField = memo(
               ) : field.fieldname === "account_head" && value ? (
                 <BudgetHeadName id={value} />
               ) : (
-                readOnlyLabel || "-"
+                readOnlyResolvedLabel || value || "-"
               )}
             </div>
           );
@@ -697,6 +709,57 @@ const MemoizedFormField = memo(
                 onChange={(val) => handleChange(field.fieldname, val)}
                 disabled={isReadOnly}
               />
+            );
+          }
+
+          // Department Data fields store the Frappe doc name (ID) — use DepartmentName to resolve in read-only mode
+          if (
+            isReadOnly &&
+            value &&
+            (field.fieldname === "department" ||
+              field.fieldname === "department_for" ||
+              field.fieldname === "upfa_department" ||
+              field.fieldname === "ps_department" ||
+              field.fieldname === "implementation_department" ||
+              field.fieldname === "applicant_department")
+          ) {
+            return (
+              <div className="flex min-h-10 w-full rounded-md border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]/60 px-3 py-2 text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5] whitespace-normal break-words leading-relaxed">
+                <DepartmentName name={value} />
+              </div>
+            );
+          }
+
+          // If linkOptions are available for this Data field (e.g. local_supplier),
+          // render as a select dropdown so the user can choose from the list.
+          if (options && options.length > 1) {
+            if (isReadOnly) {
+              const resolvedLabel = options.find((o) => o.value === value || o.label === value)?.label;
+              return (
+                <div className="flex min-h-10 w-full rounded-md border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]/60 px-3 py-2 text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5] whitespace-normal break-words leading-relaxed">
+                  {resolvedLabel || value || "-"}
+                </div>
+              );
+            }
+            // formData stores the human-readable name; find the matching option
+            // by label so the <select> controlled value reflects the selection.
+            const selectedId =
+              options.find((o) => o.label === value || o.value === value)?.value ?? "";
+            return (
+              <div className="relative flex flex-col pt-1">
+                <select
+                  {...commonProps}
+                  value={selectedId}
+                  onChange={(e) => handleChange(field.fieldname, e.target.value)}
+                >
+                  <option value="">Select...</option>
+                  {options.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label ?? opt.value}
+                    </option>
+                  ))}
+                </select>
+              </div>
             );
           }
           return (
@@ -819,6 +882,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   onTableLinkChange,
   readOnly = false,
   autocompleteFields,
+  asyncSearchFields,
   fieldMessages,
   hideSectionHeaders = false,
   hideTableLabels = false,
@@ -961,15 +1025,40 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         <MemoizedFormField
           field={field}
           value={formData[field.fieldname]}
-          options={
-            linkOptions[field.options as string] || linkOptions[field.fieldname]
-          }
+          options={(() => {
+            const byDoctype = linkOptions[field.options as string] || [];
+            const byFieldname = linkOptions[field.fieldname] || [];
+            const map = new Map<string, LinkOption>();
+            byDoctype.forEach((opt) => map.set(opt.value, opt));
+            byFieldname.forEach((opt) => {
+              const existing = map.get(opt.value);
+              if (
+                !existing ||
+                (opt.label !== opt.value &&
+                  existing.label === existing.value)
+              ) {
+                map.set(opt.value, opt);
+              }
+            });
+            const rawVal = formData[field.fieldname];
+            const frappeDisplayName = formData[`${field.fieldname}_name`];
+            if (rawVal && frappeDisplayName) {
+              const key = String(rawVal);
+              const existing = map.get(key);
+              if (!existing || existing.label === existing.value) {
+                map.set(key, { value: key, label: String(frappeDisplayName) });
+              }
+            }
+            const merged = Array.from(map.values());
+            return merged.length ? merged : undefined;
+          })()}
           isMandatory={isMandatory}
           isReadOnly={fieldIsReadOnly}
           onChange={onChange}
           onFileChange={onFileChange}
           onFieldChangeWithSideEffects={onFieldChangeWithSideEffects}
           isAutocomplete={autocompleteFields?.includes(field.fieldname)}
+          asyncSearchFn={asyncSearchFields?.[field.fieldname]}
         />
         {fieldMsg && (
           <div

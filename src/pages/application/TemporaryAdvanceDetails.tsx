@@ -1,29 +1,38 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AppSidebar } from "../../components/RndSidebar";
-import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
-import { cn } from '@/lib/utils';
-import { CalendarIcon, UserIcon, EditIcon, Wallet as WalletIcon } from "lucide-react";
-import { PageHeader } from '@/components/common/PageHeader';
-import { GlobalLoader } from '@/components/ui/global-loader';
-import { Textarea } from '@/components/ui/textarea';
-import TemporaryAdvanceActionButtons from '../../components/TemporaryAdvanceActionButtons';
-import { ToWords } from 'to-words';
-import { DepartmentName } from '@/components/DepartmentName';
-import { useProjectBudget } from '@/hooks/useProjectBudget';
-import { useUserRoles } from '../../components/UserRole';
-import { ProjectLedgerModal } from '../../components/ProjectLedgerModal';
-import { DeclarationFields } from '@/components/DeclarationFields';
-import { CommitPayment } from '@/components/CommitPayment';
-import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButton';
+import {
+    useFrappePostCall,
+    useFrappeGetCall,
+    useFrappeAuth,
+} from "frappe-react-sdk";
+import { cn } from "@/lib/utils";
+import {
+    CalendarIcon,
+    UserIcon,
+    FileTextIcon,
+    CheckCircle2 as CheckCircleIcon,
+    XCircle as XCircleIcon,
+    ChevronDown,
+    ChevronRight,
+    Pencil as PencilIcon,
+    AlertTriangle,
+    FileSpreadsheetIcon as LedgerIcon,
+} from "lucide-react";
+import { PageHeader } from "@/components/common/PageHeader";
+import { GlobalLoader } from "@/components/ui/global-loader";
+import { useProjectBudget } from "@/hooks/useProjectBudget";
+import { useUserRoles } from "../../components/UserRole";
+import { ProjectLedgerModal } from "../../components/ProjectLedgerModal";
+import { CommitPayment } from "@/components/CommitPayment";
+import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
+import ViewProjectButton from "@/components/ViewProjectButton";
+import { ToWords } from "to-words";
+import { DynamicFormRenderer, type FormField, type LinkOption } from "@/components/forms/DynamicFormRenderer";
+import { temporaryAdvanceAPI } from "@/services/apiService";
 
-// Initialize ToWords converter
-const toWords = new ToWords({
-    localeCode: 'en-IN',
-    converterOptions: {
-        ignoreDecimal: false
-    }
-});
+const toWords = new ToWords({ localeCode: "en-IN", converterOptions: { ignoreDecimal: false } });
 
 // --- TYPE DEFINITIONS ---
 interface TemporaryAdvanceData {
@@ -34,38 +43,69 @@ interface TemporaryAdvanceData {
     workflow_state: string;
     project_code: string;
     project_name?: string;
-    amount_applied: number;
-    advance_for_id: string;
-    advance_for_department: string;
-    advance_for_designation: string;
-    applicant_webmail: string;
-    applicant_department: string;
-    applicant_designation: string;
+    amount?: number;
+    amount_applied?: number;
+    amount_in_words?: string;
+    account_head?: string;
+    applying_for_select?: string;
+    advance_for_id?: string;
+    advance_for_department?: string;
+    advance_for_designation?: string;
+    applicant_webmail?: string;
+    applicant_department?: string;
+    applicant_designation?: string;
+    applicant_category?: string;
+    bank_name?: string;
+    account?: string;
+    bank_account_number?: string;
+    ifsc_code?: string;
+    justification?: string;
     reason?: string;
     purpose?: string;
+    documents?: string;
+    comments?: string;
+    declaration_settlement?: 0 | 1;
+    declaration_rate_contract?: 0 | 1;
     [key: string]: any;
 }
 
-// Frappe-styled components
-const FrappeCard = ({ title, children, className = '' }: { title?: string; children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm overflow-hidden", className)}>
+// --- DESIGN SYSTEM ---
+const FrappeCard = ({
+    title,
+    children,
+    className = "",
+}: {
+    title?: string;
+    children: React.ReactNode;
+    className?: string;
+}) => (
+    <div className={cn(
+        "bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm overflow-hidden",
+        className,
+    )}>
         {title && (
             <div className="px-[22px] py-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
-                <h3 className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">{title}</h3>
+                <h3 className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">
+                    {title}
+                </h3>
             </div>
         )}
-        <div className="p-[18px] md:p-6">
-            {children}
-        </div>
+        <div className="p-[18px] md:p-6">{children}</div>
     </div>
 );
 
-const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost' }: {
+const FrappeButton = ({
+    children,
+    onClick,
+    disabled,
+    className,
+    variant = "ghost",
+}: {
     children: React.ReactNode;
     onClick?: () => void;
     disabled?: boolean;
     className?: string;
-    variant?: 'primary' | 'ghost' | 'outline' | 'action';
+    variant?: "primary" | "ghost" | "outline" | "action";
 }) => (
     <button
         onClick={onClick}
@@ -73,585 +113,646 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost
         className={cn(
             "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-150",
             "focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500",
-            variant === 'primary' && "bg-[#D97757] text-white hover:bg-[#D97757] shadow-md hover:shadow-lg border border-[#C66A4E]",
-            variant === 'ghost' && "bg-transparent text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]",
-            variant === 'outline' && "bg-white border border-[#E4E4E7] text-[#3F3F46] hover:bg-[#FAFAF9] rounded-lg dark:bg-[#27272A] dark:border-[#3F3F46] dark:text-[#E4E4E7] dark:hover:bg-[#3F3F46]",
-            variant === 'action' && "bg-[#D97757] text-white font-bold hover:bg-[#D97757] shadow-md hover:shadow-lg border-2 border-[#C66A4E]",
+            variant === "primary" && "bg-[#D97757] text-white hover:bg-[#D97757] shadow-md hover:shadow-lg border border-[#C66A4E]",
+            variant === "ghost" && "bg-transparent text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]",
+            variant === "outline" && "bg-white border border-[#E4E4E7] text-[#3F3F46] hover:bg-[#FAFAF9] rounded-lg dark:bg-[#27272A] dark:border-[#3F3F46] dark:text-[#E4E4E7] dark:hover:bg-[#3F3F46]",
+            variant === "action" && "bg-[#D97757] text-white font-bold hover:bg-[#D97757] shadow-md hover:shadow-lg border-2 border-[#C66A4E]",
             "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
-            className
+            className,
         )}
     >
         {children}
     </button>
 );
 
+const FieldLabel = ({ children }: { children: React.ReactNode }) => (
+    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">
+        {children}
+    </label>
+);
+
+const FieldValue = ({ children }: { children: React.ReactNode }) => (
+    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{children}</div>
+);
+
+// --- COMMENT MODAL ---
+const CommentModal = ({
+    isOpen,
+    onClose,
+    onSubmit,
+    action,
+    isLoading,
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    onSubmit: (comment: string) => void;
+    action: string;
+    isLoading: boolean;
+}) => {
+    const [comment, setComment] = useState("");
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-6 rounded-2xl shadow-lg w-full max-w-md">
+                <h3 className="text-lg font-semibold text-[#3F3F46] dark:text-[#E4E4E7] mb-4">
+                    Confirm: {action}
+                </h3>
+                <textarea
+                    className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757]"
+                    rows={4}
+                    placeholder="Add a comment (optional)..."
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                />
+                <div className="flex justify-end gap-2">
+                    <FrappeButton variant="outline" onClick={onClose} disabled={isLoading}>Cancel</FrappeButton>
+                    <FrappeButton variant="primary" onClick={() => onSubmit(comment)} disabled={isLoading}>
+                        {isLoading ? "Processing..." : "Confirm"}
+                    </FrappeButton>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- ACTIONS DROPDOWN ---
+const ActionsDropdown = ({
+    docname,
+    workflowState,
+    onActionComplete,
+    onEdit,
+    onSubmit,
+    isSubmitting,
+    commitRequired = false,
+}: {
+    docname: string;
+    workflowState: string;
+    onActionComplete: () => void;
+    onEdit: () => void;
+    onSubmit: () => void;
+    isSubmitting: boolean;
+    commitRequired?: boolean;
+}) => {
+    const { data, isLoading: actionsLoading } = useFrappeGetCall<{ message: string[] }>(
+        "rndopsapp.rndopsapp.doctype.temporary_advance.temporary_advance.get_temporary_advance_workflow_actions",
+        { docname },
+    );
+    const { call: performAction, loading: actionLoading } = useFrappePostCall(
+        "rndopsapp.rndopsapp.doctype.temporary_advance.temporary_advance.perform_temporary_advance_action",
+    );
+
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
+    const [modalOpen, setModalOpen] = useState(false);
+    const [selectedAction, setSelectedAction] = useState("");
+    const toggleBtnRef = React.useRef<HTMLButtonElement>(null);
+    const dropdownPortalRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        if (!dropdownOpen) return;
+        const handleOutside = (e: MouseEvent) => {
+            const target = e.target as Node;
+            if (!toggleBtnRef.current?.contains(target) && !dropdownPortalRef.current?.contains(target)) {
+                setDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleOutside);
+        return () => document.removeEventListener("mousedown", handleOutside);
+    }, [dropdownOpen]);
+
+    const handleToggleDropdown = () => {
+        if (!dropdownOpen && toggleBtnRef.current) {
+            const rect = toggleBtnRef.current.getBoundingClientRect();
+            setDropdownPos({ top: rect.bottom + window.scrollY + 4, right: window.innerWidth - rect.right });
+        }
+        setDropdownOpen((o) => !o);
+    };
+
+    const handleWorkflowClick = (action: string) => {
+        setDropdownOpen(false);
+        setSelectedAction(action);
+        setModalOpen(true);
+    };
+
+    const handleConfirmAction = async (comment: string) => {
+        try {
+            await performAction({ docname, action: selectedAction, comment });
+            setModalOpen(false);
+            onActionComplete();
+        } catch (error) {
+            console.error("Error performing action:", error);
+            alert("Failed to perform action. Please try again.");
+        }
+    };
+
+    const isDraft = workflowState === "Draft" || !workflowState;
+    const workflowActions = (data?.message || []).filter((a) => a.toLowerCase() !== "submit");
+
+    const categorise = (action: string) => {
+        const a = action.toLowerCase();
+        if (a.includes("forward") || a.includes("approve") || a.includes("submit") || a.includes("recommend")) return "forward";
+        if (a.includes("reject") || a.includes("cancel")) return "reject";
+        return "neutral";
+    };
+
+    const forwardActions = workflowActions.filter((a) => categorise(a) === "forward");
+    const neutralActions = workflowActions.filter((a) => categorise(a) === "neutral");
+    const rejectActions = workflowActions.filter((a) => categorise(a) === "reject");
+
+    const itemStyle = (action: string) => {
+        const cat = categorise(action);
+        if (cat === "forward") return {
+            icon: <CheckCircleIcon className="h-3.5 w-3.5" />,
+            cls: "text-[#D97757] hover:bg-orange-50 dark:hover:bg-orange-900/20",
+            iconCls: "text-[#D97757]",
+        };
+        if (cat === "reject") return {
+            icon: <XCircleIcon className="h-3.5 w-3.5" />,
+            cls: "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20",
+            iconCls: "text-red-500",
+        };
+        return {
+            icon: <ChevronRight className="h-3.5 w-3.5" />,
+            cls: "text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-700",
+            iconCls: "text-zinc-400 dark:text-zinc-500",
+        };
+    };
+
+    const isLoading = actionsLoading || actionLoading || isSubmitting;
+
+    if (!actionsLoading && workflowActions.length === 0 && !isDraft) return null;
+
+    return (
+        <>
+            <div className="relative">
+                <button
+                    ref={toggleBtnRef}
+                    onClick={handleToggleDropdown}
+                    disabled={isLoading}
+                    className={cn(
+                        "inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg shadow-sm transition-all disabled:opacity-50",
+                        dropdownOpen
+                            ? "bg-[#D97757] text-white border border-[#c66a4e]"
+                            : "bg-[#FFF7ED] dark:bg-[#D97757]/15 text-[#D97757] border border-[#D97757]/40 hover:bg-[#D97757] hover:text-white dark:hover:bg-[#D97757]/30",
+                    )}
+                >
+                    {isLoading ? "Processing…" : "Actions"}
+                    <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-150", dropdownOpen && "rotate-180")} />
+                </button>
+
+                {dropdownOpen && createPortal(
+                    <div
+                        ref={dropdownPortalRef}
+                        style={{ position: "absolute", top: dropdownPos.top, right: dropdownPos.right, zIndex: 9999 }}
+                        className="min-w-[210px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden"
+                    >
+                        <div className="px-4 py-2 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-100 dark:border-zinc-700">
+                            <span className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                                Actions
+                            </span>
+                        </div>
+
+                        {commitRequired && (
+                            <div className="mx-3 mt-3 mb-1 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+                                A commitment must be submitted before proceeding.
+                            </div>
+                        )}
+
+                        {isDraft && (
+                            <>
+                                <button
+                                    onClick={() => { setDropdownOpen(false); onEdit(); }}
+                                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+                                >
+                                    <span className="text-zinc-400"><PencilIcon className="h-3.5 w-3.5" /></span>
+                                    Edit
+                                </button>
+                                <button
+                                    onClick={() => { setDropdownOpen(false); onSubmit(); }}
+                                    disabled={isSubmitting}
+                                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left text-[#D97757] hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors disabled:opacity-50"
+                                >
+                                    <span className="text-[#D97757]"><CheckCircleIcon className="h-3.5 w-3.5" /></span>
+                                    Submit
+                                </button>
+                            </>
+                        )}
+
+                        {(forwardActions.length > 0 || neutralActions.length > 0 || rejectActions.length > 0) && (
+                            <>
+                                {isDraft && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
+                                {[forwardActions, neutralActions, rejectActions]
+                                    .filter((g) => g.length > 0)
+                                    .map((group, gi) => (
+                                        <React.Fragment key={gi}>
+                                            {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
+                                            {group.map((action) => {
+                                                const blocked = commitRequired && categorise(action) === "forward";
+                                                const { icon, cls, iconCls } = itemStyle(action);
+                                                return (
+                                                    <div key={action} className="relative group/item">
+                                                        <button
+                                                            onClick={() => { if (!blocked) handleWorkflowClick(action); }}
+                                                            disabled={actionLoading || blocked}
+                                                            className={cn(
+                                                                "w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left transition-colors disabled:cursor-not-allowed",
+                                                                blocked ? "opacity-40" : cls,
+                                                            )}
+                                                        >
+                                                            <span className={iconCls}>{icon}</span>
+                                                            {action}
+                                                            {blocked && <span className="ml-auto text-[10px] font-normal text-zinc-400">blocked</span>}
+                                                        </button>
+                                                        {blocked && (
+                                                            <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/item:block z-[9999]">
+                                                                <div className="bg-zinc-900 text-white text-[11px] rounded-lg px-3 py-1.5 shadow-lg whitespace-nowrap">
+                                                                    A commitment must be submitted before proceeding.
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </React.Fragment>
+                                    ))}
+                            </>
+                        )}
+                    </div>,
+                    document.body,
+                )}
+            </div>
+
+            <CommentModal
+                isOpen={modalOpen}
+                onClose={() => setModalOpen(false)}
+                onSubmit={handleConfirmAction}
+                action={selectedAction}
+                isLoading={actionLoading}
+            />
+        </>
+    );
+};
+
+// --- MAIN COMPONENT ---
 const TemporaryAdvanceDetails: React.FC = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [data, setData] = useState<TemporaryAdvanceData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    // Track Kafka Commit Staging status to gate workflow action buttons for Staff RnD
-    const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
-    const [projectTitle, setProjectTitle] = useState<string>('');
-    const [resolvedAccountHead, setResolvedAccountHead] = useState<string>('');
-
-    const { call: fetchDoc } = useFrappePostCall<{ message: TemporaryAdvanceData }>(
-        'frappe.client.get'
-    );
-
-    // Sidebar State
-    const [sidebarComment, setSidebarComment] = useState("");
-    const [isAddingComment, setIsAddingComment] = useState(false);
-    const { call: addComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
-
-    // Commitment Widget State
-    const [commitHead, setCommitHead] = useState("");
-    const [paymentAmount, setPaymentAmount] = useState("");
+    const [resolvedAccountHead, setResolvedAccountHead] = useState<string>("");
+    const [projectTitle, setProjectTitle] = useState<string>("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLedgerOpen, setIsLedgerOpen] = useState(false);
-    // commitAmount moved to CommitPayment component
-
-    // commit handled by CommitPayment component
-    const { call: submitPayment, loading: isPaying } = useFrappePostCall("rndopsapp.rndopsapp.commitPayment.submit_payment_data");
-
-    // Role Check
-    const { currentUser } = useFrappeAuth();
-    const { roles } = useUserRoles(currentUser ?? null);
-    const isRnDStaff = roles.some(r =>
-        r === "RnD Staff" || r === "R&D Staff" || r === "Research and Development Staff" || r === "System Manager" || r === "staff, RnD" || r === "Hos, RnD (Head of Section, RnD)"
-    );
-
-    // Fetch Project Budget Data
-    const projectCode = data?.project_code || "";
+    const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
     const [budgetHeadList, setBudgetHeadList] = useState<{ name: string; id: string }[]>([]);
 
-    // Fetch Budget Head List for Ledger Modal
+    const [taFields, setTaFields] = useState<FormField[]>([]);
+    const [taLinkOptions, setTaLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    const [isFieldsLoading, setIsFieldsLoading] = useState(false);
+
+    const { call: fetchDoc } = useFrappePostCall<{ message: TemporaryAdvanceData }>("frappe.client.get");
+    const { call: submitDoc } = useFrappePostCall<{ message: any }>(
+        "rndopsapp.rndopsapp.doctype.temporary_advance.temporary_advance.submit_temporary_advance",
+    );
+    const { call: fetchTaFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any } }>(
+        temporaryAdvanceAPI.getFields,
+    );
+    const { currentUser } = useFrappeAuth();
+    const { roles } = useUserRoles(currentUser ?? null);
+
+    const isRnDStaff = roles.some((r) =>
+        ["RnD Staff", "R&D Staff", "Research and Development Staff", "System Manager", "staff, RnD", "Hos, RnD (Head of Section, RnD)"].includes(r)
+    );
+
+    const projectCode = data?.project_code || "";
+    const { heads: budgetHeads, actualBalance, commitableBalance } = useProjectBudget(projectCode);
+
+    const { data: cancellationStatus } = useFrappeGetCall<{ message: { has_pending: boolean } }>(
+        "rndopsapp.rndopsapp.cancellation_api.get_cancellation_status",
+        { reference_doctype: "Temporary Advance", reference_name: id },
+        id ? undefined : null,
+    );
+
     useEffect(() => {
         const fetchBudgetHeads = async () => {
             try {
-                const response = await fetch('/api/v2/document/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc');
-                const result = await response.json();
-                if (result?.data) {
-                    setBudgetHeadList(result.data.map((item: any) => ({
-                        name: item.budget_head,
-                        id: item.id
-                    })));
-                }
-            } catch (err) {
-                console.error("Failed to fetch Budget Heads:", err);
-            }
+                const res = await fetch('/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0');
+                const json = await res.json();
+                if (json?.data) setBudgetHeadList(json.data.map((item: any) => ({ name: item.budget_head, id: item.id })));
+            } catch (err) { console.error("Failed to fetch Budget Heads:", err); }
         };
         fetchBudgetHeads();
     }, []);
 
-    const { budgetData, heads: budgetHeads } = useProjectBudget(projectCode);
-
-    // Find existing commitment for this document (used for payment pre-fill)
-    const linkedCommitment = budgetData.find(e => e.ref === (id || "") && e.type === 'commitment');
-    // isCommitted tracked via CommitPayment onStagingStatusChange
-
-    // commitHead default & payment defaults from linked commitment
-    useEffect(() => {
-        if (budgetHeads.length > 0 && !commitHead) {
-            setCommitHead(budgetHeads[0]);
-        }
-    }, [budgetHeads]);
-
-    useEffect(() => {
-        if (linkedCommitment) {
-            setCommitHead(linkedCommitment.head || "");
-            if (!paymentAmount) setPaymentAmount(String(linkedCommitment.committed));
-        }
-    }, [linkedCommitment]);
-
-    // Fetch Document Data - extracted as standalone function for reusability
     const loadData = async () => {
         if (!id) return;
         setLoading(true);
         try {
-            const docRes = await fetchDoc({ doctype: "Temporary Advance", name: id });
-            if (docRes?.message) {
-                setData(docRes.message);
-            } else {
-                setError("Document not found");
-            }
-        } catch (err) {
-            console.error("Error loading document:", err);
+            const res = await fetchDoc({ doctype: "Temporary Advance", name: id });
+            if (res?.message) setData(res.message);
+            else setError("Document not found");
+        } catch {
             setError("Failed to load document");
         } finally {
             setLoading(false);
         }
     };
 
+    useEffect(() => { loadData(); }, [id]);
+
     useEffect(() => {
-        loadData();
+        if (!id) return;
+        setIsFieldsLoading(true);
+        fetchTaFields({ doc_name: id })
+            .then((res) => {
+                if (res?.message) {
+                    setTaFields(res.message.fields || []);
+                    setTaLinkOptions(res.message.link_options || {});
+                }
+            })
+            .catch(console.error)
+            .finally(() => setIsFieldsLoading(false));
     }, [id]);
 
-    // Resolve account head name from ID
     useEffect(() => {
-        const resolveAccountHeadName = async () => {
-            if (!data?.account_head) return;
+        if (!data || isSubmitting) return;
+        if (searchParams.get("autoSubmit") !== "1") return;
+        if (data.workflow_state !== "Draft") {
+            setSearchParams({}, { replace: true });
+            return;
+        }
+        const pendingComment = searchParams.get("comment") || "";
+        setSearchParams({}, { replace: true });
 
+        (async () => {
+            setIsSubmitting(true);
             try {
-                const response = await fetch(`/api/v2/document/Budget%20Head/${data.account_head}`, {
-                    credentials: 'include'
-                });
-
-                if (response.ok) {
-                    const json = await response.json();
-                    if (json.data) {
-                        setResolvedAccountHead(json.data.budget_head || json.data.name);
-                    }
-                } else {
-                    // Fallback: use the ID as-is
-                    setResolvedAccountHead(data.account_head);
-                }
-            } catch (err) {
-                console.error("Error resolving account head:", err);
-                setResolvedAccountHead(data.account_head);
-            }
-        };
-
-        resolveAccountHeadName();
-    }, [data?.account_head]);
-
-
-    // Resolve project title from project code
-    useEffect(() => {
-        const resolveProjectTitle = async () => {
-            if (!data?.project_code) return;
-
-            try {
-                // Try Project Registration first
-                let response = await fetch(`/api/v2/document/Project%20Registration/${data.project_code}`, {
-                    credentials: 'include'
-                });
-
-                if (!response.ok) {
-                    // Fallback to Project Proposal
-                    response = await fetch(`/api/v2/document/Project%20Proposal/${data.project_code}`, {
-                        credentials: 'include'
+                await submitDoc({ docname: data.name });
+                if (pendingComment) {
+                    await fetch("/api/method/frappe.desk.form.utils.add_comment", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": (window as any).csrf_token || "" },
+                        credentials: "include",
+                        body: JSON.stringify({
+                            reference_doctype: "Temporary Advance",
+                            reference_name: data.name,
+                            content: pendingComment,
+                            comment_email: "",
+                            comment_by: "",
+                        }),
                     });
                 }
-
-                if (response.ok) {
-                    const json = await response.json();
-                    if (json.data) {
-                        setProjectTitle(json.data.project_title || json.data.name);
-                        return;
-                    }
-                }
-                // Fallback: use project_name from the document (actual title)
-                setProjectTitle(data.project_name || data.project_code);
-            } catch (err) {
-                console.error("Error resolving project title:", err);
-                setProjectTitle(data.project_name || data.project_code);
+                await loadData();
+            } catch (err: any) {
+                alert(`Auto-submit failed: ${err.message || "Unknown error"}`);
+            } finally {
+                setIsSubmitting(false);
             }
-        };
+        })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [data?.name, data?.workflow_state]);
 
-        resolveProjectTitle();
+    useEffect(() => {
+        if (!data?.account_head) return;
+        fetch(`/api/v2/document/Budget%20Head/${data.account_head}`, { credentials: "include" })
+            .then((r) => r.ok ? r.json() : null)
+            .then((json) => setResolvedAccountHead(json?.data?.budget_head || json?.data?.name || data.account_head || ""))
+            .catch(() => setResolvedAccountHead(data.account_head || ""));
+    }, [data?.account_head]);
+
+    useEffect(() => {
+        const codeToResolve = data?.project_code;
+        if (!codeToResolve) return;
+        (async () => {
+            const doctypes = ["Project Registration", "Project Proposal"];
+            for (const doctype of doctypes) {
+                // Strategy 1: fetch by document name (primary key)
+                try {
+                    const r1: Response = await fetch(
+                        `/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(codeToResolve)}`,
+                        { credentials: "include" }
+                    );
+                    if (r1.ok) {
+                        const json1: Record<string, any> = await r1.json();
+                        const title1: string = json1?.data?.project_title || json1?.data?.title || "";
+                        if (title1 && title1 !== codeToResolve) { setProjectTitle(title1); return; }
+                    }
+                } catch { /* try next */ }
+                // Strategy 2: query by project_no field
+                try {
+                    const r2: Response = await fetch("/api/method/frappe.client.get_list", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify({ doctype, filters: { project_no: codeToResolve }, fields: ["project_title"], limit_page_length: 1 }),
+                    });
+                    if (r2.ok) {
+                        const json2: Record<string, any> = await r2.json();
+                        const title2: string = json2?.message?.[0]?.project_title || "";
+                        if (title2) { setProjectTitle(title2); return; }
+                    }
+                } catch { /* try next */ }
+            }
+            setProjectTitle(data?.project_code || "");
+        })();
     }, [data?.project_code]);
 
-    const handleSidebarCommentSubmit = async () => {
-        if (!sidebarComment.trim() || !id) return;
-        setIsAddingComment(true);
+    const handleSubmit = async () => {
+        if (!data || isSubmitting) return;
+        if (!confirm("Are you sure you want to submit this Temporary Advance application?")) return;
+        setIsSubmitting(true);
         try {
-            await addComment({
-                reference_doctype: "Temporary Advance",
-                reference_name: id,
-                content: sidebarComment,
-                comment_type: "Comment"
-            });
-            setSidebarComment("");
-            // Refetch data instead of reload
-            loadData();
-        } catch (error) {
-            console.error("Error adding comment:", error);
+            await submitDoc({ docname: data.name });
+            alert("Temporary Advance submitted successfully!");
+            await loadData();
+        } catch (err: any) {
+            alert(`Failed to submit: ${err.message || "Unknown error"}`);
         } finally {
-            setIsAddingComment(false);
+            setIsSubmitting(false);
         }
     };
 
-    // handleCommit moved to CommitPayment component
-
-    const handlePayment = async () => {
-        if (!paymentAmount || !commitHead || !id || !data) {
-            alert("Please select a budget head and enter an amount.");
-            return;
-        }
-
-        try {
-            await submitPayment({
-                doctype: "Temporary Advance",
-                name: id,
-                project_name: data.project_name || data.project_code,
-                payment_amount: parseFloat(paymentAmount),
-                budget_head: commitHead,
-                bmr: "",
-                frapAppId: id,
-                moduleName: "Temporary Advance"
-            });
-            alert("Payment recorded successfully!");
-            setPaymentAmount("");
-            // Refetch data instead of reload
-            loadData();
-        } catch (error: any) {
-            console.error("Payment failed:", error);
-            alert(`Payment failed: ${error.message || "Unknown error"}`);
-        }
+    const formatDate = (dateStr: string) => {
+        if (!dateStr) return "-";
+        return new Date(dateStr).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
     };
 
     if (loading) return <GlobalLoader isLoading={true} />;
 
     if (error || !data) {
         return (
-            <div className="flex h-screen items-center justify-center bg-[#FAFAF9] dark:bg-[#18181B]">
-                <div className="text-center">
-                    <h2 className="text-xl font-bold text-red-600 mb-2">Error</h2>
-                    <p className="text-[#71717A] dark:text-[#A1A1AA]">{error || "Document not found"}</p>
-                    <button onClick={() => navigate(-1)} className="mt-4 text-[#D97757] hover:underline">Go Back</button>
-                </div>
+            <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
+                <AppSidebar />
+                <main className="flex-1 p-4 md:p-8">
+                    <FrappeCard className="text-center py-16">
+                        <FileTextIcon className="w-16 h-16 mx-auto text-zinc-400 dark:text-zinc-500 mb-4" />
+                        <h2 className="text-xl font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-2 uppercase">
+                            Error Loading Document
+                        </h2>
+                        <p className="text-[#3F3F46] dark:text-[#E4E4E7] mb-6">{error || "Document not found"}</p>
+                        <FrappeButton variant="primary" onClick={() => navigate(-1)}>Go Back</FrappeButton>
+                    </FrappeCard>
+                </main>
             </div>
         );
     }
 
-    return (
-        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
-            <AppSidebar />
+    const amount = data.amount || data.amount_applied || 0;
+    const amountInWords = data.amount_in_words || (amount ? toWords.convert(amount) : "-");
 
-            <main className="transition-all duration-300 ease-in-out px-4 py-6 md:px-8 md:py-8 max-w-[1600px] mx-auto">
-                {/* Header Actions */}
+    return (
+        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
+            <GlobalLoader isLoading={isSubmitting} />
+            <AppSidebar />
+            <main className="flex-1 p-4 md:p-8">
+                {/* Header */}
                 <PageHeader
                     title={data.name}
-                    status={data.workflow_state}
+                    status={data.workflow_state || "Draft"}
                     projectName={projectTitle || data.project_name}
                     projectNumber={data.project_code}
                 >
-                    {/* Workflow Action Buttons */}
                     <div className="flex items-center gap-3">
-                        {/* Edit Button - Only show for Draft state */}
-                        {data.workflow_state === 'Draft' && id && (
-                            <button
-                                onClick={() => navigate(`/temporary-advance?edit=${id}`)}
-                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[#D97757] text-white hover:bg-[#D97757] shadow-md transition-all"
-                            >
-                                <EditIcon className="w-4 h-4" />
-                                Edit
-                            </button>
+                        <ViewProjectButton doctype="Temporary Advance" data={data} />
+                        {!cancellationStatus?.message?.has_pending && (
+                            <ActionsDropdown
+                                docname={data.name}
+                                workflowState={data.workflow_state || "Draft"}
+                                onActionComplete={() => loadData()}
+                                onEdit={() => navigate(`/temporary-advance?edit=${data.name}`)}
+                                onSubmit={handleSubmit}
+                                isSubmitting={isSubmitting}
+                                commitRequired={
+                                    isRnDStaff &&
+                                    isCommittedForGate === false &&
+                                    !["Draft", "Rejected", "Cancelled"].includes(data.workflow_state)
+                                }
+                            />
                         )}
-                        {id && <TemporaryAdvanceActionButtons
-                            docname={id}
-                            onActionComplete={() => loadData()}
-                            commitRequired={isRnDStaff && isCommittedForGate === false && data.workflow_state !== "Draft" && data.workflow_state !== "Rejected" && data.workflow_state !== "Cancelled"}
-                        />}
                     </div>
                 </PageHeader>
 
+                {/* Cancellation warning */}
+                {cancellationStatus?.message?.has_pending && (
+                    <div className="mb-6 p-4 rounded-xl border border-red-200 dark:border-red-800/40 bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-300 flex items-center gap-3 shadow-sm">
+                        <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
+                        <div className="text-sm font-medium">
+                            This application has a pending cancellation request. No further workflow actions can be performed.
+                        </div>
+                    </div>
+                )}
 
-
-                <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6">
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl p-5 shadow-sm">
-                                <p className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">Advance Amount</p>
-                                <p className="mt-2 text-[30px] font-extrabold leading-none text-[#D97757]">
-                                    ₹ {(data.amount || data.amount_applied || 0).toLocaleString('en-IN')}
-                                </p>
-                            </div>
-                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl p-5 shadow-sm">
-                                <p className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">Account Head</p>
-                                <p className="mt-2 text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">{resolvedAccountHead || data.account_head || "-"}</p>
-                            </div>
-                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl p-5 shadow-sm">
-                                <p className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">Requested By</p>
-                                <p className="mt-2 text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] break-all">{data.owner || "-"}</p>
+                {/* Content Grid */}
+                <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+                    {/* Main Content */}
+                    <div className="xl:col-span-3 space-y-6">
+                        <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm overflow-hidden">
+                            <div className="p-[18px] md:p-6">
+                                {isFieldsLoading ? (
+                                    <div className="flex h-64 items-center justify-center">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757]" />
+                                    </div>
+                                ) : taFields.length > 0 ? (
+                                    <DynamicFormRenderer
+                                        fields={taFields}
+                                        formData={data}
+                                        linkOptions={taLinkOptions}
+                                        onChange={() => {}}
+                                        onFileChange={() => {}}
+                                        onTableRowChange={() => {}}
+                                        onTableFileChange={() => {}}
+                                        onAddTableRow={() => {}}
+                                        onDeleteTableRow={() => {}}
+                                        readOnly={true}
+                                    />
+                                ) : (
+                                    <p className="text-sm text-zinc-400 italic">No fields available.</p>
+                                )}
                             </div>
                         </div>
-
-                        {/* Project Details Card */}
-                        <FrappeCard title="Project Details">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Project Code</label>
-                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{data.project_code || "-"}</div>
-                                </div>
-                                <div>
-                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Project Name</label>
-                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{projectTitle || data.project_name || "-"}</div>
-                                </div>
-                            </div>
-                        </FrappeCard>
-
-                        {/* Advance Info Card */}
-                        <FrappeCard title="Advance Information">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                <div>
-                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Amount</label>
-                                    <div className="text-2xl font-black text-[#D97757]">
-                                        ₹ {(data.amount || data.amount_applied || 0).toLocaleString('en-IN')}
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Amount in Words</label>
-                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7] capitalize">
-                                        {data.amount_in_words || (data.amount || data.amount_applied ? toWords.convert(data.amount || data.amount_applied) : '-')}
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Account Head</label>
-                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{resolvedAccountHead || data.account_head || "-"}</div>
-                                </div>
-                                <div>
-                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Requested By</label>
-                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{data.owner}</div>
-                                </div>
-                                <div>
-                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Applying For</label>
-                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{data.appplying_for_select || "-"}</div>
-                                </div>
-                            </div>
-
-                            {/* Declarations */}
-                            <div className="mt-6 pt-4 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-                                <DeclarationFields doctype="Temporary Advance" />
-                            </div>
-
-                            {/* Justification and Comments */}
-                            <div className="space-y-4 mt-6">
-                                {(data.justification || data.reason || data.purpose) && (
-                                    <div>
-                                        <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Justification</label>
-                                        <div className="p-4 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] text-sm whitespace-pre-wrap">
-                                            {data.justification || data.reason || data.purpose || "-"}
-                                        </div>
-                                    </div>
-                                )}
-                                {data.comments && (
-                                    <div>
-                                        <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Comments</label>
-                                        <div className="p-4 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] text-sm whitespace-pre-wrap">
-                                            {data.comments}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </FrappeCard>
-
-                        {/* Applicant Details */}
-                        <FrappeCard title="Applicant Details">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Applicant Webmail</label>
-                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
-                                        <UserIcon className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
-                                        {data.applicant_webmail || "-"}
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Applicant Department</label>
-                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
-                                        {data.applicant_department ? <DepartmentName name={data.applicant_department} /> : "-"}
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Applicant Designation</label>
-                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{data.applicant_designation || "-"}</div>
-                                </div>
-                            </div>
-                        </FrappeCard>
-
-                        {/* Bank Details Card */}
-                        <FrappeCard title="Bank Details">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Bank Name</label>
-                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{data.bank_name || "-"}</div>
-                                </div>
-                                <div>
-                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Account Holder Name</label>
-                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{data.account || "-"}</div>
-                                </div>
-                                <div>
-                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Account Number</label>
-                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7] font-mono">{data.bank_account_number || "-"}</div>
-                                </div>
-                                <div>
-                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">IFSC Code</label>
-                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7] font-mono">{data.ifsc_code || "-"}</div>
-                                </div>
-                            </div>
-                        </FrappeCard>
-
-
-
-                        {/* Advance For Details - Only show if there's data */}
-                        {(data.advance_for_id || data.advance_for_department || data.advance_for_designation) && (
-                            <FrappeCard title="Advance For (Beneficiary)">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Beneficiary ID</label>
-                                        <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{data.advance_for_id || "-"}</div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Department</label>
-                                        <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
-                                            {data.advance_for_department ? <DepartmentName name={data.advance_for_department} /> : "-"}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Designation</label>
-                                        <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{data.advance_for_designation || "-"}</div>
-                                    </div>
-                                </div>
-                            </FrappeCard>
-                        )}
-
-                        {/* Documents Section */}
-                        {data.documents && (
-                            <FrappeCard title="Attachments">
-                                <div className="space-y-3">
-                                    {Array.isArray(data.documents) ? (
-                                        data.documents.map((doc: any, idx: number) => (
-                                            <div key={idx} className="flex items-center justify-between p-3 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
-                                                <span className="text-sm font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{doc.file_name || doc.name || `Document ${idx + 1}`}</span>
-                                                {doc.file_url && (
-                                                    <a
-                                                        href={doc.file_url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-[#D97757] hover:underline text-sm font-medium"
-                                                    >
-                                                        View
-                                                    </a>
-                                                )}
-                                            </div>
-                                        ))
-                                    ) : typeof data.documents === 'string' ? (
-                                        <div className="p-4 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] text-sm">
-                                            {data.documents}
-                                        </div>
-                                    ) : (
-                                        <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] italic">No documents attached</p>
-                                    )}
-                                </div>
-                            </FrappeCard>
-                        )}
                     </div>
 
-                    <div className="space-y-6">
-                        {/* Add Comment Section */}
+                    {/* Right Sidebar */}
+                    <aside className="xl:col-span-1 space-y-6">
+                        {/* Amount KPI */}
                         <div className="bg-white dark:bg-[#27272A] p-5 rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
-                            <h3 className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-3">Add Comment</h3>
-                            <Textarea
-                                className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] p-3 rounded-lg text-sm mb-3 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
-                                rows={3}
-                                placeholder="Type your comment here..."
-                                value={sidebarComment}
-                                onChange={(e) => setSidebarComment(e.target.value)}
-                            />
-                            <FrappeButton
-                                className="w-full"
-                                variant="primary"
-                                onClick={handleSidebarCommentSubmit}
-                                disabled={isAddingComment}
-                            >
-                                {isAddingComment ? "Submitting..." : "Submit Comment"}
-                            </FrappeButton>
+                            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-4">
+                                Advance Summary
+                            </h3>
+                            <div className="space-y-3">
+                                <div className="text-center p-4 rounded-xl bg-orange-50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500 dark:text-orange-400 mb-1">Requested Amount</p>
+                                    <p className="text-3xl font-extrabold text-[#D97757]">₹{amount.toLocaleString("en-IN")}</p>
+                                    <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1 italic">{amountInWords}</p>
+                                </div>
+                                <div className="p-3 rounded-xl bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46]">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-1">Account Head</p>
+                                    <p className="text-sm font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                        {resolvedAccountHead || data.account_head || "-"}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setIsLedgerOpen(true)}
+                                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] text-[#D97757] font-bold text-sm hover:bg-orange-50 dark:hover:bg-orange-950/20 transition-colors"
+                                >
+                                    <LedgerIcon className="w-4 h-4" />
+                                    View Project Ledger
+                                </button>
+                            </div>
                         </div>
 
-                        {/* Staff Action Section - matches AdvanceSettlementDetails */}
-                        {isRnDStaff && (
-                            <FrappeCard title="Temporary Advance Processing (Staff Only)" className="border-l-4 border-l-blue-500">
-                                <div className="space-y-6">
-                                    {/* Action Buttons */}
-                                    <div className="flex gap-3">
-                                        <FrappeButton
-                                            onClick={() => setIsLedgerOpen(true)}
-                                            variant="outline"
-                                            className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                                        >
-                                            <WalletIcon className="w-4 h-4" />
-                                            Check Ledger
-                                        </FrappeButton>
-                                    </div>
-
-                                    {/* Commitment Section */}
-                                    <CommitPayment
-                                        doctype="Temporary Advance"
-                                        docName={id || ""}
-                                        projectName={data?.project_name || data?.project_code || ""}
-                                        budgetHeads={budgetHeads}
-                                        onCommitSuccess={() => loadData()}
-                                        onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
-                                    />
-
-                                    {/* Payment Section */}
-                                    {/* <div className="p-4 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
-                                        <h4 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-3">2. Payment Processing</h4>
-                                        <div className="space-y-3">
-                                            <div>
-                                                <label className="text-xs font-semibold text-zinc-500 mb-1 block">Budget Head</label>
-                                                <input
-                                                    type="text"
-                                                    value={budgetHeadList.find(h => h.id === commitHead || h.name === commitHead)?.name || commitHead}
-                                                    disabled
-                                                    className="w-full p-2 text-sm border border-zinc-200 rounded-md bg-zinc-100 text-zinc-500"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-xs font-semibold text-zinc-500 mb-1 block">Payment Amount</label>
-                                                <input
-                                                    type="number"
-                                                    value={paymentAmount}
-                                                    onChange={(e) => setPaymentAmount(e.target.value)}
-                                                    className="w-full p-2 text-sm border border-zinc-300 rounded-md bg-white dark:bg-zinc-900 dark:border-zinc-700"
-                                                    placeholder="Enter payment amount"
-                                                />
-                                            </div>
-                                            <FrappeButton
-                                                onClick={handlePayment}
-                                                disabled={isPaying || !isCommitted || !paymentAmount}
-                                                variant="primary"
-                                                className="w-full bg-emerald-600 hover:bg-emerald-700 border-emerald-600"
-                                            >
-                                                {isPaying ? "Processing..." : "Record Payment"}
-                                            </FrappeButton>
-                                        </div>
-                                    </div> */}
-                                </div>
-                            </FrappeCard>
+                        {/* Commit & Payment (Staff only) */}
+                        {isRnDStaff && !["Draft", "Rejected", "Cancelled"].includes(data.workflow_state) && (
+                            <CommitPayment
+                                doctype="Temporary Advance"
+                                docName={id || ""}
+                                projectName={data.project_code || ""}
+                                budgetHeads={budgetHeads}
+                                actualBalance={actualBalance}
+                                commitableBalance={commitableBalance}
+                                onCommitSuccess={() => loadData()}
+                                onStagingStatusChange={(status) => setIsCommittedForGate(status)}
+                            />
                         )}
 
-
-                        {/* Meta Info */}
+                        {/* Meta */}
                         <FrappeCard>
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Created On</label>
-                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
-                                        <CalendarIcon className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
-                                        {data.creation ? new Date(data.creation).toLocaleDateString('en-IN', {
-                                            day: 'numeric', month: 'long', year: 'numeric',
-                                            hour: '2-digit', minute: '2-digit'
-                                        }) : "-"}
-                                    </div>
+                                    <FieldLabel>Created On</FieldLabel>
+                                    <FieldValue>
+                                        <span className="flex items-center gap-2">
+                                            <CalendarIcon className="w-3.5 h-3.5 text-zinc-400" />
+                                            {formatDate(data.creation)}
+                                        </span>
+                                    </FieldValue>
                                 </div>
                                 <div>
-                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Last Modified</label>
-                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
-                                        <CalendarIcon className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
-                                        {data.modified ? new Date(data.modified).toLocaleDateString('en-IN', {
-                                            day: 'numeric', month: 'short', year: 'numeric'
-                                        }) : "-"}
-                                    </div>
+                                    <FieldLabel>Last Modified</FieldLabel>
+                                    <FieldValue>
+                                        <span className="flex items-center gap-2">
+                                            <CalendarIcon className="w-3.5 h-3.5 text-zinc-400" />
+                                            {formatDate(data.modified)}
+                                        </span>
+                                    </FieldValue>
+                                </div>
+                                <div>
+                                    <FieldLabel>Owner</FieldLabel>
+                                    <FieldValue>
+                                        <span className="flex items-center gap-2">
+                                            <UserIcon className="w-3.5 h-3.5 text-zinc-400" />
+                                            <span className="truncate">{data.owner}</span>
+                                        </span>
+                                    </FieldValue>
                                 </div>
                             </div>
                         </FrappeCard>
-                    </div>
+                    </aside>
                 </div>
             </main>
 
-            {/* Project Ledger Modal */}
             {isLedgerOpen && (
                 <ProjectLedgerModal
                     isOpen={isLedgerOpen}

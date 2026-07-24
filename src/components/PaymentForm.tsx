@@ -123,12 +123,10 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
             // Route to the correct payment endpoint based on module
             // Advance Settlement (moduleId=8) has a dedicated Kafka-publishing endpoint
             const isAdvanceSettlement = commitData?.moduleId && String(commitData.moduleId) === '8';
+            const isSalaryPayment = commitData?.moduleId && String(commitData.moduleId) === '11';
             const paymentEndpoint = isAdvanceSettlement
                 ? '/api/method/rndopsapp.rndopsapp.doctype.advance_settlement.advance_settlement.submit_advance_settlement_payment'
                 : '/api/method/rndopsapp.rndopsapp.commitPayment.submit_payment_data';
-            // const paymentEndpoint = isAdvanceSettlement
-            //     ? '/api/method/rndopsapp.rndopsapp.commitPayment.submit_payment_data'
-            //     : '/api/method/rndopsapp.rndopsapp.commitPayment.submit_payment_data';
 
             // Build body matching the target endpoint's function signature
             const body = isAdvanceSettlement
@@ -148,6 +146,25 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
                     bank_transaction_date: data.bank_transaction_date || undefined,
                     commit_id: data.commit_id || commitData?.transactionCommitNumber || undefined,
                 }
+                : isSalaryPayment
+                ? {
+                    // Salary staging path — triggers _is_recruitment_salary_payment on backend
+                    ...data,
+                    doctype: 'Recruitment Adhoc Contractual',
+                    moduleName: 'Recruitment Adhoc Contractual',
+                    moduleId: '11',
+                    project_name: data.project_ref_number || undefined,
+                    payment_amount: data.payment_amount || undefined,
+                    budget_head: data.budget_head || undefined,
+                    bmr: data.payment_bmr || data.bmr || undefined,
+                    frapAppId: commitData?.frapAppId || undefined,
+                    refDetails: commitData?.transactionCommitNumber
+                        ? String(commitData.transactionCommitNumber)
+                        : undefined,
+                    salary_year_month: (commitData as any)?.salary_year_month || undefined,
+                    salary_user_details: (commitData as any)?.salary_user_details || undefined,
+                    salary_backend_details: (commitData as any)?.salary_backend_details || undefined,
+                }
                 : {
                     ...data,
                     doctype: 'AccountHeadPayment',
@@ -160,7 +177,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
                     moduleName: commitData?.moduleId || undefined,
                 };
 
-            console.log(`Submitting Payment (${isAdvanceSettlement ? 'Advance Settlement' : 'Generic'}):`, body);
+            console.log(`Submitting Payment (${isAdvanceSettlement ? 'Advance Settlement' : isSalaryPayment ? 'Salary Staging' : 'Generic'}):`, body);
 
             const response = await fetch(paymentEndpoint, {
                 method: 'POST',
@@ -173,11 +190,16 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
             });
 
             const result = await response.json();
+            const msg = result?.message;
+            if (msg?.status === 'error') throw new Error(msg?.message || 'Salary staging failed');
             if (result.exc || result.exception) {
                 throw new Error(result.exc || result.exception);
             }
 
-            alert('Payment saved successfully!');
+            const successMsg = isSalaryPayment && msg?.name
+                ? `Salary staged for ${msg.name}`
+                : 'Payment saved successfully!';
+            alert(successMsg);
             onSuccess();
         } catch (err: any) {
             console.error('Submission failed:', err);

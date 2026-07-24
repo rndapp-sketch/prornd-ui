@@ -28,7 +28,6 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
-  ChevronRight,
   FolderOpen,
   X,
   CalendarIcon,
@@ -37,17 +36,19 @@ import {
   Upload,
   FileText,
   ExternalLink,
+  Pencil,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import ProjectDetailsOverview from "@/pages/ProjectDetailsOverview";
-import { Textarea } from "@/components/ui/textarea";
 import { useUserRoles } from "@/components/UserRole";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { ProjectLedgerModal } from "@/components/ProjectLedgerModal";
 import { CommitPayment } from "@/components/CommitPayment";
 import { POEditor } from "@/components/POEditor";
+import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import { getFileUrl } from "@/utils/fileUtils";
 import {
   generatePOHtml,
@@ -58,7 +59,7 @@ import {
   getPoIndentTypeDisplayName,
   getPoVariantCopy,
   isAnnualMaintenanceContractIndent,
-} from "@/utils/poPrint";
+} from "@/utils/IcssPoPrint";
 
 // --- CLAUDE UI WRAPPERS ---
 const FrappeCard = ({ children, className }: any) => (
@@ -95,12 +96,6 @@ const FrappeButton = ({
 
 type StageStatus = "completed" | "in-progress" | "pending" | "rejected";
 
-interface ActivityItem {
-  owner: string;
-  creation: string;
-  content: string;
-  comment_type: string;
-}
 
 const toNumber = (value: any) => {
   if (value === undefined || value === null || value === "") return 0;
@@ -222,9 +217,9 @@ const getStandardizedGrandTotal = (data: Record<string, any>) => {
 
   return roundCurrency(
     getNumericAmount(data.sp_total_basic_value) +
-      getNumericAmount(data.sp_pack_and_frwd) +
-      getNumericAmount(data.sp_freight) +
-      getNumericAmount(data.sp_other_charges),
+    getNumericAmount(data.sp_pack_and_frwd) +
+    getNumericAmount(data.sp_freight) +
+    getNumericAmount(data.sp_other_charges),
   );
 };
 
@@ -298,7 +293,7 @@ const attachMissingTableChildFields = (fields: FormField[] = []) =>
 
     return {
       ...field,
-      child_fields: fallbackChildFields,
+      child_fields: fallbackChildFields as FormField["child_fields"],
     };
   });
 
@@ -649,7 +644,7 @@ const renderDirectorFieldRows = (
     if (field.fieldtype === "Section Break") {
       pendingSection =
         (hideApplyingForDetails && isApplyingForSection(field.label || "")) ||
-        isProjectDetailsSection(field.label || "")
+          isProjectDetailsSection(field.label || "")
           ? ""
           : field.label || "";
       return;
@@ -721,7 +716,7 @@ const renderDirectorTableField = (
 ) => {
   if (field.fieldtype !== "Table" || isDirectorPdfHiddenField(field)) return "";
 
-  const rows = Array.isArray(data[field.fieldname])
+  const rows: any[] = Array.isArray(data[field.fieldname])
     ? data[field.fieldname]
     : [];
   if (!rows.length) return "";
@@ -733,20 +728,20 @@ const renderDirectorTableField = (
     childFields.length > 0
       ? []
       : Object.keys(rows[0] || {}).filter(
-          (key) =>
-            !key.startsWith("_") && !DIRECTOR_PDF_EXCLUDED_FIELDNAMES.has(key),
-        );
+        (key) =>
+          !key.startsWith("_") && !DIRECTOR_PDF_EXCLUDED_FIELDNAMES.has(key),
+      );
   const columns = childFields.length
     ? childFields.map((childField: any) => ({
-        key: childField.fieldname,
-        label: childField.label || childField.fieldname,
-        field: childField,
-      }))
+      key: childField.fieldname,
+      label: childField.label || childField.fieldname,
+      field: childField,
+    }))
     : fallbackKeys.map((key) => ({
-        key,
-        label: key.replace(/_/g, " "),
-        field: undefined,
-      }));
+      key,
+      label: key.replace(/_/g, " "),
+      field: undefined,
+    }));
 
   if (!columns.length) return "";
 
@@ -761,20 +756,20 @@ const renderDirectorTableField = (
             </thead>
             <tbody>
                 ${rows
-                  .map(
-                    (row, index) => `
+      .map(
+        (row, index) => `
                             <tr>
                                 <td class="center">${index + 1}</td>
                                 ${columns
-                                  .map(
-                                    (column) =>
-                                      `<td>${escapeHtml(formatDirectorPdfValue(row?.[column.key], column.field as FormField | undefined, linkOptions))}</td>`,
-                                  )
-                                  .join("")}
+            .map(
+              (column) =>
+                `<td>${escapeHtml(formatDirectorPdfValue(row?.[column.key], column.field as FormField | undefined, linkOptions))}</td>`,
+            )
+            .join("")}
                             </tr>
                         `,
-                  )
-                  .join("")}
+      )
+      .join("")}
             </tbody>
         </table>
     `;
@@ -996,7 +991,7 @@ const buildDirectorApprovalPrintHtml = ({
             </div>
             <div class="contact">
                 <div><strong>Guwahati-781039, India</strong></div>
-                <div><strong>Phone :</strong> +91-361-2583080</div>
+                <div><strong>Phone :</strong> +91-361-2583089</div>
                 <div>+91-361-2582134</div>
                 <div><strong>Email :</strong> rndadmin@iitg.ac.in</div>
                 <div>${escapeHtml(currentUser || "")}</div>
@@ -1085,158 +1080,116 @@ const WorkflowTimeline = ({
   formData: Record<string, any>;
 }) => {
   const stages = buildIcssTimelineStages(currentState || "Draft", formData);
+  const completedCount = stages.filter((s) => s.status === "completed").length;
+  const totalCount = stages.length;
+  const progressPct = Math.round((completedCount / totalCount) * 100);
+  const activeStage = stages.find((s) => s.status === "in-progress");
+  const isFinished = ["Approved", "PO Delivered"].includes(currentState);
+  const isRejected = currentState === "Rejected";
 
-  const iconForStatus = (status: StageStatus) => {
-    if (status === "completed")
-      return <CheckCircle2 className="w-4 h-4 text-white" />;
-    if (status === "in-progress")
-      return <Clock className="w-4 h-4 text-white" />;
-    if (status === "rejected")
-      return <XCircle className="w-4 h-4 text-white" />;
-    return <span className="w-2 h-2 rounded-full bg-white/60" />;
+  const nodeStyle = (status: StageStatus) => {
+    if (status === "completed") return "bg-emerald-500 border-emerald-500 text-white";
+    if (status === "in-progress") return "bg-[#D97757] border-[#D97757] text-white ring-4 ring-[#D97757]/20";
+    if (status === "rejected") return "bg-red-500 border-red-500 text-white";
+    return "bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600 text-zinc-400 dark:text-zinc-500";
   };
 
-  const bgForStatus = (status: StageStatus) => {
-    if (status === "completed") return "bg-emerald-500";
-    if (status === "in-progress") return "bg-[#D97757]";
-    if (status === "rejected") return "bg-red-500";
-    return "bg-zinc-300 dark:bg-zinc-600";
-  };
-
-  const connectorColor = (status: StageStatus) =>
-    status === "completed" ? "bg-emerald-400" : "bg-zinc-200 dark:bg-zinc-700";
+  const lineStyle = (status: StageStatus) =>
+    status === "completed"
+      ? "bg-emerald-400"
+      : "bg-zinc-200 dark:bg-zinc-700";
 
   return (
     <FrappeCard>
-      <div className="p-5">
-        <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-          Workflow Progress
-        </h3>
-        <div className="flex items-start overflow-x-auto pb-1">
+      <div className="p-4">
+        {/* Header row */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+              Workflow
+            </h3>
+            {isFinished && (
+              <span className="text-[10px] font-bold text-white bg-emerald-500 px-2 py-0.5 rounded-full">
+                Complete
+              </span>
+            )}
+            {isRejected && (
+              <span className="text-[10px] font-bold text-white bg-red-500 px-2 py-0.5 rounded-full">
+                Rejected
+              </span>
+            )}
+            {activeStage && (
+              <span className="text-[10px] font-semibold text-[#D97757] bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 px-2 py-0.5 rounded-full">
+                {activeStage.label}
+              </span>
+            )}
+          </div>
+          <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 tabular-nums">
+            {completedCount}/{totalCount} steps
+          </span>
+        </div>
+
+        {/* Progress bar */}
+        <div className="h-1 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 mb-4 overflow-hidden">
+          <div
+            className={cn(
+              "h-full rounded-full transition-all duration-500",
+              isRejected ? "bg-red-400" : isFinished ? "bg-emerald-500" : "bg-[#D97757]",
+            )}
+            style={{ width: `${isFinished ? 100 : progressPct}%` }}
+          />
+        </div>
+
+        {/* Step track */}
+        <div className="flex items-center overflow-x-auto pb-1 gap-0">
           {stages.map((stage, idx) => (
             <React.Fragment key={`${stage.label}-${idx}`}>
-              <div className="flex flex-col items-center min-w-[92px] max-w-[116px]">
+              <div className="flex flex-col items-center flex-shrink-0">
                 <div
                   className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center shadow-sm flex-shrink-0",
-                    bgForStatus(stage.status),
+                    "w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all duration-200 text-[10px] font-bold",
+                    nodeStyle(stage.status),
                   )}
+                  title={stage.label}
                 >
-                  {iconForStatus(stage.status)}
+                  {stage.status === "completed" ? (
+                    <CheckCircle2 className="w-3 h-3" />
+                  ) : stage.status === "rejected" ? (
+                    <XCircle className="w-3 h-3" />
+                  ) : stage.status === "in-progress" ? (
+                    <Clock className="w-3 h-3" />
+                  ) : (
+                    <span>{idx + 1}</span>
+                  )}
                 </div>
                 <p
                   className={cn(
-                    "mt-2 text-center text-xs leading-tight px-1",
-                    stage.status === "in-progress" &&
-                      "font-bold text-[#D97757]",
-                    stage.status === "completed" &&
-                      "text-emerald-600 dark:text-emerald-400 font-medium",
-                    stage.status === "pending" &&
-                      "text-zinc-400 dark:text-zinc-500",
-                    stage.status === "rejected" && "text-red-500 font-bold",
+                    "mt-1.5 text-center text-[10px] leading-tight w-[68px] px-0.5",
+                    stage.status === "in-progress" && "font-bold text-[#D97757]",
+                    stage.status === "completed" && "font-medium text-emerald-600 dark:text-emerald-400",
+                    stage.status === "pending" && "text-zinc-400 dark:text-zinc-500",
+                    stage.status === "rejected" && "font-bold text-red-500",
                   )}
                 >
                   {stage.label}
                 </p>
-                {stage.status === "in-progress" && (
-                  <span className="mt-1 text-[10px] font-bold text-white bg-[#D97757] px-2 py-0.5 rounded-full">
-                    Pending Here
-                  </span>
-                )}
-                {["Approved", "PO Delivered"].includes(currentState) &&
-                  idx === stages.length - 1 && (
-                    <span className="mt-1 text-[10px] font-bold text-white bg-emerald-500 px-2 py-0.5 rounded-full whitespace-nowrap">
-                      Complete
-                    </span>
-                  )}
               </div>
               {idx < stages.length - 1 && (
-                <div className="flex-1 flex items-center pt-4 min-w-[20px]">
-                  <div
-                    className={cn(
-                      "h-1 w-full rounded",
-                      connectorColor(stage.status),
-                    )}
-                  />
-                  <ChevronRight className="w-3 h-3 text-zinc-400 flex-shrink-0 -ml-1" />
-                </div>
+                <div
+                  className={cn(
+                    "flex-1 h-0.5 mb-4 min-w-[10px]",
+                    lineStyle(stage.status),
+                  )}
+                />
               )}
             </React.Fragment>
           ))}
         </div>
-        {currentState &&
-          currentState !== "Draft" &&
-          currentState !== "Approved" &&
-          currentState !== "PO Delivered" &&
-          currentState !== "Rejected" && (
-            <div className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Currently pending at:{" "}
-                <span className="font-semibold text-[#D97757]">
-                  {currentState}
-                </span>
-              </p>
-            </div>
-          )}
       </div>
     </FrappeCard>
   );
 };
 
-const ActivityStream = ({
-  doctype,
-  docname,
-  refreshToken = 0,
-}: {
-  doctype: string;
-  docname: string;
-  refreshToken?: number;
-}) => {
-  const { data: activityData, mutate: refetchActivity } = useFrappeGetCall<{
-    message: ActivityItem[];
-  }>(
-    "rndopsapp.rndopsapp.api.get_project_activity",
-    { doctype, docname },
-    docname ? undefined : null,
-  );
-
-  useEffect(() => {
-    if (docname) {
-      refetchActivity();
-    }
-  }, [docname, refreshToken, refetchActivity]);
-
-  return (
-    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-      {activityData?.message?.length ? (
-        activityData.message.map((item, idx) => (
-          <div
-            key={`${item.creation}-${idx}`}
-            className="flex items-start gap-3"
-          >
-            <div className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center font-bold text-[#D97757] text-xs">
-              {item.owner?.charAt(0).toUpperCase() || "U"}
-            </div>
-            <div className="min-w-0">
-              <div
-                className="text-sm text-zinc-800 dark:text-zinc-200 prose prose-sm max-w-none"
-                dangerouslySetInnerHTML={{ __html: item.content }}
-              />
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                {item.owner} ·{" "}
-                {item.creation ? new Date(item.creation).toLocaleString() : ""}
-              </p>
-            </div>
-          </div>
-        ))
-      ) : (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400 italic">
-          No activity yet.
-        </p>
-      )}
-    </div>
-  );
-};
 
 const getIcssVendorDetails = (
   data: Record<string, any>,
@@ -1878,9 +1831,9 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     editDocName || null,
   );
   const currentDocName = editDocName || savedDocName || "";
-  const [sidebarComment, setSidebarComment] = useState("");
-  const [isAddingComment, setIsAddingComment] = useState(false);
-  const [activityRefreshKey, setActivityRefreshKey] = useState(0);
+  const [showActionsDropdown, setShowActionsDropdown] = useState(false);
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [actionComment, setActionComment] = useState("");
   const [isLedgerOpen, setIsLedgerOpen] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(
@@ -1918,6 +1871,10 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     name: string;
     designation: string;
   }>({ name: "", designation: "" });
+  const [rndAdminSignatory, setRndAdminSignatory] = useState<{
+    name: string;
+    designation: string;
+  }>({ name: "", designation: "" });
   const poEditorRef = React.useRef<HTMLDivElement | null>(null);
   const signedPoInputRef = React.useRef<HTMLInputElement | null>(null);
 
@@ -1930,6 +1887,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
   const [availableActions, setAvailableActions] = useState<string[]>([]);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [docStatus, setDocStatus] = useState<number>(0);
+  const [isEditMode, setIsEditMode] = useState(!editDocName);
   const projectCode =
     formData.project_no ||
     formData.project_code ||
@@ -2015,6 +1973,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     budgetData,
     heads: budgetHeads,
     actualBalance,
+    commitableBalance,
   } = useProjectBudget(projectCode);
   const balanceApiParams = React.useMemo(
     () => ({ project_number: projectCode }),
@@ -2053,10 +2012,10 @@ const IndentCumSanctionSheetForm: React.FC = () => {
   const defaultCommitBudgetHead = React.useMemo(() => {
     const rawHead = String(
       formData.icss_account_head ||
-        formData.account_head ||
-        formData.budget_head ||
-        formData.icss_other_account_head ||
-        "",
+      formData.account_head ||
+      formData.budget_head ||
+      formData.icss_other_account_head ||
+      "",
     ).trim();
 
     if (!rawHead) return "";
@@ -2163,7 +2122,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     const fetchBudgetHeads = async () => {
       try {
         const response = await fetch(
-          '/api/v2/document/Budget%20Head?fields=["name","budget_head","id"]&order_by=id%20asc',
+          '/api/resource/Budget%20Head?fields=["name","budget_head","id"]&order_by=id%20asc&limit_page_length=0',
           { credentials: "include" },
         );
         const result = await response.json();
@@ -2265,8 +2224,25 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       }
     };
 
+    const fetchRndAdminSignatory = async () => {
+      try {
+        const detailsResponse = await getICSSUserDetails({
+          user_email: "rndadmin@iitg.ac.in",
+        });
+        const details = detailsResponse?.message || {};
+        if (isCancelled) return;
+        setRndAdminSignatory({
+          name: details.full_name || details.applicant_name || details.name || "rndadmin",
+          designation: details.designation_name || details.designation || "",
+        });
+      } catch (error) {
+        console.error("Failed to fetch rndadmin signatory details:", error);
+      }
+    };
+
     fetchCheckedByUser();
     fetchHosRndSignatory();
+    fetchRndAdminSignatory();
 
     return () => {
       isCancelled = true;
@@ -2511,7 +2487,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       const applyingForNameValue = resolveUserLinkValue(
         "icss_applying_for_name",
         normalizedData.icss_applying_for_name ||
-          normalizedData.applying_for_name,
+        normalizedData.applying_for_name,
       );
       const isUserLinkValue = (value: any) =>
         typeof value === "string" && value.includes("@");
@@ -2523,8 +2499,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           isUserLinkValue(applicantNameValue) || normalizedData.__for_save
             ? applicantWebmail
             : applicantNameValue ||
-              normalizedData.applicant_name ||
-              applicantWebmail;
+            normalizedData.applicant_name ||
+            applicantWebmail;
       } else if (isUserLinkValue(applicantNameValue)) {
         normalizedData.icss_applicant_webmail_id = applicantNameValue;
         normalizedData.webmail_id = applicantNameValue;
@@ -2547,12 +2523,12 @@ const IndentCumSanctionSheetForm: React.FC = () => {
 
       const applicantDepartment = normalizedData.__for_save
         ? resolveDepartmentLinkValue(
-            "icss_applicant_department__centre__section",
-            normalizedData.icss_applicant_department__centre__section ||
-              normalizedData.department,
-          )
+          "icss_applicant_department__centre__section",
+          normalizedData.icss_applicant_department__centre__section ||
+          normalizedData.department,
+        )
         : normalizedData.icss_applicant_department__centre__section ||
-          normalizedData.department;
+        normalizedData.department;
 
       if (applicantDepartment) {
         normalizedData.icss_applicant_department__centre__section =
@@ -2569,12 +2545,12 @@ const IndentCumSanctionSheetForm: React.FC = () => {
 
       const applyingForDepartment = normalizedData.__for_save
         ? resolveDepartmentLinkValue(
-            "icss_applying_for_department_centre_section",
-            normalizedData.icss_applying_for_department_centre_section ||
-              normalizedData.applying_for_department,
-          )
+          "icss_applying_for_department_centre_section",
+          normalizedData.icss_applying_for_department_centre_section ||
+          normalizedData.applying_for_department,
+        )
         : normalizedData.icss_applying_for_department_centre_section ||
-          normalizedData.applying_for_department;
+        normalizedData.applying_for_department;
 
       if (applyingForDepartment) {
         normalizedData.icss_applying_for_department_centre_section =
@@ -2602,7 +2578,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         data.icss_applicant_webmail_id ||
         data.webmail_id ||
         (typeof data.icss_applicant_name === "string" &&
-        data.icss_applicant_name.includes("@")
+          data.icss_applicant_name.includes("@")
           ? data.icss_applicant_name
           : "");
 
@@ -2764,8 +2740,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     const isNewDraft = !savedDocName && !editDocName;
     const currentUserFallback =
       isNewDraft &&
-      currentUser &&
-      !["Administrator", "Guest"].includes(currentUser)
+        currentUser &&
+        !["Administrator", "Guest"].includes(currentUser)
         ? currentUser
         : "";
 
@@ -2930,8 +2906,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
               if (typeof newData[k] !== "object") {
                 const rawValue =
                   newData[k] !== undefined &&
-                  newData[k] !== null &&
-                  newData[k] !== ""
+                    newData[k] !== null &&
+                    newData[k] !== ""
                     ? newData[k]
                     : 0;
                 const val =
@@ -2946,7 +2922,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
               newData[rule.target_field || rule.target] = isNaN(result)
                 ? 0
                 : roundCurrency(result);
-            } catch (e) {}
+            } catch (e) { }
           });
         }
 
@@ -3030,9 +3006,9 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         next.pp_estimated_basic_value = basicValue;
         const grandTotal = roundCurrency(
           basicValue +
-            toNumber(next.pp_pack_and_forward) +
-            toNumber(next.pp_freight) +
-            toNumber(next.pp_other_charges),
+          toNumber(next.pp_pack_and_forward) +
+          toNumber(next.pp_freight) +
+          toNumber(next.pp_other_charges),
         );
         next.pp_grand_total = grandTotal;
         next.amount_in_words = convertAmountToWords(grandTotal);
@@ -3051,9 +3027,9 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         next.sp_total_basic_value = basicValue;
         const grandTotal = roundCurrency(
           basicValue +
-            toNumber(next.sp_pack_and_frwd) +
-            toNumber(next.sp_freight) +
-            toNumber(next.sp_other_charges),
+          toNumber(next.sp_pack_and_frwd) +
+          toNumber(next.sp_freight) +
+          toNumber(next.sp_other_charges),
         );
         next.sp_grand_total = grandTotal;
         next.amount_in_words = convertAmountToWords(grandTotal);
@@ -3066,7 +3042,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       ) {
         const grandTotal = roundCurrency(
           toNumber(next.rr_repair_expenditure) +
-            toNumber(next.rr_other_charges),
+          toNumber(next.rr_other_charges),
         );
         next.rr_grand_total = grandTotal;
         next.amount_in_words = convertAmountToWords(grandTotal);
@@ -3137,6 +3113,30 @@ const IndentCumSanctionSheetForm: React.FC = () => {
 
           setBaseFields(filteredFields);
           setLinkOptions(link_options || {});
+
+          // Load all active principal suppliers so the dropdown isn't limited
+          // to whatever subset the backend pre-packages in link_options.
+          try {
+            const principalRes = await getListCall({
+              doctype: "Principal Supplier",
+              fields: ["name", "principal_supplier_name"],
+              filters: [["status", "=", "Active"]],
+              limit_page_length: 0,
+            });
+            if (principalRes?.message?.length) {
+              const allPrincipals = principalRes.message.map((r: any) => ({
+                value: r.name,
+                label: r.principal_supplier_name || r.name,
+              }));
+              setLinkOptions((prev) => ({
+                ...prev,
+                principal_supplier: mergeLinkOptionLists(prev.principal_supplier, allPrincipals),
+              }));
+            }
+          } catch (e) {
+            console.error("Failed to load all principal suppliers:", e);
+          }
+
           if (response.message.computation_rules) {
             setComputationRules(response.message.computation_rules);
           }
@@ -3319,12 +3319,12 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           const isRateContract = indentType === "Rate Contract Purchase";
           const callArgs = isRateContract
             ? {
-                doc_name: childDocname,
-                project_name:
-                  formData.project_no || projectNoParam || projectParam || "",
-                project_no:
-                  formData.project_no || projectNoParam || projectParam || "",
-              }
+              doc_name: childDocname,
+              project_name:
+                formData.project_no || projectNoParam || projectParam || "",
+              project_no:
+                formData.project_no || projectNoParam || projectParam || "",
+            }
             : { doc_name: childDocname };
           response = await callToMake(callArgs);
         }
@@ -3451,10 +3451,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           label:
             principalDoc.principal_supplier_name || String(principalSupplier),
         };
-        hydratedValues.principal_address =
-          formData.principal_address || principalDoc.addres || "";
-        hydratedValues.agreement_no =
-          formData.agreement_no || principalDoc.agreement_no || "";
+        hydratedValues.principal_address = principalDoc.addres || "";
+        hydratedValues.agreement_no = principalDoc.agreement_no || "";
         localOptions = normalizeLinkOptionList(localRes?.message || []);
       }
 
@@ -3469,10 +3467,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           value: String(localSupplier),
           label: localDoc.local_supplier_name || String(localSupplier),
         };
-        hydratedValues.local_address =
-          formData.local_address || localDoc.address || "";
-        hydratedValues.local_email =
-          formData.local_email || localDoc.email || "";
+        hydratedValues.local_address = localDoc.address || "";
+        hydratedValues.local_email = localDoc.email || "";
       }
 
       setLinkOptions((prev) => ({
@@ -3518,12 +3514,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     fetchFrappeValue,
     fetchLocalSuppliersByPrincipal,
     fetchPrincipalSuppliersByItemType,
-    formData.agreement_no,
     formData.item_type,
-    formData.local_address,
-    formData.local_email,
     formData.local_supplier,
-    formData.principal_address,
     formData.principal_supplier,
     formData.select_form_type,
     selectedIndentType,
@@ -3532,6 +3524,105 @@ const IndentCumSanctionSheetForm: React.FC = () => {
   useEffect(() => {
     hydrateRateContractP3DisplayOptions();
   }, [hydrateRateContractP3DisplayOptions]);
+
+  // Directly pin the principal_supplier display label whenever the value is
+  // known. Runs independently of the broader P3 hydration so the label is
+  // always resolved even when the hydration fires before formData is loaded.
+  const principalSupplierValue = formData.principal_supplier;
+  useEffect(() => {
+    if (
+      selectedIndentType !== "Rate Contract Purchase" ||
+      !principalSupplierValue
+    )
+      return;
+
+    fetchFrappeValue({
+      doctype: "Principal Supplier",
+      filters: { name: principalSupplierValue },
+      fieldname: ["principal_supplier_name"],
+    })
+      .then((res) => {
+        const name = res?.message?.principal_supplier_name;
+        if (name) {
+          setLinkOptions((prev) => ({
+            ...prev,
+            principal_supplier: mergeLinkOptionLists(prev.principal_supplier, [
+              { value: String(principalSupplierValue), label: name },
+            ]),
+          }));
+        }
+      })
+      .catch(() => { });
+  }, [selectedIndentType, principalSupplierValue, fetchFrappeValue]);
+
+  const hydrateRateContractP4VendorList = useCallback(async () => {
+    if (selectedIndentType !== "Rate Contract Purchase") return;
+
+    const selectedFormType = String(formData.select_form_type || "");
+    if (!selectedFormType.toLowerCase().includes("p4")) return;
+
+    const p4ItemType = formData.p4_item_type;
+    if (!p4ItemType) return;
+
+    try {
+      const vendorListRes = await fetchVendorsByP4ItemType({
+        p4_item_type: p4ItemType,
+      });
+      if (vendorListRes?.message) {
+        setLinkOptions((prev) => ({
+          ...prev,
+          select_vendor: normalizeLinkOptionList(vendorListRes.message),
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to hydrate Rate Contract P4 vendor list:", error);
+    }
+  }, [
+    fetchVendorsByP4ItemType,
+    formData.p4_item_type,
+    formData.select_form_type,
+    selectedIndentType,
+  ]);
+
+  useEffect(() => {
+    hydrateRateContractP4VendorList();
+  }, [hydrateRateContractP4VendorList]);
+
+  const hydrateRateContractP4VendorDetails = useCallback(async () => {
+    if (selectedIndentType !== "Rate Contract Purchase") return;
+
+    const selectedFormType = String(formData.select_form_type || "");
+    if (!selectedFormType.toLowerCase().includes("p4")) return;
+
+    const selectedVendor = formData.select_vendor;
+    if (!selectedVendor || formData.vendor_address) return;
+
+    try {
+      const vendorDetailRes = await fetchVendorDetails({ vendor: selectedVendor });
+      if (vendorDetailRes?.message) {
+        setFormData((prev) =>
+          applyComputations({
+            ...prev,
+            vendor_address: vendorDetailRes.message.vendor_address || prev.vendor_address || "",
+            vendor_email: vendorDetailRes.message.vendor_email || prev.vendor_email || "",
+          }),
+        );
+      }
+    } catch (error) {
+      console.error("Failed to hydrate Rate Contract P4 vendor details:", error);
+    }
+  }, [
+    applyComputations,
+    fetchVendorDetails,
+    formData.select_form_type,
+    formData.select_vendor,
+    formData.vendor_address,
+    selectedIndentType,
+  ]);
+
+  useEffect(() => {
+    hydrateRateContractP4VendorDetails();
+  }, [hydrateRateContractP4VendorDetails]);
 
   // Handle initial indent type fetch map
   useEffect(() => {
@@ -3721,19 +3812,53 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                 fetchPrincipalSupplierDetails({ principal_supplier: value }),
                 fetchLocalSuppliersByPrincipal({ principal_supplier: value }),
               ]);
+
+              // Set principal fields immediately so they always populate even if
+              // the local supplier fetch below fails.
               setFormData((prev) =>
                 applyComputations({
                   ...prev,
                   [fieldname]: value,
                   principal_address: details?.message?.principal_address || "",
                   agreement_no: details?.message?.agreement_no || "",
+                  local_supplier: "",
+                  local_address: "",
+                  local_email: "",
                 }),
               );
-              if (locals?.message)
-                setLinkOptions((prev) => ({
-                  ...prev,
-                  local_supplier: locals.message,
-                }));
+
+              const localList = normalizeLinkOptionList(locals?.message || []);
+              // Always replace local_supplier options — clears stale options from
+              // a previously selected principal that had local suppliers.
+              setLinkOptions((prev) => ({ ...prev, local_supplier: localList }));
+
+              // Auto-select first local supplier. Done in a separate try so any
+              // failure here doesn't wipe out the principal fields set above.
+              const firstLocalId = localList[0]?.value || "";
+              if (firstLocalId) {
+                try {
+                  const localRes = await fetchLocalSupplierDetails({
+                    local_supplier: firstLocalId,
+                  });
+                  const localDoc = localRes?.message || {};
+                  // local_supplier is a Data field — store the human-readable name.
+                  // getLocalSuppliersByPrincipal returns label = local_supplier_name.
+                  const localSupplierName =
+                    localList[0]?.label && localList[0].label !== firstLocalId
+                      ? localList[0].label
+                      : localDoc.local_supplier_name || firstLocalId;
+                  setFormData((prev) =>
+                    applyComputations({
+                      ...prev,
+                      local_supplier: localSupplierName,
+                      local_address: localDoc.local_address || "",
+                      local_email: localDoc.local_email || "",
+                    }),
+                  );
+                } catch (localErr) {
+                  console.error("Failed to auto-fetch local supplier details:", localErr);
+                }
+              }
             } else {
               setFormData((prev) =>
                 applyComputations({
@@ -3751,18 +3876,34 @@ const IndentCumSanctionSheetForm: React.FC = () => {
 
           case "local_supplier":
             if (value) {
-              const res = await fetchLocalSupplierDetails({
-                local_supplier: value,
-              });
-              if (res?.message) {
+              // value is the Frappe doc ID; resolve the human-readable name
+              // from linkOptions so the Data field stores the proper name.
+              const localOpt = (linkOptions.local_supplier || []).find(
+                (o) => o.value === value,
+              );
+              const localName = localOpt?.label && localOpt.label !== value
+                ? localOpt.label
+                : value;
+
+              // Set name immediately so the field isn't blank while fetching.
+              setFormData((prev) =>
+                applyComputations({ ...prev, [fieldname]: localName }),
+              );
+              try {
+                const res = await fetchLocalSupplierDetails({
+                  local_supplier: value,
+                });
+                const details = res?.message || {};
                 setFormData((prev) =>
                   applyComputations({
                     ...prev,
-                    [fieldname]: value,
-                    local_address: res.message.local_address || "",
-                    local_email: res.message.local_email || "",
+                    [fieldname]: localName,
+                    local_address: details.local_address || "",
+                    local_email: details.local_email || "",
                   }),
                 );
+              } catch {
+                // name already set above; address/email stay blank
               }
             } else {
               setFormData((prev) =>
@@ -3873,6 +4014,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       fetchLocalSupplierDetails,
       fetchVendorDetails,
       fetchVendorsByP4ItemType,
+      fetchFrappeValue,
+      linkOptions,
     ],
   );
 
@@ -3905,7 +4048,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             base - (base * toNumber(row.icss_discount_percent)) / 100;
           tableData[rowIndex].icss_amount = roundCurrency(
             afterDiscount +
-              (afterDiscount * toNumber(row.icss_gst_percent)) / 100,
+            (afterDiscount * toNumber(row.icss_gst_percent)) / 100,
           );
         }
 
@@ -4108,8 +4251,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         const errMsg =
           error.exc_type === "ValidationError"
             ? JSON.parse(error._server_messages || "[]")
-                .map((m: string) => JSON.parse(m).message)
-                .join(", ")
+              .map((m: string) => JSON.parse(m).message)
+              .join(", ")
             : "An error occurred while saving";
         alert(errMsg);
       } finally {
@@ -4127,7 +4270,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     ],
   );
 
-  const handleWorkflowAction = async (action: string) => {
+  const handleWorkflowAction = async (action: string, comment?: string) => {
     const docNameToUse = savedDocName || editDocName;
     if (!runLegacyValidations(formData)) return;
 
@@ -4143,7 +4286,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         ) {
           alert(
             persisted?.response?.message?.message ||
-              "Please save the document first.",
+            "Please save the document first.",
           );
           return;
         }
@@ -4169,6 +4312,17 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         response.message.status === "success"
       ) {
         const nextWorkflowState = response.message.workflow_state;
+        if (comment?.trim()) {
+          try {
+            await addComment({
+              doctype: "Indent Cum Sanction Sheet",
+              docname: effectiveDocName,
+              content: comment.trim(),
+            });
+          } catch {
+            // comment failure is non-fatal
+          }
+        }
         alert(getIcssWorkflowSuccessMessage(action, nextWorkflowState));
         setWorkflowState(nextWorkflowState);
         await fetchFormConfiguration(effectiveDocName);
@@ -4229,25 +4383,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       alert("Failed to open the linked project.");
     } finally {
       setIsProjectViewLoading(false);
-    }
-  };
-
-  const handleSidebarCommentSubmit = async () => {
-    if (!sidebarComment.trim() || !currentDocName) return;
-    setIsAddingComment(true);
-    try {
-      await addComment({
-        doctype: "Indent Cum Sanction Sheet",
-        docname: currentDocName,
-        content: sidebarComment.trim(),
-      });
-      setSidebarComment("");
-      setActivityRefreshKey((prev) => prev + 1);
-    } catch (error) {
-      console.error("Failed to submit ICSS comment:", error);
-      alert("Failed to submit comment.");
-    } finally {
-      setIsAddingComment(false);
     }
   };
 
@@ -4385,7 +4520,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         ss_funding_agency: data.funding_agency || data.project_title || "",
         ss_name_of_firms:
           savedDraft.ss_name_of_firms || vendorDetails.vendorAddress || "",
-        ss_file_number: savedDraft.ss_file_number || data.file_number || "",
+        ss_file_number: data.name || currentDocName || savedDraft.ss_file_number || data.file_number || "",
         ss_grand_total: totalAmount || "",
         vendor_address:
           data.vendor_address ||
@@ -4398,20 +4533,20 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           vendorDetails.vendorEmail ||
           "",
         quotation_no: savedDraft.quotation_no || "",
-        signee_name: savedDraft.signee_name || hosRndSignatory?.name || "",
+        signee_name: savedDraft.signee_name || rndAdminSignatory.name || checkedByUser.name || hosRndSignatory?.name || "",
         signee_designation:
-          savedDraft.signee_designation || hosRndSignatory?.designation || "",
+          savedDraft.signee_designation || rndAdminSignatory.designation || checkedByUser.designation || hosRndSignatory?.designation || "",
         amount_in_words:
           savedDraft.amount_in_words ||
           convertAmountToWords(totalAmount) ||
           data.amount_in_words ||
           data.icss_amount_in_words,
         terms_and_conditions:
+          getDefaultTermsForIndentType(indentType) ||
           savedDraft.terms_and_conditions ||
           data.po_terms_and_conditions ||
           data.additional_terms_and_conditions_if_any ||
-          data.terms_and_conditions ||
-          getDefaultTermsForIndentType(indentType),
+          data.terms_and_conditions,
         po_intro_paragraph:
           savedDraft.po_intro_paragraph || variantCopy.introParagraph,
         po_header_note: savedDraft.po_header_note || variantCopy.headerNote,
@@ -4437,14 +4572,14 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           "",
         po_prefill_sections:
           !isRateContractPo &&
-          Array.isArray(savedDraft.po_prefill_sections) &&
-          savedDraft.po_prefill_sections.length > 0
+            Array.isArray(savedDraft.po_prefill_sections) &&
+            savedDraft.po_prefill_sections.length > 0
             ? savedDraft.po_prefill_sections
             : prefillSections,
         po_charge_summary:
           !isStandardizedPo &&
-          Array.isArray(savedDraft.po_charge_summary) &&
-          savedDraft.po_charge_summary.length > 0
+            Array.isArray(savedDraft.po_charge_summary) &&
+            savedDraft.po_charge_summary.length > 0
             ? savedDraft.po_charge_summary
             : chargeSummary,
         po_payment_mode:
@@ -4471,7 +4606,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             : [],
         table_bttk:
           Array.isArray(savedDraft.table_bttk) &&
-          savedDraft.table_bttk.length > 0
+            savedDraft.table_bttk.length > 0
             ? savedDraft.table_bttk
             : mapIcssItemsToPoRows(data),
         po_source_indent_type: indentType,
@@ -4484,6 +4619,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       getBudgetHeadDisplayName,
       getLinkOptionLabel,
       hosRndSignatory,
+      rndAdminSignatory,
       selectedIndentType,
     ],
   );
@@ -4559,6 +4695,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           snapshot?.grand_total ??
           poDoc.grand_total ??
           "",
+        _icss_po_name: poDocName,
       };
     } catch (error) {
       console.error("Failed to fetch saved ICSS PO draft:", error);
@@ -4636,8 +4773,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         if (!uploadResponse.ok) {
           throw new Error(
             uploadJson?._server_messages ||
-              uploadJson?.exception ||
-              "Failed to upload signed PO.",
+            uploadJson?.exception ||
+            "Failed to upload signed PO.",
           );
         }
 
@@ -4677,7 +4814,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         poData.po_staff_email ||
         poData.staff_email ||
         loggedInStaffEmail;
-      const nextPoData = {
+      const nextPoData: Record<string, any> = {
         ...poData,
         po_staff_email: staffEmail,
         letterhead_user_email: staffEmail,
@@ -4759,7 +4896,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         }
       }
 
-      const poDataForSave = {
+      const poDataForSave: Record<string, any> = {
         ...poData,
         indent_type: indentType,
         po_source_indent_type: poData.po_source_indent_type || indentType,
@@ -4814,13 +4951,13 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         icss_po_form: icssPoFormHtml,
         ...(isAmcPo
           ? {
-              amc_po_table: Array.isArray(poData.amc_po_table)
-                ? poData.amc_po_table
-                : [],
-              add_of_gst_: poDataForSave.add_of_gst_ || "",
-              gst_amount: poDataForSave.gst_amount || 0,
-              grand_total: poDataForSave.grand_total || amcPoTotal,
-            }
+            amc_po_table: Array.isArray(poData.amc_po_table)
+              ? poData.amc_po_table
+              : [],
+            add_of_gst_: poDataForSave.add_of_gst_ || "",
+            gst_amount: poDataForSave.gst_amount || 0,
+            grand_total: poDataForSave.grand_total || amcPoTotal,
+          }
           : {}),
       };
 
@@ -4932,7 +5069,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     if (publishResponse?.message?.status === "error") {
       throw new Error(
         publishResponse.message.message ||
-          "PO generated, but failed to publish the staged PO commitment.",
+        "PO generated, but failed to publish the staged PO commitment.",
       );
     }
 
@@ -5143,13 +5280,13 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       poDraftData.amount_in_words ||
       convertAmountToWords(
         poDraftData.ss_grand_total ||
-          formData.pp_grand_total ||
-          formData.sp_grand_total ||
-          formData.rr_grand_total ||
-          formData.amc_grand_total ||
-          formData.rate_contract_grand_total ||
-          formData.grand_total ||
-          0,
+        formData.pp_grand_total ||
+        formData.sp_grand_total ||
+        formData.rr_grand_total ||
+        formData.amc_grand_total ||
+        formData.rate_contract_grand_total ||
+        formData.grand_total ||
+        0,
       );
 
     if (
@@ -5165,31 +5302,31 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     setPoDraftData((prev) =>
       prev
         ? {
-            ...prev,
-            signee_name: prev.signee_name || hosRndSignatory?.name || "",
-            signee_designation:
-              prev.signee_designation || hosRndSignatory?.designation || "",
-            checked_by_name:
-              prev.checked_by_name ||
-              checkedByUser.name ||
-              prev.po_staff_email ||
-              prev.letterhead_user_email ||
-              "",
-            checked_by_designation:
-              prev.checked_by_designation || checkedByUser.designation || "",
-            amount_in_words:
-              prev.amount_in_words ||
-              convertAmountToWords(
-                prev.ss_grand_total ||
-                  formData.pp_grand_total ||
-                  formData.sp_grand_total ||
-                  formData.rr_grand_total ||
-                  formData.amc_grand_total ||
-                  formData.rate_contract_grand_total ||
-                  formData.grand_total ||
-                  0,
-              ),
-          }
+          ...prev,
+          signee_name: prev.signee_name || hosRndSignatory?.name || "",
+          signee_designation:
+            prev.signee_designation || hosRndSignatory?.designation || "",
+          checked_by_name:
+            prev.checked_by_name ||
+            checkedByUser.name ||
+            prev.po_staff_email ||
+            prev.letterhead_user_email ||
+            "",
+          checked_by_designation:
+            prev.checked_by_designation || checkedByUser.designation || "",
+          amount_in_words:
+            prev.amount_in_words ||
+            convertAmountToWords(
+              prev.ss_grand_total ||
+              formData.pp_grand_total ||
+              formData.sp_grand_total ||
+              formData.rr_grand_total ||
+              formData.amc_grand_total ||
+              formData.rate_contract_grand_total ||
+              formData.grand_total ||
+              0,
+            ),
+        }
         : prev,
     );
   }, [
@@ -5233,7 +5370,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
   // --- RENDER HELPERS ---
   const isReadOnly =
     docStatus === 1 ||
-    (workflowState !== "Draft" && workflowState !== "Pending");
+    (workflowState !== "Draft" && workflowState !== "Pending") ||
+    !isEditMode;
   const shouldUsePoGenerationTabs =
     workflowState === "Pending PO Generation" && isRnDStaff;
   const generatePoDisabledReason = !isPoDraftSaved
@@ -5262,8 +5400,17 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     Boolean(currentDocName);
   const directorApproveBlocked =
     isAtDeanApproval && isDirectorApprovalRequired && !directorSignedPdf;
+  const handleConfirmAction = async () => {
+    if (!pendingAction) return;
+    const comment = actionComment;
+    setPendingAction(null);
+    setActionComment("");
+    await handleWorkflowAction(pendingAction, comment);
+  };
+
   const renderActionButtons = () => {
     if (workflowState === "Draft") {
+      if (!isEditMode) return null;
       return (
         <>
           <FrappeButton
@@ -5280,18 +5427,18 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             Save Draft
           </FrappeButton>
 
-          <FrappeButton
-            onClick={() => handleWorkflowAction("Submit")}
+          <button
+            onClick={() => setPendingAction("Submit")}
             disabled={isSubmitting || isActionLoading}
-            className="bg-[#D97757] hover:opacity-90 text-white shadow-sm"
-          >
-            {isActionLoading ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4 mr-2" />
+            className={cn(
+              "inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 shadow-sm",
+              "bg-[#D97757] hover:bg-[#c66a4e] text-white border-transparent",
+              (isSubmitting || isActionLoading) && "opacity-50 cursor-not-allowed",
             )}
+          >
+            <Send className="w-4 h-4 mr-2" />
             Submit
-          </FrappeButton>
+          </button>
         </>
       );
     }
@@ -5300,6 +5447,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       return null;
     }
 
+    const dropdownDisabled = isActionLoading || commitRequired;
+
     return (
       <>
         {commitRequired && (
@@ -5307,44 +5456,69 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             A commitment must be submitted before forwarding this application.
           </div>
         )}
-        {filteredWorkflowActions.map((action) => {
-          const isApproveAction = action === "Approve";
-          const isDirectorBlockedAction =
-            isApproveAction && directorApproveBlocked;
-          const disabled =
-            isActionLoading || commitRequired || isDirectorBlockedAction;
-          const disabledTitle = isDirectorBlockedAction
-            ? sendToDirector
-              ? "Awaiting Director-signed PDF upload by Staff"
-              : "Tick Send for Director Approval before approving"
-            : commitRequired
-              ? "Submit a commitment first"
-              : undefined;
-
-          return (
-            <FrappeButton
-              key={action}
-              onClick={() => handleWorkflowAction(action)}
-              disabled={disabled}
-              title={disabledTitle}
+        {filteredWorkflowActions.length > 0 && (
+          <div className="relative">
+            <button
+              onClick={() => setShowActionsDropdown((v) => !v)}
+              disabled={dropdownDisabled}
               className={cn(
-                "shadow-sm",
-                disabled
-                  ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
-                  : action === "Approve"
-                    ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                    : action === "Reject"
-                      ? "bg-red-600 hover:bg-red-700 text-white"
-                      : "bg-[#D97757] hover:opacity-90 text-white",
+                "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 shadow-sm",
+                dropdownDisabled
+                  ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 border-zinc-200 dark:border-zinc-700 cursor-not-allowed"
+                  : "bg-[#D97757] hover:bg-[#c66a4e] text-white border-transparent",
               )}
             >
               {isActionLoading ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" />
               ) : null}
-              {action}
-            </FrappeButton>
-          );
-        })}
+              Actions
+              <ChevronDown className="w-4 h-4" />
+            </button>
+
+            {showActionsDropdown && !dropdownDisabled && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setShowActionsDropdown(false)}
+                />
+                <div className="absolute right-0 top-full mt-1 z-20 min-w-[160px] rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg overflow-hidden">
+                  {filteredWorkflowActions.map((action) => {
+                    const isApproveAction = action === "Approve";
+                    const isDirectorBlocked = isApproveAction && directorApproveBlocked;
+                    const disabledTitle = isDirectorBlocked
+                      ? sendToDirector
+                        ? "Awaiting Director-signed PDF upload by Staff"
+                        : "Tick Send for Director Approval before approving"
+                      : undefined;
+                    return (
+                      <button
+                        key={action}
+                        disabled={isDirectorBlocked}
+                        title={disabledTitle}
+                        onClick={() => {
+                          setShowActionsDropdown(false);
+                          setPendingAction(action);
+                        }}
+                        className={cn(
+                          "w-full px-4 py-2.5 text-left text-sm font-medium transition-colors",
+                          isDirectorBlocked
+                            ? "text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
+                            : action === "Approve"
+                              ? "text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                              : action === "Reject"
+                                ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                : "text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-700",
+                        )}
+                      >
+                        {action}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </>
     );
   };
@@ -5471,20 +5645,20 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                 projectRefParam ||
                 projectNoParam ||
                 projectParam) && (
-                <FrappeButton
-                  variant="outline"
-                  onClick={handleViewProject}
-                  disabled={isProjectViewLoading}
-                  className="bg-white dark:bg-zinc-800 shadow-sm"
-                >
-                  {isProjectViewLoading ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <FolderOpen className="w-4 h-4 mr-2" />
-                  )}
-                  View Project
-                </FrappeButton>
-              )}
+                  <FrappeButton
+                    variant="outline"
+                    onClick={handleViewProject}
+                    disabled={isProjectViewLoading}
+                    className="bg-white dark:bg-zinc-800 shadow-sm"
+                  >
+                    {isProjectViewLoading ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <FolderOpen className="w-4 h-4 mr-2" />
+                    )}
+                    View Project
+                  </FrappeButton>
+                )}
               {workflowState === "Pending PO Generation" &&
                 poGenerateAction &&
                 isRnDStaff && (
@@ -5511,6 +5685,16 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                     Generate PO
                   </FrappeButton>
                 )}
+              {workflowState === "Draft" && !isEditMode && currentDocName && (
+                <FrappeButton
+                  variant="outline"
+                  onClick={() => setIsEditMode(true)}
+                  className="bg-white dark:bg-zinc-800 shadow-sm"
+                >
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Edit
+                </FrappeButton>
+              )}
               {renderActionButtons()}
             </div>
           </div>
@@ -5757,21 +5941,21 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                 <FrappeCard
                   className={cn(
                     workflowState === "Pending PO Generation" &&
-                      "bg-slate-100/90 dark:bg-slate-900/50 border-slate-300 dark:border-slate-600 shadow-inner",
+                    "bg-slate-100/90 dark:bg-slate-900/50 border-slate-300 dark:border-slate-600 shadow-inner",
                   )}
                 >
                   <div
                     className={cn(
                       "border-b border-zinc-100 dark:border-zinc-800 px-8 py-4 flex items-center gap-3",
                       workflowState === "Pending PO Generation" &&
-                        "border-slate-300 dark:border-slate-600 bg-slate-200/80 dark:bg-slate-800/80",
+                      "border-slate-300 dark:border-slate-600 bg-slate-200/80 dark:bg-slate-800/80",
                     )}
                   >
                     <div
                       className={cn(
                         "w-1 h-5 bg-[#D97757] rounded-full",
                         workflowState === "Pending PO Generation" &&
-                          "bg-slate-600 dark:bg-slate-400",
+                        "bg-slate-600 dark:bg-slate-400",
                       )}
                     />
                     <div>
@@ -5811,14 +5995,14 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                     <FrappeCard
                       className={cn(
                         workflowState === "Pending PO Generation" &&
-                          "bg-slate-100/90 dark:bg-slate-900/50 border-slate-300 dark:border-slate-600 shadow-inner",
+                        "bg-slate-100/90 dark:bg-slate-900/50 border-slate-300 dark:border-slate-600 shadow-inner",
                       )}
                     >
                       <div
                         className={cn(
                           "border-b border-zinc-100 dark:border-zinc-800 px-8 py-4 flex items-center justify-between",
                           workflowState === "Pending PO Generation" &&
-                            "border-slate-300 dark:border-slate-600 bg-slate-200/80 dark:bg-slate-800/80",
+                          "border-slate-300 dark:border-slate-600 bg-slate-200/80 dark:bg-slate-800/80",
                         )}
                       >
                         <div className="flex items-center gap-3">
@@ -5826,7 +6010,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                             className={cn(
                               "w-1 h-5 bg-blue-500 rounded-full",
                               workflowState === "Pending PO Generation" &&
-                                "bg-slate-600 dark:bg-slate-400",
+                              "bg-slate-600 dark:bg-slate-400",
                             )}
                           />
                           <div>
@@ -5889,134 +6073,95 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             )}
           </div>
 
-          <aside className="lg:col-span-1 space-y-6">
+          <aside className="lg:col-span-1 space-y-4">
             <FrappeCard>
-              <div className="p-5 space-y-4">
-                <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                  Status
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between items-center">
-                    <span className="text-zinc-600 dark:text-zinc-400">
-                      Workflow State
+              <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                {/* State badge row */}
+                <div className="px-4 py-3 flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider shrink-0">
+                    State
+                  </span>
+                  <span
+                    className={cn(
+                      "text-[11px] font-bold px-2.5 py-1 rounded-full truncate max-w-[160px]",
+                      workflowState === "Approved" || workflowState === "PO Delivered"
+                        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                        : workflowState === "Rejected"
+                          ? "bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400"
+                          : workflowState === "Draft"
+                            ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                            : "bg-orange-50 text-[#D97757] dark:bg-orange-900/20 dark:text-orange-400",
+                    )}
+                  >
+                    {workflowState || "Draft"}
+                  </span>
+                </div>
+
+                {/* Doc ID */}
+                {currentDocName && (
+                  <div className="px-4 py-3 flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider shrink-0">
+                      Doc ID
                     </span>
-                    <span
-                      className={cn(
-                        "px-3 py-1 text-xs font-bold rounded-full",
-                        workflowState === "Approved" &&
-                          "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-                        workflowState === "Rejected" &&
-                          "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-                        workflowState === "Draft" &&
-                          "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
-                        !["Approved", "Rejected", "Draft"].includes(
-                          workflowState || "",
-                        ) &&
-                          "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-                      )}
-                    >
-                      {workflowState || "Draft"}
+                    <span className="text-[11px] font-mono font-semibold text-zinc-700 dark:text-zinc-300 truncate text-right">
+                      {currentDocName}
                     </span>
                   </div>
-                  {currentDocName && (
-                    <div className="flex justify-between">
-                      <span className="text-zinc-600 dark:text-zinc-400">
-                        Document
+                )}
+
+                {/* Last modified */}
+                {formData.modified && (
+                  <div className="px-4 py-3 flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider shrink-0">
+                      Modified
+                    </span>
+                    <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400 flex items-center gap-1">
+                      <CalendarIcon className="w-3 h-3" />
+                      {new Date(formData.modified).toLocaleDateString("en-IN", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </span>
+                  </div>
+                )}
+
+                {/* Budget — only when projectCode exists */}
+                {projectCode && (
+                  <>
+                    <div className="px-4 py-3 flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider shrink-0">
+                        Committable
                       </span>
-                      <span className="font-medium text-zinc-900 dark:text-zinc-100 text-right break-all">
-                        {currentDocName}
+                      <span className="text-sm font-bold text-[#D97757] tabular-nums">
+                        ₹{Number(totalCommitableBalance || 0).toLocaleString("en-IN")}
                       </span>
                     </div>
-                  )}
-                  {formData.modified && (
-                    <div className="flex justify-between">
-                      <span className="text-zinc-600 dark:text-zinc-400">
-                        Last Modified
+
+                    <div className="px-4 py-3 flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider shrink-0">
+                        Available
                       </span>
-                      <span className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-1">
-                        <CalendarIcon className="w-3 h-3" />
-                        {new Date(formData.modified).toLocaleDateString(
-                          "en-IN",
-                        )}
+                      <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                        ₹{Number(actualBalance || 0).toLocaleString("en-IN")}
                       </span>
                     </div>
-                  )}
-                </div>
+
+                    <div className="px-4 py-3">
+                      <button
+                        onClick={() => setIsLedgerOpen(true)}
+                        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[#D97757] text-xs font-semibold hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                      >
+                        <LedgerIcon className="w-3.5 h-3.5" />
+                        View Ledger
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </FrappeCard>
 
-            {projectCode && (
-              <FrappeCard>
-                <div className="p-5 space-y-4">
-                  <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Project Budget
-                  </h3>
-                  <div className="flex justify-between items-center bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800">
-                    <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                      Commitable Balance
-                    </p>
-                    <p className="text-lg font-bold text-[#D97757]">
-                      ₹{" "}
-                      {Number(totalCommitableBalance || 0).toLocaleString(
-                        "en-IN",
-                      )}
-                    </p>
-                  </div>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    Available balance: ₹{" "}
-                    {Number(actualBalance || 0).toLocaleString("en-IN")}
-                  </p>
-                  <button
-                    onClick={() => setIsLedgerOpen(true)}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-[#D97757] font-bold text-sm hover:bg-[#B2DFDB] transition-colors"
-                  >
-                    <LedgerIcon className="w-4 h-4" />
-                    View Project Ledger
-                  </button>
-                </div>
-              </FrappeCard>
-            )}
-
-            {currentDocName && (
-              <FrappeCard>
-                <div className="p-5">
-                  <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-                    Latest Activity
-                  </h3>
-                  <ActivityStream
-                    doctype="Indent Cum Sanction Sheet"
-                    docname={currentDocName}
-                    refreshToken={activityRefreshKey}
-                  />
-                </div>
-              </FrappeCard>
-            )}
-
-            {currentDocName && (
-              <FrappeCard>
-                <div className="p-5">
-                  <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
-                    Add Comment
-                  </h3>
-                  <Textarea
-                    rows={3}
-                    placeholder="Type your comment here..."
-                    value={sidebarComment}
-                    onChange={(e) => setSidebarComment(e.target.value)}
-                    className="w-full mb-3 text-sm"
-                  />
-                  <FrappeButton
-                    className="w-full bg-[#D97757] hover:opacity-90 text-white"
-                    onClick={handleSidebarCommentSubmit}
-                    disabled={isAddingComment}
-                  >
-                    {isAddingComment ? "Submitting..." : "Submit Comment"}
-                  </FrappeButton>
-                </div>
-              </FrappeCard>
-            )}
-
-            {showCommitSection && (
+            {isRnDStaff && !!currentDocName && workflowState === "Pending Staff Approval" && (
               <CommitPayment
                 doctype="Indent Cum Sanction Sheet"
                 docName={currentDocName}
@@ -6024,8 +6169,9 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                 budgetHeads={budgetHeads}
                 defaultBudgetHead={defaultCommitBudgetHead}
                 actualBalance={actualBalance}
+                commitableBalance={commitableBalance}
                 billAmount={getIcssApprovalAmount(formData) || undefined}
-                onCommitSuccess={() => window.location.reload()}
+                triggerState="Pending PO Generation"
                 onStagingStatusChange={(committed) =>
                   setIsCommittedForGate(committed)
                 }
@@ -6046,10 +6192,12 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                   budgetHeads={budgetHeads}
                   defaultBudgetHead={defaultCommitBudgetHead}
                   actualBalance={actualBalance}
+                  commitableBalance={commitableBalance}
                   billAmount={poCommitAmount || undefined}
                   forcedRefDetails={previousIcssCommitmentTid || undefined}
                   includeBillAmount
                   moduleId={14}
+                  triggerState="Pending PO Generation"
                   stagingStatuses={
                     workflowState === "Pending PO Generation"
                       ? ["PENDING_APPROVAL"]
@@ -6125,7 +6273,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                           isPaying ||
                           !paymentAmount ||
                           parseFloat(paymentAmount) >
-                            (displayCommitment?.committed || 0)
+                          (displayCommitment?.committed || 0)
                         }
                       >
                         {isPaying ? "Processing..." : "Submit Payment"}
@@ -6158,6 +6306,71 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           budgetHeadList={budgetHeadList}
         />
       )}
+      {/* Action confirmation dialog with optional comment */}
+      {pendingAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-md mx-4 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 dark:border-zinc-800">
+              <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+                Confirm: <span className="text-[#D97757]">{pendingAction}</span>
+              </h3>
+              <button
+                onClick={() => { setPendingAction(null); setActionComment(""); }}
+                className="p-1 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                You are about to <strong className="text-zinc-700 dark:text-zinc-200">{pendingAction}</strong> this Indent Cum Sanction Sheet. Add an optional comment below.
+              </p>
+              <textarea
+                rows={3}
+                placeholder="Optional comment…"
+                value={actionComment}
+                onChange={(e) => setActionComment(e.target.value)}
+                className="w-full resize-none rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] transition-colors"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
+              <button
+                onClick={() => { setPendingAction(null); setActionComment(""); }}
+                className="px-4 py-2 rounded-lg text-sm font-medium border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmAction}
+                disabled={isActionLoading}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors",
+                  pendingAction === "Approve"
+                    ? "bg-emerald-600 hover:bg-emerald-700"
+                    : pendingAction === "Reject"
+                      ? "bg-red-600 hover:bg-red-700"
+                      : "bg-[#D97757] hover:opacity-90",
+                  isActionLoading && "opacity-50 cursor-not-allowed",
+                )}
+              >
+                {isActionLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin inline mr-1" />
+                ) : null}
+                {pendingAction}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating activity log */}
+      {currentDocName && (
+        <FloatingActivityLogButton
+          doctype="Indent Cum Sanction Sheet"
+          docname={currentDocName}
+        />
+      )}
+
       {prPreviewName && (
         <div
           className="fixed inset-0 z-50 flex flex-col bg-black/60 backdrop-blur-sm"

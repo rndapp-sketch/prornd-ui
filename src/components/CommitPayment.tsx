@@ -26,8 +26,9 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useFrappePostCall } from "frappe-react-sdk";
-import { CheckCircle2, AlertCircle, Loader2, CreditCard } from "lucide-react";
+import { CheckCircle2, AlertCircle, Loader2, CreditCard, ShieldAlert, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -43,8 +44,10 @@ export interface CommitPaymentProps {
     projectName: string;
     /** Available budget heads as string labels */
     budgetHeads?: string[];
-    /** Available balance to display */
+    /** Available balance to display (payment balance — used as fallback only) */
     actualBalance?: number;
+    /** Total committable balance — used as the displayed "Available" fallback when no head is selected */
+    commitableBalance?: number;
     /** Optional: bill amount to pre-fill the commit amount field */
     billAmount?: number;
     /** Optional: bmr value */
@@ -63,6 +66,8 @@ export interface CommitPaymentProps {
     includeBillAmount?: boolean;
     /** Optional: module id to send in the commit payload */
     moduleId?: number;
+    /** Optional: workflow trigger state to save inside the commit payload JSON */
+    triggerState?: string;
     /** Optional: only consider these Kafka staging statuses when checking existing staging */
     stagingStatuses?: string[];
     /** Optional: only consider staging records whose payload has these non-empty keys */
@@ -73,10 +78,14 @@ export interface CommitPaymentProps {
     description?: string;
     /** Optional: custom submit button label */
     submitLabel?: string;
+    /** Optional: per-head balance map from useProjectBudget — keys are budget head names */
+    headBalances?: Record<string, { commitable: number; received: number; actual: number; committed: number; payment: number; id: number }>;
     /** Optional: disable the form externally while still showing it */
     disabled?: boolean;
     /** Optional: reason shown when disabled externally */
     disabledReason?: string;
+    /** Optional: called whenever the selected budget head changes (for parent sidebar sync) */
+    onHeadChange?: (head: string) => void;
     /** Optional: called after a successful commit so the parent can update its local state */
     onCommitSuccess?: (head: string, amount: number) => void;
     /**
@@ -85,6 +94,12 @@ export interface CommitPaymentProps {
      * Parents should use this to disable forward/action buttons for Staff RnD users.
      */
     onStagingStatusChange?: (isCommitted: boolean) => void;
+    /**
+     * Optional: async callback called with (budgetHead, amount) just before the commit
+     * payload is sent. Should return the refDetails string to embed, or undefined to skip.
+     * If it throws, the commit is aborted and the error is shown to the user.
+     */
+    resolveRefDetails?: (head: string, amount: number) => Promise<string | undefined>;
     /** Optional: class overrides for the outer container */
     className?: string;
 }
@@ -166,6 +181,131 @@ function extractCommitErrorMessage(error: any, fallback: string) {
 
     return fallback;
 }
+
+// ---------------------------------------------------------------------------
+// Confirm Commit Dialog
+// ---------------------------------------------------------------------------
+interface ConfirmCommitDialogProps {
+    budgetHeadName: string;
+    availableBalance: number;
+    commitAmount: number;
+    onConfirm: () => void;
+    onCancel: () => void;
+    isSubmitting: boolean;
+}
+
+const ConfirmCommitDialog: React.FC<ConfirmCommitDialogProps> = ({
+    budgetHeadName,
+    availableBalance,
+    commitAmount,
+    onConfirm,
+    onCancel,
+    isSubmitting,
+}) => {
+    const remainingBalance = availableBalance - commitAmount;
+
+    const fmt = (n: number) => n.toLocaleString("en-IN");
+
+    return createPortal(
+        <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+            style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
+            onClick={(e) => { if (e.target === e.currentTarget && !isSubmitting) onCancel(); }}
+        >
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-700 w-full max-w-md">
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 dark:border-zinc-700">
+                    <div className="flex items-center gap-2.5">
+                        <ShieldAlert className="w-5 h-5 text-[#D97757]" />
+                        <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Confirm Commitment</h2>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        disabled={isSubmitting}
+                        className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 disabled:opacity-40"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+
+                {/* Body */}
+                <div className="px-5 py-4 space-y-4">
+                    {/* Message */}
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                        You are about to commit{" "}
+                        <span className="font-semibold text-zinc-900 dark:text-zinc-100">₹{fmt(commitAmount)}</span>{" "}
+                        against Budget Head{" "}
+                        <span className="font-semibold text-zinc-900 dark:text-zinc-100">'{budgetHeadName}'</span>.
+                        <br /><br />
+                        This amount will be reserved from the available budget and cannot be used for other commitments. Please verify the budget head and amount before proceeding.
+                    </p>
+
+                    {/* Summary rows */}
+                    <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden text-sm">
+                        {[
+                            { label: "Budget Head", value: budgetHeadName },
+                            { label: "Available Balance", value: `₹${fmt(availableBalance)}` },
+                            { label: "Commitment Amount", value: `₹${fmt(commitAmount)}`, highlight: "text-[#D97757]" },
+                            {
+                                label: "Remaining Balance After Commitment",
+                                value: `₹${fmt(remainingBalance)}`,
+                                highlight: remainingBalance < 0 ? "text-red-600 dark:text-red-400 font-bold" : "text-emerald-600 dark:text-emerald-400",
+                            },
+                        ].map(({ label, value, highlight }, i, arr) => (
+                            <div
+                                key={label}
+                                className={cn(
+                                    "flex items-center justify-between px-4 py-2.5 gap-4",
+                                    i < arr.length - 1 && "border-b border-zinc-100 dark:border-zinc-800",
+                                    i % 2 === 0 ? "bg-zinc-50 dark:bg-zinc-800/50" : "bg-white dark:bg-zinc-900",
+                                )}
+                            >
+                                <span className="text-zinc-500 dark:text-zinc-400 text-xs font-medium">{label}</span>
+                                <span className={cn("font-semibold text-zinc-900 dark:text-zinc-100 text-right", highlight)}>{value}</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    {remainingBalance < 0 && (
+                        <div className="flex items-center gap-2 p-2.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-700 dark:text-red-300">
+                            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                            Warning: Commitment amount exceeds available balance.
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-zinc-200 dark:border-zinc-700">
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        disabled={isSubmitting}
+                        className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onConfirm}
+                        disabled={isSubmitting}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#D97757] hover:bg-[#c66a4e] rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isSubmitting ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Committing…
+                            </>
+                        ) : (
+                            "Confirm & Commit"
+                        )}
+                    </button>
+                </div>
+            </div>
+        </div>,
+        document.body,
+    );
+};
 
 // ---------------------------------------------------------------------------
 // Committed Data Display card
@@ -254,6 +394,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     projectName,
     budgetHeads = [],
     actualBalance = 0,
+    commitableBalance,
     billAmount,
     bmr = "",
     parentAppId,
@@ -263,15 +404,19 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     forcedRefDetails,
     includeBillAmount = false,
     moduleId,
+    triggerState,
     stagingStatuses,
     requiredPayloadKeys,
     title = "Make a Commitment",
     description,
     submitLabel = "Submit Commitment",
+    headBalances,
+    onHeadChange,
     disabled = false,
     disabledReason,
     onCommitSuccess,
     onStagingStatusChange,
+    resolveRefDetails,
     className,
 }) => {
     // ── Staging check state ──────────────────────────────────────────────────
@@ -291,6 +436,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitSuccess, setSubmitSuccess] = useState<{ amount: number; head: string } | null>(null);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const [showConfirmDialog, setShowConfirmDialog] = useState(false);
     const lastAppliedDefaultHeadRef = useRef("");
     const onStagingStatusChangeRef = useRef(onStagingStatusChange);
     const commitReferenceName = stagingReferenceName || docName;
@@ -322,6 +468,11 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
             setCommitHead(budgetHeads[0]);
         }
     }, [budgetHeads, commitHead, preferredCommitHead]);
+
+    // ── Notify parent when selected head changes ─────────────────────────────
+    useEffect(() => {
+        if (commitHead) onHeadChange?.(commitHead);
+    }, [commitHead]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Pre-fill amount from billAmount prop ─────────────────────────────────
     useEffect(() => {
@@ -397,30 +548,51 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
         checkStagingRecord();
     }, [checkStagingRecord]);
 
-    // ── Submit handler ───────────────────────────────────────────────────────
-    const handleCommit = async () => {
+    // Commitable balance for the currently selected head (falls back to total committable, then actual)
+    const selectedHeadBalance = commitHead && headBalances?.[commitHead] != null
+        ? headBalances[commitHead].commitable
+        : (commitableBalance ?? actualBalance);
+
+    // ── Validate & open confirmation dialog ─────────────────────────────────
+    const handleSubmitClick = () => {
         setSubmitError(null);
         const amount = parseFloat(commitAmount);
-        if (!commitHead) {
-            setSubmitError("Please select a budget head.");
-            return;
+        if (!commitHead) { setSubmitError("Please select a budget head."); return; }
+        if (isNaN(amount) || amount <= 0) { setSubmitError("Please enter a valid positive amount."); return; }
+        if (!commitReferenceName || !payloadFrapAppId || !projectName) { setSubmitError("Missing document or project information."); return; }
+        if (disabled) { setSubmitError(disabledReason || "Commitment cannot be submitted yet."); return; }
+        if (headBalances && commitHead && headBalances[commitHead] != null) {
+            const headCommitable = headBalances[commitHead].commitable;
+            if (amount > headCommitable) {
+                setSubmitError(
+                    `Amount ₹${amount.toLocaleString("en-IN")} exceeds the commitable balance of ₹${headCommitable.toLocaleString("en-IN")} for "${commitHead}".`
+                );
+                return;
+            }
         }
-        if (isNaN(amount) || amount <= 0) {
-            setSubmitError("Please enter a valid positive amount.");
-            return;
-        }
-        if (!commitReferenceName || !payloadFrapAppId || !projectName) {
-            setSubmitError("Missing document or project information.");
-            return;
-        }
-        if (disabled) {
-            setSubmitError(disabledReason || "Commitment cannot be submitted yet.");
-            return;
-        }
+        setShowConfirmDialog(true);
+    };
 
+    // ── Actual commit (called from dialog "Confirm & Commit") ────────────────
+    const handleCommit = async () => {
+        setShowConfirmDialog(false);
+        setSubmitError(null);
+        const amount = parseFloat(commitAmount);
         setIsSubmitting(true);
         try {
             let refDetails: string | undefined = forcedRefDetails?.trim() || undefined;
+
+            // Resolve ref details via callback (e.g. call ref_details_id endpoint)
+            if (!refDetails && resolveRefDetails) {
+                try {
+                    const resolved = await resolveRefDetails(commitHead, amount);
+                    if (resolved) refDetails = resolved;
+                } catch (resolveErr: any) {
+                    setSubmitError(resolveErr?.message || "Failed to fetch reference details. Please try again.");
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
 
             // If a parent app is linked, fetch its committed TID from the ledger
             if (!refDetails && parentAppId) {
@@ -461,6 +633,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                 ...(includeBillAmount ? { bill_amount: amount } : {}),
                 ...(moduleId !== undefined ? { moduleId } : {}),
                 ...(refDetails ? { refDetails } : {}),
+                ...(triggerState ? { trigger_state: triggerState } : {}),
                 commitParticular: normalizedCommitParticular,
             };
 
@@ -566,6 +739,15 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     }
 
     // ── Render: Form (normal state) ──────────────────────────────────────────
+    const parsedCommitAmount = parseFloat(commitAmount);
+    const amountExceedsSubmit =
+        !isNaN(parsedCommitAmount) &&
+        parsedCommitAmount > 0 &&
+        headBalances != null &&
+        commitHead !== "" &&
+        headBalances[commitHead] != null &&
+        parsedCommitAmount > headBalances[commitHead].commitable;
+
     return (
         <div className={cn("bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm", className)}>
             {/* Title */}
@@ -604,23 +786,30 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                     <select
                         value={commitHead}
                         onChange={(e) => setCommitHead(e.target.value)}
-                        disabled={disabled}
+                        disabled={disabled || budgetHeads.length === 0}
                         className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                     >
-                        {budgetHeads.length > 0 ? (
-                            budgetHeads.map((head) => (
-                                <option key={head} value={head}>
-                                    {head}
-                                </option>
-                            ))
+                        {budgetHeads.length === 0 ? (
+                            <option value="">Loading budget heads…</option>
                         ) : (
-                            <option value="">No Budget Heads available</option>
+                            <>
+                                {!commitHead && (
+                                    <option value="" disabled>
+                                        — Select Budget Head —
+                                    </option>
+                                )}
+                                {budgetHeads.map((head) => (
+                                    <option key={head} value={head}>
+                                        {head}
+                                    </option>
+                                ))}
+                            </>
                         )}
                     </select>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                         Available:{" "}
-                        <span className="font-medium text-[#D97757]">
-                            ₹{actualBalance.toLocaleString("en-IN")}
+                        <span className={`font-medium ${selectedHeadBalance < 0 ? "text-red-500" : "text-[#D97757]"}`}>
+                            ₹{selectedHeadBalance.toLocaleString("en-IN")}
                         </span>
                     </p>
                 </div>
@@ -636,23 +825,41 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                         value={commitAmount}
                         onChange={(e) => handleCommitAmountChange(e.target.value)}
                         disabled={disabled}
+                        onWheel={(e) => e.currentTarget.blur()}
                         onKeyDown={(e) => {
-                            if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
+                            if (["e", "E", "+", "-"].includes(e.key)) {
                                 e.preventDefault();
                             }
                         }}
                         placeholder="e.g. 5000"
-                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
+                        className={cn(
+                            "w-full px-3 py-2 border rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2",
+                            amountExceedsSubmit
+                                ? "border-red-400 dark:border-red-500 focus:ring-red-300/30 focus:border-red-500"
+                                : "border-zinc-300 dark:border-zinc-700 focus:ring-[#D97757]/25 focus:border-[#D97757]",
+                        )}
                     />
+                    {amountExceedsSubmit && (
+                        <p className="flex items-center gap-1 mt-1 text-[11px] font-medium text-red-600 dark:text-red-400">
+                            <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                            Exceeds available ₹{headBalances![commitHead].commitable.toLocaleString("en-IN")}
+                        </p>
+                    )}
                 </div>
 
                 {/* Particulars / Comment (commitParticular) */}
                 <div>
-                    <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1">
-                        Particulars / Comment
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                            Particulars / Comment
+                        </label>
+                        <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                            {commitParticular.length}/200
+                        </span>
+                    </div>
                     <textarea
                         rows={2}
+                        maxLength={200}
                         value={commitParticular}
                         onChange={(e) => setCommitParticular(e.target.value)}
                         disabled={disabled}
@@ -660,6 +867,18 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                         className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] resize-none"
                     />
                 </div>
+
+                {/* Static Ref ID — shown when a forcedRefDetails value is available */}
+                {forcedRefDetails && (
+                    <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-2.5 flex items-center justify-between gap-3">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 shrink-0">
+                            Ref ID
+                        </span>
+                        <span className="font-mono text-sm font-bold text-emerald-700 dark:text-emerald-300">
+                            {forcedRefDetails}
+                        </span>
+                    </div>
+                )}
 
                 {/* Error message */}
                 {submitError && (
@@ -671,8 +890,8 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
 
                 {/* Submit Button */}
                 <button
-                    onClick={handleCommit}
-                    disabled={disabled || isSubmitting || !commitHead || !commitAmount}
+                    onClick={handleSubmitClick}
+                    disabled={disabled || isSubmitting || !commitHead || !commitAmount || amountExceedsSubmit}
                     className="w-full flex items-center justify-center gap-2 bg-[#D97757] hover:bg-[#c66a4e] text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {isSubmitting ? (
@@ -685,6 +904,18 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                     )}
                 </button>
             </div>
+
+            {/* Confirmation dialog */}
+            {showConfirmDialog && (
+                <ConfirmCommitDialog
+                    budgetHeadName={commitHead}
+                    availableBalance={selectedHeadBalance}
+                    commitAmount={parseFloat(commitAmount) || 0}
+                    onConfirm={handleCommit}
+                    onCancel={() => setShowConfirmDialog(false)}
+                    isSubmitting={isSubmitting}
+                />
+            )}
         </div>
     );
 };

@@ -54,6 +54,8 @@ export const resignationAPI = {
     save: `${API_BASE}.project_staff_resignation.project_staff_resignation.save_project_staff_resignation`,
     submit: `${API_BASE}.project_staff_resignation.project_staff_resignation.submit_project_staff_resignation`,
     getList: `${API_BASE}.project_staff_resignation.project_staff_resignation.get_project_staff_resignation_list`,
+    getWorkflowActions: `${API_BASE}.project_staff_resignation.project_staff_resignation.get_project_staff_resignation_workflow_actions`,
+    performAction: `${API_BASE}.project_staff_resignation.project_staff_resignation.perform_project_staff_resignation_action`,
 };
 
 // Temporary Advance API endpoints
@@ -87,6 +89,13 @@ export const directPurchaseAPI = {
     generateP11Form: `${API_BASE}.direct_purchase.direct_purchase.generate_p11_form`,
     generateSanctionSheet: `${API_BASE}.direct_purchase.direct_purchase.generate_sanction_sheet`,
     generatePurchaseOrder: `${API_BASE}.direct_purchase.direct_purchase.generate_purchase_order`,
+};
+
+// Direct Purchase PO (dp_po) API endpoints — Stage 4
+export const dpPoAPI = {
+    getByDirectPurchase: `${API_BASE}.dp_po.dp_po.get_dp_po_by_direct_purchase`,
+    generateFromSS:      `${API_BASE}.dp_po.dp_po.generate_dp_po_from_sanction_sheet`,
+    save:                `${API_BASE}.dp_po.dp_po.save_dp_po_data`,
 };
 
 // P_11 Form API endpoints (Stage 2)
@@ -125,6 +134,12 @@ export const selectionCommitteeReportAPI = {
     updateSendToDirector: `${API_BASE}.selection_committee_report.selection_committee_report.update_send_to_director_scr`,
     getPendingDirectorUploads: `${API_BASE}.selection_committee_report.selection_committee_report.get_pending_director_uploads_scr`,
     attachDirectorPdf: `${API_BASE}.selection_committee_report.selection_committee_report.attach_director_pdf_scr`,
+};
+
+// Top Up Fellowship — Faculty Admission PDF flow (R&D Staff)
+export const topUpFellowshipAPI = {
+    getPendingFacultyAdmissionUploads: `${API_BASE}.top_up_fellowship.top_up_fellowship.get_pending_faculty_admission_uploads`,
+    attachFacultyAdmissionPdf: `${API_BASE}.top_up_fellowship.top_up_fellowship.attach_faculty_admission_pdf`,
 };
 
 // Selection Candidate Details API endpoints
@@ -230,6 +245,11 @@ export const indentGeneralFormAPI = {
     save: `${API_BASE}.indent_general_form.indent_general_form.save_indent_general_form_data`,
     getWorkflowActions: `${API_BASE}.indent_general_form.indent_general_form.get_indent_general_form_workflow_actions`,
     performAction: `${API_BASE}.indent_general_form.indent_general_form.perform_indent_general_form_action`,
+    updateSendToDirector: `${API_BASE}.indent_general_form.indent_general_form.update_send_to_director_igf`,
+    attachDirectorPdf: `${API_BASE}.indent_general_form.indent_general_form.attach_director_pdf_igf`,
+    getPendingDirectorUploads: `${API_BASE}.indent_general_form.indent_general_form.get_pending_director_uploads_igf`,
+    getAvailableBackActions: `${API_BASE}.indent_general_form.indent_general_form.get_available_back_actions`,
+    putBack: `${API_BASE}.indent_general_form.indent_general_form.put_back`,
 };
 
 // Loan Request API endpoints
@@ -239,6 +259,15 @@ export const loanRequestAPI = {
     submit: `${API_BASE}.loan_request.loan_request.submit_loan_request`,
     getWorkflowActions: `${API_BASE}.loan_request.loan_request.get_loan_request_workflow_actions`,
     performAction: `${API_BASE}.loan_request.loan_request.perform_loan_request_action`,
+};
+
+// Miscellaneous Commit API endpoints
+export const miscellaneousCommitAPI = {
+    getFields: `${API_BASE}.miscellaneous_commit.miscellaneous_commit.get_miscellaneous_commit_fields`,
+    save: `${API_BASE}.miscellaneous_commit.miscellaneous_commit.save_miscellaneous_commit`,
+    submit: `${API_BASE}.miscellaneous_commit.miscellaneous_commit.submit_miscellaneous_commit`,
+    getWorkflowActions: `${API_BASE}.miscellaneous_commit.miscellaneous_commit.get_miscellaneous_commit_workflow_actions`,
+    performAction: `${API_BASE}.miscellaneous_commit.miscellaneous_commit.perform_miscellaneous_commit_action`,
 };
 
 // Common utility to get user details
@@ -257,12 +286,22 @@ export const delegateUserAPI = {
     removeItem: `rndopsapp.rndopsapp.api.remove_delegated_item`,
 };
 
-// Helper to convert file to base64
+// Helper to convert file to base64.
+// IMPORTANT: returns pure base64 (no `data:<mime>;base64,` prefix). Frappe's
+// `save_file(decode=True)` does base64.b64decode() which silently skips
+// non-alphabet characters in the prefix; leaving the prefix on shifts byte
+// alignment of the real payload and corrupts the decoded file, which then
+// surfaces server-side as "FileNotFoundError: ... /private/files/...".
 export const fileToBase64 = (file: File): Promise<{ file_name: string; file_data: string }> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
-        reader.onload = () => resolve({ file_name: file.name, file_data: reader.result as string });
+        reader.onload = () => {
+            const result = reader.result as string;
+            const commaIdx = result.indexOf(",");
+            const pureBase64 = commaIdx >= 0 ? result.slice(commaIdx + 1) : result;
+            resolve({ file_name: file.name, file_data: pureBase64 });
+        };
         reader.onerror = (error) => reject(error);
     });
 };
@@ -277,6 +316,19 @@ export const candidateAPI = {
     getDocument: (docId: number | string) => `${CANDIDATE_API_BASE_URL}/api/documents/${docId}`,
     viewDocument: (docId: number | string) => `${CANDIDATE_API_BASE_URL}/api/documents/${docId}/view`,
     getPost: (postId: number | string) => `${CANDIDATE_API_BASE_URL}/api/recruitment-posts/${postId}`,
+};
+
+// Leave Module API endpoints
+export const leaveModuleAPI = {
+    getFields: `${API_BASE}.leave_module.leave_module.get_leave_module_fields`,
+    save: `${API_BASE}.leave_module.leave_module.save_leave_module_data`,
+    submit: `${API_BASE}.leave_module.leave_module.submit_leave_module`,
+    getWorkflowActions: `${API_BASE}.leave_module.leave_module.get_leave_module_workflow_actions`,
+    performAction: `${API_BASE}.leave_module.leave_module.perform_leave_module_action`,
+    getMyLeaves: `${API_BASE}.leave_module.leave_module.get_my_leaves`,
+    getPendingApprovals: `${API_BASE}.leave_module.leave_module.get_pending_approvals`,
+    getDetail: `${API_BASE}.leave_module.leave_module.get_leave_detail`,
+    getLeaveBalance: `${API_BASE}.leave_module.leave_module.get_leave_balance`,
 };
 
 // Helper to prepare form data with file conversions for API submission

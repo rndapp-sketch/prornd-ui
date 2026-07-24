@@ -2205,11 +2205,12 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate, useParams } from "react-router-dom";
-import { useFrappePostCall, useFrappeAuth, useFrappeGetCall } from "frappe-react-sdk";
+import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
 import {
     DynamicFormRenderer,
     type FormField,
 } from "@/components/forms/DynamicFormRenderer";
+import { ChildTableComponent } from "@/components/forms/ChildTableComponent";
 import {
     selectionCommitteeReportAPI,
     prepareFormDataForApi,
@@ -2217,8 +2218,6 @@ import {
 } from "@/services/apiService";
 import { Loader2, Save, Send, CheckCircle2, Printer, EyeIcon, MessageSquare, X } from "lucide-react";
 import ViewProjectButton from "@/components/ViewProjectButton";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useUserRoles } from "@/components/UserRole";
@@ -2320,27 +2319,6 @@ const FrappeCard = ({ children, className }: any) => (
     </Card>
 );
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const FrappeButton = ({
-    children,
-    className,
-    variant = "primary",
-    ...props
-}: any) => (
-    <Button
-        variant={
-            variant === "primary"
-                ? "default"
-                : variant === "ghost"
-                    ? "ghost"
-                    : "outline"
-        }
-        className={cn(className)}
-        {...props}
-    >
-        {children}
-    </Button>
-);
 
 const SelectionCommitteeReportForm: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -3663,6 +3641,167 @@ const SelectionCommitteeReportForm: React.FC = () => {
                             showBack
                         >
                             <ViewProjectButton doctype="Selection Committee Report" data={formData} />
+                            {(() => {
+                                const isContractual = isContractualRecruitment(formData.recruitment_type);
+                                const inDirectorFlow =
+                                    isDoRnd &&
+                                    isContractual &&
+                                    workflowState === "Pending Dean Approval";
+
+                                // Stage 1: Dean hasn't sent to director yet → only show "Send to Director"
+                                if (inDirectorFlow && !formData.send_to_director) {
+                                    return (
+                                        <button
+                                            onClick={async () => {
+                                                if (!savedDocName) return;
+                                                try {
+                                                    await callUpdateSendToDirector({
+                                                        docname: savedDocName,
+                                                        send_to_director: 1,
+                                                    });
+                                                    setFormData(prev => ({ ...prev, send_to_director: 1 }));
+                                                    handlePrint();
+                                                } catch (err) {
+                                                    console.error("Failed to send to director", err);
+                                                }
+                                            }}
+                                            disabled={isUpdatingSendToDirector || !savedDocName}
+                                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-bold bg-[#D97757] hover:opacity-90 text-white shadow-sm transition-all disabled:opacity-50"
+                                        >
+                                            {isUpdatingSendToDirector ? (
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                            ) : (
+                                                <Send className="w-3.5 h-3.5" />
+                                            )}
+                                            Send to Director
+                                        </button>
+                                    );
+                                }
+
+                                // Stage 2: Sent, but Staff hasn't uploaded the Director-signed PDF yet
+                                if (inDirectorFlow && !formData.director_signed_pdf) {
+                                    return (
+                                        <button
+                                            disabled
+                                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-bold bg-zinc-200 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400 cursor-not-allowed shadow-sm"
+                                        >
+                                            Waiting for Director Approval
+                                        </button>
+                                    );
+                                }
+
+                                // Stage 3: PDF uploaded → show View PDF + Approve/Reject
+                                if (inDirectorFlow && formData.director_signed_pdf) {
+                                    return (
+                                        <>
+                                            <button
+                                                onClick={() => window.open(formData.director_signed_pdf, '_blank')}
+                                                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-bold bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800/50 dark:text-emerald-300 dark:hover:bg-emerald-900/40 shadow-sm transition-all"
+                                            >
+                                                <EyeIcon className="w-3.5 h-3.5" />
+                                                View Director Signed PDF
+                                            </button>
+                                            {availableActions
+                                                .filter(a => a === "Approve" || a === "Reject")
+                                                .map(action => (
+                                                    <button
+                                                        key={action}
+                                                        onClick={() => handleWorkflowAction(action)}
+                                                        disabled={isActionLoading}
+                                                        className={cn(
+                                                            "inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-bold shadow-sm transition-all disabled:opacity-50",
+                                                            action === "Approve"
+                                                                ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                                : "bg-red-600 hover:bg-red-700 text-white",
+                                                        )}
+                                                    >
+                                                        {isActionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                                                        {action}
+                                                    </button>
+                                                ))}
+                                        </>
+                                    );
+                                }
+
+                                // Default: all other states/roles
+                                return (
+                                    <>
+                                        {isContractual && formData.director_signed_pdf && (
+                                            <button
+                                                onClick={() => window.open(formData.director_signed_pdf, '_blank')}
+                                                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-bold bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800/50 dark:text-emerald-300 dark:hover:bg-emerald-900/40 shadow-sm transition-all"
+                                            >
+                                                <EyeIcon className="w-3.5 h-3.5" />
+                                                View Director Signed PDF
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={handlePrint}
+                                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-bold bg-white dark:bg-zinc-800 border border-[#E4E4E7] dark:border-[#3F3F46] text-[#52525B] dark:text-[#A1A1AA] hover:border-[#D97757]/50 hover:text-[#D97757] transition-all shadow-sm"
+                                            title="Print or Download this report as PDF"
+                                        >
+                                            <Printer className="w-3.5 h-3.5" />
+                                            Download PDF
+                                        </button>
+                                        {workflowState === "Draft" ? (
+                                            <>
+                                                <button
+                                                    onClick={handleSave}
+                                                    disabled={isSubmitting || isActionLoading}
+                                                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-bold bg-white dark:bg-zinc-800 border border-[#E4E4E7] dark:border-[#3F3F46] text-[#52525B] dark:text-[#A1A1AA] hover:border-[#D97757]/50 hover:text-[#D97757] transition-all shadow-sm disabled:opacity-50"
+                                                >
+                                                    {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                                                    Save Draft
+                                                </button>
+                                                {availableActions.includes("Submit") ? (
+                                                    <button
+                                                        onClick={() => handleWorkflowAction("Submit")}
+                                                        disabled={isSubmitting || isActionLoading}
+                                                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-bold bg-[#D97757] hover:opacity-90 text-white shadow-sm transition-all disabled:opacity-50"
+                                                    >
+                                                        {isActionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                                                        Submit
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={handleSave}
+                                                        disabled={isSubmitting || isActionLoading || !(savedDocName || editDocName)}
+                                                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-bold bg-[#D97757] hover:opacity-90 text-white shadow-sm transition-all disabled:opacity-50"
+                                                    >
+                                                        {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                                                        Save & Continue
+                                                    </button>
+                                                )}
+                                            </>
+                                        ) : (
+                                            availableActions.map((action) => {
+                                                const isApproveAction = action === "Approve" || action === "Recommend";
+                                                const isDisabledByPdf = isDoRnd && isApproveAction && isContractual && !formData.director_signed_pdf;
+                                                return (
+                                                    <button
+                                                        key={action}
+                                                        onClick={() => handleWorkflowAction(action)}
+                                                        disabled={isActionLoading || isDisabledByPdf}
+                                                        title={isDisabledByPdf ? "Director Signed PDF must be uploaded first" : undefined}
+                                                        className={cn(
+                                                            "inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-bold shadow-sm transition-all disabled:opacity-50",
+                                                            action === "Approve"
+                                                                ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                                : action === "Reject"
+                                                                    ? "bg-red-600 hover:bg-red-700 text-white"
+                                                                    : "bg-[#D97757] hover:opacity-90 text-white",
+                                                            isDisabledByPdf && "cursor-not-allowed"
+                                                        )}
+                                                    >
+                                                        {isActionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                                                        {action}
+                                                    </button>
+                                                );
+                                            })
+                                        )}
+                                    </>
+                                );
+                            })()}
                         </PageHeader>
                     </div>
 
@@ -3690,7 +3829,29 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                 f => f.fieldtype === "Section Break" &&
                                                     (f.label?.toLowerCase().includes("upload") || f.label?.toLowerCase().includes("check list"))
                                             );
-                                            return uploadIdx >= 0 ? visibleFields.slice(0, uploadIdx) : visibleFields;
+                                            const beforeUpload = uploadIdx >= 0 ? visibleFields.slice(0, uploadIdx) : visibleFields;
+                                            // Exclude post_details and its preceding Section Break — rendered per-post below with candidates
+                                            const postDetailsIdx = beforeUpload.findIndex(f => f.fieldname === "post_details");
+                                            if (postDetailsIdx < 0) return beforeUpload;
+                                            // Find the Section Break right before post_details
+                                            let sectionIdx = -1;
+                                            for (let i = postDetailsIdx - 1; i >= 0; i--) {
+                                                if (beforeUpload[i].fieldtype === "Section Break") { sectionIdx = i; break; }
+                                                // If we hit a non-section-break field, there's no dedicated section for post_details
+                                                if (beforeUpload[i].fieldtype !== "Column Break") break;
+                                            }
+                                            return beforeUpload.filter((f, idx) => {
+                                                if (f.fieldname === "post_details") return false;
+                                                // Remove the Section Break only if it solely contained post_details
+                                                if (idx === sectionIdx) {
+                                                    // Check if the section only had post_details (and optional Column Breaks) between it and the next Section Break
+                                                    const nextSectionIdx = beforeUpload.findIndex((ff, ii) => ii > sectionIdx && ff.fieldtype === "Section Break");
+                                                    const sectionEnd = nextSectionIdx >= 0 ? nextSectionIdx : beforeUpload.length;
+                                                    const sectionFields = beforeUpload.slice(sectionIdx + 1, sectionEnd).filter(ff => ff.fieldtype !== "Column Break");
+                                                    if (sectionFields.length <= 1 && sectionFields.every(ff => ff.fieldname === "post_details")) return false;
+                                                }
+                                                return true;
+                                            });
                                         })()}
                                         formData={formData}
                                         linkOptions={linkOptions}
@@ -3705,6 +3866,406 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                         }
                                         readOnly={deanOverrideReadOnly ? false : isReadOnly}
                                     />
+
+                                    {/* Post Details & Candidates — each post followed by its candidates */}
+                                    {(() => {
+                                        const candidateRows = getCandidateRows();
+                                        const cellCls = "w-full h-9 px-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-[#D97757] disabled:opacity-70 disabled:bg-zinc-100 dark:disabled:bg-zinc-800";
+
+                                        // Build post groups: { postLabel -> [{ row, globalIndex }] }
+                                        const postGroupMap = new Map<string, { row: CandidateRow; globalIndex: number }[]>();
+                                        candidateRows.forEach((row, idx) => {
+                                            const key = row.applied_post || 'Unassigned';
+                                            if (!postGroupMap.has(key)) postGroupMap.set(key, []);
+                                            postGroupMap.get(key)!.push({ row, globalIndex: idx });
+                                        });
+
+                                        // Get post details data and field definition
+                                        const postDetails: any[] = Array.isArray(formData.post_details) ? formData.post_details : [];
+                                        const postDetailsField = fields.find(f => f.fieldname === "post_details");
+                                        const postDetailColumns = postDetailsField?.child_fields || [];
+
+                                        // Collect all post labels (from post details + any candidates in unrecognised posts)
+                                        const allPostLabels = new Set<string>();
+                                        postDetails.forEach((pd: any) => {
+                                            const label = pd.upfa_designation || pd.designation;
+                                            if (label) allPostLabels.add(label);
+                                        });
+                                        postGroupMap.forEach((_, key) => { if (key !== 'Unassigned') allPostLabels.add(key); });
+
+                                        const unassigned = postGroupMap.get('Unassigned') || [];
+
+                                        // Render candidates table for a single post
+                                        const renderPostCandidates = (
+                                            postLabel: string,
+                                            entries: { row: CandidateRow; globalIndex: number }[],
+                                            showAddButton: boolean,
+                                            defaultPostValue: string,
+                                        ) => {
+                                            return (
+                                                <div className="mb-2 border border-zinc-200 dark:border-zinc-700 rounded-xl overflow-hidden">
+                                                    {/* Post Group Header */}
+                                                    <div className="flex items-center justify-between px-5 py-3 bg-gradient-to-r from-zinc-50 to-white dark:from-zinc-800/80 dark:to-zinc-800/40">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-lg bg-[#D97757]/10 dark:bg-[#D97757]/20 flex items-center justify-center">
+                                                                <svg className="w-4 h-4 text-[#D97757]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                                            </div>
+                                                            <div>
+                                                                <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Candidates &amp; Recommendations</h4>
+                                                                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                                                    {entries.length} candidate{entries.length !== 1 ? 's' : ''} for {postLabel}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="inline-flex items-center justify-center min-w-[1.5rem] h-6 px-1.5 rounded-full bg-[#D97757] text-white text-xs font-bold">
+                                                                {entries.length}
+                                                            </span>
+                                                            {showAddButton && !isReadOnly && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const matchingPostDetail = postDetails.find((pd: any) => (pd.upfa_designation || pd.designation) === defaultPostValue);
+                                                                        const matchingPostId = matchingPostDetail?.name || '';
+                                                                        const cached = matchingPostId ? postDetailsCache[matchingPostId] : undefined;
+                                                                        setFormData(prev => {
+                                                                            let rows: CandidateRow[];
+                                                                            try {
+                                                                                const v = prev.candidates;
+                                                                                rows = !v ? [] : Array.isArray(v) ? [...v] : JSON.parse(v);
+                                                                            } catch { rows = []; }
+                                                                            const newRow: CandidateRow = {
+                                                                                id: Date.now().toString(),
+                                                                                candidate_name: "",
+                                                                                application_id: "",
+                                                                                recruitment_post_id: matchingPostId,
+                                                                                candidate_id: "",
+                                                                                applied_post: defaultPostValue,
+                                                                                basic_pay: cached?.upfa_basic_pay ?? 0,
+                                                                                hra: cached?.upfa_hra_percent || "",
+                                                                                medical_required: cached?.upfa_medical_required ? "Yes" : "No",
+                                                                                total_amount: cached?.upfa_total_amount ?? 0,
+                                                                                upfa_duration_months: cached?.upfa_duration_months ?? "",
+                                                                                recommendation: "Not Recommended",
+                                                                                waitlist_no: "",
+                                                                                justification: "",
+                                                                            };
+                                                                            return { ...prev, candidates: [...rows, newRow] };
+                                                                        });
+                                                                    }}
+                                                                    className="px-2.5 py-1 text-xs bg-white dark:bg-zinc-800 border border-dashed border-[#D97757]/50 text-[#D97757] rounded-lg hover:bg-[#D97757]/5 transition-colors"
+                                                                >
+                                                                    + Add
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Candidate Table */}
+                                                    {entries.length > 0 ? (
+                                                        <div className="overflow-x-auto">
+                                                            <table className="w-full text-sm">
+                                                                <thead>
+                                                                    <tr className="bg-zinc-100 dark:bg-zinc-800 border-b border-t border-zinc-200 dark:border-zinc-700">
+                                                                        <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 w-10">#</th>
+                                                                        <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[220px]">Candidate Name <span className="text-red-500">*</span></th>
+                                                                        <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[100px]">Basic Pay</th>
+                                                                        <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[70px]">HRA</th>
+                                                                        <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[80px]">Medical</th>
+                                                                        <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[100px]">Total</th>
+                                                                        <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[100px]">Duration (Months)</th>
+                                                                        <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[170px]">Recommendation <span className="text-red-500">*</span></th>
+                                                                        <th className="px-3 py-2.5 text-center font-semibold text-zinc-700 dark:text-zinc-300 w-20">WL No.</th>
+                                                                        <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[180px]">Justification</th>
+                                                                        <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 w-20">Details</th>
+                                                                        {!isReadOnly && <th className="px-3 py-2.5 w-20" />}
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {entries.map(({ row, globalIndex }, localIdx) => (
+                                                                        <tr key={row.id || globalIndex} className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30">
+                                                                            <td className="px-3 py-2 text-zinc-500 text-center text-xs">{localIdx + 1}</td>
+
+                                                                            {/* Candidate Name */}
+                                                                            <td className="px-3 py-2">
+                                                                                {isReadOnly ? (
+                                                                                    <span className="text-zinc-800 dark:text-zinc-200 font-medium">{row.candidate_name?.replace(/\s*\(Shortlisted\)$/i, '') || '—'}</span>
+                                                                                ) : (
+                                                                                    <select
+                                                                                        className={cellCls}
+                                                                                        value={row.application_id}
+                                                                                        onChange={e => handleCandidateSelect(globalIndex, e.target.value)}
+                                                                                    >
+                                                                                        <option value="">Select candidate…</option>
+                                                                                        {row.application_id && !candidatesList.find(c => c.application_id === row.application_id) && (
+                                                                                            <option value={row.application_id}>{row.candidate_name?.replace(/\s*\(Shortlisted\)$/i, '')}</option>
+                                                                                        )}
+                                                                                        {candidatesList
+                                                                                            .filter(c => c.status?.toLowerCase() === "shortlisted")
+                                                                                            .filter(c => {
+                                                                                                if (postLabel === 'Unassigned') return true;
+                                                                                                const candPostDesignation =
+                                                                                                    c.post_designation ||
+                                                                                                    postDetailsCache[c.recruitment_post_id]?.upfa_designation ||
+                                                                                                    recruitmentDocRef.current?.upfa_post_details?.find((p: any) => p.name === c.recruitment_post_id)?.upfa_designation ||
+                                                                                                    "";
+                                                                                                return candPostDesignation === postLabel;
+                                                                                            })
+                                                                                            .map(c => {
+                                                                                                const postDesignation =
+                                                                                                    c.post_designation ||
+                                                                                                    postDetailsCache[c.recruitment_post_id]?.upfa_designation ||
+                                                                                                    recruitmentDocRef.current?.upfa_post_details?.find((p: any) => p.name === c.recruitment_post_id)?.upfa_designation ||
+                                                                                                    "";
+                                                                                                const label = postDesignation
+                                                                                                    ? `${c.display_name} (${postDesignation})`
+                                                                                                    : c.display_name;
+                                                                                                return (
+                                                                                                    <option key={c.application_id} value={c.application_id}>
+                                                                                                        {label}
+                                                                                                    </option>
+                                                                                                );
+                                                                                            })}
+                                                                                    </select>
+                                                                                )}
+                                                                            </td>
+
+                                                                            {/* Basic Pay — read-only */}
+                                                                            <td className="px-3 py-2 text-zinc-700 dark:text-zinc-300 tabular-nums">
+                                                                                {row.basic_pay ? `₹${Number(row.basic_pay).toLocaleString('en-IN')}` : '—'}
+                                                                            </td>
+
+                                                                            {/* HRA — read-only */}
+                                                                            <td className="px-3 py-2 text-zinc-700 dark:text-zinc-300">
+                                                                                {row.hra || '—'}
+                                                                            </td>
+
+                                                                            {/* Medical Required — read-only */}
+                                                                            <td className="px-3 py-2">
+                                                                                {row.medical_required ? (
+                                                                                    <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium",
+                                                                                        row.medical_required === 'Yes'
+                                                                                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
+                                                                                            : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                                                                                    )}>
+                                                                                        {row.medical_required}
+                                                                                    </span>
+                                                                                ) : '—'}
+                                                                            </td>
+
+                                                                            {/* Total Amount — read-only */}
+                                                                            <td className="px-3 py-2 text-zinc-800 dark:text-zinc-200 font-semibold tabular-nums">
+                                                                                {row.total_amount ? `₹${Number(row.total_amount).toLocaleString('en-IN')}` : '—'}
+                                                                            </td>
+
+                                                                            {/* Duration (Months) — read-only */}
+                                                                            <td className="px-3 py-2 text-zinc-700 dark:text-zinc-300">
+                                                                                {row.upfa_duration_months || postDetailsCache[row.recruitment_post_id]?.upfa_duration_months || (recruitmentDocRef.current?.upfa_post_details?.find((p: any) => p.name === row.recruitment_post_id)?.upfa_duration_months) || '—'}
+                                                                            </td>
+
+                                                                            {/* Recommendation — editable select */}
+                                                                            <td className="px-3 py-2">
+                                                                                {isReadOnly ? (
+                                                                                    <span className={cn("text-xs font-semibold px-2.5 py-1 rounded-full",
+                                                                                        row.recommendation === 'Recommended'
+                                                                                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
+                                                                                            : row.recommendation === 'Waiting List'
+                                                                                                ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'
+                                                                                                : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                                                                                    )}>
+                                                                                        {row.recommendation || 'Not Recommended'}
+                                                                                    </span>
+                                                                                ) : (
+                                                                                    <select
+                                                                                        className={cn(cellCls,
+                                                                                            row.recommendation === 'Recommended'
+                                                                                                ? 'border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400'
+                                                                                                : row.recommendation === 'Waiting List'
+                                                                                                    ? 'border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400'
+                                                                                                    : 'border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+                                                                                        )}
+                                                                                        value={row.recommendation || 'Not Recommended'}
+                                                                                        onChange={e => updateCandidateRow(globalIndex, {
+                                                                                            recommendation: e.target.value,
+                                                                                            ...(e.target.value !== 'Waiting List' ? { waitlist_no: "" } : {}),
+                                                                                        })}
+                                                                                        required
+                                                                                    >
+                                                                                        <option value="Recommended">Recommended</option>
+                                                                                        <option value="Not Recommended">Not Recommended</option>
+                                                                                        <option value="Waiting List">Waiting List</option>
+                                                                                    </select>
+                                                                                )}
+                                                                            </td>
+
+                                                                            {/* Waiting List Number */}
+                                                                            <td className="px-3 py-2 text-center">
+                                                                                {isReadOnly ? (
+                                                                                    row.recommendation === 'Waiting List' && row.waitlist_no
+                                                                                        ? <span className="text-xs font-bold px-2 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-700/50">#{row.waitlist_no}</span>
+                                                                                        : <span className="text-zinc-400">—</span>
+                                                                                ) : (
+                                                                                    row.recommendation === 'Waiting List' ? (
+                                                                                        <input
+                                                                                            type="number"
+                                                                                            min={1}
+                                                                                            className={cn(cellCls, "w-16 text-center text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700")}
+                                                                                            placeholder="#"
+                                                                                            value={row.waitlist_no || ""}
+                                                                                            onChange={e => updateCandidateRow(globalIndex, { waitlist_no: e.target.value })}
+                                                                                        />
+                                                                                    ) : (
+                                                                                        <span className="text-zinc-400">—</span>
+                                                                                    )
+                                                                                )}
+                                                                            </td>
+
+                                                                            {/* Justification */}
+                                                                            <td className="px-3 py-2">
+                                                                                {isReadOnly ? (
+                                                                                    <span className="text-zinc-700 dark:text-zinc-300 text-xs">{row.justification || '—'}</span>
+                                                                                ) : (
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        className={cellCls}
+                                                                                        placeholder="Enter justification…"
+                                                                                        value={row.justification || ""}
+                                                                                        onChange={e => updateCandidateRow(globalIndex, { justification: e.target.value })}
+                                                                                    />
+                                                                                )}
+                                                                            </td>
+
+                                                                            {/* Details */}
+                                                                            <td className="px-3 py-2 text-center">
+                                                                                {row.candidate_id && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => navigate(
+                                                                                            `/candidate-details/${row.candidate_id}?refNum=${encodeURIComponent(formData.interview_id || interviewIdParam || "")}&applicationId=${row.application_id}`
+                                                                                        )}
+                                                                                        className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30 transition-colors whitespace-nowrap"
+                                                                                    >
+                                                                                        View
+                                                                                    </button>
+                                                                                )}
+                                                                            </td>
+
+                                                                            {/* Remove */}
+                                                                            {!isReadOnly && (
+                                                                                <td className="px-3 py-2 text-center">
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => setFormData(prev => {
+                                                                                            let rows: CandidateRow[];
+                                                                                            try {
+                                                                                                const v = prev.candidates;
+                                                                                                rows = !v ? [] : Array.isArray(v) ? [...v] : JSON.parse(v);
+                                                                                            } catch { rows = []; }
+                                                                                            return { ...prev, candidates: rows.filter((_, i) => i !== globalIndex) };
+                                                                                        })}
+                                                                                        className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30 transition-colors"
+                                                                                    >
+                                                                                        Remove
+                                                                                    </button>
+                                                                                </td>
+                                                                            )}
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="px-4 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400 border-t border-zinc-200 dark:border-zinc-700">
+                                                            No candidates added for this post yet.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        };
+
+                                        return (
+                                            <div className="mt-8">
+                                                <div className="flex items-start justify-between mb-4">
+                                                    <div>
+                                                        <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
+                                                            Post Details &amp; Candidates
+                                                            <span className="text-red-500 ml-1">*</span>
+                                                        </h3>
+                                                        <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">
+                                                            Each post's details are followed by its corresponding candidates and recommendations.
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        {isFetchingCandidates && (
+                                                            <span className="flex items-center gap-1.5 text-xs text-zinc-500">
+                                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                                Loading candidates…
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {postDetails.length > 0 ? (
+                                                    <div className="space-y-8">
+                                                        {postDetails.map((pd: any, postIdx: number) => {
+                                                            const postLabel = pd.upfa_designation || pd.designation || `Post #${postIdx + 1}`;
+                                                            const entries = postGroupMap.get(postLabel) || [];
+
+                                                            return (
+                                                                <div key={pd.name || postIdx} className="space-y-3">
+                                                                    {/* Post Details — rendered via ChildTableComponent with single row */}
+                                                                    {postDetailColumns.length > 0 && (
+                                                                        <ChildTableComponent
+                                                                            tableName="post_details"
+                                                                            rowLabelOverride={`Post #${postIdx + 1} — ${postLabel}`}
+                                                                            hideRowIndex={true}
+                                                                            columns={postDetailColumns}
+                                                                            tableData={[pd]}
+                                                                            onRowChange={(tbl, _rowIdx, fieldname, value) => {
+                                                                                handleTableRowChange(tbl, postIdx, fieldname, value);
+                                                                            }}
+                                                                            onFileChange={(tbl, _rowIdx, fieldname, file) => {
+                                                                                handleTableFileChange(tbl, postIdx, fieldname, file);
+                                                                            }}
+                                                                            onAddRow={handleAddTableRow}
+                                                                            onDeleteRow={(tbl, _rowIdx) => {
+                                                                                handleDeleteTableRow(tbl, postIdx);
+                                                                            }}
+                                                                            readOnly={deanOverrideReadOnly ? false : isReadOnly}
+                                                                            linkOptions={linkOptions}
+                                                                            disableDelete={true}
+                                                                            maxRows={1}
+                                                                        />
+                                                                    )}
+
+                                                                    {/* Candidates for this post */}
+                                                                    {renderPostCandidates(
+                                                                        postLabel,
+                                                                        entries,
+                                                                        true,
+                                                                        postLabel,
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })}
+
+                                                        {/* Unassigned candidates (not matched to any post) */}
+                                                        {unassigned.length > 0 && (
+                                                            <div className="space-y-3">
+                                                                {renderPostCandidates('Unassigned', unassigned, false, '')}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-8 text-center text-zinc-500 dark:text-zinc-400">
+                                                        {isFetchingCandidates
+                                                            ? 'Loading candidates…'
+                                                            : 'No post details available.'}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
 
                                     {/* Committee Members Table */}
                                     {(() => {
@@ -3869,290 +4430,6 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                         );
                                     })()}
 
-                                    {/* Candidates & Recommendations Table */}
-                                    {(() => {
-                                        const candidateRows = getCandidateRows();
-                                        const cellCls = "w-full h-9 px-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-[#D97757] disabled:opacity-70 disabled:bg-zinc-100 dark:disabled:bg-zinc-800";
-
-                                        return (
-                                            <div className="mt-8">
-                                                <div className="flex items-start justify-between mb-4">
-                                                    <div>
-                                                        <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
-                                                            Candidates &amp; Recommendations
-                                                            <span className="text-red-500 ml-1">*</span>
-                                                        </h3>
-                                                        <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">
-                                                            Only shortlisted candidates will appear in the selection below.
-                                                        </p>
-                                                    </div>
-                                                    <div className="flex items-center gap-3">
-                                                        {isFetchingCandidates && (
-                                                            <span className="flex items-center gap-1.5 text-xs text-zinc-500">
-                                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                                Loading candidates…
-                                                            </span>
-                                                        )}
-                                                        {!isReadOnly && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    setFormData(prev => {
-                                                                        let rows: CandidateRow[];
-                                                                        try {
-                                                                            const v = prev.candidates;
-                                                                            rows = !v ? [] : Array.isArray(v) ? [...v] : JSON.parse(v);
-                                                                        } catch { rows = []; }
-                                                                        const newRow: CandidateRow = {
-                                                                            id: Date.now().toString(),
-                                                                            candidate_name: "",
-                                                                            application_id: "",
-                                                                            recruitment_post_id: "",
-                                                                            candidate_id: "",
-                                                                            applied_post: "",
-                                                                            basic_pay: 0,
-                                                                            hra: "",
-                                                                            medical_required: "",
-                                                                            total_amount: 0,
-                                                                            upfa_duration_months: "",
-                                                                            recommendation: "Not Recommended",
-                                                                            waitlist_no: "",
-                                                                            justification: "",
-                                                                        };
-                                                                        return { ...prev, candidates: [...rows, newRow] };
-                                                                    });
-                                                                }}
-                                                                className="px-3 py-1.5 text-sm bg-white dark:bg-zinc-800 border border-dashed border-[#D97757]/50 text-[#D97757] rounded-lg hover:bg-[#D97757]/5 transition-colors"
-                                                            >
-                                                                + Add Row
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-700 rounded-xl">
-                                                    <table className="w-full text-sm">
-                                                        <thead>
-                                                            <tr className="bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
-                                                                <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 w-10">#</th>
-                                                                <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[220px]">Candidate Name <span className="text-red-500">*</span></th>
-                                                                <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[130px]">Applied Post</th>
-                                                                <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[100px]">Basic Pay</th>
-                                                                <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[70px]">HRA</th>
-                                                                <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[80px]">Medical</th>
-                                                                <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[100px]">Total</th>
-                                                                <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[100px]">Duration (Months)</th>
-                                                                <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[170px]">Recommendation <span className="text-red-500">*</span></th>
-                                                                <th className="px-3 py-2.5 text-center font-semibold text-zinc-700 dark:text-zinc-300 w-20">WL No.</th>
-                                                                <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[180px]">Justification</th>
-                                                                <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 w-20">Details</th>
-                                                                {!isReadOnly && <th className="px-3 py-2.5 w-20" />}
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {candidateRows.map((row, idx) => (
-                                                                <tr key={row.id || idx} className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30">
-                                                                    <td className="px-3 py-2 text-zinc-500 text-center text-xs">{idx + 1}</td>
-
-                                                                    {/* Candidate Name */}
-                                                                    <td className="px-3 py-2">
-                                                                        {isReadOnly ? (
-                                                                            <span className="text-zinc-800 dark:text-zinc-200 font-medium">{row.candidate_name?.replace(/\s*\(Shortlisted\)$/i, '') || '—'}</span>
-                                                                        ) : (
-                                                                            <select
-                                                                                className={cellCls}
-                                                                                value={row.application_id}
-                                                                                onChange={e => handleCandidateSelect(idx, e.target.value)}
-                                                                            >
-                                                                                <option value="">Select candidate…</option>
-                                                                                {/* Preserve saved value as option while candidatesList is still loading */}
-                                                                                {row.application_id && !candidatesList.find(c => c.application_id === row.application_id) && (
-                                                                                    <option value={row.application_id}>{row.candidate_name?.replace(/\s*\(Shortlisted\)$/i, '')}</option>
-                                                                                )}
-                                                                                {candidatesList.filter(c => c.status?.toLowerCase() === "shortlisted").map(c => {
-                                                                                    const postDesignation =
-                                                                                        c.post_designation ||
-                                                                                        postDetailsCache[c.recruitment_post_id]?.upfa_designation ||
-                                                                                        recruitmentDocRef.current?.upfa_post_details?.find((p: any) => p.name === c.recruitment_post_id)?.upfa_designation ||
-                                                                                        "";
-                                                                                    const label = postDesignation
-                                                                                        ? `${c.display_name} (${postDesignation})`
-                                                                                        : c.display_name;
-                                                                                    return (
-                                                                                        <option key={c.application_id} value={c.application_id}>
-                                                                                            {label}
-                                                                                        </option>
-                                                                                    );
-                                                                                })}
-                                                                            </select>
-                                                                        )}
-                                                                    </td>
-
-                                                                    {/* Applied Post — read-only */}
-                                                                    <td className="px-3 py-2">
-                                                                        <span className="inline-block text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded font-medium">
-                                                                            {row.applied_post || '—'}
-                                                                        </span>
-                                                                    </td>
-
-                                                                    {/* Basic Pay — read-only */}
-                                                                    <td className="px-3 py-2 text-zinc-700 dark:text-zinc-300 tabular-nums">
-                                                                        {row.basic_pay ? `₹${Number(row.basic_pay).toLocaleString('en-IN')}` : '—'}
-                                                                    </td>
-
-                                                                    {/* HRA — read-only */}
-                                                                    <td className="px-3 py-2 text-zinc-700 dark:text-zinc-300">
-                                                                        {row.hra || '—'}
-                                                                    </td>
-
-                                                                    {/* Medical Required — read-only */}
-                                                                    <td className="px-3 py-2">
-                                                                        {row.medical_required ? (
-                                                                            <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium",
-                                                                                row.medical_required === 'Yes'
-                                                                                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
-                                                                                    : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
-                                                                            )}>
-                                                                                {row.medical_required}
-                                                                            </span>
-                                                                        ) : '—'}
-                                                                    </td>
-
-                                                                    {/* Total Amount — read-only */}
-                                                                    <td className="px-3 py-2 text-zinc-800 dark:text-zinc-200 font-semibold tabular-nums">
-                                                                        {row.total_amount ? `₹${Number(row.total_amount).toLocaleString('en-IN')}` : '—'}
-                                                                    </td>
-
-                                                                    {/* Duration (Months) — read-only */}
-                                                                    <td className="px-3 py-2 text-zinc-700 dark:text-zinc-300">
-                                                                        {row.upfa_duration_months || postDetailsCache[row.recruitment_post_id]?.upfa_duration_months || (recruitmentDocRef.current?.upfa_post_details?.find((p: any) => p.name === row.recruitment_post_id)?.upfa_duration_months) || '—'}
-                                                                    </td>
-
-                                                                    {/* Recommendation — editable select */}
-                                                                    <td className="px-3 py-2">
-                                                                        {isReadOnly ? (
-                                                                            <span className={cn("text-xs font-semibold px-2.5 py-1 rounded-full",
-                                                                                row.recommendation === 'Recommended'
-                                                                                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
-                                                                                    : row.recommendation === 'Waiting List'
-                                                                                        ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'
-                                                                                        : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
-                                                                            )}>
-                                                                                {row.recommendation || 'Not Recommended'}
-                                                                            </span>
-                                                                        ) : (
-                                                                            <select
-                                                                                className={cn(cellCls,
-                                                                                    row.recommendation === 'Recommended'
-                                                                                        ? 'border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400'
-                                                                                        : row.recommendation === 'Waiting List'
-                                                                                            ? 'border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400'
-                                                                                            : 'border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
-                                                                                )}
-                                                                                value={row.recommendation || 'Not Recommended'}
-                                                                                onChange={e => updateCandidateRow(idx, {
-                                                                                    recommendation: e.target.value,
-                                                                                    ...(e.target.value !== 'Waiting List' ? { waitlist_no: "" } : {}),
-                                                                                })}
-                                                                                required
-                                                                            >
-                                                                                <option value="Recommended">Recommended</option>
-                                                                                <option value="Not Recommended">Not Recommended</option>
-                                                                                <option value="Waiting List">Waiting List</option>
-                                                                            </select>
-                                                                        )}
-                                                                    </td>
-
-                                                                    {/* Waiting List Number */}
-                                                                    <td className="px-3 py-2 text-center">
-                                                                        {isReadOnly ? (
-                                                                            row.recommendation === 'Waiting List' && row.waitlist_no
-                                                                                ? <span className="text-xs font-bold px-2 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-700/50">#{row.waitlist_no}</span>
-                                                                                : <span className="text-zinc-400">—</span>
-                                                                        ) : (
-                                                                            row.recommendation === 'Waiting List' ? (
-                                                                                <input
-                                                                                    type="number"
-                                                                                    min={1}
-                                                                                    className={cn(cellCls, "w-16 text-center text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700")}
-                                                                                    placeholder="#"
-                                                                                    value={row.waitlist_no || ""}
-                                                                                    onChange={e => updateCandidateRow(idx, { waitlist_no: e.target.value })}
-                                                                                />
-                                                                            ) : (
-                                                                                <span className="text-zinc-400">—</span>
-                                                                            )
-                                                                        )}
-                                                                    </td>
-
-                                                                    {/* Justification */}
-                                                                    <td className="px-3 py-2">
-                                                                        {isReadOnly ? (
-                                                                            <span className="text-zinc-700 dark:text-zinc-300 text-xs">{row.justification || '—'}</span>
-                                                                        ) : (
-                                                                            <input
-                                                                                type="text"
-                                                                                className={cellCls}
-                                                                                placeholder="Enter justification…"
-                                                                                value={row.justification || ""}
-                                                                                onChange={e => updateCandidateRow(idx, { justification: e.target.value })}
-                                                                            />
-                                                                        )}
-                                                                    </td>
-
-                                                                    {/* Details */}
-                                                                    <td className="px-3 py-2 text-center">
-                                                                        {row.candidate_id && (
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => navigate(
-                                                                                    `/candidate-details/${row.candidate_id}?refNum=${encodeURIComponent(formData.interview_id || interviewIdParam || "")}&applicationId=${row.application_id}`
-                                                                                )}
-                                                                                className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30 transition-colors whitespace-nowrap"
-                                                                            >
-                                                                                View
-                                                                            </button>
-                                                                        )}
-                                                                    </td>
-
-                                                                    {/* Remove */}
-                                                                    {!isReadOnly && (
-                                                                        <td className="px-3 py-2 text-center">
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => setFormData(prev => {
-                                                                                    let rows: CandidateRow[];
-                                                                                    try {
-                                                                                        const v = prev.candidates;
-                                                                                        rows = !v ? [] : Array.isArray(v) ? [...v] : JSON.parse(v);
-                                                                                    } catch { rows = []; }
-                                                                                    return { ...prev, candidates: rows.filter((_, i) => i !== idx) };
-                                                                                })}
-                                                                                className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30 transition-colors"
-                                                                            >
-                                                                                Remove
-                                                                            </button>
-                                                                        </td>
-                                                                    )}
-                                                                </tr>
-                                                            ))}
-
-                                                            {candidateRows.length === 0 && (
-                                                                <tr>
-                                                                    <td colSpan={isReadOnly ? 11 : 12} className="px-4 py-8 text-center text-zinc-500 dark:text-zinc-400">
-                                                                        {isFetchingCandidates
-                                                                            ? 'Loading candidates…'
-                                                                            : 'No candidates added. Click "+ Add Row" to add one.'}
-                                                                    </td>
-                                                                </tr>
-                                                            )}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        );
-                                    })()}
-
                                     {/* Uploads and Check List section — rendered after candidates */}
                                     {(() => {
                                         const DEAN_ONLY_FIELDS = ["chairperson_webmail_id", "chairperson_name"];
@@ -4189,210 +4466,13 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                     })()}
                                 </div>
 
-                                {/* Action Bar */}
-                                <div className="scr-action-bar bg-zinc-50 dark:bg-zinc-800/50 border-t border-zinc-200 dark:border-zinc-800 p-6 flex flex-col md:flex-row items-center justify-between gap-4">
-                                    <div className="text-sm text-zinc-600 dark:text-zinc-400 max-w-2xl">
-                                        {workflowState === "Draft" && (
-                                            <div className="bg-blue-50 text-blue-800 border border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800/50 px-3 py-2 rounded-lg mb-2">
-                                                <span className="font-semibold">Note:</span> Please first click on <strong>"Save Draft"</strong>, then proceed to <strong>"Print"</strong>, and finally click on <strong>"Submit Application"</strong> to complete the process.
-                                            </div>
-                                        )}
-                                        {(editDocName || savedDocName) && (
-                                            <div className="text-xs text-zinc-400">
-                                                Last updated: {new Date().toLocaleTimeString()}
-                                            </div>
-                                        )}
+                                {workflowState === "Draft" && (
+                                    <div className="scr-action-bar bg-blue-50 dark:bg-blue-900/20 border-t border-blue-100 dark:border-blue-800/50 px-6 py-3">
+                                        <p className="text-[12.5px] text-blue-800 dark:text-blue-300">
+                                            <span className="font-semibold">Note:</span> Please first click <strong>"Save Draft"</strong>, then <strong>"Download PDF"</strong>, and finally <strong>"Submit"</strong> to complete the process.
+                                        </p>
                                     </div>
-                                    <div className="flex gap-3 flex-wrap">
-                                        {(() => {
-                                            const isContractual = isContractualRecruitment(formData.recruitment_type);
-                                            const inDirectorFlow =
-                                                isDoRnd &&
-                                                isContractual &&
-                                                workflowState === "Pending Dean Approval";
-
-                                            // Stage 1: Dean hasn't sent to director yet → only show "Send to Director"
-                                            if (inDirectorFlow && !formData.send_to_director) {
-                                                return (
-                                                    <FrappeButton
-                                                        onClick={async () => {
-                                                            if (!savedDocName) return;
-                                                            try {
-                                                                await callUpdateSendToDirector({
-                                                                    docname: savedDocName,
-                                                                    send_to_director: 1,
-                                                                });
-                                                                setFormData(prev => ({ ...prev, send_to_director: 1 }));
-                                                                handlePrint();
-                                                            } catch (err) {
-                                                                console.error("Failed to send to director", err);
-                                                            }
-                                                        }}
-                                                        disabled={isUpdatingSendToDirector || !savedDocName}
-                                                        className="bg-[#D97757] hover:opacity-90 text-white shadow-sm"
-                                                    >
-                                                        {isUpdatingSendToDirector ? (
-                                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                        ) : (
-                                                            <Send className="w-4 h-4 mr-2" />
-                                                        )}
-                                                        Send to Director
-                                                    </FrappeButton>
-                                                );
-                                            }
-
-                                            // Stage 2: Sent, but Staff hasn't uploaded the Director-signed PDF yet
-                                            if (inDirectorFlow && !formData.director_signed_pdf) {
-                                                return (
-                                                    <FrappeButton
-                                                        disabled
-                                                        className="bg-zinc-300 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300 shadow-sm cursor-not-allowed"
-                                                    >
-                                                        Waiting for Director Approval
-                                                    </FrappeButton>
-                                                );
-                                            }
-
-                                            // Stage 3: PDF uploaded → show View PDF + Approve/Reject
-                                            if (inDirectorFlow && formData.director_signed_pdf) {
-                                                return (
-                                                    <>
-                                                        <FrappeButton
-                                                            variant="outline"
-                                                            onClick={() => window.open(formData.director_signed_pdf, '_blank')}
-                                                            className="bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800/50 dark:text-emerald-300 dark:hover:bg-emerald-900/40 shadow-sm"
-                                                        >
-                                                            <EyeIcon className="w-4 h-4 mr-2" />
-                                                            View Director Signed PDF
-                                                        </FrappeButton>
-                                                        {availableActions
-                                                            .filter(a => a === "Approve" || a === "Reject")
-                                                            .map(action => (
-                                                                <FrappeButton
-                                                                    key={action}
-                                                                    onClick={() => handleWorkflowAction(action)}
-                                                                    disabled={isActionLoading}
-                                                                    className={cn(
-                                                                        "shadow-sm",
-                                                                        action === "Approve"
-                                                                            ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                                                                            : "bg-red-600 hover:bg-red-700 text-white",
-                                                                    )}
-                                                                >
-                                                                    {isActionLoading ? (
-                                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                                    ) : null}
-                                                                    {action}
-                                                                </FrappeButton>
-                                                            ))}
-                                                    </>
-                                                );
-                                            }
-
-                                            // Default: existing behavior for all other states/roles
-                                            return (
-                                                <>
-                                                    {isContractual && formData.director_signed_pdf && (
-                                                        <FrappeButton
-                                                            variant="outline"
-                                                            onClick={() => window.open(formData.director_signed_pdf, '_blank')}
-                                                            className="bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800/50 dark:text-emerald-300 dark:hover:bg-emerald-900/40 shadow-sm"
-                                                        >
-                                                            <EyeIcon className="w-4 h-4 mr-2" />
-                                                            View Director Signed PDF
-                                                        </FrappeButton>
-                                                    )}
-
-                                                    <FrappeButton
-                                                        variant="outline"
-                                                        onClick={handlePrint}
-                                                        className="bg-white dark:bg-zinc-800 shadow-sm"
-                                                        title="Print or Download this report as PDF"
-                                                    >
-                                                        <Printer className="w-4 h-4 mr-2" />
-                                                        Download PDF
-                                                    </FrappeButton>
-                                                    {workflowState === "Draft" ? (
-                                                        <>
-                                                            <FrappeButton
-                                                                variant="outline"
-                                                                onClick={handleSave}
-                                                                disabled={isSubmitting || isActionLoading}
-                                                                className="bg-white dark:bg-zinc-800 shadow-sm"
-                                                            >
-                                                                {isSubmitting ? (
-                                                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                                ) : (
-                                                                    <Save className="w-4 h-4 mr-2" />
-                                                                )}
-                                                                Save Draft
-                                                            </FrappeButton>
-
-                                                            {availableActions.includes("Submit") ? (
-                                                                <FrappeButton
-                                                                    onClick={() => handleWorkflowAction("Submit")}
-                                                                    disabled={isSubmitting || isActionLoading}
-                                                                    className="bg-[#D97757] hover:opacity-90 text-white shadow-sm"
-                                                                >
-                                                                    {isActionLoading ? (
-                                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                                    ) : (
-                                                                        <Send className="w-4 h-4 mr-2" />
-                                                                    )}
-                                                                    Submit
-                                                                </FrappeButton>
-                                                            ) : (
-                                                                <FrappeButton
-                                                                    onClick={handleSave}
-                                                                    disabled={
-                                                                        isSubmitting ||
-                                                                        isActionLoading ||
-                                                                        !(savedDocName || editDocName)
-                                                                    }
-                                                                    className="bg-[#D97757] hover:opacity-90 text-white shadow-sm"
-                                                                >
-                                                                    {isSubmitting ? (
-                                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                                    ) : (
-                                                                        <CheckCircle2 className="w-4 h-4 mr-2" />
-                                                                    )}
-                                                                    Save & Continue
-                                                                </FrappeButton>
-                                                            )}
-                                                        </>
-                                                    ) : (
-                                                        availableActions.map((action) => {
-                                                            const isApproveAction = action === "Approve" || action === "Recommend";
-                                                            const isDisabledByPdf = isDoRnd && isApproveAction && isContractual && !formData.director_signed_pdf;
-                                                            return (
-                                                                <FrappeButton
-                                                                    key={action}
-                                                                    onClick={() => handleWorkflowAction(action)}
-                                                                    disabled={isActionLoading || isDisabledByPdf}
-                                                                    title={isDisabledByPdf ? "Director Signed PDF must be uploaded first" : undefined}
-                                                                    className={cn(
-                                                                        "shadow-sm",
-                                                                        action === "Approve"
-                                                                            ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                                                                            : action === "Reject"
-                                                                                ? "bg-red-600 hover:bg-red-700 text-white"
-                                                                                : "bg-[#D97757] hover:opacity-90 text-white",
-                                                                        isDisabledByPdf && "opacity-50 cursor-not-allowed"
-                                                                    )}
-                                                                >
-                                                                    {isActionLoading ? (
-                                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                                    ) : null}
-                                                                    {action}
-                                                                </FrappeButton>
-                                                            );
-                                                        })
-                                                    )}
-                                                </>
-                                            );
-                                        })()}
-                                    </div>
-                                </div>
+                                )}
                             </FrappeCard>
 
                         </div>

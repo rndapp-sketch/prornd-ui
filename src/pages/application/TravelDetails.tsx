@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import { useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, FileSpreadsheetIcon as LedgerIcon, EditIcon, Send, ReceiptText } from 'lucide-react';
+import { CalendarIcon, FileSpreadsheetIcon as LedgerIcon, EditIcon, Send, ReceiptText, AlertTriangle } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,6 +16,7 @@ import { ProjectLedgerModal } from '@/components/ProjectLedgerModal';
 import { CommitPayment } from '@/components/CommitPayment';
 import { ActivityLog } from '@/components/ActivityLog';
 import ViewProjectButton from '@/components/ViewProjectButton';
+import TravelApplicantSummary from '@/components/TravelApplicantSummary';
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -230,6 +231,7 @@ const TravelDetails: React.FC = () => {
         budgetData,
         heads: budgetHeads,
         actualBalance,
+        commitableBalance,
     } = useProjectBudget(projectTitle);
 
     const balanceApiParams = React.useMemo(
@@ -259,6 +261,30 @@ const TravelDetails: React.FC = () => {
         (projectAmountsData as any)?.data ??
         {};
     const totalCommitableBalance = projectAmountsResult?.availablePaymentAmount ?? 0;
+    const defaultCommitBudgetHead = useMemo(() => {
+        const rawHead = String(formData.account_head || '').trim();
+        if (!rawHead) return '';
+
+        const directMatch = budgetHeads.find(
+            (head) => head.trim().toLowerCase() === rawHead.toLowerCase(),
+        );
+        if (directMatch) return directMatch;
+
+        const optionMatch = (linkOptions.account_head || linkOptions['Budget Head'] || []).find(
+            (option) => String(option.value).trim().toLowerCase() === rawHead.toLowerCase(),
+        );
+        if (optionMatch?.label) {
+            return (
+                budgetHeads.find(
+                    (head) =>
+                        head.trim().toLowerCase() ===
+                        String(optionMatch.label).trim().toLowerCase(),
+                ) || optionMatch.label
+            );
+        }
+
+        return rawHead;
+    }, [budgetHeads, formData.account_head, linkOptions]);
 
     const linkedCommitment = budgetData.find(
         (e) =>
@@ -275,6 +301,21 @@ const TravelDetails: React.FC = () => {
 
     const isCommitted = !!linkedCommitment;
 
+    const { data: cancellationStatus } = useFrappeGetCall<{
+        message: {
+            has_pending: boolean;
+            has_cancellation: boolean;
+            cancellation_requests: any[];
+        };
+    }>(
+        "rndopsapp.rndopsapp.cancellation_api.get_cancellation_status",
+        {
+            reference_doctype: "Travel",
+            reference_name: docName,
+        },
+        docName ? undefined : null
+    );
+
     // Unified commitment display: prefer ledger data
     const displayCommitment = linkedCommitment
         ? { head: linkedCommitment.head, committed: linkedCommitment.committed }
@@ -286,9 +327,10 @@ const TravelDetails: React.FC = () => {
             r === "R&D Staff" ||
             r === "Research and Development Staff" ||
             r === "System Manager" ||
-            r === "staff, RnD" ||
-            r === "Hos, RnD (Head of Section, RnD)",
+            r === "staff, RnD",
     );
+
+    const isHoS = roles.some((r) => r === "Hos, RnD (Head of Section, RnD)");
 
     // Advance / Settle logic
     const needsAdvance = formData.travel_financial_assistance === "Yes";
@@ -306,6 +348,13 @@ const TravelDetails: React.FC = () => {
     // Show commit section for any in-progress workflow state (not Draft/Rejected/Cancelled)
     const showCommitSection =
         isRnDStaff &&
+        formData.workflow_state &&
+        !["Draft", "Rejected", "Cancelled"].includes(formData.workflow_state);
+
+    // HoS sees a read-only view of the commitment made by R&D Staff
+    const showCommitReadOnly =
+        isHoS &&
+        isCommitted &&
         formData.workflow_state &&
         !["Draft", "Rejected", "Cancelled"].includes(formData.workflow_state);
 
@@ -332,7 +381,7 @@ const TravelDetails: React.FC = () => {
         const fetchBudgetHeads = async () => {
             try {
                 const response = await fetch(
-                    '/api/v2/document/Budget%20Head?fields=["name","budget_head","id"]&order_by=id%20asc',
+                    '/api/resource/Budget%20Head?fields=["name","budget_head","id"]&order_by=id%20asc&limit_page_length=0',
                     { credentials: "include" },
                 );
                 const result = await response.json();
@@ -512,8 +561,18 @@ const TravelDetails: React.FC = () => {
                     )}
                 </PageHeader>
 
+                {/* Warning Banner if there's a pending cancellation */}
+                {cancellationStatus?.message?.has_pending && (
+                    <div className="mb-6 p-4 rounded-xl border border-red-200 dark:border-red-800/40 bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-300 flex items-center gap-3 shadow-sm">
+                        <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
+                        <div className="text-sm font-medium">
+                            This application has a pending cancellation request. No further workflow actions can be performed on it.
+                        </div>
+                    </div>
+                )}
+
                 {/* Workflow Action Buttons */}
-                {docName && formData.workflow_state && formData.workflow_state !== "Draft" && (
+                {!cancellationStatus?.message?.has_pending && docName && formData.workflow_state && formData.workflow_state !== "Draft" && (
                     <div className="mb-6">
                         <TravelActionButtons
                             docName={docName}
@@ -526,7 +585,14 @@ const TravelDetails: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                     {/* Main Content — read-only form */}
                     <div className="lg:col-span-3">
-                        <FrappeCard>
+                        <FrappeCard className="space-y-6">
+                            <TravelApplicantSummary
+                                webmail={formData.webmail_id_travel}
+                                fullName={formData.applicant_name_travel}
+                                department={formData.department_travel}
+                                designation={formData.designation_travel}
+                                projectNo={resolvedProjectNo || formData.travel_project_number}
+                            />
                             <DynamicFormRenderer
                                 fields={renderedFields}
                                 formData={formData}
@@ -662,6 +728,28 @@ const TravelDetails: React.FC = () => {
                             </FrappeButton>
                         </div>
 
+                        {/* HoS read-only commitment view */}
+                        {showCommitReadOnly && (
+                            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
+                                    Commitment by R&D Staff
+                                </h3>
+                                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800 flex flex-col gap-1">
+                                    <p className="text-xs text-blue-600 dark:text-blue-400 font-semibold uppercase tracking-wide">
+                                        Linked Commitment
+                                    </p>
+                                    <div className="flex justify-between items-end">
+                                        <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
+                                            {displayCommitment?.head}
+                                        </p>
+                                        <p className="text-lg font-bold text-blue-700 dark:text-blue-300">
+                                            ₹ {Number(displayCommitment?.committed || 0).toLocaleString("en-IN")}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Commit Payment — centralised component handles staging check + form/display card */}
                         {showCommitSection && (
                             <CommitPayment
@@ -669,7 +757,10 @@ const TravelDetails: React.FC = () => {
                                 docName={docName || ""}
                                 projectName={projectTitle}
                                 budgetHeads={budgetHeads}
+                                defaultBudgetHead={defaultCommitBudgetHead}
                                 actualBalance={actualBalance}
+                                commitableBalance={commitableBalance}
+                                billAmount={Number(formData.total_estimate) || undefined}
                                 onCommitSuccess={() => handleRefresh()}
                                 onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
                             />

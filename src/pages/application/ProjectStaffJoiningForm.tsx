@@ -43,6 +43,7 @@ const fallbackFields: FormField[] = [
     { fieldname: "ps_citizenship", label: "Citizenship", fieldtype: "Data" },
     { fieldname: "contact_details_section", label: "Contact Details", fieldtype: "Section Break" },
     { fieldname: "ps_email_id", label: "Email ID", fieldtype: "Data" },
+    { fieldname: "erp_mail", label: "ERP Mail", fieldtype: "Data" },
     { fieldname: "ps_phone_number", label: "Phone Number", fieldtype: "Data" },
     { fieldname: "ps_present_address", label: "Present Address", fieldtype: "Small Text" },
     { fieldname: "ps_permanent_address", label: "Permanent Address", fieldtype: "Small Text" },
@@ -443,7 +444,31 @@ const ProjectStaffJoiningForm: React.FC = () => {
                         console.error("Failed to add workflow comment:", commentErr);
                     }
                 }
-                alert(`${action} successful.`);
+                if (action === "Submit") {
+                    // The backend allocates the real Employee ID at Submit time via
+                    // generate_emp_id() and writes it to ps_emp_id. Prefer the value
+                    // returned in the submit response; if absent, refetch the doc.
+                    let allottedEmpId: string =
+                        msg?.ps_emp_id || msg?.doc?.ps_emp_id || msg?.data?.ps_emp_id || "";
+                    if (!allottedEmpId) {
+                        try {
+                            const docRes = await fetchFields({ doc_name: savedDocName });
+                            allottedEmpId = docRes?.message?.prefill_data?.ps_emp_id || "";
+                        } catch (refetchErr) {
+                            console.error("Failed to refetch ps_emp_id after submit:", refetchErr);
+                        }
+                    }
+                    if (allottedEmpId) {
+                        setFormData((prev) => ({ ...prev, ps_emp_id: allottedEmpId }));
+                        alert(
+                            `Project Staff Joining Form has been submitted for this staff.\nAllotted Employee ID: ${allottedEmpId}`,
+                        );
+                    } else {
+                        alert("Project Staff Joining Form submitted successfully.");
+                    }
+                } else {
+                    alert(`${action} successful.`);
+                }
                 await loadWorkflowActions(savedDocName);
                 activityStreamRef.current?.refetch();
             }
@@ -634,6 +659,7 @@ const ProjectStaffJoiningForm: React.FC = () => {
                                 fields={section([
                                     "contact_details_section",
                                     "ps_email_id",
+                                    "erp_mail",
                                     "ps_phone_number",
                                     "ps_present_address",
                                     "ps_permanent_address",
@@ -649,7 +675,7 @@ const ProjectStaffJoiningForm: React.FC = () => {
                             />
                         </GroupCard>
 
-                        <GroupCard label="Salary & Tenure Details">
+                        <GroupCard label="Salary Details">
                             <DynamicFormRenderer
                                 fields={section([
                                     "salary_details_section",
@@ -659,7 +685,6 @@ const ProjectStaffJoiningForm: React.FC = () => {
                                     "ps_ta",
                                     "ps_ta_amount",
                                     "ps_hostel",
-                                    "table_ymed",
                                 ])}
                                 {...commonRendererProps}
                             />

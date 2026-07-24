@@ -1,7 +1,7 @@
 
 // -=-=-=-=-=-=-=-=-=-==-=-=-=
 
-import React, { useState, useEffect, useCallback, memo, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, memo, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { AppSidebar } from "../components/RndSidebar";
 import { useFrappeGetDoc, useFrappePostCall } from 'frappe-react-sdk';
@@ -28,6 +28,28 @@ interface FormData {
     [key: string]: any;
     sanctioned_budget_breakup?: (any & { id?: string })[];
     sanction_related_files?: (any & { id?: string })[];
+}
+
+async function resolveUniqueSanctionLetterNo(
+    letterNo: string,
+    docname?: string,
+): Promise<{ isDuplicate: boolean; finalValue: string; existingDoc: string | null }> {
+    const res = await fetch(
+        "/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.check_sanctioned_letter_no",
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Frappe-CSRF-Token": (window as any).csrf_token || "",
+            },
+            credentials: "include",
+            body: JSON.stringify({ sanctioned_letter_no: letterNo, ...(docname ? { docname } : {}) }),
+        },
+    );
+    const data = await res.json();
+    const m = data.message || {};
+    if (m.status !== "success") throw new Error(m.message || "Check failed");
+    return { isDuplicate: m.is_duplicate, finalValue: m.is_duplicate ? m.suggested : letterNo, existingDoc: m.existing_doc || null };
 }
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
@@ -240,6 +262,11 @@ const AddFundSanction: React.FC = () => {
         (location.state as any)?.sanctionName || (location.state as any)?.docname || ''
     );
     const [savedAsDraft, setSavedAsDraft] = useState(false);
+    const [letterNoHint, setLetterNoHint] = useState<{
+        status: 'idle' | 'checking' | 'available' | 'duplicate';
+        message: string;
+    }>({ status: 'idle', message: '' });
+    const letterNoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const budgetGrandTotal = useMemo(() => {
         const yearKeys = ALL_YEAR_COLUMNS.slice(0, activeYearCount).map(c => c.key);
@@ -408,6 +435,30 @@ const AddFundSanction: React.FC = () => {
         });
     }, []);
 
+    const handleLetterNoChange = useCallback((value: string) => {
+        handleChange('sanctioned_letter_no', value);
+        setLetterNoHint({ status: 'idle', message: '' });
+        if (letterNoTimerRef.current) clearTimeout(letterNoTimerRef.current);
+        if (!value.trim()) return;
+        letterNoTimerRef.current = setTimeout(async () => {
+            setLetterNoHint({ status: 'checking', message: 'Checking...' });
+            try {
+                const r = await resolveUniqueSanctionLetterNo(value, savedDocName || undefined);
+                if (r.isDuplicate) {
+                    handleChange('sanctioned_letter_no', r.finalValue);
+                    setLetterNoHint({
+                        status: 'duplicate',
+                        message: `"${value}" already used in ${r.existingDoc} — changed to "${r.finalValue}"`,
+                    });
+                } else {
+                    setLetterNoHint({ status: 'available', message: 'Letter number is available' });
+                }
+            } catch (err: any) {
+                setLetterNoHint({ status: 'idle', message: `Could not verify: ${err.message}` });
+            }
+        }, 500);
+    }, [handleChange, savedDocName]);
+
     const handleGenericTableRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: any) => {
         setFormData(prev => {
             const table = [...(prev[tableName] || [])];
@@ -491,6 +542,19 @@ const AddFundSanction: React.FC = () => {
         setIsSubmitting(true);
         try {
             const payload = await preparePayload();
+            if (payload.sanctioned_letter_no) {
+                try {
+                    const r = await resolveUniqueSanctionLetterNo(
+                        payload.sanctioned_letter_no,
+                        payload.name || payload.docname || undefined,
+                    );
+                    if (r.isDuplicate) {
+                        payload.sanctioned_letter_no = r.finalValue;
+                        setFormData(prev => ({ ...prev, sanctioned_letter_no: r.finalValue }));
+                        setLetterNoHint({ status: 'duplicate', message: `Letter no was duplicate — saved as "${r.finalValue}"` });
+                    }
+                } catch { /* non-fatal */ }
+            }
             const response = await submitForm({ ...payload, save_mode: 'draft' });
             const docName = getSavedDocNameFromResponse(response, savedDocName || payload.name || payload.docname || '');
             if (docName) {
@@ -512,6 +576,18 @@ const AddFundSanction: React.FC = () => {
         setIsSubmitting(true);
         try {
             const payload = await preparePayload(savedDocName);
+            if (payload.sanctioned_letter_no) {
+                try {
+                    const r = await resolveUniqueSanctionLetterNo(
+                        payload.sanctioned_letter_no,
+                        payload.name || payload.docname || undefined,
+                    );
+                    if (r.isDuplicate) {
+                        payload.sanctioned_letter_no = r.finalValue;
+                        setFormData(prev => ({ ...prev, sanctioned_letter_no: r.finalValue }));
+                    }
+                } catch { /* non-fatal */ }
+            }
             const response = await submitForm({ ...payload, save_mode: 'submit' });
             const docName = getSavedDocNameFromResponse(response, savedDocName || payload.name || payload.docname || '');
             if (docName) {
@@ -575,7 +651,35 @@ const AddFundSanction: React.FC = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
                                 {renderField('refnum_prj_num', true)}
                                 {renderField('total_sanctioned_amount')}
-                                {renderField('sanctioned_letter_no')}
+                                {(() => {
+                                    const field = fields.find(f => f.fieldname === 'sanctioned_letter_no');
+                                    if (!field) return null;
+                                    return (
+                                        <div className="space-y-1.5">
+                                            <label htmlFor="sanctioned_letter_no" className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200">
+                                                {field.label}{field.mandatory && <span className="text-red-500 ml-1 normal-case font-bold">*</span>}
+                                            </label>
+                                            <input
+                                                id="sanctioned_letter_no"
+                                                type="text"
+                                                className={inputClasses}
+                                                value={formData.sanctioned_letter_no || ''}
+                                                onChange={e => handleLetterNoChange(e.target.value)}
+                                            />
+                                            {letterNoHint.status !== 'idle' && (
+                                                <p className={`text-[11px] mt-1 ${
+                                                    letterNoHint.status === 'available' ? 'text-emerald-600 dark:text-emerald-400' :
+                                                    letterNoHint.status === 'duplicate' ? 'text-amber-600 dark:text-amber-400' :
+                                                    'text-zinc-400 dark:text-zinc-500'
+                                                }`}>
+                                                    {letterNoHint.status === 'available' && '✓ '}
+                                                    {letterNoHint.status === 'duplicate' && '⚠ '}
+                                                    {letterNoHint.message}
+                                                </p>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
                                 {renderField('sanctioned_letter_date')}
                             </div>
                         </NeoSection>
@@ -611,6 +715,57 @@ const AddFundSanction: React.FC = () => {
                             onAddRow={addGenericTableRow}
                             onDeleteRow={deleteGenericTableRow}
                         />
+
+                        <NeoSection title="Account Details">
+                            <div className="space-y-4">
+                                <div className="space-y-1.5">
+                                    <label className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200">
+                                        Is Account Type PFMS?
+                                    </label>
+                                    <select
+                                        className={inputClasses}
+                                        value={formData.is_the_account_type_pfms || ''}
+                                        onChange={e => handleChange('is_the_account_type_pfms', e.target.value)}
+                                    >
+                                        <option value="">Select...</option>
+                                        <option value="Yes">Yes</option>
+                                        <option value="No">No</option>
+                                    </select>
+                                </div>
+                                {formData.is_the_account_type_pfms === 'Yes' && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                                        <div className="space-y-1.5">
+                                            <label className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200">
+                                                Scheme Name
+                                            </label>
+                                            <input type="text" className={inputClasses} value={formData.scheme_name || ''} onChange={e => handleChange('scheme_name', e.target.value)} />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200">
+                                                Scheme Number
+                                            </label>
+                                            <input type="text" className={inputClasses} value={formData.enter_scheme_number || ''} onChange={e => handleChange('enter_scheme_number', e.target.value)} />
+                                        </div>
+                                    </div>
+                                )}
+                                {formData.is_the_account_type_pfms === 'No' && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                                        <div className="space-y-1.5">
+                                            <label className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200">
+                                                Account Number
+                                            </label>
+                                            <input type="text" className={inputClasses} value={formData.account_number || ''} onChange={e => handleChange('account_number', e.target.value)} />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200">
+                                                Bank Name
+                                            </label>
+                                            <input type="text" className={inputClasses} value={formData.bank_name || ''} onChange={e => handleChange('bank_name', e.target.value)} />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </NeoSection>
                     </FrappeCard>
 
                     {/* Missing total warning */}
@@ -630,7 +785,7 @@ const AddFundSanction: React.FC = () => {
                     {/* Action Buttons */}
                     <div className="mt-5 flex items-center justify-between py-3.5 px-4 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm">
                         {!savedAsDraft && !isBudgetMismatch ? (
-                            <p className="text-[11px] text-zinc-400 dark:text-zinc-500">Save as draft first to enable Submit</p>
+                            <p className="text-[11px] font-extrabold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 px-3 py-1.5 rounded-lg">Save as draft first to enable Submit</p>
                         ) : <div />}
                         <div className="flex gap-2.5">
                             <FrappeButton
