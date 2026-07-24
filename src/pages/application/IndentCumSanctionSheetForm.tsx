@@ -1685,6 +1685,11 @@ const getIcssWorkflowSuccessMessage = (action: string, nextState?: string) => {
   return "Indent Cum Sanction Sheet updated successfully!";
 };
 
+const ALWAYS_READONLY_FIELDS = new Set([
+  "icss_applicant_webmail_id",
+  "icss_applicant_name",
+]);
+
 const IndentCumSanctionSheetForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
@@ -1716,6 +1721,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     () => [...baseFields, ...subFormFields],
     [baseFields, subFormFields],
   );
+  const [isEditMode, setIsEditMode] = useState(!editDocName);
+
   const displayBaseFields = React.useMemo(() => {
     return baseFields.map((field) => {
       if (field.fieldname === "icss_applicant_webmail_id") {
@@ -1733,9 +1740,14 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         return { ...field, options: field.fieldname };
       }
 
+      // In edit mode, clear backend-supplied read_only so fields become editable
+      if (isEditMode && field.read_only && !ALWAYS_READONLY_FIELDS.has(field.fieldname)) {
+        return { ...field, read_only: 0 };
+      }
+
       return field;
     });
-  }, [baseFields]);
+  }, [baseFields, isEditMode]);
   const [computationRules, setComputationRules] = useState<any>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [linkOptions, setLinkOptions] = useState<Record<string, any[]>>({});
@@ -1819,9 +1831,14 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           };
         }
 
+        // In edit mode, clear backend-supplied read_only so fields become editable
+        if (isEditMode && field.read_only) {
+          return { ...field, read_only: 0 };
+        }
+
         return field;
       });
-  }, [formData, subFormFields]);
+  }, [formData, isEditMode, subFormFields]);
   const linkOptionsRef = React.useRef<Record<string, any[]>>({});
   const [isLoadingFields, setIsLoadingFields] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1887,7 +1904,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
   const [availableActions, setAvailableActions] = useState<string[]>([]);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [docStatus, setDocStatus] = useState<number>(0);
-  const [isEditMode, setIsEditMode] = useState(!editDocName);
   const projectCode =
     formData.project_no ||
     formData.project_code ||
