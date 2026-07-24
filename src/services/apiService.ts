@@ -274,6 +274,7 @@ export const miscellaneousCommitAPI = {
 export const commonAPI = {
     getUserDetails: `${API_BASE}.project_registration.project_registration.get_user_details_for_pi`,
     getUserDetailsByEmail: `rndopsapp.rndopsapp.api.get_user_details`,
+    addComment: `rndopsapp.rndopsapp.api.add_project_comment`,
 };
 
 // Delegate User API endpoints
