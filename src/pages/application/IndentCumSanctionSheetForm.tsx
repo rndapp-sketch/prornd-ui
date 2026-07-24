@@ -4278,7 +4278,9 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     try {
       let effectiveDocName = docNameToUse;
 
-      if (workflowState === "Draft" || action === "Submit") {
+      // For new documents (no existing name), save first to create the doc before the action
+      // For existing documents, skip the pre-save to avoid the backend creating a duplicate
+      if (!docNameToUse) {
         const persisted = await persistIcssData();
         if (
           !persisted?.response?.message ||
@@ -4291,7 +4293,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           return;
         }
         effectiveDocName = persisted.docname || effectiveDocName;
-        if (effectiveDocName && !savedDocName && !editDocName) {
+        if (effectiveDocName) {
           setSavedDocName(effectiveDocName);
         }
       }
@@ -4325,6 +4327,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         }
         alert(getIcssWorkflowSuccessMessage(action, nextWorkflowState));
         setWorkflowState(nextWorkflowState);
+        setIsEditMode(false);
         await fetchFormConfiguration(effectiveDocName);
         fetchWorkflowActions(effectiveDocName);
       } else {
@@ -5410,7 +5413,24 @@ const IndentCumSanctionSheetForm: React.FC = () => {
 
   const renderActionButtons = () => {
     if (workflowState === "Draft") {
-      if (!isEditMode) return null;
+      if (!isEditMode) {
+        // For existing saved drafts, allow submitting without entering edit mode
+        if (!currentDocName) return null;
+        return (
+          <button
+            onClick={() => setPendingAction("Submit")}
+            disabled={isSubmitting || isActionLoading}
+            className={cn(
+              "inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 shadow-sm",
+              "bg-[#D97757] hover:bg-[#c66a4e] text-white border-transparent",
+              (isSubmitting || isActionLoading) && "opacity-50 cursor-not-allowed",
+            )}
+          >
+            <Send className="w-4 h-4 mr-2" />
+            Submit
+          </button>
+        );
+      }
       return (
         <>
           <FrappeButton
