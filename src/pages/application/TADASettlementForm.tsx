@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AppSidebar } from "@/components/RndSidebar";
 import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/common/PageHeader";
+import { CheckCircle2, XCircle, Clock, ChevronRight, Printer } from "lucide-react";
 import {
   DynamicFormRenderer,
   type FormField,
@@ -15,6 +16,58 @@ import {
   commonAPI,
 } from "@/services/apiService";
 import TADASettlementActionButtons from "@/components/TADASettlementActionButtons";
+import ViewProjectButton from "@/components/ViewProjectButton";
+import { useUserRoles } from "@/components/UserRole";
+import { generateTadaSettlementHtml } from "@/utils/tadaSettlementPrint";
+import { resolveBudgetHeadLabel } from "@/utils/resolveBudgetHeadLabel";
+import { fetchActivityLogHtml } from "@/utils/fetchActivityLogHtml";
+
+// "Upload Supporting Docs / Additional Docs" table — same constraints as
+// Project Registration's "Upload Supporting Docs" table.
+const SUPPORTING_DOCS_TABLE = "ta_da_supporting_docs";
+const ALLOWED_DOCUMENT_EXTENSIONS = [".pdf", ".doc", ".docx"];
+const MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024;
+
+const validateSupportingDocFile = (file: File): string | null => {
+  const lowerName = file.name.toLowerCase();
+  if (!ALLOWED_DOCUMENT_EXTENSIONS.some((ext) => lowerName.endsWith(ext))) {
+    return "Only PDF, DOC, or DOCX files are supported.";
+  }
+  if (file.size > MAX_DOCUMENT_SIZE_BYTES) {
+    return "Each file should be 10MB or smaller.";
+  }
+  return null;
+};
+
+// --- "FOR OFFICE USE" SECTION ---
+// Filled in by `staff, RnD` only, while the settlement sits at
+// "Pending Staff Approval"; hidden from the applicant entirely. Visible
+// (read-only) to approvers further down the chain once staff have forwarded it.
+const OFFICE_USE_SECTION_FIELDNAME = "for_office_use_section";
+const OFFICE_USE_INPUT_FIELDNAMES = [
+  "railways_air_steamer_busfare",
+  "road_mileage",
+  "local_conveyance",
+  "food_charges",
+  "cccommodation_charges",
+  "registration_fee_other",
+  "less_advance_paid_to_applicant",
+];
+const OFFICE_USE_COMPUTED_FIELDNAMES = ["total_admissible_amount", "net_amount"];
+const OFFICE_USE_FIELDNAMES = new Set([
+  ...OFFICE_USE_INPUT_FIELDNAMES,
+  ...OFFICE_USE_COMPUTED_FIELDNAMES,
+]);
+// Sum of these 6 (excludes "Less: Advance Paid") makes up Total Admissible Amount
+const OFFICE_USE_CHARGE_FIELDNAMES = OFFICE_USE_INPUT_FIELDNAMES.filter(
+  (f) => f !== "less_advance_paid_to_applicant",
+);
+const OFFICE_USE_VIEW_ONLY_ROLES = [
+  "Hos, RnD (Head of Section, RnD)",
+  "Ado_RnD",
+  "Dean, RnD",
+  "Director",
+];
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -22,6 +75,7 @@ interface FormDataResponse {
     fields: FormField[];
     link_options: Record<string, LinkOption[]>;
     prefill_data: Record<string, any>;
+    child_table_meta?: Record<string, { doctype: string; fields: FormField[] }>;
   };
 }
 
@@ -71,6 +125,116 @@ const FrappeButton = ({
   </button>
 );
 
+// --- WORKFLOW TIMELINE ---
+// Core forward path: Draft -> Pending Staff Approval -> Approved. `Pending PI
+// Approval` only applies to project staff / Student applicants (Permanent
+// Employee etc. skip straight to Pending Staff Approval). staff, RnD now
+// approves directly from Pending Staff Approval — the Pending HoS Approval /
+// Pending Associate Dean / Pending Dean Approval stages have no transitions
+// leading to or from them anymore (removed from the live workflow), so they
+// no longer appear here.
+type TadaStageStatus = "completed" | "in-progress" | "pending" | "rejected";
+
+const buildTadaTimelineStages = (
+  currentState: string,
+): { label: string; status: TadaStageStatus }[] => {
+  const isApproved = currentState === "Approved";
+  const isRejected = currentState === "Rejected";
+  const entryStage = currentState === "Pending PI Approval" ? "Pending PI Approval" : null;
+
+  const stages = [
+    "Draft",
+    ...(entryStage ? [entryStage] : []),
+    "Pending Staff Approval",
+    "Approved",
+  ];
+  const stagesForRejected = [...stages.slice(0, -1), "Rejected"];
+  const activeStages = isRejected ? stagesForRejected : stages;
+
+  let currentIdx = activeStages.findIndex((s) => s === currentState);
+  if (currentIdx === -1) currentIdx = currentState ? 1 : 0;
+
+  return activeStages.map((stage, idx) => {
+    if (isApproved) return { label: stage, status: "completed" };
+    if (isRejected) {
+      if (idx === activeStages.length - 1) return { label: stage, status: "rejected" };
+      return { label: stage, status: "pending" };
+    }
+    if (idx < currentIdx) return { label: stage, status: "completed" };
+    if (idx === currentIdx) return { label: stage, status: "in-progress" };
+    return { label: stage, status: "pending" };
+  });
+};
+
+const TadaWorkflowTimeline: React.FC<{
+  currentState: string;
+}> = ({ currentState }) => {
+  const stages = buildTadaTimelineStages(currentState || "Draft");
+
+  const iconForStatus = (status: TadaStageStatus) => {
+    if (status === "completed") return <CheckCircle2 className="w-4 h-4 text-white" />;
+    if (status === "in-progress") return <Clock className="w-4 h-4 text-white" />;
+    if (status === "rejected") return <XCircle className="w-4 h-4 text-white" />;
+    return <span className="w-2 h-2 rounded-full bg-white/60" />;
+  };
+
+  const bgForStatus = (status: TadaStageStatus) => {
+    if (status === "completed") return "bg-emerald-500";
+    if (status === "in-progress") return "bg-[#D97757]";
+    if (status === "rejected") return "bg-red-500";
+    return "bg-zinc-300 dark:bg-zinc-600";
+  };
+
+  const connectorColor = (status: TadaStageStatus) =>
+    status === "completed" ? "bg-emerald-400" : "bg-zinc-200 dark:bg-zinc-700";
+
+  return (
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-5">
+      <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
+        Workflow Progress
+      </h3>
+      <div className="flex items-start overflow-x-auto pb-1">
+        {stages.map((stage, idx) => (
+          <React.Fragment key={stage.label}>
+            <div className="flex flex-col items-center min-w-[90px] max-w-[110px]">
+              <div
+                className={cn(
+                  "w-8 h-8 rounded-full flex items-center justify-center shadow-sm flex-shrink-0",
+                  bgForStatus(stage.status),
+                )}
+              >
+                {iconForStatus(stage.status)}
+              </div>
+              <p
+                className={cn(
+                  "mt-2 text-center text-xs leading-tight px-1",
+                  stage.status === "in-progress" ? "font-bold text-[#D97757]" : "",
+                  stage.status === "completed" ? "text-emerald-600 dark:text-emerald-400 font-medium" : "",
+                  stage.status === "pending" ? "text-zinc-400 dark:text-zinc-500" : "",
+                  stage.status === "rejected" ? "text-red-500 font-bold" : "",
+                )}
+              >
+                {stage.label}
+              </p>
+              {stage.status === "in-progress" && (
+                <span className="mt-1 text-[10px] font-bold text-white bg-[#D97757] px-2 py-0.5 rounded-full">
+                  Pending Here
+                </span>
+              )}
+            </div>
+            {idx < stages.length - 1 && (
+              <div className="flex-1 flex items-center pt-4 min-w-[20px]">
+                <div className={cn("h-1 w-full rounded", connectorColor(stage.status))} />
+                <ChevronRight className="w-3 h-3 text-zinc-400 flex-shrink-0 -ml-1" />
+              </div>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // --- MAIN COMPONENT ---
 const TADASettlementForm: React.FC = () => {
   const { currentUser } = useFrappeAuth();
@@ -90,6 +254,54 @@ const TADASettlementForm: React.FC = () => {
   const [dataLoaded, setDataLoaded] = useState(false);
   // Tracks the docname created/returned by a Save Draft action so Submit can reuse it
   const [savedDocName, setSavedDocName] = useState<string>("");
+
+  // --- ROLE-BASED "FOR OFFICE USE" ACCESS ---
+  const { roles } = useUserRoles(currentUser ?? null);
+  const isStaffRnD = roles.some(
+    (r) => r === "staff, RnD" || r === "System Manager",
+  );
+  const isOfficeUseViewer =
+    isStaffRnD || roles.some((r) => OFFICE_USE_VIEW_ONLY_ROLES.includes(r));
+  const isPendingStaffApproval = formData.workflow_state === "Pending Staff Approval";
+  // Staff, RnD can only edit the office-use figures while the settlement is
+  // sitting in their queue; everyone else (including staff, at other stages) views them read-only.
+  const canEditOfficeUse = isStaffRnD && isPendingStaffApproval;
+  // Once the applicant has submitted (left Draft), the document must lock —
+  // `docstatus` doesn't work for this: in this workflow it stays 0 all the
+  // way through Approved (only Rejected flips it to 1), so it's not a
+  // reliable "has this been submitted" signal.
+  const isSubmitted = !!formData.workflow_state && formData.workflow_state !== "Draft";
+
+  // Only the applicant who initiated this settlement should see "Print" —
+  // and only once it has actually been submitted (not while still a Draft).
+  const isApplicant =
+    !!currentUser &&
+    !!formData.webmail_id &&
+    currentUser.toLowerCase() === String(formData.webmail_id).toLowerCase();
+  const showPrintButton = isApplicant && isSubmitted;
+  const handlePrintTada = async () => {
+    if (!formData) return;
+    const linkedAccountHeadLabel = linkOptions.ta_da_account_head?.find(
+      (o) => o.value === formData.ta_da_account_head,
+    )?.label;
+    // Fall back to a live lookup (handles the doc-name vs legacy custom-id
+    // ambiguity) whenever the pre-fetched options didn't resolve it.
+    const accountHeadLabel =
+      linkedAccountHeadLabel && linkedAccountHeadLabel !== formData.ta_da_account_head
+        ? linkedAccountHeadLabel
+        : await resolveBudgetHeadLabel(formData.ta_da_account_head);
+    const activityLogHtml = await fetchActivityLogHtml(
+      "TA DA Settlement",
+      editDocName || formData.name || "",
+    );
+    const html = generateTadaSettlementHtml(formData, accountHeadLabel, activityLogHtml);
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+      setTimeout(() => printWindow.print(), 500);
+    }
+  };
 
   // --- API HOOKS ---
   const {
@@ -226,8 +438,23 @@ const TADASettlementForm: React.FC = () => {
           fields: apiFields,
           prefill_data,
           link_options,
+          child_table_meta,
         } = formDataResult.message;
-        setFields(apiFields || []);
+
+        // Merge child_table_meta into Table fields as child_fields (same
+        // pattern as AdvanceSettlementForm.tsx) — without this, Table fields
+        // (Other Expenses, Journey Particulars, Local Conveyance) render nothing.
+        const fieldsWithChildren = (apiFields || []).map((field: FormField) => {
+          if (field.fieldtype === "Table" && field.fieldname && child_table_meta?.[field.fieldname]) {
+            const childFields = child_table_meta[field.fieldname].fields.map((cf: any) => ({
+              ...cf,
+              label: cf.label || cf.fieldname || "",
+            }));
+            return { ...field, child_fields: childFields };
+          }
+          return field;
+        });
+        setFields(fieldsWithChildren);
 
         let baseLinkOptions = { ...(link_options || {}) };
         try {
@@ -435,21 +662,98 @@ const TADASettlementForm: React.FC = () => {
     }
   }, [formData.ta_da_total_claimed, formData.ta_da_advance_taken]);
 
+  // --- CALCULATE "FOR OFFICE USE" TOTALS (staff, RnD entry only) ---
   useEffect(() => {
-    const rows = formData.ta_da_other_expenses_p;
-    if (!Array.isArray(rows) || rows.length === 0) return;
-
-    const tableTotal = rows.reduce(
-      (sum, row) => sum + parseFloat(row.total || row.amount || 0),
+    if (!canEditOfficeUse) return;
+    const totalAdmissible = OFFICE_USE_CHARGE_FIELDNAMES.reduce(
+      (sum, fieldname) => sum + (parseFloat(formData[fieldname]) || 0),
       0,
     );
-    if (formData.ta_da_total_claimed !== tableTotal) {
-      setFormData((prev) => ({
-        ...prev,
-        ta_da_total_claimed: tableTotal,
-      }));
+    if (formData.total_admissible_amount !== totalAdmissible) {
+      setFormData((prev) => ({ ...prev, total_admissible_amount: totalAdmissible }));
     }
-  }, [formData.ta_da_other_expenses_p, formData.ta_da_total_claimed]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    canEditOfficeUse,
+    ...OFFICE_USE_CHARGE_FIELDNAMES.map((f) => formData[f]),
+  ]);
+
+  useEffect(() => {
+    if (!canEditOfficeUse) return;
+    const totalAdmissible = parseFloat(formData.total_admissible_amount) || 0;
+    const advancePaid = parseFloat(formData.less_advance_paid_to_applicant) || 0;
+    const net = totalAdmissible - advancePaid;
+    if (formData.net_amount !== net) {
+      setFormData((prev) => ({ ...prev, net_amount: net }));
+    }
+  }, [canEditOfficeUse, formData.total_admissible_amount, formData.less_advance_paid_to_applicant]);
+
+  // --- APPLY ROLE-BASED VISIBILITY/EDITABILITY TO "FOR OFFICE USE" FIELDS ---
+  const processedFields = useMemo(() => {
+    return fields.map((field) => {
+      // "Select Travel Application" links the settlement to a specific Travel
+      // record (prefilled from the travel_ref URL param / editing an existing
+      // doc) — users should never be able to change it after the fact.
+      if (field.fieldname === "ta_da_travel_application") {
+        return { ...field, read_only: 1 };
+      }
+
+      if (
+        field.fieldname !== OFFICE_USE_SECTION_FIELDNAME &&
+        !OFFICE_USE_FIELDNAMES.has(field.fieldname)
+      ) {
+        // The global `readOnly` prop is turned off while staff, RnD is
+        // editing the office-use section (so those fields unlock) — force
+        // every other field to stay locked instead of unlocking with it.
+        return canEditOfficeUse ? { ...field, read_only: 1 } : field;
+      }
+
+      const f = { ...field };
+      if (!isOfficeUseViewer) {
+        // Applicant / anyone else who isn't staff or an approver: never shown.
+        f.hidden = 1;
+        return f;
+      }
+
+      f.hidden = 0;
+      if (OFFICE_USE_COMPUTED_FIELDNAMES.includes(field.fieldname)) {
+        // Total Admissible Amount / Net Amount are always computed, never hand-typed.
+        f.read_only = 1;
+      } else {
+        f.read_only = canEditOfficeUse ? 0 : 1;
+      }
+      return f;
+    });
+  }, [fields, isOfficeUseViewer, canEditOfficeUse]);
+
+  // Auto-fill Total Amount Claimed as the sum of Fare (Journey) + Fare (Local
+  // Conveyance) + Amount (Other Expenses) — a convenience default, still
+  // editable by hand afterward. Only reacts to the three source tables
+  // changing, not to ta_da_total_claimed itself, otherwise typing directly
+  // into the field immediately re-triggers this effect and reverts the
+  // user's own edit back to the computed sum, making the field feel
+  // non-editable.
+  useEffect(() => {
+    const sumField = (rows: any, fieldname: string) =>
+      Array.isArray(rows)
+        ? rows.reduce((sum: number, row: any) => sum + (parseFloat(row?.[fieldname]) || 0), 0)
+        : 0;
+
+    const tableTotal =
+      sumField(formData.ta_da_journey_particulars_table, "fare") +
+      sumField(formData.ta_da_local_conveyance_table, "fare") +
+      sumField(formData.ta_da_other_expenses_p, "ta_da_amount_other_expense");
+
+    setFormData((prev) =>
+      prev.ta_da_total_claimed === tableTotal
+        ? prev
+        : { ...prev, ta_da_total_claimed: tableTotal },
+    );
+  }, [
+    formData.ta_da_journey_particulars_table,
+    formData.ta_da_local_conveyance_table,
+    formData.ta_da_other_expenses_p,
+  ]);
 
   // --- EVENT HANDLERS ---
   const handleChange = useCallback((fieldname: string, value: any) => {
@@ -568,32 +872,13 @@ const TADASettlementForm: React.FC = () => {
 
   const handleTableRowChange = useCallback(
     (tableName: string, rowIndex: number, fieldname: string, value: any) => {
+      // Note: ta_da_total_claimed is kept in sync by the dedicated useEffect
+      // above (sums Fare from both particulars tables + Amount from Other
+      // Expenses) whenever any of these tables changes — not here.
       setFormData((prev) => {
         const table = [...(prev[tableName] || [])];
         table[rowIndex] = { ...table[rowIndex], [fieldname]: value };
-
-        // Calculate row total if amount field changes
-        if (fieldname === "amount" || fieldname === "quantity") {
-          const row = table[rowIndex];
-          const amount = parseFloat(row.amount || 0);
-          const quantity = parseFloat(row.quantity || 1);
-          table[rowIndex].total = amount * quantity;
-        }
-
-        // Calculate table total
-        const tableTotal = table.reduce(
-          (sum, row) => sum + parseFloat(row.total || row.amount || 0),
-          0,
-        );
-
-        return {
-          ...prev,
-          [tableName]: table,
-          // Update total claimed if this is the expenses table
-          ...(tableName === "ta_da_other_expenses_p"
-            ? { ta_da_total_claimed: tableTotal }
-            : {}),
-        };
+        return { ...prev, [tableName]: table };
       });
     },
     [],
@@ -606,6 +891,13 @@ const TADASettlementForm: React.FC = () => {
       fieldname: string,
       file: File | null,
     ) => {
+      if (file && tableName === SUPPORTING_DOCS_TABLE) {
+        const validationError = validateSupportingDocFile(file);
+        if (validationError) {
+          alert(validationError);
+          return;
+        }
+      }
       setFormData((prev) => {
         const table = [...(prev[tableName] || [])];
         table[rowIndex] = { ...table[rowIndex], [fieldname]: file };
@@ -626,23 +918,13 @@ const TADASettlementForm: React.FC = () => {
   );
 
   const deleteTableRow = useCallback((tableName: string, rowIndex: number) => {
+    // Note: ta_da_total_claimed is kept in sync by the dedicated useEffect
+    // above whenever any of the three source tables changes — not here.
     setFormData((prev) => {
       const newTable = (prev[tableName] || []).filter(
         (_: any, i: number) => i !== rowIndex,
       );
-
-      // Recalculate total if this is the expenses table
-      let updates: Record<string, any> = { [tableName]: newTable };
-      if (tableName === "ta_da_other_expenses_p") {
-        const tableTotal = newTable.reduce(
-          (sum: number, row: any) =>
-            sum + parseFloat(row.total || row.amount || 0),
-          0,
-        );
-        updates.ta_da_total_claimed = tableTotal;
-      }
-
-      return { ...prev, ...updates };
+      return { ...prev, [tableName]: newTable };
     });
   }, []);
 
@@ -748,13 +1030,32 @@ const TADASettlementForm: React.FC = () => {
           }
           status={formData?.workflow_state}
         >
-          {editDocName && formData?.docstatus === 1 && (
-            <TADASettlementActionButtons
-              docName={editDocName}
-              onActionComplete={() => window.location.reload()}
-            />
+          {editDocName && <ViewProjectButton doctype="TA DA Settlement" data={formData} />}
+          {showPrintButton && (
+            <FrappeButton
+              onClick={handlePrintTada}
+              className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:bg-zinc-800/50"
+            >
+              <Printer className="w-4 h-4" />
+              Print
+            </FrappeButton>
           )}
+          {editDocName &&
+            isSubmitted && (
+              <TADASettlementActionButtons
+                docName={editDocName}
+                onActionComplete={() => window.location.reload()}
+              />
+            )}
         </PageHeader>
+
+        {editDocName && (
+          <div className="mt-6 mb-6">
+            <TadaWorkflowTimeline
+              currentState={formData?.workflow_state || "Draft"}
+            />
+          </div>
+        )}
 
         {/* Summary Cards */}
         {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -784,7 +1085,7 @@ const TADASettlementForm: React.FC = () => {
         <form onSubmit={handleSubmit}>
           <FrappeCard className="space-y-12">
             <DynamicFormRenderer
-              fields={fields}
+              fields={processedFields}
               formData={formData}
               linkOptions={linkOptions}
               onChange={handleChange}
@@ -794,27 +1095,42 @@ const TADASettlementForm: React.FC = () => {
               onAddTableRow={addTableRow}
               onDeleteTableRow={deleteTableRow}
               onFieldChangeWithSideEffects={handleFieldChangeWithSideEffects}
-              readOnly={formData.docstatus === 1}
+              readOnly={isSubmitted && !canEditOfficeUse}
             />
           </FrappeCard>
 
-          {(!editDocName || formData.docstatus === 0) && (
-            <div className="mt-8 flex justify-end gap-4">
+          {canEditOfficeUse ? (
+            <div className="mt-8 flex flex-col items-end gap-2">
               <FrappeButton
                 onClick={handleSave}
                 disabled={isSubmitting}
-                className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:bg-zinc-800/50"
-              >
-                {isSubmitting ? "Saving..." : "Save Draft"}
-              </FrappeButton>
-              <FrappeButton
-                type="submit"
-                disabled={isSubmitting}
                 className="bg-[#D97757] text-white hover:bg-[#D97757]"
               >
-                {isSubmitting ? "Submitting..." : "Submit Settlement"}
+                {isSubmitting ? "Saving..." : "Save Office Use Details"}
               </FrappeButton>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                Save the "For Office Use" figures before forwarding this settlement.
+              </p>
             </div>
+          ) : (
+            (!editDocName || !isSubmitted) && (
+              <div className="mt-8 flex justify-end gap-4">
+                <FrappeButton
+                  onClick={handleSave}
+                  disabled={isSubmitting}
+                  className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:bg-zinc-800/50"
+                >
+                  {isSubmitting ? "Saving..." : "Save Draft"}
+                </FrappeButton>
+                <FrappeButton
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="bg-[#D97757] text-white hover:bg-[#D97757]"
+                >
+                  {isSubmitting ? "Submitting..." : "Submit Settlement"}
+                </FrappeButton>
+              </div>
+            )
           )}
         </form>
       </main>
