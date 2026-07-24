@@ -1740,9 +1740,13 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         return { ...field, options: field.fieldname };
       }
 
-      // In edit mode, clear backend-supplied read_only so fields become editable
-      if (isEditMode && field.read_only && !ALWAYS_READONLY_FIELDS.has(field.fieldname)) {
-        return { ...field, read_only: 0 };
+      // In edit mode, clear backend-supplied read_only from field and its child columns
+      if (isEditMode && !ALWAYS_READONLY_FIELDS.has(field.fieldname)) {
+        return {
+          ...field,
+          read_only: 0,
+          child_fields: field.child_fields?.map((cf: any) => ({ ...cf, read_only: 0 })),
+        };
       }
 
       return field;
@@ -1831,9 +1835,13 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           };
         }
 
-        // In edit mode, clear backend-supplied read_only so fields become editable
-        if (isEditMode && field.read_only) {
-          return { ...field, read_only: 0 };
+        // In edit mode, clear backend-supplied read_only from field and its child columns
+        if (isEditMode) {
+          return {
+            ...field,
+            read_only: 0,
+            child_fields: field.child_fields?.map((cf: any) => ({ ...cf, read_only: 0 })),
+          };
         }
 
         return field;
