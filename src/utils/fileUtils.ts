@@ -21,7 +21,9 @@ const MINIO_PATH_PREFIXES = [
     "/Project_Registration/",
     "/indent_general_form/",
     "/indent_cum_sanction_sheet/",
-    "/proprietary_purchase/",
+    "/standerdized_purchase/",
+    "/direct_purchase/",
+    "/proprietary_purchase/"
 ];
 
 export function getFileUrl(path: string | null | undefined): string {
@@ -46,6 +48,13 @@ export function getFileUrl(path: string | null | undefined): string {
     // Already a MinIO proxy path — prepend the MinIO base
     if (path.startsWith("/prod-rnd-files/")) {
         return `http://172.16.135.118:9000${path}`;
+    }
+
+    // Handle paths that got the /files/ prefix from Frappe but actually belong in MinIO
+    if (path.startsWith("/files/standerdized_purchase/") || 
+        path.startsWith("/files/direct_purchase/") || 
+        path.startsWith("/files/indent_cum_sanction_sheet/")) {
+        return `/prod-rnd-files/${path.replace(/^\/files\//, "")}`;
     }
 
     // MinIO-stored file referenced by its object path (no bucket prefix)

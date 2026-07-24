@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Direct Purchase Request</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Times New Roman", Times, serif;
+            font-size: 10pt;
+            background: #ccc;
+        }
+
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 20px auto;
+            background: #fff;
+            position: relative;
+            box-shadow: 0 0 12px rgba(0,0,0,0.3);
+        }
+
+        table.layout-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: none;
+        }
+
+        table.layout-table > tbody > tr > td,
+        table.layout-table > tfoot > tr > td {
+            border: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .footer-space { height: 15mm; }
+
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.06;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .watermark img { width: 280px; }
+
+        .content {
+            position: relative;
+            z-index: 1;
+            padding: 0 14mm 0 14mm;
+        }
+
+        /* ── HEADER ── */
+        .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 6px;
+        }
+
+        .logo-left img {
+            height: 85px;
+            width: auto;
+            display: block;
+        }
+
+        .header-center {
+            text-align: center;
+            flex: 1;
+            padding: 0 10px;
+        }
+
+        .header-hindi {
+            font-size: 11pt;
+            font-weight: bold;
+            line-height: 1.3;
+        }
+
+        .header-english {
+            font-size: 12pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            line-height: 1.3;
+        }
+
+        .header-sub {
+            font-size: 9.5pt;
+            line-height: 1.3;
+        }
+
+        /* ── DOC META ── */
+        .doc-ref-right {
+            text-align: right;
+            font-size: 8.5pt;
+            line-height: 1.5;
+            margin: 3px 0 2px 0;
+        }
+
+        .doc-ref-right .doc-ref-label { font-weight: bold; }
+
+        .form-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin: 4px 0 3px 0;
+            font-size: 9.5pt;
+        }
+
+        .form-type { font-weight: bold; font-size: 10pt; }
+
+        /* ── TITLE ── */
+        .form-title {
+            text-align: center;
+            font-weight: bold;
+            text-decoration: underline;
+            font-size: 10pt;
+            margin: 5px 0 6px 0;
+            line-height: 1.4;
+        }
+
+        /* ── INTRO ── */
+        .intro-block {
+            font-size: 9.5pt;
+            margin-bottom: 5px;
+            line-height: 1.5;
+        }
+
+        .intro-block p { margin: 2px 0; }
+
+        /* ── INFO GRID ── */
+        .info-grid {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 9pt;
+            margin-bottom: 6px;
+        }
+
+        .info-grid td {
+            border: 1px solid #ccc;
+            padding: 3px 7px;
+            vertical-align: top;
+            line-height: 1.4;
+        }
+
+        .info-grid .lbl {
+            font-weight: bold;
+            background: #f0f0f0;
+            white-space: nowrap;
+            width: 30%;
+        }
+
+        .info-grid .val { width: 20%; }
+
+        /* ── SECTION HEADING ── */
+        .section-heading {
+            font-size: 9pt;
+            font-weight: bold;
+            background: #c8c8c8;
+            padding: 3px 6px;
+            margin: 6px 0 2px 0;
+            border: 1px solid #999;
+        }
+
+        /* ── DATA TABLE ── */
+        .content table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 9pt;
+            margin-bottom: 0;
+        }
+
+        .content table.data-table th,
+        .content table.data-table td {
+            border: 1px solid #000;
+            padding: 3px 5px;
+            vertical-align: middle;
+            line-height: 1.3;
+            word-wrap: break-word;
+        }
+
+        .content table.data-table thead th {
+            background-color: #c8c8c8;
+            text-align: center;
+            font-weight: bold;
+            font-size: 9pt;
+        }
+
+        .c { text-align: center; }
+        .r { text-align: right; }
+        .b { font-weight: bold; }
+
+        .summary-lbl {
+            text-align: right;
+            padding-right: 8px;
+            font-size: 9pt;
+        }
+
+        /* ── DECLARATION ── */
+        .declaration {
+            margin-top: 8px;
+            font-size: 8.8pt;
+            line-height: 1.5;
+            text-align: justify;
+            font-style: italic;
+        }
+
+        /* ── ACTIVITY LOG ── */
+        .activity-section {
+            margin-top: 10px;
+            font-size: 9pt;
+        }
+
+        .activity-row {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 9pt;
+        }
+
+        .activity-avatar {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #555;
+            color: #fff;
+            font-size: 9pt;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            text-align: center;
+            line-height: 22px;
+        }
+
+        .activity-text { flex: 1; }
+        .activity-time { font-size: 8pt; color: #777; margin-top: 1px; }
+
+        /* ── SIGNATURE SECTION ── */
+        .sig-section {
+            margin-top: 30px;
+            width: 100%;
+            font-size: 0;  /* collapse inline-block gaps */
+        }
+
+        .sig-block {
+            display: inline-block;
+            text-align: center;
+            box-sizing: border-box;
+            width: 31%;
+            margin: 0 1% 20px 1%;
+            vertical-align: top;
+            padding: 6px 4px 8px 4px;
+            font-size: 10pt; /* restore font inside */
+        }
+
+        .sig-line {
+            border-bottom: 1px solid #444;
+            width: 80%;
+            margin: 0 auto 6px auto;
+            padding-bottom: 2px;
+            margin-top: 30px;
+        }
+
+        .sig-name {
+            font-size: 9pt;
+            font-weight: bold;
+            margin-top: 4px;
+        }
+
+        .sig-desig {
+            font-size: 8.5pt;
+            margin-top: 1px;
+            color: #333;
+        }
+
+
+        /* ── PROJECT LINE (below form type) ── */
+        .project-line {
+            font-size: 9pt;
+            margin: 1px 0 5px 0;
+        }
+
+        /* ── ACTIVITY LOG ── */
+        .activity-section {
+            margin-top: 4px;
+            font-size: 9pt;
+        }
+
+        .activity-row {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+            padding: 4px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .activity-avatar {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #555;
+            color: #fff;
+            font-size: 8pt;
+            font-weight: bold;
+            text-align: center;
+            line-height: 20px;
+            flex-shrink: 0;
+        }
+
+        .activity-text { flex: 1; }
+        .activity-time { font-size: 8pt; color: #777; margin-top: 1px; }
+
+        /* ── PRINT FOOTER ── */
+
+        .print-footer {
+            position: absolute;
+            bottom: 8mm;
+            right: 14mm;
+            left: 14mm;
+            font-size: 8pt;
+            color: #888;
+            text-align: right;
+            border-top: 1px solid #ddd;
+            padding-top: 4px;
+        }
+
+        .pdf-embed {
+            width: 100%;
+            height: 90vh;
+            border: 1px solid #e4e4e7;
+            border-radius: 8px;
+        }
+        .print-only { display: none; }
+
+        @page {
+            size: A4;
+            margin: 0mm;
+        }
+
+        @media print {
+            body, .page {
+                margin: 0;
+                box-shadow: none;
+                background: #fff;
+                width: 210mm;
+            }
+
+            .pdf-embed {
+                height: 275mm !important;
+                border: none !important;
+                border-radius: 0 !important;
+            }
+
+            .print-hide { display: none !important; }
+            .print-only { display: block !important; }
+
+            .content { padding: 0 14mm 12mm 14mm; }
+
+            .content table.data-table { page-break-inside: auto; break-before: avoid; page-break-before: avoid; }
+            .content table.data-table thead { display: table-header-group; break-after: avoid; page-break-after: avoid; }
+            .content table.data-table tfoot { display: table-footer-group; }
+
+            .content table.data-table tr {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+
+            .section-heading {
+                page-break-after: avoid;
+                break-after: avoid;
+            }
+
+            .declaration { page-break-inside: avoid; break-inside: avoid; }
+            .sig-section  { page-break-inside: avoid; break-inside: avoid; }
+
+            .print-footer {
+                position: fixed;
+                bottom: 8mm;
+                right: 14mm;
+                left: 14mm;
+            }
+
+            .watermark {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                z-index: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+
+    <div class="watermark">
+        <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="" onerror="this.style.display='none'">
+    </div>
+
+    <div class="content">
+        <table class="layout-table">
+            <thead>
+                <tr>
+                    <td><div style="height: 14mm;"></div></td>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+
+                        <!-- HEADER -->
+                        <div class="header-row">
+                            <div class="logo-left">
+                                <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG" onerror="this.style.display='none'">
+                            </div>
+                            <div class="header-center">
+                                <div class="header-hindi">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
+                                <div class="header-english">Indian Institute of Technology Guwahati</div>
+                                <div class="header-sub">Research and Development Section</div>
+                            </div>
+                        </div>
+
+                        <!-- DOC REF -->
+                        <div class="doc-ref-right">
+                            <span class="doc-ref-label">Doc Ref: </span><span>{{DOC_REF}}</span>
+                            &nbsp;&nbsp;
+                            <span class="doc-ref-label">Status: </span><span>{{WORKFLOW_STATE}}</span>
+                        </div>
+
+                        <!-- FORM LINE -->
+                        <div class="form-line">
+                            <span class="form-type">Form Type: Direct Purchase Request</span>
+                            <span><strong>Date:</strong> {{DATE}}</span>
+                        </div>
+
+                        <!-- PROJECT NUMBER (below form type) -->
+                        <div class="project-line">
+                            <strong>Project No:</strong> {{PROJECT_NUMBER}}
+                        </div>
+
+                        <!-- TITLE -->
+                        <div class="form-title">
+                            Direct Purchase Request — Research &amp; Development Section
+                        </div>
+
+                        <!-- APPLICANT & PROJECT INFORMATION (dynamic) -->
+                        <div class="section-heading">Applicant &amp; Project Information</div>
+                        <table class="info-grid">
+                            <tbody>
+                                {{INFO_ROWS}}
+                            </tbody>
+                        </table>
+
+                        <!-- ITEMS TABLE -->
+                        <div style="page-break-inside: avoid; break-inside: avoid;">
+                            <div class="section-heading" style="margin-top:8px;">Purchase Items</div>
+                            <table class="data-table">
+                                <colgroup>
+                                    <col style="width:5%;">
+                                    <col style="width:22%;">
+                                    <col style="width:26%;">
+                                    <col style="width:20%;">
+                                    <col style="width:8%;">
+                                    <col style="width:9.5%;">
+                                    <col style="width:9.5%;">
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th>Sl.<br>No.</th>
+                                        <th>Item Name</th>
+                                        <th>Description</th>
+                                        <th>Justification</th>
+                                        <th>Qty</th>
+                                        <th>Unit Price (₹)</th>
+                                        <th>Total (₹)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {{ITEM_ROWS}}
+                                    <tr>
+                                        <td colspan="5" class="summary-lbl b">Total Estimated Amount</td>
+                                        <td colspan="2" class="r b">{{TOTAL_ESTIMATE}}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- DECLARATIONS (checkbox style) -->
+                        {{DECLARATIONS}}
+
+                        <!-- ACTIVITY LOG -->
+                        <div class="section-heading" style="margin-top:8px;">Activity Log</div>
+                        <div class="activity-section">
+                            {{ACTIVITY_ROWS}}
+                        </div>
+
+                        <!-- ATTACHMENTS (Images/PDFs) -->
+                        {{ATTACHMENTS}}
+
+                    </td>
+                </tr>
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td><div class="footer-space"></div></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- FIXED FOOTER -->
+    <div class="print-footer">
+        Printed on: {{CURRENT_TIME}} &nbsp;|&nbsp; IIT Guwahati — R&amp;D Section &nbsp;|&nbsp; Direct Purchase Application
+    </div>
+
+</div>
+</body>
+</html>

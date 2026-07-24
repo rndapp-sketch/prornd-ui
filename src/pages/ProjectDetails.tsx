@@ -9,7 +9,7 @@ import React, {
     useRef,
 } from "react";
 import { createPortal } from "react-dom";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
     useFrappeGetDoc,
     useFrappePostCall,
@@ -1449,6 +1449,8 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     const projectName = propProjectName || paramProjectName;
 
     const navigate = useNavigate();
+    const location = useLocation();
+    const resolvedBackUrl = location.state?.from || backUrl;
     const [activeTab, setActiveTab] = useState("overview");
     const activityStreamRef = useRef<ActivityStreamHandle>(null);
     const { currentUser } = useFrappeAuth();
@@ -1550,7 +1552,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
         const fetchBudgetHeads = async () => {
             try {
                 const response = await fetch(
-                    '/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0',
+                    '/api/v2/document/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc',
                 );
                 const result = await response.json();
                 if (result?.data) {
@@ -1804,7 +1806,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                             Select a project to see details.
                         </p>
                         <FrappeButton
-                            onClick={() => navigate(backUrl)}
+                            onClick={() => navigate(resolvedBackUrl)}
                             className="bg-cyan-300 hover:bg-cyan-400"
                         >
                             {backLabel}
@@ -1827,7 +1829,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                             {error.message}
                         </p>
                         {/* <FrappeButton
-                            onClick={() => navigate(backUrl)}
+                            onClick={() => navigate(resolvedBackUrl)}
                             className="bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:bg-zinc-800"
                         >
                             {backLabel}
@@ -1852,7 +1854,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                     <div className="flex items-start justify-between flex-col xl:flex-row gap-5">
                         <div className="flex items-start gap-4 min-w-0">
                             <button
-                                onClick={() => navigate(backUrl)}
+                                onClick={() => navigate(resolvedBackUrl)}
                                 className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
                             >
                                 <ArrowLeftIcon className="h-4 w-4" />

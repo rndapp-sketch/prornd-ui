@@ -38,7 +38,9 @@ import {
   ExternalLink,
   Pencil,
   ChevronDown,
+  Printer,
 } from "lucide-react";
+import { generateIcssHtml } from "@/utils/icssPrint";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -50,6 +52,8 @@ import { CommitPayment } from "@/components/CommitPayment";
 import { POEditor } from "@/components/POEditor";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import { getFileUrl } from "@/utils/fileUtils";
+import { P11PrintModal as PrintModal } from "@/components/P11PrintModal";
+import { ActivityLog } from "@/components/ActivityLog";
 import {
   generatePOHtml,
   getAmcPoGrandTotal,
@@ -1101,7 +1105,7 @@ const WorkflowTimeline = ({
 
   return (
     <FrappeCard>
-      <div className="p-4">
+      <div className="p-4" id="icss-workflow-progress">
         {/* Header row */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -1881,6 +1885,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
   );
   const [hasSavedPoDraft, setHasSavedPoDraft] = useState(false);
   const [isPoDraftDirty, setIsPoDraftDirty] = useState(false);
+  const [isIcssPrintModalOpen, setIsIcssPrintModalOpen] = useState(false);
   const [isFetchingSavedPoDraft, setIsFetchingSavedPoDraft] = useState(false);
   const [savedPoDraftLoadError, setSavedPoDraftLoadError] = useState("");
   const [savedIcssPoDocName, setSavedIcssPoDocName] = useState("");
@@ -5567,6 +5572,10 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     );
   };
 
+  const handlePrint = useCallback(() => {
+    setIsIcssPrintModalOpen(true);
+  }, []);
+
   if (isLoadingFields) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
@@ -6002,7 +6011,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                         "bg-slate-600 dark:bg-slate-400",
                       )}
                     />
-                    <div>
+                    <div className="flex-1">
                       <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-700 dark:text-zinc-300">
                         Indent Cum Sanction Sheet
                       </h2>
@@ -6013,8 +6022,17 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                         </p>
                       )}
                     </div>
+                    {id && (
+                      <button 
+                        onClick={() => setIsIcssPrintModalOpen(true)}
+                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[12px] font-bold text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                      >
+                        <Printer className="h-3.5 w-3.5" aria-hidden="true" /> 
+                        Print / PDF
+                      </button>
+                    )}
                   </div>
-                  <div className="p-8">
+                  <div className="p-8" id="icss-printable-details">
                     <DynamicFormRenderer
                       fields={displayBaseFields}
                       formData={formData}
@@ -6031,6 +6049,27 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                       readOnly={isReadOnly}
                     />
                   </div>
+                  <div id="icss-activity-log" className="hidden">
+                    {id && <ActivityLog doctype="Indent Cum Sanction Sheet" docname={id} />}
+                  </div>
+                  <PrintModal
+                    title="Indent Cum Sanction Sheet"
+                    isOpen={isIcssPrintModalOpen}
+                    onClose={() => setIsIcssPrintModalOpen(false)}
+                    htmlContent={
+                      isIcssPrintModalOpen
+                        ? generateIcssHtml(
+                            formData,
+                            document.getElementById("icss-activity-log"),
+                            document.getElementById("icss-printable-details"),
+                            document.getElementById("icss-subform-printable-details"),
+                            document.getElementById("icss-workflow-progress"),
+                            displayLinkOptions
+                          )
+                        : ""
+                    }
+                    docName={formData.name || "ICSS"}
+                  />
                 </FrappeCard>
 
                 {/* Sub-Doctype Form — shown only when indent type is selected and fields exist (or loading) */}
@@ -6076,7 +6115,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      <div className="p-8">
+                      <div className="p-8" id="icss-subform-printable-details">
                         {isLoadingSubForm ? (
                           <div className="flex flex-col items-center justify-center py-12 gap-3">
                             <Loader2 className="w-6 h-6 animate-spin text-[#D97757]" />

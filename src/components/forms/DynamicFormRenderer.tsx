@@ -639,10 +639,11 @@ const MemoizedFormField = memo(
                 field.fieldname === "upfa_department" ||
                 field.fieldname === "ps_department" ||
                 field.fieldname === "implementation_department" ||
-                field.fieldname === "applicant_department") &&
+                field.fieldname === "applicant_department" ||
+                field.fieldname === "igf_department_centre_section") &&
               value ? (
                 <DepartmentName name={value} />
-              ) : field.fieldname === "account_head" && value ? (
+              ) : (field.fieldname === "account_head" || field.fieldname === "igf_account_head") && value ? (
                 <BudgetHeadName id={value} />
               ) : (
                 readOnlyResolvedLabel || value || "-"
@@ -710,6 +711,13 @@ const MemoizedFormField = memo(
         default:
           // Special handling for nationality field — render country dropdown
           if (field.fieldname === "nationality_u_r") {
+            if (isReadOnly) {
+              return (
+                <div className="flex min-h-10 w-full rounded-md border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 px-3 py-2 text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5] whitespace-normal break-words leading-relaxed">
+                  {value || "-"}
+                </div>
+              );
+            }
             return (
               <CountrySelect
                 value={value ?? ""}
