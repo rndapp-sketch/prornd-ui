@@ -742,12 +742,14 @@ export function DirectorDashboard() {
     const [kpiAllocTab, setKpiAllocTab] = React.useState<string>(location.state?.kpiAllocTab || "ongoing");
     const [piModalPage, setPiModalPage] = React.useState<number>(location.state?.piModalPage || 1);
     const [deptModalPage, setDeptModalPage] = React.useState(1);
+    const [kpiSearchText, setKpiSearchText] = React.useState<string>(location.state?.kpiSearchText || "");
     const PI_PROJECTS_PAGE_SIZE = 2;
     const DEPT_MODAL_PAGE_SIZE = 10;
     const KPI_PAGE_SIZE = 10;
 
     // Projects table filter & pagination
     const [projectTableFilter, setProjectTableFilter] = React.useState<string>("all");
+    const [projectTableSearch, setProjectTableSearch] = React.useState<string>(location.state?.projectTableSearch || "");
     const [showAllFunding, setShowAllFunding] = React.useState(false);
     const [projectTablePage, setProjectTablePage] = React.useState(1);
     const PROJECT_TABLE_PAGE_SIZE = 10;
@@ -756,9 +758,9 @@ export function DirectorDashboard() {
     const [financialYearFilter, setFinancialYearFilter] = React.useState<string>("all");
     const [financialProjectTypeFilter, setFinancialProjectTypeFilter] = React.useState<string>("all");
     const getDashboardState = () => ({
-        kpiModal, kpiPage, kpiTab, kpiStatusFilter, kpiSchemeFilter, kpiAgeFilter, kpiAllocTab,
+        kpiModal, kpiPage, kpiTab, kpiStatusFilter, kpiSchemeFilter, kpiAgeFilter, kpiAllocTab, kpiSearchText,
         piModalPage, expandedPI, deptModalPage,
-        projectTableFilter, showAllFunding, projectTablePage,
+        projectTableFilter, projectTableSearch, showAllFunding, projectTablePage,
         dashboardProjectTypeFilter, financialYearFilter, financialProjectTypeFilter
     });
 
@@ -855,6 +857,33 @@ export function DirectorDashboard() {
     );
 
     const roleBasedProjects = roleBasedProjectsData?.message || [];
+
+    // Build a name-lookup map from roleBasedProjects: lowercase email → display name
+    // Prefer longer, more complete names over short salutations like "sir", "madam"
+    const emailToNameMap = React.useMemo(() => {
+        const SALUTATIONS = new Set(["sir", "madam", "ma'am", "dr", "prof", "professor"]);
+        const map: Record<string, string> = {};
+        roleBasedProjects.forEach((item: any) => {
+            if (item.user_email && item.user_name) {
+                const key = (item.user_email || "").toLowerCase().trim();
+                const newName = item.user_name.trim();
+                const existing = map[key];
+                if (!existing) {
+                    map[key] = newName;
+                } else {
+                    // Replace if current is a salutation but new one isn't, or new one is longer
+                    const existingIsSalutation = SALUTATIONS.has(existing.toLowerCase());
+                    const newIsSalutation = SALUTATIONS.has(newName.toLowerCase());
+                    if (existingIsSalutation && !newIsSalutation) {
+                        map[key] = newName;
+                    } else if (!existingIsSalutation && !newIsSalutation && newName.length > existing.length) {
+                        map[key] = newName;
+                    }
+                }
+            }
+        });
+        return map;
+    }, [roleBasedProjects]);
 
     // Fetch all projects with start/end dates for year-wise chart and KPI modals
     const { data: allProjectsList } = useFrappeGetDocList(
@@ -1104,8 +1133,9 @@ export function DirectorDashboard() {
         const projects: any[] = allProjectsList ?? [];
         if (!kpiModal) return [];
 
-        if (kpiModal.type === "total" || kpiModal.type === "ongoing" || kpiModal.type === "allocation") {
-            let filtered = projects;
+        const getBaseRows = () => {
+            if (kpiModal.type === "total" || kpiModal.type === "ongoing" || kpiModal.type === "allocation") {
+                let filtered = projects;
 
             // Apply year filter if present (checks prj_start_date year)
             if (kpiModal.year) {
@@ -1252,15 +1282,38 @@ export function DirectorDashboard() {
                 );
             }
 
-            return filtered;
+                return filtered;
+            }
+            if (kpiModal.type === "intl") {
+                return projects.filter(
+                    (p) => (p.origin_of_funding_agency || "").toLowerCase() === "international"
+                );
+            }
+            return projects;
+        };
+
+        let result = getBaseRows();
+
+        if (kpiSearchText.trim()) {
+            const query = kpiSearchText.toLowerCase().trim();
+            result = result.filter(p => {
+                const title = (p.project_title || p.name || "").toLowerCase();
+                const projNo = (p.project_no || p.name || "").toLowerCase();
+                const piEmail = (p.pi_webmail || "").toLowerCase();
+                const piName = (p.pi_webmail ? (emailToNameMap[p.pi_webmail.toLowerCase().trim()] || p.pi_webmail.split("@")[0]) : "").toLowerCase();
+                const deptName = (p.implementation_department || p.user_department || p.dept_name || "").toLowerCase();
+                return (
+                    title.includes(query) ||
+                    projNo.includes(query) ||
+                    piEmail.includes(query) ||
+                    piName.includes(query) ||
+                    deptName.includes(query)
+                );
+            });
         }
-        if (kpiModal.type === "intl") {
-            return projects.filter(
-                (p) => (p.origin_of_funding_agency || "").toLowerCase() === "international"
-            );
-        }
-        return projects;
-    }, [allProjectsList, ongoingIds, submittedIds, kpiModal, kpiTab, kpiAllocTab, kpiStatusFilter, kpiAgeFilter, kpiSchemeFilter]);
+
+        return result;
+    }, [allProjectsList, ongoingIds, submittedIds, kpiModal, kpiTab, kpiAllocTab, kpiStatusFilter, kpiAgeFilter, kpiSchemeFilter, kpiSearchText]);
 
     const kpiTotalPages = Math.max(
         1,
@@ -1323,7 +1376,10 @@ export function DirectorDashboard() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const closeKpiModal = () => setKpiModal(null);
+    const closeKpiModal = () => {
+        setKpiModal(null);
+        setKpiSearchText("");
+    };
 
     // ── Start vs End Sanction data ────────────────────────────────────────────
     const startEndSanctionData = React.useMemo(() => {
@@ -1752,32 +1808,7 @@ export function DirectorDashboard() {
             }));
     }, [allProjectsList, getProjectAgency]);
 
-    // Build a name-lookup map from roleBasedProjects: lowercase email → display name
-    // Prefer longer, more complete names over short salutations like "sir", "madam"
-    const emailToNameMap = React.useMemo(() => {
-        const SALUTATIONS = new Set(["sir", "madam", "ma'am", "dr", "prof", "professor"]);
-        const map: Record<string, string> = {};
-        roleBasedProjects.forEach((item: any) => {
-            if (item.user_email && item.user_name) {
-                const key = (item.user_email || "").toLowerCase().trim();
-                const newName = item.user_name.trim();
-                const existing = map[key];
-                if (!existing) {
-                    map[key] = newName;
-                } else {
-                    // Replace if current is a salutation but new one isn't, or new one is longer
-                    const existingIsSalutation = SALUTATIONS.has(existing.toLowerCase());
-                    const newIsSalutation = SALUTATIONS.has(newName.toLowerCase());
-                    if (existingIsSalutation && !newIsSalutation) {
-                        map[key] = newName;
-                    } else if (!existingIsSalutation && !newIsSalutation && newName.length > existing.length) {
-                        map[key] = newName;
-                    }
-                }
-            }
-        });
-        return map;
-    }, [roleBasedProjects]);
+
 
     const getPiName = React.useCallback(
         (email: string) => {
@@ -3638,6 +3669,21 @@ export function DirectorDashboard() {
                                 const filtered = allProjs.filter((p: any) => {
                                     if (projectTableFilter === "all") return true;
                                     return p._status === projectTableFilter;
+                                }).filter((p: any) => {
+                                    if (!projectTableSearch.trim()) return true;
+                                    const query = projectTableSearch.toLowerCase().trim();
+                                    const title = (p.project_title || p.name || "").toLowerCase();
+                                    const projNo = (p.project_no || p.name || "").toLowerCase();
+                                    const piEmail = (p.pi_webmail || "").toLowerCase();
+                                    const piName = (p.pi_webmail ? (emailToNameMap[p.pi_webmail.toLowerCase().trim()] || p.pi_webmail.split("@")[0]) : "").toLowerCase();
+                                    const deptName = (p.implementation_department || p.user_department || p.dept_name || "").toLowerCase();
+                                    return (
+                                        title.includes(query) ||
+                                        projNo.includes(query) ||
+                                        piEmail.includes(query) ||
+                                        piName.includes(query) ||
+                                        deptName.includes(query)
+                                    );
                                 });
 
                                 const totalPages = Math.max(1, Math.ceil(filtered.length / PROJECT_TABLE_PAGE_SIZE));
@@ -3660,18 +3706,48 @@ export function DirectorDashboard() {
                                                     {filtered.length}
                                                 </span>
                                             </div>
-                                            {/* Status filter dropdown */}
-                                            <select
-                                                value={projectTableFilter}
-                                                onChange={(e) => { setProjectTableFilter(e.target.value); setProjectTablePage(1); }}
-                                                className="text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-3 py-1.5 outline-none focus:border-[#2563eb] cursor-pointer transition-colors"
-                                            >
-                                                {STATUS_FILTER_OPTIONS.filter(opt => !(isDirectorOnly && !directorAllowedFilters.has(opt.value))).map(opt => (
-                                                    <option key={opt.value} value={opt.value}>
-                                                        {opt.label}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                            <div className="flex items-center gap-3 flex-wrap">
+                                                {/* Search Input */}
+                                                <div className="relative min-w-[200px] sm:min-w-[280px]">
+                                                    <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-zinc-400 dark:text-zinc-500">
+                                                        <Search className="w-3.5 h-3.5" />
+                                                    </span>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Search project title, no, PI, dept..."
+                                                        value={projectTableSearch}
+                                                        onChange={(e) => {
+                                                            setProjectTableSearch(e.target.value);
+                                                            setProjectTablePage(1);
+                                                        }}
+                                                        className="w-full text-[11px] font-bold pl-8 pr-8 py-1.5 bg-white dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg outline-none focus:border-[#2563eb] text-[#3F3F46] dark:text-[#E4E4E7] placeholder-zinc-400 transition-colors shadow-sm"
+                                                    />
+                                                    {projectTableSearch && (
+                                                        <button
+                                                            onClick={() => {
+                                                                setProjectTableSearch("");
+                                                                setProjectTablePage(1);
+                                                            }}
+                                                            className="absolute inset-y-0 right-0 flex items-center pr-2 text-[#71717A] hover:text-black dark:hover:text-white"
+                                                            type="button"
+                                                        >
+                                                            <X size={12} />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                {/* Status filter dropdown */}
+                                                <select
+                                                    value={projectTableFilter}
+                                                    onChange={(e) => { setProjectTableFilter(e.target.value); setProjectTablePage(1); }}
+                                                    className="text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-3 py-1.5 outline-none focus:border-[#2563eb] cursor-pointer transition-colors"
+                                                >
+                                                    {STATUS_FILTER_OPTIONS.filter(opt => !(isDirectorOnly && !directorAllowedFilters.has(opt.value))).map(opt => (
+                                                        <option key={opt.value} value={opt.value}>
+                                                            {opt.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
                                         </div>
 
                                         {/* Table */}
@@ -5196,7 +5272,7 @@ export function DirectorDashboard() {
                         {kpiModal.type === "total" || kpiModal.type === "ongoing" || kpiModal.type === "allocation" ? (
                             <div className="flex flex-col gap-3 px-6 pt-4 pb-0 shrink-0 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
                                 <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-3 flex-wrap">
                                         <select
                                             value={kpiModal.type === "ongoing" ? "ongoing" : kpiStatusFilter}
                                             disabled={kpiModal.type === "ongoing"}
@@ -5272,6 +5348,34 @@ export function DirectorDashboard() {
                                                 )}
                                             </div>
                                         )}
+                                        {/* Search Input */}
+                                        <div className="relative min-w-[200px] sm:min-w-[280px]">
+                                            <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-zinc-400 dark:text-zinc-500">
+                                                <Search className="w-3.5 h-3.5" />
+                                            </span>
+                                            <input
+                                                type="text"
+                                                placeholder="Search project title, no, PI, dept..."
+                                                value={kpiSearchText}
+                                                onChange={(e) => {
+                                                    setKpiSearchText(e.target.value);
+                                                    setKpiPage(1);
+                                                }}
+                                                className="w-full text-[11px] font-bold pl-8 pr-8 py-1.5 bg-white dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg outline-none focus:border-[#2563eb] text-[#3F3F46] dark:text-[#E4E4E7] placeholder-zinc-400 transition-colors shadow-sm"
+                                            />
+                                            {kpiSearchText && (
+                                                <button
+                                                    onClick={() => {
+                                                        setKpiSearchText("");
+                                                        setKpiPage(1);
+                                                    }}
+                                                    className="absolute inset-y-0 right-0 flex items-center pr-2 text-[#71717A] hover:text-black dark:hover:text-white"
+                                                    type="button"
+                                                >
+                                                    <X size={12} />
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                                 {!kpiModal.projectType && (

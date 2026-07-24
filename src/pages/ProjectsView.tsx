@@ -383,12 +383,15 @@ const pendingTasksData: Record<string, Task[]> = {
 };
 
 export function ProjectsView({ initialTab }: ProjectsViewProps) {
-  // --- LOGIC: All hooks and state management remain UNCHANGED ---
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // --- LOGIC: State initialized with location.state for restoration ---
   const [activeTab, setActiveTab] = React.useState(
-    initialTab || "myProjects",
+    location.state?.activeTab || initialTab || "myProjects",
   );
   // const [openPipeline, setOpenPipeline] = React.useState<string | null>(null); // Unused
-  const [searchQuery, setSearchQuery] = React.useState("");
+  const [searchQuery, setSearchQuery] = React.useState(location.state?.searchQuery || "");
   const [sortField, setSortField] = React.useState<
     | "creation"
     | "name"
@@ -396,17 +399,14 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     | "workflow_state"
     | "modified"
     | "owner"
-  >("creation");
-  const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc");
-  const [currentPage, setCurrentPage] = React.useState(1);
+  >(location.state?.sortField || "creation");
+  const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">(location.state?.sortOrder || "desc");
+  const [currentPage, setCurrentPage] = React.useState(location.state?.currentPage || 1);
   const [itemsPerPage, setItemsPerPage] = React.useState(10); // Unused set, but kept for future or consistency
   const [activeTaskTab, setActiveTaskTab] = React.useState(
-    Object.keys(pendingTasksData)[0],
+    location.state?.activeTaskTab || Object.keys(pendingTasksData)[0],
   );
-  const [selectedProjectType, setSelectedProjectType] = React.useState<ProjectTypeTab>('Research');
-
-  const navigate = useNavigate();
-  const location = useLocation();
+  const [selectedProjectType, setSelectedProjectType] = React.useState<ProjectTypeTab>(location.state?.selectedProjectType || 'Research');
   const { currentUser } = useFrappeAuth();
   const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", {
     fields: ["*"],
@@ -1231,7 +1231,18 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                               "Proposal Approved"
                               ? `/project-details-overview/${p.name}`
                               : `/project-details/${p.name}`;
-                          navigate(targetPath);
+                          navigate(targetPath, {
+                            state: {
+                              returnTo: location.pathname + location.search,
+                              activeTab,
+                              searchQuery,
+                              sortField,
+                              sortOrder,
+                              currentPage,
+                              activeTaskTab,
+                              selectedProjectType,
+                            }
+                          });
                         }}
                       >
                         <TableCell className="px-4 py-3 font-mono text-xs font-semibold text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
@@ -1354,7 +1365,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  setCurrentPage((p) => Math.max(1, p - 1))
+                  setCurrentPage((p: number) => Math.max(1, p - 1))
                 }
                 disabled={currentPage === 1}
               >
@@ -1364,7 +1375,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  setCurrentPage((p) =>
+                  setCurrentPage((p: number) =>
                     Math.min(totalPages, p + 1),
                   )
                 }

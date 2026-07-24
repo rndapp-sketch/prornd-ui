@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetDocList } from "frappe-react-sdk";
 import { AppSidebar } from "@/components/RndSidebar";
 import { cn } from "@/lib/utils";
@@ -39,10 +39,11 @@ const getStatusStyle = (status: string) => {
 
 export default function DepartmentProjects() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { currentUser } = useFrappeAuth();
-    const [searchQuery, setSearchQuery] = React.useState("");
-    const [statusFilter, setStatusFilter] = React.useState("all");
-    const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc");
+    const [searchQuery, setSearchQuery] = React.useState(location.state?.searchQuery || "");
+    const [statusFilter, setStatusFilter] = React.useState(location.state?.statusFilter || "all");
+    const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">(location.state?.sortOrder || "desc");
 
     // Fetch projects where current user is the head_approver
     const { data: projects, isLoading, error } = useFrappeGetDocList<Project>(
@@ -238,7 +239,14 @@ export default function DepartmentProjects() {
                                                 const target = (p.workflow_state === "Approved" || p.workflow_state === "Proposal Approved")
                                                     ? `/project-details-overview/${p.name}`
                                                     : `/project-details/${p.name}`;
-                                                navigate(target);
+                                                navigate(target, {
+                                                    state: {
+                                                        returnTo: location.pathname + location.search,
+                                                        searchQuery,
+                                                        statusFilter,
+                                                        sortOrder,
+                                                    }
+                                                });
                                             }}
                                             className="w-full sm:grid grid-cols-12 gap-2 px-5 py-3.5 hover:bg-[#FAFAF9] dark:hover:bg-[#27272A]/50 transition-colors text-left group items-center"
                                         >

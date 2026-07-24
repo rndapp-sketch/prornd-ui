@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useFrappeAuth, useFrappeGetDoc, useFrappeGetDocList } from "frappe-react-sdk";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { format } from "date-fns";
 import {
     ChevronRightIcon,
@@ -130,6 +130,7 @@ const getStatusBadge = (status?: string) => {
 
 export default function CoProjectView() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { currentUser } = useFrappeAuth();
     const { data: userDoc } = useFrappeGetDoc("User", currentUser || "", {
         fields: ["full_name", "email", "username", "first_name", "last_name"],
@@ -150,9 +151,9 @@ export default function CoProjectView() {
         limit: 0,
     } as any);
 
-    const [searchQuery, setSearchQuery] = React.useState("");
-    const [sortField, setSortField] = React.useState<SortField>("creation");
-    const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc");
+    const [searchQuery, setSearchQuery] = React.useState(location.state?.searchQuery || "");
+    const [sortField, setSortField] = React.useState<SortField>(location.state?.sortField || "creation");
+    const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">(location.state?.sortOrder || "desc");
     const [projects, setProjects] = React.useState<Project[]>([]);
     const [isProjectDetailsLoading, setIsProjectDetailsLoading] = React.useState(false);
     const [projectDetailsError, setProjectDetailsError] = React.useState<string | null>(null);
@@ -563,11 +564,17 @@ export default function CoProjectView() {
     const error = projectDetailsError || (childMatchedProjectNames.length === 0 ? projectListError || childLookupError : null);
 
     const openProject = (project: Project) => {
+        const state = {
+            returnTo: location.pathname + location.search,
+            searchQuery,
+            sortField,
+            sortOrder,
+        };
         if (isApprovedProject(project)) {
-            navigate(`/project-details-overview/${project.name}?coProject=1`);
+            navigate(`/project-details-overview/${project.name}?coProject=1`, { state });
             return;
         }
-        navigate(`/project-details/${project.name}`);
+        navigate(`/project-details/${project.name}`, { state });
     };
 
     return (

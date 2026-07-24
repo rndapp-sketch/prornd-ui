@@ -1854,7 +1854,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                     <div className="flex items-start justify-between flex-col xl:flex-row gap-5">
                         <div className="flex items-start gap-4 min-w-0">
                             <button
-                                onClick={() => navigate(resolvedBackUrl)}
+                                onClick={() => navigate(resolvedBackUrl, { state: location.state })}
                                 className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
                             >
                                 <ArrowLeftIcon className="h-4 w-4" />

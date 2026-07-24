@@ -8,7 +8,7 @@ import React, {
     useEffect,
     useMemo,
 } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 
 import { createPortal } from "react-dom";
 import {
@@ -807,6 +807,7 @@ const QuickActions = ({
     hasFunds = false,
 }: QuickActionsProps) => {
     const [searchParams, setSearchParams] = useSearchParams();
+    const location = useLocation();
 
     const defaultSubtab = searchParams.get("subtab") || "Reimbursement";
     const defaultApp = searchParams.get("app");
@@ -1936,14 +1937,14 @@ const QuickActions = ({
             newParams.delete("app");
             setApplicationData([]);
         }
-        if (!embedded) setSearchParams(newParams);
+        if (!embedded) setSearchParams(newParams, { state: location.state });
     };
 
     const handleApplicationClick = (item: string) => {
         setSelectedApplication(item);
         const newParams = new URLSearchParams(searchParams);
         newParams.set("app", item);
-        if (!embedded) setSearchParams(newParams);
+        if (!embedded) setSearchParams(newParams, { state: location.state });
     };
 
     const handleBack = () => {
@@ -1956,7 +1957,7 @@ const QuickActions = ({
         setApplicationData([]);
         const newParams = new URLSearchParams(searchParams);
         newParams.delete("app");
-        if (!embedded) setSearchParams(newParams);
+        if (!embedded) setSearchParams(newParams, { state: location.state });
     };
 
     const handleApplyNew = () => {
@@ -2914,6 +2915,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
     }>();
     const projectName = propProjectName || paramProjectName;
     const navigate = useNavigate();
+    const location = useLocation();
     const [activeTab, setActiveTab] = useState("overview");
     const [activityViewType, setActivityViewType] = useState<"fund" | "sanction">("sanction");
     const activityStreamRef = useRef<ActivityStreamHandle>(null);
@@ -3156,22 +3158,53 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         const fetchBudgetHeads = async () => {
             try {
                 const response = await fetch(
-                    '/api/resource/Budget%20Head?fields=["budget_head","name"]&order_by=name%20asc&limit_page_length=0',
+                    '/api/resource/Budget%20Head?fields=["budget_head","name","id"]&order_by=name%20asc&limit_page_length=0',
                     { credentials: "include" }
                 );
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+                }
                 const result = await response.json();
                 console.log("[PDO] Budget Head API raw result:", result);
-                console.log("[PDO] Budget Heads fetched:", result?.data?.length ?? 0, "records:", result?.data?.map((h: any) => `${h.budget_head}(id=${h.name})`));
-                if (result?.data) {
+                console.log("[PDO] Budget Heads fetched:", result?.data?.length ?? 0);
+                if (result?.data && Array.isArray(result.data) && result.data.length > 0) {
                     setBudgetHeadList(
                         result.data.map((item: any) => ({
                             name: item.budget_head,
-                            id: item.name,
+                            id: item.id,
                         })),
                     );
+                } else {
+                    throw new Error("No data returned or empty array");
                 }
             } catch (err) {
-                console.error("[PDO] Failed to fetch Budget Heads:", err);
+                console.warn("[PDO] Failed to fetch Budget Heads, using fallback:", err);
+                setBudgetHeadList([
+                    { name: 'Overhead', id: 1 },
+                    { name: 'Manpower', id: 2 },
+                    { name: 'Travel', id: 3 },
+                    { name: 'Contingency', id: 4 },
+                    { name: 'Consumable', id: 5 },
+                    { name: 'Equipments', id: 6 },
+                    { name: 'GST', id: 7 },
+                    { name: 'Recurring', id: 8 },
+                    { name: 'Non-Recurring', id: 9 },
+                    { name: 'SSR', id: 10 },
+                    { name: 'Research Grant', id: 11 },
+                    { name: 'Operational', id: 12 },
+                    { name: 'Consultancy Fee', id: 13 },
+                    { name: 'HRD (Human Resource Development)', id: 14 },
+                    { name: 'Outsource', id: 15 },
+                    { name: 'Data', id: 16 },
+                    { name: 'Others', id: 17 },
+                    { name: 'License Fee', id: 18 },
+                    { name: 'Training and Workshop', id: 19 },
+                    { name: 'Facilitation', id: 20 },
+                    { name: 'Funding Support for FDP', id: 21 },
+                    { name: 'Fellowship', id: 22 },
+                    { name: 'Miscellaneous', id: 23 },
+                    { name: 'Manpower (C-Step)', id: 24 }
+                ]);
             }
         };
         fetchBudgetHeads();
@@ -3249,11 +3282,13 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             activeTab,
             "activeLedgerHeadId:",
             activeLedgerHeadId,
+            "project_no:",
+            data?.project_no,
         );
         if (activeTab === "ledger" && activeLedgerHeadId) {
             fetchLedgerData(activeLedgerHeadId);
         }
-    }, [projectName, activeLedgerHeadId]);
+    }, [projectName, activeLedgerHeadId, activeTab, data?.project_no]);
 
     const sortedTransactions = useMemo(() => {
         return [...ledgerTransactions].sort((a, b) => {
@@ -3848,7 +3883,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         const nextParams = new URLSearchParams(searchParams);
         nextParams.set("tab", tabId);
         if (isCoProjectView) nextParams.set("coProject", "1");
-        setSearchParams(nextParams);
+        setSearchParams(nextParams, { state: location.state });
     };
 
     useEffect(() => {
@@ -4034,7 +4069,13 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                             <div className="flex items-start gap-3 min-w-0">
                                 {!embedded && (
                                     <button
-                                        onClick={() => navigate(isCoProjectView ? "/co-projects" : "/projects-view")}
+                                        onClick={() => {
+                                            if (location.state && location.state.returnTo) {
+                                                navigate(location.state.returnTo, { state: location.state });
+                                            } else {
+                                                navigate(isCoProjectView ? "/co-projects" : "/projects-view");
+                                            }
+                                        }}
                                         aria-label="Back to projects"
                                         className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
                                     >

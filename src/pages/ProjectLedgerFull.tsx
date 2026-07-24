@@ -83,16 +83,46 @@ const ProjectLedgerFull = () => {
         const fetchBudgetHeads = async () => {
             try {
                 const response = await fetch('/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0');
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+                }
                 const result = await response.json();
-                if (result?.data) {
+                if (result?.data && Array.isArray(result.data) && result.data.length > 0) {
                     setBudgetHeadList(result.data.map((item: any) => ({
                         name: item.budget_head,
                         id: item.id
                     })));
+                } else {
+                    throw new Error("Empty budget head list from server");
                 }
             } catch (err) {
-                console.error("Failed to fetch Budget Heads:", err);
-                setHeadsError("Failed to load budget heads");
+                console.warn("[ProjectLedgerFull] Failed to fetch Budget Heads, using fallback:", err);
+                setBudgetHeadList([
+                    { name: 'Overhead', id: 1 },
+                    { name: 'Manpower', id: 2 },
+                    { name: 'Travel', id: 3 },
+                    { name: 'Contingency', id: 4 },
+                    { name: 'Consumable', id: 5 },
+                    { name: 'Equipments', id: 6 },
+                    { name: 'GST', id: 7 },
+                    { name: 'Recurring', id: 8 },
+                    { name: 'Non-Recurring', id: 9 },
+                    { name: 'SSR', id: 10 },
+                    { name: 'Research Grant', id: 11 },
+                    { name: 'Operational', id: 12 },
+                    { name: 'Consultancy Fee', id: 13 },
+                    { name: 'HRD (Human Resource Development)', id: 14 },
+                    { name: 'Outsource', id: 15 },
+                    { name: 'Data', id: 16 },
+                    { name: 'Others', id: 17 },
+                    { name: 'License Fee', id: 18 },
+                    { name: 'Training and Workshop', id: 19 },
+                    { name: 'Facilitation', id: 20 },
+                    { name: 'Funding Support for FDP', id: 21 },
+                    { name: 'Fellowship', id: 22 },
+                    { name: 'Miscellaneous', id: 23 },
+                    { name: 'Manpower (C-Step)', id: 24 }
+                ]);
             } finally {
                 setIsHeadsLoading(false);
             }

@@ -53,13 +53,50 @@ export const useProjectBudget = (projectCode: string) => {
       setIsLoading(true);
       setError(null);
       try {
-        // 1. Fetch Budget Heads
-        const headRes = await fetch(
-          '/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0',
-          { credentials: "include", headers: { Accept: "application/json" } },
-        );
-        const headData = await headRes.json();
-        const availableHeads = headData?.data || [];
+        let availableHeads = [];
+        try {
+          const headRes = await fetch(
+            '/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0',
+            { credentials: "include", headers: { Accept: "application/json" } },
+          );
+          if (!headRes.ok) {
+            throw new Error(`HTTP error ${headRes.status}`);
+          }
+          const headData = await headRes.json();
+          if (headData?.data && Array.isArray(headData.data) && headData.data.length > 0) {
+            availableHeads = headData.data;
+          } else {
+            throw new Error("No data returned or empty array");
+          }
+        } catch (err) {
+          console.warn("[useProjectBudget] Failed to fetch Budget Heads, using fallback:", err);
+          availableHeads = [
+            { budget_head: 'Overhead', id: 1 },
+            { budget_head: 'Manpower', id: 2 },
+            { budget_head: 'Travel', id: 3 },
+            { budget_head: 'Contingency', id: 4 },
+            { budget_head: 'Consumable', id: 5 },
+            { budget_head: 'Equipments', id: 6 },
+            { budget_head: 'GST', id: 7 },
+            { budget_head: 'Recurring', id: 8 },
+            { budget_head: 'Non-Recurring', id: 9 },
+            { budget_head: 'SSR', id: 10 },
+            { budget_head: 'Research Grant', id: 11 },
+            { budget_head: 'Operational', id: 12 },
+            { budget_head: 'Consultancy Fee', id: 13 },
+            { budget_head: 'HRD (Human Resource Development)', id: 14 },
+            { budget_head: 'Outsource', id: 15 },
+            { budget_head: 'Data', id: 16 },
+            { budget_head: 'Others', id: 17 },
+            { budget_head: 'License Fee', id: 18 },
+            { budget_head: 'Training and Workshop', id: 19 },
+            { budget_head: 'Facilitation', id: 20 },
+            { budget_head: 'Funding Support for FDP', id: 21 },
+            { budget_head: 'Fellowship', id: 22 },
+            { budget_head: 'Miscellaneous', id: 23 },
+            { budget_head: 'Manpower (C-Step)', id: 24 }
+          ];
+        }
 
         const headNames = availableHeads.map((h: any) => h.budget_head);
         setHeads(headNames);

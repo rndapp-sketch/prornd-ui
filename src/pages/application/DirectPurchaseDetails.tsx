@@ -49,6 +49,7 @@ import { DepartmentName } from "@/components/DepartmentName";
 import { BudgetHeadName } from "@/components/BudgetHeadName";
 import { generateP11Html } from "@/utils/p11Print";
 import { generateSanctionSheetHtml } from "@/utils/sanctionSheetPrint";
+import { generateDpHtml } from "@/utils/dpPrint";
 import { P11PrintModal } from "@/components/P11PrintModal";
 import { POEditor } from "@/components/POEditor";
 import { DeclarationFields } from "@/components/DeclarationFields";
@@ -2694,6 +2695,9 @@ const DirectPurchaseDetails: React.FC = () => {
 
     const [commitHead, setCommitHead] = useState("");
     const [paymentAmount, setPaymentAmount] = useState("");
+    const [isDpPrintOpen, setIsDpPrintOpen] = useState(false);
+    const detailsContainerRef = useRef<HTMLDivElement>(null);
+    const activityLogContainerRef = useRef<HTMLDivElement>(null);
 
     const { call: submitPayment, loading: isPaying } = useFrappePostCall(
         "rndopsapp.rndopsapp.commitPayment.submit_payment_data",
@@ -2717,17 +2721,48 @@ const DirectPurchaseDetails: React.FC = () => {
                     '/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0',
                     { credentials: "include", headers: { Accept: "application/json" } },
                 );
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}`);
+                }
                 const result = await response.json();
-                if (result?.data) {
+                if (result?.data && Array.isArray(result.data) && result.data.length > 0) {
                     setBudgetHeadList(
                         result.data.map((item: any) => ({
                             name: item.budget_head,
                             id: item.id,
                         })),
                     );
+                } else {
+                    throw new Error("No data returned or empty array");
                 }
             } catch (err) {
-                console.error("Failed to fetch Budget Heads:", err);
+                console.warn("[DirectPurchaseDetails] Failed to fetch Budget Heads, using fallback:", err);
+                setBudgetHeadList([
+                    { name: 'Overhead', id: '1' },
+                    { name: 'Manpower', id: '2' },
+                    { name: 'Travel', id: '3' },
+                    { name: 'Contingency', id: '4' },
+                    { name: 'Consumable', id: '5' },
+                    { name: 'Equipments', id: '6' },
+                    { name: 'GST', id: '7' },
+                    { name: 'Recurring', id: '8' },
+                    { name: 'Non-Recurring', id: '9' },
+                    { name: 'SSR', id: '10' },
+                    { name: 'Research Grant', id: '11' },
+                    { name: 'Operational', id: '12' },
+                    { name: 'Consultancy Fee', id: '13' },
+                    { name: 'HRD (Human Resource Development)', id: '14' },
+                    { name: 'Outsource', id: '15' },
+                    { name: 'Data', id: '16' },
+                    { name: 'Others', id: '17' },
+                    { name: 'License Fee', id: '18' },
+                    { name: 'Training and Workshop', id: '19' },
+                    { name: 'Facilitation', id: '20' },
+                    { name: 'Funding Support for FDP', id: '21' },
+                    { name: 'Fellowship', id: '22' },
+                    { name: 'Miscellaneous', id: '23' },
+                    { name: 'Manpower (C-Step)', id: '24' }
+                ]);
             }
         };
         fetchBudgetHeads();
@@ -3324,8 +3359,21 @@ const DirectPurchaseDetails: React.FC = () => {
                                     title="Direct Purchase Request"
                                     description="Key financials, applicant information, declarations, attachments, and purchase tables for this request."
                                     tone="details"
+                                    action={
+                                        <button
+                                            onClick={() => setIsDpPrintOpen(true)}
+                                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[12px] font-bold text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                                        >
+                                            <Printer className="h-3.5 w-3.5" /> Print / PDF
+                                        </button>
+                                    }
                                 />
-                                <DocumentViewer data={data} />
+                                <div ref={detailsContainerRef}>
+                                    <DocumentViewer data={data} />
+                                </div>
+                                <div style={{ display: "none" }} ref={activityLogContainerRef}>
+                                    {id && <ActivityLog doctype="Direct Purchase" docname={id} />}
+                                </div>
 
 
                                 {/* Record Payment — details tab only */}
@@ -3713,6 +3761,23 @@ const DirectPurchaseDetails: React.FC = () => {
                 </div>{/* end outer grid */}
 
                 {id && <FloatingActivityLogButton doctype="Direct Purchase" docname={id} />}
+                {id && data && (
+                    <P11PrintModal
+                        isOpen={isDpPrintOpen}
+                        onClose={() => setIsDpPrintOpen(false)}
+                        htmlContent={
+                            isDpPrintOpen
+                                ? generateDpHtml(
+                                      data,
+                                      activityLogContainerRef.current,
+                                      detailsContainerRef.current
+                                  )
+                                : ""
+                        }
+                        docName={id}
+                        title="Direct Purchase Preview"
+                    />
+                )}
                 <DirectPurchaseHelpGuide />
             </main>
         </div>
