@@ -17,11 +17,9 @@ import { AppSidebar } from "../components/RndSidebar";
 import {
     ArrowLeftIcon,
     FileTextIcon,
-    UsersIcon,
     ShieldIcon,
     MessageSquareIcon,
     UserIcon,
-    BuildingIcon,
     CreditCardIcon,
     CheckCircleIcon,
     XCircleIcon,
@@ -46,9 +44,9 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DepartmentName } from "@/components/DepartmentName";
 import TemporaryAdvanceActionButtons from "@/components/TemporaryAdvanceActionButtons";
-import { DeclarationFields } from "@/components/DeclarationFields";
+import { DynamicFormRenderer, type FormField, type LinkOption } from "@/components/forms/DynamicFormRenderer";
+import { temporaryAdvanceAPI } from "@/services/apiService";
 
 // --- Interfaces ---
 interface ActivityItem {
@@ -71,31 +69,6 @@ interface TemporaryAdvanceDetailsProps {
 }
 
 // --- Helper Components from ProjectDetails ---
-
-const FieldDisplay = ({
-    label,
-    value,
-    icon: Icon,
-    className
-}: {
-    label: string;
-    value: any;
-    icon?: any;
-    className?: string;
-}) => {
-    if (!value && value !== 0 && value !== "No") return null;
-    return (
-        <div className={cn("py-3 px-1", className)}>
-            <div className="flex items-center gap-2 mb-1.5">
-                {Icon && <Icon className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" />}
-                <p className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide font-sans">
-                    {label}
-                </p>
-            </div>
-            <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100 pl-0.5 break-words">{value}</p>
-        </div>
-    );
-};
 
 const FrappeButton = ({
     children,
@@ -281,8 +254,13 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
         docName ? undefined : null
     );
 
-    const [resolvedAccountHead, setResolvedAccountHead] = useState<string>('');
     const [resolvedProjectTitle, setResolvedProjectTitle] = useState<string>('');
+    const [taFields, setTaFields] = useState<FormField[]>([]);
+    const [taLinkOptions, setTaLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    const [isFieldsLoading, setIsFieldsLoading] = useState(false);
+    const { call: fetchTaFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any } }>(
+        temporaryAdvanceAPI.getFields,
+    );
 
     // --- Auth & Roles ---
     const { currentUser } = useFrappeAuth();
@@ -417,29 +395,29 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
         }
     };
 
-    // Resolve ID lookups
     useEffect(() => {
-        if (!data) return;
+        if (!docName) return;
+        setIsFieldsLoading(true);
+        fetchTaFields({ doc_name: docName })
+            .then((res) => {
+                if (res?.message) {
+                    setTaFields(res.message.fields || []);
+                    setTaLinkOptions(res.message.link_options || {});
+                }
+            })
+            .catch(console.error)
+            .finally(() => setIsFieldsLoading(false));
+    }, [docName]);
 
-        // Account Head
-        if (data.account_head) {
-            fetch(`/api/v2/document/Budget%20Head/${data.account_head}`)
-                .then(r => r.json())
-                .then(res => {
-                    if (res.data) setResolvedAccountHead(res.data.budget_head || res.data.name);
-                })
-                .catch(err => console.error("Failed to resolve budget head", err));
-        }
-
-        // Project Title
-        if (data.project_code) {
-            fetch(`/api/v2/document/Project%20Proposal/${data.project_code}`)
-                .then(r => r.json())
-                .then(res => {
-                    if (res.data) setResolvedProjectTitle(res.data.project_title || res.data.name);
-                })
-                .catch(err => console.error("Failed to resolve project", err));
-        }
+    // Resolve project title
+    useEffect(() => {
+        if (!data?.project_code) return;
+        fetch(`/api/v2/document/Project%20Proposal/${data.project_code}`)
+            .then(r => r.json())
+            .then(res => {
+                if (res.data) setResolvedProjectTitle(res.data.project_title || res.data.name);
+            })
+            .catch(err => console.error("Failed to resolve project", err));
     }, [data]);
 
 
@@ -583,135 +561,30 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
                     {/* Main Content */}
                     <div className="lg:col-span-2 space-y-8">
 
-                        {/* OVERVIEW TAB */}
-                        {activeTab === 'overview' && (
-                            <>
-                                <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
-                                    <CardHeader className="pb-3 border-b border-zinc-100 dark:border-zinc-800/50">
-                                        <div className="flex items-center gap-2">
-                                            <CreditCardIcon className="h-3.5 w-3.5 text-[#D97757]" />
-                                            <CardTitle className="text-xs font-semibold font-serif text-zinc-900 dark:text-zinc-100 uppercase tracking-wide">
-                                                Advance Details
-                                            </CardTitle>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="pt-4 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-                                        <FieldDisplay label="Project Code" value={data.project_code} />
-                                        <FieldDisplay label="Project Title" value={resolvedProjectTitle} />
-                                        <FieldDisplay label="Amount" value={`₹ ${data.amount?.toLocaleString('en-IN')}`} className="text-lg font-semibold text-[#D97757]" />
-                                        <FieldDisplay label="Amount (Words)" value={data.amount_in_words} className="capitalize" />
-                                        <FieldDisplay label="Account Head" value={resolvedAccountHead || data.account_head} />
-                                        <FieldDisplay label="Applying For" value={data.applying_for_select} />
-                                        <FieldDisplay label="Requested By" value={data.owner} />
-                                        <FieldDisplay label="Created On" value={data.creation ? new Date(data.creation).toLocaleDateString() : '-'} />
-                                    </CardContent>
-                                </Card>
-
-                                <DeclarationFields doctype="Temporary Advance" />
-
-                                {(data.justification || data.reason || data.purpose || data.comments) && (
-                                    <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
-                                        <CardHeader className="pb-3 border-b border-zinc-100 dark:border-zinc-800/50">
-                                            <div className="flex items-center gap-2">
-                                                <FileTextIcon className="h-3.5 w-3.5 text-[#D97757]" />
-                                                <CardTitle className="text-xs font-semibold font-serif text-zinc-900 dark:text-zinc-100 uppercase tracking-wide">
-                                                    Description
-                                                </CardTitle>
-                                            </div>
-                                        </CardHeader>
-                                        <CardContent className="pt-4 space-y-4">
-                                            {(data.justification || data.reason || data.purpose) && (
-                                                <div>
-                                                    <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-wide mb-1">Justification / Purpose</p>
-                                                    <p className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">{data.justification || data.reason || data.purpose}</p>
-                                                </div>
-                                            )}
-                                            {data.comments && (
-                                                <div>
-                                                    <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-wide mb-1">Comments</p>
-                                                    <p className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">{data.comments}</p>
-                                                </div>
-                                            )}
-                                        </CardContent>
-                                    </Card>
-                                )}
-                            </>
-                        )}
-
-                        {/* APPLICANT TAB */}
-                        {activeTab === 'applicant' && (
-                            <div className="space-y-6">
-                                <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
-                                    <CardHeader className="pb-3 border-b border-zinc-100 dark:border-zinc-800/50">
-                                        <div className="flex items-center gap-2">
-                                            <UserIcon className="h-3.5 w-3.5 text-[#D97757]" />
-                                            <CardTitle className="text-xs font-semibold font-serif text-zinc-900 dark:text-zinc-100 uppercase tracking-wide">
-                                                Applicant Details
-                                            </CardTitle>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="pt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <FieldDisplay label="Webmail" value={data.applicant_webmail} />
-                                        <div className="py-3 px-1">
-                                            <div className="flex items-center gap-2 mb-1.5">
-                                                <BuildingIcon className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" />
-                                                <p className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide font-sans">Department</p>
-                                            </div>
-                                            <div className="text-xs font-medium text-zinc-900 dark:text-zinc-100 pl-0.5">
-                                                {data.applicant_department ? <DepartmentName name={data.applicant_department} /> : '-'}
-                                            </div>
-                                        </div>
-                                        <FieldDisplay label="Designation" value={data.applicant_designation} />
-                                        <FieldDisplay label="Employee Category" value={data.applicant_category} />
-                                    </CardContent>
-                                </Card>
-
-                                {(data.advance_for_id || data.advance_for_department) && (
-                                    <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
-                                        <CardHeader className="pb-3 border-b border-zinc-100 dark:border-zinc-800/50">
-                                            <div className="flex items-center gap-2">
-                                                <UsersIcon className="h-3.5 w-3.5 text-[#D97757]" />
-                                                <CardTitle className="text-xs font-semibold font-serif text-zinc-900 dark:text-zinc-100 uppercase tracking-wide">
-                                                    Advance For (Beneficiary)
-                                                </CardTitle>
-                                            </div>
-                                        </CardHeader>
-                                        <CardContent className="pt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <FieldDisplay label="Beneficiary ID" value={data.advance_for_id} />
-                                            <div className="py-3 px-1">
-                                                <div className="flex items-center gap-2 mb-1.5">
-                                                    <BuildingIcon className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" />
-                                                    <p className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide font-sans">Department</p>
-                                                </div>
-                                                <div className="text-xs font-medium text-zinc-900 dark:text-zinc-100 pl-0.5">
-                                                    {data.advance_for_department ? <DepartmentName name={data.advance_for_department} /> : '-'}
-                                                </div>
-                                            </div>
-                                            <FieldDisplay label="Designation" value={data.advance_for_designation} />
-                                        </CardContent>
-                                    </Card>
+                        {/* OVERVIEW / APPLICANT / BANK TABS — rendered via DynamicFormRenderer */}
+                        {(activeTab === 'overview' || activeTab === 'applicant' || activeTab === 'bank') && (
+                            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-6">
+                                {isFieldsLoading ? (
+                                    <div className="flex h-64 items-center justify-center">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757]" />
+                                    </div>
+                                ) : taFields.length > 0 ? (
+                                    <DynamicFormRenderer
+                                        fields={taFields}
+                                        formData={data}
+                                        linkOptions={taLinkOptions}
+                                        onChange={() => {}}
+                                        onFileChange={() => {}}
+                                        onTableRowChange={() => {}}
+                                        onTableFileChange={() => {}}
+                                        onAddTableRow={() => {}}
+                                        onDeleteTableRow={() => {}}
+                                        readOnly={true}
+                                    />
+                                ) : (
+                                    <p className="text-sm text-zinc-400 italic">No fields available.</p>
                                 )}
                             </div>
-                        )}
-
-                        {/* BANK TAB */}
-                        {activeTab === 'bank' && (
-                            <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
-                                <CardHeader className="pb-3 border-b border-zinc-100 dark:border-zinc-800/50">
-                                    <div className="flex items-center gap-2">
-                                        <BuildingIcon className="h-3.5 w-3.5 text-[#D97757]" />
-                                        <CardTitle className="text-xs font-semibold font-serif text-zinc-900 dark:text-zinc-100 uppercase tracking-wide">
-                                            Bank Details
-                                        </CardTitle>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="pt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <FieldDisplay label="Bank Name" value={data.bank_name} />
-                                    <FieldDisplay label="Account Holder" value={data.account} />
-                                    <FieldDisplay label="Account Number" value={data.bank_account_number} className="font-mono text-xs" />
-                                    <FieldDisplay label="IFSC Code" value={data.ifsc_code} className="font-mono text-xs" />
-                                </CardContent>
-                            </Card>
                         )}
 
                         {/* FILES TAB */}
