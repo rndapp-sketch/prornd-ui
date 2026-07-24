@@ -371,6 +371,7 @@ const TravelDetails: React.FC = () => {
     const {
         budgetData,
         heads: budgetHeads,
+        headBalances,
         actualBalance,
         commitableBalance,
     } = useProjectBudget(projectTitle);
@@ -981,26 +982,71 @@ const TravelDetails: React.FC = () => {
                         )}
 
                         {/* Project Budget */}
-                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-                                Project Budget
-                            </h3>
-                            <div className="flex justify-between items-center bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800 mb-3">
-                                <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                        <div className="bg-white dark:bg-zinc-900 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                                     Commitable Balance
-                                </p>
-                                <p className="text-lg font-bold text-[#D97757]">
-                                    ₹ {actualBalance.toLocaleString("en-IN")}
-                                </p>
+                                </span>
+                                <span className={`text-sm font-bold ${commitableBalance < 0 ? "text-red-500" : "text-[#D97757]"}`}>
+                                    ₹ {(commitableBalance || 0).toLocaleString("en-IN")}
+                                </span>
                             </div>
+
+                            {/* Per-head breakdown */}
+                            {budgetHeads.filter((h) => headBalances[h]?.received !== 0).length > 0 && (
+                                <div className="mb-2 divide-y divide-zinc-100 dark:divide-zinc-800 border border-zinc-100 dark:border-zinc-800 rounded-lg overflow-hidden">
+                                    {budgetHeads
+                                        .filter((h) => headBalances[h]?.received !== 0)
+                                        .map((head) => {
+                                            const bal = headBalances[head];
+                                            if (!bal) return null;
+                                            const isNegative = bal.commitable < 0;
+                                            return (
+                                                <div key={head} className="flex items-center justify-between px-3 py-1.5 bg-zinc-50 dark:bg-zinc-900/50">
+                                                    <span className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate max-w-[130px]" title={head}>
+                                                        {head}
+                                                    </span>
+                                                    <span className={`text-[11px] font-bold tabular-nums ${isNegative ? "text-red-500" : "text-emerald-600 dark:text-emerald-400"}`}>
+                                                        ₹ {bal.commitable.toLocaleString("en-IN")}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 border-t border-zinc-200 dark:border-zinc-700">
+                                        <span className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-300 uppercase tracking-wide">Total</span>
+                                        <span className={`text-[11px] font-bold tabular-nums ${commitableBalance < 0 ? "text-red-500" : "text-[#D97757]"}`}>
+                                            ₹ {(commitableBalance || 0).toLocaleString("en-IN")}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+
                             <button
                                 onClick={() => setIsLedgerOpen(true)}
-                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-[#D97757] font-bold text-sm hover:bg-[#B2DFDB] transition-colors"
+                                className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-[#D97757] font-semibold text-xs hover:bg-[#B2DFDB] transition-colors"
                             >
                                 <LedgerIcon className="w-4 h-4" />
                                 View Project Ledger
                             </button>
                         </div>
+
+                        {/* Commit Payment — right below Project Budget */}
+                        {showCommitSection && (
+                            <CommitPayment
+                                doctype="Travel"
+                                docName={docName || ""}
+                                projectName={projectTitle}
+                                budgetHeads={budgetHeads}
+                                defaultBudgetHead={defaultCommitBudgetHead}
+                                actualBalance={actualBalance}
+                                commitableBalance={commitableBalance}
+                                billAmount={Number(formData.total_estimate) || undefined}
+                                disabled={!canSubmitCommitment}
+                                disabledReason="Only staff, RnD can submit a commitment. Hos, RnD can view what staff, RnD already committed here."
+                                onCommitSuccess={() => handleRefresh()}
+                                onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
+                            />
+                        )}
 
                         {/* Latest Activity */}
                         <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
@@ -1062,24 +1108,6 @@ const TravelDetails: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
-                        )}
-
-                        {/* Commit Payment — centralised component handles staging check + form/display card */}
-                        {showCommitSection && (
-                            <CommitPayment
-                                doctype="Travel"
-                                docName={docName || ""}
-                                projectName={projectTitle}
-                                budgetHeads={budgetHeads}
-                                defaultBudgetHead={defaultCommitBudgetHead}
-                                actualBalance={actualBalance}
-                                commitableBalance={commitableBalance}
-                                billAmount={Number(formData.total_estimate) || undefined}
-                                disabled={!canSubmitCommitment}
-                                disabledReason="Only staff, RnD can submit a commitment. Hos, RnD can view what staff, RnD already committed here."
-                                onCommitSuccess={() => handleRefresh()}
-                                onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
-                            />
                         )}
 
                         {/* Record Payment */}
