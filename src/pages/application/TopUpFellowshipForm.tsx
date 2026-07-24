@@ -313,7 +313,7 @@ const TopUpFellowshipForm: React.FC = () => {
                     const deptRes = await fetchDepartments({
                         doctype: 'Department_prornd',
                         fields: JSON.stringify(['name', 'dept_name']),
-                        limit: 200,
+                        limit_page_length: 0,
                     });
                     if (Array.isArray(deptRes?.message)) {
                         mergedLinkOptions['dept_centre'] = deptRes.message.map((d: any) => ({
