@@ -85,9 +85,11 @@ export async function fetchActivityLogHtml(doctype: string, docname: string): Pr
         if (!entries.length) return "";
 
         // Oldest first, so the printed table reads as a chronological story.
-        const sorted = [...entries].sort(
-            (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-        );
+        // Exclude Administrator system entries (manual overrides, etc.) — they
+        // are internal housekeeping and should not appear on printed copies.
+        const sorted = [...entries]
+            .filter((e) => e.user !== "Administrator" && e.user_email !== "Administrator")
+            .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
         const designationCache = new Map<string, string>();
         const rows = await Promise.all(
