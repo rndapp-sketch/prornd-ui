@@ -35,6 +35,8 @@ import { RndStaffDashboard } from './pages/dashboards/RndStaffDashboard.tsx';
 import { ProjectStaffDashboard } from './pages/dashboards/ProjectStaffDashboard.tsx';
 import { DirectorDashboard } from './pages/dashboards/DirectorDashboard.tsx';
 import { AdoRndDashboard } from './pages/dashboards/AdoRndDashboard.tsx';
+import GenerateReport from './pages/dashboards/GenerateReport.tsx';
+import InstituteReportingModule from './pages/dashboards/InstituteReportingModule.tsx';
 import { StudentDashboard } from './pages/dashboards/StudentDashboard.tsx';
 import Reimbursement from './pages/reimbursement/Reimbursement.tsx';
 import PendingTask from './pages/PendingTask.tsx';
@@ -322,6 +324,22 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole={["Director", "Dean, RnD", "Ado_RnD", "Hos, RnD (Head of Section, RnD)"]}>
                             <DirectorDashboard />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "generate-report",
+                    element: (
+                        <AuthRouteWrapper allowedRole={["Director", "Dean, RnD", "Ado_RnD", "Hos, RnD (Head of Section, RnD)"]}>
+                            <GenerateReport />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "institute-reporting-module",
+                    element: (
+                        <AuthRouteWrapper allowedRole={["Director", "Dean, RnD", "Ado_RnD", "Hos, RnD (Head of Section, RnD)"]}>
+                            <InstituteReportingModule />
                         </AuthRouteWrapper>
                     ),
                 },
