@@ -375,33 +375,6 @@ const TravelDetails: React.FC = () => {
         commitableBalance,
     } = useProjectBudget(projectTitle);
 
-    const balanceApiParams = React.useMemo(
-        () => ({ project_number: projectTitle }),
-        [projectTitle],
-    );
-    const balanceApiOptions = React.useMemo(
-        () => ({ revalidateOnFocus: false, isPaused: () => !projectTitle }),
-        [projectTitle],
-    );
-    const { data: projectAmountsData } = useFrappeGetCall<{
-        message: {
-            status: string;
-            data: {
-                availableCommitAmount: number;
-                availablePaymentAmount: number;
-            };
-        };
-    }>(
-        "rndopsapp.rndopsapp.commitPayment.get_project_available_amounts",
-        balanceApiParams,
-        balanceApiOptions,
-    );
-
-    const projectAmountsResult =
-        (projectAmountsData as any)?.message?.data ??
-        (projectAmountsData as any)?.data ??
-        {};
-    const totalCommitableBalance = projectAmountsResult?.availablePaymentAmount ?? 0;
     const defaultCommitBudgetHead = useMemo(() => {
         const rawHead = String(formData.account_head || '').trim();
         if (!rawHead) return '';
@@ -1017,7 +990,7 @@ const TravelDetails: React.FC = () => {
                                     Commitable Balance
                                 </p>
                                 <p className="text-lg font-bold text-[#D97757]">
-                                    ₹ {totalCommitableBalance.toLocaleString("en-IN")}
+                                    ₹ {actualBalance.toLocaleString("en-IN")}
                                 </p>
                             </div>
                             <button
