@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils';
 import { CalendarIcon, FileSpreadsheetIcon as LedgerIcon, EditIcon, Send, ReceiptText, AlertTriangle, CheckCircle2, XCircle, Clock, ChevronRight } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { GlobalLoader } from '@/components/ui/global-loader';
-import { Textarea } from '@/components/ui/textarea';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { travelAPI } from '@/services/apiService';
 import TravelActionButtons from '@/components/TravelActionButtons';
@@ -14,7 +13,8 @@ import { useProjectBudget } from '@/hooks/useProjectBudget';
 import { useUserRoles } from '@/components/UserRole';
 import { ProjectLedgerModal } from '@/components/ProjectLedgerModal';
 import { CommitPayment } from '@/components/CommitPayment';
-import { ActivityLog } from '@/components/ActivityLog';
+import { clearActivityLogCache } from '@/components/ActivityLog';
+import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButton';
 import ViewProjectButton from '@/components/ViewProjectButton';
 import TravelApplicantSummary from '@/components/TravelApplicantSummary';
 import { generateTravelDirectorReviewHtml, buildSclBalanceRow, type SclBalanceData } from '@/utils/travelDirectorPrint';
@@ -31,13 +31,6 @@ interface FormDataResponse {
         prefill_data: Record<string, any>;
         scl_balance?: SclBalanceData;
     };
-}
-
-interface ActivityItem {
-    owner: string;
-    creation: string;
-    content: string;
-    comment_type: string;
 }
 
 // --- UI COMPONENTS ---
@@ -99,51 +92,6 @@ const FrappeButton = ({
         {children}
     </button>
 );
-
-// --- ACTIVITY STREAM ---
-const ActivityStream = ({
-    doctype,
-    docname,
-}: {
-    doctype: string;
-    docname: string;
-}) => {
-    const { data: activityData, mutate: refetch } = useFrappeGetCall<{
-        message: ActivityItem[];
-    }>("rndopsapp.rndopsapp.api.get_project_activity", { doctype, docname });
-
-    useEffect(() => {
-        refetch();
-    }, [docname]);
-
-    return (
-        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-            {activityData?.message?.length ? (
-                activityData.message.map((item, idx) => (
-                    <div key={idx} className="flex items-start gap-3">
-                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center font-bold text-[#D97757] text-xs">
-                            {item.owner?.charAt(0).toUpperCase() || "U"}
-                        </div>
-                        <div className="min-w-0">
-                            <div
-                                className="text-sm text-zinc-800 dark:text-zinc-200 prose prose-sm max-w-none"
-                                dangerouslySetInnerHTML={{ __html: item.content }}
-                            />
-                            <p className="text-xs text-zinc-500 mt-0.5">
-                                {item.owner} ·{" "}
-                                {item.creation
-                                    ? new Date(item.creation).toLocaleString()
-                                    : ""}
-                            </p>
-                        </div>
-                    </div>
-                ))
-            ) : (
-                <p className="text-sm text-zinc-500 italic">No activity yet.</p>
-            )}
-        </div>
-    );
-};
 
 // --- WORKFLOW TIMELINE ---
 // Core forward path for a Travel application. `Pending PI Approval` /
@@ -290,9 +238,6 @@ const TravelDetails: React.FC = () => {
     const [refreshKey, setRefreshKey] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Sidebar state
-    const [sidebarComment, setSidebarComment] = useState("");
-    const [isAddingComment, setIsAddingComment] = useState(false);
     const [isLedgerOpen, setIsLedgerOpen] = useState(false);
 
     const [commitHead, setCommitHead] = useState("");
@@ -316,7 +261,6 @@ const TravelDetails: React.FC = () => {
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall<FormDataResponse>(travelAPI.getFields);
     const { call: fetchDocument } = useFrappePostCall<{ message: any }>('frappe.client.get');
     const { call: submitDocument } = useFrappePostCall<{ message: any }>(travelAPI.submit);
-    const { call: addComment } = useFrappePostCall('rndopsapp.rndopsapp.api.add_project_comment');
     const { call: performTravelAction, loading: isSendingToDirector } = useFrappePostCall(travelAPI.performAction);
     const { call: attachDirectorPdf, loading: isUploadingDirectorPdf } = useFrappePostCall(travelAPI.attachDirectorPdf);
 
@@ -596,9 +540,10 @@ const TravelDetails: React.FC = () => {
     }, [formDataResult, formDataError, docName]);
 
     const handleRefresh = useCallback(() => {
+        if (docName) clearActivityLogCache("Travel", docName);
         setRefreshKey((k) => k + 1);
         setLoading(true);
-    }, []);
+    }, [docName]);
 
     // --- SUBMIT DRAFT ---
     const handleSubmitDraft = async () => {
@@ -727,25 +672,6 @@ const TravelDetails: React.FC = () => {
             window.location.reload();
         } catch (error: any) {
             alert(`Payment failed: ${error.message || "Unknown error"}`);
-        }
-    };
-
-    // --- COMMENT ---
-    const handleSidebarCommentSubmit = async () => {
-        if (!sidebarComment.trim() || !docName) return;
-        setIsAddingComment(true);
-        try {
-            await addComment({
-                doctype: "Travel",
-                docname: docName,
-                content: sidebarComment,
-            });
-            setSidebarComment("");
-            handleRefresh();
-        } catch {
-            alert("Failed to submit comment.");
-        } finally {
-            setIsAddingComment(false);
         }
     };
 
@@ -1048,46 +974,6 @@ const TravelDetails: React.FC = () => {
                             />
                         )}
 
-                        {/* Latest Activity */}
-                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-                                Latest Activity
-                            </h3>
-                            {docName && (
-                                <ActivityStream
-                                    doctype="Travel"
-                                    docname={docName}
-                                />
-                            )}
-                        </div>
-
-                        {/* Document Activity Log (new endpoint) */}
-                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            {docName && <ActivityLog doctype="Travel" docname={docName} />}
-                        </div>
-
-                        {/* Add Comment */}
-                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
-                                Add Comment
-                            </h3>
-                            <Textarea
-                                rows={3}
-                                placeholder="Type your comment here..."
-                                value={sidebarComment}
-                                onChange={(e) => setSidebarComment(e.target.value)}
-                                className="w-full mb-3 text-sm"
-                            />
-                            <FrappeButton
-                                className="w-full"
-                                variant="primary"
-                                onClick={handleSidebarCommentSubmit}
-                                disabled={isAddingComment}
-                            >
-                                {isAddingComment ? "Submitting..." : "Submit Comment"}
-                            </FrappeButton>
-                        </div>
-
                         {/* HoS read-only commitment view */}
                         {showCommitReadOnly && (
                             <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
@@ -1178,6 +1064,8 @@ const TravelDetails: React.FC = () => {
                     </aside>
                 </div>
             </main>
+
+            {docName && <FloatingActivityLogButton doctype="Travel" docname={docName} />}
 
             {/* Budget Ledger Modal */}
             {isLedgerOpen && (
