@@ -560,6 +560,10 @@ const TaskRegistry: React.FC = () => {
                                                         navigate(`/loan-request/${task.id}`);
                                                     } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
                                                         navigate(`/project-details-overview/${task.id}`, { state: { fromTaskRegistry: true } });
+                                                    } else if (task.doctype === "Miscellaneous Commit") {
+                                                        navigate(`/miscellaneous-commit/${task.id}`);
+                                                    } else if (task.doctype === "Loan Request") {
+                                                        navigate(`/loan-request/${task.id}`);
                                                     } else {
                                                         navigate(`/task-registry/${task.doctype}/${task.id}`);
                                                     }
@@ -618,6 +622,10 @@ const TaskRegistry: React.FC = () => {
                                                                 navigate(`/loan-request/${task.id}`);
                                                             } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
                                                                 navigate(`/project-details-overview/${task.id}`, { state: { fromTaskRegistry: true } });
+                                                            } else if (task.doctype === "Miscellaneous Commit") {
+                                                                navigate(`/miscellaneous-commit/${task.id}`);
+                                                            } else if (task.doctype === "Loan Request") {
+                                                                navigate(`/loan-request/${task.id}`);
                                                             } else {
                                                                 navigate(`/task-registry/${task.doctype}/${task.id}`);
                                                             }

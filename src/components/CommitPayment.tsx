@@ -56,6 +56,8 @@ export interface CommitPaymentProps {
     parentAppId?: string;
     /** Optional: budget head to auto-select when it exists in budgetHeads */
     defaultBudgetHead?: string;
+    /** Optional: map of budget head label -> ledger Budget Head id, used to query the ledger API (accountHeadId expects the id, not the label) */
+    budgetHeadIds?: Record<string, string | number>;
     /** Optional: custom reference_name/name for Kafka Commit Staging checks and submit payload */
     stagingReferenceName?: string;
     /** Optional: application id to keep in the payload when stagingReferenceName is different */
@@ -399,6 +401,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     bmr = "",
     parentAppId,
     defaultBudgetHead,
+    budgetHeadIds,
     stagingReferenceName,
     frapAppId,
     forcedRefDetails,
@@ -448,6 +451,9 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     const { call: callCommit } = useFrappePostCall(
         "rndopsapp.rndopsapp.commitPayment.submit_commit_data"
     );
+    const { call: callGetStagingStatus } = useFrappePostCall(
+        "rndopsapp.rndopsapp.commitPayment.get_commit_staging_status"
+    );
 
     useEffect(() => {
         onStagingStatusChangeRef.current = onStagingStatusChange;
@@ -481,7 +487,10 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
         }
     }, [billAmount]);
 
-    // ── Kafka Commit Staging check (REST API, no SDK) ────────────────────────
+    // ── Kafka Commit Staging check (whitelisted lookup — Kafka Commit Staging
+    // is read-locked to System Manager, so this bypasses that restriction for
+    // the one safe, filtered-by-reference-name lookup the widget needs; see
+    // get_commit_staging_status in commitPayment.py) ─────────────────────────
     const checkStagingRecord = useCallback(async () => {
         if (!commitReferenceName) return;
         setStagingStatus("loading");
@@ -492,24 +501,17 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
             const payloadKeys = requiredPayloadKeysKey
                 ? requiredPayloadKeysKey.split("|").filter(Boolean)
                 : [];
-            const encodedFilter = encodeURIComponent(
-                JSON.stringify([
-                    ["reference_name", "=", commitReferenceName],
-                    ...(statusFilters.length
-                        ? [["status", "in", statusFilters]]
-                        : []),
-                ])
-            );
-            const url = `/api/v2/document/Kafka Commit Staging?filters=${encodedFilter}&fields=["*"]`;
-            const res = await fetch(url, { credentials: "include" });
-            if (!res.ok) {
+            const res = await callGetStagingStatus({
+                reference_name: commitReferenceName,
+                statuses: statusFilters.length ? statusFilters : undefined,
+            });
+            if (res?.message?.status !== "success") {
                 setStagingStatus("error");
                 // On API error we don't block — leave gate decision to parent
                 onStagingStatusChangeRef.current?.(false);
                 return;
             }
-            const json = await res.json();
-            const records: any[] = json?.data ?? [];
+            const records: any[] = res?.message?.data ?? [];
             const matchingRecords = payloadKeys.length
                 ? records.filter((record) => {
                       try {
@@ -542,6 +544,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
         commitReferenceName,
         requiredPayloadKeysKey,
         stagingStatusesKey,
+        callGetStagingStatus,
     ]);
 
     useEffect(() => {
@@ -597,7 +600,11 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
             // If a parent app is linked, fetch its committed TID from the ledger
             if (!refDetails && parentAppId) {
                 try {
-                    const ledgerUrl = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectName)}&accountHeadId=${encodeURIComponent(commitHead)}`;
+                    // The ledger API's accountHeadId param expects the Budget Head's numeric/short id,
+                    // not the human-readable label — resolve it via budgetHeadIds, falling back to the
+                    // label itself if no mapping was provided.
+                    const accountHeadId = budgetHeadIds?.[commitHead] ?? commitHead;
+                    const ledgerUrl = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectName)}&accountHeadId=${encodeURIComponent(String(accountHeadId))}`;
                     const ledgerRes = await fetch(ledgerUrl);
                     if (ledgerRes.ok) {
                         const entries: any[] = await ledgerRes.json().then((d) =>

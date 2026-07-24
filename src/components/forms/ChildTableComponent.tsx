@@ -7,6 +7,8 @@ import React, { memo, useCallback, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { AutocompleteEmail } from '@/components/AutocompleteEmail';
 import { DepartmentName } from '@/components/DepartmentName';
+import { evaluateExpression } from '@/utils/evalExpression';
+import { getFileUrl } from '@/utils/fileUtils';
 
 // --- TYPE DEFINITIONS ---
 export interface ChildField {
@@ -17,6 +19,8 @@ export interface ChildField {
     mandatory?: boolean | number;
     read_only?: boolean | number;
     hidden?: boolean | number;
+    /** Row-scoped visibility condition, e.g. "eval:doc.mode_of_journey == 'Other'" — evaluated against the row */
+    depends_on?: string | null;
 }
 
 export interface LinkOption {
@@ -106,6 +110,13 @@ export const ChildTableComponent = memo(({
         col.fieldname !== 'idx' &&          // internal row index
         col.fieldname !== 'docstatus' &&    // internal status
         !(isOfficialIdentification && col.label === 'Expiry Date')
+    );
+
+    // Per-row visibility — some columns (e.g. "specify other mode") only apply
+    // depending on another field's value within the *same* row.
+    const getRowColumns = useCallback(
+        (row: any) => visibleColumns.filter(col => !col.depends_on || evaluateExpression(col.depends_on, row)),
+        [visibleColumns],
     );
 
     const [collapsedRows, setCollapsedRows] = useState<Record<string, boolean>>({});
@@ -228,6 +239,21 @@ export const ChildTableComponent = memo(({
                     />
                 );
 
+            case 'Time':
+                // Frappe returns Time fields as "HH:MM:SS" or "HH:MM:SS.ffffff", but a
+                // step-less <input type="time"> only accepts "HH:MM" as a valid value —
+                // anything else is silently rejected and renders blank, which looks like
+                // the saved time was lost even though it's still present in the row data.
+                return (
+                    <input
+                        type="time"
+                        className={inputClasses}
+                        value={typeof value === 'string' ? value.slice(0, 5) : ''}
+                        onChange={(e) => onRowChange(tableName, rowIndex, col.fieldname, e.target.value)}
+                        disabled={isReadOnly}
+                    />
+                );
+
             case 'Check':
                 return (
                     <input
@@ -257,12 +283,29 @@ export const ChildTableComponent = memo(({
 
             case 'Attach':
                 return (
-                    <input
-                        type="file"
-                        className={cn(inputClasses, "py-2 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:font-medium file:bg-zinc-50 dark:bg-zinc-800 file:text-[#D97757] hover:file:bg-[#D97757] hover:file:text-white file:transition-colors")}
-                        onChange={(e) => onFileChange(tableName, rowIndex, col.fieldname, e.target.files?.[0] || null)}
-                        disabled={isReadOnly}
-                    />
+                    <div className="space-y-1">
+                        {value && typeof value === 'string' && (
+                            <div className="flex items-center gap-1.5">
+                                <a
+                                    href={getFileUrl(value)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[11px] text-[#D97757] underline truncate max-w-[220px]"
+                                    title={value.split('/').pop()}
+                                >
+                                    {value.split('/').pop()}
+                                </a>
+                                {!isReadOnly && <span className="text-[10px] text-zinc-400">(replace)</span>}
+                            </div>
+                        )}
+                        {!isReadOnly && (
+                            <input
+                                type="file"
+                                className={cn(inputClasses, "py-2 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:font-medium file:bg-zinc-50 dark:bg-zinc-800 file:text-[#D97757] hover:file:bg-[#D97757] hover:file:text-white file:transition-colors")}
+                                onChange={(e) => onFileChange(tableName, rowIndex, col.fieldname, e.target.files?.[0] || null)}
+                            />
+                        )}
+                    </div>
                 );
 
             case 'Small Text':
@@ -438,7 +481,7 @@ export const ChildTableComponent = memo(({
                                     </div>
 
                                     <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-5">
-                                        {visibleColumns.map(col => (
+                                        {getRowColumns(row).map(col => (
                                             <div key={col.fieldname} className="space-y-1.5 flex flex-col">
                                                 <label className="inline-flex w-fit max-w-full items-start rounded-md bg-white px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#2563EB] ring-1 ring-[#E4E4E7] dark:bg-[#27272A] dark:text-blue-300 dark:ring-[#3F3F46]">
                                                     <span className="whitespace-normal break-words leading-snug">
@@ -460,7 +503,7 @@ export const ChildTableComponent = memo(({
                                             {rowIndex + 1}
                                         </div>
                                         <div className="flex flex-wrap gap-x-8 gap-y-1 flex-1">
-                                            {visibleColumns.slice(0, 3).map(col => (
+                                            {getRowColumns(row).slice(0, 3).map(col => (
                                                 <div key={col.fieldname} className="flex flex-col max-w-[200px]">
                                                     <span className="text-[10px] uppercase tracking-widest font-bold text-[#71717A] dark:text-[#A1A1AA]">
                                                         {col.label === 'Total Experience' ? 'Total Exp. (Mo.)' : col.label}
@@ -470,9 +513,9 @@ export const ChildTableComponent = memo(({
                                                     </span>
                                                 </div>
                                             ))}
-                                            {visibleColumns.length > 3 && (
+                                            {getRowColumns(row).length > 3 && (
                                                 <div className="flex items-end text-[10px] text-[#A1A1AA] font-semibold uppercase tracking-wider">
-                                                    +{visibleColumns.length - 3} more
+                                                    +{getRowColumns(row).length - 3} more
                                                 </div>
                                             )}
                                         </div>

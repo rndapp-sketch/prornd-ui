@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>TA DA Settlement</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Times New Roman", Times, serif;
+            background: #e0e0e0;
+        }
+
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 20px auto;
+            background: #fff;
+            position: relative;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .content {
+            position: relative;
+            z-index: 1;
+            padding: 15mm 15mm;
+        }
+
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.06;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .watermark img {
+            width: 350px;
+        }
+
+        .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 12px;
+        }
+
+        .logo-container img {
+            height: 65px;
+            width: auto;
+        }
+
+        .header-text {
+            text-align: center;
+        }
+
+        .header {
+            font-size: 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+
+        .sub-header {
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .title {
+            text-align: center;
+            font-weight: bold;
+            text-decoration: underline;
+            margin: 15px 0 20px 0;
+            font-size: 18px;
+            text-transform: uppercase;
+        }
+
+        .top-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border: 1px solid #000;
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-bottom: 15px;
+        }
+
+        .info-table td {
+            border: 1px solid #000;
+            padding: 6px 10px;
+            vertical-align: top;
+            line-height: 1.4;
+        }
+
+        .info-table td.label {
+            font-weight: bold;
+            width: 25%;
+            background-color: #f7f7f7;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: bold;
+            text-decoration: underline;
+            margin: 15px 0 8px 0;
+            text-transform: uppercase;
+        }
+
+        .remarks {
+            font-size: 13px;
+            line-height: 1.5;
+            border: 1px solid #000;
+            padding: 10px;
+            background-color: #fff;
+            min-height: 40px;
+            white-space: pre-wrap;
+        }
+
+        .expenses-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+            margin-bottom: 15px;
+        }
+
+        .expenses-table th,
+        .expenses-table td {
+            border: 1px solid #000;
+            padding: 5px 8px;
+            text-align: left;
+        }
+
+        .expenses-table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 11px;
+        }
+
+        .declaration-list {
+            font-size: 12.5px;
+            line-height: 1.7;
+            margin: 0 0 15px 0;
+            padding-left: 18px;
+        }
+
+        .declaration-text {
+            font-size: 12.5px;
+            line-height: 1.6;
+            border: 1px solid #000;
+            padding: 10px;
+            margin-bottom: 12px;
+        }
+
+        .declaration-text p {
+            margin: 0 0 8px 0;
+        }
+
+        .declaration-text p:last-child {
+            margin-bottom: 0;
+        }
+
+        .activity-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-bottom: 15px;
+        }
+
+        .activity-table th,
+        .activity-table td {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .activity-table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 10.5px;
+        }
+
+        .activity-table .designation {
+            display: block;
+            font-size: 10px;
+            color: #555;
+            font-weight: normal;
+        }
+
+        .signature-section {
+            margin-top: 30px;
+            font-size: 12px;
+        }
+
+        .sign-row {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .sign-box {
+            border: 1px solid #000;
+            border-radius: 3px;
+            padding: 8px 10px 6px;
+            min-height: 45px;
+            width: 100%;
+        }
+
+        .sign-row.two-col .sign-box {
+            flex: 1;
+        }
+
+        .sign-box.tall {
+            min-height: 90px;
+        }
+
+        .sign-label {
+            font-weight: bold;
+            font-size: 11px;
+        }
+
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        @media print {
+            body {
+                margin: 0;
+                background: none;
+            }
+
+            .page {
+                margin: 0;
+                box-shadow: none;
+                background: none;
+                width: auto;
+                min-height: auto;
+                page-break-inside: auto;
+            }
+
+            .content {
+                padding: 10mm 10mm;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+        <div class="watermark">
+            <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
+                onerror="this.style.display = 'none'" />
+        </div>
+
+        <div class="content">
+            <!-- HEADER -->
+            <div class="header-row">
+                <div class="logo-container">
+                    <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
+                        onerror="this.style.display = 'none'" />
+                </div>
+                <div class="header-text">
+                    <div class="header">
+                        Indian Institute of Technology Guwahati
+                    </div>
+                    <div class="sub-header">
+                        Research &amp; Development Section
+                    </div>
+                </div>
+            </div>
+
+            <!-- TOP INFO -->
+            <div class="top-info">
+                <div>
+                    <strong>Doc ID:</strong> {{DOC_REF}}
+                </div>
+                <div>
+                    <strong>Date:</strong> {{DATE}}
+                </div>
+                <div style="text-align: right">
+                    <span class="status-badge">{{WORKFLOW_STATE}}</span>
+                </div>
+            </div>
+
+            <!-- TITLE -->
+            <div class="title">TA / DA Settlement</div>
+
+            <!-- APPLICANT DETAILS -->
+            <div class="section-title">Applicant Details</div>
+            <table class="info-table">
+                <tr>
+                    <td class="label">Applicant Name</td>
+                    <td>{{APPLICANT_NAME}}</td>
+                    <td class="label">Webmail</td>
+                    <td>{{APPLICANT_WEBMAIL}}</td>
+                </tr>
+                <tr>
+                    <td class="label">Department / Section</td>
+                    <td>{{APPLICANT_DEPARTMENT}}</td>
+                    <td class="label">Designation</td>
+                    <td>{{APPLICANT_DESIGNATION}}</td>
+                </tr>
+                <tr>
+                    <td class="label">Employee Number</td>
+                    <td>{{EMPLOYEE_NUMBER}}</td>
+                    <td class="label">Project Number</td>
+                    <td>{{PROJECT_NUMBER}}</td>
+                </tr>
+                <tr>
+                    <td class="label">Contact No.</td>
+                    <td>{{CONTACT}}</td>
+                    <td class="label">Travel Application</td>
+                    <td>{{TRAVEL_APPLICATION}}</td>
+                </tr>
+                <tr>
+                    <td class="label">Account Head</td>
+                    <td colspan="3">{{ACCOUNT_HEAD}}</td>
+                </tr>
+            </table>
+
+            <!-- JOURNEY DETAILS -->
+            <div class="section-title">Journey Details</div>
+            <table class="info-table">
+                <tr>
+                    <td class="label">Purpose of Journey</td>
+                    <td colspan="3">{{PURPOSE_OF_JOURNEY}}</td>
+                </tr>
+                <tr>
+                    <td class="label">Particulars of Journey (Station to Station)</td>
+                    <td>{{JOURNEY_PARTICULARS}}</td>
+                    <td class="label">Local Conveyance Used</td>
+                    <td>{{LOCAL_CONVEYANCE_USED}}</td>
+                </tr>
+            </table>
+
+            {{JOURNEY_TABLE_SECTION}}
+
+            {{CONVEYANCE_TABLE_SECTION}}
+
+            <!-- OTHER EXPENSES -->
+            <div class="section-title">Other Expenses</div>
+            <table class="expenses-table">
+                <thead>
+                    <tr>
+                        <th>Expense Type</th>
+                        <th style="text-align:right;">Amount (INR)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{EXPENSE_ROWS}}
+                </tbody>
+            </table>
+
+            <!-- AMOUNT SUMMARY -->
+            <div class="section-title">Amount Summary</div>
+            <table class="info-table">
+                <tr>
+                    <td class="label">Total Amount Claimed</td>
+                    <td>{{TOTAL_CLAIMED}}</td>
+                    <td class="label">Advance Taken</td>
+                    <td>{{ADVANCE_TAKEN}}</td>
+                </tr>
+                <tr>
+                    <td class="label">Net Amount Claimed</td>
+                    <td colspan="3" style="font-weight: bold; font-size: 14px; color: #111;">{{NET_CLAIMED}}</td>
+                </tr>
+            </table>
+
+            <!-- BANK DETAILS -->
+            <div class="section-title">Bank Details</div>
+            <table class="info-table">
+                <tr>
+                    <td class="label">Account Holder</td>
+                    <td>{{BANK_ACCOUNT_HOLDER}}</td>
+                    <td class="label">Account Number</td>
+                    <td style="font-family: monospace;">{{BANK_ACCOUNT_NUMBER}}</td>
+                </tr>
+                <tr>
+                    <td class="label">IFSC Code</td>
+                    <td colspan="3" style="font-family: monospace;">{{IFSC_CODE}}</td>
+                </tr>
+            </table>
+
+            <!-- REMARKS -->
+            <div class="section-title">Comment, If Any</div>
+            <div class="remarks">{{ADDITIONAL_COMMENT}}</div>
+
+            <!-- DECLARATION -->
+            <div class="section-title">Declaration</div>
+            <div class="declaration-text">
+                <strong style="display:block;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Please Submit the following documents to R&amp;D Office</strong>
+                <p>Hard copy of the online TA-DA Settlement application should be submitted with the following documents.</p>
+                <ol style="list-style-type:decimal;list-style-position:outside;margin:0;padding-left:20px;">
+                    <li style="margin-bottom:4px;">Tickets, Boarding passes, where applicable.</li>
+                    <li style="margin-bottom:4px;">Proof of payments in all cases.</li>
+                    <li style="margin-bottom:4px;">Copy of Participation Certificate in case of Seminar/ Conference etc.</li>
+                    <li style="margin-bottom:4px;">All bills should be signed by the claimant.</li>
+                    <li>Any expenditure in foreign currency should be converted into equivalent Indian Rupees and proof of conversion should be attached.</li>
+                </ol>
+            </div>
+            <div class="declaration-text">
+                <ul class="declaration-list" style="margin:0;">
+                    <li>The distances for road journeys shown in the bill are correct to the best of my knowledge. Accepted: <strong>{{DECL_DISTANCES}}</strong></li>
+                    <li>I have traveled in a class of accommodation not lower than the ones for which fares are claimed in this bill and to which I am entitled. Accepted: <strong>{{DECL_ENTITLED_CLASS}}</strong></li>
+                    <li>The journeys were performed by the shortest routes. Accepted: <strong>{{DECL_SHORTEST_ROUTE}}</strong></li>
+                    <li>The claims for journeys mentioned in this bill have neither been preferred nor paid from any other sources. Accepted: <strong>{{DECL_NOT_PAID_ELSEWHERE}}</strong></li>
+                    <li>Free Transport: {{FREE_TRANSPORT}}</li>
+                    <li>Boarding and Lodging Status: {{BOARDING_LODGING_STATUS}}</li>
+                </ul>
+            </div>
+
+            {{OFFICE_USE_SECTION}}
+
+            {{ACTIVITY_LOG_SECTION}}
+
+            <!-- SIGNATURES -->
+            <div class="signature-section">
+                <div class="sign-row">
+                    <div class="sign-box">
+                        <div class="sign-label">Applicant's Signature</div>
+                    </div>
+                </div>
+                <div class="sign-row">
+                    <div class="sign-box tall">
+                        <div class="sign-label">Scrutinized by</div>
+                    </div>
+                </div>
+                <div class="sign-row two-col">
+                    <div class="sign-box">
+                        <div class="sign-label">HoS, R&amp;D</div>
+                    </div>
+                    <div class="sign-box">
+                        <div class="sign-label">Dean, R&amp;D</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

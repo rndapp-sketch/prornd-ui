@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useFrappePostCall, useFrappeGetCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
@@ -301,6 +301,10 @@ const AdvanceSettlementDetails: React.FC = () => {
   const [budgetHeadList, setBudgetHeadList] = useState<
     { name: string; id: string; uid?: string }[]
   >([]);
+  const budgetHeadIdMap = useMemo(
+    () => Object.fromEntries(budgetHeadList.map((h) => [h.name, h.id])),
+    [budgetHeadList],
+  );
 
   // Fetch Budget Heads for Ledger (reusing logic pattern)
   useEffect(() => {
@@ -875,6 +879,7 @@ const AdvanceSettlementDetails: React.FC = () => {
                     docName={id || ""}
                     projectName={data.project_code}
                     budgetHeads={budgetHeads}
+                    budgetHeadIds={budgetHeadIdMap}
                     parentAppId={data.temporary_advance_application}
                     onCommitSuccess={() => window.location.reload()}
                     onStagingStatusChange={(status) => setIsCommittedForGate(status)}
