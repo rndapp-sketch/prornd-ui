@@ -19,7 +19,6 @@ import {
     Pencil as PencilIcon,
     AlertTriangle,
     FileSpreadsheetIcon as LedgerIcon,
-    PaperclipIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlobalLoader } from "@/components/ui/global-loader";
@@ -28,9 +27,10 @@ import { useUserRoles } from "../../components/UserRole";
 import { ProjectLedgerModal } from "../../components/ProjectLedgerModal";
 import { CommitPayment } from "@/components/CommitPayment";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
-import { DepartmentName } from "@/components/DepartmentName";
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { ToWords } from "to-words";
+import { DynamicFormRenderer, type FormField, type LinkOption } from "@/components/forms/DynamicFormRenderer";
+import { temporaryAdvanceAPI } from "@/services/apiService";
 
 const toWords = new ToWords({ localeCode: "en-IN", converterOptions: { ignoreDecimal: false } });
 
@@ -408,9 +408,16 @@ const TemporaryAdvanceDetails: React.FC = () => {
     const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
     const [budgetHeadList, setBudgetHeadList] = useState<{ name: string; id: string }[]>([]);
 
+    const [taFields, setTaFields] = useState<FormField[]>([]);
+    const [taLinkOptions, setTaLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    const [isFieldsLoading, setIsFieldsLoading] = useState(false);
+
     const { call: fetchDoc } = useFrappePostCall<{ message: TemporaryAdvanceData }>("frappe.client.get");
     const { call: submitDoc } = useFrappePostCall<{ message: any }>(
         "rndopsapp.rndopsapp.doctype.temporary_advance.temporary_advance.submit_temporary_advance",
+    );
+    const { call: fetchTaFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any } }>(
+        temporaryAdvanceAPI.getFields,
     );
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
@@ -454,6 +461,20 @@ const TemporaryAdvanceDetails: React.FC = () => {
     };
 
     useEffect(() => { loadData(); }, [id]);
+
+    useEffect(() => {
+        if (!id) return;
+        setIsFieldsLoading(true);
+        fetchTaFields({ doc_name: id })
+            .then((res) => {
+                if (res?.message) {
+                    setTaFields(res.message.fields || []);
+                    setTaLinkOptions(res.message.link_options || {});
+                }
+            })
+            .catch(console.error)
+            .finally(() => setIsFieldsLoading(false));
+    }, [id]);
 
     useEffect(() => {
         if (!data || isSubmitting) return;
@@ -627,193 +648,30 @@ const TemporaryAdvanceDetails: React.FC = () => {
                 <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
                     {/* Main Content */}
                     <div className="xl:col-span-3 space-y-6">
-
-                        {/* Row 1: Project & Amount | Applicant Info */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {/* Project & Amount */}
-                            <FrappeCard title="Project & Amount Details">
-                                <div className="space-y-4">
-                                    {/* Amount highlight */}
-                                    <div className="flex items-center justify-between p-3 rounded-xl bg-orange-50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30">
-                                        <span className="text-xs font-bold uppercase tracking-wide text-orange-600 dark:text-orange-400">Amount</span>
-                                        <span className="text-2xl font-extrabold text-[#D97757]">₹{amount.toLocaleString("en-IN")}</span>
+                        <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm overflow-hidden">
+                            <div className="p-[18px] md:p-6">
+                                {isFieldsLoading ? (
+                                    <div className="flex h-64 items-center justify-center">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757]" />
                                     </div>
-                                    <div>
-                                        <FieldLabel>Amount in Words</FieldLabel>
-                                        <FieldValue><span className="text-xs italic">{amountInWords}</span></FieldValue>
-                                    </div>
-                                    <div className="grid grid-cols-1 gap-4 pt-1 border-t border-zinc-100 dark:border-zinc-800">
-                                        <div>
-                                            <FieldLabel>Account Head</FieldLabel>
-                                            <FieldValue>{resolvedAccountHead || data.account_head || "-"}</FieldValue>
-                                        </div>
-                                        <div>
-                                            <FieldLabel>Project Code</FieldLabel>
-                                            <FieldValue><span className="font-mono text-xs">{data.project_code || "-"}</span></FieldValue>
-                                        </div>
-                                        <div>
-                                            <FieldLabel>Project Name</FieldLabel>
-                                            <FieldValue><span className="text-sm leading-relaxed">{projectTitle || data.project_name || "-"}</span></FieldValue>
-                                        </div>
-                                    </div>
-                                </div>
-                            </FrappeCard>
-
-                            {/* Applicant Information */}
-                            <div className="space-y-4">
-                                <FrappeCard title="Applicant Information">
-                                    <div className="space-y-3">
-                                        {data.applying_for_select && (
-                                            <div className="flex items-center gap-2 pb-2 border-b border-zinc-100 dark:border-zinc-800">
-                                                <FieldLabel>Applying for Someone?</FieldLabel>
-                                                <span className={cn(
-                                                    "ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold border",
-                                                    data.applying_for_select === "Yes"
-                                                        ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800"
-                                                        : "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700"
-                                                )}>
-                                                    {data.applying_for_select}
-                                                </span>
-                                            </div>
-                                        )}
-                                        <div>
-                                            <FieldLabel>Webmail ID</FieldLabel>
-                                            <FieldValue>{data.applicant_webmail || "-"}</FieldValue>
-                                        </div>
-                                        <div>
-                                            <FieldLabel>Designation</FieldLabel>
-                                            <FieldValue>{data.applicant_designation || "-"}</FieldValue>
-                                        </div>
-                                        <div>
-                                            <FieldLabel>Department</FieldLabel>
-                                            <FieldValue>
-                                                {data.applicant_department
-                                                    ? <DepartmentName name={data.applicant_department} />
-                                                    : "-"}
-                                            </FieldValue>
-                                        </div>
-                                    </div>
-                                </FrappeCard>
-
-                                {/* Advance For (only if applying for someone else) */}
-                                {data.applying_for_select === "Yes" && (data.advance_for_id || data.advance_for_department) && (
-                                    <FrappeCard title="Advance For">
-                                        <div className="space-y-3">
-                                            <div>
-                                                <FieldLabel>Webmail ID</FieldLabel>
-                                                <FieldValue>{data.advance_for_id || "-"}</FieldValue>
-                                            </div>
-                                            <div>
-                                                <FieldLabel>Designation</FieldLabel>
-                                                <FieldValue>{data.advance_for_designation || "-"}</FieldValue>
-                                            </div>
-                                            <div>
-                                                <FieldLabel>Department</FieldLabel>
-                                                <FieldValue>
-                                                    {data.advance_for_department
-                                                        ? <DepartmentName name={data.advance_for_department} />
-                                                        : "-"}
-                                                </FieldValue>
-                                            </div>
-                                        </div>
-                                    </FrappeCard>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Row 2: Bank Details */}
-                        <FrappeCard title="Bank Details">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                                <div>
-                                    <FieldLabel>Account Holder</FieldLabel>
-                                    <FieldValue>{data.account || "-"}</FieldValue>
-                                </div>
-                                <div>
-                                    <FieldLabel>Bank Name</FieldLabel>
-                                    <FieldValue>{data.bank_name || "-"}</FieldValue>
-                                </div>
-                                <div>
-                                    <FieldLabel>Account Number</FieldLabel>
-                                    <FieldValue><span className="font-mono text-xs">{data.bank_account_number || "-"}</span></FieldValue>
-                                </div>
-                                <div>
-                                    <FieldLabel>IFSC Code</FieldLabel>
-                                    <FieldValue><span className="font-mono text-xs">{data.ifsc_code || "-"}</span></FieldValue>
-                                </div>
-                            </div>
-                        </FrappeCard>
-
-                        {/* Row 3: Justification + Comments */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {(data.justification || data.reason || data.purpose) ? (
-                                <FrappeCard title="Purpose / Justification">
-                                    <p className="text-sm text-[#3F3F46] dark:text-[#E4E4E7] whitespace-pre-wrap leading-relaxed">
-                                        {data.justification || data.reason || data.purpose}
-                                    </p>
-                                </FrappeCard>
-                            ) : (
-                                <FrappeCard title="Purpose / Justification">
-                                    <p className="text-sm text-zinc-400 dark:text-zinc-500 italic">No justification provided.</p>
-                                </FrappeCard>
-                            )}
-
-                            <FrappeCard title="Comments">
-                                {data.comments ? (
-                                    <p className="text-sm text-[#3F3F46] dark:text-[#E4E4E7] whitespace-pre-wrap leading-relaxed">{data.comments}</p>
+                                ) : taFields.length > 0 ? (
+                                    <DynamicFormRenderer
+                                        fields={taFields}
+                                        formData={data}
+                                        linkOptions={taLinkOptions}
+                                        onChange={() => {}}
+                                        onFileChange={() => {}}
+                                        onTableRowChange={() => {}}
+                                        onTableFileChange={() => {}}
+                                        onAddTableRow={() => {}}
+                                        onDeleteTableRow={() => {}}
+                                        readOnly={true}
+                                    />
                                 ) : (
-                                    <p className="text-sm text-zinc-400 dark:text-zinc-500 italic">No comments.</p>
+                                    <p className="text-sm text-zinc-400 italic">No fields available.</p>
                                 )}
-                            </FrappeCard>
-                        </div>
-
-                        {/* Row 4: Supporting Document */}
-                        {data.documents && typeof data.documents === "string" && (
-                            <FrappeCard title="Supporting Document">
-                                <a
-                                    href={data.documents}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50 dark:bg-zinc-800 text-[#D97757] hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-sm font-semibold"
-                                >
-                                    <PaperclipIcon className="h-4 w-4 flex-shrink-0" />
-                                    <span className="truncate max-w-[320px]">
-                                        {data.documents.split("/").pop() || "View Document"}
-                                    </span>
-                                </a>
-                            </FrappeCard>
-                        )}
-
-                        {/* Row 5: Declarations */}
-                        <FrappeCard title="Declarations">
-                            <div className="space-y-3">
-                                <div className={cn(
-                                    "flex items-start gap-3 p-3 rounded-xl border",
-                                    data.declaration_settlement
-                                        ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800/40"
-                                        : "bg-zinc-50 border-zinc-200 dark:bg-zinc-800/40 dark:border-zinc-700"
-                                )}>
-                                    {data.declaration_settlement
-                                        ? <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
-                                        : <XCircleIcon className="w-4 h-4 text-zinc-400 flex-shrink-0 mt-0.5" />}
-                                    <p className="text-xs text-[#3F3F46] dark:text-[#E4E4E7] leading-relaxed">
-                                        I am aware of the rule that temporary advance should be settled within 45 days from the date the advance amount is transferred.
-                                    </p>
-                                </div>
-                                <div className={cn(
-                                    "flex items-start gap-3 p-3 rounded-xl border",
-                                    data.declaration_rate_contract
-                                        ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800/40"
-                                        : "bg-zinc-50 border-zinc-200 dark:bg-zinc-800/40 dark:border-zinc-700"
-                                )}>
-                                    {data.declaration_rate_contract
-                                        ? <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
-                                        : <XCircleIcon className="w-4 h-4 text-zinc-400 flex-shrink-0 mt-0.5" />}
-                                    <p className="text-xs text-[#3F3F46] dark:text-[#E4E4E7] leading-relaxed">
-                                        I am aware of the rule that items which are available under rate contract shall not be purchased using temporary advance.
-                                    </p>
-                                </div>
                             </div>
-                        </FrappeCard>
+                        </div>
                     </div>
 
                     {/* Right Sidebar */}
