@@ -595,7 +595,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
             if (!refDetails && parentAppId) {
                 try {
                     const ledgerUrl = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectName)}&accountHeadId=${encodeURIComponent(commitHead)}`;
-                    const ledgerRes = await fetch(ledgerUrl);
+                    const ledgerRes = await fetch(ledgerUrl, { credentials: "include" });
                     if (ledgerRes.ok) {
                         const entries: any[] = await ledgerRes.json().then((d) =>
                             Array.isArray(d) ? d : []

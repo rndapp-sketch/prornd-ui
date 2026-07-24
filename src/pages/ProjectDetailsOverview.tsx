@@ -3162,16 +3162,17 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         const fetchBudgetHeads = async () => {
             try {
                 const response = await fetch(
-                    '/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0',
+                    '/api/resource/Budget%20Head?fields=["budget_head","name"]&order_by=name%20asc&limit_page_length=0',
+                    { credentials: "include" }
                 );
                 const result = await response.json();
                 console.log("[PDO] Budget Head API raw result:", result);
-                console.log("[PDO] Budget Heads fetched:", result?.data?.length ?? 0, "records:", result?.data?.map((h: any) => `${h.budget_head}(id=${h.id})`));
+                console.log("[PDO] Budget Heads fetched:", result?.data?.length ?? 0, "records:", result?.data?.map((h: any) => `${h.budget_head}(id=${h.name})`));
                 if (result?.data) {
                     setBudgetHeadList(
                         result.data.map((item: any) => ({
                             name: item.budget_head,
-                            id: item.id,
+                            id: item.name,
                         })),
                     );
                 }
@@ -3196,9 +3197,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             try {
                 // Check each head for data
                 const promises = budgetHeadList.map(async (head) => {
-                    const url = `/ledger-api/commit-payment-transactions?projectNumber=${effectiveProjectNo}&accountHeadId=${head.id}`;
+                    const url = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(effectiveProjectNo)}&accountHeadId=${encodeURIComponent(String(head.id))}`;
                     try {
-                        const response = await fetch(url);
+                        const response = await fetch(url, { credentials: "include" });
                         if (response.ok) {
                             const txns = await response.json();
                             const hasData = Array.isArray(txns) && txns.length > 0;
@@ -3272,20 +3273,22 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         setIsLedgerLoading(true);
         setLedgerError(null);
         try {
-            // Use proxy to avoid CORS - /ledger-api proxies to http://172.16.117.39:18083/api
+            // Use proxy to avoid CORS - /ledger-api proxies to the Go service
             const response = await fetch(
-                `/ledger-api/commit-payment-transactions?projectNumber=${data?.project_no || projectName}&accountHeadId=${headId}`,
+                `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(data?.project_no || projectName || "")}&accountHeadId=${encodeURIComponent(String(headId))}`,
+                { credentials: "include" }
             );
             console.log(
                 "Ledger API response status:",
-                response,
+                response.status,
                 "for projectNumber:",
-                projectName,
+                data?.project_no || projectName,
                 "headId:",
                 headId,
             );
             if (!response.ok) {
-                throw new Error(`API Error: ${response.statusText} `);
+                const errorText = await response.text();
+                throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
             }
 
             const result = await response.json();

@@ -80,7 +80,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
             try {
                 const promises = budgetHeadList.map(async (head) => {
                     try {
-                        const response = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(String(projectName))}&accountHeadId=${encodeURIComponent(String(head.id))}`);
+                        const response = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(String(projectName))}&accountHeadId=${encodeURIComponent(String(head.id))}`, { credentials: "include" });
                         if (response.ok) {
                             const data = await response.json();
                             if (Array.isArray(data) && data.length > 0) {
@@ -178,7 +178,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
         setLedgerError(null);
         try {
             console.log(`[ProjectLedgerModal] Fetching ledger for Project: ${projectName} Head: ${headId}`);
-            const response = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(String(projectName))}&accountHeadId=${encodeURIComponent(String(headId))}`);
+            const response = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(String(projectName))}&accountHeadId=${encodeURIComponent(String(headId))}`, { credentials: "include" });
             if (!response.ok) {
                 throw new Error(`API Error: ${response.statusText}`);
             }

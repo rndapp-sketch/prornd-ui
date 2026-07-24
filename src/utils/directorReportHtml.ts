@@ -842,6 +842,8 @@ interface ReportData {
     researchStats: { ongoing: number; submitted: number; total: number };
     consultancyStats: { ongoing: number; submitted: number; total: number };
     startEndSanctionData?: any[];
+    topInvestigators?: any[];
+    pieChartDeptData?: any[];
 }
 
 function fmt(amount: number): string {

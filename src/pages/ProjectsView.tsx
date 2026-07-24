@@ -791,29 +791,35 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     );
   };
 
-  // --- Fetch all Fund Sanctions: only "Sanction Approved" ones hide the "(Pending Sanction)" label ---
-  // Fund Sanction.refnum_prj_num stores the Project Registration name (p.name)
   const { data: allSanctions } = useFrappeGetDocList("Fund Sanction", {
-    fields: ["refnum_prj_num"],
-    filters: [["workflow_state", "=", "Sanction Approved"]],
-    limit: 2000,
+    fields: ["refnum_prj_num", "sanctioned_letter_date", "workflow_state"],
+    limit: 5000,
   });
 
   const sanctionedProjectsSet = React.useMemo(() => {
-    const s = new Set<string>();
+    const sSet = new Set<string>();
     (allSanctions ?? []).forEach((doc: any) => {
-      if (doc.refnum_prj_num) s.add(doc.refnum_prj_num);
+      const s = (doc.workflow_state || "").toLowerCase();
+      if (doc.refnum_prj_num && s.includes("sanction approved")) {
+        sSet.add(doc.refnum_prj_num);
+      }
     });
-    console.log("[Sanction] allSanctions raw:", allSanctions);
-    console.log("[Sanction] sanctionedProjectsSet:", Array.from(s));
-    return s;
+    return sSet;
+  }, [allSanctions]);
+
+  const sanctionDateMap = React.useMemo(() => {
+    const map = new Map<string, string>();
+    (allSanctions ?? []).forEach((doc: any) => {
+      if (doc.refnum_prj_num && doc.sanctioned_letter_date) {
+        map.set(doc.refnum_prj_num, doc.sanctioned_letter_date);
+      }
+    });
+    return map;
   }, [allSanctions]);
 
   // p.name == Fund Sanction.refnum_prj_num
   const hasSanction = (p: any) => {
-    const result = sanctionedProjectsSet.has(p.name);
-    console.log(`[Sanction] hasSanction(${p.name}):`, result, "| set size:", sanctionedProjectsSet.size);
-    return result;
+    return sanctionedProjectsSet.has(p.name);
   };
 
   // --- Fetch Project Proposals ---
@@ -1152,7 +1158,10 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                       Funding Agency
                     </TableHead>
                     <TableHead className="w-[90px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
-                      Date
+                      Start Date
+                    </TableHead>
+                    <TableHead className="w-[90px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                      Creation Date
                     </TableHead>
                     <TableHead className="w-[100px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                       Status
@@ -1179,6 +1188,9 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                           <div className="h-4 w-24 bg-zinc-100 rounded animate-pulse" />
                         </TableCell>
                         <TableCell>
+                          <div className="h-4 w-24 bg-zinc-100 rounded animate-pulse" />
+                        </TableCell>
+                        <TableCell>
                           <div className="h-4 w-16 bg-zinc-100 rounded animate-pulse" />
                         </TableCell>
                         <TableCell>
@@ -1189,7 +1201,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                   ) : visibleProjectsError ? (
                     <TableRow>
                       <TableCell
-                        colSpan={8}
+                        colSpan={9}
                         className="h-24 text-center text-red-500"
                       >
                         Error loading projects. Please try
@@ -1199,7 +1211,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                   ) : paginatedProjects.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={8}
+                        colSpan={9}
                         className="h-24 text-center text-zinc-500"
                       >
                         No projects found matching your
@@ -1235,6 +1247,12 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                         </TableCell>
                         <TableCell className="px-4 py-3 text-[#52525B] dark:text-[#A1A1AA] text-xs whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
                           {fundingAgencyNameMap.get(p.funding_agen) || p.funding_agen || "-"}
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-[#71717A] text-xs whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                          {(() => {
+                              const d = sanctionDateMap.get(p.name) || sanctionDateMap.get(p.project_no) || p.sanctioned_letter_date;
+                              return d ? format(new Date(d), "MMM dd, yyyy") : "-";
+                          })()}
                         </TableCell>
                         <TableCell className="px-4 py-3 text-[#71717A] text-xs whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
                           {p.creation

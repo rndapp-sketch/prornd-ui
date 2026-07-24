@@ -152,10 +152,8 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
             depositSlip.credit_distribution.forEach((item: any) => {
                 const pct = item.percentage_of_overhead || item.percentage || 0;
                 const label = item.label || item.recipient_name || 'PDF';
-                const recipient = item.recipient_name || '';
-                const displayLabel = recipient && recipient !== label
-                    ? `${label} / ${recipient} (${pct}%)`
-                    : `${label} (${pct}% of Overhead)`;
+                // Remove recipient_name (which often contains a date) from the display format
+                const displayLabel = `${label} (${pct}%)`;
                 items.push({ label: displayLabel, amount: parseFloat(item.amount) || 0 });
             });
         }
@@ -396,49 +394,114 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                         </td>
                     </tr>
 
-                    {/* CGST */}
-                    {depositSlip.cgst_amount && (
-                        <tr>
-                            <td className="border border-black p-1 text-center">{getRowNum()}</td>
-                            <td className="border border-black p-1">CGST @ 9% on Total fees</td>
-                            <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(depositSlip.cgst_amount)}</td>
-                        </tr>
+                    {type === 'consultancy_e' ? (
+                        <>
+                            {/* Income Tax TDS */}
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1">Income Tax TDS</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(depositSlip.income_tax_tds || 0)}</td>
+                            </tr>
+                            
+                            {/* GST TDS */}
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1">GST TDS</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(depositSlip.gst_tds || 0)}</td>
+                            </tr>
+
+                            {/* Amount Actually Received In Bank A/C */}
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1">Amount Actually Received In Bank A/C</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">
+                                    {formatCurrency(
+                                        parseFloat(depositSlip.amount_inclusive_of_gst || depositSlip.amount_inclusive_gst_capital || depositSlip.total_amount || 0) - 
+                                        parseFloat(depositSlip.income_tax_tds || 0) - 
+                                        parseFloat(depositSlip.gst_tds || 0)
+                                    )}
+                                </td>
+                            </tr>
+
+                            {/* CGST */}
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1">CGST</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(depositSlip.cgst_amount || depositSlip.cgst || depositSlip.cgst_9 || 0)}</td>
+                            </tr>
+
+                            {/* SGST */}
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1">SGST</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(depositSlip.sgst_amount || depositSlip.sgst || depositSlip.sgst_9 || 0)}</td>
+                            </tr>
+
+                            {/* IGST */}
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1">IGST</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">
+                                    {formatCurrency(depositSlip.igst_18 || depositSlip.igst_amount || depositSlip.igst || 0)}
+                                </td>
+                            </tr>
+
+                            {/* Consultancy Fee X (Deducting GST) */}
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1">Consultancy Fee X (Deducting GST)</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">
+                                    {formatCurrency(depositSlip.consultancy_fee_x || depositSlip.balance_after_gst || 0)}
+                                </td>
+                            </tr>
+                        </>
+                    ) : (
+                        <>
+                            {/* CGST */}
+                            {depositSlip.cgst_amount && (
+                                <tr>
+                                    <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                    <td className="border border-black p-1">CGST @ 9% on Total fees</td>
+                                    <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(depositSlip.cgst_amount)}</td>
+                                </tr>
+                            )}
+
+                            {/* SGST */}
+                            {depositSlip.sgst_amount && (
+                                <tr>
+                                    <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                    <td className="border border-black p-1">SGST @ 9% on Total fees</td>
+                                    <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(depositSlip.sgst_amount)}</td>
+                                </tr>
+                            )}
+
+                            {/* IGST */}
+                            {(depositSlip.igst_18 || depositSlip.igst_amount) ? (
+                                <tr>
+                                    <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                    <td className="border border-black p-1">IGST @ 18% on {type.includes('consultancy') ? 'Consultancy' : 'Total'} Fee</td>
+                                    <td colSpan={2} className="border border-black p-1 text-right">
+                                        {formatCurrency(depositSlip.igst_18 || depositSlip.igst_amount)}
+                                    </td>
+                                </tr>
+                            ) : null}
+
+                            {/* Consultancy Fee X / Project Balance after GST */}
+                            {(depositSlip.consultancy_fee_x || depositSlip.balance_after_gst) ? (
+                                <tr>
+                                    <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                    <td className="border border-black p-1">
+                                        {type === 'consultancy_d' ? 'Total cost X (Balance after deduction of GST)' :
+                                            (type === 'consultancy_t') ? 'Consultancy Fee X (Deducting GST)' :
+                                                'Project Balance (Balance after deduction of GST)'}
+                                    </td>
+                                    <td colSpan={2} className="border border-black p-1 text-right">
+                                        {formatCurrency(depositSlip.consultancy_fee_x || depositSlip.balance_after_gst)}
+                                    </td>
+                                </tr>
+                            ) : null}
+                        </>
                     )}
-
-                    {/* SGST */}
-                    {depositSlip.sgst_amount && (
-                        <tr>
-                            <td className="border border-black p-1 text-center">{getRowNum()}</td>
-                            <td className="border border-black p-1">SGST @ 9% on Total fees</td>
-                            <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(depositSlip.sgst_amount)}</td>
-                        </tr>
-                    )}
-
-                    {/* IGST — E Non Routine stores as igst_18, others as igst_amount */}
-                    {(depositSlip.igst_18 || depositSlip.igst_amount) ? (
-                        <tr>
-                            <td className="border border-black p-1 text-center">{getRowNum()}</td>
-                            <td className="border border-black p-1">IGST @ 18% on {type.includes('consultancy') ? 'Consultancy' : 'Total'} Fee</td>
-                            <td colSpan={2} className="border border-black p-1 text-right">
-                                {formatCurrency(depositSlip.igst_18 || depositSlip.igst_amount)}
-                            </td>
-                        </tr>
-                    ) : null}
-
-                    {/* Consultancy Fee X / Project Balance after GST */}
-                    {(depositSlip.consultancy_fee_x || depositSlip.balance_after_gst) ? (
-                        <tr>
-                            <td className="border border-black p-1 text-center">{getRowNum()}</td>
-                            <td className="border border-black p-1">
-                                {type === 'consultancy_d' ? 'Total cost X (Balance after deduction of GST)' :
-                                    (type === 'consultancy_e' || type === 'consultancy_t') ? 'Consultancy Fee X (Deducting GST)' :
-                                        'Project Balance (Balance after deduction of GST)'}
-                            </td>
-                            <td colSpan={2} className="border border-black p-1 text-right">
-                                {formatCurrency(depositSlip.consultancy_fee_x || depositSlip.balance_after_gst)}
-                            </td>
-                        </tr>
-                    ) : null}
 
                     {/* Consultancy Charge Y (for Consultancy D) */}
                     {type === 'consultancy_d' && depositSlip.consultancy_charge && (
@@ -502,6 +565,20 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
 
                     {/* Credit Distribution Items */}
                     {renderCreditItems()}
+
+                    {/* Balance In Project (Category E Only) */}
+                    {type === 'consultancy_e' && (
+                        <tr>
+                            <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                            <td className="border border-black p-1 font-bold">Balance In Project</td>
+                            <td colSpan={2} className="border border-black p-1 text-right font-bold">
+                                {formatCurrency(
+                                    parseFloat(depositSlip.consultancy_fee_x || depositSlip.balance_after_gst || 0) -
+                                    parseFloat(depositSlip.overhead_amount || 0)
+                                )}
+                            </td>
+                        </tr>
+                    )}
 
                     {/* Total Row — sum credit items; fall back to total_budget / total_amount */}
                     <tr>

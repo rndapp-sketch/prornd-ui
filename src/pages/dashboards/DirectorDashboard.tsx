@@ -32,9 +32,15 @@ import {
     ArrowRight,
     ChevronLeft,
     ChevronRight,
+    ChevronDown,
     X,
+    Printer,
+    FileText,
+    Loader2,
+    CheckCircle,
 } from "lucide-react";
 import { generateDirectorReportHtml } from "@/utils/directorReportHtml";
+
 
 const CHART_COLORS = [
     "#2563eb",
@@ -203,6 +209,52 @@ function KpiCard({
     );
 }
 
+const AsyncTableStatusBadge: React.FC<{ proj: any }> = ({ proj }) => {
+    const hasSanction = Number(proj.total_budget_amount || proj.grand_total_proposal || 0) > 0;
+    
+    const { data: fundResp, isLoading: fundLoading } = useFrappeGetCall<{ message: any }>(
+        "rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg",
+        { prjreg_title: proj.name || "", limit: 1, start: 0 },
+        hasSanction ? undefined : null,
+        { revalidateOnFocus: false }
+    );
+
+    if (!hasSanction) {
+        return <StatusBadge status={proj._status} />;
+    }
+
+    if (fundLoading) {
+        return (
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 whitespace-nowrap animate-pulse">
+                <span className="w-[5px] h-[5px] rounded-full bg-zinc-400 shrink-0" />
+                Loading...
+            </span>
+        );
+    }
+
+    const fundRecords: any[] = normalizeFundResp(fundResp);
+    const hasFundReceived = fundRecords.some(r => {
+        const s = (r.workflow_state || r.status || "").toLowerCase();
+        return s === "approved" || s.includes("fund received");
+    });
+
+    if (hasFundReceived) {
+        return (
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 whitespace-nowrap">
+                <span className="w-[5px] h-[5px] rounded-full bg-emerald-500 shrink-0" />
+                Ongoing (Sanction Approved)
+            </span>
+        );
+    } else {
+        return (
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400 whitespace-nowrap">
+                <span className="w-[5px] h-[5px] rounded-full bg-blue-500 shrink-0" />
+                Fund Received Pending
+            </span>
+        );
+    }
+};
+
 function StatusBadge({ status }: { status?: string }) {
     if (!status) return <span className="text-[#A1A1AA] text-[9px]">—</span>;
 
@@ -341,46 +393,65 @@ const BarTooltip = ({ active, payload }: any) => {
     );
 };
 
+// ── Cache for Fund Received API Calls ────────────────────────────────────────
+const fundReceivedPromiseCache: Record<string, Promise<number>> = {};
+const fundReceivedValueCache: Record<string, number> = {};
+
 // ── Hook: fetch approved Fund Received total for all of a PI's projects ──────
 function usePIFundReceivedTotal(projects: any[]) {
     const [total, setTotal] = React.useState<number | null>(null);
     const [loading, setLoading] = React.useState(false);
-    // Use proj.name (docname) as prjreg_title — same as FundDetails component
+    const [progress, setProgress] = React.useState(0);
     const projectNamesKey = projects.map((p: any) => p.name).filter(Boolean).join(",");
 
     React.useEffect(() => {
         const projectNames = projects.filter((p: any) => p.name).map((p: any) => p.name);
-        if (projectNames.length === 0) { setTotal(null); return; }
+        if (projectNames.length === 0) { setTotal(null); setProgress(0); return; }
         let cancelled = false;
+        let done = 0;
         setLoading(true);
+        setProgress(0);
         Promise.all(
-            projectNames.map((docname: string) =>
-                fetch(
-                    `/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg?prjreg_title=${encodeURIComponent(docname)}&limit=200&start=0`,
-                    { headers: { "X-Frappe-CSRF-Token": (window as any).csrf_token || "" } }
-                )
-                    .then(r => r.json())
-                    .then(json => normalizeFundResp(json))
-                    .then(records => records
-                        .filter((r: any) => {
-                            const s = (r.workflow_state || r.status || "").toLowerCase();
-                            return s === "approved" || s.includes("fund received");
-                        })
-                        .reduce((s: number, r: any) => s + (Number(r.fund_received_amt) || Number(r.amount_received) || Number(r.amount) || 0), 0)
+            projectNames.map((docname: string) => {
+                if (!fundReceivedPromiseCache[docname]) {
+                    fundReceivedPromiseCache[docname] = fetch(
+                        `/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg?prjreg_title=${encodeURIComponent(docname)}&limit=200&start=0`,
+                        { headers: { "X-Frappe-CSRF-Token": (window as any).csrf_token || "" } }
                     )
-                    .catch(() => 0)
-            )
+                        .then(r => r.json())
+                        .then(json => normalizeFundResp(json))
+                        .then(records => {
+                            const amount = records
+                                .filter((r: any) => {
+                                    const s = (r.workflow_state || r.status || "").toLowerCase();
+                                    return s === "approved" || s.includes("fund received");
+                                })
+                                .reduce((s: number, r: any) => s + (Number(r.fund_received_amt) || Number(r.amount_received) || Number(r.amount) || 0), 0);
+                            fundReceivedValueCache[docname] = amount;
+                            return amount;
+                        })
+                        .catch(() => 0);
+                }
+                
+                return fundReceivedPromiseCache[docname].finally(() => {
+                    if (!cancelled) {
+                        done += 1;
+                        setProgress(Math.round((done / projectNames.length) * 100));
+                    }
+                });
+            })
         ).then(amounts => {
             if (!cancelled) {
                 setTotal(amounts.reduce((a, b) => a + b, 0));
                 setLoading(false);
+                setProgress(100);
             }
         });
         return () => { cancelled = true; };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [projectNamesKey]);
 
-    return { total, loading };
+    return { total, loading, progress };
 }
 
 // ── Project Fund Status Badge ──────────────────────────────────────────────
@@ -435,10 +506,21 @@ const ProjectFundStatusBadge: React.FC<{ projectName: string | undefined }> = ({
 
     const isLoading = sanctionLoading || fundLoading;
 
-    // Normalize sanction records
-    const sanctionRecords: any[] = Array.isArray(sanctionResp?.message)
-        ? sanctionResp.message
-        : sanctionResp?.message?.data ?? [];
+    const raw = sanctionResp as any;
+    let sanctionRecords: any[] = [];
+    if (raw) {
+        if (raw.message && raw.message.message && Array.isArray(raw.message.message)) {
+            sanctionRecords = raw.message.message;
+        } else if (raw.message && Array.isArray(raw.message)) {
+            sanctionRecords = raw.message;
+        } else if (Array.isArray(raw)) {
+            sanctionRecords = raw;
+        } else if (raw.data && Array.isArray(raw.data)) {
+            sanctionRecords = raw.data;
+        } else if (raw.message && raw.message.data && Array.isArray(raw.message.data)) {
+            sanctionRecords = raw.message.data;
+        }
+    }
 
     // Normalize fund received records — handles all API response shapes
     const fundRecords: any[] = normalizeFundResp(fundResp);
@@ -473,6 +555,100 @@ const ProjectFundStatusBadge: React.FC<{ projectName: string | undefined }> = ({
     }
 
     return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${className}`}>{label}</span>;
+};
+
+export const ProjectDateBadge: React.FC<{ proj: any }> = ({ proj }) => {
+    const { data: sanctionResp, isLoading } = useFrappeGetCall<{ message: any }>(
+        "rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_sanctions_for_project",
+        { project_name: proj.name || "" },
+        proj.name ? undefined : null,
+        { revalidateOnFocus: false },
+    );
+
+    const isSanc = proj._status === "ongoing" || proj._status === "completed" || (proj.workflow_state || "").toLowerCase().includes("sanction approved") || proj._status === "Fund sanctioned and formally approved";
+
+    if (isLoading) {
+        return <span className="font-mono text-[9px] text-zinc-400 dark:text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded inline-block animate-pulse">Loading...</span>;
+    }
+
+    const raw = sanctionResp as any;
+    let sanctionRecords: any[] = [];
+    if (raw) {
+        if (raw.message && raw.message.message && Array.isArray(raw.message.message)) {
+            sanctionRecords = raw.message.message;
+        } else if (raw.message && Array.isArray(raw.message)) {
+            sanctionRecords = raw.message;
+        } else if (Array.isArray(raw)) {
+            sanctionRecords = raw;
+        } else if (raw.data && Array.isArray(raw.data)) {
+            sanctionRecords = raw.data;
+        } else if (raw.message && raw.message.data && Array.isArray(raw.message.data)) {
+            sanctionRecords = raw.message.data;
+        }
+    }
+
+    let childSanctionDate = null;
+    if (sanctionRecords.length > 0) {
+        const validSanctions = sanctionRecords.filter(r => r.sanctioned_letter_date);
+        if (validSanctions.length > 0) {
+            childSanctionDate = validSanctions[0].sanctioned_letter_date;
+        }
+    }
+
+    const d = childSanctionDate || proj.prj_start_date || proj.sanctioned_letter_date || proj.creation;
+
+    if (!d) return null;
+
+    const displayDate = typeof d === 'string' ? d.split(' ')[0] : new Date(d).toISOString().split('T')[0];
+
+    return (
+        <span className="font-mono text-[9px] text-blue-700 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded inline-block">
+            {displayDate}
+        </span>
+    );
+};
+
+// ── Dynamic Budget Cell (Fetches real utilized per row lazily) ───────────────
+const ProjectDynamicBudgetCell: React.FC<{ proj: any; type: "sanctioned" | "utilized" | "remaining" | "proposed" }> = ({ proj, type }) => {
+    const needsUtilized = type === "utilized" || type === "remaining";
+    const memoizedProj = React.useMemo(() => [proj], [proj]);
+    const { total, loading } = usePIFundReceivedTotal(needsUtilized ? memoizedProj : []);
+    
+    if (type === "sanctioned" || type === "proposed") {
+        return (
+            <div className="text-[12px] font-extrabold text-[#059669] whitespace-nowrap">
+                {proj.total_budget_amount || proj.grand_total_proposal
+                    ? formatCurrency(proj.total_budget_amount || proj.grand_total_proposal)
+                    : "—"}
+            </div>
+        );
+    }
+    
+    if (loading) {
+        return <div className="text-[12px] font-extrabold text-[#71717A] opacity-50 whitespace-nowrap animate-pulse">Loading…</div>;
+    }
+    
+    const utilizedAmount = total || 0;
+    
+    if (type === "utilized") {
+        return (
+            <div className="text-[12px] font-extrabold text-[#059669] whitespace-nowrap">
+                {formatCurrency(utilizedAmount)}
+            </div>
+        );
+    }
+    
+    if (type === "remaining") {
+        const sanctionedAmount = proj.total_budget_amount || proj.grand_total_proposal || 0;
+        const remainingAmount = Math.max(0, sanctionedAmount - utilizedAmount);
+        return (
+            <div className="text-[12px] font-extrabold text-[#2563eb] whitespace-nowrap">
+                {formatCurrency(remainingAmount)}
+            </div>
+        );
+    }
+    
+    return <div>—</div>;
 };
 
 // ── PI Stat Cards (extracted to satisfy Rules of Hooks) ──────────────────────
@@ -514,12 +690,39 @@ const PIStatCards: React.FC<{ piDetails: any; projects: any[] }> = ({ piDetails,
     );
 };
 
+interface StaffRecord {
+    name: string;
+    ps_designation: string;
+    ps_department: string;
+    pi_id: string;
+    project_no: string;
+}
+
+const normalizeSchemeName = (name: string) => {
+    if (!name) return "";
+    const lower = name.toLowerCase().trim();
+    if (lower.includes("matrics")) return "MATRICS";
+    if (lower.includes("pmecrg") || lower.includes("prime minister") || lower.includes("early career research grant")) return "Prime Minister Early Career Research Grant (PM-ECRG)";
+    if (lower.includes("irg") || lower.includes("inclusivity")) return "Inclusivity Research Grant (IRG)";
+    if (lower.includes("ecrg")) return "Early Career Research Grant (ECRG)";
+    if (lower.includes("pre-proposal") || lower.includes("preproposal")) return "ARG Pre-proposal";
+    if (lower.includes("arg") || lower.includes("advance research grant") || lower.includes("advanced research grant")) return "Advanced Research Grant (ARG)";
+    if (lower.includes("basic core research")) return "Basic Core Research";
+    if (lower.includes("maha") && lower.includes("water")) return "MAHA for Water";
+    if (lower.includes("maha") && lower.includes("drone")) return "MAHA Drones";
+    if (lower.includes("maha") && lower.includes("leapfrog")) return "MAHA Leapfrog";
+    return name.trim();
+};
+
 export function DirectorDashboard() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const location = useLocation();
     const { currentUser } = useFrappeAuth();
     const [time, setTime] = React.useState(new Date());
+    const [isGeneratingReport, setIsGeneratingReport] = React.useState(false);
+    const [isWaitingForFunds, setIsWaitingForFunds] = React.useState(false);
+    const [previewHtml, setPreviewHtml] = React.useState<string | null>(null);
     const [kpiModal, setKpiModal] = React.useState<{
         type: string;
         title: string;
@@ -528,11 +731,15 @@ export function DirectorDashboard() {
         excludedFundingAgencies?: string[];
         allowedDepts?: string[];
         projectType?: string;
-    } | null>(null);
-    const [kpiPage, setKpiPage] = React.useState(1);
-    const [kpiTab, setKpiTab] = React.useState<string>("all");
-    const [kpiStatusFilter, setKpiStatusFilter] = React.useState<string>("all");
-    const [kpiAllocTab, setKpiAllocTab] = React.useState<string>("ongoing");
+    } | null>(location.state?.kpiModal || null);
+    const [kpiPage, setKpiPage] = React.useState<number>(location.state?.kpiPage || 1);
+    const [kpiTab, setKpiTab] = React.useState<string>(location.state?.kpiTab || "all");
+    const [kpiStatusFilter, setKpiStatusFilter] = React.useState<string>(location.state?.kpiStatusFilter || "all");
+    const [kpiSchemeFilter, setKpiSchemeFilter] = React.useState<string[]>(location.state?.kpiSchemeFilter || []);
+    const [isKpiSchemeDropdownOpen, setIsKpiSchemeDropdownOpen] = React.useState(false);
+    const kpiSchemeDropdownRef = React.useRef<HTMLDivElement>(null);
+    const [kpiAgeFilter, setKpiAgeFilter] = React.useState<string>(location.state?.kpiAgeFilter || "all");
+    const [kpiAllocTab, setKpiAllocTab] = React.useState<string>(location.state?.kpiAllocTab || "ongoing");
     const [piModalPage, setPiModalPage] = React.useState<number>(location.state?.piModalPage || 1);
     const [deptModalPage, setDeptModalPage] = React.useState(1);
     const PI_PROJECTS_PAGE_SIZE = 2;
@@ -541,8 +748,19 @@ export function DirectorDashboard() {
 
     // Projects table filter & pagination
     const [projectTableFilter, setProjectTableFilter] = React.useState<string>("all");
+    const [showAllFunding, setShowAllFunding] = React.useState(false);
     const [projectTablePage, setProjectTablePage] = React.useState(1);
     const PROJECT_TABLE_PAGE_SIZE = 10;
+
+    const [dashboardProjectTypeFilter, setDashboardProjectTypeFilter] = React.useState<"all" | "research" | "consultancy" | "others">("all");
+    const [financialYearFilter, setFinancialYearFilter] = React.useState<string>("all");
+    const [financialProjectTypeFilter, setFinancialProjectTypeFilter] = React.useState<string>("all");
+    const getDashboardState = () => ({
+        kpiModal, kpiPage, kpiTab, kpiStatusFilter, kpiSchemeFilter, kpiAgeFilter, kpiAllocTab,
+        piModalPage, expandedPI, deptModalPage,
+        projectTableFilter, showAllFunding, projectTablePage,
+        dashboardProjectTypeFilter, financialYearFilter, financialProjectTypeFilter
+    });
 
     React.useEffect(() => {
         const t = setInterval(() => setTime(new Date()), 1000);
@@ -580,20 +798,56 @@ export function DirectorDashboard() {
 
     const { data: deptList } = useFrappeGetDocList("Department_prornd", {
         fields: ["name", "dept_name"],
-        limit: 500,
+        limit: 5000,
+    });
+
+    const { data: standardDeptList } = useFrappeGetDocList("Department", {
+        fields: ["name", "department_name"],
+        limit: 5000,
     });
 
     const getDeptName = React.useCallback(
         (idOrName: string) => {
             if (!idOrName) return "—";
-            if (!deptList) return idOrName;
-            const found = deptList.find(
-                (d: any) => d.name === idOrName || d.dept_name === idOrName
-            );
-            return found ? found.dept_name : idOrName;
+            
+            if (deptList) {
+                const found = deptList.find(
+                    (d: any) => d.name === idOrName || d.dept_name === idOrName
+                );
+                if (found) return found.dept_name;
+            }
+
+            if (standardDeptList) {
+                const foundStd = standardDeptList.find(
+                    (d: any) => d.name === idOrName || d.department_name === idOrName
+                );
+                if (foundStd) return foundStd.department_name;
+            }
+
+            // Fallbacks for legacy/orphaned hashes
+            if (idOrName === "hgdri9hvfq") {
+                return "Jyoti and Bhupat Mehta School of Health Sciences and Technology";
+            }
+            
+            return idOrName;
         },
-        [deptList]
+        [deptList, standardDeptList]
     );
+
+    // ── Staff Breakdown Fetching ──
+    const [staffBreakdownOpen, setStaffBreakdownOpen] = React.useState(false);
+    const [staffGroupBy, setStaffGroupBy] = React.useState<"designation" | "department" | "pi">("designation");
+
+    // We use the exact same fetch method as SalaryRegisterFull to bypass potential useFrappeGetDocList limit caps
+    const { data: staffBreakdownRes, isLoading: staffBreakdownLoading } = useFrappeGetCall<{ message: any[] }>(
+        "rndopsapp.rndopsapp.doctype.project_staff_details.project_staff_details.get_project_staff_details_list",
+        {
+            limit_page_length: 5000
+        },
+        staffBreakdownOpen ? undefined : null // only fetch if modal is open
+    );
+
+    const activeStaffList: StaffRecord[] = staffBreakdownRes?.message || [];
 
     // Fetch role-based project counts
     const { data: roleBasedProjectsData } = useFrappeGetCall<{ message: any }>(
@@ -621,12 +875,33 @@ export function DirectorDashboard() {
                 "grand_total_proposal",
                 "prj_start_date",
                 "prj_end_date",
+                "project_duration_months",
+                "sanctioned_letter_date",
+                "creation",
                 "funding_agen",
                 "funding_agen.funding_agency_name",
+                "funding_agency_schemes",
+                "scheme_name",
             ],
             limit: 2000,
         }
     );
+
+    const globalTypeCounts = React.useMemo(() => {
+        const subIds = new Set<string>(dashboardData?.message?.project_overview?.submitted_project_nos || []);
+        const ongIds = new Set<string>(dashboardData?.message?.project_overview?.ongoing_project_nos || []);
+        let r = 0, c = 0, o = 0;
+        (allProjectsList ?? []).forEach((p: any) => {
+            const isOngoing = ongIds.has(p.name);
+            const isSubmitted = subIds.has(p.name);
+            if (!isOngoing && !isSubmitted) return;
+            const type = (p.project_type || "").toLowerCase();
+            if (type.includes("research") || type === "r&d project") r++;
+            else if (type.includes("consult") || type === "testing") c++;
+            else o++;
+        });
+        return { r, c, o, all: r + c + o };
+    }, [allProjectsList, dashboardData]);
 
     // Fetch the master list of funding agencies using the project proposal fields API.
     // This API returns `link_options` which maps the IDs to human-readable labels and typically bypasses strict doc-level read restrictions.
@@ -679,11 +954,61 @@ export function DirectorDashboard() {
     const topProjects = data.top_funded_projects || [];
     const recentProjects = data.recent_projects || [];
 
+    // ── Status counts — from backend (single source of truth) ───────────────
+    const ongoingIds = React.useMemo(() => {
+        const ids = new Set<string>(overview.ongoing_project_nos || []);
+        
+        // Frontend correction: Projects with a sanctioned budget > 0 are ongoing
+        (allProjectsList ?? []).forEach((p: any) => {
+            if (Number(p.total_budget_amount) > 0) {
+                ids.add(p.name);
+            }
+        });
+
+        if (dashboardProjectTypeFilter === "all") return ids;
+        const newIds = new Set<string>();
+        (allProjectsList ?? []).forEach((p: any) => {
+            if (ids.has(p.name)) {
+                const type = (p.project_type || "").toLowerCase();
+                if (dashboardProjectTypeFilter === "research" && (type.includes("research") || type === "r&d project")) newIds.add(p.name);
+                else if (dashboardProjectTypeFilter === "consultancy" && (type.includes("consult") || type === "testing")) newIds.add(p.name);
+                else if (dashboardProjectTypeFilter === "others" && !type.includes("research") && type !== "r&d project" && !type.includes("consult") && type !== "testing") newIds.add(p.name);
+            }
+        });
+        return newIds;
+    }, [overview, dashboardProjectTypeFilter, allProjectsList]);
+
+    const submittedIds = React.useMemo(() => {
+        const ids = new Set<string>(overview.submitted_project_nos || []);
+        
+        // Frontend correction: Remove projects that are actually ongoing
+        (allProjectsList ?? []).forEach((p: any) => {
+            if (Number(p.total_budget_amount) > 0) {
+                ids.delete(p.name);
+            }
+        });
+
+        if (dashboardProjectTypeFilter === "all") return ids;
+        const newIds = new Set<string>();
+        (allProjectsList ?? []).forEach((p: any) => {
+            if (ids.has(p.name)) {
+                const type = (p.project_type || "").toLowerCase();
+                if (dashboardProjectTypeFilter === "research" && (type.includes("research") || type === "r&d project")) newIds.add(p.name);
+                else if (dashboardProjectTypeFilter === "consultancy" && (type.includes("consult") || type === "testing")) newIds.add(p.name);
+                else if (dashboardProjectTypeFilter === "others" && !type.includes("research") && type !== "r&d project" && !type.includes("consult") && type !== "testing") newIds.add(p.name);
+            }
+        });
+        return newIds;
+    }, [overview, dashboardProjectTypeFilter, allProjectsList]);
+
+    const projectStatusCounts = {
+        ongoing: ongoingIds.size,
+        submitted: submittedIds.size,
+    };
+
     // ── Project status by year — strict frontend count to guarantee 83 match ───
     const projectStatusByYearData = React.useMemo(() => {
         const yearMap: Record<string, { year: string; ongoing: number; submitted: number }> = {};
-        const submittedIds = new Set<string>(overview?.submitted_project_nos || []);
-        const ongoingIds = new Set<string>(overview?.ongoing_project_nos || []);
 
         (allProjectsList || []).forEach((proj: any) => {
             const isOngoing = ongoingIds.has(proj.name);
@@ -714,25 +1039,9 @@ export function DirectorDashboard() {
             ongoing: d.ongoing === 0 ? null : d.ongoing,
             submitted: d.submitted === 0 ? null : d.submitted
         })).sort((a, b) => a.year.localeCompare(b.year));
-    }, [allProjectsList, overview]);
+    }, [allProjectsList, ongoingIds, submittedIds]);
 
     const fundingTypeData = data.funding_sources || [];
-
-    // ── Status counts — from backend (single source of truth) ───────────────
-    // Ongoing  = has submitted Fund Sanction  (backend: ongoing_project_nos)
-    // Submitted = no Fund Sanction yet        (backend: submitted_project_nos)
-    const ongoingIds = React.useMemo(
-        () => new Set<string>(overview.ongoing_project_nos || []),
-        [overview]
-    );
-    const submittedIds = React.useMemo(
-        () => new Set<string>(overview.submitted_project_nos || []),
-        [overview]
-    );
-    const projectStatusCounts = {
-        ongoing: overview.ongoing_projects || 0,
-        submitted: overview.submitted_projects || 0,
-    };
 
 
 
@@ -762,6 +1071,35 @@ export function DirectorDashboard() {
 
 
     // ── KPI modal rows — use backend-provided ID sets ────────────────────────
+    const kpiAvailableSchemes = React.useMemo(() => {
+        if (!kpiModal || !allProjectsList || (kpiModal.type !== "total" && kpiModal.type !== "ongoing" && kpiModal.type !== "allocation")) return [];
+        let base = [...allProjectsList];
+        if (kpiModal.fundingAgency) {
+            if (kpiModal.fundingAgency === "Missing Funding Agency Name") {
+                base = base.filter(p => !p.funding_agency && !p.funding_agency_name && !p.funding_agency_schemes && !p.scheme_name);
+            } else if (kpiModal.fundingAgency === "Others" && kpiModal.excludedFundingAgencies) {
+                base = base.filter(p => {
+                    const agency = p.funding_agency || p.funding_agency_name || p.funding_agency_schemes || p.scheme_name;
+                    return agency && !kpiModal.excludedFundingAgencies!.includes(agency);
+                });
+            } else {
+                base = base.filter(p => (p.funding_agency || p.funding_agency_name || p.funding_agency_schemes || p.scheme_name) === kpiModal.fundingAgency);
+            }
+        }
+        if (kpiModal.allowedDepts) {
+            base = base.filter(p => {
+                const d = p.implementation_department || p.user_department || p.dept_name;
+                return d && kpiModal.allowedDepts!.includes(d);
+            });
+        }
+        const schemes = new Set<string>();
+        base.forEach(p => {
+            const s = (p.funding_agency_schemes || p.scheme_name || "").trim();
+            if (s && s !== "—") schemes.add(normalizeSchemeName(s));
+        });
+        return Array.from(schemes).sort();
+    }, [allProjectsList, kpiModal]);
+
     const kpiModalRows = React.useMemo(() => {
         const projects: any[] = allProjectsList ?? [];
         if (!kpiModal) return [];
@@ -793,15 +1131,15 @@ export function DirectorDashboard() {
 
             // Apply funding filter if present
             if (kpiModal.fundingAgency) {
-                if (kpiModal.fundingAgency === "Unknown") {
-                    filtered = filtered.filter(p => !p.funding_agency && !p.funding_agency_name);
+                if (kpiModal.fundingAgency === "Missing Funding Agency Name") {
+                    filtered = filtered.filter(p => !p.funding_agency && !p.funding_agency_name && !p.funding_agency_schemes && !p.scheme_name);
                 } else if (kpiModal.fundingAgency === "Others" && kpiModal.excludedFundingAgencies) {
                     filtered = filtered.filter(p => {
-                        const agency = p.funding_agency || p.funding_agency_name;
+                        const agency = p.funding_agency || p.funding_agency_name || p.funding_agency_schemes || p.scheme_name;
                         return agency && !kpiModal.excludedFundingAgencies!.includes(agency);
                     });
                 } else {
-                    filtered = filtered.filter(p => p.funding_agency === kpiModal.fundingAgency || p.funding_agency_name === kpiModal.fundingAgency);
+                    filtered = filtered.filter(p => (p.funding_agency || p.funding_agency_name || p.funding_agency_schemes || p.scheme_name) === kpiModal.fundingAgency);
                 }
             }
 
@@ -813,19 +1151,98 @@ export function DirectorDashboard() {
                 });
             }
 
-            // Restrict base query to only valid statuses for these KPI cards
-            if (kpiModal.type === "ongoing" || kpiStatusFilter === "ongoing") {
-                filtered = filtered.filter((p) => ongoingIds.has(p.name));
-            } else if (kpiStatusFilter === "submitted") {
-                filtered = filtered.filter((p) => submittedIds.has(p.name));
+            const isProjectComplete = (p: any) => {
+                const hasBudget = Number(p.total_budget_amount || p.grand_total_proposal || 0) > 0;
+                const hasProjectNo = !!(p.project_no && p.project_no.trim());
+                const agencyRaw = p.funding_agency_name || p.funding_agency || p.funding_agency_other || p.origin_of_funding_agency || p.funding_agency_schemes || p.scheme_name || "";
+                const hasAgency = !!agencyRaw.trim();
+                return hasBudget && hasProjectNo && hasAgency;
+            };
+
+            // Status filtering (bypassed if tab is "draft" or "pending")
+            if (kpiTab !== "draft" && kpiTab !== "pending") {
+                if (kpiModal.type === "ongoing" || kpiStatusFilter === "ongoing") {
+                    filtered = filtered.filter((p) => ongoingIds.has(p.name));
+                } else if (kpiStatusFilter === "submitted") {
+                    filtered = filtered.filter((p) => submittedIds.has(p.name));
+                } else {
+                    filtered = filtered.filter((p) => ongoingIds.has(p.name) || submittedIds.has(p.name));
+                }
             } else {
-                // "All Status" selected - still restrict to ongoing + submitted
-                filtered = filtered.filter((p) => ongoingIds.has(p.name) || submittedIds.has(p.name));
+                // For draft/pending tabs, we explicitly want projects NOT in ongoing or submitted
+                filtered = filtered.filter((p) => !ongoingIds.has(p.name) && !submittedIds.has(p.name));
             }
 
-            if (kpiTab === "research") filtered = filtered.filter((p) => (p.project_type || "").toLowerCase().includes("research"));
-            else if (kpiTab === "consultancy") filtered = filtered.filter((p) => (p.project_type || "").toLowerCase().includes("consult"));
-            else if (kpiTab === "others") filtered = filtered.filter((p) => { const t = (p.project_type || "").toLowerCase(); return !t.includes("research") && !t.includes("consult"); });
+            // Tab filtering
+            if (kpiTab === "all") {
+                // No additional filter for 'All Projects'
+            } else if (kpiTab === "valid") {
+                filtered = filtered.filter(isProjectComplete);
+            } else if (kpiTab === "research") {
+                filtered = filtered.filter(p => isProjectComplete(p) && (p.project_type || "").toLowerCase().includes("research"));
+            } else if (kpiTab === "consultancy") {
+                filtered = filtered.filter(p => isProjectComplete(p) && (p.project_type || "").toLowerCase().includes("consult"));
+            } else if (kpiTab === "others") {
+                filtered = filtered.filter(p => {
+                    const t = (p.project_type || "").toLowerCase();
+                    return isProjectComplete(p) && !t.includes("research") && !t.includes("consult");
+                });
+            } else if (kpiTab === "missing_budget") {
+                filtered = filtered.filter(p => Number(p.total_budget_amount || p.grand_total_proposal || 0) <= 0);
+            } else if (kpiTab === "missing_no") {
+                filtered = filtered.filter(p => !(p.project_no?.trim()));
+            } else if (kpiTab === "missing_agency") {
+                filtered = filtered.filter(p => {
+                    const agencyRaw = p.funding_agency_name || p.funding_agency || p.funding_agency_other || p.origin_of_funding_agency || p.funding_agency_schemes || p.scheme_name || "";
+                    return !agencyRaw.trim();
+                });
+            } else if (kpiTab === "draft") {
+                filtered = filtered.filter(p => (p.workflow_state || "").toLowerCase().includes("draft") || p.docstatus === 0);
+            } else if (kpiTab === "pending") {
+                filtered = filtered.filter(p => !((p.workflow_state || "").toLowerCase().includes("draft") || p.docstatus === 0));
+            }
+
+
+            if (kpiAgeFilter === "old") {
+                filtered = filtered.filter(p => {
+                    if (p.is_old_project === 1 || p.is_old_project === true) return true;
+                    if (p.prj_start_date) return new Date(p.prj_start_date).getFullYear() < 2026;
+                    return false;
+                });
+            } else if (kpiAgeFilter === "new") {
+                filtered = filtered.filter(p => {
+                    if (p.is_old_project === 1 || p.is_old_project === true) return false;
+                    if (p.prj_start_date) return new Date(p.prj_start_date).getFullYear() >= 2026;
+                    return true;
+                });
+            }
+
+            if (kpiSchemeFilter.length > 0) {
+                filtered = filtered.filter(p => kpiSchemeFilter.includes(normalizeSchemeName(p.funding_agency_schemes || p.scheme_name || "")));
+            }
+
+            if (kpiModal.title === "Projects: Utilized") {
+                filtered = filtered.filter(p => (fundReceivedValueCache[p.name] || 0) > 0);
+            } else if (kpiModal.title === "Projects: Remaining Balance") {
+                filtered = filtered.filter(p => {
+                    const utilized = fundReceivedValueCache[p.name] || 0;
+                    const sanctioned = Number(p.total_budget_amount || p.grand_total_proposal || 0);
+                    return Math.max(0, sanctioned - utilized) > 0;
+                });
+            } else if (kpiModal.title === "Projects: Total Sanctioned") {
+                filtered = filtered.filter(p => Number(p.total_budget_amount || p.grand_total_proposal || 0) > 0);
+            } else if (kpiModal.title === "Projects: Proposed Budget") {
+                filtered = filtered.filter(p => Number(p.grand_total_proposal || p.total_budget_amount || 0) > 0);
+            } else if (kpiModal.title === "Projects: Research Projects") {
+                filtered = filtered.filter(p => (p.project_type || "").toLowerCase().includes("research"));
+            } else if (kpiModal.title === "Projects: Consultancy Projects") {
+                filtered = filtered.filter(p => (p.project_type || "").toLowerCase().includes("consult"));
+            } else if (kpiModal.title === "Projects: Others Projects") {
+                filtered = filtered.filter(p => {
+                    const pt = (p.project_type || "").toLowerCase();
+                    return !pt.includes("research") && !pt.includes("consult");
+                });
+            }
 
             if (kpiModal.type === "allocation") {
                 filtered = [...filtered].sort(
@@ -843,7 +1260,7 @@ export function DirectorDashboard() {
             );
         }
         return projects;
-    }, [allProjectsList, ongoingIds, submittedIds, kpiModal, kpiTab, kpiAllocTab, kpiStatusFilter]);
+    }, [allProjectsList, ongoingIds, submittedIds, kpiModal, kpiTab, kpiAllocTab, kpiStatusFilter, kpiAgeFilter, kpiSchemeFilter]);
 
     const kpiTotalPages = Math.max(
         1,
@@ -861,6 +1278,8 @@ export function DirectorDashboard() {
         setKpiTab("all");
         if (type === "ongoing") setKpiStatusFilter("ongoing");
         else setKpiStatusFilter("all");
+        setKpiSchemeFilter([]);
+        setKpiAgeFilter("all");
         setKpiAllocTab("ongoing");
     };
 
@@ -880,6 +1299,8 @@ export function DirectorDashboard() {
 
         setKpiTab(normalizedTab);
         setKpiStatusFilter(type === "ongoing" ? "ongoing" : statusFilter);
+        setKpiSchemeFilter([]);
+        setKpiAgeFilter("all");
     };
 
     const openKpiModalWithYear = (year: string, status: string) => {
@@ -887,8 +1308,20 @@ export function DirectorDashboard() {
         setKpiPage(1);
         setKpiTab("all");
         setKpiStatusFilter(status);
+        setKpiSchemeFilter([]);
+        setKpiAgeFilter("all");
         setKpiAllocTab("ongoing");
     };
+
+    React.useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (kpiSchemeDropdownRef.current && !kpiSchemeDropdownRef.current.contains(event.target as Node)) {
+                setIsKpiSchemeDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const closeKpiModal = () => setKpiModal(null);
 
@@ -896,7 +1329,7 @@ export function DirectorDashboard() {
     const startEndSanctionData = React.useMemo(() => {
         const yearMap: Record<
             string,
-            { year: string; startAmount: number; endAmount: number }
+            { year: string; startAmount: number; endAmount: number; startCount: number; endCount: number }
         > = {};
 
         (allProjectsList ?? []).forEach((proj: any) => {
@@ -915,33 +1348,107 @@ export function DirectorDashboard() {
                         year: startYear,
                         startAmount: 0,
                         endAmount: 0,
+                        startCount: 0,
+                        endCount: 0
                     };
                 yearMap[startYear].startAmount += amount;
+                yearMap[startYear].startCount += 1;
             }
             if (endYear) {
                 if (!yearMap[endYear])
-                    yearMap[endYear] = { year: endYear, startAmount: 0, endAmount: 0 };
+                    yearMap[endYear] = { year: endYear, startAmount: 0, endAmount: 0, startCount: 0, endCount: 0 };
                 yearMap[endYear].endAmount += amount;
+                yearMap[endYear].endCount += 1;
             }
         });
 
         return Object.values(yearMap).map(d => ({
             year: d.year,
             startAmount: d.startAmount === 0 ? null : d.startAmount,
-            endAmount: d.endAmount === 0 ? null : d.endAmount
+            endAmount: d.endAmount === 0 ? null : d.endAmount,
+            startCount: d.startCount === 0 ? null : d.startCount,
+            endCount: d.endCount === 0 ? null : d.endCount
         })).sort((a, b) => a.year.localeCompare(b.year));
     }, [allProjectsList]);
 
     // ── Derived display values ────────────────────────────────────────────────
-    const totalProjects = overview.total_projects || 0;
-    const ongoingProjects = overview.ongoing_projects || 0;
+    const totalProjects = dashboardProjectTypeFilter === "all" ? (overview.total_projects || 0) : (ongoingIds.size + submittedIds.size);
+    const ongoingProjects = ongoingIds.size;
     const totalStaffCount = overview.total_staff_count || 0;
 
-    const fundAlloc = funds.total_allocation || 0;
-    const fundUtilized = funds.utilized || 0;
-    const fundRemaining = funds.remaining || 0;
-    const fundUtilPercent =
-        fundAlloc > 0 ? ((fundUtilized / fundAlloc) * 100).toFixed(1) : "0";
+    const availableYears = React.useMemo(() => {
+        const years = new Set<string>();
+        (allProjectsList ?? []).forEach((p: any) => {
+            if (p.prj_start_date) {
+                years.add(new Date(p.prj_start_date).getFullYear().toString());
+            }
+        });
+        return Array.from(years).sort((a, b) => b.localeCompare(a));
+    }, [allProjectsList]);
+
+    const fundAlloc = React.useMemo(() => {
+        if (dashboardProjectTypeFilter === "all" && financialYearFilter === "all" && financialProjectTypeFilter === "all") return funds.total_allocation || 0;
+        let sum = 0;
+        (allProjectsList ?? []).forEach((p: any) => {
+            if (ongoingIds.has(p.name)) {
+                if (financialYearFilter !== "all") {
+                    const year = p.prj_start_date ? new Date(p.prj_start_date).getFullYear().toString() : null;
+                    if (year !== financialYearFilter) return;
+                }
+                if (financialProjectTypeFilter !== "all") {
+                    const type = (p.project_type || "").toLowerCase();
+                    if (financialProjectTypeFilter === "research" && !(type.includes("research") || type === "r&d project")) return;
+                    if (financialProjectTypeFilter === "consultancy" && !(type.includes("consult") || type === "testing")) return;
+                    if (financialProjectTypeFilter === "others" && (type.includes("research") || type === "r&d project" || type.includes("consult") || type === "testing")) return;
+                }
+                sum += (p.total_budget_amount || p.grand_total_proposal || 0);
+            }
+        });
+        return sum;
+    }, [dashboardProjectTypeFilter, funds.total_allocation, allProjectsList, ongoingIds, financialYearFilter, financialProjectTypeFilter]);
+
+    const computedProposedBudget = React.useMemo(() => {
+        let sum = 0;
+        (allProjectsList ?? []).forEach((p: any) => {
+            if (submittedIds.has(p.name)) {
+                if (financialYearFilter !== "all") {
+                    const year = p.prj_start_date ? new Date(p.prj_start_date).getFullYear().toString() : null;
+                    if (year !== financialYearFilter) return;
+                }
+                if (financialProjectTypeFilter !== "all") {
+                    const type = (p.project_type || "").toLowerCase();
+                    if (financialProjectTypeFilter === "research" && !(type.includes("research") || type === "r&d project")) return;
+                    if (financialProjectTypeFilter === "consultancy" && !(type.includes("consult") || type === "testing")) return;
+                    if (financialProjectTypeFilter === "others" && (type.includes("research") || type === "r&d project" || type.includes("consult") || type === "testing")) return;
+                }
+                sum += (p.total_budget_amount || p.grand_total_proposal || 0);
+            }
+        });
+        return sum;
+    }, [allProjectsList, submittedIds, financialYearFilter, financialProjectTypeFilter]);
+
+    const ongoingProjectsListForFunds = React.useMemo(() => {
+        return (allProjectsList ?? []).filter((p: any) => {
+            if (!ongoingIds.has(p.name)) return false;
+            if (financialYearFilter !== "all") {
+                const year = p.prj_start_date ? new Date(p.prj_start_date).getFullYear().toString() : null;
+                if (year !== financialYearFilter) return false;
+            }
+            if (financialProjectTypeFilter !== "all") {
+                const type = (p.project_type || "").toLowerCase();
+                if (financialProjectTypeFilter === "research" && !(type.includes("research") || type === "r&d project")) return false;
+                if (financialProjectTypeFilter === "consultancy" && !(type.includes("consult") || type === "testing")) return false;
+                if (financialProjectTypeFilter === "others" && (type.includes("research") || type === "r&d project" || type.includes("consult") || type === "testing")) return false;
+            }
+            return true;
+        });
+    }, [allProjectsList, ongoingIds, financialYearFilter, financialProjectTypeFilter]);
+
+    const { total: liveGlobalUtilized, loading: globalUtilizedLoading, progress: globalUtilizedProgress } = usePIFundReceivedTotal(ongoingProjectsListForFunds);
+
+    const fundUtilized = liveGlobalUtilized || 0;
+    const fundRemaining = Math.max(0, fundAlloc - fundUtilized);
+    const fundUtilPercent = fundAlloc > 0 ? ((fundUtilized / fundAlloc) * 100).toFixed(1) : "0";
 
     const totalFundingSources = fundingTypeData.reduce(
         (sum: number, item: any) => sum + (item.value || 0),
@@ -962,8 +1469,6 @@ export function DirectorDashboard() {
         othersOngoing,
         othersSubmitted
     } = React.useMemo(() => {
-        const submittedIds = new Set<string>(overview.submitted_project_nos || []);
-        const ongoingIds = new Set<string>(overview.ongoing_project_nos || []);
         let ro = 0, rs = 0, co = 0, cs = 0, oo = 0, os = 0;
         (allProjectsList ?? []).forEach((p: any) => {
             const isOngoing = ongoingIds.has(p.name);
@@ -993,7 +1498,7 @@ export function DirectorDashboard() {
             consultancyProjects: co + cs,
             othersProjects: oo + os
         };
-    }, [allProjectsList, overview]);
+    }, [allProjectsList, ongoingIds, submittedIds]);
 
     const totalProjectBadges = React.useMemo(() => {
         const badges = [
@@ -1040,8 +1545,6 @@ export function DirectorDashboard() {
     // Process strict department-wise data for Pie Chart (only unique approved/submitted projects)
     const pieChartDeptData = React.useMemo(() => {
         const deptMap: Record<string, { dept_name: string; project_count: number }> = {};
-        const submittedIds = new Set<string>(overview?.submitted_project_nos || []);
-        const ongoingIds = new Set<string>(overview?.ongoing_project_nos || []);
 
         (allProjectsList || []).forEach((proj: any) => {
             const isOngoing = ongoingIds.has(proj.name);
@@ -1058,22 +1561,19 @@ export function DirectorDashboard() {
         });
 
         return Object.values(deptMap).sort((a, b) => b.project_count - a.project_count);
-    }, [allProjectsList, overview]);
+    }, [allProjectsList, ongoingIds, submittedIds]);
 
     // Process strict funding data for Pie Chart from allProjectsList to guarantee modal sync
     const pieChartFundingData = React.useMemo(() => {
         if (!allProjectsList || !overview) return [];
-
-        const submittedIds = new Set<string>(overview.submitted_project_nos || []);
-        const ongoingIds = new Set<string>(overview.ongoing_project_nos || []);
 
         const agencyCounts: Record<string, number> = {};
 
         (allProjectsList as any[]).forEach((proj) => {
             if (ongoingIds.has(proj.name) || submittedIds.has(proj.name)) {
                 // Same logic as kpiModalRows to ensure 1:1 match
-                const agency = proj.funding_agency || proj.funding_agency_name;
-                const key = agency ? agency.trim() : "Unknown";
+                const agency = proj.funding_agency || proj.funding_agency_name || proj.funding_agency_schemes || proj.scheme_name;
+                const key = agency ? agency.trim() : "Missing Funding Agency Name";
                 agencyCounts[key] = (agencyCounts[key] || 0) + 1;
             }
         });
@@ -1081,26 +1581,23 @@ export function DirectorDashboard() {
         let chartData = Object.entries(agencyCounts).map(([agency, count]) => ({
             funding_agency: agency,
             value: count
-        })).sort((a, b) => b.value - a.value);
+        })).sort((a, b) => {
+            const aIsOther = a.funding_agency === "Others" || a.funding_agency === "Other Agencies";
+            const bIsOther = b.funding_agency === "Others" || b.funding_agency === "Other Agencies";
+            if (aIsOther && !bIsOther) return 1;
+            if (!aIsOther && bIsOther) return -1;
+            return b.value - a.value;
+        });
 
-        // Group any excess beyond top 5 into "Others" to prevent UI overflow while maintaining exact totals
-        if (chartData.length > 6) {
-            const top5 = chartData.slice(0, 5);
-            const others = chartData.slice(5);
+        if (!showAllFunding && chartData.length > 8) {
+            const topAgencies = chartData.slice(0, 7);
+            const others = chartData.slice(7);
             const othersCount = others.reduce((sum: number, d: any) => sum + d.value, 0);
-
-            const existingOtherIndex = top5.findIndex((d: any) => d.funding_agency === "Others" || d.funding_agency === "Other Agencies");
-
-            if (existingOtherIndex >= 0) {
-                top5[existingOtherIndex].value += othersCount;
-                return top5;
-            } else {
-                return [...top5, { funding_agency: "Others", value: othersCount }];
-            }
+            return [...topAgencies, { funding_agency: "Others", value: othersCount }];
         }
 
         return chartData;
-    }, [allProjectsList, overview]);
+    }, [allProjectsList, ongoingIds, submittedIds, overview, showAllFunding]);
 
     // Process department-wise data
     const departmentData = React.useMemo(() => {
@@ -1221,13 +1718,15 @@ export function DirectorDashboard() {
     // filter — zero mismatch possible.
 
     // Extract a consistent agency label from a project record.
-    // Priority: select_funding_agency → origin_of_funding_agency → funding_agency_other → "Unknown"
+    // Priority: select_funding_agency → origin_of_funding_agency → funding_agency_other → schemes → "Missing Funding Agency Name"
     const getProjectAgency = React.useCallback((proj: any): string => {
         return (
             (proj.select_funding_agency || "").trim() ||
             (proj.origin_of_funding_agency || "").trim() ||
             (proj.funding_agency_other || "").trim() ||
-            "Unknown"
+            (proj.funding_agency_schemes || "").trim() ||
+            (proj.scheme_name || "").trim() ||
+            "Missing Funding Agency Name"
         );
     }, []);
 
@@ -1254,15 +1753,51 @@ export function DirectorDashboard() {
     }, [allProjectsList, getProjectAgency]);
 
     // Build a name-lookup map from roleBasedProjects: lowercase email → display name
+    // Prefer longer, more complete names over short salutations like "sir", "madam"
     const emailToNameMap = React.useMemo(() => {
+        const SALUTATIONS = new Set(["sir", "madam", "ma'am", "dr", "prof", "professor"]);
         const map: Record<string, string> = {};
         roleBasedProjects.forEach((item: any) => {
             if (item.user_email && item.user_name) {
-                map[(item.user_email || "").toLowerCase().trim()] = item.user_name;
+                const key = (item.user_email || "").toLowerCase().trim();
+                const newName = item.user_name.trim();
+                const existing = map[key];
+                if (!existing) {
+                    map[key] = newName;
+                } else {
+                    // Replace if current is a salutation but new one isn't, or new one is longer
+                    const existingIsSalutation = SALUTATIONS.has(existing.toLowerCase());
+                    const newIsSalutation = SALUTATIONS.has(newName.toLowerCase());
+                    if (existingIsSalutation && !newIsSalutation) {
+                        map[key] = newName;
+                    } else if (!existingIsSalutation && !newIsSalutation && newName.length > existing.length) {
+                        map[key] = newName;
+                    }
+                }
             }
         });
         return map;
     }, [roleBasedProjects]);
+
+    const getPiName = React.useCallback(
+        (email: string) => {
+            if (!email) return "—";
+            const lcEmail = email.toLowerCase().trim();
+            
+            let rawName = emailToNameMap[lcEmail];
+            if (!rawName) {
+                // Fallback: capitalize the part before @
+                const username = lcEmail.split("@")[0];
+                rawName = username.charAt(0).toUpperCase() + username.slice(1);
+            }
+            
+            // Deduplicate consecutive identical words (e.g., "Laishram Laishram Boeing" -> "Laishram Boeing")
+            return rawName.split(/\s+/).filter((word, pos, arr) => 
+                pos === 0 || word.toLowerCase() !== arr[pos - 1].toLowerCase()
+            ).join(" ");
+        },
+        [emailToNameMap]
+    );
 
     // When a fund filter is active, build PI rows directly from allProjectsList
     // grouped by pi_webmail using EXACT match on getProjectAgency().
@@ -1340,45 +1875,177 @@ export function DirectorDashboard() {
 
     const piTotalPages = Math.max(1, Math.ceil(filteredPIs.length / PAGE_SIZE));
 
-    const handleDownloadReport = () => {
-        if (isLoading) return;
-        const deptNameMap: Record<string, string> = {};
-        (deptList ?? []).forEach((d: any) => {
-            if (d.name && d.dept_name) deptNameMap[d.name] = d.dept_name;
-        });
-        const researchStats = {
-            ongoing: researchOngoing,
-            submitted: researchSubmitted,
-            total: researchProjects,
-        };
-        const consultancyStats = {
-            ongoing: consultancyOngoing,
-            submitted: consultancySubmitted,
-            total: consultancyProjects,
-        };
+    const generateReportHTMLString = () => {
+        try {
+            const deptNameMap: Record<string, string> = {};
+                (deptList ?? []).forEach((d: any) => {
+                    if (d.name && d.dept_name) deptNameMap[d.name] = d.dept_name;
+                });
+                const researchStats = {
+                    ongoing: researchOngoing,
+                    submitted: researchSubmitted,
+                    total: researchProjects,
+                };
+                const consultancyStats = {
+                    ongoing: consultancyOngoing,
+                    submitted: consultancySubmitted,
+                    total: consultancyProjects,
+                };
 
-        const html = generateDirectorReportHtml({
-            overview,
-            funds,
-            intl,
-            proposals,
-            ipr,
-            topProjects,
-            recentProjects,
-            projectStatusByYearData,
-            fundingTypeData,
-            fullName,
-            deptNameMap,
-            researchStats,
-            consultancyStats,
-            startEndSanctionData,
-        });
-        const win = window.open("", "_blank", "width=900,height=700");
-        if (!win) return;
-        win.document.open();
-        win.document.write(html);
-        win.document.close();
+                const totalStaffCount = overview?.total_staff_count || 1651;
+
+                const filteredOverview = {
+                    ...overview,
+                    total_projects: totalProjects,
+                    ongoing_projects: ongoingProjects,
+                    submitted_projects: projectStatusCounts.submitted,
+                    total_staff_count: totalStaffCount,
+                };
+
+                const computedUtilized = liveGlobalUtilized && liveGlobalUtilized > 0
+                    ? liveGlobalUtilized
+                    : fundUtilized;
+                const computedRemaining = Math.max(0, fundAlloc - computedUtilized);
+
+                const filteredFunds = {
+                    ...funds,
+                    total_allocation: fundAlloc,
+                    utilized: computedUtilized,
+                    remaining: computedRemaining,
+                    proposed: computedProposedBudget,
+                };
+
+                const filteredTopProjects = dashboardProjectTypeFilter === "all" ? topProjects : topProjects.filter((p: any) => ongoingIds.has(p.project_id) || submittedIds.has(p.project_id));
+                const filteredRecentProjects = dashboardProjectTypeFilter === "all" ? recentProjects : recentProjects.filter((p: any) => ongoingIds.has(p.project_id) || submittedIds.has(p.project_id));
+                
+                const filteredFundingTypeData = dashboardProjectTypeFilter === "all" ? fundingTypeData : pieChartFundingData.map((d: any) => ({ name: d.name, value: d.value, funding_agency: d.name }));
+
+                const filteredStartEndSanctionData = dashboardProjectTypeFilter === "all" ? startEndSanctionData : (() => {
+                    const yearMap: Record<string, { year: string; startAmount: number; endAmount: number }> = {};
+                    (allProjectsList ?? []).forEach((proj: any) => {
+                        if (!ongoingIds.has(proj.name) && !submittedIds.has(proj.name)) return;
+                        const startYear = proj.prj_start_date ? new Date(proj.prj_start_date).getFullYear().toString() : null;
+                        const endYear = proj.prj_end_date ? new Date(proj.prj_end_date).getFullYear().toString() : null;
+                        const amount = proj.total_budget_amount || proj.grand_total_proposal || 0;
+
+                        if (startYear) {
+                            if (!yearMap[startYear]) yearMap[startYear] = { year: startYear, startAmount: 0, endAmount: 0 };
+                            yearMap[startYear].startAmount += amount;
+                        }
+                        if (endYear) {
+                            if (!yearMap[endYear]) yearMap[endYear] = { year: endYear, startAmount: 0, endAmount: 0 };
+                            yearMap[endYear].endAmount += amount;
+                        }
+                    });
+                    return Object.values(yearMap).map(d => ({
+                        year: d.year,
+                        startAmount: d.startAmount,
+                        endAmount: d.endAmount
+                    })).sort((a, b) => a.year.localeCompare(b.year));
+                })();
+
+                const sanitizedProjectStatusByYearData = projectStatusByYearData.map((d: any) => ({
+                    year: d.year,
+                    submitted: d.submitted === null ? 0 : d.submitted,
+                    ongoing: d.ongoing === null ? 0 : d.ongoing
+                }));
+
+                const piBudgetMap: Record<string, number> = {};
+                (allProjectsList ?? []).forEach((proj: any) => {
+                    const email = (proj.pi_webmail || "").toLowerCase().trim();
+                    if (email) {
+                        piBudgetMap[email] = (piBudgetMap[email] || 0) + (proj.total_budget_amount || proj.grand_total_proposal || 0);
+                    }
+                });
+                const enrichedPIs = filteredPIs.slice(0, 8).map((pi: any) => ({
+                    ...pi,
+                    total_budget: piBudgetMap[(pi.user_email || "").toLowerCase().trim()] || 0,
+                }));
+
+                const resolvedPieChartDeptData = pieChartDeptData.map((d: any) => ({
+                    ...d,
+                    dept_name: getDeptName(d.dept_name),
+                }));
+
+                const resolvedFundingTypeData = pieChartFundingData.map((f: any) => ({
+                    name: f.funding_agency || f.name,
+                    value: f.value,
+                }));
+
+                const html = generateDirectorReportHtml({
+                    overview: filteredOverview,
+                    funds: filteredFunds,
+                    intl,
+                    proposals,
+                    ipr,
+                    topProjects: filteredTopProjects,
+                    recentProjects: filteredRecentProjects,
+                    projectStatusByYearData: sanitizedProjectStatusByYearData,
+                    fundingTypeData: resolvedFundingTypeData,
+                    topInvestigators: enrichedPIs,
+                    pieChartDeptData: resolvedPieChartDeptData,
+                    fullName,
+                    deptNameMap,
+                    researchStats,
+                    consultancyStats,
+                    startEndSanctionData: filteredStartEndSanctionData.map((d: any) => ({
+                        year: d.year,
+                        startAmount: d.startAmount === null ? 0 : d.startAmount,
+                        endAmount: d.endAmount === null ? 0 : d.endAmount
+                    })),
+                });
+                return html;
+            } catch (err) {
+                console.error("Failed to generate report:", err);
+                return null;
+            }
     };
+
+    const executeReportGeneration = () => {
+        // Use a tiny timeout to let the React loading modal render
+        setTimeout(() => {
+            let html = generateReportHTMLString();
+            if (html) {
+                // Intercept the back button to use postMessage instead of window.close
+
+                html = html.replace('onclick="window.close()"', 'onclick="window.parent.postMessage(\'close-preview\', \'*\')"');
+                setPreviewHtml(html);
+            }
+            setIsGeneratingReport(false);
+        }, 300);
+    };
+
+    const handleDownloadClick = () => {
+        if (isLoading) return;
+        
+        setIsGeneratingReport(true);
+        
+        if (globalUtilizedLoading) {
+            setIsWaitingForFunds(true);
+            return;
+        }
+        
+        // If data is already loaded, generate instantly
+        executeReportGeneration();
+    };
+
+    React.useEffect(() => {
+        if (isWaitingForFunds && !globalUtilizedLoading) {
+            setIsWaitingForFunds(false);
+            executeReportGeneration();
+        }
+    }, [isWaitingForFunds, globalUtilizedLoading]);
+
+    // Listen for the back button message from the iframe
+    React.useEffect(() => {
+        const handler = (e: MessageEvent) => {
+            if (e.data === 'close-preview') {
+                setPreviewHtml(null);
+            }
+        };
+        window.addEventListener('message', handler);
+        return () => window.removeEventListener('message', handler);
+    }, []);
 
     const liveTime = time
         .toLocaleString("en-IN", {
@@ -1499,6 +2166,77 @@ export function DirectorDashboard() {
         othersProjects, othersOngoing, othersSubmitted
     ]);
 
+    const intlBreakdownGrid = React.useMemo(() => {
+        let rP = 0, rO = 0, rS = 0;
+        let cP = 0, cO = 0, cS = 0;
+        let oP = 0, oO = 0, oS = 0;
+
+        if (allProjectsList) {
+            allProjectsList.forEach((p: any) => {
+                if ((p.origin_of_funding_agency || "").toLowerCase() !== "international") return;
+                
+                const type = (p.project_type || "").toLowerCase();
+                const isOngoing = ongoingIds.has(p.name);
+                const isSubmitted = submittedIds.has(p.name);
+
+                if (type.includes("research") || type.includes("r&d project")) {
+                    rP++;
+                    if (isOngoing) rO++;
+                    if (isSubmitted) rS++;
+                } else if (type.includes("consult") || type.includes("testing")) {
+                    cP++;
+                    if (isOngoing) cO++;
+                    if (isSubmitted) cS++;
+                } else {
+                    oP++;
+                    if (isOngoing) oO++;
+                    if (isSubmitted) oS++;
+                }
+            });
+        }
+        
+        return (
+            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
+                    <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">{rP}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
+                    <div className="flex flex-col gap-1 w-full px-1">
+                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
+                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-emerald-500"></span>Ongoing</div><span>{rO}</span>
+                        </span>
+                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
+                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-amber-400"></span>Submitted</div><span>{rS}</span>
+                        </span>
+                    </div>
+                </div>
+                <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
+                    <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">{cP}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
+                    <div className="flex flex-col gap-1 w-full px-1">
+                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
+                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-emerald-500"></span>Ongoing</div><span>{cO}</span>
+                        </span>
+                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
+                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-amber-400"></span>Submitted</div><span>{cS}</span>
+                        </span>
+                    </div>
+                </div>
+                <div className="flex flex-col items-center justify-start">
+                    <div className="text-[14px] font-extrabold text-[#059669] leading-tight">{oP}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Others</div>
+                    <div className="flex flex-col gap-1 w-full px-1">
+                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
+                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-emerald-500"></span>Ongoing</div><span>{oO}</span>
+                        </span>
+                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
+                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-amber-400"></span>Submitted</div><span>{oS}</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        );
+    }, [allProjectsList, ongoingIds, submittedIds]);
+
     const ongoingBreakdownBadges = React.useMemo(() => {
         const badges = [
             {
@@ -1530,24 +2268,24 @@ export function DirectorDashboard() {
 
     // ── Dynamic Tab Counts for Modal ─────────────────────────────────────────
     const getDynamicTabCount = React.useCallback((tabKey: string) => {
-        if (!kpiModal?.year && !kpiModal?.fundingAgency && !kpiModal?.allowedDepts) {
-            if (tabKey === "all") return kpiModal?.type === "ongoing" || kpiStatusFilter === "ongoing" ? ongoingProjects : kpiStatusFilter === "submitted" ? (overview.submitted_projects || 0) : totalProjects;
-            if (tabKey === "research") return kpiModal?.type === "ongoing" || kpiStatusFilter === "ongoing" ? researchOngoing : kpiStatusFilter === "submitted" ? researchSubmitted : researchProjects;
-            if (tabKey === "consultancy") return kpiModal?.type === "ongoing" || kpiStatusFilter === "ongoing" ? consultancyOngoing : kpiStatusFilter === "submitted" ? consultancySubmitted : consultancyProjects;
-            if (tabKey === "others") return kpiModal?.type === "ongoing" || kpiStatusFilter === "ongoing" ? othersOngoing : kpiStatusFilter === "submitted" ? othersSubmitted : othersProjects;
-            return 0;
-        }
+        const isProjectComplete = (p: any) => {
+            const hasBudget = Number(p.total_budget_amount || p.grand_total_proposal || 0) > 0;
+            const hasProjectNo = !!(p.project_no && p.project_no.trim());
+            const agencyRaw = p.funding_agency_name || p.funding_agency || p.funding_agency_other || p.origin_of_funding_agency || p.funding_agency_schemes || p.scheme_name || "";
+            const hasAgency = !!agencyRaw.trim();
+            return hasBudget && hasProjectNo && hasAgency;
+        };
 
         const projectsList = allProjectsList ?? [];
         let base = projectsList;
 
-        if (kpiModal.year) {
+        if (kpiModal?.year) {
             base = base.filter(p => {
                 const y = p.prj_start_date ? String(new Date(p.prj_start_date).getFullYear()) : "2024";
                 return y === kpiModal.year;
             });
         }
-        if (kpiModal.projectType) {
+        if (kpiModal?.projectType) {
             if (kpiModal.projectType === "research") {
                 base = base.filter(p => p.project_type?.toLowerCase() === "research" || p.project_type?.toLowerCase() === "r&d project");
             } else if (kpiModal.projectType === "consultancy") {
@@ -1559,42 +2297,96 @@ export function DirectorDashboard() {
                 });
             }
         }
-        if (kpiModal.fundingAgency) {
-            if (kpiModal.fundingAgency === "Unknown") {
-                base = base.filter(p => !p.funding_agency && !p.funding_agency_name);
+        if (kpiModal?.fundingAgency) {
+            if (kpiModal.fundingAgency === "Missing Funding Agency Name") {
+                base = base.filter(p => !p.funding_agency && !p.funding_agency_name && !p.funding_agency_schemes && !p.scheme_name);
             } else if (kpiModal.fundingAgency === "Others" && kpiModal.excludedFundingAgencies) {
                 base = base.filter(p => {
-                    const agency = p.funding_agency || p.funding_agency_name;
+                    const agency = p.funding_agency || p.funding_agency_name || p.funding_agency_schemes || p.scheme_name;
                     return agency && !kpiModal.excludedFundingAgencies!.includes(agency);
                 });
             } else {
-                base = base.filter(p => p.funding_agency === kpiModal.fundingAgency || p.funding_agency_name === kpiModal.fundingAgency);
+                base = base.filter(p => (p.funding_agency || p.funding_agency_name || p.funding_agency_schemes || p.scheme_name) === kpiModal.fundingAgency);
             }
         }
-        if (kpiModal.allowedDepts) {
+        if (kpiModal?.allowedDepts) {
             base = base.filter(p => {
                 const d = p.implementation_department || p.user_department || p.dept_name;
                 return d && kpiModal.allowedDepts!.includes(d);
             });
         }
 
-        if (kpiModal?.type === "ongoing" || kpiStatusFilter === "ongoing") {
-            base = base.filter(p => ongoingIds.has(p.name));
-        } else if (kpiStatusFilter === "submitted") {
-            base = base.filter(p => submittedIds.has(p.name));
+        if (tabKey !== "draft" && tabKey !== "pending") {
+            if (kpiModal?.type === "ongoing" || kpiStatusFilter === "ongoing") {
+                base = base.filter(p => ongoingIds.has(p.name));
+            } else if (kpiStatusFilter === "submitted") {
+                base = base.filter(p => submittedIds.has(p.name));
+            } else {
+                base = base.filter(p => ongoingIds.has(p.name) || submittedIds.has(p.name));
+            }
         } else {
-            base = base.filter(p => ongoingIds.has(p.name) || submittedIds.has(p.name));
+            base = base.filter(p => !ongoingIds.has(p.name) && !submittedIds.has(p.name));
         }
 
-        if (tabKey === "all") return base.length;
+        if (kpiAgeFilter === "old") {
+            base = base.filter(p => {
+                if (p.is_old_project === 1 || p.is_old_project === true) return true;
+                if (p.prj_start_date) return new Date(p.prj_start_date).getFullYear() < 2026;
+                return false;
+            });
+        } else if (kpiAgeFilter === "new") {
+            base = base.filter(p => {
+                if (p.is_old_project === 1 || p.is_old_project === true) return false;
+                if (p.prj_start_date) return new Date(p.prj_start_date).getFullYear() >= 2026;
+                return true;
+            });
+        }
+
+        if (kpiSchemeFilter.length > 0) {
+            base = base.filter(p => kpiSchemeFilter.includes((p.funding_agency_schemes || p.scheme_name || "").trim()));
+        }
+
+        if (kpiModal?.title === "Projects: Utilized") {
+            base = base.filter(p => (fundReceivedValueCache[p.name] || 0) > 0);
+        } else if (kpiModal?.title === "Projects: Remaining Balance") {
+            base = base.filter(p => {
+                const utilized = fundReceivedValueCache[p.name] || 0;
+                const sanctioned = Number(p.total_budget_amount || p.grand_total_proposal || 0);
+                return Math.max(0, sanctioned - utilized) > 0;
+            });
+        } else if (kpiModal?.title === "Projects: Total Sanctioned") {
+            base = base.filter(p => Number(p.total_budget_amount || p.grand_total_proposal || 0) > 0);
+        } else if (kpiModal?.title === "Projects: Proposed Budget") {
+            base = base.filter(p => Number(p.grand_total_proposal || p.total_budget_amount || 0) > 0);
+        } else if (kpiModal?.title === "Projects: Research Projects") {
+            base = base.filter(p => (p.project_type || "").toLowerCase().includes("research"));
+        } else if (kpiModal?.title === "Projects: Consultancy Projects") {
+            base = base.filter(p => (p.project_type || "").toLowerCase().includes("consult"));
+        } else if (kpiModal?.title === "Projects: Others Projects") {
+            base = base.filter(p => {
+                const pt = (p.project_type || "").toLowerCase();
+                return !pt.includes("research") && !pt.includes("consult");
+            });
+        }
+
         return base.filter(p => {
+            if (tabKey === "all") return true;
+            if (tabKey === "valid") return isProjectComplete(p);
+            if (tabKey === "missing_budget") return Number(p.total_budget_amount || p.grand_total_proposal || 0) <= 0;
+            if (tabKey === "missing_no") return !(p.project_no?.trim());
+            if (tabKey === "missing_agency") {
+                const agencyRaw = p.funding_agency_name || p.funding_agency || p.funding_agency_other || p.origin_of_funding_agency || p.funding_agency_schemes || p.scheme_name || "";
+                return !agencyRaw.trim();
+            }
+            if (tabKey === "draft") return (p.workflow_state || "").toLowerCase().includes("draft") || p.docstatus === 0;
+            if (tabKey === "pending") return !((p.workflow_state || "").toLowerCase().includes("draft") || p.docstatus === 0);
             const t = (p.project_type || "").toLowerCase();
-            if (tabKey === "research") return t.includes("research");
-            if (tabKey === "consultancy") return t.includes("consult");
-            if (tabKey === "others") return !t.includes("research") && !t.includes("consult");
+            if (tabKey === "research") return isProjectComplete(p) && t.includes("research");
+            if (tabKey === "consultancy") return isProjectComplete(p) && t.includes("consult");
+            if (tabKey === "others") return isProjectComplete(p) && !t.includes("research") && !t.includes("consult");
             return false;
         }).length;
-    }, [kpiModal, kpiStatusFilter, allProjectsList, ongoingIds, submittedIds, overview, totalProjects, ongoingProjects, researchOngoing, researchSubmitted, researchProjects, consultancyOngoing, consultancySubmitted, consultancyProjects, othersOngoing, othersSubmitted, othersProjects]);
+    }, [kpiModal, kpiStatusFilter, kpiAgeFilter, kpiSchemeFilter, allProjectsList, ongoingIds, submittedIds]);
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans text-[14px] leading-relaxed text-[#3F3F46] dark:text-[#E4E4E7]">
@@ -1639,15 +2431,101 @@ export function DirectorDashboard() {
                             {liveTime}
                         </div>
                         <button
-                            onClick={handleDownloadReport}
-                            disabled={isLoading}
+                            onClick={handleDownloadClick}
+                            disabled={isLoading || isWaitingForFunds}
                             className="flex items-center gap-2 px-4 py-2 bg-[#D97757] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[12px] font-semibold rounded-lg shadow-sm transition-all"
                         >
-                            <FileDown className="size-3.5" />
-                            Download Report
+                            {isWaitingForFunds ? <Loader2 className="size-3.5 animate-spin" /> : <FileDown className="size-3.5" />}
+                            {isWaitingForFunds ? "Generating Overview..." : "Download Director Overview Report"}
+                        </button>
+                        <button
+                            onClick={() => navigate("/generate-report")}
+                            className="flex items-center gap-2 px-4 py-2 bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-[12px] font-semibold rounded-lg shadow-sm transition-all"
+                        >
+                            <FileText className="size-3.5" />
+                            Genarate Detailed Report
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-blue-400/30 text-white ml-1">NEW</span>
                         </button>
                     </div>
                 </div>
+
+                {viewMode === "Director" && (
+                    <div className="mb-8 border-t-2 border-[#4A6CF7]/35 pt-5 dark:border-[#818CF8]/35 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        <div className="mb-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#71717A] dark:text-[#A1A1AA]">
+                            Project Type
+                        </div>
+                        <div className="flex items-center gap-2.5 overflow-x-auto pb-1">
+                            <button
+                                onClick={() => setDashboardProjectTypeFilter("all")}
+                                className={`flex h-9 flex-shrink-0 items-center gap-2 rounded-lg border px-3.5 text-[11px] font-extrabold uppercase tracking-wide transition-all duration-150 ${
+                                    dashboardProjectTypeFilter === "all"
+                                        ? "bg-[#F5F3FF] border-[#7C3AED] text-[#4C1D95] shadow-sm shadow-[#7C3AED]/10 dark:bg-[#7C3AED]/18 dark:border-[#A78BFA] dark:text-[#DDD6FE]"
+                                        : "border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]"
+                                }`}
+                            >
+                                All Projects
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                    dashboardProjectTypeFilter === "all"
+                                        ? "bg-[#7C3AED] text-white"
+                                        : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50 dark:text-[#A1A1AA]"
+                                }`}>
+                                    {globalTypeCounts.all}
+                                </span>
+                            </button>
+                            <button
+                                onClick={() => setDashboardProjectTypeFilter("research")}
+                                className={`flex h-9 flex-shrink-0 items-center gap-2 rounded-lg border px-3.5 text-[11px] font-extrabold uppercase tracking-wide transition-all duration-150 ${
+                                    dashboardProjectTypeFilter === "research"
+                                        ? "bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A] shadow-sm shadow-[#4A6CF7]/10 dark:bg-[#4A6CF7]/18 dark:border-[#818CF8] dark:text-[#C7D2FE]"
+                                        : "border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]"
+                                }`}
+                            >
+                                Research
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                    dashboardProjectTypeFilter === "research"
+                                        ? "bg-[#4A6CF7] text-white"
+                                        : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50 dark:text-[#A1A1AA]"
+                                }`}>
+                                    {globalTypeCounts.r}
+                                </span>
+                            </button>
+                            <button
+                                onClick={() => setDashboardProjectTypeFilter("consultancy")}
+                                className={`flex h-9 flex-shrink-0 items-center gap-2 rounded-lg border px-3.5 text-[11px] font-extrabold uppercase tracking-wide transition-all duration-150 ${
+                                    dashboardProjectTypeFilter === "consultancy"
+                                        ? "border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] shadow-sm shadow-[#10B981]/10 dark:border-[#10B981]/30 dark:bg-[#10B981]/10 dark:text-[#A7F3D0]"
+                                        : "border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]"
+                                }`}
+                            >
+                                Consultancy
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                    dashboardProjectTypeFilter === "consultancy"
+                                        ? "bg-white/80 text-[#059669] dark:bg-[#18181B]/50"
+                                        : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50 dark:text-[#A1A1AA]"
+                                }`}>
+                                    {globalTypeCounts.c}
+                                </span>
+                            </button>
+                            <button
+                                onClick={() => setDashboardProjectTypeFilter("others")}
+                                className={`flex h-9 flex-shrink-0 items-center gap-2 rounded-lg border px-3.5 text-[11px] font-extrabold uppercase tracking-wide transition-all duration-150 ${
+                                    dashboardProjectTypeFilter === "others"
+                                        ? "bg-[#FAFAF9] border-[#71717A] text-[#27272A] shadow-sm dark:bg-[#27272A] dark:border-[#A1A1AA] dark:text-[#F4F4F5]"
+                                        : "border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]"
+                                }`}
+                            >
+                                Others
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                    dashboardProjectTypeFilter === "others"
+                                        ? "bg-[#71717A] text-white dark:bg-[#A1A1AA] dark:text-black"
+                                        : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50 dark:text-[#A1A1AA]"
+                                }`}>
+                                    {globalTypeCounts.o}
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {viewMode === "Director" && (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -1757,7 +2635,7 @@ export function DirectorDashboard() {
                             <KpiCard
                                 label="Intl. Collaborators"
                                 value={isLoading ? "—" : String(intl.active_agencies || 0)}
-                                subtext="Active Global Collaborators"
+                                subtext=""
                                 icon={
                                     <svg
                                         className="w-[18px] h-[18px]"
@@ -1777,6 +2655,7 @@ export function DirectorDashboard() {
                                 iconBg="#f0f9ff"
                                 circleColor="#0284c7"
                                 onClick={() => openKpiModal("intl", "International Collaborator Projects")}
+                                customBottom={!isLoading && intlBreakdownGrid}
                             />
                         </div>
 
@@ -1944,22 +2823,30 @@ export function DirectorDashboard() {
                             {/* Funding Sources Pie */}
                             <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden">
                                 <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46]">
-                                    <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
-                                        <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-violet-50 dark:bg-violet-950/20 text-[#7c3aed]">
-                                            <svg
-                                                className="w-3.5 h-3.5"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                strokeWidth="2"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
-                                                <path d="M22 12A10 10 0 0 0 12 2v10z" />
-                                            </svg>
+                                    <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center justify-between w-full">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-violet-50 dark:bg-violet-950/20 text-[#7c3aed]">
+                                                <svg
+                                                    className="w-3.5 h-3.5"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth="2"
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
+                                                    <path d="M22 12A10 10 0 0 0 12 2v10z" />
+                                                </svg>
+                                            </div>
+                                            Funding Sources — Breakdown
                                         </div>
-                                        Funding Sources — Breakdown
+                                        <button
+                                            onClick={() => setShowAllFunding(!showAllFunding)}
+                                            className="text-[11px] font-bold text-[#2563eb] dark:text-blue-400 hover:underline whitespace-nowrap bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-md transition-colors"
+                                        >
+                                            {showAllFunding ? "Show Top 7" : "Show All"}
+                                        </button>
                                     </div>
                                 </div>
                                 <div className="p-[18px] px-[22px] pb-5">
@@ -1968,16 +2855,32 @@ export function DirectorDashboard() {
                                             Loading chart...
                                         </div>
                                     ) : pieChartFundingData.length > 0 ? (
-                                        <div className="flex items-center gap-6 h-[300px]">
-                                            <div className="relative flex items-center justify-center w-[200px] h-[200px] shrink-0">
+                                        <div className="flex flex-col w-full h-full">
+                                            <div className="relative w-full shrink-0" style={{ height: "240px" }}>
+                                                <div
+                                                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition-transform z-10 w-28 h-28 rounded-full"
+                                                    onClick={() => {
+                                                        setKpiModal({ type: "total", title: `Funding: All Sources` });
+                                                        setKpiPage(1);
+                                                        setKpiTab("all");
+                                                        setKpiStatusFilter("all");
+                                                    }}
+                                                >
+                                                    <span className="text-3xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none">
+                                                        {pieChartFundingData.reduce((sum: number, d: any) => sum + d.value, 0)}
+                                                    </span>
+                                                    <span className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">
+                                                        Total
+                                                    </span>
+                                                </div>
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <PieChart>
                                                         <Pie
                                                             data={pieChartFundingData}
                                                             cx="50%"
                                                             cy="50%"
-                                                            innerRadius={65}
-                                                            outerRadius={88}
+                                                            innerRadius="60%"
+                                                            outerRadius="80%"
                                                             dataKey="value"
                                                             nameKey="funding_agency"
                                                             paddingAngle={3}
@@ -1987,7 +2890,7 @@ export function DirectorDashboard() {
                                                                     const clickedAgency = data.payload.funding_agency;
 
                                                                     if (clickedAgency === "Others") {
-                                                                        const excludedAgencies = pieChartFundingData.slice(0, 5).map((d: any) => d.funding_agency);
+                                                                        const excludedAgencies = pieChartFundingData.slice(0, 7).map((d: any) => d.funding_agency);
                                                                         setKpiModal({
                                                                             type: "total",
                                                                             title: `Funding: Others`,
@@ -2001,6 +2904,8 @@ export function DirectorDashboard() {
                                                                     setKpiPage(1);
                                                                     setKpiTab("all");
                                                                     setKpiStatusFilter("all");
+                                                                    setKpiSchemeFilter([]);
+                                                                    setKpiAgeFilter("all");
                                                                 }
                                                             }}
                                                             style={{ cursor: "pointer" }}
@@ -2028,49 +2933,55 @@ export function DirectorDashboard() {
                                                         />
                                                     </PieChart>
                                                 </ResponsiveContainer>
-                                                <div
-                                                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition-transform z-10 w-24 h-24 rounded-full"
-                                                    onClick={() => {
-                                                        setKpiModal({ type: "total", title: `Funding: All Sources` });
-                                                        setKpiPage(1);
-                                                        setKpiTab("all");
-                                                        setKpiStatusFilter("all");
-                                                    }}
-                                                >
-                                                    <span className="text-[24px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none">
-                                                        {pieChartFundingData.reduce((sum: number, d: any) => sum + d.value, 0)}
-                                                    </span>
-                                                    <span className="text-[11px] font-bold text-[#71717A] uppercase tracking-widest mt-0.5">
-                                                        Total
-                                                    </span>
-                                                </div>
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                {pieChartFundingData.map((item: any, i: number) => (
-                                                    <div
-                                                        key={i}
-                                                        className="flex items-center justify-between py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0"
-                                                    >
-                                                        <div className="flex items-center gap-2">
-                                                            <span
-                                                                className="w-2.5 h-2.5 rounded-sm shrink-0"
-                                                                style={{
-                                                                    backgroundColor:
-                                                                        CHART_COLORS[i % CHART_COLORS.length],
-                                                                }}
-                                                            />
-                                                            <span
-                                                                className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA] truncate max-w-[130px]"
-                                                                title={item.funding_agency}
-                                                            >
-                                                                {item.funding_agency}
+                                            <div className="w-full mt-2">
+                                                <ul className={`grid grid-cols-1 sm:grid-cols-2 gap-x-20 gap-y-1 w-full ${showAllFunding ? "overflow-y-auto max-h-[160px] custom-scrollbar pr-2" : ""}`}>
+                                                    {pieChartFundingData.map((item: any, i: number) => (
+                                                        <li
+                                                            key={i}
+                                                            className="flex items-start justify-between min-w-0 text-[11px] group cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30 px-2 rounded-lg transition-colors gap-1.5 py-1"
+                                                            onClick={() => {
+                                                                const clickedAgency = item.funding_agency;
+
+                                                                if (clickedAgency === "Others") {
+                                                                    const excludedAgencies = pieChartFundingData.slice(0, 7).map((d: any) => d.funding_agency);
+                                                                    setKpiModal({
+                                                                        type: "total",
+                                                                        title: `Funding: Others`,
+                                                                        fundingAgency: "Others",
+                                                                        excludedFundingAgencies: excludedAgencies
+                                                                    });
+                                                                } else {
+                                                                    setKpiModal({ type: "total", title: `Funding: ${clickedAgency}`, fundingAgency: clickedAgency });
+                                                                }
+
+                                                                setKpiPage(1);
+                                                                setKpiTab("all");
+                                                                setKpiStatusFilter("all");
+                                                                setKpiSchemeFilter([]);
+                                                                setKpiAgeFilter("all");
+                                                            }}
+                                                        >
+                                                            <div className="flex items-start gap-2 pr-2">
+                                                                <span
+                                                                    className="w-2.5 h-2.5 rounded-sm shrink-0 mt-[2px]"
+                                                                    style={{
+                                                                        backgroundColor: CHART_COLORS[i % CHART_COLORS.length],
+                                                                    }}
+                                                                />
+                                                                <span
+                                                                    className="text-[#64748B] dark:text-[#A1A1AA] font-semibold break-words whitespace-normal flex-1 group-hover:text-[#3F3F46] dark:group-hover:text-[#E4E4E7] transition-colors leading-snug"
+                                                                    title={item.funding_agency}
+                                                                >
+                                                                    {item.funding_agency}
+                                                                </span>
+                                                            </div>
+                                                            <span className="font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] shrink-0 mt-[1px]">
+                                                                {item.value}
                                                             </span>
-                                                        </div>
-                                                        <span className="text-[13px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
-                                                            {item.value}
-                                                        </span>
-                                                    </div>
-                                                ))}
+                                                        </li>
+                                                    ))}
+                                                </ul>
                                             </div>
                                         </div>
                                     ) : (
@@ -2085,211 +2996,177 @@ export function DirectorDashboard() {
                         {/* ── Project Analytics & Distribution ── */}
                         <SectionDivider title="Project Analytics & Distribution" />
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-[14px] mb-6">
-                            {/* Research vs Consultancy Pie Chart */}
-                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden">
-                                <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                            {/* Financial Trends Line Chart */}
+                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden flex flex-col">
+                                <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
                                     <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
-                                        <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-purple-50 dark:bg-purple-950/20 text-[#7c3aed]">
-                                            <svg
-                                                className="w-3.5 h-3.5"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                strokeWidth="2"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                                                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                                        <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-amber-50 dark:bg-amber-950/20 text-[#d97706]">
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
                                             </svg>
                                         </div>
-                                        Research vs Consultancy
+                                        Financial Trends
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <select
+                                            value={financialProjectTypeFilter}
+                                            onChange={(e) => setFinancialProjectTypeFilter(e.target.value)}
+                                            className="bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2 py-1 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none focus:border-[#2563eb] cursor-pointer"
+                                        >
+                                            <option value="all">All Types</option>
+                                            <option value="research">Research</option>
+                                            <option value="consultancy">Consultancy</option>
+                                            <option value="others">Others</option>
+                                        </select>
+                                        <span className="text-[11px] font-bold text-[#71717A] uppercase tracking-wider ml-1">Year:</span>
+                                        <select
+                                            value={financialYearFilter}
+                                            onChange={(e) => setFinancialYearFilter(e.target.value)}
+                                            className="bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2 py-1 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none focus:border-[#2563eb] cursor-pointer"
+                                        >
+                                            <option value="all">All Years</option>
+                                            {availableYears.map(y => (
+                                                <option key={y} value={y}>{y}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
-                                <div className="p-[18px] px-[22px] pb-5">
-                                    <div className="h-[260px] relative">
-                                        {isLoading ? (
-                                            <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">
-                                                Loading chart...
+                                <div className="p-[18px] px-[22px] flex-1 flex flex-col">
+                                    <div className="flex gap-4 mb-5">
+                                        <div 
+                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-xl p-3.5 text-center shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
+                                            onClick={() => openKpiModalWithTab("total", "Projects: Total Sanctioned", "ongoing")}
+                                        >
+                                            <div className="text-[20px] font-extrabold tracking-[-0.03em] text-[#2563eb]">
+                                                {isLoading ? "—" : formatCurrency(fundAlloc)}
                                             </div>
-                                        ) : totalProjects === 0 ? (
-                                            <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">
-                                                No data available
+                                            <div className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">
+                                                Total Sanctioned
                                             </div>
-                                        ) : (
-                                            <>
-                                                <div
-                                                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition-transform z-10 w-28 h-28 rounded-full"
-                                                    onClick={() => {
-                                                        setKpiModal({ type: "total", title: `Projects: All Types` });
-                                                        setKpiPage(1);
-                                                        setKpiTab("all");
-                                                        setKpiStatusFilter("all");
-                                                    }}
-                                                >
-                                                    <span className="text-3xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none">
-                                                        {researchProjects + consultancyProjects + othersProjects}
-                                                    </span>
-                                                    <span className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">
-                                                        Total
-                                                    </span>
-                                                </div>
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <PieChart>
-                                                        <Pie
-                                                            data={projectTypeData}
-                                                            cx="50%"
-                                                            cy="50%"
-                                                            innerRadius="60%"
-                                                            outerRadius="80%"
-                                                            dataKey="value"
-                                                            nameKey="name"
-                                                            paddingAngle={5}
-                                                            isAnimationActive={false}
-                                                            onClick={(data: any) => {
-                                                                if (data && data.payload && data.payload.name) {
-                                                                    const pType = data.payload.name.toLowerCase() === "others" ? "others" : data.payload.name.toLowerCase();
-                                                                    setKpiModal({
-                                                                        type: "total",
-                                                                        title: `Projects: ${data.payload.name}`,
-                                                                        projectType: pType
-                                                                    });
-                                                                    setKpiPage(1);
-                                                                    setKpiTab(pType);
-                                                                    setKpiStatusFilter("all");
-                                                                }
-                                                            }}
-                                                            style={{ cursor: "pointer" }}
-                                                        >
-                                                            {projectTypeData.map((entry: any, index: number) => (
-                                                                <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
-                                                            ))}
-                                                        </Pie>
-                                                        <Tooltip
-                                                            contentStyle={{
-                                                                borderRadius: "0.75rem",
-                                                                border: "1px solid #1e293b",
-                                                                background: "#0f172a",
-                                                            }}
-                                                            labelStyle={{
-                                                                color: "#f1f5f9",
-                                                                fontWeight: 700,
-                                                                fontSize: 12,
-                                                            }}
-                                                            itemStyle={{ color: "#94a3b8", fontSize: 11 }}
-                                                            formatter={(value: number, name: string) => [
-                                                                `${value} Projects`,
-                                                                name,
-                                                            ]}
-                                                        />
-                                                    </PieChart>
-                                                </ResponsiveContainer>
-                                            </>
-                                        )}
+                                        </div>
+                                        <div 
+                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-xl p-3.5 text-center shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
+                                            onClick={() => openKpiModalWithTab("total", "Projects: Utilized", "ongoing")}
+                                        >
+                                            <div className="text-[20px] font-extrabold tracking-[-0.03em] text-[#059669]">
+                                                {isLoading || globalUtilizedLoading ? "—" : formatCurrency(fundUtilized)}
+                                            </div>
+                                            <div className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">
+                                                Utilized
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-3 mt-3">
-                                        <div className={`grid ${othersProjects > 0 ? "grid-cols-3" : "grid-cols-2"} gap-3 pt-1`}>
-                                            <div
-                                                className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer group"
-                                                onClick={() => {
-                                                    setKpiModal({ type: "total", title: `Projects: Research`, projectType: "research" });
-                                                    setKpiPage(1);
-                                                    setKpiTab("research");
-                                                    setKpiStatusFilter("all");
-                                                }}
+                                    
+                                    <div className="h-[220px] w-full mt-2">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart 
+                                                data={[
+                                                    { name: "Sanctioned", value: fundAlloc, fill: "#2563eb", filter: "ongoing", title: "Projects: Total Sanctioned" },
+                                                    { name: "Utilized", value: fundUtilized, fill: "#059669", filter: "ongoing", title: "Projects: Utilized" },
+                                                    { name: "Remaining", value: fundRemaining, fill: "#0ea5e9", filter: "ongoing", title: "Projects: Remaining Balance" },
+                                                    // { name: "Proposed", value: computedProposedBudget, fill: "#71717a", filter: "submitted", title: "Projects: Proposed Budget" }
+                                                ]} 
+                                                margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
+                                                barSize={40}
                                             >
-                                                <div className="text-[22px] font-extrabold text-[#2563eb] leading-tight group-hover:scale-110 transition-transform">
-                                                    {researchProjects}
-                                                </div>
-                                                <div className="text-[11px] font-bold text-[#71717A] uppercase tracking-widest mb-2">
-                                                    Research
-                                                </div>
-                                                <div className="flex flex-col gap-1.5 w-full px-2 lg:px-4">
-                                                    <span className="inline-flex items-center justify-between w-full text-[10px] sm:text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 cursor-default">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                                            Ongoing (Sanctioned)
-                                                        </div>
-                                                        <span>{researchOngoing}</span>
-                                                    </span>
-                                                    <span className="inline-flex items-center justify-between w-full text-[10px] sm:text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 cursor-default" title="Registration but pending sanction">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                                                            Submitted (Pending Sanction)
-                                                        </div>
-                                                        <span>{researchSubmitted}</span>
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div
-                                                className="flex flex-col items-center justify-start cursor-pointer group"
-                                                onClick={() => {
-                                                    setKpiModal({ type: "total", title: `Projects: Consultancy`, projectType: "consultancy" });
-                                                    setKpiPage(1);
-                                                    setKpiTab("consultancy");
-                                                    setKpiStatusFilter("all");
-                                                }}
-                                            >
-                                                <div className="text-[22px] font-extrabold text-[#7c3aed] leading-tight group-hover:scale-110 transition-transform">
-                                                    {consultancyProjects}
-                                                </div>
-                                                <div className="text-[11px] font-bold text-[#71717A] uppercase tracking-widest mb-2">
-                                                    Consultancy
-                                                </div>
-                                                <div className="flex flex-col gap-1.5 w-full px-2 lg:px-4">
-                                                    <span className="inline-flex items-center justify-between w-full text-[10px] sm:text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 cursor-default">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                                            Ongoing (Sanctioned)
-                                                        </div>
-                                                        <span>{consultancyOngoing}</span>
-                                                    </span>
-                                                    <span className="inline-flex items-center justify-between w-full text-[10px] sm:text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 cursor-default" title="Registration but pending sanction">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                                                            Submitted (Pending Sanction)
-                                                        </div>
-                                                        <span>{consultancySubmitted}</span>
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            {othersProjects > 0 && (
-                                                <div
-                                                    className="flex flex-col items-center justify-start border-l border-[#E4E4E7] dark:border-[#3F3F46] pl-2 lg:pl-3 cursor-pointer group"
-                                                    onClick={() => {
-                                                        setKpiModal({ type: "total", title: `Projects: Others`, projectType: "others" });
-                                                        setKpiPage(1);
-                                                        setKpiTab("others");
-                                                        setKpiStatusFilter("all");
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E4E7" className="dark:stroke-[#3F3F46]" />
+                                                <XAxis 
+                                                    dataKey="name" 
+                                                    axisLine={false} 
+                                                    tickLine={false} 
+                                                    tick={{ fill: "#71717A", fontSize: 11, fontWeight: 700 }}
+                                                    dy={10}
+                                                />
+                                                <Tooltip
+                                                    cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+                                                    contentStyle={{
+                                                        borderRadius: "0.75rem",
+                                                        border: "1px solid #1e293b",
+                                                        background: "#0f172a",
+                                                    }}
+                                                    labelStyle={{ display: "none" }}
+                                                    itemStyle={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9" }}
+                                                    formatter={(value: any, name: string, props: any) => [
+                                                        formatCurrency(value),
+                                                        props.payload.name
+                                                    ]}
+                                                />
+                                                <Bar 
+                                                    dataKey="value" 
+                                                    radius={[6, 6, 0, 0]}
+                                                    cursor="pointer"
+                                                    isAnimationActive={false}
+                                                    onClick={(data: any) => {
+                                                        if (data && data.payload) {
+                                                            openKpiModalWithTab("total", data.payload.title, data.payload.filter);
+                                                        }
                                                     }}
                                                 >
-                                                    <div className="text-[22px] font-extrabold text-[#059669] leading-tight group-hover:scale-110 transition-transform">
-                                                        {othersProjects}
-                                                    </div>
-                                                    <div className="text-[11px] font-bold text-[#71717A] uppercase tracking-widest mb-2">
-                                                        Others
-                                                    </div>
-                                                    <div className="flex flex-col gap-1.5 w-full px-2 lg:px-4">
-                                                        <span className="inline-flex items-center justify-between w-full text-[10px] sm:text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 cursor-default">
-                                                            <div className="flex items-center gap-1.5">
-                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                                                Ongoing
-                                                            </div>
-                                                            <span>{othersOngoing}</span>
-                                                        </span>
-                                                        <span
-                                                            className="inline-flex items-center justify-between w-full text-[10px] sm:text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 cursor-default"
-                                                            title="Registration but pending sanction"
-                                                        >
-                                                            <div className="flex items-center gap-1.5">
-                                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                                                                Submitted
-                                                            </div>
-                                                            <span>{othersSubmitted}</span>
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            )}
+                                                    <LabelList 
+                                                        dataKey="value" 
+                                                        position="top" 
+                                                        formatter={(val: any) => (val && Number(val) > 0) ? formatCurrency(Number(val)) : ""}
+                                                        style={{ fontSize: '10px', fontWeight: 'bold', fill: '#71717a' }} 
+                                                    />
+                                                    {
+                                                        [
+                                                            { name: "Sanctioned", value: fundAlloc, fill: "#2563eb", filter: "ongoing", title: "Projects: Total Sanctioned" },
+                                                            { name: "Utilized", value: fundUtilized, fill: "#059669", filter: "ongoing", title: "Projects: Utilized" },
+                                                            { name: "Remaining", value: fundRemaining, fill: "#0ea5e9", filter: "ongoing", title: "Projects: Remaining Balance" },
+                                                            // { name: "Proposed", value: computedProposedBudget, fill: "#71717a", filter: "submitted", title: "Projects: Proposed Budget" }
+                                                        ].map((entry, index) => (
+                                                            <Cell 
+                                                                key={`cell-${index}`} 
+                                                                fill={entry.fill} 
+                                                                className="hover:opacity-80 transition-opacity"
+                                                            />
+                                                        ))
+                                                    }
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+
+                                    <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-4 mt-auto">
+                                        <div className="space-y-1">
+                                            <div 
+                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                onClick={() => openKpiModalWithTab("total", "Projects: Total Sanctioned", "ongoing")}
+                                            >
+                                                <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Total Sanctioned</span>
+                                                <span className="text-[13px] font-extrabold text-[#2563eb]">
+                                                    {isLoading || globalUtilizedLoading ? "—" : formatCurrency(fundAlloc)}
+                                                </span>
+                                            </div>
+                                            <div 
+                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                onClick={() => openKpiModalWithTab("total", "Projects: Utilized", "ongoing")}
+                                            >
+                                                <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Utilized</span>
+                                                <span className="text-[13px] font-extrabold text-[#059669]">
+                                                    {isLoading || globalUtilizedLoading ? "—" : formatCurrency(fundUtilized)}
+                                                </span>
+                                            </div>
+                                            <div 
+                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                onClick={() => openKpiModalWithTab("total", "Projects: Remaining Balance", "ongoing")}
+                                            >
+                                                <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Remaining Balance</span>
+                                                <span className="text-[13px] font-extrabold text-[#0ea5e9]">
+                                                    {isLoading || globalUtilizedLoading ? "—" : formatCurrency(fundRemaining)}
+                                                </span>
+                                            </div>
+                                            {/* 
+                                            <div 
+                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                onClick={() => openKpiModalWithTab("total", "Projects: Proposed Budget", "submitted")}
+                                            >
+                                                <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Proposed Budget (Review)</span>
+                                                <span className="text-[13px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                                    {isLoading ? "—" : formatCurrency(computedProposedBudget)}
+                                                </span>
+                                            </div>
+                                            */}
                                         </div>
                                     </div>
                                 </div>
@@ -2419,22 +3296,34 @@ export function DirectorDashboard() {
                                                         </div>
 
                                                         <div className="w-full mt-2">
-                                                            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 w-full">
+                                                            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-20 gap-y-1 w-full">
                                                                 {pieData.map((entry: any, index: number) => (
                                                                     <li
                                                                         key={`item-${index}`}
-                                                                        className="flex items-center text-[11px] min-w-0 group cursor-default gap-1.5"
+                                                                        className="flex items-center justify-between text-[11px] min-w-0 group cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30 px-2 rounded-lg transition-colors gap-1.5 py-1"
+                                                                        onClick={() => {
+                                                                            if (entry.dept_name) {
+                                                                                const isOther = entry.dept_name === "Other Departments";
+                                                                                const allowedDepts = isOther ? pieChartDeptData.slice(10).map((d: any) => d.dept_name) : [entry.dept_name];
+                                                                                setKpiModal({ type: "total", title: `Department: ${entry.formatted_name}`, allowedDepts });
+                                                                                setKpiPage(1);
+                                                                                setKpiTab("all");
+                                                                                setKpiStatusFilter("all");
+                                                                            }
+                                                                        }}
                                                                     >
-                                                                        <span
-                                                                            className="w-2 h-2 rounded-full shrink-0"
-                                                                            style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
-                                                                        />
-                                                                        <span
-                                                                            className="text-[#64748B] dark:text-[#A1A1AA] font-semibold truncate flex-1 group-hover:text-[#3F3F46] dark:group-hover:text-[#E4E4E7] transition-colors"
-                                                                            title={entry.formatted_name}
-                                                                        >
-                                                                            {entry.formatted_name}
-                                                                        </span>
+                                                                        <div className="flex items-center gap-1.5 pr-2 truncate">
+                                                                            <span
+                                                                                className="w-2 h-2 rounded-full shrink-0"
+                                                                                style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
+                                                                            />
+                                                                            <span
+                                                                                className="text-[#64748B] dark:text-[#A1A1AA] font-semibold truncate group-hover:text-[#3F3F46] dark:group-hover:text-[#E4E4E7] transition-colors"
+                                                                                title={entry.formatted_name}
+                                                                            >
+                                                                                {entry.formatted_name}
+                                                                            </span>
+                                                                        </div>
                                                                         <span className="font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] shrink-0">
                                                                             {entry.project_count}
                                                                         </span>
@@ -2449,6 +3338,98 @@ export function DirectorDashboard() {
                                     </div>
                                 </div>
                             </div>
+
+                        {/* ── Project Timeline (Year-wise) ── */}
+                        {false && (
+                        <div className="lg:col-span-2 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden flex flex-col">
+                            <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
+                                <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-indigo-50 dark:bg-indigo-950/20 text-[#6366f1]">
+                                        <BarChart3 size={14} strokeWidth={2.5} />
+                                    </div>
+                                    Project Timeline (Year-wise)
+                                </div>
+                                <div className="flex items-center gap-4 text-[11px] font-bold text-[#71717A]">
+                                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#2563eb]"></div>Started</div>
+                                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#8b5cf6]"></div>Completed</div>
+                                </div>
+                            </div>
+                            <div className="p-[18px] px-[22px]">
+                                <div className="h-[260px] w-full">
+                                    {startEndSanctionData.length > 0 ? (
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart 
+                                                data={startEndSanctionData} 
+                                                margin={{ top: 20, right: 10, left: 10, bottom: 0 }}
+                                            >
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E4E7" className="dark:stroke-[#3F3F46]" />
+                                                <XAxis 
+                                                    dataKey="year" 
+                                                    axisLine={false} 
+                                                    tickLine={false} 
+                                                    tick={{ fill: "#71717A", fontSize: 11, fontWeight: 700 }}
+                                                    dy={10}
+                                                />
+                                                <Tooltip
+                                                    cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+                                                    contentStyle={{
+                                                        borderRadius: "0.75rem",
+                                                        border: "1px solid #1e293b",
+                                                        background: "#0f172a",
+                                                    }}
+                                                    labelStyle={{
+                                                        color: "#f1f5f9",
+                                                        fontWeight: 700,
+                                                        fontSize: 13,
+                                                        marginBottom: 6
+                                                    }}
+                                                    itemStyle={{ fontSize: 13, fontWeight: 700 }}
+                                                    formatter={(value: any, name: string) => [
+                                                        `${value} Projects`,
+                                                        name === "startCount" ? "Started" : "Completed"
+                                                    ]}
+                                                />
+                                                <Bar 
+                                                    dataKey="startCount" 
+                                                    name="startCount"
+                                                    fill="#2563eb" 
+                                                    radius={[4, 4, 0, 0]}
+                                                    cursor="pointer"
+                                                    barSize={16}
+                                                    onClick={(data: any) => {
+                                                        const year = data?.payload?.year || data?.year;
+                                                        if (year) openKpiModalWithYear(year, "ongoing");
+                                                    }}
+                                                    className="hover:opacity-80 transition-opacity"
+                                                >
+                                                    <LabelList dataKey="startCount" position="top" style={{ fontSize: '10px', fontWeight: 'bold', fill: '#71717a' }} />
+                                                </Bar>
+                                                <Bar 
+                                                    dataKey="endCount" 
+                                                    name="endCount"
+                                                    fill="#8b5cf6" 
+                                                    radius={[4, 4, 0, 0]}
+                                                    cursor="pointer"
+                                                    barSize={16}
+                                                    onClick={(data: any) => {
+                                                        const year = data?.payload?.year || data?.year;
+                                                        if (year) openKpiModalWithYear(year, "completed");
+                                                    }}
+                                                    className="hover:opacity-80 transition-opacity"
+                                                >
+                                                    <LabelList dataKey="endCount" position="top" style={{ fontSize: '10px', fontWeight: 'bold', fill: '#71717a' }} />
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm font-medium">
+                                            No timeline data available
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        )}
 
                             {false && (
                                 <>
@@ -2605,7 +3586,7 @@ export function DirectorDashboard() {
 
                         {/* ── Financial Intelligence ── */}
                         <SectionDivider title="Financial" />
-                        <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-[14px] mb-6">
+                        <div className="mb-6">
                             {/* All Projects Table */}
                             {(() => {
                                 // Director-only restrict filter
@@ -2613,37 +3594,39 @@ export function DirectorDashboard() {
 
                                 const STATUS_FILTER_OPTIONS = [
                                     { value: "all", label: "All Projects" },
-                                    { value: "ongoing", label: "Ongoing (Sanctioned)" },
+                                    { value: "ongoing", label: "Ongoing (Sanction Approved)" },
                                     { value: "submitted", label: "Submitted (Pending Sanction)" },
-                                    { value: "draft", label: "Draft" },
-                                    { value: "pending", label: "Pending" },
                                     { value: "completed", label: "Completed" },
                                     { value: "cancelled", label: "Cancelled" },
                                 ];
 
-                                const _ongoingIds = new Set<string>(overview?.ongoing_project_nos || []);
-                                const _submittedIds = new Set<string>(overview?.submitted_project_nos || []);
-
                                 let allProjs: any[] = (allProjectsList || []).map((p: any) => {
                                     // Classify using the same ID sets used by all other charts
                                     let computedStatus: string;
-                                    if (_ongoingIds.has(p.name)) computedStatus = "ongoing";
-                                    else if (_submittedIds.has(p.name)) computedStatus = "submitted";
+                                    const sanctioned = Number(p.total_budget_amount || p.grand_total_proposal) || 0;
+                                    const hasStartDate = !!p.prj_start_date;
+                                    const duration = Number(p.project_duration_months) || 0;
+
+                                    if (ongoingIds.has(p.name)) {
+                                        if (sanctioned === 0 && !hasStartDate && duration === 0) {
+                                            computedStatus = "pending sanction";
+                                        } else {
+                                            computedStatus = "ongoing";
+                                        }
+                                    }
+                                    else if (submittedIds.has(p.name)) computedStatus = "submitted";
                                     else {
                                         const s = (p.workflow_state || "").toLowerCase();
-                                        if (s.includes("draft")) computedStatus = "draft";
+                                        if (s.includes("draft") || p.docstatus === 0) computedStatus = "draft";
                                         else if (s.includes("complet")) computedStatus = "completed";
                                         else if (s.includes("cancel") || s.includes("reject")) computedStatus = "cancelled";
                                         else computedStatus = "pending";
                                     }
                                     return {
-                                        name: p.name,
-                                        project_title: p.project_title,
-                                        pi_webmail: p.pi_webmail,
+                                        ...p,
                                         department: p.implementation_department,
-                                        workflow_state: p.workflow_state,
                                         _status: computedStatus,
-                                        total_budget_amount: p.total_budget_amount || p.grand_total_proposal || 0,
+                                        total_budget_amount: sanctioned,
                                     };
                                 }).sort((a: any, b: any) => (b.total_budget_amount - a.total_budget_amount));
 
@@ -2718,21 +3701,60 @@ export function DirectorDashboard() {
                                                             return (
                                                                 <tr
                                                                     key={proj.name || idx}
-                                                                    className="border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
+                                                                    onClick={() => navigate(`/project-details-overview/${proj.name}`, { state: { returnTo: location.pathname + location.search, ...getDashboardState() } })}
+                                                                    className="border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors cursor-pointer"
                                                                 >
                                                                     <td className="p-3 px-3.5 align-middle text-[11px] font-extrabold text-[#A1A1AA] font-mono">
                                                                         {String(globalIdx + 1).padStart(2, "0")}
                                                                     </td>
                                                                     <td className="p-3 px-3.5 align-middle max-w-[300px]">
                                                                         <div className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight line-clamp-2">
-                                                                            {proj.project_title || "Untitled"}
+                                                                            {proj.project_title || proj.name || "Untitled"}
                                                                         </div>
-                                                                        <span className="font-mono text-[9px] text-[#71717A] bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] px-1.5 py-0.5 rounded inline-block mt-1">
-                                                                            {proj.name}
-                                                                        </span>
+                                                                        <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                                                            {proj.project_no ? (
+                                                                                <span className="font-mono text-[9px] text-[#71717A] bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] px-1.5 py-0.5 rounded inline-block">
+                                                                                    {proj.project_no}
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span className="font-mono text-[9px] text-[#71717A] bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] px-1.5 py-0.5 rounded inline-block">
+                                                                                    {proj.name}
+                                                                                </span>
+                                                                            )}
+                                                                            {(() => {
+                                                                                const d = proj.sanctioned_letter_date || proj.prj_start_date || proj.creation;
+                                                                                const isOld = proj.is_old_project === 1 || proj.is_old_project === true || (d && new Date(d).getFullYear() < 2026);
+                                                                                return isOld ? (
+                                                                                    <span className="font-mono text-[9px] text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded inline-block">Old</span>
+                                                                                ) : (
+                                                                                    <span className="font-mono text-[9px] text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded inline-block">New</span>
+                                                                                );
+                                                                            })()}
+                                                                            <ProjectDateBadge proj={proj} />
+                                                                            {proj.project_type && (
+                                                                                <span className="font-mono text-[9px] text-purple-700 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-400 px-1.5 py-0.5 rounded inline-block">
+                                                                                    {proj.project_type}
+                                                                                </span>
+                                                                            )}
+                                                                            {(() => {
+                                                                                const scheme = normalizeSchemeName(proj.funding_agency_schemes || proj.scheme_name || "");
+                                                                                return scheme ? (
+                                                                                    <span className="font-mono text-[9px] text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded inline-block">
+                                                                                        {scheme}
+                                                                                    </span>
+                                                                                ) : null;
+                                                                            })()}
+                                                                        </div>
                                                                     </td>
-                                                                    <td className="p-3 px-3.5 align-middle text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA] whitespace-nowrap">
-                                                                        {proj.pi_webmail ? proj.pi_webmail.split("@")[0] : "—"}
+                                                                    <td className="p-3 px-3.5 align-middle text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
+                                                                        <div className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
+                                                                            {proj.pi_webmail ? (emailToNameMap[proj.pi_webmail.toLowerCase().trim()] || proj.pi_webmail.split("@")[0]) : "—"}
+                                                                        </div>
+                                                                        {proj.pi_webmail && (
+                                                                            <div className="mt-0.5">
+                                                                                {proj.pi_webmail}
+                                                                            </div>
+                                                                        )}
                                                                     </td>
                                                                     <td className="p-3 px-3.5 align-middle">
                                                                         <span className="inline-block text-[9px] font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 uppercase tracking-wide">
@@ -2740,7 +3762,7 @@ export function DirectorDashboard() {
                                                                         </span>
                                                                     </td>
                                                                     <td className="p-3 px-3.5 align-middle">
-                                                                        <StatusBadge status={proj._status} />
+                                                                        <AsyncTableStatusBadge proj={proj} />
                                                                     </td>
                                                                     <td className="p-3 px-3.5 align-middle font-extrabold text-[13px] text-[#059669] whitespace-nowrap">
                                                                         {formatCurrency(proj.total_budget_amount || 0)}
@@ -2797,102 +3819,6 @@ export function DirectorDashboard() {
                                 );
                             })()}
 
-                            {/* Financial Breakdown Panel */}
-                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden">
-                                <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46]">
-                                    <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
-                                        <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-amber-50 dark:bg-amber-950/20 text-[#d97706]">
-                                            <svg
-                                                className="w-3.5 h-3.5"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                strokeWidth="2"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <rect x="2" y="3" width="20" height="14" rx="2" />
-                                                <line x1="8" y1="21" x2="16" y2="21" />
-                                                <line x1="12" y1="17" x2="12" y2="21" />
-                                            </svg>
-                                        </div>
-                                        Financial Breakdown
-                                    </div>
-                                </div>
-                                <div className="p-[18px] px-[22px] space-y-3">
-                                    <div className="flex gap-2">
-                                        <div className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg p-2.5 text-center">
-                                            <div className="text-[18px] font-extrabold tracking-[-0.03em] text-[#2563eb]">
-                                                {isLoading ? "—" : formatCurrency(fundAlloc)}
-                                            </div>
-                                            <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mt-0.5">
-                                                Total Sanctioned
-                                            </div>
-                                        </div>
-                                        <div className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg p-2.5 text-center">
-                                            <div className="text-[18px] font-extrabold tracking-[-0.03em] text-[#059669]">
-                                                {isLoading ? "—" : formatCurrency(fundUtilized)}
-                                            </div>
-                                            <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mt-0.5">
-                                                Utilized
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center justify-between mb-1.5">
-                                            <span className="text-[10px] font-semibold text-[#71717A]">
-                                                Utilization Rate
-                                            </span>
-                                            <span className="text-[10px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
-                                                {fundUtilPercent}%
-                                            </span>
-                                        </div>
-                                        <div className="h-1.5 bg-[#E4E4E7] dark:bg-[#3F3F46] rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full rounded-full bg-[#059669] transition-all"
-                                                style={{
-                                                    width: `${Math.min(parseFloat(fundUtilPercent), 100)}%`,
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-0 pt-1">
-                                        {[
-                                            {
-                                                label: "Remaining Balance",
-                                                value: formatCurrency(fundRemaining),
-                                                color: "text-[#059669]",
-                                            },
-                                            {
-                                                label: "Proposed Budget (Review)",
-                                                value: formatCurrency(
-                                                    proposals.proposed_budget_total || 0
-                                                ),
-                                                color: "text-[#3F3F46] dark:text-[#E4E4E7]",
-                                            },
-                                            {
-                                                label: "Total Project Staff",
-                                                value: `${totalStaffCount} Members`,
-                                                color: "text-[#3F3F46] dark:text-[#E4E4E7]",
-                                            },
-                                        ].map((row, i) => (
-                                            <div
-                                                key={i}
-                                                className="flex items-center justify-between py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0"
-                                            >
-                                                <span className="text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
-                                                    {row.label}
-                                                </span>
-                                                <span
-                                                    className={`text-[12px] font-extrabold ${row.color}`}
-                                                >
-                                                    {isLoading ? "—" : row.value}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
                         </div>
 
                         {/* ── Portfolio Details ── */}
@@ -2934,6 +3860,11 @@ export function DirectorDashboard() {
                                             color: "#7c3aed",
                                         },
                                         {
+                                            label: "Others Projects",
+                                            value: othersProjects,
+                                            color: "#f59e0b",
+                                        },
+                                        {
                                             label: "Ongoing Projects",
                                             value: ongoingProjects,
                                             color: "#059669",
@@ -2941,7 +3872,18 @@ export function DirectorDashboard() {
                                     ].map((item, i) => (
                                         <div
                                             key={i}
-                                            className="flex items-center justify-between py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] gap-2"
+                                            className="flex items-center justify-between py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] gap-2 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                            onClick={() => {
+                                                if (item.label === "Research Projects") {
+                                                    openKpiModalWithTab("total", "Projects: Research Projects", "all");
+                                                } else if (item.label === "Consultancy Projects") {
+                                                    openKpiModalWithTab("total", "Projects: Consultancy Projects", "all");
+                                                } else if (item.label === "Others Projects") {
+                                                    openKpiModalWithTab("total", "Projects: Others Projects", "all");
+                                                } else if (item.label === "Ongoing Projects") {
+                                                    openKpiModalWithTab("ongoing", "Projects: Ongoing Projects", "ongoing");
+                                                }
+                                            }}
                                         >
                                             <div className="flex items-center gap-2 w-[140px] shrink-0">
                                                 <span
@@ -2969,15 +3911,19 @@ export function DirectorDashboard() {
                                             </span>
                                         </div>
                                     ))}
-                                    <div className="flex items-center justify-between py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
-                                        <span className="text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
-                                            Total Project Staff
+                                    
+                                    {/* <button 
+                                        onClick={() => setStaffBreakdownOpen(true)}
+                                        className="w-full mt-2 flex items-center justify-between py-2.5 px-3 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 transition-colors group"
+                                    >
+                                        <span className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                            View Active Staff Breakdown
                                         </span>
-                                        <span className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
-                                            {isLoading ? "—" : totalStaffCount} members
+                                        <span className="text-[11px] font-bold text-[#2563eb] group-hover:text-indigo-600 dark:text-blue-400">
+                                            Check All →
                                         </span>
-                                    </div>
-                                    <div className="flex items-center justify-between py-2.5" />
+                                    </button> */}
                                 </div>
                             </div>
 
@@ -3027,7 +3973,8 @@ export function DirectorDashboard() {
                                             return (
                                                 <div
                                                     key={proj.project_id || idx}
-                                                    className="flex items-center py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 gap-2.5"
+                                                    className="flex items-center py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 gap-2.5 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                    onClick={() => navigate(`/project-details-overview/${proj.name}`, { state: { returnTo: location.pathname + location.search, ...getDashboardState() } })}
                                                 >
                                                     <div className="text-[11px] font-extrabold text-[#71717A] w-5 shrink-0 font-mono">
                                                         {String(idx + 1).padStart(2, "0")}
@@ -3097,7 +4044,31 @@ export function DirectorDashboard() {
                                                     : 0;
                                             const color = CHART_COLORS[i] || "#64748b";
                                             return (
-                                                <div key={i}>
+                                                <div 
+                                                    key={i}
+                                                    className="cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors group"
+                                                    onClick={() => {
+                                                        const clickedAgency = agency.funding_agency;
+                                                        if (clickedAgency === "Others") {
+                                                            const excludedAgencies = pieChartFundingData.slice(0, 7).map((d: any) => d.funding_agency);
+                                                            setKpiModal({
+                                                                type: "total",
+                                                                title: `Funding: Others`,
+                                                                fundingAgency: "Others",
+                                                                excludedFundingAgencies: excludedAgencies
+                                                            });
+                                                        } else {
+                                                            setKpiModal({
+                                                                type: "total",
+                                                                title: `Funding: ${clickedAgency}`,
+                                                                fundingAgency: clickedAgency
+                                                            });
+                                                        }
+                                                        setKpiPage(1);
+                                                        setKpiTab("all");
+                                                        setKpiStatusFilter("all");
+                                                    }}
+                                                >
                                                     <div className="flex items-center justify-between py-[9px] border-b border-[#E4E4E7] dark:border-[#3F3F46]">
                                                         <div>
                                                             <div className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
@@ -3142,10 +4113,10 @@ export function DirectorDashboard() {
 
                 {viewMode === "Department" && (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 mb-8">
-                        <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-[16px] font-extrabold tracking-tight text-[#3F3F46] dark:text-[#E4E4E7]">
-                                Department Allocations
-                            </h2>
+                                <div className="flex items-center justify-between mb-6">
+                                    <h2 className="text-[16px] font-extrabold tracking-tight text-[#3F3F46] dark:text-[#E4E4E7]">
+                                        Department Allocations
+                                    </h2>
                             <div className="relative">
                                 <Search
                                     className="absolute left-3 top-1/2 -translate-y-1/2 text-[#71717A] dark:text-[#A1A1AA]"
@@ -3897,7 +4868,7 @@ export function DirectorDashboard() {
                                                                 <div className="flex flex-col items-end gap-2 shrink-0">
                                                                     <ProjectFundStatusBadge projectName={proj.name} />
                                                                     <button
-                                                                        onClick={() => navigate(`/project-details-overview/${proj.name}`, { state: { returnTo: location.pathname + location.search, expandedPI, piModalPage, hideOtherTabs: true } })}
+                                                                        onClick={() => navigate(`/project-details-overview/${proj.name}`, { state: { returnTo: location.pathname + location.search, ...getDashboardState() } })}
                                                                         className="text-[10px] font-semibold text-[#D97757] hover:text-[#c26245] flex items-center gap-1 group transition-colors"
                                                                     >
                                                                         View Project
@@ -3936,7 +4907,7 @@ export function DirectorDashboard() {
                                                                     ) : (
                                                                         <FundingAgencyNameDisplay
                                                                             agencyId={proj.funding_agen}
-                                                                            fallbackText={proj.select_funding_agency || proj["funding_agen.funding_agency_name"]}
+                                                                            fallbackText={proj.select_funding_agency || proj["funding_agen.funding_agency_name"] || proj.funding_agency_schemes || proj.scheme_name}
                                                                             fundingAgencyMap={fundingAgencyMap}
                                                                         />
                                                                     )}
@@ -4070,7 +5041,7 @@ export function DirectorDashboard() {
                     onClick={closeKpiModal}
                 >
                     <div
-                        className="bg-white dark:bg-[#27272A] rounded-2xl shadow-2xl border border-[#E4E4E7] dark:border-[#3F3F46] w-full max-w-4xl max-h-[85vh] flex flex-col"
+                        className="bg-white dark:bg-[#27272A] rounded-2xl shadow-2xl border border-[#E4E4E7] dark:border-[#3F3F46] w-[95vw] max-w-[1400px] max-h-[96vh] flex flex-col"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex items-center justify-between px-6 py-4 border-b border-[#E4E4E7] dark:border-[#3F3F46] shrink-0">
@@ -4088,17 +5059,25 @@ export function DirectorDashboard() {
                                         e.stopPropagation();
                                         if (!kpiModalRows || kpiModalRows.length === 0) return;
                                         const csvContent = [
-                                            ["ID", "Project Title", "PI Name", "Department", "Project Type", "Status", "Funding Agency", "Total Budget"],
-                                            ...kpiModalRows.map(p => [
-                                                p.name || "",
-                                                `"${(p.project_title || "").replace(/"/g, '""')}"`,
-                                                `"${(p.pi_name || "").replace(/"/g, '""')}"`,
-                                                `"${(p.dept_name || p.implementation_department || p.user_department || "").replace(/"/g, '""')}"`,
-                                                p.project_type || "",
-                                                p.workflow_state || "",
-                                                `"${(p.funding_agency_name || p.funding_agency || "").replace(/"/g, '""')}"`,
-                                                p.total_budget_amount || p.grand_total_proposal || "0"
-                                            ])
+                                            ["Sl.", "Project No", "Project Title", "PI Name", "Department", "Project Type", "Status", "Funding Agency", "Scheme", "Total Budget", "Start Date", "Category"],
+                                            ...kpiModalRows.map((p, idx) => {
+                                                const d = p.sanctioned_letter_date || p.prj_start_date || p.creation;
+                                                const isOld = p.is_old_project === 1 || p.is_old_project === true || (d && new Date(d).getFullYear() < 2026);
+                                                return [
+                                                    (idx + 1).toString(),
+                                                    p.project_no || "",
+                                                    `"${(p.project_title || "").replace(/"/g, '""')}"`,
+                                                    `"${((p.pi_webmail ? emailToNameMap[p.pi_webmail.toLowerCase().trim()] : "") || "").replace(/"/g, '""')}"`,
+                                                    `"${(getDeptName(p.implementation_department || p.user_department) || p.dept_name || "").replace(/"/g, '""')}"`,
+                                                    p.project_type || "",
+                                                    p.workflow_state || "",
+                                                    `"${(p.funding_agency_name || p.funding_agency || p.funding_agency_other || p.origin_of_funding_agency || "").replace(/"/g, '""')}"`,
+                                                    `"${normalizeSchemeName(p.funding_agency_schemes || p.scheme_name || "")}"`,
+                                                    p.total_budget_amount || p.grand_total_proposal || "0",
+                                                    d ? (typeof d === 'string' ? d.split(' ')[0] : new Date(d).toISOString().split('T')[0]) : "",
+                                                    isOld ? "Old" : "New"
+                                                ];
+                                            })
                                         ].map(e => e.join(",")).join("\n");
 
                                         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -4115,6 +5094,95 @@ export function DirectorDashboard() {
                                 >
                                     <FileDown size={14} />
                                     <span className="hidden sm:inline">Export</span>
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (!kpiModalRows || kpiModalRows.length === 0) return;
+                                        
+                                        const html = `
+                                            <!DOCTYPE html>
+                                            <html>
+                                            <head>
+                                                <title>${kpiModal.title || "Projects"}</title>
+                                                <style>
+                                                    @page { size: A4 landscape; margin: 10mm; }
+                                                    body { font-family: -apple-system, sans-serif; font-size: 9pt; padding: 20px; }
+                                                    h2 { margin-top: 0; font-size: 14pt; }
+                                                    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                                                    th, td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; }
+                                                    th { background: #f8fafc; font-weight: bold; }
+                                                </style>
+                                            </head>
+                                            <body>
+                                                <h2>${kpiModal.title || "Projects"}</h2>
+                                                <table>
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Sl.</th>
+                                                            <th>Project No</th>
+                                                            <th>Project Title</th>
+                                                            <th>PI Name</th>
+                                                            <th>Department</th>
+                                                            <th>Type</th>
+                                                            <th>Status</th>
+                                                            <th>Funding Agency</th>
+                                                            <th>Start Date</th>
+                                                            <th>Category</th>
+                                                            <th style="text-align: right;">Total Budget</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        ${kpiModalRows.map((p: any, idx: number) => {
+                                                            const d = p.sanctioned_letter_date || p.prj_start_date || p.creation;
+                                                            const isOld = p.is_old_project === 1 || p.is_old_project === true || (d && new Date(d).getFullYear() < 2026);
+                                                            const cat = isOld ? "Old" : "New";
+                                                            const pi = p.pi_webmail ? emailToNameMap[p.pi_webmail.toLowerCase().trim()] || p.pi_webmail : "";
+                                                            const dept = getDeptName(p.implementation_department || p.user_department) || p.dept_name || "";
+                                                            const sDate = d ? (typeof d === 'string' ? d.split(' ')[0] : new Date(d).toISOString().split('T')[0]) : "";
+                                                            const projNoStr = p.project_no || "";
+                                                            const budgetStr = p.total_budget_amount || p.grand_total_proposal ? "Rs. " + (p.total_budget_amount || p.grand_total_proposal) : "0";
+                                                            const agency = p.funding_agency_name || p.funding_agency || p.funding_agency_other || p.origin_of_funding_agency || "";
+                                                            const scheme = normalizeSchemeName(p.funding_agency_schemes || p.scheme_name || "");
+                                                            return `
+                                                                <tr>
+                                                                    <td>${idx + 1}</td>
+                                                                    <td>${projNoStr}</td>
+                                                                    <td>${p.project_title || ""}</td>
+                                                                    <td>${pi}</td>
+                                                                    <td>${dept}</td>
+                                                                    <td>${p.project_type || ""}</td>
+                                                                    <td>${p.workflow_state || ""}</td>
+                                                                    <td>
+                                                                        <div style="font-weight: bold;">${agency}</div>
+                                                                        ${scheme ? `<div style="font-size: 8pt; color: #2563eb; margin-top: 2px;">${scheme}</div>` : ""}
+                                                                    </td>
+                                                                    <td>${sDate}</td>
+                                                                    <td>${cat}</td>
+                                                                    <td style="text-align: right;">${budgetStr}</td>
+                                                                </tr>
+                                                            `;
+                                                        }).join('')}
+                                                    </tbody>
+                                                </table>
+                                                <script>
+                                                    window.onload = function() { window.print(); window.close(); }
+                                                </script>
+                                            </body>
+                                            </html>
+                                        `;
+                                        const win = window.open("", "_blank");
+                                        if (win) {
+                                            win.document.open();
+                                            win.document.write(html);
+                                            win.document.close();
+                                        }
+                                    }}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 rounded-lg text-[11px] font-bold transition-colors"
+                                    title="Print as PDF (Landscape)"
+                                >
+                                    <Printer size={14} />
+                                    <span className="hidden sm:inline">Print</span>
                                 </button>
                                 <button
                                     onClick={closeKpiModal}
@@ -4139,9 +5207,71 @@ export function DirectorDashboard() {
                                             className="bg-white dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] text-[11px] font-bold px-3 py-1.5 rounded-lg text-[#3F3F46] dark:text-[#E4E4E7] outline-none shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             <option value="all">All Status</option>
-                                            <option value="ongoing">Ongoing (Sanctioned)</option>
+                                            <option value="ongoing">Ongoing (Sanction Approved)</option>
                                             <option value="submitted">Submitted (Pending)</option>
                                         </select>
+                                        <select
+                                            value={kpiAgeFilter}
+                                            onChange={(e) => {
+                                                setKpiAgeFilter(e.target.value);
+                                                setKpiPage(1);
+                                            }}
+                                            className="bg-white dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] text-[11px] font-bold px-3 py-1.5 rounded-lg text-[#3F3F46] dark:text-[#E4E4E7] outline-none shadow-sm cursor-pointer"
+                                        >
+                                            <option value="all">Old & New</option>
+                                            <option value="new">New Projects</option>
+                                            <option value="old">Old Projects</option>
+                                        </select>
+                                        {kpiAvailableSchemes.length > 0 && (
+                                            <div className="relative" ref={kpiSchemeDropdownRef}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsKpiSchemeDropdownOpen(!isKpiSchemeDropdownOpen)}
+                                                    className="bg-white dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] text-[11px] font-bold px-3 py-1.5 rounded-lg text-[#3F3F46] dark:text-[#E4E4E7] outline-none shadow-sm cursor-pointer max-w-[150px] truncate pr-8 relative text-left"
+                                                >
+                                                    {kpiSchemeFilter.length === 0 
+                                                        ? "All Schemes" 
+                                                        : kpiSchemeFilter.length === 1 
+                                                            ? kpiSchemeFilter[0] 
+                                                            : `${kpiSchemeFilter.length} schemes`}
+                                                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-[#A1A1AA] pointer-events-none" size={14} />
+                                                </button>
+                                                {isKpiSchemeDropdownOpen && (
+                                                    <div className="absolute z-50 left-0 min-w-[200px] mt-1 bg-white dark:bg-[#18181B] border border-gray-300 dark:border-[#3F3F46] rounded shadow-md max-h-[300px] overflow-y-auto py-1">
+                                                        <label className="flex items-center px-2 py-1.5 hover:bg-[#e5e5e5] dark:hover:bg-[#3F3F46] cursor-pointer">
+                                                            <input 
+                                                                type="checkbox"
+                                                                checked={kpiSchemeFilter.length === 0}
+                                                                onChange={() => {
+                                                                    setKpiSchemeFilter([]);
+                                                                    setKpiPage(1);
+                                                                }}
+                                                                className="w-3.5 h-3.5 rounded-sm border-gray-300 text-[#2563eb] focus:ring-0 accent-[#2563eb] cursor-pointer"
+                                                            />
+                                                            <span className="ml-2.5 text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">All Schemes</span>
+                                                        </label>
+                                                        {kpiAvailableSchemes.map((scheme) => (
+                                                            <label key={scheme} className="flex items-start px-2 py-1.5 hover:bg-[#e5e5e5] dark:hover:bg-[#3F3F46] cursor-pointer">
+                                                                <input 
+                                                                    type="checkbox"
+                                                                    checked={kpiSchemeFilter.includes(scheme)}
+                                                                    onChange={(e) => {
+                                                                        if (e.target.checked) {
+                                                                            setKpiSchemeFilter([...kpiSchemeFilter, scheme]);
+                                                                        } else {
+                                                                            setKpiSchemeFilter(kpiSchemeFilter.filter(s => s !== scheme));
+                                                                        }
+                                                                        setKpiPage(1);
+                                                                    }}
+                                                                    className="w-3.5 h-3.5 mt-0.5 rounded-sm border-gray-300 text-[#2563eb] focus:ring-0 accent-[#2563eb] cursor-pointer shrink-0"
+                                                                />
+                                                                <span className="ml-2.5 text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">{scheme}</span>
+                                                            </label>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                                 {!kpiModal.projectType && (
@@ -4150,9 +5280,15 @@ export function DirectorDashboard() {
                                             [
                                                 {
                                                     key: "all",
-                                                    label: "All Types",
+                                                    label: "All Projects",
                                                     count: getDynamicTabCount("all"),
                                                     activeClass: "border-slate-500 text-slate-700 dark:text-slate-400",
+                                                },
+                                                {
+                                                    key: "valid",
+                                                    label: "Valid Projects",
+                                                    count: getDynamicTabCount("valid"),
+                                                    activeClass: "border-indigo-500 text-indigo-700 dark:text-indigo-400",
                                                 },
                                                 {
                                                     key: "research",
@@ -4171,6 +5307,36 @@ export function DirectorDashboard() {
                                                     label: "Others",
                                                     count: getDynamicTabCount("others"),
                                                     activeClass: "border-emerald-500 text-emerald-700 dark:text-emerald-400",
+                                                }] : []),
+                                                ...(getDynamicTabCount("missing_budget") > 0 ? [{
+                                                    key: "missing_budget",
+                                                    label: "Missing Budget",
+                                                    count: getDynamicTabCount("missing_budget"),
+                                                    activeClass: "border-rose-500 text-rose-700 dark:text-rose-400",
+                                                }] : []),
+                                                ...(getDynamicTabCount("missing_no") > 0 ? [{
+                                                    key: "missing_no",
+                                                    label: "Missing Project No",
+                                                    count: getDynamicTabCount("missing_no"),
+                                                    activeClass: "border-orange-500 text-orange-700 dark:text-orange-400",
+                                                }] : []),
+                                                ...(getDynamicTabCount("missing_agency") > 0 ? [{
+                                                    key: "missing_agency",
+                                                    label: "Missing Funding Agency",
+                                                    count: getDynamicTabCount("missing_agency"),
+                                                    activeClass: "border-amber-500 text-amber-700 dark:text-amber-400",
+                                                }] : []),
+                                                ...(getDynamicTabCount("draft") > 0 ? [{
+                                                    key: "draft",
+                                                    label: "Drafts",
+                                                    count: getDynamicTabCount("draft"),
+                                                    activeClass: "border-zinc-500 text-zinc-700 dark:text-zinc-400",
+                                                }] : []),
+                                                ...(getDynamicTabCount("pending") > 0 ? [{
+                                                    key: "pending",
+                                                    label: "Pending",
+                                                    count: getDynamicTabCount("pending"),
+                                                    activeClass: "border-yellow-500 text-yellow-700 dark:text-yellow-400",
                                                 }] : [])
                                             ] as const
                                         ).map((tab) => (
@@ -4207,7 +5373,10 @@ export function DirectorDashboard() {
                                                     className={`px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-[#71717A]${h === "Budget" ? " text-right" : ""
                                                         }`}
                                                 >
-                                                    {h}
+                                                    {h === "Budget" && kpiModal.title === "Projects: Utilized" ? "Utilized" : 
+                                                     h === "Budget" && kpiModal.title === "Projects: Remaining Balance" ? "Remaining" :
+                                                     h === "Budget" && kpiModal.title === "Projects: Proposed Budget" ? "Proposed" :
+                                                     h === "Budget" && kpiModal.title === "Projects: Total Sanctioned" ? "Sanctioned" : h}
                                                 </th>
                                             )
                                         )}
@@ -4229,7 +5398,10 @@ export function DirectorDashboard() {
                                         kpiPagedRows.map((proj: any, idx: number) => (
                                             <tr
                                                 key={proj.name || idx}
-                                                className="border-t border-[#F4F4F5] dark:border-[#3F3F46] hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
+                                                className="border-t border-[#F4F4F5] dark:border-[#3F3F46] hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors cursor-pointer"
+                                                onClick={() => {
+                                                    navigate(`/project-details-overview/${proj.name}`, { state: { returnTo: location.pathname + location.search, ...getDashboardState() } });
+                                                }}
                                             >
                                                 <td className="px-4 py-3 text-[10px] font-bold text-[#71717A] font-mono">
                                                     {(kpiPage - 1) * KPI_PAGE_SIZE + idx + 1}
@@ -4238,28 +5410,72 @@ export function DirectorDashboard() {
                                                     <div className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight line-clamp-1">
                                                         {proj.project_title || proj.name || "—"}
                                                     </div>
-                                                    {proj.project_no && (
-                                                        <span className="font-mono text-[9px] text-[#71717A] bg-[#F4F4F5] dark:bg-[#3F3F46] px-1.5 py-0.5 rounded mt-0.5 inline-block">
-                                                            {proj.project_no}
-                                                        </span>
-                                                    )}
+                                                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                                        {proj.project_no && (
+                                                            <span className="font-mono text-[9px] text-[#71717A] bg-[#F4F4F5] dark:bg-[#3F3F46] px-1.5 py-0.5 rounded inline-block">
+                                                                {proj.project_no}
+                                                            </span>
+                                                        )}
+                                                        {(() => {
+                                                            const d = proj.sanctioned_letter_date || proj.prj_start_date || proj.creation;
+                                                            const isOld = proj.is_old_project === 1 || proj.is_old_project === true || (d && new Date(d).getFullYear() < 2026);
+                                                            return isOld ? (
+                                                                <span className="font-mono text-[9px] text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded inline-block">Old</span>
+                                                            ) : (
+                                                                <span className="font-mono text-[9px] text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded inline-block">New</span>
+                                                            );
+                                                        })()}
+                                                        <ProjectDateBadge proj={proj} />
+                                                        {proj.project_type && (
+                                                            <span className="font-mono text-[9px] text-purple-700 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-400 px-1.5 py-0.5 rounded inline-block">
+                                                                {proj.project_type}
+                                                            </span>
+                                                        )}
+                                                        {(() => {
+                                                            const scheme = normalizeSchemeName(proj.funding_agency_schemes || proj.scheme_name || "");
+                                                            return scheme ? (
+                                                                <span className="font-mono text-[9px] text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded inline-block">
+                                                                    {scheme}
+                                                                </span>
+                                                            ) : null;
+                                                        })()}
+                                                    </div>
                                                 </td>
                                                 <td className="px-4 py-3 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
-                                                    {proj.pi_webmail || "—"}
+                                                    <div className="font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                                        {proj.pi_webmail ? (emailToNameMap[proj.pi_webmail.toLowerCase().trim()] || "—") : "—"}
+                                                    </div>
+                                                    {proj.pi_webmail && (
+                                                        <div className="mt-0.5">
+                                                            {proj.pi_webmail}
+                                                        </div>
+                                                    )}
                                                 </td>
                                                 <td className="px-4 py-3 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
                                                     {getDeptName(proj.implementation_department)}
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    <StatusBadge status={proj.workflow_state} />
+                                                    <AsyncTableStatusBadge proj={proj} />
                                                 </td>
-                                                <td className="px-4 py-3 text-right text-[12px] font-extrabold text-[#059669] whitespace-nowrap">
-                                                    {proj.total_budget_amount || proj.grand_total_proposal
-                                                        ? formatCurrency(
-                                                            proj.total_budget_amount ||
-                                                            proj.grand_total_proposal
-                                                        )
-                                                        : "—"}
+                                                <td className="px-4 py-3 text-right">
+                                                    {kpiModal.title === "Projects: Utilized" ? (
+                                                        <ProjectDynamicBudgetCell proj={proj} type="utilized" />
+                                                    ) : kpiModal.title === "Projects: Remaining Balance" ? (
+                                                        <ProjectDynamicBudgetCell proj={proj} type="remaining" />
+                                                    ) : kpiModal.title === "Projects: Proposed Budget" ? (
+                                                        <ProjectDynamicBudgetCell proj={proj} type="proposed" />
+                                                    ) : kpiModal.title === "Projects: Total Sanctioned" ? (
+                                                        <ProjectDynamicBudgetCell proj={proj} type="sanctioned" />
+                                                    ) : (
+                                                        <div className="text-[12px] font-extrabold text-[#059669] whitespace-nowrap">
+                                                            {proj.total_budget_amount || proj.grand_total_proposal
+                                                                ? formatCurrency(
+                                                                    proj.total_budget_amount ||
+                                                                    proj.grand_total_proposal
+                                                                )
+                                                                : "—"}
+                                                        </div>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))
@@ -4316,6 +5532,134 @@ export function DirectorDashboard() {
                             </div>
                         )}
                     </div>
+                </div>
+            )}
+
+            {/* Staff Breakdown Modal */}
+            {staffBreakdownOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm sm:p-6">
+                    <div className="w-full max-w-4xl bg-white dark:bg-[#18181B] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                        <div className="shrink-0 p-5 border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between bg-zinc-50 dark:bg-zinc-900/50">
+                            <div>
+                                <h2 className="text-lg font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                    Active Project Staff Breakdown
+                                </h2>
+                                <p className="text-xs text-[#71717A] mt-1">
+                                    {staffBreakdownLoading ? "Loading staff records..." : `Total Approved Staff: ${activeStaffList.length}`}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setStaffBreakdownOpen(false)}
+                                className="p-2 text-[#71717A] hover:bg-[#E4E4E7] dark:hover:bg-[#27272A] rounded-lg transition-colors"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            </button>
+                        </div>
+                        
+                        <div className="p-4 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#18181B] flex gap-2">
+                            {["designation", "department", "pi"].map(tab => (
+                                <button
+                                    key={tab}
+                                    onClick={() => setStaffGroupBy(tab as any)}
+                                    className={`px-4 py-2 text-sm font-bold rounded-lg capitalize transition-colors ${
+                                        staffGroupBy === tab 
+                                            ? "bg-[#2563eb] text-white" 
+                                            : "bg-zinc-100 dark:bg-zinc-800 text-[#71717A] hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                    }`}
+                                >
+                                    By {tab === "pi" ? "Project PI" : tab}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-5 bg-[#FAFAF9] dark:bg-[#27272A]">
+                            {staffBreakdownLoading ? (
+                                <div className="flex flex-col items-center justify-center h-40">
+                                    <svg className="w-8 h-8 animate-spin text-[#2563eb]" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                    <span className="mt-4 text-sm font-semibold text-zinc-500">Fetching live staff records...</span>
+                                </div>
+                            ) : (
+                                (() => {
+                                    if (!activeStaffList.length) {
+                                        return <div className="text-center py-10 text-sm font-medium text-zinc-500">No approved staff found.</div>;
+                                    }
+
+                                    const groups: Record<string, number> = {};
+                                    activeStaffList.forEach(staff => {
+                                        let key = "Unknown";
+                                        if (staffGroupBy === "designation") key = staff.ps_designation || "Unknown";
+                                        else if (staffGroupBy === "department") key = staff.ps_department ? getDeptName(staff.ps_department) : "Unknown";
+                                        else if (staffGroupBy === "pi") {
+                                            const rawEmail = staff.pi_id || "Unknown";
+                                            const name = emailToNameMap[rawEmail.toLowerCase().trim()];
+                                            key = name ? `${name} (${rawEmail})` : rawEmail;
+                                        }
+                                        
+                                        groups[key] = (groups[key] || 0) + 1;
+                                    });
+
+                                    const sortedGroups = Object.entries(groups).sort((a, b) => b[1] - a[1]);
+
+                                    return (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                            {sortedGroups.map(([label, count], idx) => (
+                                                <div key={idx} className="bg-white dark:bg-[#18181B] p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 flex justify-between items-center shadow-sm">
+                                                    <span className="text-[13px] font-semibold text-zinc-700 dark:text-zinc-300 truncate pr-3" title={label}>
+                                                        {label}
+                                                    </span>
+                                                    <span className="text-[15px] font-extrabold text-[#2563eb] bg-blue-50 dark:bg-blue-950/30 px-2 py-0.5 rounded-lg shrink-0">
+                                                        {count}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    );
+                                })()
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Professional Loading Modal for Director Report Generation */}
+            {isGeneratingReport && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-white dark:bg-[#27272A] p-8 rounded-2xl shadow-2xl flex flex-col items-center gap-5 border border-[#E4E4E7] dark:border-[#3F3F46] max-w-sm w-full mx-4 animate-in zoom-in-95 duration-300">
+                        <div className="relative flex items-center justify-center">
+                            <div className="absolute inset-0 bg-[#D97757]/20 rounded-full blur-xl animate-pulse"></div>
+                            <Loader2 className="animate-spin text-[#D97757] relative z-10" size={48} />
+                        </div>
+                        <div className="text-center">
+                            <h3 className="text-[18px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
+                                Generating Overview
+                            </h3>
+                            <p className="text-[13px] font-semibold text-[#71717A] dark:text-[#A1A1AA] leading-relaxed">
+                                {isWaitingForFunds 
+                                    ? `Fetching live financial data from servers (${Math.round(globalUtilizedProgress)}%). This may take a few moments...`
+                                    : "Aggregating institutional metrics and formatting print layout. Please wait a moment..."}
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => {
+                                setIsGeneratingReport(false);
+                                setIsWaitingForFunds(false);
+                            }}
+                            className="mt-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 text-[12px] font-bold rounded-lg transition-colors w-full"
+                        >
+                            Cancel Generation
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Direct Open Full-Screen Iframe Preview (Bypasses Popup Blockers) */}
+            {previewHtml && (
+                <div className="fixed inset-0 z-[200] bg-white dark:bg-zinc-900 animate-in fade-in zoom-in-95 duration-300">
+                    <iframe 
+                        srcDoc={previewHtml} 
+                        className="w-full h-full border-none"
+                        title="Director Report Preview"
+                    />
                 </div>
             )}
         </div>

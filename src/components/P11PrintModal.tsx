@@ -125,6 +125,98 @@
 
 // -=-=-=-=-=---------------------------------------------------------
 
+// import React, { useState, useEffect, useRef } from 'react';
+// import { createPortal } from 'react-dom';
+// import { Printer, Download, X } from 'lucide-react';
+// import html2canvas from 'html2canvas';
+// import jsPDF from 'jspdf';
+
+// export const P11PrintModal = ({
+//     isOpen,
+//     onClose,
+//     htmlContent,
+//     docName,
+// }: {
+//     isOpen: boolean;
+//     onClose: () => void;
+//     htmlContent: string;
+//     docName: string;
+// }) => {
+//     const iframeRef = useRef<HTMLIFrameElement>(null);
+//     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+//     const [blobUrl, setBlobUrl] = useState('');
+
+//     // Always create a fresh blob URL when the modal opens or content changes
+//     useEffect(() => {
+//         if (!isOpen || !htmlContent) {
+//             setBlobUrl('');
+//             return;
+//         }
+//         const url = URL.createObjectURL(new Blob([htmlContent], { type: 'text/html' }));
+//         setBlobUrl(url);
+//         return () => { URL.revokeObjectURL(url); };
+//     }, [isOpen, htmlContent]);
+
+//     const handlePrint = () => {
+//         iframeRef.current?.contentWindow?.print();
+//     };
+
+//     const handleDownloadPdf = async () => {
+//         // html2canvas fundamentally cannot respect CSS page breaks, repeating table headers,
+//         // or fixed footers because it takes a static screenshot and slices it indiscriminately.
+//         // The most robust way to get a perfect PDF that matches the "Print" layout exactly 
+//         // is to trigger the native browser print and let the user select "Save as PDF".
+//         iframeRef.current?.contentWindow?.print();
+//     };
+
+//     if (!isOpen) return null;
+
+//     return createPortal(
+//         <div className="fixed inset-0 bg-black/70 flex flex-col z-[99999]">
+//             <div className="flex items-center justify-between px-6 py-3 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
+//                 <h3 className="font-bold text-zinc-900 dark:text-zinc-100">P-11 Form Preview — {docName}</h3>
+//                 <div className="flex items-center gap-3">
+//                     <button
+//                         onClick={handlePrint}
+//                         className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
+//                     >
+//                         <Printer className="w-4 h-4" /> Print
+//                     </button>
+//                     <button
+//                         onClick={handleDownloadPdf}
+//                         className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-[#D97757] hover:bg-[#c66a4e] text-white"
+//                         title="Uses native browser to Save as PDF with perfect formatting"
+//                     >
+//                         <Download className="w-4 h-4" />
+//                         Save as PDF
+//                     </button>
+//                     <button
+//                         onClick={onClose}
+//                         className="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500"
+//                     >
+//                         <X className="w-5 h-5" />
+//                     </button>
+//                 </div>
+//             </div>
+//             <div className="flex-1 overflow-auto bg-zinc-300">
+//                 <iframe
+//                     ref={iframeRef}
+//                     src={blobUrl}
+//                     className="w-full h-full border-0"
+//                     title="P-11 Print Preview"
+//                 />
+//             </div>
+//         </div>,
+//         document.body,
+//     );
+// };
+
+
+/////////////////// date 20/07/2026 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+// -=-=-=-=-=---------------------------------------------------------
+
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Printer, Download, X } from 'lucide-react';
@@ -136,11 +228,13 @@ export const P11PrintModal = ({
     onClose,
     htmlContent,
     docName,
+    title = "P-11 Form Preview",
 }: {
     isOpen: boolean;
     onClose: () => void;
     htmlContent: string;
     docName: string;
+    title?: string;
 }) => {
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -174,7 +268,7 @@ export const P11PrintModal = ({
     return createPortal(
         <div className="fixed inset-0 bg-black/70 flex flex-col z-[99999]">
             <div className="flex items-center justify-between px-6 py-3 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
-                <h3 className="font-bold text-zinc-900 dark:text-zinc-100">P-11 Form Preview — {docName}</h3>
+                <h3 className="font-bold text-zinc-900 dark:text-zinc-100">{title} — {docName}</h3>
                 <div className="flex items-center gap-3">
                     <button
                         onClick={handlePrint}
@@ -210,3 +304,5 @@ export const P11PrintModal = ({
         document.body,
     );
 };
+
+

@@ -82,12 +82,12 @@ const ProjectLedgerFull = () => {
     useEffect(() => {
         const fetchBudgetHeads = async () => {
             try {
-                const response = await fetch('/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0');
+                const response = await fetch('/api/resource/Budget%20Head?fields=["budget_head","name"]&order_by=name%20asc&limit_page_length=0', { credentials: "include" });
                 const result = await response.json();
                 if (result?.data) {
                     setBudgetHeadList(result.data.map((item: any) => ({
                         name: item.budget_head,
-                        id: item.id
+                        id: item.name
                     })));
                 }
             } catch (err) {
@@ -111,7 +111,7 @@ const ProjectLedgerFull = () => {
             try {
                 const promises = budgetHeadList.map(async (head) => {
                     try {
-                        const response = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${projectName}&accountHeadId=${head.id}`);
+                        const response = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(String(projectName))}&accountHeadId=${encodeURIComponent(String(head.id))}`, { credentials: "include" });
                         if (response.ok) {
                             const data = await response.json();
                             if (Array.isArray(data) && data.length > 0) {
@@ -162,9 +162,9 @@ const ProjectLedgerFull = () => {
     const fetchLedgerData = async (headId: string | number) => {
         setIsLoading(true);
         try {
-            const url = `/ledger-api/commit-payment-transactions?projectNumber=${projectName}&accountHeadId=${headId}`;
+            const url = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(String(projectName))}&accountHeadId=${encodeURIComponent(String(headId))}`;
             console.log("ProjectLedgerFull: Fetching URL:", url);
-            const response = await fetch(url);
+            const response = await fetch(url, { credentials: "include" });
             console.log("ProjectLedgerFull: Response status:", response.status);
 
             if (!response.ok) throw new Error("Failed to fetch ledger data");

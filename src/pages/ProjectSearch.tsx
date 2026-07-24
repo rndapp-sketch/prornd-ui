@@ -158,7 +158,7 @@ function ProjectLedgerPanel({ projectNo }: { projectNo: string }) {
     Promise.all(
       budgetHeads.map(async h => {
         try {
-          const r = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectNo)}&accountHeadId=${h.id}`);
+          const r = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectNo)}&accountHeadId=${h.id}`, { credentials: "include" });
           if (r.ok) {
             const d = await r.json();
             if (Array.isArray(d) && d.length > 0) found.add(h.id);
@@ -184,7 +184,7 @@ function ProjectLedgerPanel({ projectNo }: { projectNo: string }) {
     setTxnLoading(true);
     setTxnError(null);
     try {
-      const r = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectNo)}&accountHeadId=${headId}`);
+      const r = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectNo)}&accountHeadId=${headId}`, { credentials: "include" });
       if (!r.ok) throw new Error(r.statusText);
       const raw: LedgerTransaction[] = await r.json();
       const sorted = [...(Array.isArray(raw) ? raw : [])].sort((a, b) =>

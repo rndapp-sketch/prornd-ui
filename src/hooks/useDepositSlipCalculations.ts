@@ -116,7 +116,7 @@ export const useDepositSlipCalculations = (
   useEffect(() => {
     // Guard: unsupported type
     if (
-      !["research_consultancy", "t_testing", "research_deposit_slip", "d_consultancy"].includes(
+      !["research_consultancy", "t_testing", "research_deposit_slip", "d_consultancy", "e_non_routine"].includes(
         depositSlipType,
       )
     ) {
@@ -151,6 +151,13 @@ export const useDepositSlipCalculations = (
       lastSignatureRef.current = currentSignature;
       return;
     }
+    if (
+      depositSlipType === "e_non_routine" &&
+      flt(data.amount_inclusive_of_gst) <= 0
+    ) {
+      lastSignatureRef.current = currentSignature;
+      return;
+    }
     // Research Deposit Slip: allow calculation even if overhead is 0 (to reset fields)
     // Only skip if both values are empty
     if (
@@ -177,6 +184,8 @@ export const useDepositSlipCalculations = (
       updates = calculateDConsultancy(data);
     } else if (depositSlipType === "t_testing") {
       updates = calculateTTesting(data);
+    } else if (depositSlipType === "e_non_routine") {
+      updates = calculateENonRoutine(data);
     } else if (depositSlipType === "research_deposit_slip") {
       updates = calculateResearchDeposit(data);
     }
@@ -530,5 +539,65 @@ function calculateDConsultancy(formData: FormData): FormData {
     total_gst: totalGst,
     total_amount: totalAmount,
     dpf_credit_distributions: updatedDpfDist,
+  };
+}
+
+/**
+ * calculateENonRoutine (Category E Deposit Slip)
+ * Calculates "Amount Actually Received", applies GST branching for "Consultancy Fee X",
+ * and distributes the 10% overhead.
+ */
+export function calculateENonRoutine(formData: any): Record<string, any> {
+  const amountInclusive = flt(formData.amount_inclusive_of_gst);
+  const incomeTaxTds = flt(formData.income_tax_tds);
+  const gstTds = flt(formData.gst_tds);
+
+  // 1. Amount Actually Received = Amount Inclusive - (Income Tax TDS + GST TDS)
+  const amountActuallyReceived = flt(amountInclusive - (incomeTaxTds + gstTds));
+
+  // GST Inputs
+  const cgst = flt(formData.cgst_9);
+  const sgst = flt(formData.sgst_9);
+  const igst = flt(formData.igst_18);
+
+  // 2. Consultancy Fee X
+  let consultancyFeeX = amountActuallyReceived;
+  if (igst > 0) {
+    consultancyFeeX = flt(amountActuallyReceived - igst);
+  } else if (cgst > 0 || sgst > 0) {
+    consultancyFeeX = flt(amountActuallyReceived - (cgst + sgst));
+  }
+
+  // 3. Overhead Amount (10% of Consultancy Fee X by default)
+  const overheadMultiplier = flt(formData.overhead_multiplier || 0.1);
+  const overheadAmount = flt(consultancyFeeX * overheadMultiplier);
+
+  // 4. Update credit_distribution child table
+  const currentCreditDist = formData.credit_distribution || [];
+  let updatedCreditDist = [...currentCreditDist];
+
+  if (currentCreditDist.length > 0) {
+    updatedCreditDist = currentCreditDist.map((row: any) => {
+      // For E Non Routine, usually it's % of Consultancy Fee X (like IDF is 40%)
+      const rowPercentage = flt(row.percentage || row.percentage_of_overhead || 0);
+      const rowAmount = flt(consultancyFeeX * (rowPercentage / 100));
+      return {
+        ...row,
+        amount: rowAmount,
+      };
+    });
+  }
+
+  // 5. Totals
+  const totalGst = flt(igst + cgst + sgst);
+  const totalBudget = consultancyFeeX; // Usually the fee is the budget
+
+  return {
+    amount_actually_received: amountActuallyReceived,
+    consultancy_fee_x: consultancyFeeX,
+    overhead_amount: overheadAmount,
+    total_gst: totalGst,
+    total_budget: totalBudget,
+    credit_distribution: updatedCreditDist,
   };
 }

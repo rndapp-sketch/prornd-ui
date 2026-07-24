@@ -55,7 +55,7 @@ export const useProjectBudget = (projectCode: string) => {
       try {
         // 1. Fetch Budget Heads
         const headRes = await fetch(
-          '/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0',
+          '/api/resource/Budget%20Head?fields=["budget_head","name"]&order_by=name%20asc&limit_page_length=0',
           { credentials: "include", headers: { Accept: "application/json" } },
         );
         const headData = await headRes.json();
@@ -70,7 +70,7 @@ export const useProjectBudget = (projectCode: string) => {
         // 2. Fetch Ledger Data for EACH head
         // Using Promise.all to fetch concurrently
         const promises = availableHeads.map((head: any) => {
-          const apiUrl = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectCode)}&accountHeadId=${head.id}`;
+          const apiUrl = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectCode)}&accountHeadId=${encodeURIComponent(String(head.name))}`;
           console.log(`[useProjectBudget] Fetching: ${apiUrl}`);
 
           return fetch(apiUrl, { credentials: "include" })
@@ -88,7 +88,7 @@ export const useProjectBudget = (projectCode: string) => {
               }
               return {
                 head: head.budget_head,
-                headId: head.id,
+                headId: head.name,
                 data: Array.isArray(data) ? data : [],
               };
             })
@@ -97,7 +97,7 @@ export const useProjectBudget = (projectCode: string) => {
                 `Failed to fetch ledger for ${head.budget_head}`,
                 err,
               );
-              return { head: head.budget_head, headId: head.id, data: [] };
+              return { head: head.budget_head, headId: head.name, data: [] };
             });
         });
 
