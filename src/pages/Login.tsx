@@ -1,6 +1,6 @@
 
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useFrappeAuth } from 'frappe-react-sdk';
 
 import {
@@ -40,9 +40,34 @@ const Login: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { currentUser, login, logout } = useFrappeAuth();
+  const { currentUser, logout } = useFrappeAuth();
   const [isLoggedIn, setIsLoggedIn] = useState(!!currentUser);
 
+  // Resolve client IP in the background on mount so submit has no extra delay
+  const clientIpRef = useRef('');
+  useEffect(() => {
+    const isLocal = (ip: string) =>
+      ip.startsWith('10.') || ip.startsWith('172.') || ip.startsWith('192.168.') || ip.startsWith('169.254.');
+    Promise.race([
+      new Promise<string>((resolve) => {
+        const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+        const localIPs: string[] = [];
+        const reflexiveIPs: string[] = [];
+        pc.createDataChannel('');
+        pc.createOffer().then((o) => pc.setLocalDescription(o)).catch(() => resolve(''));
+        pc.onicecandidate = (evt) => {
+          if (!evt.candidate) return;
+          const m = evt.candidate.candidate.match(/(\d{1,3}(?:\.\d{1,3}){3})/);
+          if (!m) return;
+          if (isLocal(m[1])) localIPs.push(m[1]); else reflexiveIPs.push(m[1]);
+        };
+        pc.onicegatheringstatechange = () => {
+          if (pc.iceGatheringState === 'complete') { resolve(localIPs[0] || reflexiveIPs[0] || ''); pc.close(); }
+        };
+      }),
+      new Promise<string>((resolve) => setTimeout(() => resolve(''), 3000)),
+    ]).then((ip) => { clientIpRef.current = ip; }).catch(() => {});
+  }, []);
 
   // --- LOGIC: Effects ---
   useEffect(() => {
@@ -76,10 +101,22 @@ const Login: React.FC = () => {
     while (attempt < maxAttempts) {
       try {
         attempt++;
-        await login({ username: fullUsername, password });
+        const res = await fetch('/api/method/login', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usr: fullUsername, pwd: password, client_ip: clientIpRef.current }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.message === 'Invalid login credentials') {
+          const exc = data.exc_type ?? '';
+          if (res.status === 401 || exc === 'AuthenticationError') throw { message: 'Invalid username or password.', exc_type: 'AuthenticationError' };
+          if (res.status === 423) throw { message: 'Too many failed attempts. Please wait 60 seconds.', exc_type: 'RateLimited' };
+          throw { message: data.message || 'Login failed. Please try again.' };
+        }
         localStorage.setItem(DOMAIN_STORAGE_KEY, domain);
-        window.location.href = '/dashboard'; // Force full reload to reset SWR caches 
-        return; // Success, exit loop (setIsLoading stays true during redirect)
+        window.location.href = '/dashboard';
+        return;
       } catch (err: any) {
         console.error(`Login attempt ${attempt} failed:`, err);
 
@@ -93,7 +130,7 @@ const Login: React.FC = () => {
           setIsLoading(false);
         } else {
           // If error is clearly "Invalid login credentials", do not retry
-          if (err.message === 'Invalid login credentials' || err.exc_type === 'AuthenticationError') {
+          if (err.message === 'Invalid username or password.' || err.exc_type === 'AuthenticationError') {
             setError('Invalid username or password.');
             setIsLoading(false);
             break;
