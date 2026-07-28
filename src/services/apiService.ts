@@ -37,6 +37,7 @@ export const travelAPI = {
     performAction: `${API_BASE}.travel.travel.perform_travel_action`,
     getSclBalance: `${API_BASE}.travel.travel.get_special_leave_balance_for_travel`,
     attachDirectorPdf: `${API_BASE}.travel.travel.attach_director_pdf_travel`,
+    getPendingDirectorUploads: `${API_BASE}.travel.travel.get_pending_director_uploads_travel`,
 };
 
 // TA DA Settlement API endpoints
