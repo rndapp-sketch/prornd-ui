@@ -1,5 +1,5 @@
 import { useRef, useState, useMemo, useEffect } from "react";
-import { useFrappeGetCall } from "frappe-react-sdk";
+import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
 import {
     UploadIcon,
     EyeIcon,
@@ -174,11 +174,53 @@ const DirectorPdfUpload = () => {
         })),
     ], [icssData, scrData, igfData, travelData]);
 
-    const uploadedCount = allDocs.filter((d) => d.director_signed_pdf?.trim()).length;
-    const pendingCount = allDocs.length - uploadedCount;
+    const { call: fetchProjectTitles } = useFrappePostCall<{ message: any[] }>("frappe.client.get_list");
+    const [projectTitleMap, setProjectTitleMap] = useState<Record<string, string>>({});
+    const [projectDeptMap, setProjectDeptMap] = useState<Record<string, string>>({});
+
+    const uniqueProjectNos = useMemo(() => {
+        const nos = new Set<string>();
+        allDocs.forEach((d) => { if (d.project_number?.trim()) nos.add(d.project_number.trim()); });
+        return [...nos];
+    }, [allDocs]);
+
+    useEffect(() => {
+        if (uniqueProjectNos.length === 0) return;
+        fetchProjectTitles({
+            doctype: "Project Registration",
+            filters: [["project_no", "in", uniqueProjectNos]],
+            fields: ["project_no", "project_title", "implementation_department"],
+            limit: uniqueProjectNos.length + 10,
+        }).then((res) => {
+            const titleMap: Record<string, string> = {};
+            const deptMap: Record<string, string> = {};
+            (res?.message ?? []).forEach((r: any) => {
+                if (r.project_no && r.project_title) titleMap[r.project_no] = r.project_title;
+                if (r.project_no && r.implementation_department) deptMap[r.project_no] = r.implementation_department;
+            });
+            setProjectTitleMap(titleMap);
+            setProjectDeptMap(deptMap);
+        }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [uniqueProjectNos.join(",")]);
+
+    const resolvedDocs = useMemo(() =>
+        allDocs.map((d) => {
+            const pno = d.project_number?.trim();
+            return {
+                ...d,
+                project_name: d.project_name || (pno ? projectTitleMap[pno] : undefined),
+                upfa_department: d.upfa_department || (pno ? projectDeptMap[pno] : undefined),
+            };
+        }),
+        [allDocs, projectTitleMap, projectDeptMap],
+    );
+
+    const uploadedCount = resolvedDocs.filter((d) => d.director_signed_pdf?.trim()).length;
+    const pendingCount = resolvedDocs.length - uploadedCount;
 
     const filteredDocs = useMemo(() => {
-        let docs = allDocs;
+        let docs = resolvedDocs;
         if (moduleFilter) docs = docs.filter((d) => d._doctype === moduleFilter);
         if (debouncedSearch) {
             const q = debouncedSearch.toLowerCase();
@@ -192,7 +234,7 @@ const DirectorPdfUpload = () => {
             );
         }
         return docs;
-    }, [allDocs, moduleFilter, debouncedSearch]);
+    }, [resolvedDocs, moduleFilter, debouncedSearch]);
 
     const totalPages = Math.ceil(filteredDocs.length / ITEMS_PER_PAGE) || 1;
     const paginatedDocs = filteredDocs.slice(
@@ -291,7 +333,7 @@ const DirectorPdfUpload = () => {
                                         {opt.short}
                                         {opt.value !== "" && (
                                             <span className="ml-1.5 text-[10px] font-bold opacity-70">
-                                                {allDocs.filter((d) => d._doctype === opt.value).length}
+                                                {resolvedDocs.filter((d) => d._doctype === opt.value).length}
                                             </span>
                                         )}
                                     </button>
