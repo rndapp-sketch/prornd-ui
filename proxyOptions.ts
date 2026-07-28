@@ -40,6 +40,7 @@ export default {
     // This ensures Frappe recognizes the request context correctly.
     changeOrigin: true,
     secure: false,
+    xfwd: true,
     timeout: 60000,
     proxyTimeout: 60000,
 
