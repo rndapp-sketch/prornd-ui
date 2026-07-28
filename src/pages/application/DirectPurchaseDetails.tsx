@@ -1665,8 +1665,12 @@ const LinkedDocTab = ({
 
     const hasPrintMarkAction = doctype === "sanction_sheet" && ssActions.includes("Mark Print Taken");
 
-    const handleMergedPrint = async () => {
+    const handleMergedPrint = () => {
         setIsPrintModalOpen(true);
+    };
+
+    const handleSanctionPrintModalClose = async () => {
+        setIsPrintModalOpen(false);
         if (hasPrintMarkAction && docName) {
             setIsMergedPerforming(true);
             try {
@@ -1766,7 +1770,7 @@ const LinkedDocTab = ({
                     />
                     <P11PrintModal
                         isOpen={isPrintModalOpen}
-                        onClose={() => setIsPrintModalOpen(false)}
+                        onClose={handleSanctionPrintModalClose}
                         htmlContent={
                             isPrintModalOpen
                                 ? generateSanctionSheetHtml(docData)
