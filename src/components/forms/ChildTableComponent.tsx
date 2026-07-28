@@ -51,6 +51,10 @@ export interface ChildTableProps {
     onLinkChange?: (tableName: string, rowIndex: number, fieldname: string, value: string) => void;
     /** Pre-filled data for automatically added rows */
     defaultRows?: Record<string, any>[];
+    /** Override the label shown on each row card header */
+    rowLabelOverride?: string;
+    /** Hide the '#1', '#2' trailing index on row card headers */
+    hideRowIndex?: boolean;
 }
 
 // --- STYLES ---
@@ -96,6 +100,8 @@ export const ChildTableComponent = memo(({
     linkOptions = {},
     onLinkChange,
     defaultRows = [],
+    rowLabelOverride,
+    hideRowIndex = false,
 }: ChildTableProps) => {
     const canAddRow = !maxRows || tableData.length < maxRows;
     const isOfficialIdentification = label && String(label).includes('Official Identification');
@@ -460,7 +466,7 @@ export const ChildTableComponent = memo(({
                                 <div className="bg-white dark:bg-[#27272A]">
                                     <div className="flex items-center justify-between px-5 py-3 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
                                         <span className="text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-widest">
-                                            {rowLabel} #{rowIndex + 1}
+                                            {hideRowIndex ? (rowLabelOverride || rowLabel) : `${rowLabelOverride || rowLabel} #${rowIndex + 1}`}
                                         </span>
                                         <div className="flex items-center gap-2">
                                             <FrappeButton

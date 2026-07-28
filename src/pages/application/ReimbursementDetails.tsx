@@ -876,10 +876,14 @@ const ReimbursementDetails: React.FC = () => {
         <!-- Bank Details -->
         <div class="info-card info-card-full">
             <div class="card-header">Bank Details</div>
-            <div class="card-body" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 20px;">
+            <div class="card-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px;">
                 <div class="field-row">
                     <div class="field-label">Bank Name</div>
                     <div class="field-value">${data.bank_name || "-"}</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">Account Holder</div>
+                    <div class="field-value">${data.account_holder_name || "-"}</div>
                 </div>
                 <div class="field-row">
                     <div class="field-label">Account No.</div>
