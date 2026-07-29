@@ -274,11 +274,13 @@ const IndentGeneralFormDetails: React.FC = () => {
     );
     const { data: workflowActionsData } = useFrappeGetCall<{ message: string[] | { actions?: string[] } }>(
         indentGeneralFormAPI.getWorkflowActions,
-        id ? { docname: id } : undefined,
+        { docname: id ?? "" },
+        id ? undefined : null,
     );
     const { data: activityData } = useFrappeGetCall<{ message: { owner: string; creation: string; content: string; comment_type?: string }[] }>(
         "rndopsapp.rndopsapp.api.get_project_activity",
-        id ? { doctype: "Indent General Form", docname: id } : undefined,
+        { doctype: "Indent General Form", docname: id ?? "" },
+        id ? undefined : null,
     );
 
     // igf_project_code is the project number used by the ledger/budget API
