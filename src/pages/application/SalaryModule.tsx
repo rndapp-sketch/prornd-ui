@@ -260,7 +260,7 @@ const mapRow = (row: any): StaffRecord => {
         medical_allowance: maAmount,
         hostel: hostelAmount,
         workflow_state: row.workflow_state || "Approved",
-        project_no: row.project_no || "—",
+        project_no: (row.project_no ? String(row.project_no).trim() : "") || "—",
         bank_account_number: row.bank_account_number || "—",
         ps_hostel: row.ps_hostel !== undefined ? row.ps_hostel : "",
     };
@@ -970,20 +970,23 @@ const SalaryModule: React.FC = () => {
             return;
         }
         try {
+            // Fetch unfiltered and match client-side (trimmed) — the DB "in" filter
+            // is an exact string match and silently drops rows whose stored
+            // project_no has stray leading/trailing whitespace.
             const res = await getList({
                 doctype: "Project Registration",
-                filters: [["project_no", "in", projectNos]],
                 fields: ["project_no", "funding_agency_schemes", "enter_scheme_number"],
-                limit_page_length: projectNos.length,
+                limit_page_length: 0,
             });
             const map: Record<string, string> = {};
             const numberMap: Record<string, string> = {};
             (res?.message || []).forEach((row: any) => {
-                if (row.project_no && row.funding_agency_schemes) {
-                    map[row.project_no] = row.funding_agency_schemes;
+                const projectNo = row.project_no ? String(row.project_no).trim() : "";
+                if (projectNo && row.funding_agency_schemes) {
+                    map[projectNo] = row.funding_agency_schemes;
                 }
-                if (row.project_no && row.enter_scheme_number) {
-                    numberMap[row.project_no] = row.enter_scheme_number;
+                if (projectNo && row.enter_scheme_number) {
+                    numberMap[projectNo] = row.enter_scheme_number;
                 }
             });
             setSchemeMap(map);
