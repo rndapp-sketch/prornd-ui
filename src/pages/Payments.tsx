@@ -3,7 +3,7 @@ import { FaExclamationCircle, FaArrowLeft, FaSearch } from 'react-icons/fa';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-import { AppSidebar } from '@/components/RndSidebar';
+// import { AppSidebar } from '@/components/RndSidebar';
 import { useNavigate } from 'react-router-dom';
 import { GlobalLoader } from '@/components/ui/global-loader';
 
@@ -167,7 +167,7 @@ const Payments: React.FC = () => {
 
     // Fetch Module Registry to map moduleId (idx) -> doctype_name
     const fetchModuleRegistry = useCallback(async () => {
-        // Fallback map in case API fails (covers well-known modules 1–8)
+        // Fallback map in case API fails or is missing rows (covers all known modules 1–25)
         const fallbackMap: Record<string, string> = {
             '1': 'Project Registration',
             '2': 'Project Proposal',
@@ -177,6 +177,23 @@ const Payments: React.FC = () => {
             '6': 'Travel',
             '7': 'Temporary Advance',
             '8': 'Advance Settlement',
+            '9': 'Direct Purchase',
+            '10': 'Disbursal of Honorarium',
+            '11': 'Recruitment Adhoc Contractual',
+            '12': 'Disbursal of Consultancy',
+            '13': 'TA DA Settlement',
+            '14': 'ICSS_PO',
+            '15': 'Loan Request',
+            '16': 'Indent General Form',
+            '17': 'Indent Cum Sanction Sheet',
+            '18': 'sanction_sheet',
+            '19': 'Selection Committee Report',
+            '20': 'P_11 Form',
+            '21': 'Leave Module',
+            '22': 'Top Up Fellowship',
+            '23': 'Project Staff Details',
+            '24': 'Cancellation Request',
+            '25': 'Miscellaneous Commit',
         };
         try {
             // Use GET to avoid CSRF requirements in dev/proxy environments
@@ -186,17 +203,15 @@ const Payments: React.FC = () => {
             );
             const data = await response.json();
             const rows = data?.message?.doctype_name;
-            if (Array.isArray(rows) && rows.length > 0) {
-                const map: Record<string, string> = {};
+            const map: Record<string, string> = { ...fallbackMap };
+            if (Array.isArray(rows)) {
                 rows.forEach((item: any) => {
                     if (item.idx != null && item.doctype_name) {
                         map[String(item.idx)] = item.doctype_name;
                     }
                 });
-                setModuleNameMap(map);
-            } else {
-                setModuleNameMap(fallbackMap);
             }
+            setModuleNameMap(map);
         } catch (err) {
             console.error('Failed to fetch module registry, using fallback:', err);
             setModuleNameMap(fallbackMap);
@@ -284,10 +299,10 @@ const Payments: React.FC = () => {
                 const budgetHeadName = budgetHeadMap[String(c.accountHeadId)] || String(c.accountHeadId || '');
                 const moduleName = c.moduleId ? (moduleNameMap[String(c.moduleId)] || String(c.moduleId)) : '';
                 return (
-                    c.projectNumber?.toLowerCase().includes(q) ||
-                    c.frapAppId?.toLowerCase().includes(q) ||
-                    c.commitParticular?.toLowerCase().includes(q) ||
-                    c.refDetails?.toLowerCase().includes(q) ||
+                    String(c.projectNumber ?? '').toLowerCase().includes(q) ||
+                    String(c.frapAppId ?? '').toLowerCase().includes(q) ||
+                    String(c.commitParticular ?? '').toLowerCase().includes(q) ||
+                    String(c.refDetails ?? '').toLowerCase().includes(q) ||
                     budgetHeadName.toLowerCase().includes(q) ||
                     moduleName.toLowerCase().includes(q)
                 );
@@ -444,7 +459,7 @@ const Payments: React.FC = () => {
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
             <GlobalLoader isLoading={isLoading} />
-            <AppSidebar />
+            {/* <AppSidebar /> */}
 
             <main className="flex-1 px-6 md:px-8 pt-7 pb-10 w-full overflow-hidden">
                 {/* Header */}
