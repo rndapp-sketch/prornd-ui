@@ -49,6 +49,8 @@ export interface ChildTableProps {
     // New props for Link field support with auto-fetch
     linkOptions?: Record<string, LinkOption[]>;
     onLinkChange?: (tableName: string, rowIndex: number, fieldname: string, value: string) => void;
+    /** Per-field async search functions — when provided for a fieldname, enables real-time backend search */
+    asyncSearchFns?: Record<string, (query: string) => Promise<LinkOption[]>>;
     /** Pre-filled data for automatically added rows */
     defaultRows?: Record<string, any>[];
     /** Override the label shown on each row card header */
@@ -99,6 +101,7 @@ export const ChildTableComponent = memo(({
     mandatory = false,
     linkOptions = {},
     onLinkChange,
+    asyncSearchFns = {},
     defaultRows = [],
     rowLabelOverride,
     hideRowIndex = false,
@@ -179,7 +182,10 @@ export const ChildTableComponent = memo(({
         const value = row[col.fieldname];
         const isReadOnly = readOnly || !!col.read_only;
 
-        // Resolve department-linked fields to human-readable names in read-only mode
+        // Resolve department-linked fields to human-readable names.
+        // These fields store a Frappe doc name (e.g. "otg6vdb31q") and are
+        // always auto-filled — never hand-typed — so show the resolved label
+        // in both edit and read-only modes.
         const isDeptField =
             col.fieldname === 'department_section' ||
             col.fieldname === 'department' ||
@@ -188,7 +194,7 @@ export const ChildTableComponent = memo(({
             col.fieldname === 'ps_department' ||
             col.fieldname === 'implementation_department' ||
             col.fieldname === 'applicant_department';
-        if (isReadOnly && isDeptField && value) {
+        if (isDeptField && value) {
             return <DepartmentName name={value} />;
         }
 
@@ -341,6 +347,8 @@ export const ChildTableComponent = memo(({
                         linkOptions['webmail_id'] ||
                         linkOptions[col.options as string] ||
                         [];
+                    // If an async search function is registered for this field, use it
+                    const asyncFn = asyncSearchFns[col.fieldname];
                     return (
                         <AutocompleteEmail
                             options={userOpts}
@@ -353,9 +361,10 @@ export const ChildTableComponent = memo(({
                                 }
                             }}
                             className={inputClasses}
-                            placeholder={`Enter ${col.label || 'Email'}`}
-                            showAllOnFocus={true}
+                            placeholder={`Search ${col.label || 'User'}...`}
+                            showAllOnFocus={!asyncFn}
                             disabled={isReadOnly}
+                            onAsyncSearch={asyncFn}
                         />
                     );
                 }

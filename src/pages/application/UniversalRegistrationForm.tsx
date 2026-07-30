@@ -4,8 +4,8 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useFrappePostCall } from "frappe-react-sdk";
-import { ArrowLeft, Save, Loader2, FileText, ArrowRight, Users, Upload, CheckCircle2, ShieldCheck } from "lucide-react";
+import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
+import { ArrowLeft, Save, Loader2, FileText, ArrowRight, Users, Upload, CheckCircle2, ShieldCheck, ClipboardList } from "lucide-react";
 import DynamicFormRenderer from "@/components/forms/DynamicFormRenderer";
 import {
     universalRegistrationAPI,
@@ -24,6 +24,7 @@ export default function UniversalRegistrationForm({
     const prevNationality = useRef<string | undefined>(undefined);
     const { id } = useParams();
     const navigate = useNavigate();
+    const { currentUser } = useFrappeAuth();
 
     // Form State
     const [formData, setFormData] = useState<Record<string, any>>({});
@@ -38,6 +39,33 @@ export default function UniversalRegistrationForm({
     const { call: getFieldsCall } = useFrappePostCall<{ message: any }>(
         universalRegistrationAPI.getFields,
     );
+    const { call: getMyRegCall } = useFrappePostCall<{ message: any[] }>("frappe.client.get_list");
+    const [myRegLoading, setMyRegLoading] = useState(false);
+    const [myRegNotFound, setMyRegNotFound] = useState(false);
+
+    const handleViewMyRegistration = useCallback(async () => {
+        if (!currentUser) return;
+        setMyRegLoading(true);
+        setMyRegNotFound(false);
+        try {
+            const res = await getMyRegCall({
+                doctype: "Universal Registration__",
+                filters: [["owner", "=", currentUser]],
+                fields: ["name"],
+                limit: 1,
+            });
+            const docs = res?.message ?? [];
+            if (docs.length > 0) {
+                navigate(`/universal-registration/${docs[0].name}`);
+            } else {
+                setMyRegNotFound(true);
+            }
+        } catch {
+            setMyRegNotFound(true);
+        } finally {
+            setMyRegLoading(false);
+        }
+    }, [currentUser, getMyRegCall, navigate]);
     const { call: saveCall } = useFrappePostCall<{ message: any }>(
         universalRegistrationAPI.save,
     );
@@ -1421,6 +1449,29 @@ export default function UniversalRegistrationForm({
                             <h1 className="text-[18px] font-extrabold text-[#18181B] dark:text-[#FAFAFA] leading-tight">Stakeholder Registration</h1>
                             <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] font-medium mt-0.5">Read this guide before filling the form</p>
                         </div>
+                    </div>
+
+                    {/* My Registration banner */}
+                    <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-[#4A6CF7]/30 bg-[#EEF2FF] dark:bg-[#1E3A8A]/18 px-4 py-3">
+                        <div className="flex items-center gap-3">
+                            <ClipboardList className="h-5 w-5 shrink-0 text-[#4A6CF7]" />
+                            <div>
+                                <p className="text-[13px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE]">Already registered?</p>
+                                <p className="text-[11px] font-medium text-[#3730A3] dark:text-[#A5B4FC]">
+                                    {myRegNotFound
+                                        ? "No registration found for your account."
+                                        : "Load your existing registration to view or update it."}
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleViewMyRegistration}
+                            disabled={myRegLoading}
+                            className="flex shrink-0 items-center gap-2 rounded-lg bg-[#4A6CF7] px-4 py-2 text-[12px] font-extrabold text-white shadow-sm hover:bg-[#3558E8] disabled:opacity-60 transition-colors"
+                        >
+                            {myRegLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ClipboardList className="h-3.5 w-3.5" />}
+                            {myRegLoading ? "Searching…" : "View My Registration"}
+                        </button>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
