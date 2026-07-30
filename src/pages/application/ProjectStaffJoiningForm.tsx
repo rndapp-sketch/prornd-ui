@@ -165,7 +165,8 @@ const ProjectStaffJoiningForm: React.FC = () => {
     const [pendingWorkflowAction, setPendingWorkflowAction] = useState<string>("");
     const activityStreamRef = React.useRef<ActivityStreamHandle>(null);
 
-    const canSave = (!workflowState || workflowState.toLowerCase() === "draft") && !viewOnlyNotice;
+    const isFromRegistry = searchParams.get("fromRegistry") === "true";
+    const canSave = (!workflowState || workflowState.toLowerCase() === "draft") && !viewOnlyNotice && !isFromRegistry;
 
     useEffect(() => {
         let mounted = true;
@@ -397,7 +398,7 @@ const ProjectStaffJoiningForm: React.FC = () => {
             const msg = res?.message || {};
             if (msg.status === "success") {
                 setWorkflowState(msg.workflow_state || "");
-                setWorkflowActions(Array.isArray(msg.actions) ? msg.actions : []);
+                setWorkflowActions(isFromRegistry ? [] : (Array.isArray(msg.actions) ? msg.actions : []));
             } else {
                 setWorkflowState("");
                 setWorkflowActions([]);
@@ -406,7 +407,7 @@ const ProjectStaffJoiningForm: React.FC = () => {
             console.error("Failed to fetch workflow actions:", e);
             setWorkflowActions([]);
         }
-    }, [fetchPSDWorkflowActions]);
+    }, [fetchPSDWorkflowActions, isFromRegistry]);
 
     const handleWorkflowAction = (action: string) => {
         if (!savedDocName) {

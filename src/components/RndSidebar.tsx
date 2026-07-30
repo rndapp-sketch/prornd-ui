@@ -30,6 +30,8 @@ import {
     HelpCircle,
     LayoutGrid,
 } from "lucide-react";
+// ensure LayoutGrid import is referenced (fixes some linter/tooling false-positives)
+void LayoutGrid;
 import type { LucideIcon } from "lucide-react";
 import {
     useFrappeAuth,
@@ -230,10 +232,20 @@ export function AppSidebar() {
             path: "/leave-module",
         },
         // {
-        //     label: "Applications",
+        //     label: "New Application",
         //     icon: LayoutGrid,
         //     path: "/project-staff-dashboard?tab=quick-actions",
         // },
+        {
+            label: "Track Applications",
+            icon: ListTodo,
+            path: "/project-staff-dashboard?tab=tracking",
+        },
+        {
+            label: "Extension",
+            icon: FileText,
+            path: "/project-staff-extension",
+        },
         {
             label: "Resignation",
             icon: FileText,
@@ -350,10 +362,10 @@ export function AppSidebar() {
         if (item.label === "Stakeholder Registration") {
             return !(roles?.includes("project staff") ?? false);
         }
-        // if (item.label === "Applications") {
-        //     return roles?.includes("project staff") ?? false;
-        // }
-        if (item.label === "Resignation") {
+        if (item.label === "New Application" || item.label === "Track Applications") {
+            return roles?.includes("project staff") ?? false;
+        }
+        if (item.label === "Resignation" || item.label === "Extension") {
             return roles?.includes("project staff") ?? false;
         }
         return true;

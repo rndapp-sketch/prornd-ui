@@ -52,6 +52,7 @@ import TravelForm from './pages/application/TravelForm.tsx';
 import TravelDetails from './pages/application/TravelDetails.tsx';
 import TADASettlementForm from './pages/application/TADASettlementForm.tsx';
 import ProjectStaffResignationForm from './pages/application/ProjectStaffResignationForm.tsx';
+import ProjectStaffExtensionForm from './pages/application/ProjectStaffExtensionForm.tsx';
 import TaskRegistry from './pages/TaskRegistry.tsx';
 import TaskRegistryDetails from './pages/TaskRegistryDetails.tsx';
 import TemporaryAdvanceDetails from './pages/application/TemporaryAdvanceDetails.tsx';
@@ -98,6 +99,7 @@ import SalaryRegisterFull from './pages/application/SalaryRegisterFull';
 import DelegateUser from './pages/DelegateUser.tsx';
 import CoProjectView from './pages/CoProjectView.tsx';
 import LeaveModule from './pages/LeaveModule.tsx';
+import ProInvForm from './pages/application/ProInvForm.tsx';
 import LeaveModuleForm from './pages/LeaveModuleForm.tsx';
 import LeaveModuleDetails from './pages/LeaveModuleDetails.tsx';
 
@@ -292,6 +294,14 @@ const router = createBrowserRouter(
                     ),
                 },
                 // --- END OF CHANGE ---
+                {
+                    path: "project-details-overview/:projectName/proforma-invoice",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <ProInvForm />
+                        </AuthRouteWrapper>
+                    ),
+                },
 
                 {
                     path: "project-ledger-full/:projectName",
@@ -488,6 +498,14 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <ProjectStaffResignationForm />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "project-staff-extension",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <ProjectStaffExtensionForm />
                         </AuthRouteWrapper>
                     )
                 },

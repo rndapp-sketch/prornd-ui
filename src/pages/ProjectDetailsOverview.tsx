@@ -1084,6 +1084,7 @@ const QuickActions = ({
                 // "Committee Member Change",
                 // "Selection Committee Report",
                 // "Project Staff Resignation",
+                // "Project Staff Extension",
             ],
         },
         { title: "Travel", icon: Plane, items: ["Travel"] },
@@ -1276,6 +1277,32 @@ const QuickActions = ({
                               ? "Cancelled"
                               : "Draft",
                     applicant_webmail: item.applicant_email_id, // Map for display consistency
+                }));
+            } else if (selectedApplication === "Project Staff Extension") {
+                const response = await fetchReimbursements({
+                    doctype: "Project Staff Extension",
+                    filters: { ex_proj_name: projectName },
+                    fields: [
+                        "name",
+                        "creation",
+                        "docstatus",
+                        "owner",
+                        "ex_name",
+                        "ex_emp_id",
+                    ],
+                    order_by: "creation desc",
+                    limit_page_length: 50,
+                });
+                data = (response?.message || []).map((item: any) => ({
+                    ...item,
+                    workflow_state:
+                        item.docstatus === 1
+                            ? "Submitted"
+                            : item.docstatus === 2
+                              ? "Cancelled"
+                              : "Draft",
+                    applicant_name: item.ex_name,
+                    applicant_webmail: item.ex_emp_id, // Map for display consistency
                 }));
             } else if (selectedApplication === "Rate Contract") {
                 try {
@@ -1970,6 +1997,11 @@ const QuickActions = ({
                     `/project-staff-resignation?project=${projectParam}`,
                 );
                 break;
+            case "Project Staff Extension":
+                onNavigate(
+                    `/project-staff-extension?project=${projectParam}`,
+                );
+                break;
             case "Direct Purchase":
                 onNavigate(`/direct-purchase?project_no=${projectParam}`);
                 break;
@@ -2226,6 +2258,11 @@ const QuickActions = ({
                                                                 case "Project Staff Resignation":
                                                                     onNavigate(
                                                                         `/project-staff-resignation?edit=${item.name}`,
+                                                                    );
+                                                                    break;
+                                                                case "Project Staff Extension":
+                                                                    onNavigate(
+                                                                        `/project-staff-extension?edit=${item.name}`,
                                                                     );
                                                                     break;
                                                                 case "Temporary Advance Apply":
@@ -3964,6 +4001,14 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                     )}
                                 </div>
                             )}
+                            <FrappeButton
+                                onClick={() => navigate(`/project-details-overview/${projectName}/proforma-invoice`)}
+                                variant="outline"
+                                aria-label="Proforma Invoice"
+                                className="h-8 px-3 text-[12px] flex items-center gap-1.5"
+                            >
+                                <FileTextIcon className="h-3.5 w-3.5" /> Pro Inv
+                            </FrappeButton>
                             <WorkflowActions
                                 docname={projectName!}
                                 onAction={handleWorkflowAction}

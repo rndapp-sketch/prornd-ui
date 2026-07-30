@@ -83,6 +83,9 @@ export const DOCTYPE_PR_LINKS: Record<string, DoctypePRLink> = {
     'Project Staff Resignation': {
         primary: { type: 'pr_project_no', field: 'applicant_prj_num' },
     },
+    'Project Staff Extension': {
+        primary: { type: 'pr_project_no', field: 'ex_proj_no' },
+    },
     'proprietary_purchase': {
         primary:  { type: 'pr_name',       field: 'project_ref' },
         fallback: { type: 'pr_project_no', field: 'project_no' },

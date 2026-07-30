@@ -206,6 +206,7 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({
     docname,
     className,
     maxHeight = "400px",
+    onlyComments = false,
 }) => {
     const [entries, setEntries] = useState<ActivityLogEntry[]>([]);
     const [loading, setLoading] = useState(false);
@@ -281,6 +282,18 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({
         fetchLogs(doctype, docname, true);
     };
 
+    // Filter for comments only if requested
+    const displayEntries = onlyComments
+        ? entries.filter(
+            (e) =>
+                e.type === "comment" ||
+                (e.content && e.content.trim().length > 0 && e.type !== "creation" && e.type !== "edit")
+        )
+        : entries;
+
+    const HeaderIcon = onlyComments ? MessageSquareIcon : ActivityIcon;
+    const titleText = onlyComments ? "Actor Comments" : "Activity Log";
+
     // ── Render ──────────────────────────────────────────────────────────────
 
     return (
@@ -288,13 +301,13 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <ActivityIcon className="w-3.5 h-3.5 text-zinc-400" />
+                    <HeaderIcon className="w-3.5 h-3.5 text-zinc-400" />
                     <h4 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                        Activity Log
+                        {titleText}
                     </h4>
-                    {!loading && entries.length > 0 && (
+                    {!loading && displayEntries.length > 0 && (
                         <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
-                            {entries.length}
+                            {displayEntries.length}
                         </span>
                     )}
                 </div>
@@ -302,7 +315,7 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({
                     onClick={handleRefresh}
                     disabled={loading}
                     className="p-1 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
-                    title="Refresh activity log"
+                    title="Refresh comments"
                 >
                     <RefreshCwIcon
                         className={cn("w-3.5 h-3.5", loading && "animate-spin")}
@@ -319,7 +332,7 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({
                     <LogSkeleton />
                 ) : error ? (
                     <div className="flex flex-col items-center py-6 text-center">
-                        <ActivityIcon className="w-8 h-8 text-zinc-300 dark:text-zinc-600 mb-2" />
+                        <HeaderIcon className="w-8 h-8 text-zinc-300 dark:text-zinc-600 mb-2" />
                         <p className="text-xs text-zinc-400 dark:text-zinc-500">
                             {error}
                         </p>
@@ -330,23 +343,25 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({
                             Retry
                         </button>
                     </div>
-                ) : entries.length === 0 ? (
+                ) : displayEntries.length === 0 ? (
                     <div className="flex flex-col items-center py-6 text-center">
-                        <ActivityIcon className="w-8 h-8 text-zinc-200 dark:text-zinc-700 mb-2" />
+                        <HeaderIcon className="w-8 h-8 text-zinc-200 dark:text-zinc-700 mb-2" />
                         <p className="text-xs font-medium text-zinc-400 dark:text-zinc-500">
-                            No activity yet
+                            {onlyComments ? "No comments yet" : "No activity yet"}
                         </p>
                         <p className="text-[11px] text-zinc-300 dark:text-zinc-600 mt-0.5">
-                            Activity will appear here once actions are taken.
+                            {onlyComments
+                                ? "Comments from different actors will appear here."
+                                : "Activity will appear here once actions are taken."}
                         </p>
                     </div>
                 ) : (
                     <div className="space-y-0">
-                        {entries.map((entry, idx) => (
+                        {displayEntries.map((entry, idx) => (
                             <LogItem
                                 key={`${entry.timestamp}-${idx}`}
                                 entry={entry}
-                                isLast={idx === entries.length - 1}
+                                isLast={idx === displayEntries.length - 1}
                             />
                         ))}
                     </div>

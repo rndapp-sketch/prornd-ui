@@ -1306,14 +1306,29 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                                 </Button>
                               </>
                             ) : (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0"
-                              >
-                                <ChevronRight className="h-4 w-4" />
-                                <span className="sr-only">View</span>
-                              </Button>
+                              <>
+                                {(p.workflow_state === "Approved" || p.workflow_state === "Proposal Approved") && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 px-2 text-xs font-bold border-zinc-300 text-zinc-700 hover:text-[#D97757] hover:border-[#D97757] dark:text-zinc-300 dark:border-zinc-700"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/project-details-overview/${p.name}/proforma-invoice`);
+                                    }}
+                                  >
+                                    Pro Inv
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <ChevronRight className="h-4 w-4" />
+                                  <span className="sr-only">View</span>
+                                </Button>
+                              </>
                             )}
                           </div>
                         </TableCell>

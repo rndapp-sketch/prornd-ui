@@ -1054,6 +1054,12 @@ const TaskRegistry: React.FC = () => {
                                                             navigate(`/disbursal-of-consultancy/${task.id}`);
                                                         } else if (task.doctype === "Travel") {
                                                             navigate(`/travel/${task.id}`);
+                                                        } else if (task.doctype === "Project Staff Extension") {
+                                                            navigate(`/project-staff-extension?edit=${encodeURIComponent(task.id)}&fromRegistry=true`);
+                                                        } else if (task.doctype === "Project Staff Resignation") {
+                                                            navigate(`/project-staff-resignation?edit=${encodeURIComponent(task.id)}&fromRegistry=true`);
+                                                        } else if (task.doctype === "Project Staff Details") {
+                                                            navigate(`/project-staff-joining?docname=${encodeURIComponent(task.id)}&fromRegistry=true`);
                                                         } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
                                                             navigate(`/project-details-overview/${task.id}`, { state: { fromTaskRegistry: true } });
                                                         } else {
