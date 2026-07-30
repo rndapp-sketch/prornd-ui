@@ -572,7 +572,7 @@ const AddFundSanction: React.FC = () => {
     };
 
     const handleSubmitSanction = async () => {
-        if (isBudgetMismatch || !savedAsDraft) return;
+        if (isBudgetMismatch || !savedAsDraft || !formData.sanctioned_letter_no) return;
         setIsSubmitting(true);
         try {
             const payload = await preparePayload(savedDocName);
@@ -775,6 +775,13 @@ const AddFundSanction: React.FC = () => {
                         </div>
                     )}
 
+                    {/* Missing sanction letter no. warning */}
+                    {savedAsDraft && !isBudgetMismatch && !formData.sanctioned_letter_no && (
+                        <div className="mt-4 px-4 py-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+                            <p className="text-[12px] text-amber-700 dark:text-amber-400"><span className="font-semibold">Sanctioned Letter No. is required</span> before submitting.</p>
+                        </div>
+                    )}
+
                     {/* Budget mismatch warning */}
                     {isBudgetMismatch && (
                         <div className="mt-4 px-4 py-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-lg">
@@ -800,7 +807,7 @@ const AddFundSanction: React.FC = () => {
                             <FrappeButton
                                 type="button"
                                 onClick={handleSubmitSanction}
-                                disabled={isSubmitting || isBudgetMismatch || !savedAsDraft}
+                                disabled={isSubmitting || isBudgetMismatch || !savedAsDraft || !formData.sanctioned_letter_no}
                                 className="bg-[#D97757] text-white border-[#D97757] hover:bg-[#c5684a] inline-flex items-center gap-1.5"
                             >
                                 <Send className="h-3.5 w-3.5" />

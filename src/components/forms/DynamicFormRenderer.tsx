@@ -76,6 +76,8 @@ export interface DynamicFormRendererProps {
   autocompleteFields?: string[];
   /** Per-field async search functions — when provided for a field, enables real-time backend search */
   asyncSearchFields?: Record<string, (query: string) => Promise<LinkOption[]>>;
+  /** Per-field async search functions for child table columns — keyed by fieldname */
+  asyncSearchFnsForTables?: Record<string, (query: string) => Promise<LinkOption[]>>;
   /** Field-level validation messages to display below specific fields */
   fieldMessages?: Record<string, FieldMessage>;
   /** Hide section-break headers when this renderer is embedded inside an already titled card */
@@ -903,6 +905,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   readOnly = false,
   autocompleteFields,
   asyncSearchFields,
+  asyncSearchFnsForTables,
   fieldMessages,
   hideSectionHeaders = false,
   hideTableLabels = false,
@@ -1030,6 +1033,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
             readOnly={fieldIsReadOnly}
             linkOptions={linkOptions}
             onLinkChange={onTableLinkChange}
+            asyncSearchFns={asyncSearchFnsForTables}
           />
         </div>
       );

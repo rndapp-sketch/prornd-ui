@@ -451,7 +451,7 @@ const FundSanctionWorkflowActions = ({
                                             {blocked && (
                                                 <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/item:block z-[9999]">
                                                     <div className="bg-zinc-900 text-white text-[11px] rounded-lg px-3 py-1.5 shadow-lg whitespace-nowrap">
-                                                        Account details must be filled before forwarding.
+                                                        Account details and Sanctioned Letter No. must be filled before forwarding.
                                                     </div>
                                                 </div>
                                             )}
@@ -3736,7 +3736,7 @@ const PendingTaskDetails: React.FC = () => {
                         <FundSanctionWorkflowActions
                             docname={name}
                             onActionComplete={() => window.location.reload()}
-                            blockForward={isRnDStaff && !(data?.is_the_account_type_pfms || fsProjectRegData?.is_the_account_type_pfms)}
+                            blockForward={isRnDStaff && (!(data?.is_the_account_type_pfms || fsProjectRegData?.is_the_account_type_pfms) || !data?.sanctioned_letter_no)}
                         />
                     )}
                     {doctype === "Travel" && name && !cancellationStatus?.message?.has_pending && (

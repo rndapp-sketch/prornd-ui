@@ -276,6 +276,8 @@ export const miscellaneousCommitAPI = {
 export const commonAPI = {
     getUserDetails: `${API_BASE}.project_registration.project_registration.get_user_details_for_pi`,
     getUserDetailsByEmail: `rndopsapp.rndopsapp.api.get_user_details`,
+    /** Combined User + Universal Registration profile lookup (supports `search` param for list, or `user`/`email` for single) */
+    getUserRegistrationProfile: `rndopsapp.rndopsapp.api.get_user_registration_profile`,
     addComment: `rndopsapp.rndopsapp.api.add_project_comment`,
 };
 
