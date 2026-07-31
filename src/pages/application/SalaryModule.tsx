@@ -583,7 +583,10 @@ const SalaryModule: React.FC = () => {
         // All selected must share the same scheme number (not project_no —
         // multiple project_nos can map to the same scheme e.g. 4211)
         const schemeNumbers = new Set(
-            selectedRecords.map(r => schemeNumberMap[r.project_no || ""] || r.project_no || "")
+            selectedRecords.map(r => {
+                const pNo = (r.project_no || "").trim();
+                return (pNo && schemeNumberMap[pNo] ? schemeNumberMap[pNo].trim() : "") || pNo || "";
+            })
         );
         if (schemeNumbers.size > 1) {
             alert("Please select staff from only one scheme at a time. The selected staff belong to different schemes.");
@@ -963,10 +966,11 @@ const SalaryModule: React.FC = () => {
     // Fetch Scheme mapping from Project Registration doctype
     const fetchSchemeMap = useCallback(async () => {
         const projectNos = Array.from(new Set(
-            records.map(r => r.project_no).filter(p => p && p !== "—")
+            records.map(r => (r.project_no || "").trim()).filter(p => p && p !== "—")
         )) as string[];
         if (projectNos.length === 0) {
             setSchemeMap({});
+            setSchemeNumberMap({});
             return;
         }
         try {
@@ -982,11 +986,13 @@ const SalaryModule: React.FC = () => {
             const numberMap: Record<string, string> = {};
             (res?.message || []).forEach((row: any) => {
                 const projectNo = row.project_no ? String(row.project_no).trim() : "";
-                if (projectNo && row.funding_agency_schemes) {
-                    map[projectNo] = row.funding_agency_schemes;
+                const schemeName = row.funding_agency_schemes ? String(row.funding_agency_schemes).trim() : "";
+                const schemeNo = row.enter_scheme_number ? String(row.enter_scheme_number).trim() : "";
+                if (projectNo && schemeName) {
+                    map[projectNo] = schemeName;
                 }
-                if (projectNo && row.enter_scheme_number) {
-                    numberMap[projectNo] = row.enter_scheme_number;
+                if (projectNo && schemeNo) {
+                    numberMap[projectNo] = schemeNo;
                 }
             });
             setSchemeMap(map);
@@ -1075,9 +1081,19 @@ const SalaryModule: React.FC = () => {
 
     const schemesList = useMemo(() => {
         const set = new Set<string>();
-        Object.values(schemeNumberMap).forEach(s => { if (s) set.add(s); });
-        return ["All", ...Array.from(set)].sort();
-    }, [schemeNumberMap]);
+        records.forEach(r => {
+            const pNo = (r.project_no || "").trim();
+            const s = pNo && schemeNumberMap[pNo] ? schemeNumberMap[pNo].trim() : "";
+            if (s && s !== "—") set.add(s);
+        });
+        return ["All", ...Array.from(set)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    }, [records, schemeNumberMap]);
+
+    useEffect(() => {
+        if (schemeFilter !== "All" && !schemesList.includes(schemeFilter)) {
+            setSchemeFilter("All");
+        }
+    }, [schemesList, schemeFilter]);
 
     // Sort & filter
     const filtered = useMemo(() => {
@@ -1112,7 +1128,11 @@ const SalaryModule: React.FC = () => {
             list = list.filter(r => r.project_no === projectFilter);
         }
         if (schemeFilter !== "All") {
-            list = list.filter(r => schemeNumberMap[r.project_no || ""] === schemeFilter);
+            list = list.filter(r => {
+                const pNo = (r.project_no || "").trim();
+                const s = pNo && schemeNumberMap[pNo] ? schemeNumberMap[pNo].trim() : "";
+                return s === schemeFilter;
+            });
         }
 
         // Apply Sorting
@@ -1251,7 +1271,7 @@ const SalaryModule: React.FC = () => {
             })();
             return [
                 i + 1, r.employee_id, r.first_name, r.email_id, r.department,
-                r.designation, r.project_no || "—", schemeNumberMap[r.project_no || ""] || "—", r.bank_account_number || "—", hostelStatus, r.joining_date, r.term_completion_date,
+                r.designation, r.project_no || "—", (r.project_no && schemeNumberMap[r.project_no.trim()] ? schemeNumberMap[r.project_no.trim()].trim() : "") || "—", r.bank_account_number || "—", hostelStatus, r.joining_date, r.term_completion_date,
                 r.basic_salary, r.hra, `${r.hra_percent}%`, workingDays, proRataBasic,
                 proRataHRA, proRataMedical, inputs.arrear, grossPay,
                 hraDed, inputs.medicalDeduction, pTax, inputs.ta, inputs.idCardCharge, inputs.electricityBill, inputs.otherDeduction,
@@ -1856,13 +1876,17 @@ const SalaryModule: React.FC = () => {
                                                             <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.term_completion_date ? fmtDate(r.term_completion_date) : "—"}</td>
                                                             <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.project_no || "—"}</td>
                                                             <td className="px-3 py-3 text-xs whitespace-nowrap">
-                                                                {schemeNumberMap[r.project_no || ""] ? (
-                                                                    <span className="text-[10px] font-semibold bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 border border-violet-100 dark:border-violet-900/50 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                                                        {schemeNumberMap[r.project_no || ""]}
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="text-zinc-400">—</span>
-                                                                )}
+                                                                {(() => {
+                                                                    const pNo = (r.project_no || "").trim();
+                                                                    const schemeNo = pNo && schemeNumberMap[pNo] ? schemeNumberMap[pNo].trim() : "";
+                                                                    return schemeNo ? (
+                                                                        <span className="text-[10px] font-semibold bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 border border-violet-100 dark:border-violet-900/50 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                                                            {schemeNo}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="text-zinc-400">—</span>
+                                                                    );
+                                                                })()}
                                                             </td>
                                                             <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.bank_account_number || "—"}</td>
                                                             <td className="px-3 py-3 text-center whitespace-nowrap">
@@ -2316,7 +2340,12 @@ const SalaryModule: React.FC = () => {
                                 </div>
                                 <div className="flex justify-between border-b border-zinc-100 py-1">
                                     <span className="text-zinc-500 font-medium">Scheme:</span>
-                                    <span className="font-semibold text-violet-700">{schemeMap[selectedSlipRecord.project_no || ""] || "—"}</span>
+                                    <span className="font-semibold text-violet-700">
+                                        {(() => {
+                                            const pNo = (selectedSlipRecord.project_no || "").trim();
+                                            return pNo && schemeMap[pNo] ? schemeMap[pNo].trim() : "—";
+                                        })()}
+                                    </span>
                                 </div>
                                 <div className="flex justify-between border-b border-zinc-100 py-1">
                                     <span className="text-zinc-500 font-medium">Bank Account Number:</span>
@@ -2457,7 +2486,8 @@ const SalaryModule: React.FC = () => {
                 const schemeName = (() => {
                     if (selectedBulkRecords.length === 0) return "—";
                     const firstRecord = selectedBulkRecords[0];
-                    return schemeNumberMap[firstRecord.project_no || ""] || firstRecord.project_no || "—";
+                    const pNo = (firstRecord.project_no || "").trim();
+                    return (pNo && schemeNumberMap[pNo] ? schemeNumberMap[pNo].trim() : "") || pNo || "—";
                 })();
                 const staffList = selectedBulkRecords;
                 return (
