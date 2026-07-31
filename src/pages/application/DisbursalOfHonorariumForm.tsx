@@ -51,40 +51,66 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
 );
 
 // --- FILE UPLOAD HELPER ---
+const uploadFileToFrappe = async (file: File): Promise<string> => {
+    const fd = new FormData();
+    fd.append("file", file, file.name);
+    fd.append("is_private", "0");
+    const response = await fetch("/api/method/upload_file", {
+        method: "POST",
+        body: fd,
+        headers: {
+            "X-Frappe-CSRF-Token": (window as any).csrf_token || "",
+        },
+        credentials: "include",
+    });
+    const text = await response.text();
+    if (!response.ok) {
+        throw new Error(`File upload failed (${response.status}): ${text.slice(0, 200)}`);
+    }
+    const json = JSON.parse(text);
+    const fileUrl = json?.message?.file_url;
+    if (!fileUrl) {
+        throw new Error("File upload did not return a valid file_url");
+    }
+    return fileUrl;
+};
+
 /**
- * Sends a multipart POST to save_disbursal_of_honorarium_data(data, files=None).
+ * Sends a POST to save_disbursal_of_honorarium_data(data).
  *
- * - Non-file fields (including child table rows) are JSON-stringified into the `data` field.
- * - File objects are stripped from `data` and appended as real file parts so Frappe
- *   collects them in the `files` parameter (keyed as "fieldname" or "tablename__rowIdx__fieldname").
+ * Any File object is uploaded to Frappe's /api/method/upload_file first,
+ * and the resulting file URL (/files/...) is placed into `data` for MinIO migration.
  */
 const callSaveApi = async (endpoint: string, formData: Record<string, any>): Promise<any> => {
-    const fd = new globalThis.FormData();
     const data: Record<string, any> = {};
 
     for (const key in formData) {
         const value = formData[key];
 
         if (value instanceof File) {
-            fd.append(key, value, value.name);
+            const fileUrl = await uploadFileToFrappe(value);
+            data[key] = fileUrl;
         } else if (Array.isArray(value)) {
-            data[key] = value.map((row: any, rowIdx: number) => {
-                const cleanRow: Record<string, any> = {};
-                for (const rowKey in row) {
-                    if (row[rowKey] instanceof File) {
-                        fd.append(`${key}__${rowIdx}__${rowKey}`, row[rowKey], row[rowKey].name);
-                        cleanRow[rowKey] = null;
-                    } else {
-                        cleanRow[rowKey] = row[rowKey];
+            data[key] = await Promise.all(
+                value.map(async (row: any) => {
+                    const cleanRow: Record<string, any> = {};
+                    for (const rowKey in row) {
+                        const rowVal = row[rowKey];
+                        if (rowVal instanceof File) {
+                            cleanRow[rowKey] = await uploadFileToFrappe(rowVal);
+                        } else {
+                            cleanRow[rowKey] = rowVal;
+                        }
                     }
-                }
-                return cleanRow;
-            });
+                    return cleanRow;
+                })
+            );
         } else {
             data[key] = value;
         }
     }
 
+    const fd = new globalThis.FormData();
     fd.append('data', JSON.stringify(data));
 
     const response = await fetch(`/api/method/${endpoint}`, {
