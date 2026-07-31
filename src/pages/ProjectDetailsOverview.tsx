@@ -837,6 +837,8 @@ const QuickActions = ({
     const [selectedTravelForSettle, setSelectedTravelForSettle] =
         useState<any>(null);
 
+    const [deletingDraftName, setDeletingDraftName] = useState<string | null>(null);
+
     // P-11 Form Modal State
     const [isP11ModalOpen, setIsP11ModalOpen] = useState(false);
     const [existingP11Forms, setExistingP11Forms] = useState<any[]>([]);
@@ -1015,6 +1017,29 @@ const QuickActions = ({
             setSelectedDirectPurchaseForP11(item);
             setIsP11ModalOpen(true);
             setIsLoading(false);
+        }
+    };
+
+    const handleDeleteDraftDirectPurchase = async (item: any) => {
+        if (!confirm(`Are you sure you want to delete draft "${item.name}"? This cannot be undone.`)) return;
+        setDeletingDraftName(item.name);
+        try {
+            const res = await fetch(`/api/resource/Direct Purchase/${item.name}`, {
+                method: "DELETE",
+                headers: { Accept: "application/json" },
+                credentials: "include",
+            });
+            if (res.ok) {
+                setApplicationData((prev: any[]) => prev.filter((row) => row.name !== item.name));
+            } else {
+                const data = await res.json().catch(() => ({}));
+                alert(data?.exc_type || "Failed to delete draft.");
+            }
+        } catch (error) {
+            console.error("Error deleting Direct Purchase draft:", error);
+            alert("Failed to delete draft.");
+        } finally {
+            setDeletingDraftName(null);
         }
     };
 
@@ -1305,6 +1330,32 @@ const QuickActions = ({
                                 ? "Cancelled"
                                 : "Draft",
                     applicant_webmail: item.applicant_email_id, // Map for display consistency
+                }));
+            } else if (selectedApplication === "Project Staff Extension") {
+                const response = await fetchReimbursements({
+                    doctype: "Project Staff Extension",
+                    filters: { ex_proj_name: projectName },
+                    fields: [
+                        "name",
+                        "creation",
+                        "docstatus",
+                        "owner",
+                        "ex_name",
+                        "ex_emp_id",
+                    ],
+                    order_by: "creation desc",
+                    limit_page_length: 50,
+                });
+                data = (response?.message || []).map((item: any) => ({
+                    ...item,
+                    workflow_state:
+                        item.docstatus === 1
+                            ? "Submitted"
+                            : item.docstatus === 2
+                                ? "Cancelled"
+                                : "Draft",
+                    applicant_name: item.ex_name,
+                    applicant_webmail: item.ex_emp_id, // Map for display consistency
                 }));
             } else if (selectedApplication === "Rate Contract") {
                 try {
@@ -2021,6 +2072,11 @@ const QuickActions = ({
                     `/project-staff-resignation?project=${projectParam}`,
                 );
                 break;
+            case "Project Staff Extension":
+                onNavigate(
+                    `/project-staff-extension?project=${projectParam}`,
+                );
+                break;
             case "Miscellaneous Commit":
                 onNavigate(
                     `/miscellaneous-commit-form?project=${projectName}`,
@@ -2309,6 +2365,11 @@ const QuickActions = ({
                                                                         `/project-staff-resignation?edit=${item.name}`,
                                                                     );
                                                                     break;
+                                                                case "Project Staff Extension":
+                                                                    onNavigate(
+                                                                        `/project-staff-extension?edit=${item.name}`,
+                                                                    );
+                                                                    break;
                                                                 case "Temporary Advance Apply":
                                                                     // Navigate to the new details page
                                                                     onNavigate(
@@ -2497,6 +2558,28 @@ const QuickActions = ({
                                                                 className="text-sm text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 hover:underline whitespace-nowrap"
                                                             >
                                                                 P-11-Form
+                                                            </button>
+                                                        )}
+                                                    {selectedApplication ===
+                                                        "Direct Purchase" &&
+                                                        item.workflow_state ===
+                                                        "Draft" && (
+                                                            <button
+                                                                onClick={() =>
+                                                                    handleDeleteDraftDirectPurchase(
+                                                                        item,
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    deletingDraftName ===
+                                                                    item.name
+                                                                }
+                                                                className="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 hover:underline whitespace-nowrap disabled:opacity-50"
+                                                            >
+                                                                {deletingDraftName ===
+                                                                    item.name
+                                                                    ? "Deleting..."
+                                                                    : "Delete"}
                                                             </button>
                                                         )}
                                                     {selectedApplication ===
@@ -4055,6 +4138,16 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                             </div>
                             {!hideActions && (
                                 <div className="flex items-center gap-2 flex-wrap">
+                                    {(data?.workflow_state === "Approved" || data?.workflow_state === "Proposal Approved") && (
+                                        <FrappeButton
+                                            onClick={() => navigate(`/project-details-overview/${projectName}/proforma-invoice`)}
+                                            variant="outline"
+                                            aria-label="Proforma Invoice"
+                                            className="h-8 px-3 text-[12px] flex items-center gap-1.5"
+                                        >
+                                            <FileTextIcon className="h-3.5 w-3.5" /> Pro Inv
+                                        </FrappeButton>
+                                    )}
                                     <WorkflowActions
                                         docname={projectName!}
                                         onAction={handleWorkflowAction}

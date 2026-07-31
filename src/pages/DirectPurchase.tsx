@@ -9,6 +9,7 @@ import { CommentModal } from '@/components/CommentModal';
 import { Plus, Trash2 } from 'lucide-react';
 import { DepartmentName } from "@/components/DepartmentName";
 import DirectPurchaseHelpGuide from "@/components/DirectPurchaseHelpGuide";
+import { AutocompleteEmail } from "@/components/AutocompleteEmail";
 
 // --- TYPE DEFINITIONS ---
 interface ChildField {
@@ -477,6 +478,16 @@ const ChildTableEditor = ({
                                                             : row[cf.fieldname] ?? 0
                                                         }
                                                     </div>
+                                                ) : isDropdown && (cf.fieldname.toLowerCase().includes('webmail') || cf.fieldname.toLowerCase().includes('email')) ? (
+                                                    <AutocompleteEmail
+                                                        options={filteredOpts}
+                                                        value={row[cf.fieldname] || ''}
+                                                        onChange={(value) => handleLinkChange(idx, cf, value)}
+                                                        className={tableInputClasses}
+                                                        placeholder="Search webmail..."
+                                                        showAllOnFocus
+                                                        disabled={cf.read_only === 1}
+                                                    />
                                                 ) : isDropdown ? (
                                                     <select
                                                         value={row[cf.fieldname] || ''}
