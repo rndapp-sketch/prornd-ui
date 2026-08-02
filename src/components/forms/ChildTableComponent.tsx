@@ -9,6 +9,8 @@ import { AutocompleteEmail } from '@/components/AutocompleteEmail';
 import { DepartmentName } from '@/components/DepartmentName';
 import { evaluateExpression } from '@/utils/evalExpression';
 import { getFileUrl } from '@/utils/fileUtils';
+import { getFieldMaxLength, getWarnableMaxLength, INT_MAX_LENGTH, CURRENCY_MAX_LENGTH } from '@/utils/fieldLimits';
+import { CharLimitAlert } from '@/components/CharLimitAlert';
 
 // --- TYPE DEFINITIONS ---
 export interface ChildField {
@@ -206,6 +208,7 @@ export const ChildTableComponent = memo(({
                         inputMode="numeric"
                         title="Enter a positive whole number"
                         className={inputClasses}
+                        maxLength={INT_MAX_LENGTH}
                         value={String(value ?? '')}
                         onChange={(e) => {
                             const v = e.target.value;
@@ -227,6 +230,7 @@ export const ChildTableComponent = memo(({
                         inputMode="decimal"
                         title="Enter a positive amount"
                         className={inputClasses}
+                        maxLength={CURRENCY_MAX_LENGTH}
                         value={String(value ?? '')}
                         onChange={(e) => {
                             const v = e.target.value;
@@ -326,6 +330,7 @@ export const ChildTableComponent = memo(({
                     <textarea
                         className={cn(inputClasses, "h-auto py-2")}
                         rows={2}
+                        maxLength={getFieldMaxLength(col.fieldtype)}
                         value={value || ''}
                         onChange={(e) => onRowChange(tableName, rowIndex, col.fieldname, e.target.value)}
                         disabled={isReadOnly}
@@ -396,6 +401,7 @@ export const ChildTableComponent = memo(({
                     <input
                         type="text"
                         className={inputClasses}
+                        maxLength={getFieldMaxLength(col.fieldtype)}
                         value={value || ''}
                         onChange={(e) => onRowChange(tableName, rowIndex, col.fieldname, e.target.value)}
                         disabled={isReadOnly}
@@ -427,6 +433,7 @@ export const ChildTableComponent = memo(({
                     <input
                         type="text"
                         className={inputClasses}
+                        maxLength={getFieldMaxLength(col.fieldtype)}
                         value={value || ''}
                         onChange={(e) => onRowChange(tableName, rowIndex, col.fieldname, e.target.value)}
                         disabled={isReadOnly}
@@ -506,6 +513,13 @@ export const ChildTableComponent = memo(({
                                                 </label>
                                                 <div className="flex-1">
                                                     {renderCellInput(col, row, rowIndex)}
+                                                    {!(readOnly || !!col.read_only) && (
+                                                        <CharLimitAlert
+                                                            value={row[col.fieldname]}
+                                                            maxLength={getWarnableMaxLength(col.fieldtype)}
+                                                            className="mt-1 text-[10px]"
+                                                        />
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}

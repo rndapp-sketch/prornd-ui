@@ -1,4 +1,5 @@
 import { getFileUrl } from "@/utils/fileUtils";
+import { normalizeProjectType } from "@/utils/projectTypeMapping";
 import React, {
     useState,
     useCallback,
@@ -4138,7 +4139,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                             </div>
                             {!hideActions && (
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    {(data?.workflow_state === "Approved" || data?.workflow_state === "Proposal Approved") && (
+                                    {(data?.workflow_state === "Approved" || data?.workflow_state === "Proposal Approved") &&
+                                        normalizeProjectType(data?.project_type) === "Consultancy" && (
                                         <FrappeButton
                                             onClick={() => navigate(`/project-details-overview/${projectName}/proforma-invoice`)}
                                             variant="outline"

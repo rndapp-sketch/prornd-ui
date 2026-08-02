@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
+import { CharLimitAlert } from "@/components/CharLimitAlert";
 import {
     ArrowLeft, Loader2, Search, Download, RefreshCw,
     User, IndianRupee, AlertCircle, ChevronUp, ChevronDown,
@@ -748,6 +749,7 @@ const SalaryRegisterFull: React.FC = () => {
                                                 onChange={e => handleInputChange(r.docName, "comment", e.target.value)}
                                                 className={cn("w-28 px-2 py-1 text-xs bg-white dark:bg-zinc-800 border rounded focus:ring-2 focus:ring-[#D97757]/30 focus:outline-none transition-all",
                                                     isEdited.comment ? "border-amber-400 bg-amber-50/10" : "border-zinc-200 dark:border-zinc-700")} />
+                                            <CharLimitAlert value={inputs.comment} maxLength={120} className="mt-1 text-[10px]" />
                                         </td>
 
                                         {/* Remarks — editable */}
@@ -756,6 +758,7 @@ const SalaryRegisterFull: React.FC = () => {
                                                 onChange={e => handleInputChange(r.docName, "remarks", e.target.value)}
                                                 className={cn("w-28 px-2 py-1 text-xs bg-white dark:bg-zinc-800 border rounded focus:ring-2 focus:ring-[#D97757]/30 focus:outline-none transition-all",
                                                     isEdited.remarks ? "border-amber-400 bg-amber-50/10" : "border-zinc-200 dark:border-zinc-700")} />
+                                            <CharLimitAlert value={inputs.remarks} maxLength={120} className="mt-1 text-[10px]" />
                                         </td>
 
                                         {/* Payslip View Button */}

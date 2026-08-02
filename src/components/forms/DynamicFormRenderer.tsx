@@ -12,6 +12,8 @@ import { BudgetHeadName } from "@/components/BudgetHeadName";
 import { AutocompleteEmail } from "@/components/AutocompleteEmail";
 import { getFileUrl } from "@/utils/fileUtils";
 import { CountrySelect } from "@/components/CountrySelect";
+import { getFieldMaxLength, getWarnableMaxLength, INT_MAX_LENGTH, CURRENCY_MAX_LENGTH } from "@/utils/fieldLimits";
+import { CharLimitAlert } from "@/components/CharLimitAlert";
 
 // --- TYPE DEFINITIONS ---
 export interface FormField {
@@ -210,6 +212,10 @@ const MemoizedFormField = memo(
       readOnly: isReadOnly,
       required: isMandatory,
       disabled: isReadOnly,
+      // Enforces the underlying Frappe column's character limit on manual
+      // (non-prefilled) typing only — read-only fields render as plain text
+      // elsewhere and never reach this input.
+      maxLength: getFieldMaxLength(field.fieldtype),
       // Use ?? so numeric 0 is preserved (0 || "" would wrongly render as empty)
       value: value ?? "",
       onChange: (
@@ -430,6 +436,7 @@ const MemoizedFormField = memo(
               inputMode="numeric"
               title="Enter a positive whole number"
               {...commonProps}
+              maxLength={INT_MAX_LENGTH}
               value={String(value ?? "")}
               onChange={(e) => {
                 const val = e.target.value;
@@ -472,6 +479,7 @@ const MemoizedFormField = memo(
               inputMode="decimal"
               title="Enter a positive amount in ₹"
               {...commonProps}
+              maxLength={CURRENCY_MAX_LENGTH}
               value={String(value ?? "")}
               onChange={(e) => {
                 const val = e.target.value;
@@ -843,6 +851,9 @@ const MemoizedFormField = memo(
       <div className="min-w-0 space-y-2">
         <FieldLabel field={field} isMandatory={isMandatory} />
         {renderInput()}
+        {!isReadOnly && (
+          <CharLimitAlert value={value} maxLength={getWarnableMaxLength(field.fieldtype)} />
+        )}
         {field.description && (
           <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-1 leading-relaxed">
             {field.description}
