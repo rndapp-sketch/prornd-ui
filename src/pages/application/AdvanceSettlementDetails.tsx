@@ -20,6 +20,8 @@ import { DeclarationFields } from "@/components/DeclarationFields";
 import { CommitPayment } from "@/components/CommitPayment";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import ViewProjectButton from "@/components/ViewProjectButton";
+import { CharLimitAlert } from "@/components/CharLimitAlert";
+import { FIELD_CHAR_LIMITS } from "@/utils/fieldLimits";
 
 // --- TYPE DEFINITIONS ---
 interface AdvanceSettlementData {
@@ -136,9 +138,11 @@ const CommentModal = ({
           className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#3F3F46] dark:text-[#E4E4E7] p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757] font-sans leading-relaxed"
           rows={4}
           placeholder="Add a comment (optional)..."
+          maxLength={FIELD_CHAR_LIMITS.Text}
           value={comment}
           onChange={(e) => setComment(e.target.value)}
         />
+        <CharLimitAlert value={comment} maxLength={FIELD_CHAR_LIMITS.Text} className="-mt-3 mb-3" />
         <div className="flex justify-end gap-3">
           <button
             onClick={onClose}

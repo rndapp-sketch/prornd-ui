@@ -10,6 +10,8 @@ import { Plus, Trash2 } from 'lucide-react';
 import { DepartmentName } from "@/components/DepartmentName";
 import DirectPurchaseHelpGuide from "@/components/DirectPurchaseHelpGuide";
 import { AutocompleteEmail } from "@/components/AutocompleteEmail";
+import { CharLimitAlert } from "@/components/CharLimitAlert";
+import { getFieldMaxLength } from "@/utils/fieldLimits";
 
 // --- TYPE DEFINITIONS ---
 interface ChildField {
@@ -171,6 +173,7 @@ const MemoizedFormField = memo(({
         readOnly: field.read_only === 1,
         required: field.mandatory === 1,
         disabled: field.read_only === 1,
+        maxLength: getFieldMaxLength(field.fieldtype),
         value: value ?? '',
         onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
             onChange(field.fieldname, e.target.value)
@@ -300,6 +303,9 @@ const MemoizedFormField = memo(({
         <div className="space-y-1.5">
             <FieldLabel field={field} />
             {renderInput()}
+            {field.read_only !== 1 && (
+                <CharLimitAlert value={value} maxLength={getFieldMaxLength(field.fieldtype)} />
+            )}
             {field.description && field.fieldtype !== 'Check' && (
                 <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-1 leading-relaxed">{field.description}</p>
             )}
@@ -515,16 +521,26 @@ const ChildTableEditor = ({
                                                         ))}
                                                     </select>
                                                 ) : (
-                                                    <input
-                                                        type={getInputType(cf)}
-                                                        value={row[cf.fieldname] ?? ''}
-                                                        onChange={(e) => updateRow(idx, cf.fieldname, e.target.value)}
-                                                        className={tableInputClasses}
-                                                        readOnly={cf.read_only === 1}
-                                                        disabled={cf.read_only === 1}
-                                                        required={cf.mandatory === 1}
-                                                        onWheel={getInputType(cf) === 'number' ? e => e.currentTarget.blur() : undefined}
-                                                    />
+                                                    <>
+                                                        <input
+                                                            type={getInputType(cf)}
+                                                            value={row[cf.fieldname] ?? ''}
+                                                            onChange={(e) => updateRow(idx, cf.fieldname, e.target.value)}
+                                                            className={tableInputClasses}
+                                                            readOnly={cf.read_only === 1}
+                                                            disabled={cf.read_only === 1}
+                                                            required={cf.mandatory === 1}
+                                                            maxLength={getInputType(cf) === 'text' ? getFieldMaxLength(cf.fieldtype) : undefined}
+                                                            onWheel={getInputType(cf) === 'number' ? e => e.currentTarget.blur() : undefined}
+                                                        />
+                                                        {cf.read_only !== 1 && getInputType(cf) === 'text' && (
+                                                            <CharLimitAlert
+                                                                value={row[cf.fieldname]}
+                                                                maxLength={getFieldMaxLength(cf.fieldtype)}
+                                                                className="mt-1 text-[10px]"
+                                                            />
+                                                        )}
+                                                    </>
                                                 )}
                                             </td>
                                         );

@@ -564,6 +564,12 @@ const TaskRegistry: React.FC = () => {
                                                         navigate(`/miscellaneous-commit/${task.id}`);
                                                     } else if (task.doctype === "Loan Request") {
                                                         navigate(`/loan-request/${task.id}`);
+                                                    } else if (task.doctype === "Project Staff Extension") {
+                                                        navigate(`/project-staff-extension?edit=${encodeURIComponent(task.id)}`);
+                                                    } else if (task.doctype === "Project Staff Resignation") {
+                                                        navigate(`/project-staff-resignation?edit=${encodeURIComponent(task.id)}`);
+                                                    } else if (task.doctype === "Project Staff Details") {
+                                                        navigate(`/project-staff-joining?docname=${encodeURIComponent(task.id)}`);
                                                     } else {
                                                         navigate(`/task-registry/${task.doctype}/${task.id}`);
                                                     }
@@ -626,6 +632,12 @@ const TaskRegistry: React.FC = () => {
                                                                 navigate(`/miscellaneous-commit/${task.id}`);
                                                             } else if (task.doctype === "Loan Request") {
                                                                 navigate(`/loan-request/${task.id}`);
+                                                            } else if (task.doctype === "Project Staff Extension") {
+                                                                navigate(`/project-staff-extension?edit=${encodeURIComponent(task.id)}`);
+                                                            } else if (task.doctype === "Project Staff Resignation") {
+                                                                navigate(`/project-staff-resignation?edit=${encodeURIComponent(task.id)}`);
+                                                            } else if (task.doctype === "Project Staff Details") {
+                                                                navigate(`/project-staff-joining?docname=${encodeURIComponent(task.id)}`);
                                                             } else {
                                                                 navigate(`/task-registry/${task.doctype}/${task.id}`);
                                                             }

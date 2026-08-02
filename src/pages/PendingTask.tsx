@@ -1044,6 +1044,8 @@ const PendingTask: React.FC = () => {
                                                                 navigate(`/project-staff-joining?docname=${encodeURIComponent(task.id)}`);
                                                             } else if (task.doctype === "Project Staff Resignation") {
                                                                 navigate(`/project-staff-resignation?edit=${encodeURIComponent(task.id)}`);
+                                                            } else if (task.doctype === "Project Staff Extension") {
+                                                                navigate(`/project-staff-extension?edit=${encodeURIComponent(task.id)}`);
                                                             } else if (task.doctype === "Miscellaneous Commit") {
                                                                 navigate(`/miscellaneous-commit/${task.id}`);
                                                             } else if (task.doctype === "Loan Request") {
@@ -1279,6 +1281,8 @@ const PendingTask: React.FC = () => {
                                     navigate(`/project-staff-joining?docname=${encodeURIComponent(selectedTask.docname)}`);
                                 } else if (selectedTask.doctype === "Project Staff Resignation") {
                                     navigate(`/project-staff-resignation?edit=${encodeURIComponent(selectedTask.docname)}`);
+                                } else if (selectedTask.doctype === "Project Staff Extension") {
+                                    navigate(`/project-staff-extension?edit=${encodeURIComponent(selectedTask.docname)}`);
                                 } else if (selectedTask.doctype === "Miscellaneous Commit") {
                                     navigate(`/miscellaneous-commit/${selectedTask.docname}`);
                                 } else if (selectedTask.doctype === "Loan Request") {

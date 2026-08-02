@@ -40,6 +40,8 @@ import {
 import { commonAPI } from "@/services/apiService";
 import { AutocompleteEmail } from "../components/AutocompleteEmail";
 import { useUserRoles } from "@/components/UserRole";
+import { CharLimitAlert } from "@/components/CharLimitAlert";
+import { getFieldMaxLength } from "@/utils/fieldLimits";
 
 // --- TYPE DEFINITIONS ---
 interface Field {
@@ -198,6 +200,7 @@ const MemoizedFormField = memo(
         onFileChange: (fieldname: string, file: File | null) => void;
     }) => {
         if (!field || field.hidden || !field.label) return null;
+        const maxLength = getFieldMaxLength(field.fieldtype);
         const commonProps = {
             id: field.fieldname,
             name: field.fieldname,
@@ -205,6 +208,7 @@ const MemoizedFormField = memo(
             readOnly: field.read_only,
             required: field.mandatory,
             disabled: field.read_only,
+            maxLength,
         };
         const renderInput = () => {
             switch (field.fieldtype) {
@@ -385,6 +389,12 @@ const MemoizedFormField = memo(
                     {field.mandatory && <span className="text-red-500 ml-0.5 normal-case">*</span>}
                 </label>
                 {renderInput()}
+                {!field.read_only && (
+                    <CharLimitAlert
+                        value={value}
+                        maxLength={field.fieldname === "funding_agency_schemes" ? 100 : maxLength}
+                    />
+                )}
                 {field.description && field.fieldtype !== "Check" && (
                     <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-1 leading-relaxed">
                         {field.description}
@@ -507,6 +517,7 @@ const MemoizedGenericTable = memo(
                                         <input
                                             type={col.type}
                                             readOnly={!!col.readOnly}
+                                            maxLength={col.type === "text" && !col.readOnly ? 140 : undefined}
                                             className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary focus:!ring-primary/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none${col.readOnly ? " bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500" : ""}`}
                                             value={row[col.key] || ""}
                                             onChange={(e) => {
@@ -535,6 +546,9 @@ const MemoizedGenericTable = memo(
                                             }
                                         />
                                     )}{" "}
+                                    {col.type === "text" && !col.readOnly && (
+                                        <CharLimitAlert value={row[col.key]} maxLength={140} className="mt-1 text-[10px]" />
+                                    )}
                                 </td>
                             ))}
                             <td className="px-4 py-2.5">
@@ -668,6 +682,7 @@ const MemoizedCollaboratorTable = memo(
                                         <input
                                             type="text"
                                             placeholder="Institute/Address"
+                                            maxLength={140}
                                             className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary`}
                                             value={
                                                 row[`${prefix}_address`] || ""
@@ -681,6 +696,7 @@ const MemoizedCollaboratorTable = memo(
                                                 )
                                             }
                                         />
+                                        <CharLimitAlert value={row[`${prefix}_address`]} maxLength={140} className="mt-1 text-[10px]" />
                                     </td>
                                     <td className="px-4 py-2.5">
                                         <input
@@ -831,6 +847,7 @@ const MemoizedBudgetTable = memo(
                                                     type="text"
                                                     inputMode="decimal"
                                                     title="Enter a positive budget amount"
+                                                    maxLength={22}
                                                     className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary`}
                                                     value={String((row.years || [])[yearIndex] ?? "")}
                                                     readOnly={readOnly}
@@ -4785,10 +4802,12 @@ Endorsement is optional. You may continue completing Project Registration while 
                                 type="text"
                                 autoFocus
                                 placeholder="Enter designation name..."
+                                maxLength={140}
                                 value={quickEntryState.pendingValue}
                                 onChange={(e) => setQuickEntryState(prev => prev ? { ...prev, pendingValue: e.target.value } : null)}
                                 className={`${inputClasses} w-full mb-4`}
                             />
+                            <CharLimitAlert value={quickEntryState.pendingValue} maxLength={140} className="-mt-3 mb-3" />
                             <div className="flex justify-end gap-2">
                                 <button
                                     onClick={() => setQuickEntryState(null)}
@@ -4825,6 +4844,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                             <textarea
                                 id="finalSubmitComment"
                                 placeholder="Enter your comment here..."
+                                maxLength={65535}
                                 className="w-full mb-4 min-h-[100px] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] bg-white dark:bg-[#27272A] text-[#18181B] dark:text-[#E4E4E7] focus:outline-none focus:border-[#4A6CF7] focus:ring-[3px] focus:ring-[#4A6CF7]/12 p-3 rounded-lg text-[13px] font-medium resize-none"
                             />
                             <div className="flex justify-end gap-3">
@@ -4882,7 +4902,9 @@ Endorsement is optional. You may continue completing Project Registration while 
                                 <div className="flex flex-col gap-1.5">
                                     <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Funding Agency Name <span className="text-red-500">*</span></label>
                                     <input type="text" value={newAgencyData.funding_agency_name || ""} onChange={(e) => handleAgencyFieldChange("funding_agency_name", e.target.value)}
+                                        maxLength={140}
                                         className={`w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors ${hasDupe ? "border-red-400 dark:border-red-500 focus:ring-red-300" : "border-zinc-300 dark:border-zinc-700 focus:ring-primary/30"}`} />
+                                    <CharLimitAlert value={newAgencyData.funding_agency_name} maxLength={140} />
                                     {hasDupe && <p className="text-xs text-red-500 font-medium">Duplicate: "{duplicateAgency!.funding_agency_name}" already exists.</p>}
                                 </div>
                             );
@@ -4897,7 +4919,9 @@ Endorsement is optional. You may continue completing Project Registration while 
                                 <div className="flex flex-col gap-1.5">
                                     <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Initials / Abbreviation</label>
                                     <input type="text" value={newAgencyData.funding_agency_initials || ""} onChange={(e) => handleAgencyFieldChange("funding_agency_initials", e.target.value)}
+                                        maxLength={140}
                                         className={`w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors ${hasDupe ? "border-red-400 dark:border-red-500 focus:ring-red-300" : "border-zinc-300 dark:border-zinc-700 focus:ring-primary/30"}`} />
+                                    <CharLimitAlert value={newAgencyData.funding_agency_initials} maxLength={140} />
                                     {hasDupe && <p className="text-xs text-red-500 font-medium">Duplicate: "{duplicateAgency!.funding_agency_name}" already exists.</p>}
                                 </div>
                             );
@@ -4932,7 +4956,9 @@ Endorsement is optional. You may continue completing Project Registration while 
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Specify Type <span className="text-red-500">*</span></label>
                                 <input type="text" value={newAgencyData.specify_other_funding_agency_type || ""} onChange={(e) => handleAgencyFieldChange("specify_other_funding_agency_type", e.target.value)}
+                                    maxLength={140}
                                     className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                                <CharLimitAlert value={newAgencyData.specify_other_funding_agency_type} maxLength={140} />
                             </div>
                         )}
 
@@ -4957,7 +4983,9 @@ Endorsement is optional. You may continue completing Project Registration while 
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Specify Ministry <span className="text-red-500">*</span></label>
                                 <input type="text" value={newAgencyData.specify_other_ministry || ""} onChange={(e) => handleAgencyFieldChange("specify_other_ministry", e.target.value)}
+                                    maxLength={140}
                                     className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                                <CharLimitAlert value={newAgencyData.specify_other_ministry} maxLength={140} />
                             </div>
                         )}
 
@@ -4966,7 +4994,9 @@ Endorsement is optional. You may continue completing Project Registration while 
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">GSTIN</label>
                                 <input type="text" value={newAgencyData.gstin_of_funding_agency || ""} onChange={(e) => handleAgencyFieldChange("gstin_of_funding_agency", e.target.value)}
+                                    maxLength={140}
                                     className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                                <CharLimitAlert value={newAgencyData.gstin_of_funding_agency} maxLength={140} />
                             </div>
                         )}
 
@@ -4974,7 +5004,9 @@ Endorsement is optional. You may continue completing Project Registration while 
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Address</label>
                             <textarea rows={2} value={newAgencyData.fundingagency_address || ""} onChange={(e) => handleAgencyFieldChange("fundingagency_address", e.target.value)}
+                                maxLength={65535}
                                 className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 resize-none" />
+                            <CharLimitAlert value={newAgencyData.fundingagency_address} maxLength={65535} />
                         </div>
 
                         {/* Country */}
@@ -5001,21 +5033,27 @@ Endorsement is optional. You may continue completing Project Registration while 
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Postal Code</label>
                             <input type="text" value={newAgencyData.fundingagency_postalcode || ""} onChange={(e) => handleAgencyFieldChange("fundingagency_postalcode", e.target.value)}
+                                maxLength={140}
                                 className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                            <CharLimitAlert value={newAgencyData.fundingagency_postalcode} maxLength={140} />
                         </div>
 
                         {/* Email */}
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Email</label>
                             <input type="email" value={newAgencyData.funding_agency_email || ""} onChange={(e) => handleAgencyFieldChange("funding_agency_email", e.target.value)}
+                                maxLength={140}
                                 className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                            <CharLimitAlert value={newAgencyData.funding_agency_email} maxLength={140} />
                         </div>
 
                         {/* Contact */}
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Contact No.</label>
                             <input type="text" value={newAgencyData.funding_agency_contact_no || ""} onChange={(e) => handleAgencyFieldChange("funding_agency_contact_no", e.target.value)}
+                                maxLength={140}
                                 className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                            <CharLimitAlert value={newAgencyData.funding_agency_contact_no} maxLength={140} />
                         </div>
 
                     </div>

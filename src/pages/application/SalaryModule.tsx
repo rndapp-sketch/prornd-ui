@@ -3,6 +3,8 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
+import { CharLimitAlert } from "@/components/CharLimitAlert";
+import { FIELD_CHAR_LIMITS } from "@/utils/fieldLimits";
 import {
     ArrowLeft, Loader2, Search, Download, RefreshCw,
     User, IndianRupee, AlertCircle, ChevronUp, ChevronDown,
@@ -2061,24 +2063,28 @@ const SalaryModule: React.FC = () => {
                                                                     type="text"
                                                                     value={inputs.comment}
                                                                     onChange={e => handleInputChange(r.docName, "comment", e.target.value)}
+                                                                    maxLength={120}
                                                                     className={cn(
                                                                         "w-32 px-2.5 py-1.5 text-xs bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all",
                                                                         isEdited.comment ? "border-amber-400 bg-amber-50/10" : "border-zinc-200 dark:border-zinc-700"
                                                                     )}
                                                                     placeholder="Note..."
                                                                 />
+                                                                <CharLimitAlert value={inputs.comment} maxLength={120} className="mt-1 text-[10px]" />
                                                             </td>
                                                             <td className="px-2 py-1.5 border-r border-zinc-100 dark:border-zinc-800">
                                                                 <input
                                                                     type="text"
                                                                     value={inputs.remarks}
                                                                     onChange={e => handleInputChange(r.docName, "remarks", e.target.value)}
+                                                                    maxLength={120}
                                                                     className={cn(
                                                                         "w-32 px-2.5 py-1.5 text-xs bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all",
                                                                         isEdited.remarks ? "border-amber-400 bg-amber-50/10" : "border-zinc-200 dark:border-zinc-700"
                                                                     )}
                                                                     placeholder="Remarks..."
                                                                 />
+                                                                <CharLimitAlert value={inputs.remarks} maxLength={120} className="mt-1 text-[10px]" />
                                                             </td>
 
                                                             {/* Payslip Action Button */}
@@ -2588,8 +2594,10 @@ const SalaryModule: React.FC = () => {
                                     onKeyDown={e => { if (e.key === "Enter" && !bmrSubmitting) handleBmrSubmit(); }}
                                     placeholder="Enter BMR number for this scheme..."
                                     autoFocus
+                                    maxLength={FIELD_CHAR_LIMITS.Data}
                                     className="w-full rounded-lg border-2 border-[#E4E4E7] bg-white px-4 py-2.5 text-[13px] font-semibold text-[#3F3F46] outline-none placeholder:text-[#A1A1AA] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15 transition-all dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#E4E4E7] dark:placeholder:text-[#71717A] dark:focus:border-emerald-500"
                                 />
+                                <CharLimitAlert value={bmrInput} maxLength={FIELD_CHAR_LIMITS.Data} className="mt-1.5" />
                                 {bmrError && (
                                     <p className="mt-1.5 flex items-center gap-1 text-[11px] font-semibold text-red-600 dark:text-red-400">
                                         <AlertCircle className="h-3 w-3" /> {bmrError}

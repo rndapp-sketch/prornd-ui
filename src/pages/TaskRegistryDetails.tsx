@@ -1951,6 +1951,15 @@ const TaskRegistryDetails: React.FC = () => {
     useEffect(() => {
         if (doctype === 'Disbursal of Consultancy' && name) navigate(`/disbursal-of-consultancy/${name}`, { replace: true });
         if (doctype === 'Travel' && name) navigate(`/travel/${name}`, { replace: true });
+        if (doctype === 'Project Staff Extension' && name) {
+            navigate(`/project-staff-extension?edit=${name}&fromRegistry=true`, { replace: true });
+        }
+        if (doctype === 'Project Staff Resignation' && name) {
+            navigate(`/project-staff-resignation?edit=${name}&fromRegistry=true`, { replace: true });
+        }
+        if (doctype === 'Project Staff Details' && name) {
+            navigate(`/project-staff-joining?docname=${name}&fromRegistry=true`, { replace: true });
+        }
     }, [doctype, name]);
 
     useEffect(() => {
