@@ -499,8 +499,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useFrappePostCall } from "frappe-react-sdk";
+import JSZip from "jszip";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Loader2, Users, Eye, Download, Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Briefcase } from "lucide-react";
+import { ArrowLeft, Loader2, Users, Eye, Download, Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Briefcase, FileArchive } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { candidateAPI } from "@/services/apiService";
 
@@ -749,6 +750,8 @@ const CandidateApplications: React.FC = () => {
     const [selectedPost, setSelectedPost] = useState<string>("all");
     const [searchTerm, setSearchTerm] = useState<string>("");
     const [isExporting, setIsExporting] = useState<boolean>(false);
+    const [isDownloadingResumes, setIsDownloadingResumes] = useState<boolean>(false);
+    const [resumeDownloadProgress, setResumeDownloadProgress] = useState<{ done: number; total: number } | null>(null);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { call: fetchFrappeDoc } = useFrappePostCall<{ message: any }>("frappe.client.get");
@@ -908,6 +911,101 @@ const CandidateApplications: React.FC = () => {
         }
     };
 
+    const MIME_EXTENSION_MAP: Record<string, string> = {
+        "application/pdf": "pdf",
+        "application/msword": "doc",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+        "image/jpeg": "jpg",
+        "image/png": "png",
+    };
+
+    const guessExtension = (documentName: string, mimeType: string): string => {
+        const nameMatch = /\.([a-zA-Z0-9]{2,5})$/.exec(documentName || "");
+        if (nameMatch) return nameMatch[1].toLowerCase();
+        return MIME_EXTENSION_MAP[(mimeType || "").toLowerCase()] || "pdf";
+    };
+
+    const sanitizeFileName = (name: string): string =>
+        (name || "candidate").trim().replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/^_+|_+$/g, "") || "candidate";
+
+    const handleDownloadAllResumes = async () => {
+        const candidates = filteredApplications;
+        if (candidates.length === 0) return;
+
+        setIsDownloadingResumes(true);
+        setResumeDownloadProgress({ done: 0, total: candidates.length });
+        try {
+            const zip = new JSZip();
+            const usedNames = new Set<string>();
+            let missingCount = 0;
+
+            for (const app of candidates) {
+                try {
+                    const profileRes = await fetch(candidateAPI.getProfile(app.candidate_id));
+                    if (!profileRes.ok) throw new Error(`HTTP ${profileRes.status}`);
+                    const profileData = await profileRes.json();
+                    const documents: Array<{ id: number; document_name?: string; mime_type?: string }> =
+                        profileData?.documents || [];
+                    const resumeDoc = documents.find((d) =>
+                        (d.document_name || "").toLowerCase().includes("resume") ||
+                        (d.document_name || "").toLowerCase().includes("cv")
+                    );
+
+                    if (!resumeDoc) {
+                        missingCount += 1;
+                        continue;
+                    }
+
+                    const fileRes = await fetch(candidateAPI.viewDocument(resumeDoc.id));
+                    if (!fileRes.ok) throw new Error(`HTTP ${fileRes.status}`);
+                    const blob = await fileRes.blob();
+
+                    const ext = guessExtension(resumeDoc.document_name || "", resumeDoc.mime_type || blob.type);
+                    const baseName = sanitizeFileName(`${app.first_name || ""}_${app.last_name || ""}`);
+                    let fileName = `${baseName}.${ext}`;
+                    let suffix = 1;
+                    while (usedNames.has(fileName)) {
+                        fileName = `${baseName}_${suffix}.${ext}`;
+                        suffix += 1;
+                    }
+                    usedNames.add(fileName);
+
+                    zip.file(fileName, blob);
+                } catch (err) {
+                    console.error(`Failed to fetch resume for candidate ${app.candidate_id}:`, err);
+                    missingCount += 1;
+                } finally {
+                    setResumeDownloadProgress((prev) => (prev ? { ...prev, done: prev.done + 1 } : prev));
+                }
+            }
+
+            if (usedNames.size === 0) {
+                setError("No resumes found for the current candidate list.");
+                return;
+            }
+
+            const zipBlob = await zip.generateAsync({ type: "blob" });
+            const url = URL.createObjectURL(zipBlob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `resumes_${refNum}.zip`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            if (missingCount > 0) {
+                console.warn(`${missingCount} candidate(s) had no resume/CV document and were skipped.`);
+            }
+        } catch (err: any) {
+            console.error("Error downloading resumes:", err);
+            setError(err.message || "Failed to download resumes.");
+        } finally {
+            setIsDownloadingResumes(false);
+            setResumeDownloadProgress(null);
+        }
+    };
+
     const filters = [
         { key: "all", label: "All Candidates", icon: "fas fa-list" },
         { key: "Shortlisted", label: "Shortlisted", icon: "fas fa-check-circle" },
@@ -942,14 +1040,26 @@ const CandidateApplications: React.FC = () => {
                             </p>
                         </div>
                     </div>
-                    <button
-                        onClick={handleExportCSV}
-                        disabled={filteredApplications.length === 0 || isExporting}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-300 disabled:cursor-not-allowed text-white text-sm font-semibold transition-all shadow-sm active:scale-95"
-                    >
-                        {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                        {isExporting ? "Exporting..." : "Export to CSV"}
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={handleDownloadAllResumes}
+                            disabled={filteredApplications.length === 0 || isDownloadingResumes}
+                            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#D97757] hover:bg-[#c1633f] disabled:bg-zinc-300 disabled:cursor-not-allowed text-white text-sm font-semibold transition-all shadow-sm active:scale-95"
+                        >
+                            {isDownloadingResumes ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileArchive className="w-4 h-4" />}
+                            {isDownloadingResumes
+                                ? `Downloading... (${resumeDownloadProgress?.done ?? 0}/${resumeDownloadProgress?.total ?? filteredApplications.length})`
+                                : "Download All Resumes (ZIP)"}
+                        </button>
+                        <button
+                            onClick={handleExportCSV}
+                            disabled={filteredApplications.length === 0 || isExporting}
+                            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-300 disabled:cursor-not-allowed text-white text-sm font-semibold transition-all shadow-sm active:scale-95"
+                        >
+                            {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                            {isExporting ? "Exporting..." : "Export to CSV"}
+                        </button>
+                    </div>
                 </div>
 
                 {/* Filters and Search */}
