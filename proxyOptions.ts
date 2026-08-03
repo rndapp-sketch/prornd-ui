@@ -79,6 +79,16 @@ export default {
     changeOrigin: true,
     rewrite: (path: string) => path.replace(/^\/attendance-api/, "/api"),
   },
+  // Proxy for external Candidate Recruitment API to avoid CORS in dev.
+  // The recruitment portal's document /view endpoint does not send
+  // Access-Control-Allow-Origin, so browser fetch() for binary downloads
+  // (e.g. bulk resume zip) gets blocked unless routed same-origin.
+  "/candidate-api": {
+    target: "https://iitg.ac.in",
+    changeOrigin: true,
+    secure: true,
+    rewrite: (path: string) => path.replace(/^\/candidate-api/, "/rndproj/recruitment"),
+  },
 };
 
 // ========================

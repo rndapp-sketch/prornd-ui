@@ -312,7 +312,10 @@ export const fileToBase64 = (file: File): Promise<{ file_name: string; file_data
 };
 
 // Candidate APIs (External Node Server)
-export const CANDIDATE_API_BASE_URL = import.meta.env.VITE_CANDIDATE_API_URL || "https://iitg.ac.in/rndproj/recruitment";
+// In dev, calls are routed through the Vite proxy at /candidate-api (see proxyOptions.ts)
+// so that binary document downloads (which the external API does not send CORS headers for)
+// can be fetched same-origin instead of being blocked by the browser.
+export const CANDIDATE_API_BASE_URL = import.meta.env.VITE_CANDIDATE_API_URL || "/candidate-api";
 
 export const candidateAPI = {
     getApplications: (refNum: string) => `${CANDIDATE_API_BASE_URL}/api/applications?refNumParent=${encodeURIComponent(refNum)}`,
