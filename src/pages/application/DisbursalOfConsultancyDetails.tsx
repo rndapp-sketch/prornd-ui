@@ -191,7 +191,8 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
     );
     const { data: activityData } = useFrappeGetCall<{ message: ActivityItem[] }>(
         "rndopsapp.rndopsapp.api.get_project_activity",
-        id ? { doctype: "Disbursal of Consultancy", docname: id } : undefined,
+        { doctype: "Disbursal of Consultancy", docname: id },
+        id ? undefined : null,
     );
     const { call: submitDocument } = useFrappePostCall<{ message: any }>(disbursalOfConsultancyAPI.submit);
     const { call: stageCommit } = useFrappePostCall("rndopsapp.rndopsapp.commitPayment.submit_commit_data");

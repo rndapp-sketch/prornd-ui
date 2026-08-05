@@ -2799,10 +2799,11 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
         const { data: activityData, mutate: refetchActivity } =
             useFrappeGetCall<{
                 message: ActivityItem[];
-            }>("rndopsapp.rndopsapp.api.get_project_activity", {
-                doctype,
-                docname,
-            });
+            }>(
+                "rndopsapp.rndopsapp.api.get_project_activity",
+                { doctype, docname },
+                doctype && docname ? undefined : null,
+            );
         const { call: addComment } = useFrappePostCall(
             "rndopsapp.rndopsapp.api.add_project_comment",
         );
@@ -3107,10 +3108,11 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
 
     const { data: activityData } = useFrappeGetCall<{
         message: ActivityItem[];
-    }>("rndopsapp.rndopsapp.api.get_project_activity", {
-        doctype: "Project Registration",
-        docname: projectName,
-    });
+    }>(
+        "rndopsapp.rndopsapp.api.get_project_activity",
+        { doctype: "Project Registration", docname: projectName },
+        projectName ? undefined : null,
+    );
 
     // --- Budget State ---
     const [isLedgerOpen, setIsLedgerOpen] = useState(false);
@@ -3133,9 +3135,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         message: ActivityItem[];
     }>(
         "rndopsapp.rndopsapp.api.get_project_activity",
-        sanctionActivityDocname
-            ? { doctype: "Fund Sanction", docname: sanctionActivityDocname }
-            : undefined,
+        { doctype: "Fund Sanction", docname: sanctionActivityDocname },
+        sanctionActivityDocname ? undefined : null,
     );
 
     const fundReceivedActivityDocname = (() => {
@@ -3147,9 +3148,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         message: ActivityItem[];
     }>(
         "rndopsapp.rndopsapp.api.get_project_activity",
-        fundReceivedActivityDocname
-            ? { doctype: "Fund Received", docname: fundReceivedActivityDocname }
-            : undefined,
+        { doctype: "Fund Received", docname: fundReceivedActivityDocname },
+        fundReceivedActivityDocname ? undefined : null,
     );
 
     // --- Modal State for Sanction Submit ---
@@ -3874,10 +3874,17 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         SanctionBudgetRow[]
     >([]);
     const [isSavingSanctionBudget, setIsSavingSanctionBudget] = useState(false);
+    // Header fields edited alongside the budget breakup while a draft sanction is in edit mode
+    const [editSanctionLetterNo, setEditSanctionLetterNo] = useState("");
+    const [editSanctionLetterDate, setEditSanctionLetterDate] = useState("");
+    const [sanctionSaveError, setSanctionSaveError] = useState<string | null>(null);
 
     const { call: updateSanctionBudget } = useFrappePostCall(
         "rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.update_sanctioned_budget_breakup",
     );
+    // Standard Frappe whitelisted method (same pattern as DelegateUser.tsx / Profile.tsx) —
+    // used to persist the plain header fields since there's no bespoke Fund Sanction method for them.
+    const { call: setSanctionFieldValue } = useFrappePostCall("frappe.client.set_value");
 
     const startEditSanctionBudget = (sanction: any) => {
         setEditSanctionBudgetRows(
@@ -3890,17 +3897,36 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                 fifth_year_budget: parseFloat(r.fifth_year_budget) || 0,
             })),
         );
+        setEditSanctionLetterNo(sanction.sanctioned_letter_no ?? "");
+        setEditSanctionLetterDate(sanction.sanctioned_letter_date ?? "");
+        setSanctionSaveError(null);
         setEditingSanctionBudgetName(sanction.name);
     };
 
     const cancelEditSanctionBudget = () => {
         setEditingSanctionBudgetName(null);
         setEditSanctionBudgetRows([]);
+        setEditSanctionLetterNo("");
+        setEditSanctionLetterDate("");
+        setSanctionSaveError(null);
     };
 
     const saveSanctionBudget = async (sanctionName: string) => {
+        if (!editSanctionLetterNo.trim()) {
+            setSanctionSaveError("Sanction Letter No is required before saving.");
+            return;
+        }
+        setSanctionSaveError(null);
         setIsSavingSanctionBudget(true);
         try {
+            await setSanctionFieldValue({
+                doctype: "Fund Sanction",
+                name: sanctionName,
+                fieldname: {
+                    sanctioned_letter_no: editSanctionLetterNo.trim(),
+                    sanctioned_letter_date: editSanctionLetterDate,
+                },
+            });
             await updateSanctionBudget({
                 docname: sanctionName,
                 rows: editSanctionBudgetRows.map((r) => ({
@@ -3915,8 +3941,11 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             await refetchSanctions();
             setEditingSanctionBudgetName(null);
             setEditSanctionBudgetRows([]);
+            setEditSanctionLetterNo("");
+            setEditSanctionLetterDate("");
         } catch (err) {
-            console.error("Failed to update sanctioned budget breakup:", err);
+            console.error("Failed to update sanction:", err);
+            setSanctionSaveError("Failed to save changes. Please try again.");
         } finally {
             setIsSavingSanctionBudget(false);
         }
@@ -4139,6 +4168,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                             </div>
                             {!hideActions && (
                                 <div className="flex items-center gap-2 flex-wrap">
+                                    {/* Pro Inv button disabled for now
                                     {(data?.workflow_state === "Approved" || data?.workflow_state === "Proposal Approved") &&
                                         normalizeProjectType(data?.project_type) === "Consultancy" && (
                                         <FrappeButton
@@ -4150,6 +4180,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                             <FileTextIcon className="h-3.5 w-3.5" /> Pro Inv
                                         </FrappeButton>
                                     )}
+                                    */}
                                     <WorkflowActions
                                         docname={projectName!}
                                         onAction={handleWorkflowAction}
@@ -5949,6 +5980,15 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                         const isDraft =
                                                             sanction.sanction_workflow_status?.toLowerCase() ===
                                                             "draft";
+                                                        const isSanctionOwner =
+                                                            !!currentUser &&
+                                                            sanction.owner ===
+                                                            currentUser;
+                                                        const isEditingSB =
+                                                            editingSanctionBudgetName ===
+                                                            sanction.name;
+                                                        const canSubmitSanction =
+                                                            !!sanction.sanctioned_letter_no?.trim();
 
                                                         return (
                                                             <FrappeCard className="space-y-5">
@@ -5976,23 +6016,53 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                             "DRAFT"}
                                                                                     </span>
                                                                                 </span>
-                                                                                <span>
-                                                                                    Letter
-                                                                                    No:{" "}
-                                                                                    <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                                                                                        {
-                                                                                            sanction.sanctioned_letter_no
-                                                                                        }
+                                                                                {isEditingSB ? (
+                                                                                    <span className="inline-flex items-center gap-1.5">
+                                                                                        Letter No:{" "}
+                                                                                        <input
+                                                                                            type="text"
+                                                                                            value={editSanctionLetterNo}
+                                                                                            onChange={(e) => setEditSanctionLetterNo(e.target.value)}
+                                                                                            placeholder="Required"
+                                                                                            className={cn(
+                                                                                                "px-2 py-1 rounded border text-xs w-36 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100",
+                                                                                                !editSanctionLetterNo.trim()
+                                                                                                    ? "border-red-400 focus:ring-1 focus:ring-red-400"
+                                                                                                    : "border-zinc-300 dark:border-zinc-700",
+                                                                                            )}
+                                                                                        />
                                                                                     </span>
-                                                                                </span>
-                                                                                <span>
-                                                                                    Date:{" "}
-                                                                                    <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                                                                                        {
-                                                                                            sanction.sanctioned_letter_date
-                                                                                        }
+                                                                                ) : (
+                                                                                    <span>
+                                                                                        Letter
+                                                                                        No:{" "}
+                                                                                        <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                                                                                            {
+                                                                                                sanction.sanctioned_letter_no
+                                                                                            }
+                                                                                        </span>
                                                                                     </span>
-                                                                                </span>
+                                                                                )}
+                                                                                {isEditingSB ? (
+                                                                                    <span className="inline-flex items-center gap-1.5">
+                                                                                        Date:{" "}
+                                                                                        <input
+                                                                                            type="date"
+                                                                                            value={editSanctionLetterDate || ""}
+                                                                                            onChange={(e) => setEditSanctionLetterDate(e.target.value)}
+                                                                                            className="px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700 text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                                                                                        />
+                                                                                    </span>
+                                                                                ) : (
+                                                                                    <span>
+                                                                                        Date:{" "}
+                                                                                        <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                                                                                            {
+                                                                                                sanction.sanctioned_letter_date
+                                                                                            }
+                                                                                        </span>
+                                                                                    </span>
+                                                                                )}
                                                                                 <span>
                                                                                     Amount:{" "}
                                                                                     <span className="font-semibold text-[#D97757]">
@@ -6013,26 +6083,52 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                         </div>
 
                                                                         {isDraft && (
-                                                                            <div className="flex-shrink-0">
-                                                                                <FrappeButton
-                                                                                    onClick={() =>
-                                                                                        handleSanctionSubmitClick(
-                                                                                            sanction.name,
-                                                                                        )
-                                                                                    }
-                                                                                    disabled={
-                                                                                        isSubmittingSanction
-                                                                                    }
-                                                                                    aria-label="Submit sanction"
-                                                                                >
-                                                                                    <CheckCircleIcon className="h-4 w-4" />
-                                                                                    {isSubmittingSanction
-                                                                                        ? "Submitting..."
-                                                                                        : "Submit"}
-                                                                                </FrappeButton>
+                                                                            <div className="flex-shrink-0 flex items-center gap-2">
+                                                                                {isSanctionOwner && !isEditingSB && (
+                                                                                    <Button
+                                                                                        size="sm"
+                                                                                        variant="outline"
+                                                                                        className="h-8 px-3 text-xs gap-1.5"
+                                                                                        onClick={() =>
+                                                                                            startEditSanctionBudget(sanction)
+                                                                                        }
+                                                                                    >
+                                                                                        <Pencil className="h-3.5 w-3.5" />
+                                                                                        Edit
+                                                                                    </Button>
+                                                                                )}
+                                                                                {!isEditingSB && (
+                                                                                    <FrappeButton
+                                                                                        onClick={() =>
+                                                                                            handleSanctionSubmitClick(
+                                                                                                sanction.name,
+                                                                                            )
+                                                                                        }
+                                                                                        disabled={
+                                                                                            isSubmittingSanction ||
+                                                                                            !canSubmitSanction
+                                                                                        }
+                                                                                        aria-label="Submit sanction"
+                                                                                        title={
+                                                                                            !canSubmitSanction
+                                                                                                ? "Sanction Letter No is required before submitting"
+                                                                                                : undefined
+                                                                                        }
+                                                                                    >
+                                                                                        <CheckCircleIcon className="h-4 w-4" />
+                                                                                        {isSubmittingSanction
+                                                                                            ? "Submitting..."
+                                                                                            : "Submit"}
+                                                                                    </FrappeButton>
+                                                                                )}
                                                                             </div>
                                                                         )}
                                                                     </div>
+                                                                    {!canSubmitSanction && !isEditingSB && (
+                                                                        <p className="text-xs text-red-600 dark:text-red-400 mb-2">
+                                                                            Sanction Letter No is missing — edit the sanction and fill it in before it can be submitted.
+                                                                        </p>
+                                                                    )}
                                                                     {isDraft && (
                                                                         <div className="flex items-start gap-3 p-4 border border-yellow-400 rounded-lg bg-[#FFFDF5] dark:bg-yellow-900/20 shadow-sm">
                                                                             <AlertCircleIcon className="h-6 w-6 text-yellow-600 flex-shrink-0 mt-0.5 drop-shadow-sm" />
@@ -6120,22 +6216,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                     Budget
                                                                                     Breakup
                                                                                 </h4>
-                                                                                {isSanctionOwner &&
-                                                                                    !isEditingSB && (
-                                                                                        <Button
-                                                                                            size="sm"
-                                                                                            variant="outline"
-                                                                                            className="h-6 px-2 text-xs gap-1"
-                                                                                            onClick={() =>
-                                                                                                startEditSanctionBudget(
-                                                                                                    sanction,
-                                                                                                )
-                                                                                            }
-                                                                                        >
-                                                                                            <Pencil className="h-3 w-3" />
-                                                                                            Edit
-                                                                                        </Button>
-                                                                                    )}
                                                                                 {isEditingSB && (
                                                                                     <div className="flex items-center gap-1">
                                                                                         <Button
@@ -6161,7 +6241,13 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                                 )
                                                                                             }
                                                                                             disabled={
-                                                                                                isSavingSanctionBudget
+                                                                                                isSavingSanctionBudget ||
+                                                                                                !editSanctionLetterNo.trim()
+                                                                                            }
+                                                                                            title={
+                                                                                                !editSanctionLetterNo.trim()
+                                                                                                    ? "Sanction Letter No is required before saving"
+                                                                                                    : undefined
                                                                                             }
                                                                                         >
                                                                                             <Save className="h-3 w-3" />
@@ -6172,6 +6258,12 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                     </div>
                                                                                 )}
                                                                             </div>
+
+                                                                            {isEditingSB && sanctionSaveError && (
+                                                                                <p className="text-xs text-red-600 dark:text-red-400 mb-2">
+                                                                                    {sanctionSaveError}
+                                                                                </p>
+                                                                            )}
 
                                                                             {isEditingSB ? (
                                                                                 <div className="space-y-3">
