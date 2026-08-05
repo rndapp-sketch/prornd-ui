@@ -60,6 +60,16 @@ export const resignationAPI = {
     performAction: `${API_BASE}.project_staff_resignation.project_staff_resignation.perform_project_staff_resignation_action`,
 };
 
+// Project Staff Extension API endpoints
+export const extensionAPI = {
+    getFields: `${API_BASE}.project_staff_extension.project_staff_extension.get_project_staff_extension_fields`,
+    save: `${API_BASE}.project_staff_extension.project_staff_extension.save_project_staff_extension`,
+    submit: `${API_BASE}.project_staff_extension.project_staff_extension.submit_project_staff_extension`,
+    getList: `${API_BASE}.project_staff_extension.project_staff_extension.get_project_staff_extension_list`,
+    getWorkflowActions: `${API_BASE}.project_staff_extension.project_staff_extension.get_project_staff_extension_workflow_actions`,
+    performAction: `${API_BASE}.project_staff_extension.project_staff_extension.perform_project_staff_extension_action`,
+};
+
 // Temporary Advance API endpoints
 export const temporaryAdvanceAPI = {
     getFields: `${API_BASE}.temporary_advance.temporary_advance.get_temporary_advance_fields`,

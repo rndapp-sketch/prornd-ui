@@ -575,9 +575,15 @@ const JoiningReportPage: React.FC = () => {
                 value={issueNumber}
                 onChange={(e) => setIssueNumber(e.target.value)}
                 placeholder="Issue Num"
+                maxLength={140}
                 className="ao-input"
                 style={{ width: "100px" }}
               />
+              {issueNumber.length >= 140 && (
+                <span style={{ color: "#dc2626", fontSize: "10px", fontWeight: 700, marginLeft: "4px" }}>
+                  (limit 140 reached)
+                </span>
+              )}
             </span>
             <span>
               <strong style={{ color: "#b00" }}>Date:</strong> {today}

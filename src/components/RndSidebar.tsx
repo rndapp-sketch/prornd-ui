@@ -248,6 +248,11 @@ export function AppSidebar() {
             icon: FileText,
             path: "/project-staff-resignation",
         },
+        {
+            label: "Extension",
+            icon: FileText,
+            path: "/project-staff-extension",
+        },
         // ...(isPermanentEmployee ? [{
         //     label: "Form Cancellation",
         //     icon: FileText,
@@ -384,7 +389,7 @@ export function AppSidebar() {
             const allowedRoles = ["project staff", "IF - Inspired Faculty", "Independent Researcher"];
             return roles ? allowedRoles.some((role) => roles.includes(role)) : false;
         }
-        if (item.label === "Resignation") {
+        if (item.label === "Resignation" || item.label === "Extension") {
             return roles?.includes("project staff") ?? false;
         }
         return true;

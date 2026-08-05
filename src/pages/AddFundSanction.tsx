@@ -7,6 +7,8 @@ import { AppSidebar } from "../components/RndSidebar";
 import { useFrappeGetDoc, useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { ArrowLeftIcon, Send, Save } from "lucide-react";
+import { CharLimitAlert } from '@/components/CharLimitAlert';
+import { getFieldMaxLength } from '@/utils/fieldLimits';
 
 // --- TYPE DEFINITIONS ---
 interface Field {
@@ -76,7 +78,8 @@ const preventScrollChange = (e: React.WheelEvent<HTMLInputElement | HTMLSelectEl
 const MemoizedFormField = memo(({ field, value, options, onChange, readOnlyOverride }: any) => {
     if (!field || field.hidden) return null;
     const isReadOnly = field.read_only || readOnlyOverride;
-    const commonProps = { id: field.fieldname, name: field.fieldname, className: inputClasses, readOnly: isReadOnly, required: field.mandatory, disabled: isReadOnly, };
+    const maxLength = getFieldMaxLength(field.fieldtype);
+    const commonProps = { id: field.fieldname, name: field.fieldname, className: inputClasses, readOnly: isReadOnly, required: field.mandatory, disabled: isReadOnly, maxLength, };
 
     const renderInput = () => {
         switch (field.fieldtype) {
@@ -87,7 +90,7 @@ const MemoizedFormField = memo(({ field, value, options, onChange, readOnlyOverr
             default: return <input type="text" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
         }
     };
-    return (<div className="space-y-1.5"><label htmlFor={field.fieldname} className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200">{field.label}{field.mandatory && <span className="text-red-500 ml-1 normal-case font-bold">*</span>}</label>{renderInput()}</div>);
+    return (<div className="space-y-1.5"><label htmlFor={field.fieldname} className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200">{field.label}{field.mandatory && <span className="text-red-500 ml-1 normal-case font-bold">*</span>}</label>{renderInput()}{!isReadOnly && <CharLimitAlert value={value} maxLength={maxLength} />}</div>);
 });
 
 const ALL_YEAR_COLUMNS = [
@@ -221,7 +224,10 @@ const MemoizedGenericTable = memo(({ title, tableName, columns, newRow, tableDat
                                     {col.type === 'Attach' ? (
                                         <input type="file" className={`${inputClasses} !h-9 file:mr-2 file:px-2.5 file:py-1 file:text-[11px] file:font-semibold file:uppercase file:tracking-wide file:border-0 file:bg-zinc-100 dark:file:bg-zinc-800 file:text-zinc-600 dark:file:text-zinc-300 file:rounded`} onChange={e => onFileChange(tableName, i, col.key, e.target.files?.[0] || null)} />
                                     ) : (
-                                        <input type="text" className={`${inputClasses} !h-9`} value={row[col.key] || ''} onChange={e => onRowChange(tableName, i, col.key, e.target.value)} />
+                                        <>
+                                            <input type="text" className={`${inputClasses} !h-9`} maxLength={140} value={row[col.key] || ''} onChange={e => onRowChange(tableName, i, col.key, e.target.value)} />
+                                            <CharLimitAlert value={row[col.key]} maxLength={140} className="mt-1 text-[10px]" />
+                                        </>
                                     )}
                                 </td>))}
                                 <td className="px-2 py-1.5 text-center">
@@ -266,7 +272,15 @@ const AddFundSanction: React.FC = () => {
         status: 'idle' | 'checking' | 'available' | 'duplicate';
         message: string;
     }>({ status: 'idle', message: '' });
+    // System-appended tail (e.g. "-1") added when the typed letter no. was a duplicate.
+    // Kept separate from the editable base so users can't quietly delete it and
+    // resubmit the original duplicate value.
+    const [letterNoSuffix, setLetterNoSuffix] = useState('');
     const letterNoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Last non-empty letter no. the user had. If they clear the field entirely
+    // (e.g. deleting the base text under a locked suffix), save/submit silently
+    // falls back to this instead of sending an empty value.
+    const lastValidLetterNoRef = useRef<string>('');
 
     const budgetGrandTotal = useMemo(() => {
         const yearKeys = ALL_YEAR_COLUMNS.slice(0, activeYearCount).map(c => c.key);
@@ -435,29 +449,38 @@ const AddFundSanction: React.FC = () => {
         });
     }, []);
 
-    const handleLetterNoChange = useCallback((value: string) => {
-        handleChange('sanctioned_letter_no', value);
+    // baseValue is what the user typed in the editable box (the locked suffix, if any,
+    // is appended separately so it can't be erased by editing/select-all-delete).
+    const handleLetterNoChange = useCallback((baseValue: string) => {
+        const combined = baseValue + letterNoSuffix;
+        handleChange('sanctioned_letter_no', combined);
         setLetterNoHint({ status: 'idle', message: '' });
         if (letterNoTimerRef.current) clearTimeout(letterNoTimerRef.current);
-        if (!value.trim()) return;
+        if (!combined.trim()) return;
+        lastValidLetterNoRef.current = combined;
         letterNoTimerRef.current = setTimeout(async () => {
             setLetterNoHint({ status: 'checking', message: 'Checking...' });
             try {
-                const r = await resolveUniqueSanctionLetterNo(value, savedDocName || undefined);
+                const r = await resolveUniqueSanctionLetterNo(combined, savedDocName || undefined);
                 if (r.isDuplicate) {
+                    const newSuffix = r.finalValue.startsWith(combined) && r.finalValue.length > combined.length
+                        ? r.finalValue.slice(combined.length)
+                        : '';
+                    setLetterNoSuffix(newSuffix);
                     handleChange('sanctioned_letter_no', r.finalValue);
                     setLetterNoHint({
                         status: 'duplicate',
-                        message: `"${value}" already used in ${r.existingDoc} — changed to "${r.finalValue}"`,
+                        message: `"${combined}" already used in ${r.existingDoc} — changed to "${r.finalValue}"`,
                     });
                 } else {
+                    setLetterNoSuffix('');
                     setLetterNoHint({ status: 'available', message: 'Letter number is available' });
                 }
             } catch (err: any) {
                 setLetterNoHint({ status: 'idle', message: `Could not verify: ${err.message}` });
             }
         }, 500);
-    }, [handleChange, savedDocName]);
+    }, [handleChange, savedDocName, letterNoSuffix]);
 
     const handleGenericTableRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: any) => {
         setFormData(prev => {
@@ -500,6 +523,9 @@ const AddFundSanction: React.FC = () => {
 
     const preparePayload = async (docNameOverride = savedDocName): Promise<FormData> => {
         const dataToSubmit: FormData = { ...formData };
+        if (!dataToSubmit.sanctioned_letter_no?.trim() && lastValidLetterNoRef.current) {
+            dataToSubmit.sanctioned_letter_no = lastValidLetterNoRef.current;
+        }
         const effectiveDocName = docNameOverride || dataToSubmit.name || dataToSubmit.docname || '';
 
         if (effectiveDocName) {
@@ -571,8 +597,10 @@ const AddFundSanction: React.FC = () => {
         }
     };
 
+    const hasLetterNo = !!(formData.sanctioned_letter_no?.trim() || lastValidLetterNoRef.current);
+
     const handleSubmitSanction = async () => {
-        if (isBudgetMismatch || !savedAsDraft || !formData.sanctioned_letter_no) return;
+        if (isBudgetMismatch || !savedAsDraft || !hasLetterNo) return;
         setIsSubmitting(true);
         try {
             const payload = await preparePayload(savedDocName);
@@ -654,18 +682,34 @@ const AddFundSanction: React.FC = () => {
                                 {(() => {
                                     const field = fields.find(f => f.fieldname === 'sanctioned_letter_no');
                                     if (!field) return null;
+                                    const fullValue = formData.sanctioned_letter_no || '';
+                                    const baseValue = letterNoSuffix && fullValue.endsWith(letterNoSuffix)
+                                        ? fullValue.slice(0, fullValue.length - letterNoSuffix.length)
+                                        : fullValue;
                                     return (
                                         <div className="space-y-1.5">
                                             <label htmlFor="sanctioned_letter_no" className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200">
                                                 {field.label}{field.mandatory && <span className="text-red-500 ml-1 normal-case font-bold">*</span>}
                                             </label>
-                                            <input
-                                                id="sanctioned_letter_no"
-                                                type="text"
-                                                className={inputClasses}
-                                                value={formData.sanctioned_letter_no || ''}
-                                                onChange={e => handleLetterNoChange(e.target.value)}
-                                            />
+                                            <div className="flex items-stretch">
+                                                <input
+                                                    id="sanctioned_letter_no"
+                                                    type="text"
+                                                    className={cn(inputClasses, letterNoSuffix && 'rounded-r-none border-r-0')}
+                                                    maxLength={140}
+                                                    value={baseValue}
+                                                    onChange={e => handleLetterNoChange(e.target.value)}
+                                                />
+                                                {letterNoSuffix && (
+                                                    <span
+                                                        title="System-generated to keep this letter number unique. Change the text before it to pick a different number."
+                                                        className="flex items-center px-3 h-10 rounded-r-xl border border-l-0 border-[#E4E4E7] dark:border-[#3F3F46] bg-[#F4F4F5] dark:bg-zinc-800/40 text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] select-none whitespace-nowrap"
+                                                    >
+                                                        {letterNoSuffix}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <CharLimitAlert value={baseValue} maxLength={140} />
                                             {letterNoHint.status !== 'idle' && (
                                                 <p className={`text-[11px] mt-1 ${
                                                     letterNoHint.status === 'available' ? 'text-emerald-600 dark:text-emerald-400' :
@@ -738,13 +782,15 @@ const AddFundSanction: React.FC = () => {
                                             <label className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200">
                                                 Scheme Name
                                             </label>
-                                            <input type="text" className={inputClasses} value={formData.scheme_name || ''} onChange={e => handleChange('scheme_name', e.target.value)} />
+                                            <input type="text" className={inputClasses} maxLength={140} value={formData.scheme_name || ''} onChange={e => handleChange('scheme_name', e.target.value)} />
+                                            <CharLimitAlert value={formData.scheme_name} maxLength={140} />
                                         </div>
                                         <div className="space-y-1.5">
                                             <label className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200">
                                                 Scheme Number
                                             </label>
-                                            <input type="text" className={inputClasses} value={formData.enter_scheme_number || ''} onChange={e => handleChange('enter_scheme_number', e.target.value)} />
+                                            <input type="text" className={inputClasses} maxLength={140} value={formData.enter_scheme_number || ''} onChange={e => handleChange('enter_scheme_number', e.target.value)} />
+                                            <CharLimitAlert value={formData.enter_scheme_number} maxLength={140} />
                                         </div>
                                     </div>
                                 )}
@@ -754,13 +800,15 @@ const AddFundSanction: React.FC = () => {
                                             <label className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200">
                                                 Account Number
                                             </label>
-                                            <input type="text" className={inputClasses} value={formData.account_number || ''} onChange={e => handleChange('account_number', e.target.value)} />
+                                            <input type="text" className={inputClasses} maxLength={140} value={formData.account_number || ''} onChange={e => handleChange('account_number', e.target.value)} />
+                                            <CharLimitAlert value={formData.account_number} maxLength={140} />
                                         </div>
                                         <div className="space-y-1.5">
                                             <label className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200">
                                                 Bank Name
                                             </label>
-                                            <input type="text" className={inputClasses} value={formData.bank_name || ''} onChange={e => handleChange('bank_name', e.target.value)} />
+                                            <input type="text" className={inputClasses} maxLength={140} value={formData.bank_name || ''} onChange={e => handleChange('bank_name', e.target.value)} />
+                                            <CharLimitAlert value={formData.bank_name} maxLength={140} />
                                         </div>
                                     </div>
                                 )}
@@ -776,7 +824,7 @@ const AddFundSanction: React.FC = () => {
                     )}
 
                     {/* Missing sanction letter no. warning */}
-                    {savedAsDraft && !isBudgetMismatch && !formData.sanctioned_letter_no && (
+                    {savedAsDraft && !isBudgetMismatch && !hasLetterNo && (
                         <div className="mt-4 px-4 py-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
                             <p className="text-[12px] text-amber-700 dark:text-amber-400"><span className="font-semibold">Sanctioned Letter No. is required</span> before submitting.</p>
                         </div>
@@ -807,7 +855,7 @@ const AddFundSanction: React.FC = () => {
                             <FrappeButton
                                 type="button"
                                 onClick={handleSubmitSanction}
-                                disabled={isSubmitting || isBudgetMismatch || !savedAsDraft || !formData.sanctioned_letter_no}
+                                disabled={isSubmitting || isBudgetMismatch || !savedAsDraft || !hasLetterNo}
                                 className="bg-[#D97757] text-white border-[#D97757] hover:bg-[#c5684a] inline-flex items-center gap-1.5"
                             >
                                 <Send className="h-3.5 w-3.5" />
