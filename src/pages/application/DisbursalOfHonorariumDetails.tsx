@@ -214,11 +214,13 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
     );
     const { data: activityData } = useFrappeGetCall<{ message: ActivityItem[] }>(
         "rndopsapp.rndopsapp.api.get_project_activity",
-        id ? { doctype: "Disbursal of Honorarium", docname: id } : undefined,
+        { doctype: "Disbursal of Honorarium", docname: id },
+        id ? undefined : null,
     );
     const { data: docActivityData } = useFrappeGetCall<{ message: any[] }>(
         "rndopsapp.rndopsapp.api.get_document_activity",
-        id ? { doctype: "Disbursal of Honorarium", docname: id } : undefined,
+        { doctype: "Disbursal of Honorarium", docname: id },
+        id ? undefined : null,
     );
     // CommitPayment component handles submit_commit_data internally
     const { call: submitPayment, loading: isPaying } = useFrappePostCall(
