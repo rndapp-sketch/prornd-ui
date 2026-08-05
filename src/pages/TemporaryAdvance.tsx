@@ -6,6 +6,8 @@ import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/common/PageHeader';
 import { ToWords } from 'to-words';
+import { CharLimitAlert } from '@/components/CharLimitAlert';
+import { getFieldMaxLength, CURRENCY_MAX_LENGTH } from '@/utils/fieldLimits';
 
 // Initialize ToWords converter
 const toWords = new ToWords({
@@ -119,6 +121,7 @@ const MemoizedFormField = memo(({
         readOnly: field.read_only === 1,
         required: field.mandatory === 1,
         disabled: field.read_only === 1,
+        maxLength: getFieldMaxLength(field.fieldtype),
         value: value || '',
         onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
             onChange(field.fieldname, e.target.value)
@@ -180,6 +183,7 @@ const MemoizedFormField = memo(({
                         inputMode="decimal"
                         title="Enter a positive amount"
                         {...commonInputProps}
+                        maxLength={CURRENCY_MAX_LENGTH}
                         onChange={(e) => {
                             const raw = e.target.value;
                             // Allow empty, digits, and a single decimal point
@@ -231,10 +235,17 @@ const MemoizedFormField = memo(({
         return renderInput();
     }
 
+    const effectiveMaxLength = (field.fieldtype === 'Currency' || field.fieldtype === 'Float')
+        ? CURRENCY_MAX_LENGTH
+        : getFieldMaxLength(field.fieldtype);
+
     return (
         <div className='space-y-2'>
             <FieldLabel field={field} />
             {renderInput()}
+            {field.read_only !== 1 && (
+                <CharLimitAlert value={value} maxLength={effectiveMaxLength} />
+            )}
             {field.description && field.fieldtype !== 'Check' && (
                 <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-1 leading-relaxed">{field.description}</p>
             )}
@@ -856,8 +867,10 @@ const msg = saveResult?.message;
                                     onChange={e => setDraftComment(e.target.value)}
                                     placeholder="Add a note about this draft…"
                                     rows={3}
+                                    maxLength={65535}
                                     className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-800 dark:text-zinc-100 px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/40"
                                 />
+                                <CharLimitAlert value={draftComment} maxLength={65535} className="mt-1" />
                             </div>
                             <div className="px-6 py-3 bg-zinc-50 dark:bg-zinc-800/60 border-t border-zinc-100 dark:border-zinc-800 flex justify-end gap-2">
                                 <button

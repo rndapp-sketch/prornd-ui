@@ -58,6 +58,7 @@ import ViewProjectButton from "@/components/ViewProjectButton";
 import { CommitPayment } from "@/components/CommitPayment";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import DirectPurchaseHelpGuide from "@/components/DirectPurchaseHelpGuide";
+import { CharLimitAlert } from "@/components/CharLimitAlert";
 
 // --- TYPE DEFINITIONS ---
 interface DirectPurchaseData {
@@ -1237,11 +1238,13 @@ const DirectPurchaseActionButtons = ({
                         <Textarea
                             rows={4}
                             placeholder="Add a comment (optional)..."
+                            maxLength={65535}
                             value={comment}
                             onChange={(e) => setComment(e.target.value)}
                             autoFocus
                             className="w-full text-sm resize-none border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg mb-4"
                         />
+                        <CharLimitAlert value={comment} maxLength={65535} className="-mt-3 mb-3" />
                         <div className="flex justify-end gap-2">
                             <ClaudeButton variant="outline" onClick={() => { setShowCommentModal(false); setComment(""); }}>
                                 Cancel
@@ -1392,10 +1395,12 @@ const P11FormActionButtons = ({
                         <Textarea
                             rows={4}
                             placeholder="Add a comment (optional)..."
+                            maxLength={65535}
                             value={comment}
                             onChange={(e) => setComment(e.target.value)}
                             className="w-full text-sm resize-none border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg mb-4"
                         />
+                        <CharLimitAlert value={comment} maxLength={65535} className="-mt-3 mb-3" />
                         <div className="flex justify-end gap-2">
                             <ClaudeButton
                                 variant="outline"
@@ -1565,10 +1570,12 @@ const SanctionSheetActionButtons = ({
                         <Textarea
                             rows={4}
                             placeholder="Add a comment (optional)..."
+                            maxLength={65535}
                             value={comment}
                             onChange={(e) => setComment(e.target.value)}
                             className="w-full text-sm resize-none border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg mb-4"
                         />
+                        <CharLimitAlert value={comment} maxLength={65535} className="-mt-3 mb-3" />
                         <div className="flex justify-end gap-2">
                             <ClaudeButton
                                 variant="outline"
@@ -2262,10 +2269,12 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
                         type="text"
                         className={inputCls}
                         placeholder="Description of purchase"
+                        maxLength={140}
                         value={formData.particulars}
                         onChange={(e) => setField("particulars", e.target.value)}
                         disabled={isSaving}
                     />
+                    <CharLimitAlert value={formData.particulars} maxLength={140} className="mt-1" />
                 </div>
 
                 <div>
@@ -2355,12 +2364,14 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
                                                 type="text"
                                                 className={inputCls}
                                                 placeholder="Description…"
+                                                maxLength={140}
                                                 value={row.particulars}
                                                 onChange={(e) =>
                                                     updateRow(i, "particulars", e.target.value)
                                                 }
                                                 disabled={isSaving}
                                             />
+                                            <CharLimitAlert value={row.particulars} maxLength={140} className="mt-1" />
                                         </td>
                                         <td className="px-3 py-2">
                                             <button

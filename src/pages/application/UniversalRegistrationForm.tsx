@@ -35,11 +35,18 @@ export default function UniversalRegistrationForm({
     const [savedDocName, setSavedDocName] = useState<string | null>(id || null);
     const [step, setStep] = useState<'instructions' | 'form'>(id ? 'form' : 'instructions');
 
+    // Sync step/savedDocName when the URL id param changes (e.g. after "View My Registration" navigate)
+    useEffect(() => {
+        if (id) {
+            setSavedDocName(id);
+            setStep('form');
+        }
+    }, [id]);
+
     // API Hooks
     const { call: getFieldsCall } = useFrappePostCall<{ message: any }>(
         universalRegistrationAPI.getFields,
     );
-    const { call: getMyRegCall } = useFrappePostCall<{ message: any[] }>("frappe.client.get_list");
     const [myRegLoading, setMyRegLoading] = useState(false);
     const [myRegNotFound, setMyRegNotFound] = useState(false);
 
@@ -48,13 +55,17 @@ export default function UniversalRegistrationForm({
         setMyRegLoading(true);
         setMyRegNotFound(false);
         try {
-            const res = await getMyRegCall({
+            const params = new URLSearchParams({
                 doctype: "Universal Registration__",
-                filters: [["owner", "=", currentUser]],
-                fields: ["name"],
-                limit: 1,
+                fields: JSON.stringify(["name"]),
+                filters: JSON.stringify([["owner", "=", currentUser]]),
+                limit_page_length: "1",
             });
-            const docs = res?.message ?? [];
+            const res = await fetch(`/api/method/frappe.client.get_list?${params.toString()}`, {
+                credentials: "include",
+            });
+            const data = await res.json();
+            const docs: any[] = data?.message ?? [];
             if (docs.length > 0) {
                 navigate(`/universal-registration/${docs[0].name}`);
             } else {
@@ -65,7 +76,7 @@ export default function UniversalRegistrationForm({
         } finally {
             setMyRegLoading(false);
         }
-    }, [currentUser, getMyRegCall, navigate]);
+    }, [currentUser, navigate]);
     const { call: saveCall } = useFrappePostCall<{ message: any }>(
         universalRegistrationAPI.save,
     );

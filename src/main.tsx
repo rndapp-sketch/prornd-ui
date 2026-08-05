@@ -53,6 +53,8 @@ import TravelForm from './pages/application/TravelForm.tsx';
 import TravelDetails from './pages/application/TravelDetails.tsx';
 import TADASettlementForm from './pages/application/TADASettlementForm.tsx';
 import ProjectStaffResignationForm from './pages/application/ProjectStaffResignationForm.tsx';
+import ProjectStaffExtensionForm from './pages/application/ProjectStaffExtensionForm.tsx';
+import ProInvForm from './pages/application/ProInvForm.tsx';
 import TaskRegistry from './pages/TaskRegistry.tsx';
 import TaskRegistryDetails from './pages/TaskRegistryDetails.tsx';
 import TemporaryAdvanceDetails from './pages/application/TemporaryAdvanceDetails.tsx';
@@ -300,6 +302,15 @@ const router = createBrowserRouter(
                 // --- END OF CHANGE ---
 
                 {
+                    path: "project-details-overview/:projectName/proforma-invoice",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <ProInvForm />
+                        </AuthRouteWrapper>
+                    ),
+                },
+
+                {
                     path: "project-ledger-full/:projectName",
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
@@ -514,6 +525,14 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <ProjectStaffResignationForm />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "project-staff-extension",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <ProjectStaffExtensionForm />
                         </AuthRouteWrapper>
                     )
                 },

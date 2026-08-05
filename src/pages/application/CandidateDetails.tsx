@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { useFrappePostCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
+import { CharLimitAlert } from "@/components/CharLimitAlert";
+import { FIELD_CHAR_LIMITS } from "@/utils/fieldLimits";
 import {
     ArrowLeft,
     Loader2,
@@ -589,9 +591,11 @@ const CandidateDetails: React.FC = () => {
                                             onChange={(e) => setJustification(e.target.value)}
                                             rows={4}
                                             placeholder="Provide detailed justification for your decision..."
+                                            maxLength={FIELD_CHAR_LIMITS.Text}
                                             className="w-full px-4 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] resize-none"
                                             required
                                         />
+                                        <CharLimitAlert value={justification} maxLength={FIELD_CHAR_LIMITS.Text} className="mt-1" />
                                     </div>
                                 )}
                                 <button
