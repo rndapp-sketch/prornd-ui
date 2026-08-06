@@ -195,7 +195,10 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
 
     // Fields that feed the D Consultancy GST/overhead formula (see computeDConsultancy) — if any
     // of these were edited, the derived fields must be recomputed and saved alongside them.
-    const DC_DRIVER_FIELDS = ["amount_inclusive_of_gst", "consultancy_charge_y", "operational_charge_z", "idf_percentage"];
+    // cgst_9/sgst_9/igst_18_on_consultancy must be included: editing IGST alone (e.g. reverting
+    // it back to 0) previously skipped this whole block, so total_gst/total_amount never got
+    // included in that save's payload and were left stale in the doc.
+    const DC_DRIVER_FIELDS = ["amount_inclusive_of_gst", "consultancy_charge_y", "operational_charge_z", "idf_percentage", "cgst_9", "sgst_9", "igst_18_on_consultancy"];
 
     const handleSaveSlip = async () => {
         const updateMethod = UPDATE_METHOD_BY_DOCTYPE[depositSlipDoctype];
@@ -245,7 +248,11 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
             ) {
                 const merged = { ...depositSlip, ...editedFields };
                 const dc = computeDConsultancy(merged);
-                changes.igst_18_on_consultancy = dc.igstAmount;
+                // dc.igstAmount is the untouched 18% formula (drives Total Cost X); the row can be
+                // overridden independently (e.g. set to 0), so persist dc.igstDisplay — what the
+                // print view actually shows — not the formula value, or a manual override gets
+                // silently clobbered back on the very next save.
+                changes.igst_18_on_consultancy = dc.igstDisplay;
                 changes.amount_after_gst_tds = dc.amountAfterTds;
                 changes.total_cost_x = dc.totalCostX;
                 changes.consultancy_charge_y = dc.chargeY;
