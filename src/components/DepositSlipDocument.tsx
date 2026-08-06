@@ -55,6 +55,10 @@ const formatCurrency = (amount: number | undefined | null) => {
 
 const flt = (v: any) => parseFloat(v) || 0;
 
+// Rounds to 2 decimal places at each step, matching flt() in useDepositSlipCalculations.ts —
+// without this, chained floating-point math drifts from the value the backend actually stored.
+const round2 = (v: number) => Math.round(v * 100) / 100;
+
 // E Non Routine Deposit Slip — mirrors calculateENonRoutine() in useDepositSlipCalculations.ts
 // so the print view (and edits made there) reflect the same GST/overhead formula used at
 // creation time, instead of showing stale/independently-typed values.
@@ -74,6 +78,63 @@ export const computeENonRoutine = (depositSlip: any) => {
     const balanceInProject = consultancyFeeX - overheadAmount;
 
     return { amountActuallyReceived, consultancyFeeX, overheadAmount, gstComponent, balanceInProject };
+};
+
+// D Consultancy Deposit Slip — mirrors calculateDConsultancy() in useDepositSlipCalculations.ts
+// so the print view (and edits made there) reflect the same GST/overhead formula used at
+// creation time, using the real "D Consultancy Deposit Slip" doctype field names.
+export const computeDConsultancy = (depositSlip: any) => {
+    const amountInclGst = flt(depositSlip.amount_inclusive_of_gst);
+
+    const taxableAmount = round2(amountInclGst / 1.18);
+    const igstAmount = round2(taxableAmount * 0.18);
+    const tdsAmount = Math.round(taxableAmount * 0.02);
+    const amountAfterTds = round2(amountInclGst - tdsAmount);
+    const totalCostX = round2(amountAfterTds - igstAmount);
+
+    // CGST/SGST — informational, editable fields (same pattern as E Non Routine): mutually
+    // exclusive with IGST. IGST above always drives Total Cost X and is left untouched; when it
+    // applies (interstate), CGST/SGST default to 0 just like the E Non Routine print view.
+    const cgstAmount = flt(depositSlip.cgst_9);
+    const sgstAmount = flt(depositSlip.sgst_9);
+
+    const chargeY = round2(depositSlip.consultancy_charge_y !== undefined && depositSlip.consultancy_charge_y !== null && depositSlip.consultancy_charge_y !== ''
+        ? flt(depositSlip.consultancy_charge_y)
+        : totalCostX * 0.30);
+    const chargeZ = round2(depositSlip.operational_charge_z !== undefined && depositSlip.operational_charge_z !== null && depositSlip.operational_charge_z !== ''
+        ? flt(depositSlip.operational_charge_z)
+        : totalCostX - chargeY);
+
+    const overheadFromY = round2(chargeY * 0.1);
+    const overheadFromZ = round2(chargeZ * 0.1);
+    const totalOverhead = round2(overheadFromY + overheadFromZ);
+    const instituteShare = round2(chargeY * 0.2);
+    const totalOverheadAndShare = round2(totalOverhead + instituteShare);
+
+    const idfPercentage = round2(depositSlip.idf_percentage !== undefined && depositSlip.idf_percentage !== null && depositSlip.idf_percentage !== ''
+        ? flt(depositSlip.idf_percentage)
+        : 40);
+    const idfAmount = round2(totalOverheadAndShare * (idfPercentage / 100));
+    const staffWelfareAmount = round2(totalOverheadAndShare * 0.05);
+    const studentWelfareAmount = round2(totalOverheadAndShare * 0.05);
+    const totalDpfPercentage = round2(100 - idfPercentage - 5 - 5);
+    const dpfAmount = round2(totalOverheadAndShare * (totalDpfPercentage / 100));
+
+    const balanceConsultancyFee = round2(chargeY - overheadFromY - instituteShare);
+    const balanceOperationCharge = round2(chargeZ - overheadFromZ);
+    const totalGst = igstAmount;
+    // Total Amount = Total Overhead + Institute Share (22) + Balance Consultancy Fee (24)
+    // + Balance Operation Charge (25) + Total GST (26) — NOT amountAfterTds directly, since Y/Z
+    // may have been edited away from their auto-computed defaults, which this sum reflects but
+    // a flat "amount after TDS" would not.
+    const totalAmount = round2(totalOverheadAndShare + balanceConsultancyFee + balanceOperationCharge + totalGst);
+
+    return {
+        cgstAmount, sgstAmount, igstAmount, amountAfterTds, totalCostX, chargeY, chargeZ,
+        overheadFromY, overheadFromZ, totalOverhead, instituteShare, totalOverheadAndShare,
+        idfPercentage, idfAmount, staffWelfareAmount, studentWelfareAmount, dpfAmount,
+        balanceConsultancyFee, balanceOperationCharge, totalGst, totalAmount,
+    };
 };
 
 // Helper to format date
@@ -151,6 +212,7 @@ const getDepositTypeConfig = (type: string, depositSlip: any) => {
 export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ depositSlip, type = 'research_rnd', editable = false, onFieldChange }) => {
     const config = getDepositTypeConfig(type, depositSlip);
     const enr = type === 'consultancy_e' ? computeENonRoutine(depositSlip) : null;
+    const dc = type === 'consultancy_d' ? computeDConsultancy(depositSlip) : null;
 
     // Determine row counter
     let rowNum = 0;
@@ -164,16 +226,25 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
         const items: { label: string; amount: number }[] = [];
 
         // IDF
-        if (depositSlip.idf_amount) {
+        if (dc) {
+            items.push({ label: `IDF (${dc.idfPercentage}% of Overhead + Institute Share)`, amount: dc.idfAmount });
+        } else if (depositSlip.idf_amount) {
             items.push({ label: 'IDF (40% of Overhead Amount)', amount: depositSlip.idf_amount });
         }
 
         // DPF — child table (Research deposit slip)
         if (Array.isArray(depositSlip.dpf_credit_distributions) && depositSlip.dpf_credit_distributions.length > 0) {
+            // For D Consultancy, the DPF pool is whatever % remains after IDF/Staff/Student —
+            // keep each row's amount live-recomputed off that pool (see computeDConsultancy)
+            // instead of trusting the possibly-stale stored amount.
+            const dpfRows = depositSlip.dpf_credit_distributions;
+            const dpfSumPct = dpfRows.reduce((s: number, r: any) => s + (flt(r.dpf_percentage) || flt(r.percentage) || 0), 0);
             depositSlip.dpf_credit_distributions.forEach((item: any) => {
                 const dept = item.select_dept || item.department || item.dept_name || '';
                 const pct = item.dpf_percentage || item.percentage || 0;
-                const amount = parseFloat(item.dpf_amount) || parseFloat(item.amount) || 0;
+                const amount = dc
+                    ? (dpfSumPct > 0 ? dc.dpfAmount * (pct / dpfSumPct) : dc.dpfAmount / dpfRows.length)
+                    : parseFloat(item.dpf_amount) || parseFloat(item.amount) || 0;
                 const deptSuffix = dept ? ` - ${dept}` : '';
                 items.push({
                     label: `DPF (${pct}% of Overhead Amount)${deptSuffix}`,
@@ -228,7 +299,9 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
         }
 
         // Staff Welfare
-        if (depositSlip.staff_welfare_amount) {
+        if (dc) {
+            items.push({ label: `Staff welfare Amount (5% of Overhead + Institute Share)`, amount: dc.staffWelfareAmount });
+        } else if (depositSlip.staff_welfare_amount) {
             items.push({
                 label: `Staff welfare Amount (5% of Overhead Amount)`,
                 amount: depositSlip.staff_welfare_amount
@@ -236,7 +309,10 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
         }
 
         // Student Welfare - use the correct field name
-        const studentWelfare = depositSlip.student_welfare_amount || parseFloat(depositSlip.student_welfare_fund) || 0;
+        if (dc) {
+            items.push({ label: `Student welfare Amount (5% of Overhead + Institute Share)`, amount: dc.studentWelfareAmount });
+        }
+        const studentWelfare = dc ? 0 : (depositSlip.student_welfare_amount || parseFloat(depositSlip.student_welfare_fund) || 0);
         if (studentWelfare > 0) {
             items.push({
                 label: `Student welfare Amount (5% of Overhead Amount)`,
@@ -518,14 +594,13 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                         </>
                     )}
 
-                    {/* Consultancy Fee X / Project Balance after GST */}
-                    {(type === 'consultancy_e' || depositSlip.consultancy_fee_x || depositSlip.balance_after_gst) ? (
+                    {/* Consultancy Fee X / Project Balance after GST — not shown for Consultancy D, which has its own full breakdown below */}
+                    {(type !== 'consultancy_d' && (type === 'consultancy_e' || depositSlip.consultancy_fee_x || depositSlip.balance_after_gst)) ? (
                         <tr>
                             <td className="border border-black p-1 text-center">{getRowNum()}</td>
                             <td className="border border-black p-1">
-                                {type === 'consultancy_d' ? 'Total cost X (Balance after deduction of GST)' :
-                                    (type === 'consultancy_e' || type === 'consultancy_t') ? 'Consultancy Fee X (Deducting GST)' :
-                                        'Project Balance (Balance after deduction of GST)'}
+                                {(type === 'consultancy_e' || type === 'consultancy_t') ? 'Consultancy Fee X (Deducting GST)' :
+                                    'Project Balance (Balance after deduction of GST)'}
                             </td>
                             <td colSpan={2} className="border border-black p-1 text-right">
                                 {type === 'consultancy_e'
@@ -547,66 +622,122 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                         </tr>
                     ) : null}
 
-                    {/* Consultancy Charge Y (for Consultancy D) */}
-                    {type === 'consultancy_d' && (editable || depositSlip.consultancy_charge) && (
-                        <tr>
-                            <td className="border border-black p-1 text-center">{getRowNum()}</td>
-                            <td className="border border-black p-1">Consultancy Charge (Y)</td>
-                            <td colSpan={2} className="border border-black p-1 text-right">
-                                {editable
-                                    ? <EditableCell value={depositSlip.consultancy_charge} field="consultancy_charge" editable onChange={onFieldChange} numeric align="right" />
-                                    : formatCurrency(depositSlip.consultancy_charge)}
-                            </td>
-                        </tr>
-                    )}
-
-                    {/* Operational Charge Z (for Consultancy D) */}
-                    {type === 'consultancy_d' && (editable || depositSlip.operational_charge) && (
-                        <tr>
-                            <td className="border border-black p-1 text-center">{getRowNum()}</td>
-                            <td className="border border-black p-1">Operational Charge (Z)</td>
-                            <td colSpan={2} className="border border-black p-1 text-right">
-                                {editable
-                                    ? <EditableCell value={depositSlip.operational_charge} field="operational_charge" editable onChange={onFieldChange} numeric align="right" />
-                                    : formatCurrency(depositSlip.operational_charge)}
-                            </td>
-                        </tr>
-                    )}
-
-                    {/* Overhead Amount */}
-                    <tr>
-                        <td className="border border-black p-1 text-center">{getRowNum()}</td>
-                        <td className="border border-black p-1">
-                            {type === 'consultancy_d' ? 'Total Overhead (0.1 * Y + 0.1 * Z)' :
-                                (type === 'consultancy_e' || type === 'consultancy_t')
-                                    ? `Overhead (${depositSlip.overhead_multiplier ?? (type === 'consultancy_t' ? 0.7 : 0.3)} × X)`
-                                    : 'Overhead Amount @ 15% (inclusive)'}
-                        </td>
-                        <td colSpan={2} className="border border-black p-1 text-right">
-                            {type === 'consultancy_e'
-                                ? formatCurrency(enr!.overheadAmount)
-                                : editable
-                                    ? <EditableCell value={depositSlip.overhead_amount} field="overhead_amount" editable onChange={onFieldChange} numeric align="right" />
-                                    : formatCurrency(depositSlip.overhead_amount)}
-                        </td>
-                    </tr>
-
-                    {/* Institute Share (for Consultancy D) */}
-                    {type === 'consultancy_d' && depositSlip.institute_share && (
+                    {/* Consultancy D — full GST / Y / Z / overhead breakdown, matching the
+                        D Consultancy Deposit Slip doctype fields exactly so edits save cleanly. */}
+                    {type === 'consultancy_d' && dc && (
                         <>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
-                                <td className="border border-black p-1">Institute Share (0.2 * Y)</td>
-                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(depositSlip.institute_share)}</td>
+                                <td className="border border-black p-1">CGST @9%</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">
+                                    {editable
+                                        ? <EditableCell value={dc.cgstAmount} field="cgst_9" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrency(dc.cgstAmount)}
+                                </td>
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
-                                <td className="border border-black p-1">Overhead + Institute Share</td>
+                                <td className="border border-black p-1">SGST @9%</td>
                                 <td colSpan={2} className="border border-black p-1 text-right">
-                                    {formatCurrency((depositSlip.overhead_amount || 0) + (depositSlip.institute_share || 0))}
+                                    {editable
+                                        ? <EditableCell value={dc.sgstAmount} field="sgst_9" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrency(dc.sgstAmount)}
                                 </td>
                             </tr>
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1">IGST @18% on Consultancy Fee</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">
+                                    {editable
+                                        ? <EditableCell value={depositSlip.igst_18_on_consultancy ?? dc.igstAmount.toFixed(2)} field="igst_18_on_consultancy" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrency(depositSlip.igst_18_on_consultancy ?? dc.igstAmount)}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1">Amount after GST TDS @ 2%</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">
+                                    {editable
+                                        ? <EditableCell value={depositSlip.amount_after_gst_tds ?? dc.amountAfterTds.toFixed(2)} field="amount_after_gst_tds" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrency(depositSlip.amount_after_gst_tds ?? dc.amountAfterTds)}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1">Total Cost (X)
+                                    <span className="block text-xs text-zinc-500">Balance after deducting GST from amount received</span>
+                                </td>
+                                <td colSpan={2} className="border border-black p-1 text-right">
+                                    {editable
+                                        ? <EditableCell value={depositSlip.total_cost_x ?? dc.totalCostX.toFixed(2)} field="total_cost_x" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrency(depositSlip.total_cost_x ?? dc.totalCostX)}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1">Consultancy Charge (Y)
+                                    <span className="block text-xs text-zinc-500">≤ 30% of X</span>
+                                </td>
+                                <td colSpan={2} className="border border-black p-1 text-right">
+                                    {editable
+                                        ? <EditableCell value={depositSlip.consultancy_charge_y ?? dc.chargeY.toFixed(2)} field="consultancy_charge_y" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrency(depositSlip.consultancy_charge_y ?? dc.chargeY)}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1">Operational Charge (Z)</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">
+                                    {editable
+                                        ? <EditableCell value={depositSlip.operational_charge_z ?? dc.chargeZ.toFixed(2)} field="operational_charge_z" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrency(depositSlip.operational_charge_z ?? dc.chargeZ)}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1">Overhead from Y (10% × Y)</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(dc.overheadFromY)}</td>
+                            </tr>
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1">Overhead from Z (10% × Z)</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(dc.overheadFromZ)}</td>
+                            </tr>
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1">Institute Share (20% × Y)</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(dc.instituteShare)}</td>
+                            </tr>
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1">Total Overhead (10% × Y + 10% × Z)</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(dc.totalOverhead)}</td>
+                            </tr>
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1 font-bold">Total Overhead + Institute Share</td>
+                                <td colSpan={2} className="border border-black p-1 text-right font-bold">{formatCurrency(dc.totalOverheadAndShare)}</td>
+                            </tr>
                         </>
+                    )}
+
+                    {/* Overhead Amount — non-D types only (D shows its own breakdown above) */}
+                    {type !== 'consultancy_d' && (
+                        <tr>
+                            <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                            <td className="border border-black p-1">
+                                {(type === 'consultancy_e' || type === 'consultancy_t')
+                                    ? `Overhead (${depositSlip.overhead_multiplier ?? (type === 'consultancy_t' ? 0.7 : 0.3)} × X)`
+                                    : 'Overhead Amount @ 15% (inclusive)'}
+                            </td>
+                            <td colSpan={2} className="border border-black p-1 text-right">
+                                {type === 'consultancy_e'
+                                    ? formatCurrency(enr!.overheadAmount)
+                                    : editable
+                                        ? <EditableCell value={depositSlip.overhead_amount} field="overhead_amount" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrency(depositSlip.overhead_amount)}
+                            </td>
+                        </tr>
                     )}
 
                     {/* Credit Header */}
@@ -633,31 +764,64 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                         </tr>
                     )}
 
-                    {/* Total Row — sum credit items; fall back to total_budget / total_amount */}
-                    <tr>
-                        <th colSpan={2} className="border border-black p-1 text-center bg-zinc-100 dark:bg-zinc-800 font-bold">Total</th>
-                        <th colSpan={2} className="border border-black p-1 text-right bg-zinc-100 dark:bg-zinc-800 font-bold">
-                            {enr
-                                ? formatCurrency(
-                                    (depositSlip.credit_distribution || []).reduce(
-                                        (s: number, r: any) => s + enr.overheadAmount * ((r.percentage_of_overhead || r.percentage || 0) / 100),
-                                        0,
-                                    ) + enr.gstComponent + enr.balanceInProject,
-                                )
-                                : formatCurrency(
-                                    depositSlip.total_budget ||
-                                    depositSlip.grand_total ||
-                                    depositSlip.total_amount ||
-                                    [
-                                        ...(depositSlip.credit_distribution || []),
-                                        ...(depositSlip.pdf_credit_distribution || []),
-                                        ...(depositSlip.additional_project_credits || []),
-                                    ].reduce((s: number, r: any) => s + (parseFloat(r.amount) || 0), 0) ||
-                                    depositSlip.total ||
-                                    depositSlip.overhead_amount
-                                )}
-                        </th>
-                    </tr>
+                    {/* Final Totals — Consultancy D only */}
+                    {type === 'consultancy_d' && dc && (
+                        <>
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1">Balance Consultancy Fee
+                                    <span className="block text-xs text-zinc-500">Y − Overhead from Y − Institute Share</span>
+                                </td>
+                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(dc.balanceConsultancyFee)}</td>
+                            </tr>
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1">Balance Operation Charge
+                                    <span className="block text-xs text-zinc-500">Z − Overhead from Z</span>
+                                </td>
+                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(dc.balanceOperationCharge)}</td>
+                            </tr>
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1">Total GST</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(dc.totalGst)}</td>
+                            </tr>
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1 font-bold">Total Amount</td>
+                                <td colSpan={2} className="border border-black p-1 text-right font-bold">{formatCurrency(dc.totalAmount)}</td>
+                            </tr>
+                        </>
+                    )}
+
+                    {/* Total Row — sum credit items; fall back to total_budget / total_amount.
+                        Consultancy D shows its own "Total Amount" row above instead. */}
+                    {type !== 'consultancy_d' && (
+                        <tr>
+                            <th colSpan={2} className="border border-black p-1 text-center bg-zinc-100 dark:bg-zinc-800 font-bold">Total</th>
+                            <th colSpan={2} className="border border-black p-1 text-right bg-zinc-100 dark:bg-zinc-800 font-bold">
+                                {enr
+                                    ? formatCurrency(
+                                        (depositSlip.credit_distribution || []).reduce(
+                                            (s: number, r: any) => s + enr.overheadAmount * ((r.percentage_of_overhead || r.percentage || 0) / 100),
+                                            0,
+                                        ) + enr.gstComponent + enr.balanceInProject,
+                                    )
+                                    : formatCurrency(
+                                        depositSlip.total_budget ||
+                                        depositSlip.grand_total ||
+                                        depositSlip.total_amount ||
+                                        [
+                                            ...(depositSlip.credit_distribution || []),
+                                            ...(depositSlip.pdf_credit_distribution || []),
+                                            ...(depositSlip.additional_project_credits || []),
+                                        ].reduce((s: number, r: any) => s + (parseFloat(r.amount) || 0), 0) ||
+                                        depositSlip.total ||
+                                        depositSlip.overhead_amount
+                                    )}
+                            </th>
+                        </tr>
+                    )}
                 </tbody>
             </table>
 

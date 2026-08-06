@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { GlobalLoader } from "@/components/ui/global-loader";
 // import { AppSidebar } from "@/components/RndSidebar";
-import { DepositSlipDocument, computeENonRoutine } from "@/components/DepositSlipDocument";
+import { DepositSlipDocument, computeENonRoutine, computeDConsultancy } from "@/components/DepositSlipDocument";
 
 // Server-side method that persists field edits for each deposit slip doctype
 const UPDATE_METHOD_BY_DOCTYPE: Record<string, string> = {
@@ -193,6 +193,10 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
     // them, otherwise the persisted doc drifts from what the print view just showed.
     const ENR_DRIVER_FIELDS = ["amount_inclusive_of_gst", "income_tax_tds", "gst_tds_2", "cgst_9", "sgst_9", "igst_18", "overhead_multiplier"];
 
+    // Fields that feed the D Consultancy GST/overhead formula (see computeDConsultancy) — if any
+    // of these were edited, the derived fields must be recomputed and saved alongside them.
+    const DC_DRIVER_FIELDS = ["amount_inclusive_of_gst", "consultancy_charge_y", "operational_charge_z", "idf_percentage"];
+
     const handleSaveSlip = async () => {
         const updateMethod = UPDATE_METHOD_BY_DOCTYPE[depositSlipDoctype];
         if (!depositSlip?.name || !updateMethod) return;
@@ -231,6 +235,47 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                                 name: r.name,
                                 changes: { amount: enr.overheadAmount * ((r.percentage_of_overhead || r.percentage || 0) / 100) },
                             })),
+                    });
+                }
+            }
+
+            if (
+                depositSlipDoctype === "D Consultancy Deposit Slip" &&
+                DC_DRIVER_FIELDS.some((f) => f in editedFields)
+            ) {
+                const merged = { ...depositSlip, ...editedFields };
+                const dc = computeDConsultancy(merged);
+                changes.igst_18_on_consultancy = dc.igstAmount;
+                changes.amount_after_gst_tds = dc.amountAfterTds;
+                changes.total_cost_x = dc.totalCostX;
+                changes.consultancy_charge_y = dc.chargeY;
+                changes.operational_charge_z = dc.chargeZ;
+                changes.overhead_from_y_amount = dc.overheadFromY;
+                changes.overhead_from_z_amount = dc.overheadFromZ;
+                changes.total_overhead_amount = dc.totalOverhead;
+                changes.institute_share_amount = dc.instituteShare;
+                changes.total_overhead_institute_share = dc.totalOverheadAndShare;
+                changes.idf_percentage = dc.idfPercentage;
+                changes.idf_amount = dc.idfAmount;
+                changes.staff_welfare_amount = dc.staffWelfareAmount;
+                changes.student_welfare_amount = dc.studentWelfareAmount;
+                changes.balance_consultancy_fee = dc.balanceConsultancyFee;
+                changes.balance_operation_charge = dc.balanceOperationCharge;
+                changes.total_gst = dc.totalGst;
+                changes.total_amount = dc.totalAmount;
+
+                const dpfRows: any[] = Array.isArray(merged.dpf_credit_distributions) ? merged.dpf_credit_distributions : [];
+                if (dpfRows.length > 0) {
+                    const dpfSumPct = dpfRows.reduce((s: number, r: any) => s + (parseFloat(r.dpf_percentage) || parseFloat(r.percentage) || 0), 0);
+                    childTableChanges.push({
+                        fieldname: "dpf_credit_distributions",
+                        updated: dpfRows
+                            .filter((r) => r.name)
+                            .map((r) => {
+                                const pct = parseFloat(r.dpf_percentage) || parseFloat(r.percentage) || 0;
+                                const amount = dpfSumPct > 0 ? dc.dpfAmount * (pct / dpfSumPct) : dc.dpfAmount / dpfRows.length;
+                                return { name: r.name, changes: { dpf_amount: amount } };
+                            }),
                     });
                 }
             }

@@ -649,6 +649,95 @@ const PendingTask: React.FC = () => {
             .catch(() => {});
     }, [allTasks]);
 
+    // Phase-2d: Fund Received rows — the pending-task API's `project_no` field for this doctype
+    // is unreliable (can come back as raw placeholder text like "REC_xxxx-prjreg_refnum"), so
+    // resolve the real project_no via prjreg_title → Project Registration, and separately look
+    // up any deposit slip already linked to the Fund Received record (fund_received_ref match
+    // across all deposit slip doctypes, same lookup used in HoSApprovalView/FundReceivedDetails).
+    const FR_DEPOSIT_SLIP_DOCTYPES = [
+        "Research Consultancy Deposit Slip",
+        "D Consultancy Deposit Slip",
+        "E Non Routine Deposit Slip",
+        "T Testing Deposit Slip",
+        "Other Event Deposit Slip",
+        "Research Deposit Slip",
+    ];
+    const [frProjectNos, setFrProjectNos] = React.useState<Map<string, string>>(new Map());
+    const [frDepositSlips, setFrDepositSlips] = React.useState<Map<string, string>>(new Map());
+    React.useEffect(() => {
+        const frIds = allTasks
+            .filter(t => t.doctype === "Fund Received")
+            .map(t => t.id);
+        if (!frIds.length) return;
+
+        const params = new URLSearchParams({
+            fields: JSON.stringify(["name", "prjreg_title", "fund_received_ref_number"]),
+            filters: JSON.stringify([["name", "in", frIds.join(",")]]),
+            limit: String(frIds.length),
+        });
+
+        fetch(`/api/resource/Fund%20Received?${params}`, { credentials: "include" })
+            .then(r => r.json())
+            .then(async (result) => {
+                const docs: any[] = result?.data ?? [];
+                if (!docs.length) return;
+
+                // Resolve real project_no via prjreg_title (Project Registration docname)
+                const prNames = [...new Set(docs.map((d: any) => d.prjreg_title).filter(Boolean))];
+                if (prNames.length) {
+                    const prParams = new URLSearchParams({
+                        fields: JSON.stringify(["name", "project_no"]),
+                        filters: JSON.stringify([["name", "in", prNames.join(",")]]),
+                        limit: String(prNames.length),
+                    });
+                    const prRes = await fetch(`/api/resource/Project%20Registration?${prParams}`, { credentials: "include" });
+                    const prResult = await prRes.json();
+                    const noByPrName = new Map<string, string>();
+                    (prResult?.data ?? []).forEach((pr: any) => {
+                        if (pr.name && pr.project_no) noByPrName.set(pr.name, pr.project_no);
+                    });
+                    const noMap = new Map<string, string>();
+                    docs.forEach((d: any) => {
+                        const no = d.prjreg_title ? noByPrName.get(d.prjreg_title) : undefined;
+                        if (no) noMap.set(d.name, no);
+                    });
+                    if (noMap.size > 0) setFrProjectNos(noMap);
+                }
+
+                // Resolve any linked deposit slip via fund_received_ref (FR docname or ref number)
+                const refCandidates = [...new Set(
+                    docs.flatMap((d: any) => [d.name, d.fund_received_ref_number].filter(Boolean))
+                )];
+                if (!refCandidates.length) return;
+
+                const slipByRef = new Map<string, string>();
+                await Promise.all(FR_DEPOSIT_SLIP_DOCTYPES.map(async (doctype) => {
+                    try {
+                        const slipParams = new URLSearchParams({
+                            fields: JSON.stringify(["name", "fund_received_ref"]),
+                            filters: JSON.stringify([["fund_received_ref", "in", refCandidates.join(",")]]),
+                            limit: String(refCandidates.length),
+                        });
+                        const res = await fetch(`/api/resource/${encodeURIComponent(doctype)}?${slipParams}`, { credentials: "include" });
+                        const json = await res.json();
+                        (json?.data ?? []).forEach((slip: any) => {
+                            if (slip.fund_received_ref) slipByRef.set(slip.fund_received_ref, slip.name);
+                        });
+                    } catch {
+                        /* skip doctype on error */
+                    }
+                }));
+
+                const depositMap = new Map<string, string>();
+                docs.forEach((d: any) => {
+                    const slip = slipByRef.get(d.name) || (d.fund_received_ref_number ? slipByRef.get(d.fund_received_ref_number) : undefined);
+                    if (slip) depositMap.set(d.name, slip);
+                });
+                if (depositMap.size > 0) setFrDepositSlips(depositMap);
+            })
+            .catch(() => {});
+    }, [allTasks]);
+
     // Phase-3: fetch director_signed_pdf for all doctypes that support Director Approval flow
     const DIRECTOR_PDF_DOCTYPES = ["Indent General Form", "Selection Committee Report", "Indent Cum Sanction Sheet"];
     const [directorPdfStatus, setDirectorPdfStatus] = React.useState<Map<string, boolean>>(new Map());
@@ -1006,7 +1095,18 @@ const PendingTask: React.FC = () => {
                                                 </button>
                                             </td>
                                             <td className="p-3 align-middle font-mono text-zinc-500 dark:text-zinc-400 text-xs">
-                                                {psdProjectNos.get(task.id) || task.projectNo || tufProjectNos.get(task.id) || task["Project Number"]}
+                                                {task.doctype === "Fund Received" ? (
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span>{frProjectNos.get(task.id) || "-"}</span>
+                                                        {frDepositSlips.get(task.id) && (
+                                                            <span className="text-[10px] text-[#D97757] font-semibold">
+                                                                Deposit: {frDepositSlips.get(task.id)}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    psdProjectNos.get(task.id) || task.projectNo || tufProjectNos.get(task.id) || task["Project Number"]
+                                                )}
                                             </td>
                                             <td className="p-3 align-middle text-zinc-500 dark:text-zinc-400">
                                                 {task.creation ? new Date(task.creation).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "-"}
