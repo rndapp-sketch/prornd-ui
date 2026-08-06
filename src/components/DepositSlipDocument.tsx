@@ -107,6 +107,13 @@ export const computeDConsultancy = (depositSlip: any) => {
     const cgstAmount = flt(depositSlip.cgst_9);
     const sgstAmount = flt(depositSlip.sgst_9);
 
+    // The IGST *row* can be overridden independently of the 18% formula that drives Total Cost X
+    // (e.g. set to 0 when GST is actually CGST+SGST) — Total GST must sum whatever that row is
+    // actually showing, not the untouched formula value, or the two go out of sync.
+    const igstDisplay = depositSlip.igst_18_on_consultancy !== undefined && depositSlip.igst_18_on_consultancy !== null && depositSlip.igst_18_on_consultancy !== ''
+        ? flt(depositSlip.igst_18_on_consultancy)
+        : igstAmount;
+
     const chargeY = round2(depositSlip.consultancy_charge_y !== undefined && depositSlip.consultancy_charge_y !== null && depositSlip.consultancy_charge_y !== ''
         ? flt(depositSlip.consultancy_charge_y)
         : totalCostX * 0.30);
@@ -131,8 +138,9 @@ export const computeDConsultancy = (depositSlip: any) => {
 
     const balanceConsultancyFee = round2(chargeY - overheadFromY - instituteShare);
     const balanceOperationCharge = round2(chargeZ - overheadFromZ);
-    // Total GST (26) = CGST (11) + SGST (12) + IGST (13)
-    const totalGst = round2(cgstAmount + sgstAmount + igstAmount);
+    // Total GST (26) = CGST (11) + SGST (12) + IGST (13) — always the sum of what those three
+    // rows actually display (igstDisplay), so it can never drift from them.
+    const totalGst = round2(cgstAmount + sgstAmount + igstDisplay);
     // Total Amount = Total Overhead + Institute Share (22) + Balance Consultancy Fee (24)
     // + Balance Operation Charge (25) + Total GST (26) — NOT amountAfterTds directly, since Y/Z
     // may have been edited away from their auto-computed defaults, which this sum reflects but
@@ -140,7 +148,7 @@ export const computeDConsultancy = (depositSlip: any) => {
     const totalAmount = round2(totalOverheadAndShare + balanceConsultancyFee + balanceOperationCharge + totalGst);
 
     return {
-        cgstAmount, sgstAmount, igstAmount, amountAfterTds, totalCostX, chargeY, chargeZ,
+        cgstAmount, sgstAmount, igstAmount, igstDisplay, amountAfterTds, totalCostX, chargeY, chargeZ,
         overheadFromY, overheadFromZ, totalOverhead, instituteShare, totalOverheadAndShare,
         idfPercentage, idfAmount, staffWelfareAmount, studentWelfareAmount, dpfAmount,
         balanceConsultancyFee, balanceOperationCharge, totalGst, totalAmount,
@@ -665,8 +673,8 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                 <td className="border border-black p-1">IGST @18% on Consultancy Fee</td>
                                 <td colSpan={2} className="border border-black p-1 text-right">
                                     {editable
-                                        ? <EditableCell value={depositSlip.igst_18_on_consultancy ?? dc.igstAmount.toFixed(2)} field="igst_18_on_consultancy" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrencyWhole(depositSlip.igst_18_on_consultancy ?? dc.igstAmount)}
+                                        ? <EditableCell value={dc.igstDisplay} field="igst_18_on_consultancy" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrencyWhole(dc.igstDisplay)}
                                 </td>
                             </tr>
                             <tr>
@@ -799,13 +807,15 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
-                                <td className="border border-black p-1">Total GST</td>
-                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrencyWhole(dVal(depositSlip.total_gst, dc.totalGst))}</td>
+                                <td className="border border-black p-1">Total GST
+                                    <span className="block text-xs text-zinc-500">CGST + SGST + IGST</span>
+                                </td>
+                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrencyWhole(dc.totalGst)}</td>
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
                                 <td className="border border-black p-1 font-bold">Total Amount</td>
-                                <td colSpan={2} className="border border-black p-1 text-right font-bold">{formatCurrencyWhole(dVal(depositSlip.total_amount, dc.totalAmount))}</td>
+                                <td colSpan={2} className="border border-black p-1 text-right font-bold">{formatCurrencyWhole(dc.totalAmount)}</td>
                             </tr>
                         </>
                     )}
