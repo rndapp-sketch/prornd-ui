@@ -43,7 +43,7 @@ const EditableCell: React.FC<{
             step={numeric ? '0.01' : undefined}
             value={value ?? ''}
             onChange={(e) => onChange?.(field, e.target.value)}
-            className={`w-full bg-orange-50 dark:bg-orange-900/20 border border-dashed border-[#D97757] rounded px-1 py-0.5 text-sm outline-none focus:border-solid ${align === 'right' ? 'text-right' : 'text-left'}`}
+            className={`w-full bg-orange-50 dark:bg-orange-900/20 border border-dashed border-[#D97757] rounded px-1 py-0.5 text-sm outline-none focus:border-solid [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${align === 'right' ? 'text-right' : 'text-left'}`}
         />
     );
 };
