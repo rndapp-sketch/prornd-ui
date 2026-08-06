@@ -7,6 +7,8 @@ import { FileText, Users, IndianRupee, Shield } from 'lucide-react';
 import { AutocompleteEmail } from '../components/AutocompleteEmail';
 import { CharLimitAlert } from '@/components/CharLimitAlert';
 import { getFieldMaxLength } from '@/utils/fieldLimits';
+import { ErrorModal } from "../components/ErrorModal";
+import { parseFrappeError } from "../utils/errorUtils";
 
 // --- TYPE DEFINITIONS ---
 interface Field {
@@ -205,6 +207,7 @@ const ProjectProposal: React.FC = () => {
     const [docname, setDocname] = useState<string | null>(null);
     const [budgetYears, setBudgetYears] = useState([1]);
     const [isDraftSaved, setIsDraftSaved] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_proposal.project_proposal.get_project_proposal_fields');
     const { call: submitForm, result: submitResult, error: submitError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_proposal.project_proposal.submit_project_proposal'); // Assumed endpoint
@@ -259,8 +262,8 @@ const ProjectProposal: React.FC = () => {
         }
     }, [agencyDetailsResult]);
 
-    useEffect(() => { if (submitResult) { alert(`Project Proposal registered: ${submitResult.message.docname}`); setDocname(submitResult.message.docname); } if (submitError) alert(`Submission error: ${submitError.message}`); setIsSubmitting(false); }, [submitResult, submitError]);
-    useEffect(() => { if (saveResult) { alert(`Draft saved: ${saveResult.message.docname}`); setDocname(saveResult.message.docname); setIsDraftSaved(true); } if (saveError) alert(`Draft save error: ${saveError.message}`); setIsSavingDraft(false); }, [saveResult, saveError]);
+    useEffect(() => { if (submitResult) { alert(`Project Proposal registered: ${submitResult.message.docname}`); setDocname(submitResult.message.docname); } if (submitError) setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(submitError) }); setIsSubmitting(false); }, [submitResult, submitError]);
+    useEffect(() => { if (saveResult) { alert(`Draft saved: ${saveResult.message.docname}`); setDocname(saveResult.message.docname); setIsDraftSaved(true); } if (saveError) setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(saveError) }); setIsSavingDraft(false); }, [saveResult, saveError]);
 
     // --- STABILIZED EVENT HANDLERS & RENDER FUNCTIONS ---
     const handleChange = useCallback((fieldname: string, value: any, type?: string) => { setFormData(prev => ({ ...prev, [fieldname]: type === 'checkbox' ? (value ? 1 : 0) : value })); }, []);
@@ -573,6 +576,12 @@ const ProjectProposal: React.FC = () => {
                     </div>
                 </div>
             </main>
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

@@ -6,6 +6,8 @@ import { miscellaneousCommitAPI } from "@/services/apiService";
 import {
     ChevronDown, ChevronRight, CheckCircle, XCircle, RotateCcw,
 } from "lucide-react";
+import { ErrorModal } from "./ErrorModal";
+import { parseFrappeError } from "../utils/errorUtils";
 
 interface MiscellaneousCommitActionButtonsProps {
     docname: string;
@@ -114,6 +116,7 @@ const MiscellaneousCommitActionButtons = ({
 
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedAction, setSelectedAction] = useState("");
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Action Failed", message: "" });
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
     const toggleBtnRef = useRef<HTMLButtonElement>(null);
@@ -150,7 +153,7 @@ const MiscellaneousCommitActionButtons = ({
             const res: any = await performAction({ docname, action: selectedAction });
             if (res?.message?.status === "error") {
                 setModalOpen(false);
-                alert(res.message.message || "Action failed");
+                setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(res?.message) });
                 return;
             }
             if (comment.trim()) {
@@ -165,7 +168,9 @@ const MiscellaneousCommitActionButtons = ({
             setModalOpen(false);
             onActionComplete();
         } catch (error: any) {
-            alert(`Action failed: ${error.message || "Unknown error"}`);
+            console.error("Error performing action:", error);
+            setModalOpen(false);
+            setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(error) });
         }
     };
 
@@ -240,6 +245,12 @@ const MiscellaneousCommitActionButtons = ({
                 onSubmit={handleConfirmAction}
                 action={selectedAction}
                 isLoading={!!actionLoading}
+            />
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
             />
         </>
     );

@@ -30,6 +30,8 @@ import {
     AlertTriangleIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ErrorModal } from "../components/ErrorModal";
+import { parseFrappeError } from "../utils/errorUtils";
 import { AppSidebar } from '@/components/RndSidebar';
 import { PageHeader } from "@/components/common/PageHeader";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
@@ -241,6 +243,11 @@ const CancellationRequestWorkflowActions = ({
 
     const [modalOpen, setModalOpen] = React.useState(false);
     const [selectedAction, setSelectedAction] = React.useState("");
+    const [errorModal, setErrorModal] = React.useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({ open: false, title: "Action Failed", message: "" });
 
     const handleActionClick = (action: string) => {
         setSelectedAction(action);
@@ -258,7 +265,11 @@ const CancellationRequestWorkflowActions = ({
             setModalOpen(false);
             onActionComplete();
         } catch (err: any) {
-            alert(err.message || "Failed to perform action");
+            setErrorModal({
+                open: true,
+                title: "Action Failed",
+                message: parseFrappeError(err),
+            });
         }
     };
 
@@ -286,6 +297,12 @@ const CancellationRequestWorkflowActions = ({
                 onSubmit={handleConfirmAction}
                 action={selectedAction}
                 isLoading={actionLoading}
+            />
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
             />
         </>
     );
@@ -722,6 +739,11 @@ const TopUpFellowshipWorkflowActions = ({
     const [selectedTufAction, setSelectedTufAction] = React.useState("");
     const [backModalOpen, setBackModalOpen] = React.useState(false);
     const [pendingBack, setPendingBack] = React.useState<{ target: string; label: string } | null>(null);
+    const [errorModal, setErrorModal] = React.useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({ open: false, title: "Action Failed", message: "" });
 
     const handlePutBack = (target: string, label: string) => {
         setPendingBack({ target, label });
@@ -733,7 +755,11 @@ const TopUpFellowshipWorkflowActions = ({
         try {
             const res: any = await putBack({ docname, target: pendingBack.target, comment: comment || undefined });
             if (res?.message?.status === "error") {
-                alert(res.message.message || `${pendingBack.label} failed.`);
+                setErrorModal({
+                    open: true,
+                    title: "Action Failed",
+                    message: parseFrappeError({ message: res.message.message || `${pendingBack.label} failed.` }, res?.message),
+                });
                 return;
             }
             setBackModalOpen(false);
@@ -742,7 +768,11 @@ const TopUpFellowshipWorkflowActions = ({
             onActionComplete();
         } catch (err: any) {
             console.error("put_back failed:", err);
-            alert(err?.message || `${pendingBack.label} failed.`);
+            setErrorModal({
+                open: true,
+                title: "Action Failed",
+                message: parseFrappeError(err),
+            });
         }
     };
 
@@ -776,14 +806,22 @@ const TopUpFellowshipWorkflowActions = ({
         try {
             const res: any = await markSendToFa({ docname });
             if (res?.message?.status === "error") {
-                alert(res.message.message || "Could not mark as sent.");
+                setErrorModal({
+                    open: true,
+                    title: "Could Not Mark As Sent",
+                    message: parseFrappeError({ message: res.message.message || "Could not mark as sent." }, res?.message),
+                });
                 return;
             }
             downloadGeneratedPdf();
             onActionComplete();
         } catch (err: any) {
             console.error("Send-to-Faculty-Admission failed:", err);
-            alert(err?.message || "Could not mark as sent.");
+            setErrorModal({
+                open: true,
+                title: "Could Not Mark As Sent",
+                message: parseFrappeError(err),
+            });
         }
     };
 
@@ -796,7 +834,11 @@ const TopUpFellowshipWorkflowActions = ({
         try {
             const res: any = await performAction({ docname, action: selectedTufAction, comment: comment || undefined });
             if (res?.message?.status === "error") {
-                alert(res.message.message || `Action "${selectedTufAction}" failed.`);
+                setErrorModal({
+                    open: true,
+                    title: "Action Failed",
+                    message: parseFrappeError({ message: res.message.message || `Action "${selectedTufAction}" failed.` }, res?.message),
+                });
                 return;
             }
             if (comment?.trim()) {
@@ -806,7 +848,11 @@ const TopUpFellowshipWorkflowActions = ({
             onActionComplete();
         } catch (err: any) {
             console.error("Top Up Fellowship action failed:", err);
-            alert(err?.message || `Action "${selectedTufAction}" failed.`);
+            setErrorModal({
+                open: true,
+                title: "Action Failed",
+                message: parseFrappeError(err),
+            });
         }
     };
 
@@ -828,6 +874,12 @@ const TopUpFellowshipWorkflowActions = ({
                 onSubmit={handleConfirmPutBack}
                 action={pendingBack?.label || "Put Back"}
                 isLoading={putBackLoading}
+            />
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
             />
         </>
     );
@@ -2290,6 +2342,12 @@ const PendingTaskDetails: React.FC = () => {
         name || "",
     );
 
+    const [errorModal, setErrorModal] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({ open: false, title: "Submission Failed", message: "" });
+
     const { data: cancellationStatus } = useFrappeGetCall<{
         message: {
             has_pending: boolean;
@@ -2440,7 +2498,11 @@ const PendingTaskDetails: React.FC = () => {
             refreshAll();
             alert("Office Use details saved successfully.");
         } catch (e: any) {
-            alert("Failed to save Office Use details: " + (e?.message || "Unknown error"));
+            setErrorModal({
+                open: true,
+                title: "Save Failed",
+                message: parseFrappeError(e),
+            });
         } finally {
             setIsSavingTadaOfficeUse(false);
         }
@@ -2611,7 +2673,11 @@ const PendingTaskDetails: React.FC = () => {
             );
             alert('Account details saved successfully.');
         } catch (e: any) {
-            alert('Failed to save account details: ' + (e?.message || 'Unknown error'));
+            setErrorModal({
+                open: true,
+                title: "Save Failed",
+                message: parseFrappeError(e),
+            });
         } finally {
             setIsSavingAcctDetails(false);
         }
@@ -4054,10 +4120,18 @@ const PendingTaskDetails: React.FC = () => {
                                                                         }));
                                                                         setChairpersonEditMode(false);
                                                                     } else {
-                                                                        alert(res?.message?.message || "Failed to update chairperson fields.");
+                                                                        setErrorModal({
+                                                                            open: true,
+                                                                            title: "Update Failed",
+                                                                            message: parseFrappeError({ message: res?.message?.message || "Failed to update chairperson fields." }, res?.message),
+                                                                        });
                                                                     }
                                                                 } catch (err: any) {
-                                                                    alert(err?.message || "An error occurred.");
+                                                                    setErrorModal({
+                                                                        open: true,
+                                                                        title: "Update Failed",
+                                                                        message: parseFrappeError(err),
+                                                                    });
                                                                 } finally {
                                                                     setIsSavingChairperson(false);
                                                                 }
@@ -4878,6 +4952,13 @@ const PendingTaskDetails: React.FC = () => {
                     onClose={() => setPrPreviewName(null)}
                 />
             )}
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

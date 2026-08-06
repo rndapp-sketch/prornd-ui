@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils';
 import { ArrowLeftIcon, Send, Save } from "lucide-react";
 import { CharLimitAlert } from '@/components/CharLimitAlert';
 import { getFieldMaxLength } from '@/utils/fieldLimits';
+import { ErrorModal } from "../components/ErrorModal";
+import { parseFrappeError } from "../utils/errorUtils";
 
 // --- TYPE DEFINITIONS ---
 interface Field {
@@ -260,6 +262,11 @@ const AddFundSanction: React.FC = () => {
     const [budgetHeadOptions, setBudgetHeadOptions] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorModal, setErrorModal] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({ open: false, title: "Submission Failed", message: "" });
     const [projectDisplayLabel, setProjectDisplayLabel] = useState('');
     const [activeYearCount, setActiveYearCount] = useState<number>(
         (location.state as any)?.activeYearCount ?? 2
@@ -294,7 +301,7 @@ const AddFundSanction: React.FC = () => {
     const isBudgetMismatch = !isTotalEmpty && Math.abs(totalSanctioned - budgetGrandTotal) > 0.01;
 
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_fund_sanction_form_data');
-    const { call: submitForm } = useFrappePostCall('rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.save_fund_sanction_data');
+    const { call: submitForm, error: submitError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.save_fund_sanction_data');
     const { call: fetchBudgetHeads, result: budgetHeadsResult } = useFrappePostCall('rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_head');
 
     const getSavedDocNameFromResponse = (response: any, fallback = ''): string => {
@@ -590,8 +597,12 @@ const AddFundSanction: React.FC = () => {
             setSavedAsDraft(true);
             alert("Fund Sanction saved as draft!");
         } catch (err: any) {
-            console.error("Save Failed:", err);
-            alert(`Save Failed: ${err.message || 'An unknown server error occurred.'}`);
+            console.error("Save Failed:", submitError || err);
+            setErrorModal({
+                open: true,
+                title: "Save Failed",
+                message: parseFrappeError(submitError, err),
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -625,8 +636,12 @@ const AddFundSanction: React.FC = () => {
             alert("Fund Sanction submitted successfully!");
             navigate(-1);
         } catch (err: any) {
-            console.error("Submission Failed:", err);
-            alert(`Submission Failed: ${err.message || 'An unknown server error occurred.'}`);
+            console.error("Submission Failed:", submitError || err);
+            setErrorModal({
+                open: true,
+                title: "Submission Failed",
+                message: parseFrappeError(submitError, err),
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -865,6 +880,15 @@ const AddFundSanction: React.FC = () => {
                     </div>
                 </form>
             </main>
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() =>
+                    setErrorModal((prev) => ({ ...prev, open: false }))
+                }
+            />
         </div>
     );
 };

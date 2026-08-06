@@ -9,6 +9,8 @@ import { DynamicFormRenderer, type FormField, type LinkOption } from '@/componen
 import { commonAPI, disbursalOfHonorariumAPI } from '@/services/apiService';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { useFrappeClientScript } from '@/hooks/useFrappeClientScript';
+import { ErrorModal } from '../../components/ErrorModal';
+import { parseFrappeError } from '../../utils/errorUtils';
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -147,6 +149,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
     const [isSaved, setIsSaved] = useState(false);
     const [savedDocName, setSavedDocName] = useState<string | null>(null);
     const [dataLoaded, setDataLoaded] = useState(false);
@@ -521,7 +524,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
             }
         } catch (err: any) {
             console.error(err);
-            alert(`Save failed: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Save Failed", message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -557,7 +560,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
             }
         } catch (err: any) {
             console.error(err);
-            alert(`Submission failed: ${err.message || "Please check the console for details."}`);
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -626,6 +629,12 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                     )}
                 </form>
             </main>
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

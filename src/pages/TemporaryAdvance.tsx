@@ -8,6 +8,8 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { ToWords } from 'to-words';
 import { CharLimitAlert } from '@/components/CharLimitAlert';
 import { getFieldMaxLength, CURRENCY_MAX_LENGTH } from '@/utils/fieldLimits';
+import { ErrorModal } from "../components/ErrorModal";
+import { parseFrappeError } from "../utils/errorUtils";
 
 // Initialize ToWords converter
 const toWords = new ToWords({
@@ -341,6 +343,11 @@ const TemporaryAdvance: React.FC = () => {
     const [dataLoaded, setDataLoaded] = useState(false);
     const [commentModalOpen, setCommentModalOpen] = useState(false);
     const [draftComment, setDraftComment] = useState("");
+    const [errorModal, setErrorModal] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({ open: false, title: "Submission Failed", message: "" });
 
     const { call: fetchFormData, result, error } = useFrappePostCall<FormDataResponse>(
         'rndopsapp.rndopsapp.doctype.temporary_advance.temporary_advance.get_temporary_advance_fields'
@@ -386,9 +393,13 @@ const TemporaryAdvance: React.FC = () => {
                             if (existingDoc?.message) {
                                 initialData = { ...initialData, ...existingDoc.message };
                             }
-                        } catch (err) {
+                        } catch (err: any) {
                             console.error('Error fetching existing document:', err);
-                            alert('Failed to load document for editing');
+                            setErrorModal({
+                                open: true,
+                                title: "Load Failed",
+                                message: parseFrappeError(err),
+                            });
                         }
                     }
 
@@ -459,7 +470,11 @@ const TemporaryAdvance: React.FC = () => {
         }
         if (error) {
             console.error("Failed to load form data:", error);
-            alert("Failed to load form data.");
+            setErrorModal({
+                open: true,
+                title: "Load Failed",
+                message: parseFrappeError(error),
+            });
             setLoading(false);
         }
     }, [result, error, projectName, editDocName, dataLoaded, fetchUserDetails, fetchExistingDoc]);
@@ -636,7 +651,11 @@ const msg = saveResult?.message;
             navigate(`/temporary-advance/${encodeURIComponent(docname)}?${params.toString()}`);
         } catch (err: any) {
             console.error('Submission error:', submitError || err);
-            alert(`Save Failed: ${err.message || 'Unknown Error'}`);
+            setErrorModal({
+                open: true,
+                title: "Save Failed",
+                message: parseFrappeError(submitError, err),
+            });
             setIsSubmitting(false);
         }
     };
@@ -890,6 +909,15 @@ const msg = saveResult?.message;
                     </div>
                 )}
             </main>
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() =>
+                    setErrorModal((prev) => ({ ...prev, open: false }))
+                }
+            />
         </div>
     );
 };

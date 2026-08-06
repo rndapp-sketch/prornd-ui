@@ -31,6 +31,8 @@ import ViewProjectButton from "@/components/ViewProjectButton";
 import { ToWords } from "to-words";
 import { DynamicFormRenderer, type FormField, type LinkOption } from "@/components/forms/DynamicFormRenderer";
 import { temporaryAdvanceAPI } from "@/services/apiService";
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 
 const toWords = new ToWords({ localeCode: "en-IN", converterOptions: { ignoreDecimal: false } });
 
@@ -205,6 +207,11 @@ const ActionsDropdown = ({
     const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedAction, setSelectedAction] = useState("");
+    const [errorModal, setErrorModal] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({ open: false, title: "Action Failed", message: "" });
     const toggleBtnRef = React.useRef<HTMLButtonElement>(null);
     const dropdownPortalRef = React.useRef<HTMLDivElement>(null);
 
@@ -241,7 +248,11 @@ const ActionsDropdown = ({
             onActionComplete();
         } catch (error) {
             console.error("Error performing action:", error);
-            alert("Failed to perform action. Please try again.");
+            setErrorModal({
+                open: true,
+                title: "Action Failed",
+                message: parseFrappeError(error),
+            });
         }
     };
 
@@ -389,6 +400,13 @@ const ActionsDropdown = ({
                 action={selectedAction}
                 isLoading={actionLoading}
             />
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </>
     );
 };
@@ -407,13 +425,18 @@ const TemporaryAdvanceDetails: React.FC = () => {
     const [isLedgerOpen, setIsLedgerOpen] = useState(false);
     const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
     const [budgetHeadList, setBudgetHeadList] = useState<{ name: string; id: string }[]>([]);
+    const [errorModal, setErrorModal] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({ open: false, title: "Submission Failed", message: "" });
 
     const [taFields, setTaFields] = useState<FormField[]>([]);
     const [taLinkOptions, setTaLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [isFieldsLoading, setIsFieldsLoading] = useState(false);
 
     const { call: fetchDoc } = useFrappePostCall<{ message: TemporaryAdvanceData }>("frappe.client.get");
-    const { call: submitDoc } = useFrappePostCall<{ message: any }>(
+    const { call: submitDoc, error: submitDocError } = useFrappePostCall<{ message: any }>(
         "rndopsapp.rndopsapp.doctype.temporary_advance.temporary_advance.submit_temporary_advance",
     );
     const { call: fetchTaFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any } }>(
@@ -506,7 +529,11 @@ const TemporaryAdvanceDetails: React.FC = () => {
                 }
                 await loadData();
             } catch (err: any) {
-                alert(`Auto-submit failed: ${err.message || "Unknown error"}`);
+                setErrorModal({
+                    open: true,
+                    title: "Auto-Submit Failed",
+                    message: parseFrappeError(submitDocError, err),
+                });
             } finally {
                 setIsSubmitting(false);
             }
@@ -568,7 +595,11 @@ const TemporaryAdvanceDetails: React.FC = () => {
             alert("Temporary Advance submitted successfully!");
             await loadData();
         } catch (err: any) {
-            alert(`Failed to submit: ${err.message || "Unknown error"}`);
+            setErrorModal({
+                open: true,
+                title: "Submission Failed",
+                message: parseFrappeError(submitDocError, err),
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -762,6 +793,13 @@ const TemporaryAdvanceDetails: React.FC = () => {
                 />
             )}
             {id && <FloatingActivityLogButton doctype="Temporary Advance" docname={id} />}
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };
