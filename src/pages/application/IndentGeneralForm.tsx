@@ -13,6 +13,8 @@ import {
 } from "@/components/forms/DynamicFormRenderer";
 import { isFieldVisible } from "@/utils/evalExpression";
 import { indentGeneralFormAPI, commonAPI, prepareFormDataForApi } from "@/services/apiService";
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 
 // ---------------------------------------------------------------------------
 // Submit-confirmation modal shown after a successful save
@@ -133,6 +135,7 @@ const IndentGeneralForm: React.FC = () => {
     const [isActionLoading, setIsActionLoading] = useState(false);
     const [docStatus, setDocStatus] = useState<number>(0);
     const [showSubmitModal, setShowSubmitModal] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     const { call: fetchFields } = useFrappePostCall<{ message: any }>(indentGeneralFormAPI.getFields);
     const { call: saveForm } = useFrappePostCall<{ message: any }>(indentGeneralFormAPI.save);
@@ -558,10 +561,8 @@ const IndentGeneralForm: React.FC = () => {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
-            const errMsg = err.exc_type === "ValidationError"
-                ? JSON.parse(err._server_messages || "[]").map((m: string) => JSON.parse(m).message).join(", ")
-                : err.message || "Unknown error";
-            alert(`Save failed: ${errMsg}`);
+            console.error("Save error:", err);
+            setErrorModal({ open: true, title: "Save Failed", message: parseFrappeError(err) });
         } finally {
             isSavingRef.current = false;
             setIsSaving(false);
@@ -581,7 +582,8 @@ const IndentGeneralForm: React.FC = () => {
             await performActionCall({ docname, action });
             navigate(`/indent-general-form-details/${docname}`);
         } catch (err: any) {
-            alert(`Action failed: ${err.message || "Unknown error"}`);
+            console.error("Action error:", err);
+            setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(err) });
         } finally {
             setIsActionLoading(false);
         }
@@ -821,6 +823,13 @@ const IndentGeneralForm: React.FC = () => {
                     </div>
                 )}
             </main>
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

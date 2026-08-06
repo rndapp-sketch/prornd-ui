@@ -32,6 +32,8 @@ import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButto
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
 import { FIELD_CHAR_LIMITS } from "@/utils/fieldLimits";
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 
 // --- TYPE DEFINITIONS ---
 interface ReimbursementData {
@@ -191,6 +193,7 @@ const ActionsDropdown = ({
   onDownload,
   isSubmitting,
   commitRequired = false,
+  onError,
 }: {
   docname: string;
   workflowState: string;
@@ -200,12 +203,13 @@ const ActionsDropdown = ({
   onDownload: () => void;
   isSubmitting: boolean;
   commitRequired?: boolean;
+  onError: (message: string) => void;
 }) => {
   const { data, isLoading: actionsLoading } = useFrappeGetCall<{ message: string[] }>(
     "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_reimbursement_workflow_actions",
     { docname },
   );
-  const { call: performAction, loading: actionLoading } = useFrappePostCall(
+  const { call: performAction, loading: actionLoading, error: performActionError } = useFrappePostCall(
     "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.perform_reimbursement_action",
   );
 
@@ -249,7 +253,7 @@ const ActionsDropdown = ({
       onActionComplete();
     } catch (error) {
       console.error("Error performing action:", error);
-      alert("Failed to perform action. Please try again.");
+      onError(parseFrappeError(performActionError, error));
     }
   };
 
@@ -425,6 +429,11 @@ const ReimbursementDetails: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [resolvedNames, setResolvedNames] = useState<Record<string, string>>({});
   const [projectNo, setProjectNo] = useState<string>("");
+  const [errorModal, setErrorModal] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+  }>({ open: false, title: "Submission Failed", message: "" });
 
   const { call: fetchDoc } = useFrappePostCall<{ message: ReimbursementData }>(
     "frappe.client.get",
@@ -568,7 +577,11 @@ const ReimbursementDetails: React.FC = () => {
       window.location.reload();
     } catch (error: any) {
       console.error("Payment failed:", error);
-      alert(`Payment failed: ${error.message || "Unknown error"}`);
+      setErrorModal({
+        open: true,
+        title: "Payment Failed",
+        message: parseFrappeError(error),
+      });
     }
   };
 
@@ -584,7 +597,11 @@ const ReimbursementDetails: React.FC = () => {
       if (refreshed?.message) setData(refreshed.message);
     } catch (err: any) {
       console.error("Error submitting reimbursement:", err);
-      alert(`Failed to submit: ${err.message || "Unknown error"}`);
+      setErrorModal({
+        open: true,
+        title: "Submission Failed",
+        message: parseFrappeError(err),
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -1019,6 +1036,9 @@ const ReimbursementDetails: React.FC = () => {
                   isCommittedForGate === false &&
                   data.workflow_state === "Pending Staff Approval"
                 }
+                onError={(message) =>
+                  setErrorModal({ open: true, title: "Action Failed", message })
+                }
               />
             )}
             {cancellationStatus?.message?.has_pending && (
@@ -1395,6 +1415,13 @@ const ReimbursementDetails: React.FC = () => {
 
       {/* Floating Activity Log */}
       {id && <FloatingActivityLogButton doctype="Reimbursement" docname={id} />}
+
+      <ErrorModal
+        open={errorModal.open}
+        title={errorModal.title}
+        message={errorModal.message}
+        onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+      />
     </div>
   );
 };

@@ -10,6 +10,8 @@ import { miscellaneousCommitAPI, prepareFormDataForApi } from '@/services/apiSer
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { DepartmentName } from '@/components/DepartmentName';
 import ProjectDetailsOverview from '@/pages/ProjectDetailsOverview';
+import { ErrorModal } from '../../components/ErrorModal';
+import { parseFrappeError } from '../../utils/errorUtils';
 
 // --- FIELD GROUP DEFINITIONS ---
 const GROUP_A_FIELDS = new Set([
@@ -145,6 +147,7 @@ const MiscellaneousCommitForm: React.FC = () => {
     const [headerProjectCode, setHeaderProjectCode] = useState('');
     const [headerProjectName, setHeaderProjectName] = useState('');
     const [prPreviewName, setPrPreviewName] = useState<string | null>(null);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     const { currentUser } = useFrappeAuth();
 
@@ -274,7 +277,8 @@ const MiscellaneousCommitForm: React.FC = () => {
                 throw new Error(res?.message?.message || 'Save failed');
             }
         } catch (err: any) {
-            alert(`Save failed: ${err.message || 'Unknown error'}`);
+            console.error('Save error:', err);
+            setErrorModal({ open: true, title: 'Save Failed', message: parseFrappeError(err) });
         } finally {
             setIsSaving(false);
         }
@@ -299,7 +303,8 @@ const MiscellaneousCommitForm: React.FC = () => {
                 throw new Error(submitRes?.message?.message || 'Submission failed');
             }
         } catch (err: any) {
-            alert(`Submission failed: ${err.message || 'Unknown error'}`);
+            console.error('Submission error:', err);
+            setErrorModal({ open: true, title: 'Submission Failed', message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -428,6 +433,13 @@ const MiscellaneousCommitForm: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

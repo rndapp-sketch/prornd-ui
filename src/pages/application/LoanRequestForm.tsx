@@ -9,6 +9,8 @@ import { DynamicFormRenderer, type FormField, type LinkOption } from '@/componen
 import { loanRequestAPI, prepareFormDataForApi } from '@/services/apiService';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { DepartmentName } from '@/components/DepartmentName';
+import { ErrorModal } from '../../components/ErrorModal';
+import { parseFrappeError } from '../../utils/errorUtils';
 
 // --- FIELD GROUP DEFINITIONS ---
 const GROUP_A_FIELDS = new Set([
@@ -118,6 +120,7 @@ const LoanRequestForm: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [savedDocName, setSavedDocName] = useState<string | null>(editDocName);
     const [dataLoaded, setDataLoaded] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     const { currentUser } = useFrappeAuth();
 
@@ -257,7 +260,8 @@ const LoanRequestForm: React.FC = () => {
                 throw new Error(res?.message?.message || 'Save failed');
             }
         } catch (err: any) {
-            alert(`Save failed: ${err.message || 'Unknown error'}`);
+            console.error('Save error:', err);
+            setErrorModal({ open: true, title: 'Save Failed', message: parseFrappeError(err) });
         } finally {
             setIsSaving(false);
         }
@@ -286,7 +290,8 @@ const LoanRequestForm: React.FC = () => {
                 throw new Error(submitRes?.message?.message || 'Submission failed');
             }
         } catch (err: any) {
-            alert(`Submission failed: ${err.message || 'Unknown error'}`);
+            console.error('Submission error:', err);
+            setErrorModal({ open: true, title: 'Submission Failed', message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -439,6 +444,13 @@ const LoanRequestForm: React.FC = () => {
                     </GroupCard>
                 </div>
             </main>
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

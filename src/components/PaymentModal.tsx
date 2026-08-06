@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { ErrorModal } from './ErrorModal';
+import { parseFrappeError } from '../utils/errorUtils';
 
 interface PaymentModalProps {
     isOpen: boolean;
@@ -23,6 +25,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     const [paymentFormData, setPaymentFormData] = useState<Record<string, any>>({});
     const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false);
     const [isLoadingFields, setIsLoadingFields] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     // Fetch fields when modal opens
     useEffect(() => {
@@ -89,7 +92,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             alert('Payment submitted successfully!');
         } catch (err: any) {
             console.error('Payment submission failed:', err);
-            alert('Failed to submit payment: ' + (err.message || 'Unknown error'));
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
         } finally {
             setIsPaymentSubmitting(false);
         }
@@ -207,6 +210,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     </button>
                 </div>
             </div>
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

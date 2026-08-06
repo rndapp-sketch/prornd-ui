@@ -9,6 +9,8 @@ import { DynamicFormRenderer, type FormField, type LinkOption } from '@/componen
 import { commonAPI, disbursalOfConsultancyAPI } from '@/services/apiService';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { useFrappeClientScript } from '@/hooks/useFrappeClientScript';
+import { ErrorModal } from '../../components/ErrorModal';
+import { parseFrappeError } from '../../utils/errorUtils';
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -147,6 +149,7 @@ const DisbursalOfConsultancyForm: React.FC = () => {
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
     const [savedDocName, setSavedDocName] = useState<string | null>(null);
     const [dataLoaded, setDataLoaded] = useState(false);
     const [clientScript, setClientScript] = useState<string>("");
@@ -277,6 +280,20 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                 if (projectFromUrl && !id) {
                     initialData.disbursal_project_number = projectFromUrl;
 
+                    // Seed the dropdown with the raw URL value immediately so it shows as
+                    // selected right away, in case the lookup below is slow or fails to resolve.
+                    setLinkOptions(prev => {
+                        const existing = prev['disbursal_project_number'] || [];
+                        if (existing.some(opt => opt.value === projectFromUrl)) return prev;
+                        return {
+                            ...prev,
+                            disbursal_project_number: [
+                                ...existing,
+                                { value: projectFromUrl, label: projectNameFromUrl || projectFromUrl },
+                            ],
+                        };
+                    });
+
                     if (projectNameFromUrl) {
                         initialData.project_title = projectNameFromUrl;
                     }
@@ -307,7 +324,24 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                         }
 
                         if (pData) {
-                            initialData.disbursal_project_number = pData.project_no || projectFromUrl;
+                            // disbursal_project_number is a Link field to Project Registration,
+                            // so its value must be the doc name — not the project_no display value —
+                            // otherwise the dropdown has no matching option and renders blank.
+                            initialData.disbursal_project_number = pData.name || projectFromUrl;
+
+                            const projectOptionLabel = pData.project_no || pData.project_title || pData.name || projectFromUrl;
+                            setLinkOptions(prev => {
+                                const existing = prev['disbursal_project_number'] || [];
+                                const withoutDup = existing.filter(opt => opt.value !== initialData.disbursal_project_number);
+                                return {
+                                    ...prev,
+                                    disbursal_project_number: [
+                                        ...withoutDup,
+                                        { value: initialData.disbursal_project_number, label: projectOptionLabel },
+                                    ],
+                                };
+                            });
+
                             // Only override project_title if not already set from URL param
                             if (!projectNameFromUrl) {
                                 initialData.project_title = pData.project_title || pData.name || projectFromUrl;
@@ -533,7 +567,7 @@ const DisbursalOfConsultancyForm: React.FC = () => {
             }
         } catch (err: any) {
             console.error(err);
-            alert(`Save failed: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Save Failed", message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -580,7 +614,7 @@ const DisbursalOfConsultancyForm: React.FC = () => {
             }
         } catch (err: any) {
             console.error(err);
-            alert(`Submission failed: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -634,7 +668,7 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                             </FrappeButton>
                             <FrappeButton
                                 type="submit"
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || !effectiveDocName}
                                 className="bg-[#D97757] text-white hover:bg-[#D97757]"
                             >
                                 {isSubmitting ? 'Saving...' : (
@@ -648,7 +682,12 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                     )}
                 </form>
             </main>
-
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

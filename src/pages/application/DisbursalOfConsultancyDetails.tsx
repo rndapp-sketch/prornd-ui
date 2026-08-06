@@ -33,6 +33,8 @@ import ViewProjectButton from "@/components/ViewProjectButton";
 import { P11PrintModal } from "@/components/P11PrintModal";
 import { generateDisbursalOfConsultancyHtml } from "@/utils/disbursalOfConsultancyPrint";
 import type { ActivityItem } from "@/utils/disbursalOfHonorariumPrint";
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -160,6 +162,7 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
     // Sidebar state
@@ -451,7 +454,7 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                 throw new Error(msg?.message || "Submission failed");
             }
         } catch (err: any) {
-            alert(`Submission failed: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -478,7 +481,7 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
             setPaymentAmount("");
             window.location.reload();
         } catch (error: any) {
-            alert(`Payment failed: ${error.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Payment Failed", message: parseFrappeError(error) });
         }
     };
 
@@ -808,6 +811,12 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                         : ""
                 }
                 docName={formData.name || id || ""}
+            />
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
             />
         </div>
     );

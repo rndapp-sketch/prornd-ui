@@ -18,6 +18,8 @@ import { useProjectBudget } from '@/hooks/useProjectBudget';
 import { BudgetHeadName } from '@/components/BudgetHeadName';
 import { CommitPayment } from '@/components/CommitPayment';
 import { ActivityLog, clearActivityLogCache } from '@/components/ActivityLog';
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 
 type LinkOption = {
     value: string;
@@ -160,6 +162,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
     const [isLoadingFields, setIsLoadingFields] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isActivityOpen, setIsActivityOpen] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
     const isSavingRef = useRef(false);
     const [savedDocName, setSavedDocName] = useState<string | null>(
         editDocName || null,
@@ -622,7 +625,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
             }
         } catch (error) {
             console.error("Error fetching form details:", error);
-            alert("Failed to load form schema");
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(error) });
         } finally {
             setIsLoadingFields(false);
         }
@@ -1032,12 +1035,12 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                 }
                 setRacQuickEntry(null);
             } else {
-                alert(`Error: ${result?.message || 'Failed to create custom designation.'}`);
+                setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(result) });
                 setRacQuickEntry(prev => prev ? { ...prev, isSubmitting: false } : null);
             }
         } catch (e: any) {
             console.error("RAC Quick Entry error", e);
-            alert("Failed to create custom designation. Please try again.");
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(e) });
             setRacQuickEntry(prev => prev ? { ...prev, isSubmitting: false } : null);
         }
     };
@@ -1093,7 +1096,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
             setPaymentAmount("");
             window.location.reload();
         } catch (error: any) {
-            alert(`Payment failed: ${error.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Payment Failed", message: parseFrappeError(error) });
         }
     };
 
@@ -1157,18 +1160,12 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                     fetchFormConfiguration();
                 }
             } else {
-                alert(response.message?.message || "Failed to save draft");
+                setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(response?.message, response) });
             }
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             console.error("Save error:", error);
-            const errMsg =
-                error.exc_type === "ValidationError"
-                    ? JSON.parse(error._server_messages || "[]")
-                        .map((m: string) => JSON.parse(m).message)
-                        .join(", ")
-                    : "An error occurred while saving";
-            alert(errMsg);
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(error) });
         } finally {
             console.log(`[SAVE #${saveId}] FINALLY — releasing lock`);
             isSavingRef.current = false;
@@ -1231,28 +1228,16 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                 fetchFormConfiguration();
                 fetchWorkflowActions(docNameToUse);
             } else {
-                const errorDetail = response?.message?.message || (response?.message ? JSON.stringify(response.message) : "");
-                alert(
-                    errorDetail ? `Failed to perform action ${pendingAction}: ${errorDetail}` : `Failed to perform action ${pendingAction}`,
-                );
+                setErrorModal({
+                    open: true,
+                    title: "Submission Failed",
+                    message: parseFrappeError(response?.message, response) || `Failed to perform action ${pendingAction}`,
+                });
             }
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             console.error(`Workflow Action ${pendingAction} Error:`, error);
-
-            let errMsg = `An error occurred while performing action: ${pendingAction}`;
-            try {
-                if (error.exc_type === "ValidationError" && error._server_messages) {
-                    errMsg = JSON.parse(error._server_messages)
-                        .map((m: string) => JSON.parse(m).message)
-                        .join("\n");
-                } else if (error.message) {
-                    errMsg = error.message;
-                }
-            } catch (e) {
-                console.error("Failed to parse server messages", e);
-            }
-            alert(errMsg);
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(error) });
         } finally {
             setIsActionLoading(false);
             setPendingAction("");
@@ -1293,11 +1278,11 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
             if (response?.message?.status === "success") {
                 alert("Chairperson fields updated successfully.");
             } else {
-                alert(response?.message?.message || "Failed to update chairperson fields.");
+                setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(response?.message, response) });
             }
         } catch (error: any) {
             console.error("Update chairperson error:", error);
-            alert(error?.message || "An error occurred while updating chairperson fields.");
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(error) });
         }
     };
 
@@ -1757,6 +1742,13 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                 )}
                 {/* END OF EDIT — MKY | 2026-04-14 15:35 IST
                     ============================================================ */}
+
+                <ErrorModal
+                    open={errorModal.open}
+                    title={errorModal.title}
+                    message={errorModal.message}
+                    onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+                />
 
             </main>
         </div>
