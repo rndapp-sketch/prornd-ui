@@ -35,6 +35,8 @@ import { ActivityLog } from "@/components/ActivityLog";
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { getFileUrl } from "@/utils/fileUtils";
 import { BudgetHeadName } from "@/components/BudgetHeadName";
+import { ErrorModal } from "../components/ErrorModal";
+import { parseFrappeError } from "../utils/errorUtils";
 
 // ── Attachment helper ──────────────────────────────────────────────────────────
 const TransactionAttachment = ({
@@ -326,6 +328,7 @@ const FundReceivedDetails = () => {
     const [editBreakup, setEditBreakup] = useState<any[]>([]);
     const [editTransactions, setEditTransactions] = useState<any[]>([]);
     const [isSaving, setIsSaving] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     // Tab state — deposit slip tab appears once a linked slip is found
     const [activeTab, setActiveTab] = useState<"fund" | "deposit_slip">("fund");
@@ -533,7 +536,8 @@ const FundReceivedDetails = () => {
             await mutate();
             setIsEditMode(false);
         } catch (err: any) {
-            alert(`Save failed: ${err.message || "Unknown error"}`);
+            console.error("Failed to save Fund Received edits:", err);
+            setErrorModal({ open: true, title: "Save Failed", message: parseFrappeError(err) });
         } finally {
             setIsSaving(false);
         }
@@ -828,7 +832,10 @@ const FundReceivedDetails = () => {
             const result = await response.json();
             alert(result?.message?.name ? `Deposit Slip saved: ${result.message.name}` : "Deposit Slip saved successfully!");
             mutate();
-        } catch (err: any) { alert(`Submission Failed: ${err.message || "Unknown Error"}`); } finally { setIsSubmitting(false); }
+        } catch (err: any) {
+            console.error("Failed to save Deposit Slip:", err);
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
+        } finally { setIsSubmitting(false); }
     };
 
     const handleBeforeAction = useCallback(async (action: string): Promise<{ [key: string]: any } | null> => {
@@ -1452,6 +1459,13 @@ const FundReceivedDetails = () => {
                     </div>
                 </div>
             )}
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

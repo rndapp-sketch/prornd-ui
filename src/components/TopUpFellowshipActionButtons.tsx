@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
 import { ChevronDown, CheckCircle, XCircle, ChevronRight, CornerUpLeft, FileDown } from "lucide-react";
+import { ErrorModal } from "./ErrorModal";
+import { parseFrappeError } from "../utils/errorUtils";
 
 interface Props {
     docname: string;
@@ -97,6 +99,7 @@ const TopUpFellowshipActionButtons: React.FC<Props> = ({
     const [selectedAction, setSelectedAction] = useState("");
     const [isPutBack, setIsPutBack] = useState(false);
     const [selectedTarget, setSelectedTarget] = useState("");
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
     const toggleBtnRef = React.useRef<HTMLButtonElement>(null);
     const dropdownPortalRef = React.useRef<HTMLDivElement>(null);
 
@@ -147,7 +150,7 @@ const TopUpFellowshipActionButtons: React.FC<Props> = ({
             window.open(url, "_blank");
             onActionComplete();
         } catch (err: any) {
-            alert(err?.message || "Could not mark as sent.");
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
         }
     };
 
@@ -170,7 +173,7 @@ const TopUpFellowshipActionButtons: React.FC<Props> = ({
             setModalOpen(false);
             onActionComplete();
         } catch (err: any) {
-            alert(err?.message || "Action failed.");
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
         }
     };
 
@@ -364,6 +367,13 @@ const TopUpFellowshipActionButtons: React.FC<Props> = ({
                 onSubmit={handleConfirmAction}
                 action={selectedAction}
                 isLoading={actionLoading || putBackLoading}
+            />
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
             />
         </>
     );

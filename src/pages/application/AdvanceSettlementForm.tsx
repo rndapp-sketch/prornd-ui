@@ -7,6 +7,8 @@ import { AlertCircle, Wallet } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { advanceSettlementAPI, prepareFormDataForApi } from '@/services/apiService';
+import { ErrorModal } from '../../components/ErrorModal';
+import { parseFrappeError } from '../../utils/errorUtils';
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -64,6 +66,7 @@ const AdvanceSettlementForm: React.FC = () => {
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
     const [budgetHeads, setBudgetHeads] = useState<{ label: string; value: string }[]>([]);
     const [savedDocName, setSavedDocName] = useState<string>(editDocName || '');
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     // --- API HOOKS ---
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall<FormDataResponse>(advanceSettlementAPI.getFields);
@@ -347,7 +350,7 @@ const AdvanceSettlementForm: React.FC = () => {
             }
         } catch (err: any) {
             console.error(saveError || err);
-            alert(`Save failed: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Save Failed", message: parseFrappeError(saveError, err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -398,7 +401,7 @@ const AdvanceSettlementForm: React.FC = () => {
             }
         } catch (err: any) {
             console.error(submitError || err);
-            alert(`Submission failed: ${err.message || "Please check the console for details."}`);
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(submitError, err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -585,6 +588,12 @@ const AdvanceSettlementForm: React.FC = () => {
                     </div>
                 </form>
             </main>
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

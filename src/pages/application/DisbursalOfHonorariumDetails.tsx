@@ -97,6 +97,8 @@ import { useUserRoles } from "@/components/UserRole";
 import { ProjectLedgerModal } from "@/components/ProjectLedgerModal";
 import { P11PrintModal } from "@/components/P11PrintModal";
 import { generateDisbursalOfHonorariumHtml, resolveHonorariumPrintData } from "@/utils/disbursalOfHonorariumPrint";
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -188,6 +190,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
     const [resolvedProjectTitle, setResolvedProjectTitle] = useState<string>("");
     const [applicantFullName, setApplicantFullName] = useState<string>("");
@@ -537,7 +540,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
             setPaymentAmount("");
             window.location.reload();
         } catch (error: any) {
-            alert(`Payment failed: ${error.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Payment Failed", message: parseFrappeError(error) });
         }
     };
 
@@ -562,7 +565,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
             }
         } catch (err: any) {
             console.error(err);
-            alert(`Submission failed: ${err.message || "Please check the console for details."}`);
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -827,6 +830,12 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                     docname={id}
                 />
             )}
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

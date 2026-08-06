@@ -12,6 +12,8 @@ import DirectPurchaseHelpGuide from "@/components/DirectPurchaseHelpGuide";
 import { AutocompleteEmail } from "@/components/AutocompleteEmail";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
 import { getFieldMaxLength } from "@/utils/fieldLimits";
+import { ErrorModal } from "../components/ErrorModal";
+import { parseFrappeError } from "../utils/errorUtils";
 
 // --- TYPE DEFINITIONS ---
 interface ChildField {
@@ -633,6 +635,7 @@ const DirectPurchase: React.FC = () => {
     const [dataLoaded, setDataLoaded] = useState(false);
     const [declarationAccepted, setDeclarationAccepted] = useState(false);
     const [commentModalOpen, setCommentModalOpen] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     const { call: fetchFormData, result, error } = useFrappePostCall<FormDataResponse>(
         directPurchaseAPI.getFields
@@ -640,7 +643,7 @@ const DirectPurchase: React.FC = () => {
     const { call: submitForm, error: submitError } = useFrappePostCall(
         directPurchaseAPI.save
     );
-    const { call: submitDocCall } = useFrappePostCall(
+    const { call: submitDocCall, error: submitDocError } = useFrappePostCall(
         directPurchaseAPI.performAction
     );
     const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>(
@@ -1036,7 +1039,7 @@ const DirectPurchase: React.FC = () => {
             alert('Direct Purchase saved as draft successfully!');
         } catch (err: any) {
             console.error('Draft save error:', submitError || err);
-            alert(`Save Failed: ${err.message || 'Unknown Error'}`);
+            setErrorModal({ open: true, title: "Save Failed", message: parseFrappeError(submitError, err) });
         } finally {
             setIsSavingDraft(false);
         }
@@ -1079,7 +1082,7 @@ const DirectPurchase: React.FC = () => {
             });
         } catch (err: any) {
             console.error('Submit error:', err);
-            alert(`Submission Failed: ${err.message || 'Unknown Error'}`);
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(submitDocError, err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -1384,6 +1387,12 @@ const DirectPurchase: React.FC = () => {
                 isLoading={isSubmitting}
             />
             <DirectPurchaseHelpGuide />
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { format, isToday, isYesterday } from "date-fns";
 import { ChevronDown, Download, FileText, Forward, ImageIcon, Reply, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,8 @@ import {
     type Conversation,
     type Message,
 } from "@/services/messagingService";
+import { ErrorModal } from "../../../components/ErrorModal";
+import { parseFrappeError } from "../../../utils/errorUtils";
 
 interface MessageThreadProps {
     conversation: Conversation | null;
@@ -103,6 +105,11 @@ export function MessageThread({
     onUpdated,
 }: MessageThreadProps) {
     const scrollRef = useRef<HTMLDivElement>(null);
+    const [errorModal, setErrorModal] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({ open: false, title: "Error", message: "" });
 
     // Auto-scroll to bottom on new messages.
     useEffect(() => {
@@ -133,7 +140,12 @@ export function MessageThread({
                 );
                 return;
             }
-            alert(error instanceof Error ? error.message : "Unable to delete message for you");
+            console.error("Failed to delete message for me:", error);
+            setErrorModal({
+                open: true,
+                title: "Delete Failed",
+                message: parseFrappeError(error),
+            });
         }
     };
 
@@ -151,7 +163,12 @@ export function MessageThread({
                 );
                 return;
             }
-            alert(error instanceof Error ? error.message : "Unable to delete message for everyone");
+            console.error("Failed to delete message for everyone:", error);
+            setErrorModal({
+                open: true,
+                title: "Delete Failed",
+                message: parseFrappeError(error),
+            });
         }
     };
 
@@ -167,11 +184,12 @@ export function MessageThread({
                 );
                 return;
             }
-            alert(
-                error instanceof Error
-                    ? error.message
-                    : "Unable to react. Confirm the messages table has a reactions[] column.",
-            );
+            console.error("Failed to react to message:", error);
+            setErrorModal({
+                open: true,
+                title: "Reaction Failed",
+                message: parseFrappeError(error),
+            });
         }
     };
 
@@ -202,6 +220,7 @@ export function MessageThread({
     }
 
     return (
+        <>
         <div
             ref={scrollRef}
             className="flex-1 overflow-y-auto custom-scrollbar bg-[radial-gradient(circle_at_top_left,#EEF2FF_0,transparent_280px),#FAFAF9] px-5 py-5 dark:bg-[radial-gradient(circle_at_top_left,rgba(74,108,247,0.18)_0,transparent_300px),#18181B]"
@@ -449,5 +468,12 @@ export function MessageThread({
                 )}
             </div>
         </div>
+        <ErrorModal
+            open={errorModal.open}
+            title={errorModal.title}
+            message={errorModal.message}
+            onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+        />
+        </>
     );
 }

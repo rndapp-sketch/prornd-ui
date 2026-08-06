@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FormRender } from './FormRender';
 import type { CommitRecord } from '@/types/ledgerTypes';
+import { ErrorModal } from './ErrorModal';
+import { parseFrappeError } from '../utils/errorUtils';
 
 interface PaymentFormProps {
     docName?: string; // If provided, we are editing an existing payment
@@ -17,6 +19,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
     const [linkOptions, setLinkOptions] = useState<Record<string, any[]>>({});
     const [formData, setFormData] = useState<Record<string, any>>({});
     const [error, setError] = useState<string | null>(null);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     useEffect(() => {
         const fetchFields = async () => {
@@ -203,7 +206,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
             onSuccess();
         } catch (err: any) {
             console.error('Submission failed:', err);
-            alert('Failed to save payment: ' + (err.message || 'Unknown error'));
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
         } finally {
             setSubmitting(false);
         }
@@ -223,17 +226,25 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
     }
 
     return (
-        <FormRender
-            fields={fieldDefs}
-            linkOptions={linkOptions}
-            initialData={formData}
-            onSubmit={handleSubmit}
-            onCancel={onCancel}
-            submitButtonText={docName ? "Update Payment" : "Create Payment"}
-            title={docName ? `Edit Payment · ${docName}` : commitData ? `Payment · ${commitData.projectNumber}${formData._project_title ? ' · ' + formData._project_title : ''}` : "New Payment"}
-            isSubmitting={submitting}
-            onFormChange={(newData) => setFormData(newData)}
-        />
+        <>
+            <FormRender
+                fields={fieldDefs}
+                linkOptions={linkOptions}
+                initialData={formData}
+                onSubmit={handleSubmit}
+                onCancel={onCancel}
+                submitButtonText={docName ? "Update Payment" : "Create Payment"}
+                title={docName ? `Edit Payment · ${docName}` : commitData ? `Payment · ${commitData.projectNumber}${formData._project_title ? ' · ' + formData._project_title : ''}` : "New Payment"}
+                isSubmitting={submitting}
+                onFormChange={(newData) => setFormData(newData)}
+            />
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
+        </>
     );
 };
 

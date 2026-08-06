@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { candidateAPI } from "@/services/apiService";
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 
 // --- Types ---
 interface UserInfo {
@@ -247,6 +249,7 @@ const CandidateDetails: React.FC = () => {
     const [selectedStatus, setSelectedStatus] = useState("");
     const [justification, setJustification] = useState("");
     const [isUpdating, setIsUpdating] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     const fetchProfile = useCallback(async () => {
         if (!candidateId) {
@@ -315,7 +318,7 @@ const CandidateDetails: React.FC = () => {
             fetchProfile();
         } catch (err: any) {
             console.error("Error updating status:", err);
-            alert(`Failed to update status: ${err.message}`);
+            setErrorModal({ open: true, title: "Status Update Failed", message: parseFrappeError(err) });
         } finally {
             setIsUpdating(false);
         }
@@ -616,6 +619,12 @@ const CandidateDetails: React.FC = () => {
                     </CardContent>
                 </Card>
             </main>
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

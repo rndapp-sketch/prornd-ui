@@ -50,6 +50,8 @@ import { CommitPayment } from "@/components/CommitPayment";
 import { POEditor } from "@/components/POEditor";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import { getFileUrl } from "@/utils/fileUtils";
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 import {
   generatePOHtml,
   getAmcPoGrandTotal,
@@ -1912,6 +1914,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
   const [availableActions, setAvailableActions] = useState<string[]>([]);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [docStatus, setDocStatus] = useState<number>(0);
+  const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
   const projectCode =
     formData.project_no ||
     formData.project_code ||
@@ -4268,17 +4271,19 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             newDocName || editDocName || savedDocName || undefined,
           );
         } else {
-          alert(response.message?.message || "Failed to save draft");
+          setErrorModal({
+            open: true,
+            title: "Save Failed",
+            message: parseFrappeError(response?.message),
+          });
         }
       } catch (error: any) {
         console.error("Save error:", error);
-        const errMsg =
-          error.exc_type === "ValidationError"
-            ? JSON.parse(error._server_messages || "[]")
-              .map((m: string) => JSON.parse(m).message)
-              .join(", ")
-            : "An error occurred while saving";
-        alert(errMsg);
+        setErrorModal({
+          open: true,
+          title: "Save Failed",
+          message: parseFrappeError(error),
+        });
       } finally {
         setIsSubmitting(false);
       }
@@ -4310,10 +4315,11 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           !persisted?.response?.message ||
           persisted.response.message.status !== "success"
         ) {
-          alert(
-            persisted?.response?.message?.message ||
-            "Please save the document first.",
-          );
+          setErrorModal({
+            open: true,
+            title: "Save Failed",
+            message: parseFrappeError(persisted?.response?.message),
+          });
           return;
         }
         effectiveDocName = persisted.docname || effectiveDocName;
@@ -4355,13 +4361,19 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         await fetchFormConfiguration(effectiveDocName);
         fetchWorkflowActions(effectiveDocName);
       } else {
-        alert(
-          response.message?.message || `Failed to perform action ${action}`,
-        );
+        setErrorModal({
+          open: true,
+          title: "Action Failed",
+          message: parseFrappeError(response?.message),
+        });
       }
     } catch (error: any) {
       console.error(`Workflow Action ${action} Error:`, error);
-      alert(`An error occurred while performing action: ${action}`);
+      setErrorModal({
+        open: true,
+        title: "Action Failed",
+        message: parseFrappeError(error),
+      });
     } finally {
       setIsActionLoading(false);
     }
@@ -4438,7 +4450,11 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       window.location.reload();
     } catch (error: any) {
       console.error("ICSS payment failed:", error);
-      alert(`Payment failed: ${error.message || "Unknown error"}`);
+      setErrorModal({
+        open: true,
+        title: "Payment Failed",
+        message: parseFrappeError(error),
+      });
     }
   };
 
@@ -4798,11 +4814,11 @@ const IndentCumSanctionSheetForm: React.FC = () => {
 
         const uploadJson = await uploadResponse.json().catch(() => ({}));
         if (!uploadResponse.ok) {
-          throw new Error(
-            uploadJson?._server_messages ||
-            uploadJson?.exception ||
-            "Failed to upload signed PO.",
+          const uploadError: any = new Error(
+            uploadJson?.exception || "Failed to upload signed PO.",
           );
+          uploadError._server_messages = uploadJson?._server_messages;
+          throw uploadError;
         }
 
         const fileUrl = uploadJson?.message?.file_url || "";
@@ -4817,7 +4833,11 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         alert("Signed PO uploaded successfully.");
       } catch (error: any) {
         console.error("Signed PO upload failed:", error);
-        alert(error?.message || "Failed to upload signed PO.");
+        setErrorModal({
+          open: true,
+          title: "Upload Failed",
+          message: parseFrappeError(error),
+        });
       } finally {
         setIsUploadingSignedPo(false);
       }
@@ -5220,9 +5240,11 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       await fetchFormConfiguration(currentDocName);
     } catch (error: any) {
       console.error("Failed to send ICSS for Director approval:", error);
-      alert(
-        error?.message || "Failed to mark this ICSS for Director approval.",
-      );
+      setErrorModal({
+        open: true,
+        title: "Failed to Send for Director Approval",
+        message: parseFrappeError(error),
+      });
     } finally {
       setIsUpdatingDirectorFlag(false);
     }
@@ -5710,11 +5732,12 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                     type="button"
                     onClick={() => {
                       handleGeneratePo().catch((error) => {
-                        alert(
-                          error instanceof Error
-                            ? error.message
-                            : "Failed to generate PO.",
-                        );
+                        console.error("PO generation failed:", error);
+                        setErrorModal({
+                          open: true,
+                          title: "PO Generation Failed",
+                          message: parseFrappeError(error),
+                        });
                       });
                     }}
                     disabled={
@@ -6447,6 +6470,13 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ErrorModal
+        open={errorModal.open}
+        title={errorModal.title}
+        message={errorModal.message}
+        onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+      />
     </div>
   );
 };

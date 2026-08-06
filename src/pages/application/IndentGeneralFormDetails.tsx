@@ -23,6 +23,8 @@ import { BudgetHeadName } from "@/components/BudgetHeadName";
 import { DepartmentName } from "@/components/DepartmentName";
 import { useUserRoles } from "@/components/UserRole";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 import { CommitPayment } from "@/components/CommitPayment";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import { ProjectLedgerModal } from "@/components/ProjectLedgerModal";
@@ -260,6 +262,7 @@ const IndentGeneralFormDetails: React.FC = () => {
     const [isUploadingPdf, setIsUploadingPdf] = useState(false);
     const [hasPrinted, setHasPrinted] = useState(false);
     const [directorPdfUrl, setDirectorPdfUrl] = useState("");
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     const { call: fetchFields } = useFrappePostCall<{ message: any }>(indentGeneralFormAPI.getFields);
     const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>("frappe.client.get_value");
@@ -358,7 +361,8 @@ const IndentGeneralFormDetails: React.FC = () => {
             setPaymentAmount("");
             handleRefresh();
         } catch (error: any) {
-            alert(`Payment failed: ${error.message || "Unknown error"}`);
+            console.error("Payment error:", error);
+            setErrorModal({ open: true, title: "Payment Failed", message: parseFrappeError(error) });
         }
     };
 
@@ -531,7 +535,8 @@ const IndentGeneralFormDetails: React.FC = () => {
             await performWorkflowAction({ docname: id, action: forwardAction, comment: "" });
             handleRefresh();
         } catch (err: any) {
-            alert(err?.message || "Failed to perform action.");
+            console.error("Workflow action error:", err);
+            setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(err) });
         }
     };
 
@@ -543,7 +548,8 @@ const IndentGeneralFormDetails: React.FC = () => {
             setFormData((prev: any) => ({ ...prev, send_to_director: 1 }));
             handleRefresh();
         } catch (err: any) {
-            alert(err?.message || "Failed to send for Director approval.");
+            console.error("Send to Director error:", err);
+            setErrorModal({ open: true, title: "Failed to Send for Director Approval", message: parseFrappeError(err) });
         } finally {
             setIsUpdatingDirectorFlag(false);
         }
@@ -578,7 +584,8 @@ const IndentGeneralFormDetails: React.FC = () => {
             setDirectorPdfUrl(fileUrl);
             handleRefresh();
         } catch (err: any) {
-            alert(err?.message || "Upload failed.");
+            console.error("Upload error:", err);
+            setErrorModal({ open: true, title: "Upload Failed", message: parseFrappeError(err) });
         } finally {
             setIsUploadingPdf(false);
             if (directorPdfInputRef.current) directorPdfInputRef.current.value = "";
@@ -607,7 +614,8 @@ const IndentGeneralFormDetails: React.FC = () => {
                         await performWorkflowAction({ docname: id, action: forwardAction, comment: "" });
                         handleRefresh();
                     } catch (err: any) {
-                        alert(err?.message || "Failed to perform action.");
+                        console.error("Workflow action error:", err);
+                        setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(err) });
                     }
                 }
             } else if (id) {
@@ -617,7 +625,8 @@ const IndentGeneralFormDetails: React.FC = () => {
                     setFormData((prev: any) => ({ ...prev, send_to_director: 1 }));
                     handleRefresh();
                 } catch (err: any) {
-                    alert(err?.message || "Failed to send for Director approval.");
+                    console.error("Send to Director error:", err);
+                    setErrorModal({ open: true, title: "Failed to Send for Director Approval", message: parseFrappeError(err) });
                 } finally {
                     setIsUpdatingDirectorFlag(false);
                 }
@@ -1195,6 +1204,13 @@ const IndentGeneralFormDetails: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

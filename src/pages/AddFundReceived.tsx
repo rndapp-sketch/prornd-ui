@@ -6,6 +6,8 @@ import { useFrappePostCall, useFrappeGetCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
 import { ArrowLeftIcon, LightbulbIcon } from "lucide-react";
 import { AutocompleteEmail } from "../components/AutocompleteEmail";
+import { ErrorModal } from "../components/ErrorModal";
+import { parseFrappeError } from "../utils/errorUtils";
 
 // --- TYPE DEFINITIONS ---
 interface Field {
@@ -182,7 +184,7 @@ const MemoizedTransactionsTable = memo(
                                         )}
                                     </td>
                                     <td className="px-2 py-1.5 text-center">
-                                        <button
+                                        <button type="button"
                                             onClick={() => onDeleteRow(i)}
                                             className="h-6 px-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wide text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors"
                                         >
@@ -194,7 +196,7 @@ const MemoizedTransactionsTable = memo(
                         </tbody>
                     </table>
                 </div>
-                <button
+                <button type="button"
                     onClick={() =>
                         onAddRow({
                             transaction_number: "",
@@ -421,7 +423,7 @@ const MemoizedBudgetBreakupTable = memo(
                                             />
                                         </td>
                                         <td className="px-2 py-1.5 text-center">
-                                            <button
+                                            <button type="button"
                                                 onClick={() => onDeleteRow(i)}
                                                 className="h-6 px-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wide text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors"
                                             >
@@ -434,7 +436,7 @@ const MemoizedBudgetBreakupTable = memo(
                         </tbody>
                     </table>
                 </div>
-                <button
+                <button type="button"
                     onClick={() =>
                         onAddRow({
                             account_head: "",
@@ -478,7 +480,7 @@ const HelpFloating: React.FC = () => {
     const [open, setOpen] = useState(false);
     return (
         <>
-            <button
+            <button type="button"
                 onClick={() => setOpen((v) => !v)}
                 className="fixed bottom-6 right-6 z-50 h-9 px-4 rounded-full bg-[#4A6CF7] text-white shadow-lg hover:bg-[#3b5ce4] transition-colors flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide"
                 title="Help"
@@ -490,7 +492,7 @@ const HelpFloating: React.FC = () => {
                 <div className="fixed bottom-20 right-6 z-50 w-80 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-xl overflow-hidden">
                     <div className="flex items-center justify-between px-4 py-3 border-b border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20">
                         <span className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200">How to Add Fund Received</span>
-                        <button onClick={() => setOpen(false)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 text-lg leading-none">×</button>
+                        <button type="button" onClick={() => setOpen(false)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 text-lg leading-none">×</button>
                     </div>
                     <div className="p-4 space-y-4 max-h-96 overflow-y-auto text-[12px] text-zinc-700 dark:text-zinc-300">
                         <div className="space-y-2">
@@ -566,6 +568,11 @@ const AddFundReceived: React.FC = () => {
     >({});
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorModal, setErrorModal] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({ open: false, title: "Submission Failed", message: "" });
     const [validationState, setValidationState] = useState<ValidationState>({
         totalValidation: {
             isValid: true,
@@ -1157,7 +1164,11 @@ const AddFundReceived: React.FC = () => {
             });
         } catch (validationError: any) {
             if (validationError.message !== "CANCELLED") {
-                alert(validationError.message);
+                setErrorModal({
+                    open: true,
+                    title: "Validation Failed",
+                    message: validationError.message,
+                });
             }
             setIsSubmitting(false);
             return;
@@ -1289,13 +1300,11 @@ const AddFundReceived: React.FC = () => {
             navigate(-1);
         } catch (err: any) {
             console.error("Submission error:", submitError || err);
-            const serverMsg = (submitError as any)?._server_messages
-                ? JSON.parse((submitError as any)._server_messages).join("\n")
-                : null;
-
-            alert(
-                `Submission Failed: ${serverMsg || (submitError as any)?.message || err.message || "Unknown Error"}`,
-            );
+            setErrorModal({
+                open: true,
+                title: "Submission Failed",
+                message: parseFrappeError(submitError, err),
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -1541,7 +1550,7 @@ const AddFundReceived: React.FC = () => {
                 <header className="mb-6 overflow-hidden bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm">
                     <div className="h-1.5 bg-[linear-gradient(to_right,#4A6CF7,#2563EB,#D97757)]" />
                     <div className="p-5 flex items-center gap-3">
-                        <button
+                        <button type="button"
                             onClick={() => navigate(-1)}
                             className="h-10 w-10 flex items-center justify-center bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl hover:text-[#D97757] transition-colors"
                         >
@@ -2202,6 +2211,15 @@ const AddFundReceived: React.FC = () => {
 
             {/* Floating Help Button */}
             <HelpFloating />
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() =>
+                    setErrorModal((prev) => ({ ...prev, open: false }))
+                }
+            />
         </div>
     );
 };
