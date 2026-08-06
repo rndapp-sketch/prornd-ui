@@ -131,7 +131,8 @@ export const computeDConsultancy = (depositSlip: any) => {
 
     const balanceConsultancyFee = round2(chargeY - overheadFromY - instituteShare);
     const balanceOperationCharge = round2(chargeZ - overheadFromZ);
-    const totalGst = igstAmount;
+    // Total GST (26) = CGST (11) + SGST (12) + IGST (13)
+    const totalGst = round2(cgstAmount + sgstAmount + igstAmount);
     // Total Amount = Total Overhead + Institute Share (22) + Balance Consultancy Fee (24)
     // + Balance Operation Charge (25) + Total GST (26) — NOT amountAfterTds directly, since Y/Z
     // may have been edited away from their auto-computed defaults, which this sum reflects but
