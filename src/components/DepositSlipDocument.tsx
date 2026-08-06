@@ -43,6 +43,10 @@ const EditableCell: React.FC<{
             step={numeric ? '0.01' : undefined}
             value={value ?? ''}
             onChange={(e) => onChange?.(field, e.target.value)}
+            // A focused <input type="number"> lets the mouse/trackpad scroll wheel silently
+            // increment/decrement its value in Chrome/Firefox — blur on wheel so scrolling the
+            // page never mutates the field.
+            onWheel={(e) => e.currentTarget.blur()}
             className={`w-full bg-orange-50 dark:bg-orange-900/20 border border-dashed border-[#D97757] rounded px-1 py-0.5 text-sm outline-none focus:border-solid [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${align === 'right' ? 'text-right' : 'text-left'}`}
         />
     );
@@ -51,6 +55,11 @@ const EditableCell: React.FC<{
 // Helper to format currency
 const formatCurrency = (amount: number | undefined | null) => {
     return `₹ ${(amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
+// Same, but rounded to whole rupees (no paise) — used for the D Consultancy credit distribution rows
+const formatCurrencyWhole = (amount: number | undefined | null) => {
+    return `₹ ${Math.round(amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 };
 
 const flt = (v: any) => parseFloat(v) || 0;
@@ -213,6 +222,9 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
     const config = getDepositTypeConfig(type, depositSlip);
     const enr = type === 'consultancy_e' ? computeENonRoutine(depositSlip) : null;
     const dc = type === 'consultancy_d' ? computeDConsultancy(depositSlip) : null;
+    // Derived-field display rule: show the doc's original stored value until edit mode is
+    // switched on, then live-recompute so the preview tracks whatever the user just changed.
+    const dVal = (stored: any, live: number) => (editable ? live : (stored ?? live));
 
     // Determine row counter
     let rowNum = 0;
@@ -223,11 +235,11 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
 
     // Render credit distribution items with letters
     const renderCreditItems = () => {
-        const items: { label: string; amount: number }[] = [];
+        const items: { label: string; amount: number; whole?: boolean }[] = [];
 
         // IDF
         if (dc) {
-            items.push({ label: `IDF (${dc.idfPercentage}% of Overhead + Institute Share)`, amount: dc.idfAmount });
+            items.push({ label: `IDF (${dc.idfPercentage}% of Overhead + Institute Share)`, amount: dVal(depositSlip.idf_amount, dc.idfAmount), whole: true });
         } else if (depositSlip.idf_amount) {
             items.push({ label: 'IDF (40% of Overhead Amount)', amount: depositSlip.idf_amount });
         }
@@ -236,19 +248,22 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
         if (Array.isArray(depositSlip.dpf_credit_distributions) && depositSlip.dpf_credit_distributions.length > 0) {
             // For D Consultancy, the DPF pool is whatever % remains after IDF/Staff/Student —
             // keep each row's amount live-recomputed off that pool (see computeDConsultancy)
-            // instead of trusting the possibly-stale stored amount.
+            // once in edit mode; otherwise show the doc's own stored per-row amount.
             const dpfRows = depositSlip.dpf_credit_distributions;
             const dpfSumPct = dpfRows.reduce((s: number, r: any) => s + (flt(r.dpf_percentage) || flt(r.percentage) || 0), 0);
             depositSlip.dpf_credit_distributions.forEach((item: any) => {
                 const dept = item.select_dept || item.department || item.dept_name || '';
                 const pct = item.dpf_percentage || item.percentage || 0;
-                const amount = dc
+                const storedAmount = parseFloat(item.dpf_amount) || parseFloat(item.amount) || undefined;
+                const liveAmount = dc
                     ? (dpfSumPct > 0 ? dc.dpfAmount * (pct / dpfSumPct) : dc.dpfAmount / dpfRows.length)
-                    : parseFloat(item.dpf_amount) || parseFloat(item.amount) || 0;
+                    : 0;
+                const amount = dc ? dVal(storedAmount, liveAmount) : (storedAmount || 0);
                 const deptSuffix = dept ? ` - ${dept}` : '';
                 items.push({
                     label: `DPF (${pct}% of Overhead Amount)${deptSuffix}`,
                     amount,
+                    whole: !!dc,
                 });
             });
         }
@@ -300,7 +315,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
 
         // Staff Welfare
         if (dc) {
-            items.push({ label: `Staff welfare Amount (5% of Overhead + Institute Share)`, amount: dc.staffWelfareAmount });
+            items.push({ label: `Staff welfare Amount (5% of Overhead + Institute Share)`, amount: dVal(depositSlip.staff_welfare_amount, dc.staffWelfareAmount), whole: true });
         } else if (depositSlip.staff_welfare_amount) {
             items.push({
                 label: `Staff welfare Amount (5% of Overhead Amount)`,
@@ -310,7 +325,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
 
         // Student Welfare - use the correct field name
         if (dc) {
-            items.push({ label: `Student welfare Amount (5% of Overhead + Institute Share)`, amount: dc.studentWelfareAmount });
+            items.push({ label: `Student welfare Amount (5% of Overhead + Institute Share)`, amount: dVal(depositSlip.student_welfare_amount, dc.studentWelfareAmount), whole: true });
         }
         const studentWelfare = dc ? 0 : (depositSlip.student_welfare_amount || parseFloat(depositSlip.student_welfare_fund) || 0);
         if (studentWelfare > 0) {
@@ -350,7 +365,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
             <tr key={idx}>
                 <td className="border border-black p-1 text-center">({String.fromCharCode(97 + idx)})</td>
                 <td className="border border-black p-1">{item.label}</td>
-                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(item.amount)}</td>
+                <td colSpan={2} className="border border-black p-1 text-right">{item.whole ? formatCurrencyWhole(item.amount) : formatCurrency(item.amount)}</td>
             </tr>
         ));
     };
@@ -632,7 +647,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                 <td colSpan={2} className="border border-black p-1 text-right">
                                     {editable
                                         ? <EditableCell value={dc.cgstAmount} field="cgst_9" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrency(dc.cgstAmount)}
+                                        : formatCurrencyWhole(dc.cgstAmount)}
                                 </td>
                             </tr>
                             <tr>
@@ -641,7 +656,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                 <td colSpan={2} className="border border-black p-1 text-right">
                                     {editable
                                         ? <EditableCell value={dc.sgstAmount} field="sgst_9" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrency(dc.sgstAmount)}
+                                        : formatCurrencyWhole(dc.sgstAmount)}
                                 </td>
                             </tr>
                             <tr>
@@ -650,7 +665,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                 <td colSpan={2} className="border border-black p-1 text-right">
                                     {editable
                                         ? <EditableCell value={depositSlip.igst_18_on_consultancy ?? dc.igstAmount.toFixed(2)} field="igst_18_on_consultancy" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrency(depositSlip.igst_18_on_consultancy ?? dc.igstAmount)}
+                                        : formatCurrencyWhole(depositSlip.igst_18_on_consultancy ?? dc.igstAmount)}
                                 </td>
                             </tr>
                             <tr>
@@ -659,7 +674,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                 <td colSpan={2} className="border border-black p-1 text-right">
                                     {editable
                                         ? <EditableCell value={depositSlip.amount_after_gst_tds ?? dc.amountAfterTds.toFixed(2)} field="amount_after_gst_tds" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrency(depositSlip.amount_after_gst_tds ?? dc.amountAfterTds)}
+                                        : formatCurrencyWhole(depositSlip.amount_after_gst_tds ?? dc.amountAfterTds)}
                                 </td>
                             </tr>
                             <tr>
@@ -670,7 +685,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                 <td colSpan={2} className="border border-black p-1 text-right">
                                     {editable
                                         ? <EditableCell value={depositSlip.total_cost_x ?? dc.totalCostX.toFixed(2)} field="total_cost_x" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrency(depositSlip.total_cost_x ?? dc.totalCostX)}
+                                        : formatCurrencyWhole(depositSlip.total_cost_x ?? dc.totalCostX)}
                                 </td>
                             </tr>
                             <tr>
@@ -681,7 +696,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                 <td colSpan={2} className="border border-black p-1 text-right">
                                     {editable
                                         ? <EditableCell value={depositSlip.consultancy_charge_y ?? dc.chargeY.toFixed(2)} field="consultancy_charge_y" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrency(depositSlip.consultancy_charge_y ?? dc.chargeY)}
+                                        : formatCurrencyWhole(depositSlip.consultancy_charge_y ?? dc.chargeY)}
                                 </td>
                             </tr>
                             <tr>
@@ -690,33 +705,33 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                 <td colSpan={2} className="border border-black p-1 text-right">
                                     {editable
                                         ? <EditableCell value={depositSlip.operational_charge_z ?? dc.chargeZ.toFixed(2)} field="operational_charge_z" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrency(depositSlip.operational_charge_z ?? dc.chargeZ)}
+                                        : formatCurrencyWhole(depositSlip.operational_charge_z ?? dc.chargeZ)}
                                 </td>
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
                                 <td className="border border-black p-1">Overhead from Y (10% × Y)</td>
-                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(dc.overheadFromY)}</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrencyWhole(dVal(depositSlip.overhead_from_y_amount, dc.overheadFromY))}</td>
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
                                 <td className="border border-black p-1">Overhead from Z (10% × Z)</td>
-                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(dc.overheadFromZ)}</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrencyWhole(dVal(depositSlip.overhead_from_z_amount, dc.overheadFromZ))}</td>
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
                                 <td className="border border-black p-1">Institute Share (20% × Y)</td>
-                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(dc.instituteShare)}</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrencyWhole(dVal(depositSlip.institute_share_amount, dc.instituteShare))}</td>
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
                                 <td className="border border-black p-1">Total Overhead (10% × Y + 10% × Z)</td>
-                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(dc.totalOverhead)}</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrencyWhole(dVal(depositSlip.total_overhead_amount, dc.totalOverhead))}</td>
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
                                 <td className="border border-black p-1 font-bold">Total Overhead + Institute Share</td>
-                                <td colSpan={2} className="border border-black p-1 text-right font-bold">{formatCurrency(dc.totalOverheadAndShare)}</td>
+                                <td colSpan={2} className="border border-black p-1 text-right font-bold">{formatCurrencyWhole(dVal(depositSlip.total_overhead_institute_share, dc.totalOverheadAndShare))}</td>
                             </tr>
                         </>
                     )}
@@ -772,24 +787,24 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                 <td className="border border-black p-1">Balance Consultancy Fee
                                     <span className="block text-xs text-zinc-500">Y − Overhead from Y − Institute Share</span>
                                 </td>
-                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(dc.balanceConsultancyFee)}</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrencyWhole(dVal(depositSlip.balance_consultancy_fee, dc.balanceConsultancyFee))}</td>
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
                                 <td className="border border-black p-1">Balance Operation Charge
                                     <span className="block text-xs text-zinc-500">Z − Overhead from Z</span>
                                 </td>
-                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(dc.balanceOperationCharge)}</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrencyWhole(dVal(depositSlip.balance_operation_charge, dc.balanceOperationCharge))}</td>
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
                                 <td className="border border-black p-1">Total GST</td>
-                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrency(dc.totalGst)}</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">{formatCurrencyWhole(dVal(depositSlip.total_gst, dc.totalGst))}</td>
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
                                 <td className="border border-black p-1 font-bold">Total Amount</td>
-                                <td colSpan={2} className="border border-black p-1 text-right font-bold">{formatCurrency(dc.totalAmount)}</td>
+                                <td colSpan={2} className="border border-black p-1 text-right font-bold">{formatCurrencyWhole(dVal(depositSlip.total_amount, dc.totalAmount))}</td>
                             </tr>
                         </>
                     )}
