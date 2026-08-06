@@ -110,14 +110,17 @@ export const computeDConsultancy = (depositSlip: any) => {
     // The IGST *row* can be overridden independently of the 18% formula that drives Total Cost X
     // (e.g. set to 0 when GST is actually CGST+SGST) — Total GST must sum whatever that row is
     // actually showing, not the untouched formula value, or the two go out of sync.
-    const igstDisplay = depositSlip.igst_18_on_consultancy !== undefined && depositSlip.igst_18_on_consultancy !== null && depositSlip.igst_18_on_consultancy !== ''
+    // Note: '' (cleared field) is deliberately treated as an explicit 0 override, not "unset" —
+    // otherwise deleting the value in edit mode would bounce back to the formula default instead
+    // of the 0 the user just typed. Only undefined/null (field never touched) falls back to it.
+    const igstDisplay = depositSlip.igst_18_on_consultancy !== undefined && depositSlip.igst_18_on_consultancy !== null
         ? flt(depositSlip.igst_18_on_consultancy)
         : igstAmount;
 
-    const chargeY = round2(depositSlip.consultancy_charge_y !== undefined && depositSlip.consultancy_charge_y !== null && depositSlip.consultancy_charge_y !== ''
+    const chargeY = round2(depositSlip.consultancy_charge_y !== undefined && depositSlip.consultancy_charge_y !== null
         ? flt(depositSlip.consultancy_charge_y)
         : totalCostX * 0.30);
-    const chargeZ = round2(depositSlip.operational_charge_z !== undefined && depositSlip.operational_charge_z !== null && depositSlip.operational_charge_z !== ''
+    const chargeZ = round2(depositSlip.operational_charge_z !== undefined && depositSlip.operational_charge_z !== null
         ? flt(depositSlip.operational_charge_z)
         : totalCostX - chargeY);
 
@@ -127,7 +130,7 @@ export const computeDConsultancy = (depositSlip: any) => {
     const instituteShare = round2(chargeY * 0.2);
     const totalOverheadAndShare = round2(totalOverhead + instituteShare);
 
-    const idfPercentage = round2(depositSlip.idf_percentage !== undefined && depositSlip.idf_percentage !== null && depositSlip.idf_percentage !== ''
+    const idfPercentage = round2(depositSlip.idf_percentage !== undefined && depositSlip.idf_percentage !== null
         ? flt(depositSlip.idf_percentage)
         : 40);
     const idfAmount = round2(totalOverheadAndShare * (idfPercentage / 100));
@@ -673,7 +676,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                 <td className="border border-black p-1">IGST @18% on Consultancy Fee</td>
                                 <td colSpan={2} className="border border-black p-1 text-right">
                                     {editable
-                                        ? <EditableCell value={dc.igstDisplay} field="igst_18_on_consultancy" editable onChange={onFieldChange} numeric align="right" />
+                                        ? <EditableCell value={depositSlip.igst_18_on_consultancy ?? dc.igstDisplay} field="igst_18_on_consultancy" editable onChange={onFieldChange} numeric align="right" />
                                         : formatCurrencyWhole(dc.igstDisplay)}
                                 </td>
                             </tr>
