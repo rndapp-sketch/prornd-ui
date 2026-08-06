@@ -15,6 +15,8 @@ import MiscellaneousCommitActionButtons from '@/components/MiscellaneousCommitAc
 import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButton';
 import { type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import ProjectDetailsOverview from '@/pages/ProjectDetailsOverview';
+import { ErrorModal } from '../../components/ErrorModal';
+import { parseFrappeError } from '../../utils/errorUtils';
 
 // --- WORKFLOW STAGES ---
 const STAGES_STAFF_PATH = ['Draft', 'Pending HoS Approval', 'Pending Dean Approval', 'Approved'];
@@ -174,6 +176,7 @@ const MiscellaneousCommitDetails: React.FC = () => {
     const [refreshKey, setRefreshKey] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [prPreviewName, setPrPreviewName] = useState<string | null>(null);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     const { call: fetchFormData, result: formDataResult, error: formDataError } =
         useFrappePostCall<FormDataResponse>(miscellaneousCommitAPI.getFields);
@@ -227,7 +230,8 @@ const MiscellaneousCommitDetails: React.FC = () => {
                 throw new Error(submitRes?.message?.message || 'Submission failed');
             }
         } catch (err: any) {
-            alert(`Submission failed: ${err.message || 'Unknown error'}`);
+            console.error('Submission error:', err);
+            setErrorModal({ open: true, title: 'Submission Failed', message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -513,6 +517,13 @@ const MiscellaneousCommitDetails: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

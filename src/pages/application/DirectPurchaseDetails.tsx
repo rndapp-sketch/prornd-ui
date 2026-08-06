@@ -57,6 +57,8 @@ import { ActivityLog, clearActivityLogCache } from "@/components/ActivityLog";
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { CommitPayment } from "@/components/CommitPayment";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 import DirectPurchaseHelpGuide from "@/components/DirectPurchaseHelpGuide";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
 
@@ -1110,6 +1112,7 @@ const DirectPurchaseActionButtons = ({
     const [showCommentModal, setShowCommentModal] = useState(false);
     const [selectedAction, setSelectedAction] = useState("");
     const [comment, setComment] = useState("");
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Action Failed", message: "" });
     const { call: fetchActions } = useFrappePostCall<{ message: string[] }>(
         directPurchaseAPI.getWorkflowActions,
     );
@@ -1163,7 +1166,7 @@ const DirectPurchaseActionButtons = ({
             const result: any = await performAction({ docname, action: selectedAction, comment: actionComment });
             const success = result?.message?.status === "success" || (result?.message && result.message.status !== "error");
             if (result?.message?.status === "error") {
-                alert(`Error: ${result.message.message}`);
+                setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(result?.message) });
             } else {
                 if (actionComment.trim()) {
                     try {
@@ -1176,7 +1179,7 @@ const DirectPurchaseActionButtons = ({
                 if (success) { refreshActions(); onActionComplete(); }
             }
         } catch (err: any) {
-            alert(`Action failed: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(err) });
         } finally {
             setIsPerforming(false);
             setComment("");
@@ -1256,6 +1259,12 @@ const DirectPurchaseActionButtons = ({
                     </div>
                 </div>
             )}
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </>
     );
 };
@@ -1273,6 +1282,7 @@ const P11FormActionButtons = ({
     const [showCommentModal, setShowCommentModal] = useState(false);
     const [selectedAction, setSelectedAction] = useState("");
     const [comment, setComment] = useState("");
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Action Failed", message: "" });
 
     const { call: fetchActions } = useFrappePostCall<{ message: string[] }>(
         p11FormAPI.getWorkflowActions,
@@ -1327,7 +1337,7 @@ const P11FormActionButtons = ({
             });
 
             if (result?.message?.status === "error") {
-                alert(`Error: ${result.message.message}`);
+                setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(result?.message) });
             } else {
                 if (actionComment.trim()) {
                     try {
@@ -1341,7 +1351,7 @@ const P11FormActionButtons = ({
                 onActionComplete();
             }
         } catch (err: any) {
-            alert(`Action failed: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(err) });
         } finally {
             setIsPerforming(false);
             setComment("");
@@ -1423,6 +1433,12 @@ const P11FormActionButtons = ({
                     </div>
                 </div>
             )}
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </>
     );
 };
@@ -1442,6 +1458,7 @@ const SanctionSheetActionButtons = ({
     const [showCommentModal, setShowCommentModal] = useState(false);
     const [selectedAction, setSelectedAction] = useState("");
     const [comment, setComment] = useState("");
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Action Failed", message: "" });
 
     const { call: fetchActions } = useFrappePostCall<{ message: string[] }>(
         sanctionSheetAPI.getWorkflowActions,
@@ -1501,7 +1518,7 @@ const SanctionSheetActionButtons = ({
             });
 
             if (result?.message?.status === "error") {
-                alert(`Error: ${result.message.message}`);
+                setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(result?.message) });
             } else {
                 if (actionComment.trim()) {
                     try {
@@ -1515,7 +1532,7 @@ const SanctionSheetActionButtons = ({
                 onActionComplete();
             }
         } catch (err: any) {
-            alert(`Action failed: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(err) });
         } finally {
             setIsPerforming(false);
             setComment("");
@@ -1598,6 +1615,12 @@ const SanctionSheetActionButtons = ({
                     </div>
                 </div>
             )}
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </>
     );
 };
@@ -2582,6 +2605,7 @@ const DirectPurchaseDetails: React.FC = () => {
     );
     const highlightAction = searchParams.get("highlight_action") === "1";
     const [dpActions, setDpActions] = useState<string[]>([]);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
     const [isGeneratingPO, setIsGeneratingPO] = useState(false);
     const [isGeneratingP11, setIsGeneratingP11] = useState(false);
     const [isOpeningSanctionSheet, setIsOpeningSanctionSheet] = useState(false);
@@ -2979,7 +3003,7 @@ const DirectPurchaseDetails: React.FC = () => {
             window.location.reload();
         } catch (error: any) {
             console.error("Payment failed:", error);
-            alert(`Payment failed: ${error.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Payment Failed", message: parseFrappeError(error) });
         }
     };
 
@@ -3048,9 +3072,7 @@ const DirectPurchaseDetails: React.FC = () => {
                 );
             }
         } catch (err: any) {
-            alert(
-                `Error: ${err.message || "Could not generate Purchase Order."}`,
-            );
+            setErrorModal({ open: true, title: "Purchase Order Generation Failed", message: parseFrappeError(err) });
         } finally {
             setIsGeneratingPO(false);
         }
@@ -3103,7 +3125,7 @@ const DirectPurchaseDetails: React.FC = () => {
                 throw new Error("No file URL returned");
             }
         } catch (err: any) {
-            alert(`Error: ${err.message || "Could not download PO."}`);
+            setErrorModal({ open: true, title: "Download Failed", message: parseFrappeError(err) });
         } finally {
             setIsDownloadingPO(false);
         }
@@ -3123,7 +3145,7 @@ const DirectPurchaseDetails: React.FC = () => {
                 );
             }
         } catch (err: any) {
-            alert(`Error: ${err.message || "Could not generate P-11 Form."}`);
+            setErrorModal({ open: true, title: "P-11 Form Generation Failed", message: parseFrappeError(err) });
         } finally {
             setIsGeneratingP11(false);
         }
@@ -3730,6 +3752,12 @@ const DirectPurchaseDetails: React.FC = () => {
                 {id && <FloatingActivityLogButton doctype="Direct Purchase" docname={id} />}
                 <DirectPurchaseHelpGuide />
             </main>
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

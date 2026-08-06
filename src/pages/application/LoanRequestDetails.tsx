@@ -16,6 +16,8 @@ import { loanRequestAPI, prepareFormDataForApi } from '@/services/apiService';
 import { DepartmentName } from '@/components/DepartmentName';
 import LoanRequestActionButtons from '@/components/LoanRequestActionButtons';
 import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButton';
+import { ErrorModal } from '../../components/ErrorModal';
+import { parseFrappeError } from '../../utils/errorUtils';
 
 // --- FIELD GROUP DEFINITIONS (same as form) ---
 const GROUP_A_FIELDS = new Set([
@@ -219,6 +221,7 @@ const LoanRequestDetails: React.FC = () => {
     const [refreshKey, setRefreshKey] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [bmrValues, setBmrValues] = useState({ bmr: '', bmr_date: '' });
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser || null);
@@ -289,7 +292,8 @@ const LoanRequestDetails: React.FC = () => {
                 throw new Error(submitRes?.message?.message || 'Submission failed');
             }
         } catch (err: any) {
-            alert(`Submission failed: ${err.message || 'Unknown error'}`);
+            console.error('Submission error:', err);
+            setErrorModal({ open: true, title: 'Submission Failed', message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -548,6 +552,13 @@ const LoanRequestDetails: React.FC = () => {
                 </div>
             </main>
             {id && <FloatingActivityLogButton doctype="Loan Request" docname={id} />}
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

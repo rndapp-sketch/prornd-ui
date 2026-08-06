@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
 import { FrappeButton } from './ui/neo-brutalism';
 import { CheckCircle } from 'lucide-react';
+import { ErrorModal } from './ErrorModal';
+import { parseFrappeError } from '../utils/errorUtils';
 
 interface ProjectNumberGenerationFormProps {
     projectData: any;
@@ -103,6 +105,7 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
     const [isGenerated, setIsGenerated] = useState(false);
     const [prefillApplied, setPrefillApplied] = useState(false);
     const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     const { call: saveProjectNumber, loading: isSaving } = useFrappePostCall(
         "rndopsapp.rndopsapp.doctype.project_number_generation.project_number_generation.save_project_number_generation_data"
@@ -262,11 +265,11 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
                 alert("Project Number Generated Successfully");
                 if (onSuccess) onSuccess();
             } else {
-                alert(response?.message?.message || "Failed to save");
+                setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(response?.message) });
             }
         } catch (error: any) {
             console.error("Error saving project number:", error);
-            alert(error.message || "An error occurred");
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(error) });
         }
     };
 
@@ -338,6 +341,12 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
                     </FrappeButton>
                 )}
             </div>
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

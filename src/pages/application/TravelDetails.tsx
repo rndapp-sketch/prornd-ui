@@ -22,6 +22,8 @@ import { resolveDepartmentLabel } from '@/utils/resolveDepartmentLabel';
 import { fetchDeclarationFields } from '@/utils/fetchDeclarationHtml';
 import { fetchActivityLogHtml } from '@/utils/fetchActivityLogHtml';
 import { Printer, Download, UploadCloud } from 'lucide-react';
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -237,6 +239,7 @@ const TravelDetails: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     const [isLedgerOpen, setIsLedgerOpen] = useState(false);
 
@@ -558,7 +561,7 @@ const TravelDetails: React.FC = () => {
                 throw new Error(submitRes?.message?.message || "Submission failed");
             }
         } catch (err: any) {
-            alert(`Submission failed: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -611,7 +614,7 @@ const TravelDetails: React.FC = () => {
             }
             handleRefresh();
         } catch (err: any) {
-            alert(`Failed to send for Director approval: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
         }
     };
 
@@ -645,7 +648,7 @@ const TravelDetails: React.FC = () => {
             await attachDirectorPdf({ docname: docName, file_url: fileUrl });
             handleRefresh();
         } catch (err: any) {
-            alert(`Failed to upload Director-signed copy: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
         }
     };
 
@@ -671,7 +674,7 @@ const TravelDetails: React.FC = () => {
             setPaymentAmount("");
             window.location.reload();
         } catch (error: any) {
-            alert(`Payment failed: ${error.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(error) });
         }
     };
 
@@ -1076,6 +1079,13 @@ const TravelDetails: React.FC = () => {
                     budgetHeadList={budgetHeadList}
                 />
             )}
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

@@ -9,6 +9,8 @@ import { PageHeader } from '@/components/common/PageHeader';
 import TravelApplicantSummary from '@/components/TravelApplicantSummary';
 import { DynamicFormRenderer, type FieldMessage, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { travelAPI, prepareFormDataForApi, commonAPI } from '@/services/apiService';
+import { ErrorModal } from '../../components/ErrorModal';
+import { parseFrappeError } from '../../utils/errorUtils';
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -210,6 +212,7 @@ const TravelForm: React.FC = () => {
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
     const [dataLoaded, setDataLoaded] = useState(false);
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
     const [savedDocName, setSavedDocName] = useState<string | null>(editDocName || null); // Track if draft is saved
@@ -752,7 +755,11 @@ const TravelForm: React.FC = () => {
             }
         } catch (err: any) {
             console.error(saveError || err);
-            alert(`Save failed: ${err.message || "Unknown error"}`);
+            setErrorModal({
+                open: true,
+                title: "Submission Failed",
+                message: parseFrappeError(saveError, err),
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -791,7 +798,11 @@ const TravelForm: React.FC = () => {
             }
         } catch (err: any) {
             console.error(submitError || err);
-            alert(`Submission failed: ${err.message || "Please check the console for details."}`);
+            setErrorModal({
+                open: true,
+                title: "Submission Failed",
+                message: parseFrappeError(submitError, err),
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -977,6 +988,12 @@ const TravelForm: React.FC = () => {
                     </div>
                 </form>
             </main>
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

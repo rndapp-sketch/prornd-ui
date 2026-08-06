@@ -3,6 +3,8 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useDepositSlipCalculations } from "@/hooks/useDepositSlipCalculations";
+import { ErrorModal } from "../components/ErrorModal";
+import { parseFrappeError } from "../utils/errorUtils";
 import {
     ArrowLeftIcon,
     ChevronDown,
@@ -348,6 +350,11 @@ const DepositSlipForm: React.FC = () => {
     >({});
     const [loading, setLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorModal, setErrorModal] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({ open: false, title: "Submission Failed", message: "" });
     const [formValues, setFormValues] = useState<Record<string, any>>({});
     const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
 
@@ -1018,7 +1025,11 @@ const DepositSlipForm: React.FC = () => {
             navigate(-1);
         } catch (err: any) {
             console.error("Submission error:", err);
-            alert(`Submission Failed: ${err.message || "Unknown Error"}`);
+            setErrorModal({
+                open: true,
+                title: "Submission Failed",
+                message: parseFrappeError(err),
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -2309,6 +2320,15 @@ const DepositSlipForm: React.FC = () => {
                     </p>
                 </FrappeCard>
             )}
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() =>
+                    setErrorModal((prev) => ({ ...prev, open: false }))
+                }
+            />
         </div>
     );
 };

@@ -80,6 +80,8 @@ import { DepartmentName } from "@/components/DepartmentName";
 import { ProjectNumberGenerationForm } from "@/components/ProjectNumberGenerationForm";
 import { useUserRoles } from "@/components/UserRole";
 import { DeclarationFields } from "@/components/DeclarationFields";
+import { ErrorModal } from "../components/ErrorModal";
+import { parseFrappeError } from "../utils/errorUtils";
 
 // --- Interfaces (Unchanged) ---
 interface ActivityItem {
@@ -1467,6 +1469,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     const [isEditingBudget, setIsEditingBudget] = useState(false);
     const [editBudgetRows, setEditBudgetRows] = useState<BudgetRow[]>([]);
     const [isSavingBudget, setIsSavingBudget] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     const { data, error, isLoading, mutate } = useFrappeGetDoc(
         "Project Registration",
@@ -1517,7 +1520,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
             setIsEditingBudget(false);
             setEditBudgetRows([]);
         } catch (err: any) {
-            alert(`Failed to save: ${err?.message || err}`);
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
         } finally {
             setIsSavingBudget(false);
         }
@@ -3376,6 +3379,12 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
             <main className="flex-1 w-full overflow-hidden">
                 {renderContent()}
             </main>
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

@@ -289,15 +289,25 @@ const ProjectStaffExtensionForm: React.FC = () => {
 
   useEffect(() => {
     if (!editDocName) return;
+    // Wait for the list to resolve first — it's permission-scoped to include
+    // records the current user may review (e.g. as PI), whereas frappe.client.get
+    // enforces stricter doc-level read permissions that a PI approver may not hold.
+    if (listLoading) return;
     let cancelled = false;
 
     const loadEditDoc = async () => {
       try {
-        const res = await fetchDoc({
-          doctype: "Project Staff Extension",
-          name: editDocName,
-        });
-        const doc = res?.message;
+        let doc: ExtensionDoc | undefined = listResp?.message?.data?.find(
+          (r) => r.name === editDocName,
+        );
+
+        if (!doc) {
+          const res = await fetchDoc({
+            doctype: "Project Staff Extension",
+            name: editDocName,
+          });
+          doc = res?.message;
+        }
         if (!doc || cancelled) return;
         setLoadedExtension(doc);
         setDocName(doc.name);
@@ -325,7 +335,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [editDocName, fetchDoc]);
+  }, [editDocName, fetchDoc, listResp, listLoading]);
 
   // Fetch workflow actions whenever the doc or its state changes
   const { call: fetchWorkflowActions } = useFrappePostCall<WorkflowActionsResponse>(

@@ -6082,7 +6082,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                             </div>
                                                                         </div>
 
-                                                                        {isDraft && (
+                                                                        {(isDraft || isSanctionOwner) && (
                                                                             <div className="flex-shrink-0 flex items-center gap-2">
                                                                                 {isSanctionOwner && !isEditingSB && (
                                                                                     <Button
@@ -6097,7 +6097,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                         Edit
                                                                                     </Button>
                                                                                 )}
-                                                                                {!isEditingSB && (
+                                                                                {isDraft && !isEditingSB && (
                                                                                     <FrappeButton
                                                                                         onClick={() =>
                                                                                             handleSanctionSubmitClick(
@@ -6124,7 +6124,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                             </div>
                                                                         )}
                                                                     </div>
-                                                                    {!canSubmitSanction && !isEditingSB && (
+                                                                    {isDraft && !canSubmitSanction && !isEditingSB && (
                                                                         <p className="text-xs text-red-600 dark:text-red-400 mb-2">
                                                                             Sanction Letter No is missing — edit the sanction and fill it in before it can be submitted.
                                                                         </p>

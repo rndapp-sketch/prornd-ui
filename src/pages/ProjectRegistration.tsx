@@ -42,6 +42,8 @@ import { AutocompleteEmail } from "../components/AutocompleteEmail";
 import { useUserRoles } from "@/components/UserRole";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
 import { getFieldMaxLength } from "@/utils/fieldLimits";
+import { ErrorModal } from "../components/ErrorModal";
+import { parseFrappeError } from "../utils/errorUtils";
 
 // --- TYPE DEFINITIONS ---
 interface Field {
@@ -982,6 +984,11 @@ const ProjectRegistration: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSavingDraft, setIsSavingDraft] = useState(false);
     const [isFetchingPiDetails, setIsFetchingPiDetails] = useState(false);
+    const [errorModal, setErrorModal] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({ open: false, title: "Submission Failed", message: "" });
     const location = useLocation();
     const navigate = useNavigate();
     const { docname: pathDocname, tempId: pathTempId } = useParams<{ docname?: string; tempId?: string }>();
@@ -1238,7 +1245,12 @@ const ProjectRegistration: React.FC = () => {
             setNewAgencyData({ fundingagency_country: "India" });
             mutateFundingAgencies();
         } catch (err: any) {
-            alert("Failed to save: " + (err?.message || "Unknown error"));
+            console.error("Failed to save funding agency:", err);
+            setErrorModal({
+                open: true,
+                title: "Failed to Save Funding Agency",
+                message: parseFrappeError(err),
+            });
         } finally {
             setIsSavingAgency(false);
         }
@@ -1870,12 +1882,22 @@ const ProjectRegistration: React.FC = () => {
                 handleTableRowChange(quickEntryState.tableName, quickEntryState.rowIndex, quickEntryState.columnKey, finalDesignation);
                 setQuickEntryState(null); // Close modal
             } else {
-                alert(`Error: ${result?.message || 'Failed to create custom designation.'}`);
+                setErrorModal({
+                    open: true,
+                    title: "Failed to Create Designation",
+                    message: result?.message
+                        ? parseFrappeError({ message: result.message })
+                        : "Failed to create custom designation.",
+                });
                 setQuickEntryState(prev => prev ? { ...prev, isSubmitting: false } : null);
             }
         } catch (e: any) {
             console.error("Quick Entry error", e);
-            alert("Failed to create custom designation. Please try again.");
+            setErrorModal({
+                open: true,
+                title: "Failed to Create Designation",
+                message: parseFrappeError(e),
+            });
             setQuickEntryState(prev => prev ? { ...prev, isSubmitting: false } : null);
         }
         // END OF EDIT — MKY | 2026-04-14 15:35 IST
@@ -2407,14 +2429,13 @@ const ProjectRegistration: React.FC = () => {
         try {
             const { doc_data, files } = await prepareDataWithFiles();
             await submitForm({ docname, doc: doc_data, files });
-        } catch (err) {
-            const errorMessage =
-                err instanceof Error
-                    ? err.message
-                    : typeof err === "string"
-                        ? err
-                        : "File processing error.";
-            alert(errorMessage);
+        } catch (err: any) {
+            console.error("Submit error:", err);
+            setErrorModal({
+                open: true,
+                title: "Submission Failed",
+                message: parseFrappeError(err),
+            });
             setIsSubmitting(false);
         }
     };
@@ -2537,15 +2558,13 @@ const ProjectRegistration: React.FC = () => {
                 docname || "new",
                 document.documentElement.outerHTML,
             );
-        } catch (err) {
+        } catch (err: any) {
             console.error("Save draft error:", err);
-            const errorMessage =
-                err instanceof Error
-                    ? err.message
-                    : typeof err === "string"
-                        ? err
-                        : "File processing error.";
-            alert(errorMessage);
+            setErrorModal({
+                open: true,
+                title: "Draft Save Failed",
+                message: parseFrappeError(err),
+            });
             setIsSavingDraft(false);
         }
     };
@@ -2562,14 +2581,13 @@ const ProjectRegistration: React.FC = () => {
         try {
             const { doc_data, files } = await prepareDataWithFiles();
             await submitForm({ doc: doc_data, files });
-        } catch (err) {
-            const errorMessage =
-                err instanceof Error
-                    ? err.message
-                    : typeof err === "string"
-                        ? err
-                        : "File processing error.";
-            alert(errorMessage);
+        } catch (err: any) {
+            console.error("Submit error:", err);
+            setErrorModal({
+                open: true,
+                title: "Submission Failed",
+                message: parseFrappeError(err),
+            });
             setIsSubmitting(false);
         }
     };
@@ -2892,7 +2910,14 @@ const ProjectRegistration: React.FC = () => {
             setDocname(savedDocname);
             navigate(`/project-details/${savedDocname}`);
         }
-        if (submitError) alert(`Submission error: ${submitError.message}`);
+        if (submitError) {
+            console.error("Submission error:", submitError);
+            setErrorModal({
+                open: true,
+                title: "Submission Failed",
+                message: parseFrappeError(submitError),
+            });
+        }
         setIsSubmitting(false);
     }, [submitResult, submitError]);
     useEffect(() => {
@@ -2901,7 +2926,14 @@ const ProjectRegistration: React.FC = () => {
             setDocname(savedDocname);
             setShowPreviewModal(true);
         }
-        if (saveError) alert(`Draft save error: ${saveError.message}`);
+        if (saveError) {
+            console.error("Draft save error:", saveError);
+            setErrorModal({
+                open: true,
+                title: "Draft Save Failed",
+                message: parseFrappeError(saveError),
+            });
+        }
         setIsSavingDraft(false);
     }, [saveResult, saveError]);
     useEffect(() => {
@@ -2912,7 +2944,12 @@ Endorsement is optional. You may continue completing Project Registration while 
             navigate("/projects-view");
         }
         if (saveEndorsementError) {
-            alert(`Endorsement save error: ${saveEndorsementError.message}`);
+            console.error("Endorsement save error:", saveEndorsementError);
+            setErrorModal({
+                open: true,
+                title: "Endorsement Save Failed",
+                message: parseFrappeError(saveEndorsementError),
+            });
         }
     }, [saveEndorsementResult, saveEndorsementError]);
 
@@ -3921,11 +3958,12 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                                             "Account details saved successfully.",
                                                                         );
                                                                     } catch (e: any) {
-                                                                        alert(
-                                                                            "Failed to save account details: " +
-                                                                            (e?.message ||
-                                                                                "Unknown error"),
-                                                                        );
+                                                                        console.error("Failed to save account details:", e);
+                                                                        setErrorModal({
+                                                                            open: true,
+                                                                            title: "Failed to Save Account Details",
+                                                                            message: parseFrappeError(e),
+                                                                        });
                                                                     } finally {
                                                                         setIsSavingPfms(
                                                                             false,
@@ -4711,10 +4749,13 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                     endorsement: 1,
                                                 });
                                                 setShowEndorsementModal(false);
-                                            } catch (err) {
-                                                alert(
-                                                    "Error processing endorsement.",
-                                                );
+                                            } catch (err: any) {
+                                                console.error("Error processing endorsement:", err);
+                                                setErrorModal({
+                                                    open: true,
+                                                    title: "Endorsement Failed",
+                                                    message: parseFrappeError(err),
+                                                });
                                             } finally {
                                                 setIsSubmitting(false);
                                             }
@@ -4869,7 +4910,12 @@ Endorsement is optional. You may continue completing Project Registration while 
                                             setShowPreviewModal(false);
                                             navigate(`/project-details/${docname}`);
                                         } catch (err: any) {
-                                            alert("Submit failed: " + err.message);
+                                            console.error("Submit failed:", err);
+                                            setErrorModal({
+                                                open: true,
+                                                title: "Submission Failed",
+                                                message: parseFrappeError(err),
+                                            });
                                         } finally {
                                             setIsFinalSubmitting(false);
                                         }
@@ -5078,7 +5124,12 @@ Endorsement is optional. You may continue completing Project Registration while 
                 </SheetContent>
             </Sheet>
 
-
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

@@ -9,6 +9,8 @@ import { prepareFormDataForApi } from '@/services/apiService';
 import {
     HelpCircle, X, BookOpen, IndianRupee, Clock, CheckCircle2,
 } from 'lucide-react';
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 
 // --- HELP PANEL ---
 const HelpPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => (
@@ -195,6 +197,7 @@ const TopUpFellowshipForm: React.FC = () => {
     const [dataLoaded, setDataLoaded] = useState(false);
     const [projectTitle, setProjectTitle] = useState<string>(projectTitleFromUrl || '');
     const [helpOpen, setHelpOpen] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall<FormDataResponse>(
         'rndopsapp.rndopsapp.doctype.top_up_fellowship.top_up_fellowship.get_top_up_fellowship_fields'
@@ -615,7 +618,7 @@ const TopUpFellowshipForm: React.FC = () => {
             }
         } catch (err: any) {
             console.error(saveError || err);
-            alert(`Save failed: ${err.message || 'Unknown error'}`);
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(saveError, err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -646,7 +649,7 @@ const TopUpFellowshipForm: React.FC = () => {
             }
         } catch (err: any) {
             console.error(submitError || err);
-            alert(`Submission failed: ${err.message || 'Please check the console for details.'}`);
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(submitError, err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -815,6 +818,13 @@ const TopUpFellowshipForm: React.FC = () => {
             </button>
 
             {helpOpen && <HelpPanel onClose={() => setHelpOpen(false)} />}
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

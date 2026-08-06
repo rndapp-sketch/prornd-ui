@@ -11,6 +11,8 @@ import { useFrappeClientScript } from '@/hooks/useFrappeClientScript';
 import { generateP11Html } from '@/utils/p11Print';
 import { P11PrintModal } from '@/components/P11PrintModal';
 import { CommentModal } from '@/components/CommentModal';
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -107,6 +109,7 @@ const P11Form: React.FC = () => {
     const [workflowActions, setWorkflowActions] = useState<string[]>([]);
     const [commentModalOpen, setCommentModalOpen] = useState(false);
     const [pendingWorkflowAction, setPendingWorkflowAction] = useState<string>('');
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     const { triggerEvent } = useFrappeClientScript(clientScript, formData, setFormData);
 
@@ -377,7 +380,7 @@ const P11Form: React.FC = () => {
             }
         } catch (err: any) {
             console.error(saveError || err);
-            alert(`Save failed: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Save Failed", message: parseFrappeError(saveError, err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -418,7 +421,7 @@ const P11Form: React.FC = () => {
             }
         } catch (err: any) {
             console.error(err);
-            alert(`Action failed: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);
             setPendingWorkflowAction('');
@@ -595,6 +598,12 @@ const P11Form: React.FC = () => {
                 onSubmit={handleConfirmWorkflowAction}
                 action={pendingWorkflowAction}
                 isLoading={isSubmitting}
+            />
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
             />
         </div>
     );
