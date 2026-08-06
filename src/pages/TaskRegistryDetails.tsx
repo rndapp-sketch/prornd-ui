@@ -1646,7 +1646,8 @@ const TaskRegistryDetails: React.FC = () => {
     const { data, isLoading, error, mutate } = useFrappeGetDoc(doctype || '', name || '');
     const { data: activityData } = useFrappeGetCall<{ message: ActivityItem[] }>(
         "rndopsapp.rndopsapp.api.get_project_activity",
-        doctype && name ? { doctype, docname: name } : undefined,
+        { doctype, docname: name },
+        doctype && name ? undefined : null,
     );
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { DepartmentName } from "@/components/DepartmentName";
+import { useUserRoles } from "@/components/UserRole";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -275,6 +276,8 @@ type SortKey = keyof StaffRecord;
 const SalaryModule: React.FC = () => {
     const navigate = useNavigate();
     const { currentUser } = useFrappeAuth();
+    const { roles } = useUserRoles(currentUser || null);
+    const canViewAllStaff = roles?.includes("staff, RnD") ?? false;
 
     const [records, setRecords] = useState<StaffRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -744,50 +747,18 @@ const SalaryModule: React.FC = () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             let rows: any[] = [];
 
-            // Try: filter by owner + Approved
-            try {
-                const res = await getList({
-                    doctype: "Project Staff Details",
-                    filters: [["owner", "=", currentUser], ["workflow_state", "=", "Approved"]],
-                    fields: ["*"],
-                    limit_page_length: 500,
-                });
-                rows = res?.message ?? [];
-            } catch { /* try next */ }
-
-            // Try: other PI fields + Approved
-            if (rows.length === 0) {
-                for (const f of ["webmail_id", "pi_webmail", "pi_email", "principal_investigator"]) {
-                    try {
-                        const res = await getList({
-                            doctype: "Project Staff Details",
-                            filters: [[f, "=", currentUser], ["workflow_state", "=", "Approved"]],
-                            fields: ["*"],
-                            limit_page_length: 1000000,
-                        });
-                        rows = res?.message ?? [];
-                        if (rows.length > 0) break;
-                    } catch { /* skip */ }
-                }
-            }
-
-            // Fallback: all Approved, filter client-side
-            if (rows.length === 0) {
-                try {
-                    const res = await getList({
-                        doctype: "Project Staff Details",
-                        filters: [["workflow_state", "=", "Approved"]],
-                        fields: ["*"],
-                        limit_page_length: 500,
-                    });
-                    const all = res?.message ?? [];
-                    rows = all.filter((r: any) =>
-                        r.owner === currentUser || r.webmail_id === currentUser
-                        || r.pi_webmail === currentUser || r.pi_email === currentUser
-                    );
-                    if (rows.length === 0) rows = all;
-                } catch { /* ignore */ }
-            }
+            // "staff, RnD" processes payroll org-wide and must see every Approved record.
+            // Everyone else (PIs) is scoped strictly to records they own — no fallback to
+            // "show everyone" when the owner filter comes up empty; empty means empty.
+            const res = await getList({
+                doctype: "Project Staff Details",
+                filters: canViewAllStaff
+                    ? [["workflow_state", "=", "Approved"]]
+                    : [["owner", "=", currentUser], ["workflow_state", "=", "Approved"]],
+                fields: ["*"],
+                limit_page_length: canViewAllStaff ? 100000 : 500,
+            });
+            rows = res?.message ?? [];
 
             // Safety net: client-side Approved filter
             rows = rows.filter((r: any) =>
@@ -800,7 +771,7 @@ const SalaryModule: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [getList, currentUser]);
+    }, [getList, currentUser, canViewAllStaff]);
 
     // ── Submit all pending commits with the entered BMR number ──
     const handleBmrSubmit = useCallback(async () => {

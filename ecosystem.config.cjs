@@ -1,10 +1,10 @@
 module.exports = {
   apps: [
     {
-      name: "prornd-ui-mythos_fable_v0.5",
+      name: "prornd-ui-mythos_fable_v0.6",
       script: "npm",
       args: "run dev",
-      cwd: "/home/prornd/Projects/mythos_omni_v0.4/prornd-ui",
+      cwd: "/home/prornd/Projects/mythos_fable_v0.6/prornd-ui",
       interpreter: "none",
       env: {
         NODE_ENV: "development",
@@ -14,4 +14,4 @@ module.exports = {
   ]
 };
 
-// git clone -b mythos_omni_v0.4 --single-branch https://github.com/rndapp-sketch/prornd-ui.gi
+// git clone -b mythos_fable_v0.6 --single-branch https://github.com/rndapp-sketch/prornd-ui.gi
