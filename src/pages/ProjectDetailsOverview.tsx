@@ -818,6 +818,8 @@ const QuickActions = ({
     >(defaultApp || null);
     const [applicationData, setApplicationData] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [applicationsPage, setApplicationsPage] = useState(1);
+    const applicationsPageSize = 10;
 
     // QuickActions doesn't share scope with the outer component — call hooks independently here.
     const { currentUser: quickActionsCurrentUser } = useFrappeAuth();
@@ -1527,8 +1529,17 @@ const QuickActions = ({
             } else if (selectedApplication === "Disbursal of Honorarium") {
                 try {
                     const timestamp = Date.now();
-                    // Use v2 document API to avoid 403 permission issues and include project fields for filtering
-                    const apiUrl = `/api/v2/document/Disbursal of Honorarium?fields=["name","creation","modified","name_of_applicant","webmail_id","owner","workflow_state","total_amount","project_no"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    const honorariumProjectNo = projectNo || projectName || "";
+                    // Filter server-side by project_no so the unfiltered result set
+                    // (which the backend caps by default) never has to include every
+                    // Disbursal of Honorarium record system-wide.
+                    const filters = honorariumProjectNo
+                        ? `&filters=${encodeURIComponent(JSON.stringify([["project_no", "=", honorariumProjectNo]]))}`
+                        : "";
+                    // Use v2 document API to avoid 403 permission issues and include project fields for filtering.
+                    // The v2 endpoint does not treat limit_page_length=0 as "unlimited" the way
+                    // the v1 REST API does, so pass an explicit high ceiling for both param names instead.
+                    const apiUrl = `/api/v2/document/Disbursal of Honorarium?fields=["name","creation","modified","name_of_applicant","webmail_id","owner","workflow_state","total_amount","project_no"]&order_by=creation desc&limit_page_length=100000&limit=100000${filters}&_=${timestamp}`;
                     const fetchResponse = await fetch(apiUrl, {
                         method: "GET",
                         headers: { Accept: "application/json" },
@@ -1543,30 +1554,16 @@ const QuickActions = ({
                     const result = await fetchResponse.json();
                     const allHonorariums = result?.data || [];
 
-                    // Filter by project_no matching either the projectNo or projectName (doc ID fallback)
-                    const projectNoLower = (
-                        projectNo ||
-                        projectName ||
-                        ""
-                    ).toLowerCase();
-
-                    data = allHonorariums
-                        .filter((item: any) => {
-                            const itemNo = (
-                                item.project_no || ""
-                            ).toLowerCase();
-                            return projectNoLower && itemNo === projectNoLower;
-                        })
-                        .map((item: any) => ({
-                            ...item,
-                            applicant_webmail:
-                                item.name_of_applicant ||
-                                item.webmail_id ||
-                                item.owner,
-                        }));
+                    data = allHonorariums.map((item: any) => ({
+                        ...item,
+                        applicant_webmail:
+                            item.name_of_applicant ||
+                            item.webmail_id ||
+                            item.owner,
+                    }));
 
                     console.log(
-                        `Disbursal of Honorarium: fetched ${allHonorariums.length}, filtered to ${data.length}`,
+                        `Disbursal of Honorarium: fetched ${data.length} for project_no ${honorariumProjectNo}`,
                     );
                 } catch (fetchError) {
                     console.error(
@@ -1947,6 +1944,10 @@ const QuickActions = ({
         fetchApplicationData();
     }, [fetchApplicationData]);
 
+    useEffect(() => {
+        setApplicationsPage(1);
+    }, [selectedApplication]);
+
     const ActionButton = ({
         children,
         onClick,
@@ -2239,7 +2240,12 @@ const QuickActions = ({
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                {applicationData.map(
+                                {applicationData
+                                    .slice(
+                                        (applicationsPage - 1) * applicationsPageSize,
+                                        applicationsPage * applicationsPageSize,
+                                    )
+                                    .map(
                                     (item: any, index: number) => (
                                         <tr
                                             key={item.name || index}
@@ -2644,6 +2650,64 @@ const QuickActions = ({
                                 <Plus className="w-4 h-4" />
                                 Apply New
                             </button>
+                        </div>
+                    )}
+                    {applicationData.length > applicationsPageSize && (
+                        <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-200 dark:border-zinc-800">
+                            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                                Showing{" "}
+                                {(applicationsPage - 1) * applicationsPageSize + 1}
+                                {"–"}
+                                {Math.min(
+                                    applicationsPage * applicationsPageSize,
+                                    applicationData.length,
+                                )}{" "}
+                                of {applicationData.length}
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() =>
+                                        setApplicationsPage((p) => Math.max(1, p - 1))
+                                    }
+                                    disabled={applicationsPage === 1}
+                                    className="px-3 py-1.5 text-sm font-medium rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                                >
+                                    Previous
+                                </button>
+                                <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                                    Page {applicationsPage} of{" "}
+                                    {Math.max(
+                                        1,
+                                        Math.ceil(
+                                            applicationData.length /
+                                                applicationsPageSize,
+                                        ),
+                                    )}
+                                </span>
+                                <button
+                                    onClick={() =>
+                                        setApplicationsPage((p) =>
+                                            Math.min(
+                                                Math.ceil(
+                                                    applicationData.length /
+                                                        applicationsPageSize,
+                                                ),
+                                                p + 1,
+                                            ),
+                                        )
+                                    }
+                                    disabled={
+                                        applicationsPage >=
+                                        Math.ceil(
+                                            applicationData.length /
+                                                applicationsPageSize,
+                                        )
+                                    }
+                                    className="px-3 py-1.5 text-sm font-medium rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                                >
+                                    Next
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
