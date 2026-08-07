@@ -1046,6 +1046,29 @@ const QuickActions = ({
         }
     };
 
+    const handleDeleteDraftHonorarium = async (item: any) => {
+        if (!confirm(`Are you sure you want to delete draft "${item.name}"? This cannot be undone.`)) return;
+        setDeletingDraftName(item.name);
+        try {
+            const res = await fetch(`/api/resource/Disbursal of Honorarium/${item.name}`, {
+                method: "DELETE",
+                headers: { Accept: "application/json" },
+                credentials: "include",
+            });
+            if (res.ok) {
+                setApplicationData((prev: any[]) => prev.filter((row) => row.name !== item.name));
+            } else {
+                const data = await res.json().catch(() => ({}));
+                alert(data?.exc_type || "Failed to delete draft.");
+            }
+        } catch (error) {
+            console.error("Error deleting Disbursal of Honorarium draft:", error);
+            alert("Failed to delete draft.");
+        } finally {
+            setDeletingDraftName(null);
+        }
+    };
+
     const handleScrClick = async (item: any) => {
         setIsLoading(true);
         try {
@@ -2574,6 +2597,28 @@ const QuickActions = ({
                                                             <button
                                                                 onClick={() =>
                                                                     handleDeleteDraftDirectPurchase(
+                                                                        item,
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    deletingDraftName ===
+                                                                    item.name
+                                                                }
+                                                                className="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 hover:underline whitespace-nowrap disabled:opacity-50"
+                                                            >
+                                                                {deletingDraftName ===
+                                                                    item.name
+                                                                    ? "Deleting..."
+                                                                    : "Delete"}
+                                                            </button>
+                                                        )}
+                                                    {selectedApplication ===
+                                                        "Disbursal of Honorarium" &&
+                                                        item.workflow_state ===
+                                                        "Draft" && (
+                                                            <button
+                                                                onClick={() =>
+                                                                    handleDeleteDraftHonorarium(
                                                                         item,
                                                                     )
                                                                 }
