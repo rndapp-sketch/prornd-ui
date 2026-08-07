@@ -2444,7 +2444,15 @@ const QuickActions = ({
                                                                     break;
                                                                 case "Direct Purchase":
                                                                     onNavigate(
-                                                                        `/direct-purchase/${item.name}`,
+                                                                        [
+                                                                            "Sanction Sheet Generated",
+                                                                            "Sanction Sheet Printed",
+                                                                            "Sanction Approved",
+                                                                        ].includes(
+                                                                            item.workflow_state,
+                                                                        )
+                                                                            ? `/direct-purchase/${item.name}?tab=sanction`
+                                                                            : `/direct-purchase/${item.name}`,
                                                                     );
                                                                     break;
                                                                 case "Adhoc/Contractual":
