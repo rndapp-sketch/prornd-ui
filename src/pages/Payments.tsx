@@ -513,7 +513,8 @@ const Payments: React.FC = () => {
         setPaymentModalOpen(true);
     }, []);
 
-    // Open the "confirm with comment" dialog before paying a Miscellaneous Commit / Recruitment tab row
+    // Open the "confirm with comment" dialog before paying a Miscellaneous Commit / Recruitment tab row.
+    // The comment itself always gets saved against the Miscellaneous Commit doctype (see confirmPayWithComment).
     const requestPayConfirmation = useCallback((commit: CommitRecord) => {
         setPayConfirmComment('');
         setPayConfirmError(null);
@@ -538,11 +539,12 @@ const Payments: React.FC = () => {
         setIsSubmittingPayConfirm(true);
         setPayConfirmError(null);
         try {
-            const rawMod = String(commit.moduleId || '');
-            const doctype = moduleNameMap[rawMod] || 'Miscellaneous Commit';
+            // This confirm-with-comment dialog is only ever opened for Miscellaneous Commit
+            // rows (requestPayConfirmation routes Recruitment Adhoc Contractual rows straight
+            // to payment instead), so the comment always targets that doctype.
             if (commit.frapAppId) {
                 await addPayConfirmComment({
-                    doctype,
+                    doctype: 'Miscellaneous Commit',
                     docname: commit.frapAppId,
                     content: trimmedComment,
                 });
@@ -556,7 +558,7 @@ const Payments: React.FC = () => {
         } finally {
             setIsSubmittingPayConfirm(false);
         }
-    }, [payConfirm.commit, payConfirmComment, moduleNameMap, addPayConfirmComment, initiatePaymentForCommit]);
+    }, [payConfirm.commit, payConfirmComment, addPayConfirmComment, initiatePaymentForCommit]);
 
 
     if (error) {
