@@ -242,7 +242,7 @@ const router = createBrowserRouter(
                 {
                     path: "add-fund-received/:projectName/",
                     element: (
-                        <AuthRouteWrapper allowedRole="Permanent Employee"> {/* Adjust role as needed */}
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <AddFundReceived />
                         </AuthRouteWrapper>
                     ),
