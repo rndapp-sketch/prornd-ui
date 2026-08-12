@@ -1598,7 +1598,9 @@ const QuickActions = ({
             } else if (selectedApplication === "Disbursal of Consultancy") {
                 try {
                     const timestamp = Date.now();
-                    const apiUrl = `/api/resource/Disbursal of Consultancy?fields=["name","creation","workflow_state","owner","total_disbursal_amount","disbursal_project_number","project_title","webmail_id","pi_name"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    // Use v2 document API (not v1 /api/resource/) to avoid 403 permission
+                    // issues for non-System-Manager roles, same fix applied to Disbursal of Honorarium.
+                    const apiUrl = `/api/v2/document/Disbursal of Consultancy?fields=["name","creation","workflow_state","owner","total_disbursal_amount","disbursal_project_number","project_title","webmail_id","pi_name"]&order_by=creation desc&limit_page_length=100000&limit=100000&_=${timestamp}`;
                     const fetchResponse = await fetch(apiUrl, {
                         method: "GET",
                         headers: { Accept: "application/json" },
