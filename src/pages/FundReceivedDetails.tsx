@@ -1101,14 +1101,18 @@ const FundReceivedDetails = () => {
                                                     let tableConfig: any = null;
                                                     if (meta?.fields) {
                                                         const columns = meta.fields.filter((f: any) => !["Section Break","Column Break","SectionBreak","ColumnBreak"].includes(f.fieldtype)).map((f: any) => {
-                                                            let opts: any[] = [], type = f.fieldtype;
+                                                            let opts: any[] = [], type = f.fieldtype, combineEmailInValue = false;
                                                             if (f.fieldname === "select_copi_id") { opts = linkOptions["select_copi_id"] || linkOptions["principal_investigator"] || linkOptions["User"] || []; type = "UserAutocomplete"; }
+                                                            if (f.fieldname === "label" && meta.doctype === "Deposit Slip Credit Distribution") { opts = linkOptions["label"] || linkOptions["User"] || []; type = "UserAutocomplete"; combineEmailInValue = true; }
                                                             if (["account_head","budget_head","head"].includes(f.fieldname)) { opts = linkOptions["Budget Head"] || linkOptions["budget_head"] || []; if (opts.length > 0) type = "Link"; }
                                                             if (opts.length === 0) { if (f.fieldtype === "Select" && typeof f.options === "string") opts = f.options.split("\n").filter((o: string) => o.trim()).map((o: string) => ({ label: o, value: o })); else if (f.options) opts = linkOptions[f.fieldname] || linkOptions[f.options] || []; }
-                                                            return { key: f.fieldname, label: f.label || f.fieldname, type, options: opts };
+                                                            return { key: f.fieldname, label: f.label || f.fieldname, type, options: opts, combineEmailInValue };
                                                         });
                                                         const newRowTemplate: Record<string, any> = { doctype: meta.doctype, name: `new-${Date.now()}` };
-                                                        meta.fields.forEach((f: any) => { newRowTemplate[f.fieldname] = f.default ?? (["Currency","Float","Int"].includes(f.fieldtype) ? 0 : ""); });
+                                                        meta.fields.forEach((f: any) => {
+                                                            const skipDefault = f.fieldname === "label" && meta.doctype === "Deposit Slip Credit Distribution";
+                                                            newRowTemplate[f.fieldname] = skipDefault ? "" : (f.default ?? (["Currency","Float","Int"].includes(f.fieldtype) ? 0 : ""));
+                                                        });
                                                         tableConfig = { fieldname: field.fieldname, columns, newRowTemplate };
                                                     } else { tableConfig = { fieldname: field.fieldname, columns: [{ key: "name", label: "Name", type: "Data" }], newRowTemplate: {} }; }
                                                     processed.push({ title: field.label, fields: [], type: "table", tableConfig });
