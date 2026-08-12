@@ -51,6 +51,7 @@ interface TableConfig {
         label: string;
         type: string;
         options?: string[];
+        combineEmailInValue?: boolean;
     }>;
     newRowTemplate: Record<string, any>;
 }
@@ -351,6 +352,7 @@ const MemoizedGenericTable = memo(
                         placeholder="Search by name or email..."
                         searchByLabel
                         showAllOnFocus
+                        combineLabelValue={!!col.combineEmailInValue}
                     />
                 );
             }
