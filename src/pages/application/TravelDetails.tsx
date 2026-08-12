@@ -701,6 +701,8 @@ const TravelDetails: React.FC = () => {
                             docName={docName}
                             onActionComplete={handleRefresh}
                             commitRequired={commitRequired}
+                            workflowState={formData.workflow_state}
+                            otherPiId={formData.travel_other_pi_id}
                         />
                     )}
                     {(formData.workflow_state === "Draft" || !formData.workflow_state) && docName && (

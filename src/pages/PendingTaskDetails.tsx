@@ -159,9 +159,15 @@ const CommentModal = ({
 const ReimbursementWorkflowActions = ({
     docname,
     onActionComplete,
+    workflowState,
+    reimbursementForId,
 }: {
     docname: string;
     onActionComplete: () => void;
+    /** Current workflow state — used to detect the Other-PI approval step */
+    workflowState?: string;
+    /** The PI the claim is charged to; only they act at "Pending PI Approval" */
+    reimbursementForId?: string;
 }) => {
     const { data, isLoading: actionsLoading } = useFrappeGetCall<{
         message: string[];
@@ -174,18 +180,65 @@ const ReimbursementWorkflowActions = ({
         "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.perform_reimbursement_action",
     );
     const { call: addComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
+    const { call: fetchPiProjects } = useFrappePostCall(
+        "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_pi_projects",
+    );
+    const { call: fetchProjectHeads } = useFrappePostCall(
+        "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_project_account_heads",
+    );
+    const { currentUser } = useFrappeAuth();
 
     const [modalOpen, setModalOpen] = React.useState(false);
     const [selectedAction, setSelectedAction] = React.useState("");
 
+    // The Other-PI approval step: only the assigned PI selects which of their
+    // own projects to charge and the corresponding account head.
+    const isPiStep =
+        workflowState === "Pending PI Approval" &&
+        !!currentUser &&
+        (reimbursementForId || "").toLowerCase() === currentUser.toLowerCase();
+
+    const [projects, setProjects] = React.useState<any[]>([]);
+    const [heads, setHeads] = React.useState<any[]>([]);
+    const [selectedProject, setSelectedProject] = React.useState("");
+    const [selectedHead, setSelectedHead] = React.useState("");
+
+    React.useEffect(() => {
+        if (!isPiStep) return;
+        fetchPiProjects({})
+            .then((res: any) => setProjects(res?.message || []))
+            .catch(() => setProjects([]));
+    }, [isPiStep]);
+
+    React.useEffect(() => {
+        setSelectedHead("");
+        if (!selectedProject) { setHeads([]); return; }
+        fetchProjectHeads({ project_name: selectedProject })
+            .then((res: any) => setHeads(res?.message || []))
+            .catch(() => setHeads([]));
+    }, [selectedProject]);
+
     const handleActionClick = (action: string) => {
+        if (isPiStep && action === "Approve" && (!selectedProject || !selectedHead)) {
+            alert("Please select a project and account head before approving.");
+            return;
+        }
         setSelectedAction(action);
         setModalOpen(true);
     };
 
     const handleConfirmAction = async (comment: string) => {
         try {
-            await performAction({ docname, action: selectedAction, comment });
+            const payload: Record<string, any> = { docname, action: selectedAction, comment };
+            if (isPiStep && selectedAction === "Approve") {
+                const proj = projects.find((p) => p.value === selectedProject);
+                payload.extra_data = JSON.stringify({
+                    project_name: selectedProject,
+                    project_number: proj?.project_number || proj?.project_no || "",
+                    account_head: selectedHead,
+                });
+            }
+            await performAction(payload);
             if (comment.trim()) {
                 addComment({ doctype: "Reimbursement", docname, content: comment.trim() }).catch(() => {});
             }
@@ -200,6 +253,36 @@ const ReimbursementWorkflowActions = ({
 
     return (
         <>
+            {isPiStep && (
+                <div className="flex flex-col gap-2 mb-2 p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+                    <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+                        Approve against one of your projects
+                    </span>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <select
+                            value={selectedProject}
+                            onChange={(e) => setSelectedProject(e.target.value)}
+                            className="flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100"
+                        >
+                            <option value="">Select project…</option>
+                            {projects.map((p) => (
+                                <option key={p.value} value={p.value}>{p.label}</option>
+                            ))}
+                        </select>
+                        <select
+                            value={selectedHead}
+                            onChange={(e) => setSelectedHead(e.target.value)}
+                            disabled={!selectedProject}
+                            className="flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+                        >
+                            <option value="">Select account head…</option>
+                            {heads.map((h) => (
+                                <option key={h.value} value={h.value}>{h.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+            )}
             <div className="flex gap-2">
                 {data.message.map((action) => (
                     <FrappeButton
@@ -3790,6 +3873,8 @@ const PendingTaskDetails: React.FC = () => {
                         <ReimbursementWorkflowActions
                             docname={name}
                             onActionComplete={() => window.location.reload()}
+                            workflowState={data?.workflow_state}
+                            reimbursementForId={data?.reimbursement_for_id}
                         />
                     )}
                     {doctype === "Cancellation Request" && name && (

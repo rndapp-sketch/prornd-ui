@@ -360,9 +360,10 @@ const IndentGeneralForm: React.FC = () => {
                             }
                         } catch { /* ignore */ }
                     }
-                    if (projectNoParam) {
-                        // Data field stores the project number/code
-                        prefill.igf_project_code = projectNoParam;
+                    if (searchParams.get("other_pi") === "1") {
+                        prefill.igf_other_pi = "Other";
+                        prefill.igf_project_title = "";
+                        prefill.igf_project_code = "";
                     }
 
                     setLinkOptions(mergedLinkOptions);
@@ -674,6 +675,8 @@ const IndentGeneralForm: React.FC = () => {
                                     "igf_employee_code",
                                     "section_break_nvnk",
                                     "igf_project_details",
+                                    "igf_other_pi",
+                                    "igf_other_pi_id",
                                     "igf_project_title",
                                     "igf_project_code",
                                     "igf_account_head",

@@ -215,6 +215,7 @@ export function AppSidebar() {
             subMenu: [
                 { label: "Projects View", path: "/projects-view" },
                 { label: "Co-Projects", path: "/co-projects" },
+                { label: "Other PI", path: "/other-pi" },
                 { label: "Registration", path: "/project-registration" },
             ],
         },

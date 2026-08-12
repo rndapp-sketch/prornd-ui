@@ -275,6 +275,11 @@ const IndentGeneralFormDetails: React.FC = () => {
     const { call: performWorkflowAction, loading: isForwarding } = useFrappePostCall(
         indentGeneralFormAPI.performAction,
     );
+    const { call: fetchIgfPiProjects } = useFrappePostCall(
+        indentGeneralFormAPI.getPiProjects,
+    );
+    const [piProjects, setPiProjects] = React.useState<any[]>([]);
+    const [selectedPiProject, setSelectedPiProject] = React.useState("");
     const { data: workflowActionsData } = useFrappeGetCall<{ message: string[] | { actions?: string[] } }>(
         indentGeneralFormAPI.getWorkflowActions,
         { docname: id ?? "" },
@@ -529,10 +534,50 @@ const IndentGeneralFormDetails: React.FC = () => {
         return al.includes("approve") || al.includes("forward");
     }) ?? null;
 
+    // Other-PI approval step: only the assigned PI selects which of their own
+    // projects to charge this indent to.
+    const isIgfPiStep =
+        workflowState === "Pending Other PI" &&
+        !!currentUser &&
+        String(formData.igf_other_pi_id || "").toLowerCase() === String(currentUser).toLowerCase();
+
+    useEffect(() => {
+        if (!isIgfPiStep) return;
+        fetchIgfPiProjects({})
+            .then((res: any) => setPiProjects(res?.message || []))
+            .catch(() => setPiProjects([]));
+    }, [isIgfPiStep]);
+
     const handleForwardAction = async () => {
         if (!id || !forwardAction) return;
+        if (isIgfPiStep && !selectedPiProject) {
+            alert("Please select a project before approving.");
+            return;
+        }
         try {
-            await performWorkflowAction({ docname: id, action: forwardAction, comment: "" });
+            const payload: Record<string, any> = { docname: id, action: forwardAction, comment: "" };
+            if (isIgfPiStep) {
+                payload.extra_data = JSON.stringify({ project_name: selectedPiProject });
+            }
+            await performWorkflowAction(payload);
+            handleRefresh();
+        } catch (err: any) {
+            alert(err?.message || "Failed to perform action.");
+        }
+    };
+
+    // Other-PI step: run any action (Forward/Reject/Put Back); Forward carries the chosen project.
+    const handlePiAction = async (action: string) => {
+        if (!id) return;
+        const isFwd = action.toLowerCase().includes("forward") || action.toLowerCase().includes("approve");
+        if (isFwd && !selectedPiProject) {
+            alert("Please select a project before approving.");
+            return;
+        }
+        try {
+            const payload: Record<string, any> = { docname: id, action, comment: "" };
+            if (isFwd) payload.extra_data = JSON.stringify({ project_name: selectedPiProject });
+            await performWorkflowAction(payload);
             handleRefresh();
         } catch (err: any) {
             console.error("Workflow action error:", err);
@@ -984,6 +1029,37 @@ const IndentGeneralFormDetails: React.FC = () => {
                                 View Project Ledger
                             </button>
                         </div>
+
+                        {/* Other-PI approval: the assigned PI charges one of their own projects */}
+                        {isIgfPiStep && (
+                            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4 shadow-sm space-y-3">
+                                <h3 className="text-xs font-bold text-[#D97757] uppercase tracking-wider">
+                                    Approve against one of your projects
+                                </h3>
+                                <select
+                                    value={selectedPiProject}
+                                    onChange={(e) => setSelectedPiProject(e.target.value)}
+                                    className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100"
+                                >
+                                    <option value="">Select project…</option>
+                                    {piProjects.map((p) => (
+                                        <option key={p.value} value={p.value}>{p.label}</option>
+                                    ))}
+                                </select>
+                                <div className="flex flex-wrap gap-2">
+                                    {allWorkflowActions.map((action) => (
+                                        <button
+                                            key={action}
+                                            onClick={() => handlePiAction(action)}
+                                            disabled={isForwarding}
+                                            className="px-3 py-2 rounded-lg text-xs font-semibold bg-[#D97757] hover:bg-[#c66a4e] text-white disabled:opacity-50 transition-all"
+                                        >
+                                            {isForwarding ? "Processing…" : action}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Make a Commitment via CommitPayment component */}
                         {isStaffRnD && workflowState === "Pending Staff Approval" && (

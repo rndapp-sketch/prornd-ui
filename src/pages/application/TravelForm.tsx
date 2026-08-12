@@ -34,7 +34,7 @@ const READ_ONLY_TRAVEL_FIELDS = new Set([
     'travel_project_number',
 ]);
 
-const TRAVEL_AUTOCOMPLETE_FIELDS = ['traveler_webmail_id', 'other_traveler'];
+const TRAVEL_AUTOCOMPLETE_FIELDS = ['traveler_webmail_id', 'other_traveler', 'travel_other_pi_id'];
 const OTHER_TRAVELER_FIELDS = ['traveler_webmail_id', 'other_traveler', 'other_traveler_address'];
 
 const moveFieldsAfterAnchor = (
@@ -477,12 +477,12 @@ const TravelForm: React.FC = () => {
                     initialData.travel_project_number = projectName;
                 }
 
-                // Set defaults for any missing fields
-                (apiFields || []).forEach((field: FormField) => {
-                    if (initialData[field.fieldname] === undefined && field.default !== undefined) {
-                        initialData[field.fieldname] = field.default;
-                    }
-                });
+                // If launched from Other PI tab, default travel_other_pi to "Other" and clear applicant project
+                if (searchParams.get("other_pi") === "1" || searchParams.get("travel_other_pi") === "Other") {
+                    initialData.travel_other_pi = "Other";
+                    initialData.travel_project_title = "";
+                    initialData.travel_project_number = "";
+                }
 
                 setFormData(initialData);
                 setLinkOptions(baseLinkOptions);
