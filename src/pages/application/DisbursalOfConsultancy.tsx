@@ -30,7 +30,8 @@ const DisbursalOfConsultancy: React.FC = () => {
         setLoading(true);
         try {
             const response = await fetch(
-                '/api/resource/Disbursal of Consultancy?fields=["name","creation","workflow_state","total_disbursal_amount","disbursal_project_number","project_title","department","webmail_id","pi_name","owner"]&order_by=creation desc&limit_page_length=0'
+                '/api/v2/document/Disbursal of Consultancy?fields=["name","creation","workflow_state","total_disbursal_amount","disbursal_project_number","project_title","department","webmail_id","pi_name","owner"]&order_by=creation desc&limit_page_length=100000&limit=100000',
+                { credentials: "include" }
             );
             const data = await response.json();
             if (data.data) {
