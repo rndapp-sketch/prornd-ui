@@ -1242,7 +1242,7 @@ const SalaryModule: React.FC = () => {
             "HRA Ded", "Medical Ded.", "P-Tax", "TA", "ID Card Charge", "Electricity Bill", "Other Deduction",
             "Total Deduction", "Net Pay", "Comment", "Remarks"
         ];
-        const rows = filtered.map((r, i) => {
+        const rows = pendingRecords.map((r, i) => {
             const { inputs } = getRowInputs(r.docName);
             const workingDays = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
             const proRataBasic = calcProRataBasic(r.basic_salary, workingDays, daysInMonth);
@@ -1272,7 +1272,7 @@ const SalaryModule: React.FC = () => {
         ).join("\n");
         const a = document.createElement("a");
         a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-        a.download = `Staff_Salary_Statement_${monthLabel}_${selectedYear}.csv`;
+        a.download = `Staff_Salary_Unprocessed_${monthLabel}_${selectedYear}.csv`;
         a.click();
     };
 
