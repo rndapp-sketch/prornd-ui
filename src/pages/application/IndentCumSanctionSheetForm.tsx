@@ -1955,6 +1955,34 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     icssAPI.getWorkflowActions,
   );
   const { call: performActionCall } = useFrappePostCall(icssAPI.performAction);
+  const { call: fetchIcssPiProjects } = useFrappePostCall(icssAPI.getPiProjects);
+  const { call: fetchIcssProjectHeads } = useFrappePostCall(icssAPI.getProjectAccountHeads);
+  const [icssPiProjects, setIcssPiProjects] = React.useState<any[]>([]);
+  const [icssPiHeads, setIcssPiHeads] = React.useState<any[]>([]);
+  const [icssSelectedProject, setIcssSelectedProject] = React.useState("");
+  const [icssSelectedHead, setIcssSelectedHead] = React.useState("");
+
+  // Other-PI approval step: only the assigned PI charges one of their own projects.
+  const isIcssPiStep =
+    workflowState === "Pending Other PI" &&
+    !!currentUser &&
+    String(formData?.icss_other_pi_id || "").toLowerCase() === String(currentUser).toLowerCase();
+
+  React.useEffect(() => {
+    if (!isIcssPiStep) return;
+    fetchIcssPiProjects({})
+      .then((r: any) => setIcssPiProjects(r?.message || []))
+      .catch(() => setIcssPiProjects([]));
+  }, [isIcssPiStep]);
+
+  React.useEffect(() => {
+    setIcssSelectedHead("");
+    if (!icssSelectedProject) { setIcssPiHeads([]); return; }
+    fetchIcssProjectHeads({ project_name: icssSelectedProject })
+      .then((r: any) => setIcssPiHeads(r?.message || []))
+      .catch(() => setIcssPiHeads([]));
+  }, [icssSelectedProject]);
+
   const { call: updateSendToDirectorCall } = useFrappePostCall(
     icssAPI.updateSendToDirector,
   );
@@ -3263,9 +3291,10 @@ const IndentCumSanctionSheetForm: React.FC = () => {
               }
             }
 
-            // Allow explicit project_ref override from URL param
-            if (projectRefParam && !initialData.project_ref) {
-              initialData.project_ref = projectRefParam;
+            if (searchParams.get("other_pi") === "1") {
+              initialData.icss_other_pi = "Other";
+              initialData.project_ref = "";
+              initialData.project_no = "";
             }
 
             const normalizedData = normalizeIcssFormData(initialData);
@@ -4333,10 +4362,25 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         return;
       }
 
-      const response = await performActionCall({
+      const isPiForward =
+        isIcssPiStep &&
+        (action.toLowerCase().includes("forward") || action.toLowerCase().includes("approve"));
+      if (isPiForward && (!icssSelectedProject || !icssSelectedHead)) {
+        alert("Please select a project and account head before approving.");
+        return;
+      }
+
+      const actionPayload: Record<string, any> = {
         docname: effectiveDocName,
         action: action,
-      });
+      };
+      if (isPiForward) {
+        actionPayload.extra_data = JSON.stringify({
+          project_name: icssSelectedProject,
+          account_head: icssSelectedHead,
+        });
+      }
+      const response = await performActionCall(actionPayload);
 
       if (
         response &&
@@ -5517,6 +5561,36 @@ const IndentCumSanctionSheetForm: React.FC = () => {
 
     return (
       <>
+        {isIcssPiStep && (
+          <div className="w-full flex flex-col gap-2 p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+            <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+              Approve against one of your projects
+            </span>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <select
+                value={icssSelectedProject}
+                onChange={(e) => setIcssSelectedProject(e.target.value)}
+                className="flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100"
+              >
+                <option value="">Select project…</option>
+                {icssPiProjects.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
+              <select
+                value={icssSelectedHead}
+                onChange={(e) => setIcssSelectedHead(e.target.value)}
+                disabled={!icssSelectedProject}
+                className="flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+              >
+                <option value="">Select account head…</option>
+                {icssPiHeads.map((h) => (
+                  <option key={h.value} value={h.value}>{h.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
         {commitRequired && (
           <div className="w-full text-xs p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 font-medium">
             A commitment must be submitted before forwarding this application.

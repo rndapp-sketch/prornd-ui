@@ -9,7 +9,7 @@ const toWords = new ToWords({
 });
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppSidebar } from '@/components/RndSidebar';
-import { useFrappePostCall } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
@@ -90,6 +90,59 @@ const RateContractForm: React.FC = () => {
     const { call: fetchUserDetails } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
     const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>('frappe.client.get_value');
 
+    // Other-PI approval step
+    const { currentUser } = useFrappeAuth();
+    const { call: performRcAction, loading: isActing } = useFrappePostCall(rateContractAPI.performAction);
+    const { call: fetchRcPiProjects } = useFrappePostCall(rateContractAPI.getPiProjects);
+    const { call: fetchRcProjectHeads } = useFrappePostCall(rateContractAPI.getProjectAccountHeads);
+    const [rcPiProjects, setRcPiProjects] = useState<any[]>([]);
+    const [rcPiHeads, setRcPiHeads] = useState<any[]>([]);
+    const [rcSelectedProject, setRcSelectedProject] = useState('');
+    const [rcSelectedHead, setRcSelectedHead] = useState('');
+
+    const isRcPiStep =
+        formData.workflow_state === 'Pending Other PI' &&
+        !!currentUser &&
+        String(formData.other_pi_email || '').toLowerCase() === String(currentUser).toLowerCase();
+
+    useEffect(() => {
+        if (!isRcPiStep) return;
+        fetchRcPiProjects({})
+            .then((r: any) => setRcPiProjects(r?.message || []))
+            .catch(() => setRcPiProjects([]));
+    }, [isRcPiStep]);
+
+    useEffect(() => {
+        setRcSelectedHead('');
+        if (!rcSelectedProject) { setRcPiHeads([]); return; }
+        fetchRcProjectHeads({ project_name: rcSelectedProject })
+            .then((r: any) => setRcPiHeads(r?.message || []))
+            .catch(() => setRcPiHeads([]));
+    }, [rcSelectedProject]);
+
+    const handleRcPiAction = async (action: string) => {
+        const isFwd = action.toLowerCase() === 'forward' || action.toLowerCase() === 'approve';
+        if (isFwd && (!rcSelectedProject || !rcSelectedHead)) {
+            alert('Please select a project and account head before approving.');
+            return;
+        }
+        try {
+            const payload: Record<string, any> = { docname: editDocName, action };
+            if (isFwd) {
+                payload.extra_data = JSON.stringify({ project_name: rcSelectedProject, account_head: rcSelectedHead });
+            }
+            const res: any = await performRcAction(payload);
+            if (res?.message?.status === 'success') {
+                alert(`Action '${action}' completed. New state: ${res.message.workflow_state}`);
+                navigate('/pending-tasks');
+            } else {
+                alert(res?.message?.message || 'Action failed.');
+            }
+        } catch (err: any) {
+            alert(err?.message || 'Action failed.');
+        }
+    };
+
     // --- DATA FETCHING ---
     useEffect(() => {
         if (!dataLoaded) {
@@ -138,12 +191,10 @@ const RateContractForm: React.FC = () => {
                     initialData.project_name = projectName;
                 }
 
-                // Set defaults for any missing fields
-                enhancedFields.forEach((field: FormField) => {
-                    if (initialData[field.fieldname] === undefined && field.default !== undefined) {
-                        initialData[field.fieldname] = field.default;
-                    }
-                });
+                if (searchParams.get("other_pi") === "1") {
+                    initialData.charged_to_other_pi = "Other";
+                    initialData.project_name = "";
+                }
 
                 setFormData(initialData);
                 setDataLoaded(true);
@@ -551,7 +602,51 @@ const RateContractForm: React.FC = () => {
                         />
                     </FrappeCard>
 
-                    {(!editDocName || formData.docstatus === 0) && (
+                    {isRcPiStep && (
+                        <div className="mt-8 flex flex-col gap-3 p-4 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+                            <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                                Approve against one of your projects
+                            </span>
+                            <div className="flex flex-col sm:flex-row gap-3">
+                                <select
+                                    value={rcSelectedProject}
+                                    onChange={(e) => setRcSelectedProject(e.target.value)}
+                                    className="flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100"
+                                >
+                                    <option value="">Select project…</option>
+                                    {rcPiProjects.map((p) => (
+                                        <option key={p.value} value={p.value}>{p.label}</option>
+                                    ))}
+                                </select>
+                                <select
+                                    value={rcSelectedHead}
+                                    onChange={(e) => setRcSelectedHead(e.target.value)}
+                                    disabled={!rcSelectedProject}
+                                    className="flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+                                >
+                                    <option value="">Select account head…</option>
+                                    {rcPiHeads.map((h) => (
+                                        <option key={h.value} value={h.value}>{h.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {['Forward', 'Reject', 'Put Back'].map((action) => (
+                                    <FrappeButton
+                                        key={action}
+                                        type="button"
+                                        onClick={() => handleRcPiAction(action)}
+                                        disabled={isActing}
+                                        className="bg-[#D97757] text-white hover:bg-[#c66a4e]"
+                                    >
+                                        {isActing ? 'Processing…' : action}
+                                    </FrappeButton>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {!isRcPiStep && (!editDocName || formData.workflow_state === 'Draft' || !formData.workflow_state) && (
                         <div className="mt-8 flex justify-end gap-4">
                             <FrappeButton
                                 onClick={handleSave}
