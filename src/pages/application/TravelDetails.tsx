@@ -266,6 +266,16 @@ const TravelDetails: React.FC = () => {
     const { call: submitDocument } = useFrappePostCall<{ message: any }>(travelAPI.submit);
     const { call: performTravelAction, loading: isSendingToDirector } = useFrappePostCall(travelAPI.performAction);
     const { call: attachDirectorPdf, loading: isUploadingDirectorPdf } = useFrappePostCall(travelAPI.attachDirectorPdf);
+    const { call: fetchPiProjects } = useFrappePostCall(travelAPI.getPiProjects);
+    const { call: fetchProjectHeads } = useFrappePostCall(travelAPI.getProjectAccountHeads);
+
+    // Other-PI approval: the assigned PI charges the travel to one of THEIR
+    // projects. The selectors live here (full page width) rather than in the
+    // header, which has no room for them.
+    const [otherPiProjects, setOtherPiProjects] = useState<any[]>([]);
+    const [otherPiHeads, setOtherPiHeads] = useState<any[]>([]);
+    const [otherPiProject, setOtherPiProject] = useState("");
+    const [otherPiHead, setOtherPiHead] = useState("");
 
     // Fetch linked TA/DA Settlement status
     const { data: tadaListData } = useFrappeGetCall<{ message: { name: string; workflow_state: string }[] }>(
@@ -420,6 +430,27 @@ const TravelDetails: React.FC = () => {
     const isPendingDirectorApproval = formData.workflow_state === "Pending Director Approval";
     const showDirectorPanel =
         isPendingDirectorApproval || (isPendingDeanApproval && isInternational);
+
+    // Other-PI step: only the specifically-assigned PI picks the funding project.
+    const isOtherPiStep =
+        formData.workflow_state === "Pending Other PI" &&
+        !!currentUser &&
+        String(formData.travel_other_pi_id || "").toLowerCase() === currentUser.toLowerCase();
+
+    useEffect(() => {
+        if (!isOtherPiStep) return;
+        fetchPiProjects({})
+            .then((res: any) => setOtherPiProjects(res?.message || []))
+            .catch(() => setOtherPiProjects([]));
+    }, [isOtherPiStep]);
+
+    useEffect(() => {
+        setOtherPiHead("");
+        if (!otherPiProject) { setOtherPiHeads([]); return; }
+        fetchProjectHeads({ project_name: otherPiProject })
+            .then((res: any) => setOtherPiHeads(res?.message || []))
+            .catch(() => setOtherPiHeads([]));
+    }, [otherPiProject]);
 
     // Advance / Settle logic
     const needsAdvance = formData.travel_financial_assistance === "Yes";
@@ -703,6 +734,9 @@ const TravelDetails: React.FC = () => {
                             commitRequired={commitRequired}
                             workflowState={formData.workflow_state}
                             otherPiId={formData.travel_other_pi_id}
+                            otherPiProject={otherPiProject}
+                            otherPiHead={otherPiHead}
+                            otherPiProjects={otherPiProjects}
                         />
                     )}
                     {(formData.workflow_state === "Draft" || !formData.workflow_state) && docName && (
@@ -746,6 +780,51 @@ const TravelDetails: React.FC = () => {
                         <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
                         <div className="text-sm font-medium">
                             This application has a pending cancellation request. No further workflow actions can be performed on it.
+                        </div>
+                    </div>
+                )}
+
+                {/* Other-PI approval: pick which of your projects funds this travel */}
+                {isOtherPiStep && (
+                    <div className="mb-6 p-4 rounded-xl border border-[#D97757]/30 bg-[#FFF7ED] dark:bg-[#D97757]/10 shadow-sm">
+                        <div className="text-sm font-bold text-zinc-800 dark:text-zinc-100 mb-1">
+                            Approve against one of your projects
+                        </div>
+                        <p className="text-xs text-zinc-600 dark:text-zinc-400 mb-3">
+                            This travel is charged to your project. Select the project and account head, then use Actions → Forward.
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1">
+                                    Project
+                                </label>
+                                <select
+                                    value={otherPiProject}
+                                    onChange={(e) => setOtherPiProject(e.target.value)}
+                                    className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100"
+                                >
+                                    <option value="">Select project…</option>
+                                    {otherPiProjects.map((p) => (
+                                        <option key={p.value} value={p.value}>{p.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1">
+                                    Account Head
+                                </label>
+                                <select
+                                    value={otherPiHead}
+                                    onChange={(e) => setOtherPiHead(e.target.value)}
+                                    disabled={!otherPiProject}
+                                    className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+                                >
+                                    <option value="">Select account head…</option>
+                                    {otherPiHeads.map((h) => (
+                                        <option key={h.value} value={h.value}>{h.label}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
                     </div>
                 )}
