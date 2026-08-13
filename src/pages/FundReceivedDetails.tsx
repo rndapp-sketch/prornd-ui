@@ -403,14 +403,16 @@ const FundReceivedDetails = () => {
                 } catch {}
             }
 
-            // Fuzzy fallback: `fund_received_ref` is a plain Data field that's sometimes
-            // hand-entered, so stray whitespace or case differences can make an exact
-            // "in" match miss a real link — retry with a "like" match on each candidate
-            // before giving up.
-            for (const doctype of doctypes) {
-                for (const candidate of refCandidates) {
-                    const trimmed = String(candidate).trim();
-                    if (!trimmed) continue;
+            // Trimmed-exact fallback: `fund_received_ref` is a plain Data field that's
+            // sometimes hand-entered, so stray leading/trailing whitespace can make an
+            // exact "in" match miss a real link — retry with each candidate trimmed.
+            // Deliberately NOT a substring/wildcard match: that previously caused false
+            // positives, linking documents whose fund_received_ref merely contained the
+            // candidate as a substring rather than equaling it.
+            const trimmedCandidates = [...new Set(refCandidates.map((c) => String(c).trim()).filter(Boolean))]
+                .filter((c) => !refCandidates.includes(c));
+            if (trimmedCandidates.length > 0) {
+                for (const doctype of doctypes) {
                     try {
                         const res = await fetch("/api/method/frappe.client.get_list", {
                             method: "POST",
@@ -418,7 +420,7 @@ const FundReceivedDetails = () => {
                             credentials: "include",
                             body: JSON.stringify({
                                 doctype,
-                                filters: [["fund_received_ref", "like", `%${trimmed}%`]],
+                                filters: [["fund_received_ref", "in", trimmedCandidates]],
                                 fields: ["name"],
                                 limit_page_length: 1,
                                 order_by: "creation desc",
