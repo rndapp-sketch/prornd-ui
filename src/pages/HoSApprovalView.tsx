@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { GlobalLoader } from "@/components/ui/global-loader";
 // import { AppSidebar } from "@/components/RndSidebar";
 import { DepositSlipDocument, computeENonRoutine, computeDConsultancy } from "@/components/DepositSlipDocument";
+import { useUserRoleChecks } from "@/components/UserRoleCheck";
 
 // Server-side method that persists field edits for each deposit slip doctype
 const UPDATE_METHOD_BY_DOCTYPE: Record<string, string> = {
@@ -166,6 +167,8 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
     const [fundLoading, setFundLoading] = useState(true);
     const [fundError, setFundError] = useState<any>(null);
     const [prjregProjectNo, setPrjregProjectNo] = useState<string>("");
+
+    const { isRndStaff } = useUserRoleChecks();
 
     // Edit mode for the deposit slip print format
     const [isEditingSlip, setIsEditingSlip] = useState(false);
@@ -720,14 +723,16 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                                 </>
                             ) : (
                                 <>
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsEditingSlip(true)}
-                                        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 text-[11px] font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-300 shadow-sm transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                                    >
-                                        <Pencil className="h-3.5 w-3.5" />
-                                        Edit
-                                    </button>
+                                    {isRndStaff && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsEditingSlip(true)}
+                                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 text-[11px] font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-300 shadow-sm transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                                        >
+                                            <Pencil className="h-3.5 w-3.5" />
+                                            Edit
+                                        </button>
+                                    )}
                                     <button
                                         type="button"
                                         onClick={handlePrintDepositSlip}
