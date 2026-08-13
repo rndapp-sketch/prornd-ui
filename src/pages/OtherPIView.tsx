@@ -113,7 +113,7 @@ export function OtherPIView() {
 
     // 3. Fetch Indent General Form documents with igf_other_pi == "Other"
     const { data: igfDocs, isLoading: loadingIgf, mutate: mutateIgf } = useFrappeGetDocList("Indent General Form", {
-        fields: ["name", "owner", "applicant_name", "webmail_id", "igf_other_pi_id", "workflow_state", "creation"],
+        fields: ["name", "owner", "igf_indenter", "igf_webmail_id", "igf_other_pi_id", "workflow_state", "creation"],
         filters: [["igf_other_pi", "=", "Other"]],
         orFilters: [["owner", "=", currentUser || "__none__"], ["igf_other_pi_id", "=", currentUser || "__none__"]],
         limit: 100,
@@ -122,7 +122,7 @@ export function OtherPIView() {
 
     // 4. Fetch Indent Cum Sanction Sheet documents with icss_other_pi == "Other"
     const { data: icssDocs, isLoading: loadingIcss, mutate: mutateIcss } = useFrappeGetDocList("Indent Cum Sanction Sheet", {
-        fields: ["name", "owner", "applicant_name", "webmail_id", "icss_other_pi_id", "workflow_state", "creation"],
+        fields: ["name", "owner", "icss_applicant_name", "icss_applicant_webmail_id", "icss_other_pi_id", "workflow_state", "creation"],
         filters: [["icss_other_pi", "=", "Other"]],
         orFilters: [["owner", "=", currentUser || "__none__"], ["icss_other_pi_id", "=", currentUser || "__none__"]],
         limit: 100,
@@ -178,7 +178,7 @@ export function OtherPIView() {
                     name: doc.name,
                     doctype: "Indent General Form",
                     title: `General Indent (${doc.name})`,
-                    applicant: doc.applicant_name || doc.webmail_id || "N/A",
+                    applicant: doc.igf_indenter || doc.igf_webmail_id || "N/A",
                     other_pi: doc.igf_other_pi_id || "N/A",
                     workflow_state: doc.workflow_state || "Draft",
                     creation: doc.creation,
@@ -193,7 +193,7 @@ export function OtherPIView() {
                     name: doc.name,
                     doctype: "Indent Cum Sanction Sheet",
                     title: `ICSS Sanction Sheet (${doc.name})`,
-                    applicant: doc.applicant_name || doc.webmail_id || "N/A",
+                    applicant: doc.icss_applicant_name || doc.icss_applicant_webmail_id || "N/A",
                     other_pi: doc.icss_other_pi_id || "N/A",
                     workflow_state: doc.workflow_state || "Draft",
                     creation: doc.creation,

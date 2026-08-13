@@ -15,6 +15,10 @@ interface TravelActionButtonsProps {
     workflowState?: string;
     /** The PI this travel is charged to; only they may act at "Pending Other PI" */
     otherPiId?: string;
+    /** Other-PI selection, owned by TravelDetails (rendered full-width in the body) */
+    otherPiProject?: string;
+    otherPiHead?: string;
+    otherPiProjects?: any[];
 }
 
 // Same grouping/style convention as Project Registration's workflow actions dropdown
@@ -50,6 +54,9 @@ const TravelActionButtons: React.FC<TravelActionButtonsProps> = ({
     commitRequired = false,
     workflowState,
     otherPiId,
+    otherPiProject = '',
+    otherPiHead = '',
+    otherPiProjects = [],
 }) => {
     const [actions, setActions] = useState<string[]>([]);
 
@@ -57,36 +64,19 @@ const TravelActionButtons: React.FC<TravelActionButtonsProps> = ({
         useFrappePostCall<{ message: string[] }>(travelAPI.getWorkflowActions);
     const { call: performAction, loading: actionLoading } = useFrappePostCall(travelAPI.performAction);
     const { call: addComment } = useFrappePostCall(commonAPI.addComment);
-    const { call: fetchPiProjects } = useFrappePostCall(travelAPI.getPiProjects);
-    const { call: fetchProjectHeads } = useFrappePostCall(travelAPI.getProjectAccountHeads);
     const { currentUser } = useFrappeAuth();
 
-    // Other-PI approval step: only the assigned PI selects which of their own
-    // projects to charge the travel to, plus that project's account head.
+    // Other-PI approval step: only the assigned PI may act. The project/account
+    // head selectors are rendered by TravelDetails (full page width); this
+    // component just validates the choice and sends it with the action.
     const isPiStep =
         workflowState === "Pending Other PI" &&
         !!currentUser &&
         (otherPiId || "").toLowerCase() === currentUser.toLowerCase();
 
-    const [projects, setProjects] = useState<any[]>([]);
-    const [heads, setHeads] = useState<any[]>([]);
-    const [selectedProject, setSelectedProject] = useState("");
-    const [selectedHead, setSelectedHead] = useState("");
-
-    useEffect(() => {
-        if (!isPiStep) return;
-        fetchPiProjects({})
-            .then((res: any) => setProjects(res?.message || []))
-            .catch(() => setProjects([]));
-    }, [isPiStep]);
-
-    useEffect(() => {
-        setSelectedHead("");
-        if (!selectedProject) { setHeads([]); return; }
-        fetchProjectHeads({ project_name: selectedProject })
-            .then((res: any) => setHeads(res?.message || []))
-            .catch(() => setHeads([]));
-    }, [selectedProject]);
+    const selectedProject = otherPiProject;
+    const selectedHead = otherPiHead;
+    const projects = otherPiProjects;
 
     // Dropdown state
     const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -197,36 +187,6 @@ const TravelActionButtons: React.FC<TravelActionButtonsProps> = ({
 
     return (
         <div className="flex flex-col items-end gap-1">
-            {isPiStep && (
-                <div className="w-full sm:w-auto flex flex-col gap-2 mb-2 p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
-                    <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">
-                        Approve against one of your projects
-                    </span>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                        <select
-                            value={selectedProject}
-                            onChange={(e) => setSelectedProject(e.target.value)}
-                            className="flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100"
-                        >
-                            <option value="">Select project…</option>
-                            {projects.map((p) => (
-                                <option key={p.value} value={p.value}>{p.label}</option>
-                            ))}
-                        </select>
-                        <select
-                            value={selectedHead}
-                            onChange={(e) => setSelectedHead(e.target.value)}
-                            disabled={!selectedProject}
-                            className="flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
-                        >
-                            <option value="">Select account head…</option>
-                            {heads.map((h) => (
-                                <option key={h.value} value={h.value}>{h.label}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-            )}
             <div className="relative">
                 <button
                     ref={toggleBtnRef}

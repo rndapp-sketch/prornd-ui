@@ -263,9 +263,15 @@ const IndentGeneralForm: React.FC = () => {
                 }));
 
                 // User options for committee member webmail autocomplete
+                // Include the email in the label: distinct accounts can share the
+                // same full name (personal vs role account), and an ambiguous
+                // label lets the applicant pick the wrong person.
                 const userOptions: LinkOption[] = (userRes?.data || [])
                     .filter((u: any) => u.name !== "Administrator" && u.name !== "Guest")
-                    .map((u: any) => ({ value: u.name, label: u.full_name || u.name }));
+                    .map((u: any) => ({
+                        value: u.name,
+                        label: u.full_name ? `${u.full_name} (${u.name})` : u.name,
+                    }));
 
                 const { fields: apiFields, link_options, prefill_data } = res.message;
 
