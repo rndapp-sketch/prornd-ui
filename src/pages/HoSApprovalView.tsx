@@ -399,9 +399,10 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
             const csrfToken = (window as any).csrf_token || "";
             const refCandidates = [...new Set([fundReceivedName, fundReceived?.fund_received_ref_number].filter(Boolean))];
 
-            for (const doctype of depositSlipDoctypes) {
+            // Tries one filter against one doctype; on a hit, fetches the full doc,
+            // sets state, and returns true so the caller can stop searching.
+            const tryMatch = async (doctype: string, filters: any[]) => {
                 try {
-                    // POST to frappe.client.get_list — same approach used in FundReceivedDetails (staff view)
                     const res = await fetch("/api/method/frappe.client.get_list", {
                         method: "POST",
                         headers: {
@@ -411,7 +412,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                         credentials: "include",
                         body: JSON.stringify({
                             doctype,
-                            filters: [["fund_received_ref", "in", refCandidates]],
+                            filters,
                             fields: ["name"],
                             limit_page_length: 1,
                             order_by: "creation desc",
@@ -420,7 +421,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
 
                     if (!res.ok) {
                         console.log(`Skipping ${doctype}: ${res.status}`);
-                        continue;
+                        return false;
                     }
 
                     const json = await res.json();
@@ -443,11 +444,30 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                                 setDepositSlipDoctype(doctype);
                                 setSlipLoading(false);
                             }
-                            return;
+                            return true;
                         }
                     }
                 } catch (err) {
                     console.log(`Skipping ${doctype} due to error:`, err);
+                }
+                return false;
+            };
+
+            // Pass 1: exact match against both candidates (Fund Received docname and
+            // fund_received_ref_number).
+            for (const doctype of depositSlipDoctypes) {
+                if (await tryMatch(doctype, [["fund_received_ref", "in", refCandidates]])) return;
+            }
+
+            // Pass 2: fuzzy fallback. `fund_received_ref` is a plain Data field that's
+            // sometimes hand-entered, so stray whitespace or case differences can make
+            // an exact match miss a real link — retry with a "like" match on each
+            // candidate before giving up.
+            for (const doctype of depositSlipDoctypes) {
+                for (const candidate of refCandidates) {
+                    const trimmed = String(candidate).trim();
+                    if (!trimmed) continue;
+                    if (await tryMatch(doctype, [["fund_received_ref", "like", `%${trimmed}%`]])) return;
                 }
             }
 
