@@ -402,6 +402,38 @@ const FundReceivedDetails = () => {
                     }
                 } catch {}
             }
+
+            // Fuzzy fallback: `fund_received_ref` is a plain Data field that's sometimes
+            // hand-entered, so stray whitespace or case differences can make an exact
+            // "in" match miss a real link — retry with a "like" match on each candidate
+            // before giving up.
+            for (const doctype of doctypes) {
+                for (const candidate of refCandidates) {
+                    const trimmed = String(candidate).trim();
+                    if (!trimmed) continue;
+                    try {
+                        const res = await fetch("/api/method/frappe.client.get_list", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            credentials: "include",
+                            body: JSON.stringify({
+                                doctype,
+                                filters: [["fund_received_ref", "like", `%${trimmed}%`]],
+                                fields: ["name"],
+                                limit_page_length: 1,
+                                order_by: "creation desc",
+                            }),
+                        });
+                        if (!res.ok) continue;
+                        const json = await res.json();
+                        if (json.message?.length > 0) {
+                            if (!cancelled) setLinkedDepositSlip({ name: json.message[0].name, doctype });
+                            return;
+                        }
+                    } catch {}
+                }
+            }
+
             if (!cancelled) setLinkedDepositSlip(null);
         })();
         return () => { cancelled = true; };
