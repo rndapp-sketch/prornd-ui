@@ -282,6 +282,15 @@ export const miscellaneousCommitAPI = {
     performAction: `${API_BASE}.miscellaneous_commit.miscellaneous_commit.perform_miscellaneous_commit_action`,
 };
 
+// Proforma Invoice API endpoints (HoS endorsement workflow)
+export const proformaInvoiceAPI = {
+    get: `${API_BASE}.proforma_invoice.proforma_invoice.get_proforma_invoice`,
+    getByName: `${API_BASE}.proforma_invoice.proforma_invoice.get_proforma_invoice_by_name`,
+    save: `${API_BASE}.proforma_invoice.proforma_invoice.save_proforma_invoice`,
+    submit: `${API_BASE}.proforma_invoice.proforma_invoice.submit_proforma_for_approval`,
+    processAction: `${API_BASE}.proforma_invoice.proforma_invoice.process_proforma_action`,
+};
+
 // Common utility to get user details
 export const commonAPI = {
     getUserDetails: `${API_BASE}.project_registration.project_registration.get_user_details_for_pi`,

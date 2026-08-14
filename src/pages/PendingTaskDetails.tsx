@@ -2337,6 +2337,12 @@ const PendingTaskDetails: React.FC = () => {
         return <Navigate to={`/top-up-fellowship/${name}`} replace />;
     }
 
+    // Proforma Invoice renders as the invoice document (review + approve), never
+    // as raw doctype fields.
+    if (doctype === "Proforma_Invoice" && name) {
+        return <Navigate to={`/proforma-invoice/${name}`} replace />;
+    }
+
     const { data, isLoading, error, mutate } = useFrappeGetDoc(
         doctype || "",
         name || "",

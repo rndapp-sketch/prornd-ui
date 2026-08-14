@@ -4287,7 +4287,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                             </div>
                             {!hideActions && (
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    {/* Pro Inv button disabled for now
                                     {(data?.workflow_state === "Approved" || data?.workflow_state === "Proposal Approved") &&
                                         normalizeProjectType(data?.project_type) === "Consultancy" && (
                                         <FrappeButton
@@ -4299,7 +4298,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                             <FileTextIcon className="h-3.5 w-3.5" /> Pro Inv
                                         </FrappeButton>
                                     )}
-                                    */}
                                     <WorkflowActions
                                         docname={projectName!}
                                         onAction={handleWorkflowAction}

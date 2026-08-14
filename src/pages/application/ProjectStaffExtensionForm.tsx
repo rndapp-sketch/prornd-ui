@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
 import { INT_MAX_LENGTH, CURRENCY_MAX_LENGTH, FIELD_CHAR_LIMITS } from "@/utils/fieldLimits";
+import { parseISO, subMonths, isBefore, startOfDay, isValid, format } from "date-fns";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -35,10 +36,18 @@ interface BasicDetails {
   ps_department_name?: string;
   ps_joining_date?: string;
   ps_term_completion_date?: string;
+  ex_date_of_expiry?: string;
   ps_basic_salary?: string;
   no_of_months_worked?: number;
   no_of_days_worked?: number;
   ex_last_ex_date?: string;
+  tenures?: Tenure[];
+}
+
+interface Tenure {
+  joining_date?: string | null;
+  term_completion_date?: string | null;
+  basic_salary?: string | null;
 }
 
 interface ExtensionDoc {
@@ -369,6 +378,73 @@ const ProjectStaffExtensionForm: React.FC = () => {
     message: { status: string; docstatus?: number };
   }>(extensionAPI.submit);
 
+  // ── Business rules (extension eligibility policy) ─────────────────────────────
+  // 1. A staff member may apply only within the last 1 month of the (current/new)
+  //    term completion date.
+  // 2. Maximum total service period is 33 months.
+  // 3. Max grantable extension = 33 − months already worked (never negative).
+  // NOTE: these are client-side guards for UX. The backend controller MUST enforce
+  // the same rules authoritatively — the frontend cannot be trusted for policy.
+  const MAX_TOTAL_SERVICE_MONTHS = 33;
+  const APPLICATION_WINDOW_MONTHS = 1;
+
+  // Use the LATEST tenure's completion date (ex_date_of_expiry from the backend is
+  // derived from the newest table_ymed row) — the parent ps_term_completion_date can
+  // be an older term and must not drive the application window.
+  const termCompletionDateStr =
+    basic?.ex_date_of_expiry ||
+    loadedExtension?.ex_date_of_expiry ||
+    basic?.ps_term_completion_date ||
+    "";
+  const termCompletionDate = termCompletionDateStr ? parseISO(termCompletionDateStr) : null;
+  const applicationWindowOpenDate =
+    termCompletionDate && isValid(termCompletionDate)
+      ? subMonths(termCompletionDate, APPLICATION_WINDOW_MONTHS)
+      : null;
+  // If we can't determine the term completion date, don't block on the window.
+  const isWithinApplicationWindow = applicationWindowOpenDate
+    ? !isBefore(startOfDay(new Date()), startOfDay(applicationWindowOpenDate))
+    : true;
+
+  const monthsWorkedNum = Number.parseFloat(noOfMonthsWorked) || 0;
+  const maxExtensionAllowed = Math.max(
+    0,
+    Math.floor(MAX_TOTAL_SERVICE_MONTHS - monthsWorkedNum),
+  );
+  // The period selects only offer 1–11; cap the allowed range to that.
+  const maxSelectableMonths = Math.min(11, maxExtensionAllowed);
+  const monthOptions = Array.from({ length: Math.max(0, maxSelectableMonths) }, (_, i) => i + 1);
+  const serviceCapReached = maxExtensionAllowed <= 0;
+  const exceededServiceCap = monthsWorkedNum > MAX_TOTAL_SERVICE_MONTHS;
+
+  const applicationWindowMessage =
+    applicationWindowOpenDate && termCompletionDate
+      ? `You can apply for an extension only within the last ${APPLICATION_WINDOW_MONTHS} month of your term completion date (${format(termCompletionDate, "dd MMM yyyy")}). The application window opens on ${format(applicationWindowOpenDate, "dd MMM yyyy")}.`
+      : "You are not yet within the extension application window.";
+
+  const serviceCapMessage = exceededServiceCap
+    ? `You have already completed ${monthsWorkedNum} months of service, which exceeds the maximum permissible ${MAX_TOTAL_SERVICE_MONTHS} months. No further extension can be applied for.`
+    : `You have completed the maximum permissible service period of ${MAX_TOTAL_SERVICE_MONTHS} months. No further extension can be applied for.`;
+
+  // Applicant-stage eligibility (window + service cap + selected duration).
+  const validateApplicantEligibility = (): string | null => {
+    if (!isWithinApplicationWindow) return applicationWindowMessage;
+    if (serviceCapReached) return serviceCapMessage;
+    if (extensionPeriod && Number(extensionPeriod) > maxExtensionAllowed) {
+      return `The maximum extension you can apply for is ${maxExtensionAllowed} month(s) (${MAX_TOTAL_SERVICE_MONTHS} − ${monthsWorkedNum} already worked). Please select ${maxExtensionAllowed} month(s) or fewer.`;
+    }
+    return null;
+  };
+
+  // Grant-stage cap for PI/Staff — the granted period cannot push total service over 33.
+  const validateGrantPeriod = (period: string, label: string): string | null => {
+    if (!period) return null;
+    if (Number(period) > maxExtensionAllowed) {
+      return `The extension ${label} (${period} months) cannot exceed the maximum of ${maxExtensionAllowed} month(s) (${MAX_TOTAL_SERVICE_MONTHS} − ${monthsWorkedNum} already worked).`;
+    }
+    return null;
+  };
+
   // ── Handlers ────────────────────────────────────────────────────────────────
 
   const showToast = (type: "success" | "error", msg: string) => {
@@ -399,6 +475,20 @@ const ProjectStaffExtensionForm: React.FC = () => {
 
   const handleSave = async () => {
     if (!extensionPeriod) { showToast("error", "Please select the period of extension."); return; }
+    // Applicant (Draft) — enforce window + service cap + duration limit.
+    if (isEditable) {
+      const eligibilityError = validateApplicantEligibility();
+      if (eligibilityError) { showToast("error", eligibilityError); return; }
+    }
+    // PI / Staff — enforce the granted period cap.
+    if (canEditPIFields) {
+      const piError = validateGrantPeriod(extensionPeriodPI, "suggested by PI");
+      if (piError) { showToast("error", piError); return; }
+    }
+    if (canEditStaffFields) {
+      const staffError = validateGrantPeriod(extensionPeriodStaff, "allowed by Staff");
+      if (staffError) { showToast("error", staffError); return; }
+    }
     setIsBusy(true);
     try {
       const res = await saveExtension({ doc_data: JSON.stringify(buildPayload()) });
@@ -451,6 +541,20 @@ const ProjectStaffExtensionForm: React.FC = () => {
       showToast("error", "Please select the extension period allowed by Staff.");
       setPendingAction(null);
       return;
+    }
+
+    // Policy guards — window + 33-month service cap + per-stage duration limit.
+    if (workflowState === "Draft") {
+      const eligibilityError = validateApplicantEligibility();
+      if (eligibilityError) { showToast("error", eligibilityError); setPendingAction(null); return; }
+    }
+    if (isPositiveAction && workflowState === "Pending PI Approval") {
+      const piError = validateGrantPeriod(extensionPeriodPI, "suggested by PI");
+      if (piError) { showToast("error", piError); setPendingAction(null); return; }
+    }
+    if (isPositiveAction && workflowState === "Pending Staff Approval") {
+      const staffError = validateGrantPeriod(extensionPeriodStaff, "allowed by Staff");
+      if (staffError) { showToast("error", staffError); setPendingAction(null); return; }
     }
 
     setIsBusy(true);
@@ -557,8 +661,21 @@ const ProjectStaffExtensionForm: React.FC = () => {
   const applicantDesignation = basic?.ps_designation || loadedExtension?.ex_designation || "";
   const applicantDepartment = basic?.ps_department_name || basic?.ps_department || loadedExtension?.department || "";
   const dateOfJoining = basic?.ps_joining_date || loadedExtension?.ex_doj || "";
-  const expiryOfTenure = basic?.ps_term_completion_date || loadedExtension?.ex_date_of_expiry || "";
+  const expiryOfTenure =
+    basic?.ex_date_of_expiry ||
+    loadedExtension?.ex_date_of_expiry ||
+    basic?.ps_term_completion_date ||
+    "";
   const currentBasic = basic?.ps_basic_salary || loadedExtension?.ex_current_basic || "";
+
+  // All tenure terms (joining + completion per term) for the applicant details table.
+  // Falls back to a single-row view when the full tenure history isn't available.
+  const tenureRows: Tenure[] =
+    basic?.tenures && basic.tenures.length > 0
+      ? basic.tenures
+      : dateOfJoining || expiryOfTenure
+        ? [{ joining_date: dateOfJoining, term_completion_date: expiryOfTenure }]
+        : [];
 
   const isTerminal = workflowState === "Approved" || workflowState === "Rejected" || workflowState === "Cancelled";
   const isEditable = workflowState === "Draft" && docstatus === 0;
@@ -880,9 +997,52 @@ const ProjectStaffExtensionForm: React.FC = () => {
                     <InfoRow icon={<FileText className="h-4 w-4" />} label="Project Name" value={projectTitle} />
                     <InfoRow icon={<Briefcase className="h-4 w-4" />} label="Designation" value={applicantDesignation} />
                     <InfoRow icon={<Building2 className="h-4 w-4" />} label="Department" value={applicantDepartment} />
-                    <InfoRow icon={<CalendarDays className="h-4 w-4" />} label="Date of Joining" value={dateOfJoining} />
-                    <InfoRow icon={<Clock className="h-4 w-4" />} label="Date of Expiry of Tenure" value={expiryOfTenure} />
                     <InfoRow icon={<IndianRupee className="h-4 w-4" />} label="Current Basic Pay" value={currentBasic} />
+                  </div>
+
+                  {/* Tenure history — joining & term completion date for each term */}
+                  <div className="mt-5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CalendarDays className="h-4 w-4 text-[#A1A1AA]" />
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[#71717A] dark:text-[#A1A1AA]">
+                        Tenure Details
+                      </p>
+                    </div>
+                    <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-zinc-50 dark:bg-zinc-900/50 text-xs font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider border-b border-zinc-200 dark:border-zinc-700">
+                          <tr>
+                            <th className="px-4 py-2.5 w-12">Term</th>
+                            <th className="px-4 py-2.5">Date of Joining</th>
+                            <th className="px-4 py-2.5">Term Completion Date</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
+                          {tenureRows.length > 0 ? (
+                            tenureRows.map((t, idx) => (
+                              <tr key={idx} className="text-[#27272A] dark:text-[#E4E4E7]">
+                                <td className="px-4 py-2.5 text-[#71717A] dark:text-[#A1A1AA]">{idx + 1}</td>
+                                <td className="px-4 py-2.5 font-medium">{t.joining_date || "—"}</td>
+                                <td className="px-4 py-2.5 font-medium">{t.term_completion_date || "—"}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={3} className="px-4 py-3 text-center text-[#A1A1AA]">
+                                No tenure records found.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    {tenureRows.length > 0 && (
+                      <p className="mt-1.5 text-[11px] text-[#A1A1AA]">
+                        Current term completion date:{" "}
+                        <strong className="text-[#71717A] dark:text-[#A1A1AA]">{expiryOfTenure || "—"}</strong>
+                        {" "}— extension eligibility is based on this date.
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -896,6 +1056,24 @@ const ProjectStaffExtensionForm: React.FC = () => {
                       Extension Details
                     </h2>
                   </div>
+
+                  {/* Eligibility notice — applicant, Draft only */}
+                  {canEdit && (
+                    (!isWithinApplicationWindow || serviceCapReached) ? (
+                      <div className="flex items-start gap-2.5 px-4 py-3 mb-4 rounded-lg text-sm border bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300">
+                        <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                        <span>{!isWithinApplicationWindow ? applicationWindowMessage : serviceCapMessage}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-start gap-2.5 px-4 py-3 mb-4 rounded-lg text-sm border bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300">
+                        <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                        <span>
+                          You have worked <strong>{monthsWorkedNum}</strong> month(s). The maximum
+                          extension you may apply for is <strong>{maxExtensionAllowed}</strong> month(s).
+                        </span>
+                      </div>
+                    )
+                  )}
 
                   <div className="space-y-5">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1007,7 +1185,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                           )}
                         >
                           <option value="">Select Months...</option>
-                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((m) => (
+                          {monthOptions.map((m) => (
                             <option key={m} value={String(m)}>
                               {m} {m === 1 ? "Month" : "Months"}
                             </option>
@@ -1016,6 +1194,11 @@ const ProjectStaffExtensionForm: React.FC = () => {
                       ) : (
                         <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
                           {extensionPeriod ? `${extensionPeriod} Months` : "—"}
+                        </p>
+                      )}
+                      {canEdit && !serviceCapReached && isWithinApplicationWindow && (
+                        <p className="mt-1.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
+                          Maximum allowed: {maxExtensionAllowed} month(s) — total service cannot exceed {MAX_TOTAL_SERVICE_MONTHS} months.
                         </p>
                       )}
                     </div>
@@ -1055,7 +1238,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             )}
                           >
                             <option value="">Select Months...</option>
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((m) => (
+                            {monthOptions.map((m) => (
                               <option key={m} value={String(m)}>
                                 {m} {m === 1 ? "Month" : "Months"}
                               </option>
@@ -1064,6 +1247,11 @@ const ProjectStaffExtensionForm: React.FC = () => {
                         ) : (
                           <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
                             {extensionPeriodPI ? `${extensionPeriodPI} Months` : "—"}
+                          </p>
+                        )}
+                        {canEditPIFields && (
+                          <p className="mt-1.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
+                            Maximum grantable: {maxExtensionAllowed} month(s) ({MAX_TOTAL_SERVICE_MONTHS} − {monthsWorkedNum} worked).
                           </p>
                         )}
                       </div>
@@ -1137,7 +1325,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             )}
                           >
                             <option value="">Select Months...</option>
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((m) => (
+                            {monthOptions.map((m) => (
                               <option key={m} value={String(m)}>
                                 {m} {m === 1 ? "Month" : "Months"}
                               </option>
@@ -1146,6 +1334,11 @@ const ProjectStaffExtensionForm: React.FC = () => {
                         ) : (
                           <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
                             {extensionPeriodStaff ? `${extensionPeriodStaff} Months` : "—"}
+                          </p>
+                        )}
+                        {canEditStaffFields && (
+                          <p className="mt-1.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
+                            Maximum grantable: {maxExtensionAllowed} month(s) ({MAX_TOTAL_SERVICE_MONTHS} − {monthsWorkedNum} worked).
                           </p>
                         )}
                       </div>
@@ -1297,10 +1490,19 @@ const ProjectStaffExtensionForm: React.FC = () => {
 
                         const evaluationUnsaved = isForwardOrApprove && hasUnsavedEvaluationChanges;
                         const isDraftUnsaved = isForwardOrApprove && workflowState === "Draft" && !docName;
-                        const isDisabled = isBusy || commitRequired || !workflowComment.trim() || evaluationUnsaved || isDraftUnsaved;
+                        // Policy block: applicant not in window / over the 33-month cap.
+                        const applicantIneligible =
+                          isForwardOrApprove &&
+                          workflowState === "Draft" &&
+                          (!isWithinApplicationWindow || serviceCapReached);
+                        const isDisabled =
+                          isBusy || commitRequired || !workflowComment.trim() ||
+                          evaluationUnsaved || isDraftUnsaved || applicantIneligible;
 
                         let tooltipText: string | undefined = undefined;
-                        if (isDraftUnsaved) {
+                        if (applicantIneligible) {
+                          tooltipText = !isWithinApplicationWindow ? applicationWindowMessage : serviceCapMessage;
+                        } else if (isDraftUnsaved) {
                           tooltipText = "Please Save as draft before submitting";
                         } else if (evaluationUnsaved) {
                           tooltipText = "Please Click save changes before forwarding";
