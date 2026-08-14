@@ -1,7 +1,3 @@
-
-
-// -=======================================================
-
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
@@ -16,6 +12,52 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface UniversalRegistrationFormProps {
     isFundingAgency?: boolean;
 }
+
+const groupFrappeDocsToUiDocs = (frappeRows: any[]) => {
+    if (!Array.isArray(frappeRows) || frappeRows.length === 0) return [];
+
+    const map = new Map<string, any>();
+    frappeRows.forEach((row) => {
+        let rawName = row.document_name_u_r || row.document_type || "Document";
+        let side: "front" | "back" | null = null;
+
+        if (rawName.endsWith(" (Front)")) {
+            rawName = rawName.replace(" (Front)", "");
+            side = "front";
+        } else if (rawName.endsWith(" (Back)")) {
+            rawName = rawName.replace(" (Back)", "");
+            side = "back";
+        }
+
+        const category = row.document_type_u_r || row.document_category || "Identity";
+        const idNum = row.id_number_u_r || "";
+        const expiry = row.expiry_date_u_r || row.expiry_date || "";
+        const fileVal = row.file_u_r || row.document_front || row.document_back || "";
+
+        if (!map.has(rawName)) {
+            map.set(rawName, {
+                document_type: rawName,
+                document_category: category,
+                id_number_u_r: idNum,
+                expiry_date: expiry,
+                document_front: side === "back" ? "" : fileVal,
+                document_back: side === "back" ? fileVal : "",
+            });
+        } else {
+            const existing = map.get(rawName);
+            if (side === "back") {
+                existing.document_back = fileVal;
+            } else {
+                existing.document_front = fileVal;
+            }
+            if (idNum && !existing.id_number_u_r) existing.id_number_u_r = idNum;
+            if (expiry && !existing.expiry_date) existing.expiry_date = expiry;
+            if (category && existing.document_category === "Identity") existing.document_category = category;
+        }
+    });
+
+    return Array.from(map.values());
+};
 
 export default function UniversalRegistrationForm({
     isFundingAgency = false,
@@ -87,10 +129,11 @@ export default function UniversalRegistrationForm({
         universalRegistrationAPI.checkEmailAvailability,
     );
 
-    // Email validation state
+    // Email & IFSC validation state/cache
     const [emailStatus, setEmailStatus] = useState<"idle" | "checking" | "available" | "unavailable" | "invalid">("idle");
     const [emailMessage, setEmailMessage] = useState<string>("");
     const emailCheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const ifscCacheRef = useRef<Record<string, any>>({});
 
     // Fetch Form Configuration based on Document State
     const fetchFormConfiguration = useCallback(async () => {
@@ -175,20 +218,24 @@ export default function UniversalRegistrationForm({
                     const uniFnames = ["institution_details_u_r", "designation_u_r", "department_u_r"];
                     const uniExtracted = uniFnames.map(f => pullField(f)).filter(Boolean);
 
-                    // Auto-add first row for Institution Details
+                    // Auto-add first row for Institution Details (Single entry only)
                     const instField = uniExtracted.find((f: any) => f.fieldname === "institution_details_u_r");
                     if (instField) {
                         instField.autoAddFirstRow = true;
                         instField.maxRows = 1;
                         instField.disableDelete = true;
+                        instField.hideRowIndex = true;
+                        instField.rowLabelOverride = "Institution Details";
                     }
 
-                    // Auto-add first row for Bank Details
+                    // Auto-add first row for Bank Details (Single entry only)
                     const bankField = processedFields.find((f: any) => f.fieldname === "bank_details_u_r");
                     if (bankField) {
                         bankField.autoAddFirstRow = true;
                         bankField.maxRows = 1;
                         bankField.disableDelete = true;
+                        bankField.hideRowIndex = true;
+                        bankField.rowLabelOverride = "Bank Details";
                         if (bankField.child_fields) {
                             bankField.child_fields.forEach((cf: any) => {
                                 if (cf.fieldname === "bank_city_u_r" || cf.fieldname === "bank_state_u_r") {
@@ -281,14 +328,23 @@ export default function UniversalRegistrationForm({
                             f.label = "Official Identification (Aadhaar & PAN / Foreigner ID)";
                             // Remove mandatory from the table label itself (*) as per requirement
                             f.mandatory = 0;
-                            // Ensure internal columns remain mandatory
-                            if (f.child_fields && Array.isArray(f.child_fields)) {
-                                f.child_fields.forEach((cf: any) => {
-                                    if (cf.label === "Document Type" || cf.label === "ID Number") {
-                                        cf.mandatory = 1;
-                                    }
-                                });
-                            }
+                            // Replace API child_fields with custom Stakeholder-specific fields:
+                            // Document Name, Document Type (auto Identity), Front file, Back file
+                            f.child_fields = [
+                                { fieldname: "document_type", label: "Document Name", fieldtype: "Data", mandatory: 1, read_only: 0 },
+                                {
+                                    fieldname: "document_category",
+                                    label: "Document Type",
+                                    fieldtype: "Select",
+                                    options: "Identity\nLegal\nTax\nCertificate\nExperience",
+                                    mandatory: 1,
+                                    read_only: 0,
+                                },
+                                { fieldname: "id_number_u_r", label: "ID Number", fieldtype: "Data", mandatory: 1, read_only: 0 },
+                                { fieldname: "expiry_date", label: "Expiry Date", fieldtype: "Date", mandatory: 0, read_only: 0 },
+                                { fieldname: "document_front", label: "Front", fieldtype: "Attach", mandatory: 1 },
+                                { fieldname: "document_back", label: "Back", fieldtype: "Attach", mandatory: 0 },
+                            ];
                         }
                         if (f.fieldname === "experiences_u_r") {
                             f.label = "Experience (If Any)";
@@ -551,11 +607,6 @@ export default function UniversalRegistrationForm({
                     initialData = { ...initialData, ...prefill_data };
                 }
 
-                // Map legacy profile type value to the new renamed value for UI consistency
-                if (initialData.profile_type_u_r === "Individual (For Honorarium)") {
-                    initialData.profile_type_u_r = "Individual (For Honorarium)";
-                }
-
                 // Restore from Draft if exists
                 const draftKey = savedDocName ? `universal_reg_draft_${savedDocName}` : 'universal_reg_draft_new';
                 const draftStr = localStorage.getItem(draftKey);
@@ -565,6 +616,14 @@ export default function UniversalRegistrationForm({
                         initialData = { ...initialData, ...parsedDraft };
                     } catch (e) {
                         console.error("Failed to parse draft", e);
+                    }
+                }
+
+                // If initialData contains Frappe-style uploaded_documents_u_r rows, aggregate them into UI cards
+                if (Array.isArray(initialData.uploaded_documents_u_r) && initialData.uploaded_documents_u_r.length > 0) {
+                    const firstDoc = initialData.uploaded_documents_u_r[0];
+                    if (firstDoc && ("document_name_u_r" in firstDoc || "document_type_u_r" in firstDoc || "file_u_r" in firstDoc)) {
+                        initialData.uploaded_documents_u_r = groupFrappeDocsToUiDocs(initialData.uploaded_documents_u_r);
                     }
                 }
 
@@ -716,46 +775,57 @@ export default function UniversalRegistrationForm({
         }
         prevNationality.current = formData.nationality_u_r;
 
+        const isIndian = formData.nationality_u_r === "India";
+        const isForeigner = formData.nationality_u_r && formData.nationality_u_r !== "India";
+
+        // --- Update field definitions (child_fields, maxRows, etc.) ---
         setFields(prevFields => {
             const newFields = [...prevFields];
             const docsIdx = newFields.findIndex(f => f.fieldname === "uploaded_documents_u_r");
             if (docsIdx !== -1) {
                 const docsField = JSON.parse(JSON.stringify(newFields[docsIdx]));
-                const typeField = docsField.child_fields?.find((cf: any) => cf.label === "Document Type" || cf.fieldname === "document_type");
-                const typeFieldname = typeField ? typeField.fieldname : "document_type";
-
                 let needsUpdate = false;
 
-                if (formData.nationality_u_r === "India") {
-                    if (docsField.maxRows !== 2 || docsField.autoAddFirstRow !== 2) {
+                // Find the Document Name child field to control read_only
+                const docNameField = docsField.child_fields?.find((cf: any) => cf.fieldname === "document_type");
+
+                if (isIndian) {
+                    if (docsField.maxRows !== 2 || docsField.autoAddFirstRow !== 2 || !docsField.hideRowIndex) {
                         docsField.autoAddFirstRow = 2;
                         docsField.maxRows = 2;
                         docsField.disableDelete = true;
+                        docsField.hideRowIndex = true;
+                        docsField.rowLabelOverride = "Official Identification";
                         docsField.defaultRows = [
-                            { [typeFieldname]: "Aadhaar Card" },
-                            { [typeFieldname]: "Pan Card" }
+                            { document_type: "Aadhaar Card", document_category: "Identity" },
+                            { document_type: "Pan Card", document_category: "Identity" }
                         ];
-                        if (typeField) typeField.read_only = 1;
+                        // Indian: Document Name is pre-filled and read-only
+                        if (docNameField) docNameField.read_only = 1;
                         needsUpdate = true;
                     }
-                } else if (formData.nationality_u_r && formData.nationality_u_r !== "India") {
-                    if (docsField.maxRows !== 1 || docsField.autoAddFirstRow !== 1) {
+                } else if (isForeigner) {
+                    if (docsField.maxRows !== 1 || docsField.autoAddFirstRow !== 1 || !docsField.hideRowIndex) {
                         docsField.autoAddFirstRow = 1;
                         docsField.maxRows = 1;
                         docsField.disableDelete = true;
+                        docsField.hideRowIndex = true;
+                        docsField.rowLabelOverride = "Official Identification";
                         docsField.defaultRows = [
-                            { [typeFieldname]: "ID Proof (For Non-Indian)" }
+                            { document_type: "", document_category: "Identity" }
                         ];
-                        if (typeField) typeField.read_only = 1;
+                        // Foreigner: Document Name is editable (user enters gov ID name)
+                        if (docNameField) docNameField.read_only = 0;
                         needsUpdate = true;
                     }
                 } else {
+                    // No nationality selected — reset
                     if (docsField.disableDelete === true) {
                         docsField.autoAddFirstRow = 0;
                         docsField.maxRows = undefined;
                         docsField.disableDelete = false;
                         docsField.defaultRows = [];
-                        if (typeField) typeField.read_only = 0;
+                        if (docNameField) docNameField.read_only = 0;
                         needsUpdate = true;
                     }
                 }
@@ -768,24 +838,25 @@ export default function UniversalRegistrationForm({
             return prevFields;
         });
 
-        if (shouldClearTable) {
+        // --- Ensure current formData rows match selected nationality ---
+        const currentDocs = formData.uploaded_documents_u_r || [];
+
+        const docsMismatch =
+            (isIndian && (currentDocs.length !== 2 || currentDocs[0]?.document_type !== "Aadhaar Card" || currentDocs[1]?.document_type !== "Pan Card")) ||
+            (isForeigner && currentDocs.length !== 1);
+
+        if (shouldClearTable || docsMismatch || currentDocs.length === 0) {
             setFormData(prev => {
                 let newDocs: any[] = [];
-                let typeFieldname = "document_type"; // fallback
-                if (fields && fields.length > 0) {
-                    const docFielddef = fields.find(f => f.fieldname === "uploaded_documents_u_r");
-                    const typeField = docFielddef?.child_fields?.find((cf: any) => cf.label === "Document Type" || cf.fieldname === "document_type");
-                    if (typeField) typeFieldname = typeField.fieldname;
-                }
 
-                if (formData.nationality_u_r === "India") {
+                if (isIndian) {
                     newDocs = [
-                        { [typeFieldname]: "Aadhaar Card" },
-                        { [typeFieldname]: "Pan Card" }
+                        { document_type: "Aadhaar Card", document_category: "Identity" },
+                        { document_type: "Pan Card", document_category: "Identity" }
                     ];
-                } else if (formData.nationality_u_r && formData.nationality_u_r !== "India") {
+                } else if (isForeigner) {
                     newDocs = [
-                        { [typeFieldname]: "ID Proof (For Non-Indian)" }
+                        { document_type: "", document_category: "Identity" }
                     ];
                 }
                 return { ...prev, uploaded_documents_u_r: newDocs };
@@ -928,12 +999,17 @@ export default function UniversalRegistrationForm({
                 if (tableData[rowIndex]) {
                     tableData[rowIndex] = { ...tableData[rowIndex], [fieldname]: value };
 
-                    if (tableName === "bank_details_u_r" && fieldname === "ifsc_code_u_r") {
-                        if (typeof value === "string" && value.length !== 11) {
+                    if (tableName === "bank_details_u_r" && (fieldname === "ifsc_code_u_r" || fieldname.includes("ifsc"))) {
+                        const cleanIfsc = typeof value === "string" ? value.trim().toUpperCase() : "";
+                        const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+                        tableData[rowIndex][fieldname] = cleanIfsc;
+                        if (!ifscRegex.test(cleanIfsc)) {
                             tableData[rowIndex].bank_name_u_r = "";
                             tableData[rowIndex].branch_name_u_r = "";
                             tableData[rowIndex].bank_city_u_r = "";
                             tableData[rowIndex].bank_state_u_r = "";
+                            if ("bank_address_u_r" in tableData[rowIndex]) tableData[rowIndex].bank_address_u_r = "";
+                            if ("micr_code_u_r" in tableData[rowIndex]) tableData[rowIndex].micr_code_u_r = "";
                         }
                     }
 
@@ -991,46 +1067,87 @@ export default function UniversalRegistrationForm({
 
             if (
                 tableName === "bank_details_u_r" &&
-                fieldname === "ifsc_code_u_r" &&
-                typeof value === "string" &&
-                value.length === 11
+                (fieldname === "ifsc_code_u_r" || fieldname.includes("ifsc")) &&
+                typeof value === "string"
             ) {
-                fetch(`https://ifsc.razorpay.com/${value}`)
-                    .then((res) => {
-                        if (res.ok) return res.json();
-                        throw new Error("Invalid IFSC");
-                    })
-                    .then((data) => {
+                const cleanIfsc = value.trim().toUpperCase();
+                const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+
+                if (ifscRegex.test(cleanIfsc)) {
+                    // Check cache to avoid duplicate API requests
+                    if (ifscCacheRef.current[cleanIfsc]) {
+                        const cached = ifscCacheRef.current[cleanIfsc];
+                        if (cached.error) {
+                            return;
+                        }
                         setFormData((prev) => {
                             const tableData = [...(prev[tableName] || [])];
                             if (tableData[rowIndex]) {
                                 tableData[rowIndex] = {
                                     ...tableData[rowIndex],
-                                    bank_name_u_r: data.BANK,
-                                    branch_name_u_r: data.BRANCH,
-                                    bank_city_u_r: data.CITY,
-                                    bank_state_u_r: data.STATE,
+                                    bank_name_u_r: cached.BANK || "",
+                                    branch_name_u_r: cached.BRANCH || "",
+                                    bank_city_u_r: cached.CITY || "",
+                                    bank_state_u_r: cached.STATE || "",
+                                    bank_address_u_r: cached.ADDRESS || tableData[rowIndex].bank_address_u_r || "",
+                                    address: cached.ADDRESS || tableData[rowIndex].address || "",
+                                    district: cached.DISTRICT || tableData[rowIndex].district || "",
+                                    micr_code_u_r: cached.MICR || tableData[rowIndex].micr_code_u_r || "",
                                 };
                             }
                             return { ...prev, [tableName]: tableData };
                         });
-                    })
-                    .catch((err) => {
-                        console.error("Error fetching bank details:", err);
-                        setFormData((prev) => {
-                            const tableData = [...(prev[tableName] || [])];
-                            if (tableData[rowIndex]) {
-                                tableData[rowIndex] = {
-                                    ...tableData[rowIndex],
-                                    bank_name_u_r: "",
-                                    branch_name_u_r: "",
-                                    bank_city_u_r: "",
-                                    bank_state_u_r: "",
-                                };
+                        return;
+                    }
+
+                    fetch(`https://ifsc.razorpay.com/${cleanIfsc}`)
+                        .then((res) => {
+                            if (res.ok) return res.json();
+                            throw new Error("Invalid IFSC");
+                        })
+                        .then((data) => {
+                            if (data && data.BANK) {
+                                ifscCacheRef.current[cleanIfsc] = data;
+                                setFormData((prev) => {
+                                    const tableData = [...(prev[tableName] || [])];
+                                    if (tableData[rowIndex]) {
+                                        tableData[rowIndex] = {
+                                            ...tableData[rowIndex],
+                                            bank_name_u_r: data.BANK || "",
+                                            branch_name_u_r: data.BRANCH || "",
+                                            bank_city_u_r: data.CITY || "",
+                                            bank_state_u_r: data.STATE || "",
+                                            bank_address_u_r: data.ADDRESS || tableData[rowIndex].bank_address_u_r || "",
+                                            address: data.ADDRESS || tableData[rowIndex].address || "",
+                                            district: data.DISTRICT || tableData[rowIndex].district || "",
+                                            micr_code_u_r: data.MICR || tableData[rowIndex].micr_code_u_r || "",
+                                        };
+                                    }
+                                    return { ...prev, [tableName]: tableData };
+                                });
                             }
-                            return { ...prev, [tableName]: tableData };
+                        })
+                        .catch((err) => {
+                            console.error("Error fetching bank details from IFSC API:", err);
+                            ifscCacheRef.current[cleanIfsc] = { error: true };
+                            setFormData((prev) => {
+                                const tableData = [...(prev[tableName] || [])];
+                                if (tableData[rowIndex]) {
+                                    tableData[rowIndex] = {
+                                        ...tableData[rowIndex],
+                                        bank_name_u_r: "",
+                                        branch_name_u_r: "",
+                                        bank_city_u_r: "",
+                                        bank_state_u_r: "",
+                                    };
+                                    if ("bank_address_u_r" in tableData[rowIndex]) tableData[rowIndex].bank_address_u_r = "";
+                                    if ("micr_code_u_r" in tableData[rowIndex]) tableData[rowIndex].micr_code_u_r = "";
+                                }
+                                return { ...prev, [tableName]: tableData };
+                            });
+                            alert(`Invalid IFSC Code (${cleanIfsc}). Unable to fetch bank details. Please check the IFSC code and try again.`);
                         });
-                    });
+                }
             }
         },
         [],
@@ -1173,7 +1290,6 @@ export default function UniversalRegistrationForm({
         sectionsToHide.delete("mobile_number_u_r");
         sectionsToHide.delete("email_address_u_r");
         sectionsToHide.delete("whatsapp_number_u_r");
-        sectionsToHide.delete("same_as_mobile_number_u_r");
         sectionsToHide.delete("permanent_address_custom");
         sectionsToHide.delete("same_as_permanent_address_custom");
         sectionsToHide.delete("current_address_custom");
@@ -1192,10 +1308,9 @@ export default function UniversalRegistrationForm({
         sectionsToHide.delete("full_name_u_r");
         sectionsToHide.delete("gender_u_r");
         sectionsToHide.delete("nationality_u_r");
-        // Contact Information: Mobile Number*, Email, WhatsApp No., Same as mobile checkbox
+        // Contact Information: Mobile Number*, Email, WhatsApp No.
         sectionsToHide.delete("mobile_number_u_r");
         sectionsToHide.delete("email_address_u_r");
-        sectionsToHide.delete("same_as_mobile_number_u_r");
         sectionsToHide.delete("whatsapp_number_u_r");
         // Affiliation Detail section
         sectionsToHide.delete("university_detail_u_r");
@@ -1334,6 +1449,28 @@ export default function UniversalRegistrationForm({
                 setIsSaving(false);
                 return;
             }
+
+            // Custom validation for Official Identification document files
+            const docRows = finalFormData.uploaded_documents_u_r || [];
+            const docValidationErrors: string[] = [];
+            docRows.forEach((doc: any, idx: number) => {
+                const docName = doc.document_type || `Document ${idx + 1}`;
+                // Front is always required
+                if (!doc.document_front) {
+                    docValidationErrors.push(`${docName}: Front side document is required`);
+                }
+                // Back is required for Aadhaar Card and for non-Indian nationalities
+                // Back is optional only for PAN Card
+                const backRequired = doc.document_type !== "Pan Card";
+                if (backRequired && !doc.document_back) {
+                    docValidationErrors.push(`${docName}: Back side document is required`);
+                }
+            });
+            if (docValidationErrors.length > 0) {
+                alert(`Please upload the required identification documents:\n\n• ${docValidationErrors.join("\n• ")}`);
+                setIsSaving(false);
+                return;
+            }
             // 1. Pre-flight Duplicate Check
             // Extract Email and ID Numbers
             const emailToCheck = finalFormData.email_address_u_r;
@@ -1361,9 +1498,51 @@ export default function UniversalRegistrationForm({
                 }
             }
 
-            // 2. Prepare and Save Data
+            // 2. Map UI document cards into Frappe's native Universal Documents__ child table format
+            const frappeDocRows: any[] = [];
+            (finalFormData.uploaded_documents_u_r || []).forEach((doc: any) => {
+                const baseName = doc.document_type || "Document";
+                const category = doc.document_category || "Identity";
+                const idNum = doc.id_number_u_r || "";
+                const expiry = doc.expiry_date || doc.expiry_date_u_r || null;
+
+                const hasFront = doc.document_front !== undefined && doc.document_front !== null && doc.document_front !== "";
+                const hasBack = doc.document_back !== undefined && doc.document_back !== null && doc.document_back !== "";
+
+                if (hasFront) {
+                    frappeDocRows.push({
+                        document_name_u_r: hasBack ? `${baseName} (Front)` : baseName,
+                        document_type_u_r: category,
+                        id_number_u_r: idNum,
+                        expiry_date_u_r: expiry,
+                        file_u_r: doc.document_front,
+                    });
+                }
+
+                if (hasBack) {
+                    frappeDocRows.push({
+                        document_name_u_r: `${baseName} (Back)`,
+                        document_type_u_r: category,
+                        id_number_u_r: idNum,
+                        expiry_date_u_r: expiry,
+                        file_u_r: doc.document_back,
+                    });
+                }
+
+                if (!hasFront && !hasBack) {
+                    frappeDocRows.push({
+                        document_name_u_r: doc.document_name_u_r || baseName,
+                        document_type_u_r: doc.document_type_u_r || category,
+                        id_number_u_r: idNum,
+                        expiry_date_u_r: expiry,
+                        file_u_r: doc.file_u_r || "",
+                    });
+                }
+            });
+
             const preparedData = await prepareFormDataForApi({
                 ...finalFormData,
+                uploaded_documents_u_r: frappeDocRows,
                 docname: savedDocName,
             });
 
