@@ -25,6 +25,8 @@ interface AutocompleteEmailProps extends Omit<React.InputHTMLAttributes<HTMLInpu
   strictMatch?: boolean;
   /** When provided, replaces local filtering with an async backend search */
   onAsyncSearch?: (query: string) => Promise<Option[]>;
+  /** On selection, store/display "label (value)" instead of just the label or value */
+  combineLabelValue?: boolean;
 }
 
 export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
@@ -39,6 +41,7 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
   footerMessage,
   strictMatch = false,
   onAsyncSearch,
+  combineLabelValue = false,
   ...rest
 }) => {
   const [inputValue, setInputValue] = useState(value);
@@ -51,13 +54,15 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
 
   // Update internal input value if external value changes (e.g. reset/cleared)
   useEffect(() => {
-    if (searchByLabel && value) {
+    if (combineLabelValue) {
+      setInputValue(value);
+    } else if (searchByLabel && value) {
       const matched = options.find(opt => opt.value === value);
       setInputValue(matched ? matched.label : value);
     } else {
       setInputValue(value);
     }
-  }, [value, options, searchByLabel]);
+  }, [value, options, searchByLabel, combineLabelValue]);
 
   // Async search: fire when debounced input changes (empty = show all when showAllOnFocus)
   useEffect(() => {
@@ -150,8 +155,9 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
           className="px-4 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer text-sm text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-zinc-800 last:border-0"
           onMouseDown={(e) => {
             e.preventDefault();
-            setInputValue(searchByLabel ? opt.label : opt.value);
-            onChange(opt.value);
+            const combined = `${opt.label} (${opt.value})`;
+            setInputValue(combineLabelValue ? combined : (searchByLabel ? opt.label : opt.value));
+            onChange(combineLabelValue ? combined : opt.value);
             setIsOpen(false);
           }}
         >
