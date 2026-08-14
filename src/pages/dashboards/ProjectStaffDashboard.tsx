@@ -1,7 +1,6 @@
 import React from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetDoc, useFrappeGetCall, useFrappeGetDocList } from "frappe-react-sdk";
-import { AppSidebar } from "../../components/RndSidebar";
 import { AnalyticsCard, CurrentTime } from "../../components/DashboardCards";
 import { cn } from "@/lib/utils";
 import {
@@ -223,7 +222,7 @@ export function ProjectStaffDashboard() {
     filters: currentUser ? [["owner", "=", currentUser]] : [["name", "=", "NON_EXISTENT"]],
     limit: 100,
   });
-  
+
   const igResult = useFrappeGetDocList<any>("Indent General Form", {
     fields: ["name", "workflow_state", "modified", "creation", "owner"],
     filters: currentUser ? [["owner", "=", currentUser]] : [["name", "=", "NON_EXISTENT"]],
@@ -395,9 +394,9 @@ export function ProjectStaffDashboard() {
     }
     if (rsListResp?.message?.data) {
       rsListResp.message.data.forEach((d: any) => {
-        const isMine = 
-          (basic?.erp_mail && d.applicant_email_id === basic.erp_mail) || 
-          d.owner === currentUser || 
+        const isMine =
+          (basic?.erp_mail && d.applicant_email_id === basic.erp_mail) ||
+          d.owner === currentUser ||
           (currentUser && d.applicant_email_id?.startsWith(currentUser.split("@")[0]));
         if (isMine) {
           items.push({
@@ -430,9 +429,9 @@ export function ProjectStaffDashboard() {
     if (Array.isArray(rawExtData)) {
       rawExtData.forEach((d: any) => {
         if (extSeen.has(d.name)) return;
-        const isMine = 
-          (basic?.ps_emp_id && d.ex_emp_id === basic.ps_emp_id) || 
-          d.owner === currentUser || 
+        const isMine =
+          (basic?.ps_emp_id && d.ex_emp_id === basic.ps_emp_id) ||
+          d.owner === currentUser ||
           (currentUser && d.ex_emp_id === basic?.ps_emp_id) ||
           (currentUser && d.owner === currentUser) ||
           (currentUser && d.owner?.toLowerCase() === currentUser?.toLowerCase());
@@ -470,11 +469,11 @@ export function ProjectStaffDashboard() {
 
   const filteredItems = React.useMemo(() => {
     return trackingItems.filter(item => {
-      const matchesSearch = 
+      const matchesSearch =
         item.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.doctype.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.workflow_state.toLowerCase().includes(searchTerm.toLowerCase());
-      
+
       const matchesDoctype = selectedDoctype === "All" || item.doctype === selectedDoctype;
 
       return matchesSearch && matchesDoctype;
@@ -514,7 +513,7 @@ export function ProjectStaffDashboard() {
       }))
       .filter((group) => group.items.length > 0);
   }, [actionSearch]);
-     
+
   // --- Computed Data ---
   const pendingTasks = React.useMemo(() => {
     if (!pendingData?.message?.results) return [];
@@ -575,7 +574,7 @@ export function ProjectStaffDashboard() {
 
   return (
     <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] font-sans">
-      <AppSidebar />
+
       <div className="flex-1 p-4 md:p-8">
         <div className="w-full max-w-7xl mx-auto">
 
@@ -893,7 +892,7 @@ export function ProjectStaffDashboard() {
                     className="pl-9 bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-sm h-9 rounded-lg"
                   />
                 </div>
-                
+
                 <div className="flex items-center gap-2 w-full overflow-x-auto pb-1 md:pb-0 scrollbar-thin justify-start md:justify-end">
                   <span className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider shrink-0">Filter:</span>
                   {uniqueDoctypes.map((dt) => (
@@ -974,7 +973,7 @@ export function ProjectStaffDashboard() {
                         ))}
                       </TableBody>
                     </Table>
-                    
+
                     {/* Pagination */}
                     {totalPages > 1 && (
                       <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/10">
