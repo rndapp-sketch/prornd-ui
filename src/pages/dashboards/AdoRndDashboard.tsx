@@ -152,6 +152,7 @@ const getStatusStyle = (status: string) => {
 };
 
 const getTaskRoute = (doctype: string, id: string) => {
+  if (doctype === "Proforma_Invoice") return `/proforma-invoice/${id}`;
   if (doctype === "Fund Received") return `/fund-received/${id}`;
   if (doctype === "Reimbursement") return `/reimbursement/${id}`;
   if (doctype === "Advance Settlement") return `/advance-settlement/${id}`;
