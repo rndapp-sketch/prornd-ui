@@ -384,7 +384,7 @@ const ActionsDropdown = ({
                 <select
                   value={selectedProject}
                   onChange={(e) => setSelectedProject(e.target.value)}
-                  className="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-[12px] text-zinc-900 dark:text-zinc-100"
+                  className="w-full min-w-0 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-[12px] text-zinc-900 dark:text-zinc-100"
                 >
                   <option value="">Select project…</option>
                   {piProjects.map((p) => (
@@ -395,7 +395,7 @@ const ActionsDropdown = ({
                   value={selectedHead}
                   onChange={(e) => setSelectedHead(e.target.value)}
                   disabled={!selectedProject}
-                  className="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-[12px] text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+                  className="w-full min-w-0 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-[12px] text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
                 >
                   <option value="">Select account head…</option>
                   {piHeads.map((h) => (

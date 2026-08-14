@@ -5566,11 +5566,11 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">
               Approve against one of your projects
             </span>
-            <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 min-w-0 w-full">
               <select
                 value={icssSelectedProject}
                 onChange={(e) => setIcssSelectedProject(e.target.value)}
-                className="flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100"
+                className="min-w-0 w-full flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100"
               >
                 <option value="">Select project…</option>
                 {icssPiProjects.map((p) => (
@@ -5581,7 +5581,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                 value={icssSelectedHead}
                 onChange={(e) => setIcssSelectedHead(e.target.value)}
                 disabled={!icssSelectedProject}
-                className="flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+                className="min-w-0 w-full flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
               >
                 <option value="">Select account head…</option>
                 {icssPiHeads.map((h) => (

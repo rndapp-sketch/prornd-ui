@@ -611,7 +611,7 @@ const RateContractForm: React.FC = () => {
                                 <select
                                     value={rcSelectedProject}
                                     onChange={(e) => setRcSelectedProject(e.target.value)}
-                                    className="flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100"
+                                    className="min-w-0 w-full flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100"
                                 >
                                     <option value="">Select project…</option>
                                     {rcPiProjects.map((p) => (
@@ -622,7 +622,7 @@ const RateContractForm: React.FC = () => {
                                     value={rcSelectedHead}
                                     onChange={(e) => setRcSelectedHead(e.target.value)}
                                     disabled={!rcSelectedProject}
-                                    className="flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+                                    className="min-w-0 w-full flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
                                 >
                                     <option value="">Select account head…</option>
                                     {rcPiHeads.map((h) => (
