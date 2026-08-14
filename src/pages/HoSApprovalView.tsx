@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 import { GlobalLoader } from "@/components/ui/global-loader";
 // import { AppSidebar } from "@/components/RndSidebar";
 import { DepositSlipDocument, computeENonRoutine, computeDConsultancy } from "@/components/DepositSlipDocument";
+import { useUserRoleChecks } from "@/components/UserRoleCheck";
+import { BudgetHeadName } from "@/components/BudgetHeadName";
 
 // Server-side method that persists field edits for each deposit slip doctype
 const UPDATE_METHOD_BY_DOCTYPE: Record<string, string> = {
@@ -141,11 +143,6 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
         window.print();
     };
 
-    // State for resolved budget head names
-    const [resolvedHeadNames, setResolvedHeadNames] = useState<
-        Record<string, string>
-    >({});
-
     // State for deposit slip
     const [depositSlip, setDepositSlip] = useState<any>(null);
     const [depositSlipDoctype, setDepositSlipDoctype] = useState<string>("");
@@ -166,6 +163,8 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
     const [fundLoading, setFundLoading] = useState(true);
     const [fundError, setFundError] = useState<any>(null);
     const [prjregProjectNo, setPrjregProjectNo] = useState<string>("");
+
+    const { isRndStaff } = useUserRoleChecks();
 
     // Edit mode for the deposit slip print format
     const [isEditingSlip, setIsEditingSlip] = useState(false);
@@ -396,9 +395,10 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
             const csrfToken = (window as any).csrf_token || "";
             const refCandidates = [...new Set([fundReceivedName, fundReceived?.fund_received_ref_number].filter(Boolean))];
 
-            for (const doctype of depositSlipDoctypes) {
+            // Tries one filter against one doctype; on a hit, fetches the full doc,
+            // sets state, and returns true so the caller can stop searching.
+            const tryMatch = async (doctype: string, filters: any[]) => {
                 try {
-                    // POST to frappe.client.get_list — same approach used in FundReceivedDetails (staff view)
                     const res = await fetch("/api/method/frappe.client.get_list", {
                         method: "POST",
                         headers: {
@@ -408,7 +408,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                         credentials: "include",
                         body: JSON.stringify({
                             doctype,
-                            filters: [["fund_received_ref", "in", refCandidates]],
+                            filters,
                             fields: ["name"],
                             limit_page_length: 1,
                             order_by: "creation desc",
@@ -417,7 +417,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
 
                     if (!res.ok) {
                         console.log(`Skipping ${doctype}: ${res.status}`);
-                        continue;
+                        return false;
                     }
 
                     const json = await res.json();
@@ -440,11 +440,32 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                                 setDepositSlipDoctype(doctype);
                                 setSlipLoading(false);
                             }
-                            return;
+                            return true;
                         }
                     }
                 } catch (err) {
                     console.log(`Skipping ${doctype} due to error:`, err);
+                }
+                return false;
+            };
+
+            // Pass 1: exact match against both candidates (Fund Received docname and
+            // fund_received_ref_number).
+            for (const doctype of depositSlipDoctypes) {
+                if (await tryMatch(doctype, [["fund_received_ref", "in", refCandidates]])) return;
+            }
+
+            // Pass 2: trimmed-exact fallback. `fund_received_ref` is a plain Data field
+            // that's sometimes hand-entered, so stray leading/trailing whitespace can
+            // make an exact match miss a real link — retry with each candidate trimmed.
+            // Deliberately NOT a substring/wildcard match: that previously caused false
+            // positives, linking documents whose fund_received_ref merely contained the
+            // candidate as a substring rather than equaling it.
+            const trimmedCandidates = [...new Set(refCandidates.map((c) => String(c).trim()).filter(Boolean))]
+                .filter((c) => !refCandidates.includes(c));
+            if (trimmedCandidates.length > 0) {
+                for (const doctype of depositSlipDoctypes) {
+                    if (await tryMatch(doctype, [["fund_received_ref", "in", trimmedCandidates]])) return;
                 }
             }
 
@@ -458,30 +479,6 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
         fetchDepositSlip();
         return () => { cancelled = true; };
     }, [fundReceivedName, fundReceived?.fund_received_ref_number]);
-
-    // Resolve budget head names from account_head IDs (numeric id field)
-    useEffect(() => {
-        const resolveBudgetHeadNames = async () => {
-            if (!fundReceived?.received_amt_breakup) return;
-            try {
-                const response = await fetch(
-                    '/api/resource/Budget%20Head?fields=["budget_head","id"]&limit_page_length=0',
-                    { credentials: "include" },
-                );
-                if (!response.ok) return;
-                const json = await response.json();
-                const nameMap: Record<string, string> = {};
-                for (const bh of json.data || []) {
-                    if (bh.id != null) nameMap[String(bh.id)] = bh.budget_head;
-                    if (bh.name) nameMap[bh.name] = bh.budget_head;
-                }
-                setResolvedHeadNames(nameMap);
-            } catch (err) {
-                console.error("Failed to resolve budget head names", err);
-            }
-        };
-        resolveBudgetHeadNames();
-    }, [fundReceived]);
 
     // Debug: Log the received data to check if remarks field exists
     useEffect(() => {
@@ -720,14 +717,16 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                                 </>
                             ) : (
                                 <>
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsEditingSlip(true)}
-                                        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 text-[11px] font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-300 shadow-sm transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                                    >
-                                        <Pencil className="h-3.5 w-3.5" />
-                                        Edit
-                                    </button>
+                                    {isRndStaff && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsEditingSlip(true)}
+                                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 text-[11px] font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-300 shadow-sm transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                                        >
+                                            <Pencil className="h-3.5 w-3.5" />
+                                            Edit
+                                        </button>
+                                    )}
                                     <button
                                         type="button"
                                         onClick={handlePrintDepositSlip}
@@ -821,9 +820,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                                                     (row: any, i: number) => (
                                                         <tr key={i}>
                                                             <td className="border p-2">
-                                                                {resolvedHeadNames[row.account_head] ||
-                                                                    row.budget_head ||
-                                                                    row.account_head}
+                                                                <BudgetHeadName value={row.account_head || row.budget_head} />
                                                             </td>
                                                             <td className="border p-2 text-right">
                                                                 {(row.amount_received || 0).toLocaleString(

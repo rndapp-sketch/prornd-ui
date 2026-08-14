@@ -11,7 +11,7 @@ import { ledgerService } from '@/services/ledgerService';
 import type { CommitRecord } from '@/types/ledgerTypes';
 import { PaymentForm } from '@/components/PaymentForm';
 import { useUserRoles } from '@/components/UserRole';
-import { useFrappeAuth } from 'frappe-react-sdk';
+import { useFrappeAuth, useFrappePostCall } from 'frappe-react-sdk';
 
 // Define interfaces for payments
 interface PaymentRecord {
@@ -61,6 +61,12 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost
     </button>
 );
 
+// Module IDs surfaced on the Miscellaneous Commit tab instead of Pending Commits.
+const MISC_TAB_MODULE_IDS: Record<string, 'Miscellaneous Commit' | 'Recruitment Adhoc Contractual'> = {
+    '25': 'Miscellaneous Commit',
+    '11': 'Recruitment Adhoc Contractual',
+};
+
 const Payments: React.FC = () => {
     const navigate = useNavigate();
     const { currentUser } = useFrappeAuth();
@@ -83,7 +89,7 @@ const Payments: React.FC = () => {
 
     // New State for Commits and Tabs
     const [pendingCommits, setPendingCommits] = useState<CommitRecord[]>([]);
-    const [activeTab, setActiveTab] = useState<'history' | 'commits'>('commits'); // Default to commits context
+    const [activeTab, setActiveTab] = useState<'history' | 'commits' | 'misc'>('commits'); // Default to commits context
     const [commitPage, setCommitPage] = useState(1);
     const commitsPerPage = 50;
     const itemsPerPage = 10;
@@ -101,10 +107,36 @@ const Payments: React.FC = () => {
         return () => clearTimeout(timer);
     }, [commitSearchQuery]);
 
+    // --- Miscellaneous Commit tab state ---
+    // Sourced entirely from the ledger (pendingCommits) — Miscellaneous Commit (module 25)
+    // and Recruitment Adhoc Contractual (module 11) commits are both filtered out of the
+    // Pending Commits tab above; this tab surfaces them instead of dropping them.
+    const [miscSearchQuery, setMiscSearchQuery] = useState('');
+    const [debouncedMiscSearch, setDebouncedMiscSearch] = useState('');
+    const [selectedMiscType, setSelectedMiscType] = useState<string>('');
+    const [miscPage, setMiscPage] = useState(1);
+    const miscPerPage = 50;
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedMiscSearch(miscSearchQuery);
+            setMiscPage(1);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [miscSearchQuery]);
+
     // Payment Modal State
     const [paymentModalOpen, setPaymentModalOpen] = useState(false);
     const [selectedPaymentName, setSelectedPaymentName] = useState<string | null>(null);
     const [selectedCommit, setSelectedCommit] = useState<CommitRecord | null>(null); // For new payments
+
+    // Pay confirmation (with mandatory comment) — used on the Miscellaneous Commit tab
+    // before opening the Payment Form, mirroring the workflow-action comment pattern.
+    const [payConfirm, setPayConfirm] = useState<{ open: boolean; commit: CommitRecord | null }>({ open: false, commit: null });
+    const [payConfirmComment, setPayConfirmComment] = useState('');
+    const [isSubmittingPayConfirm, setIsSubmittingPayConfirm] = useState(false);
+    const [payConfirmError, setPayConfirmError] = useState<string | null>(null);
+    const { call: addPayConfirmComment } = useFrappePostCall('rndopsapp.rndopsapp.api.add_project_comment');
 
     // Debounce search input
     useEffect(() => {
@@ -336,6 +368,52 @@ const Payments: React.FC = () => {
         fetchPayments();
     }, [fetchPendingCommits, fetchBudgetHeads, fetchModuleRegistry, fetchPayments]);
 
+    // Miscellaneous Commit (module 25) and Recruitment Adhoc Contractual (module 11)
+    // commits ARE staged in the ledger, but both are excluded from the Pending Commits
+    // tab above — surface them here instead of dropping them entirely.
+    const combinedMiscTabRows = React.useMemo(() => {
+        return pendingCommits
+            .filter(c => {
+                const rawMod = String(c.moduleId || '');
+                const resolvedName = moduleNameMap[rawMod];
+                return MISC_TAB_MODULE_IDS[rawMod] || resolvedName === 'Miscellaneous Commit' || resolvedName === 'Recruitment Adhoc Contractual';
+            })
+            .map(c => {
+                const rawMod = String(c.moduleId || '');
+                const type = MISC_TAB_MODULE_IDS[rawMod] || (moduleNameMap[rawMod] as 'Miscellaneous Commit' | 'Recruitment Adhoc Contractual');
+                return {
+                    key: `ledger-${c.frapAppId || c.transactionCommitNumber}`,
+                    type,
+                    projectNumber: c.projectNumber,
+                    budgetHead: budgetHeadMap[String(c.accountHeadId)] || String(c.accountHeadId),
+                    appId: c.frapAppId || '-',
+                    date: c.commitDate,
+                    particulars: c.commitParticular,
+                    refDetails: c.refDetails,
+                    amount: c.commitAmount,
+                    status: c.status,
+                    commit: c,
+                };
+            });
+    }, [pendingCommits, moduleNameMap, budgetHeadMap]);
+
+    const filteredMiscTabRows = React.useMemo(() => {
+        let result = combinedMiscTabRows;
+        if (selectedMiscType) {
+            result = result.filter(r => r.type === selectedMiscType);
+        }
+        if (debouncedMiscSearch) {
+            const q = debouncedMiscSearch.toLowerCase();
+            result = result.filter(r =>
+                r.projectNumber?.toLowerCase().includes(q) ||
+                r.appId?.toLowerCase().includes(q) ||
+                r.particulars?.toLowerCase().includes(q) ||
+                r.budgetHead?.toLowerCase().includes(q)
+            );
+        }
+        return result;
+    }, [combinedMiscTabRows, selectedMiscType, debouncedMiscSearch]);
+
     // Client-side filtering
     const filteredPayments = React.useMemo(() => {
         let result = resolvedPayments;
@@ -435,6 +513,53 @@ const Payments: React.FC = () => {
         setPaymentModalOpen(true);
     }, []);
 
+    // Open the "confirm with comment" dialog before paying a Miscellaneous Commit / Recruitment tab row.
+    // The comment itself always gets saved against the Miscellaneous Commit doctype (see confirmPayWithComment).
+    const requestPayConfirmation = useCallback((commit: CommitRecord) => {
+        setPayConfirmComment('');
+        setPayConfirmError(null);
+        setPayConfirm({ open: true, commit });
+    }, []);
+
+    const cancelPayConfirmation = useCallback(() => {
+        if (isSubmittingPayConfirm) return;
+        setPayConfirm({ open: false, commit: null });
+        setPayConfirmComment('');
+        setPayConfirmError(null);
+    }, [isSubmittingPayConfirm]);
+
+    const confirmPayWithComment = useCallback(async () => {
+        const commit = payConfirm.commit;
+        if (!commit) return;
+        const trimmedComment = payConfirmComment.trim();
+        if (!trimmedComment) {
+            setPayConfirmError('A comment is required before proceeding.');
+            return;
+        }
+        setIsSubmittingPayConfirm(true);
+        setPayConfirmError(null);
+        try {
+            // This confirm-with-comment dialog is only ever opened for Miscellaneous Commit
+            // rows (requestPayConfirmation routes Recruitment Adhoc Contractual rows straight
+            // to payment instead), so the comment always targets that doctype.
+            if (commit.frapAppId) {
+                await addPayConfirmComment({
+                    doctype: 'Miscellaneous Commit',
+                    docname: commit.frapAppId,
+                    content: trimmedComment,
+                });
+            }
+            setPayConfirm({ open: false, commit: null });
+            setPayConfirmComment('');
+            initiatePaymentForCommit(commit);
+        } catch (err: any) {
+            console.error('Failed to add payment confirmation comment:', err);
+            setPayConfirmError(err?.message || 'Failed to save comment. Please try again.');
+        } finally {
+            setIsSubmittingPayConfirm(false);
+        }
+    }, [payConfirm.commit, payConfirmComment, addPayConfirmComment, initiatePaymentForCommit]);
+
 
     if (error) {
         return (
@@ -493,6 +618,17 @@ const Payments: React.FC = () => {
                         )}
                     >
                         Pending Commits
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('misc')}
+                        className={cn(
+                            "h-9 flex-shrink-0 rounded-lg border px-3 text-[11px] font-extrabold uppercase tracking-wide transition-colors",
+                            activeTab === 'misc'
+                                ? "bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A]"
+                                : "border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF]"
+                        )}
+                    >
+                        Miscellaneous Commit
                     </button>
                     {/* Payment History tab hidden temporarily */}
                 </div>
@@ -666,6 +802,160 @@ const Payments: React.FC = () => {
                                     <FrappeButton
                                         onClick={() => setCommitPage(p => p + 1)}
                                         disabled={commitPage * commitsPerPage >= searchedPendingCommits.length}
+                                        variant="outline"
+                                    >
+                                        Next
+                                    </FrappeButton>
+                                </div>
+                            </div>
+                        )}
+                    </FrappeCard>
+                )}
+
+                {activeTab === 'misc' && (
+                    <FrappeCard className="overflow-hidden p-0">
+                        <div className="bg-[#FAFAF9] dark:bg-[#27272A] p-4 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                            <p className="text-[12px] uppercase tracking-[0.12em] text-[#1E3A8A] dark:text-[#C7D2FE] font-extrabold">
+                                Miscellaneous &amp; Recruitment Commits
+                            </p>
+                            <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
+                                Miscellaneous Commit records (not staged to the ledger) and Recruitment Adhoc Contractual commits (excluded from Pending Commits above).
+                            </p>
+                        </div>
+
+                        {/* Search + Type Filter */}
+                        <div className="p-3 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                                <div className="flex flex-1 items-center gap-4 w-full flex-wrap">
+                                    <div className="relative w-full md:w-64">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <FaSearch className="text-zinc-400 dark:text-zinc-500" />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="Search documents..."
+                                            value={miscSearchQuery}
+                                            onChange={(e) => setMiscSearchQuery(e.target.value)}
+                                            className="h-9 w-full pl-10 pr-4 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] focus:outline-none focus:border-[#4A6CF7] focus:ring-[3px] focus:ring-[#4A6CF7]/12 transition-colors"
+                                        />
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <label htmlFor="misc-type-filter" className="font-bold text-zinc-900 dark:text-zinc-100 uppercase text-sm whitespace-nowrap hidden md:block">
+                                            Type:
+                                        </label>
+                                        <select
+                                            id="misc-type-filter"
+                                            value={selectedMiscType}
+                                            onChange={(e) => { setSelectedMiscType(e.target.value); setMiscPage(1); }}
+                                            className="h-9 px-3 bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg font-bold text-[12px] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7]"
+                                        >
+                                            <option value="">All Types</option>
+                                            <option value="Miscellaneous Commit">Miscellaneous Commit</option>
+                                            <option value="Recruitment Adhoc Contractual">Recruitment Adhoc Contractual</option>
+                                        </select>
+                                    </div>
+
+                                    {(miscSearchQuery || selectedMiscType) && (
+                                        <FrappeButton
+                                            onClick={() => { setMiscSearchQuery(''); setSelectedMiscType(''); setMiscPage(1); }}
+                                            className="text-red-600 hover:bg-red-50 border border-red-200"
+                                        >
+                                            Clear Filters
+                                        </FrappeButton>
+                                    )}
+                                </div>
+
+                                <div className="text-sm text-zinc-900 dark:text-zinc-100 font-bold whitespace-nowrap">
+                                    Total: {filteredMiscTabRows.length} records
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto p-3">
+                            <table className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg overflow-hidden">
+                                <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Type</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Project No.</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Budget Head</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">App ID</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Particulars</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Ref / Linked App</th>
+                                        <th className="px-4 py-3 text-right text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Amount</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                                    {filteredMiscTabRows.length > 0 ? (
+                                        filteredMiscTabRows
+                                            .slice((miscPage - 1) * miscPerPage, miscPage * miscPerPage)
+                                            .map((row) => (
+                                                <tr key={row.key} className="hover:bg-zinc-50 dark:bg-zinc-800/50">
+                                                    <td className="p-4 text-sm">
+                                                        <span className={cn(
+                                                            "px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                                                            row.type === 'Miscellaneous Commit'
+                                                                ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-300 dark:border-indigo-800"
+                                                                : "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800",
+                                                        )}>
+                                                            {row.type}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4 text-sm font-mono font-medium">{row.projectNumber}</td>
+                                                    <td className="p-4 text-sm text-zinc-700 dark:text-zinc-300 font-bold">{row.budgetHead}</td>
+                                                    <td className="p-4 text-sm font-mono text-zinc-600 dark:text-zinc-400">{row.appId}</td>
+                                                    <td className="p-4 text-sm">{row.date}</td>
+                                                    <td className="p-4 text-sm">{row.particulars}</td>
+                                                    <td className="p-4 text-sm text-zinc-600 dark:text-zinc-400">{row.refDetails}</td>
+                                                    <td className="p-4 text-right font-bold text-zinc-900 dark:text-zinc-100 text-sm">
+                                                        ₹{row.amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <span className={getStatusBadge(row.status)}>{row.status}</span>
+                                                    </td>
+                                                    <td className="p-4">
+                                                        {isRnDStaff && (
+                                                            <FrappeButton
+                                                                variant="primary"
+                                                                className="text-xs py-1 px-3"
+                                                                onClick={() => requestPayConfirmation(row.commit)}
+                                                            >
+                                                                Pay
+                                                            </FrappeButton>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={10} className="p-8 text-center text-zinc-500 dark:text-zinc-400">
+                                                No miscellaneous or recruitment commit records found.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {filteredMiscTabRows.length > miscPerPage && (
+                            <div className="p-4 border-t border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex justify-between items-center">
+                                <div className="text-sm text-zinc-900 dark:text-zinc-100 font-medium">
+                                    Showing {(miscPage - 1) * miscPerPage + 1} to {Math.min(miscPage * miscPerPage, filteredMiscTabRows.length)} of {filteredMiscTabRows.length} records
+                                </div>
+                                <div className="flex gap-1">
+                                    <FrappeButton
+                                        onClick={() => setMiscPage(p => Math.max(1, p - 1))}
+                                        disabled={miscPage === 1}
+                                        variant="outline"
+                                    >
+                                        Previous
+                                    </FrappeButton>
+                                    <FrappeButton
+                                        onClick={() => setMiscPage(p => p + 1)}
+                                        disabled={miscPage * miscPerPage >= filteredMiscTabRows.length}
                                         variant="outline"
                                     >
                                         Next
@@ -880,6 +1170,62 @@ const Payments: React.FC = () => {
                     </>
                 )}
             </main>
+
+            {payConfirm.open && payConfirm.commit && (
+                <div
+                    className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4"
+                    onClick={cancelPayConfirmation}
+                >
+                    <div
+                        className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-700 w-full max-w-md"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-700">
+                            <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Confirm Payment</h2>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                                You're about to pay{' '}
+                                <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                                    ₹{payConfirm.commit.commitAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </span>{' '}
+                                for <span className="font-mono">{payConfirm.commit.frapAppId || payConfirm.commit.projectNumber}</span>.
+                                A comment is required before proceeding.
+                            </p>
+                        </div>
+                        <div className="px-5 py-4 space-y-2">
+                            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                                Comment <span className="text-red-500">*</span>
+                            </label>
+                            <textarea
+                                rows={3}
+                                value={payConfirmComment}
+                                onChange={(e) => { setPayConfirmComment(e.target.value); if (payConfirmError) setPayConfirmError(null); }}
+                                placeholder="Add a comment before confirming this payment..."
+                                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] resize-none"
+                                autoFocus
+                            />
+                            {payConfirmError && (
+                                <p className="text-xs font-medium text-red-600 dark:text-red-400">{payConfirmError}</p>
+                            )}
+                        </div>
+                        <div className="flex justify-end gap-2 px-5 py-4 border-t border-zinc-200 dark:border-zinc-700">
+                            <button
+                                onClick={cancelPayConfirmation}
+                                disabled={isSubmittingPayConfirm}
+                                className="px-4 py-2 rounded-lg text-sm font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmPayWithComment}
+                                disabled={isSubmittingPayConfirm || !payConfirmComment.trim()}
+                                className="px-4 py-2 rounded-lg text-sm font-semibold bg-[#D97757] hover:bg-[#c66a4e] text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isSubmittingPayConfirm ? 'Confirming...' : 'Confirm & Pay'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {paymentModalOpen && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setPaymentModalOpen(false)}>

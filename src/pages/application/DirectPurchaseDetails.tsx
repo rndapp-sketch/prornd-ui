@@ -599,6 +599,8 @@ const ClaudeButton = ({
     className,
     variant = "outline",
     title,
+    id,
+    "data-action": dataAction,
 }: {
     children: React.ReactNode;
     onClick?: () => void;
@@ -606,8 +608,12 @@ const ClaudeButton = ({
     className?: string;
     variant?: "primary" | "outline" | "ghost" | "action";
     title?: string;
+    id?: string;
+    "data-action"?: string;
 }) => (
     <button
+        id={id}
+        data-action={dataAction}
         onClick={onClick}
         disabled={disabled}
         title={title}
@@ -1096,6 +1102,8 @@ const DirectPurchaseActionButtons = ({
     onSanctionMissing,
     highlight = false,
     onActionsLoaded,
+    autoTrigger,
+    onAutoTriggerConsumed,
 }: {
     docname: string;
     onActionComplete: () => void;
@@ -1106,6 +1114,11 @@ const DirectPurchaseActionButtons = ({
     onSanctionMissing?: () => void;
     highlight?: boolean;
     onActionsLoaded?: (actions: string[]) => void;
+    // When set and `autoTrigger.action` is currently available, runs that action
+    // immediately with the given comment — no modal, no manual "Confirm" click.
+    // Used to chain "Mark Print Taken" onto the Sanction Sheet's Print/PDF button.
+    autoTrigger?: { action: string; comment?: string } | null;
+    onAutoTriggerConsumed?: () => void;
 }) => {
     const [actions, setActions] = useState<string[]>([]);
     const [isPerforming, setIsPerforming] = useState(false);
@@ -1143,6 +1156,44 @@ const DirectPurchaseActionButtons = ({
             .catch(() => setActions([]));
     };
 
+    const runAction = async (action: string, actionComment: string) => {
+        setShowCommentModal(false);
+        setIsPerforming(true);
+        try {
+            const result: any = await performAction({ docname, action, comment: actionComment });
+            const success = result?.message?.status === "success" || (result?.message && result.message.status !== "error");
+            if (result?.message?.status === "error") {
+                setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(result?.message) });
+            } else {
+                if (actionComment.trim()) {
+                    try {
+                        await addComment({ doctype: "Direct Purchase", docname, content: actionComment.trim() });
+                    } catch (e) {
+                        console.warn("Failed to save action comment:", e);
+                    }
+                }
+                alert(result?.message?.message || `Action "${action}" completed.`);
+                if (success) { refreshActions(); onActionComplete(); }
+            }
+        } catch (err: any) {
+            setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(err) });
+        } finally {
+            setIsPerforming(false);
+            setComment("");
+        }
+    };
+
+    // Fire the auto-trigger the moment its action shows up as available — skips the
+    // comment modal entirely and submits with the given (or empty) comment.
+    const autoTriggerHandled = useRef(false);
+    useEffect(() => {
+        if (!autoTrigger || autoTriggerHandled.current) return;
+        if (!actions.includes(autoTrigger.action)) return;
+        autoTriggerHandled.current = true;
+        runAction(autoTrigger.action, autoTrigger.comment ?? "");
+        onAutoTriggerConsumed?.();
+    }, [autoTrigger, actions]);
+
     const handleActionClick = (action: string) => {
         if (action === "Submit P-11" && !p11DocName) {
             alert(
@@ -1159,32 +1210,8 @@ const DirectPurchaseActionButtons = ({
         setShowCommentModal(true);
     };
 
-    const handleActionConfirm = async (actionComment: string) => {
-        setShowCommentModal(false);
-        setIsPerforming(true);
-        try {
-            const result: any = await performAction({ docname, action: selectedAction, comment: actionComment });
-            const success = result?.message?.status === "success" || (result?.message && result.message.status !== "error");
-            if (result?.message?.status === "error") {
-                setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(result?.message) });
-            } else {
-                if (actionComment.trim()) {
-                    try {
-                        await addComment({ doctype: "Direct Purchase", docname, content: actionComment.trim() });
-                    } catch (e) {
-                        console.warn("Failed to save action comment:", e);
-                    }
-                }
-                alert(result?.message?.message || `Action "${selectedAction}" completed.`);
-                if (success) { refreshActions(); onActionComplete(); }
-            }
-        } catch (err: any) {
-            setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(err) });
-        } finally {
-            setIsPerforming(false);
-            setComment("");
-        }
-    };
+    const handleActionConfirm = (actionComment: string) =>
+        runAction(selectedAction, actionComment);
 
     if (!actions.length) return null;
 
@@ -1205,6 +1232,7 @@ const DirectPurchaseActionButtons = ({
                     {actions.map((action) => (
                         <ClaudeButton
                             key={action}
+                            data-action={action}
                             variant="action"
                             onClick={() => handleActionClick(action)}
                             disabled={isPerforming || commitRequired || sanctionRequired}
@@ -1448,10 +1476,15 @@ const SanctionSheetActionButtons = ({
     docname,
     onActionComplete,
     hiddenActions = [],
+    onActionsChange,
 }: {
     docname: string;
     onActionComplete: () => void;
     hiddenActions?: string[];
+    // Reports the fetched action list up so callers (e.g. the Print/PDF button, which
+    // needs to know whether "Mark Print Taken" is really in the DOM before clicking it)
+    // read the exact same state instead of running their own separate, possibly-racing fetch.
+    onActionsChange?: (actions: string[]) => void;
 }) => {
     const [actions, setActions] = useState<string[]>([]);
     const [isPerforming, setIsPerforming] = useState(false);
@@ -1475,9 +1508,9 @@ const SanctionSheetActionButtons = ({
             fetchActions({ docname })
                 .then((res) => {
                     if (res?.message) {
-                        setActions(
-                            Array.isArray(res.message) ? res.message : [],
-                        );
+                        const list = Array.isArray(res.message) ? res.message : [];
+                        setActions(list);
+                        onActionsChange?.(list);
                     }
                 })
                 .catch((err) =>
@@ -1566,6 +1599,7 @@ const SanctionSheetActionButtons = ({
                     {visibleActions.map((action) => (
                         <ClaudeButton
                             key={action}
+                            data-action={action}
                             variant="action"
                             className={getActionButtonClass(action)}
                             onClick={() => handleActionClick(action)}
@@ -1635,6 +1669,7 @@ const LinkedDocTab = ({
     emptyDescription,
     onDataReload,
     parentData,
+    onRequestMarkPrintTaken,
 }: {
     doctype: string;
     filterField: string;
@@ -1643,6 +1678,9 @@ const LinkedDocTab = ({
     emptyDescription: string;
     onDataReload?: () => void;
     parentData?: Record<string, any>;
+    // For sanction_sheet only — called when Print/PDF is clicked, to auto-run the
+    // Direct Purchase document's "Mark Print Taken" action (in the page header).
+    onRequestMarkPrintTaken?: () => void;
 }) => {
     const {
         data: listData,
@@ -1667,14 +1705,6 @@ const LinkedDocTab = ({
     } = useFrappeGetDoc<Record<string, any>>(doctype, docName);
 
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
-    const [ssActions, setSsActions] = useState<string[]>([]);
-    const [isMergedPerforming, setIsMergedPerforming] = useState(false);
-    const { call: fetchSSActions } = useFrappePostCall<{ message: string[] }>(
-        sanctionSheetAPI.getWorkflowActions,
-    );
-    const { call: performSSAction } = useFrappePostCall(
-        sanctionSheetAPI.performAction,
-    );
 
     // Reload handler
     const handleReload = () => {
@@ -1683,36 +1713,21 @@ const LinkedDocTab = ({
         if (onDataReload) onDataReload();
     };
 
-    // Fetch SS workflow actions when viewing a sanction_sheet
-    useEffect(() => {
-        if (doctype !== "sanction_sheet" || !docName) return;
-        fetchSSActions({ docname: docName })
-            .then(res => {
-                setSsActions(Array.isArray(res?.message) ? res.message : []);
-            })
-            .catch(() => setSsActions([]));
-    }, [doctype, docName]);
-
-    const hasPrintMarkAction = doctype === "sanction_sheet" && ssActions.includes("Mark Print Taken");
-
+    // Clicking "Print / PDF" opens the print preview, then — after a short delay so it
+    // doesn't fight with the print modal's own opening transition — asks the parent to
+    // auto-run "Mark Print Taken". That action belongs to the Direct Purchase document's
+    // own workflow (rendered in the page header, next to "View Project"), not the
+    // sanction_sheet doctype, so this component can't perform it directly.
     const handleMergedPrint = () => {
         setIsPrintModalOpen(true);
+        if (doctype !== "sanction_sheet" || !onRequestMarkPrintTaken) return;
+        setTimeout(() => {
+            onRequestMarkPrintTaken();
+        }, 500);
     };
 
-    const handleSanctionPrintModalClose = async () => {
+    const handleSanctionPrintModalClose = () => {
         setIsPrintModalOpen(false);
-        if (hasPrintMarkAction && docName) {
-            setIsMergedPerforming(true);
-            try {
-                await performSSAction({ docname: docName, action: "Mark Print Taken", comment: "" });
-                setSsActions(prev => prev.filter(a => a !== "Mark Print Taken"));
-                handleReload();
-            } catch (e) {
-                console.warn("Mark Print Taken failed:", e);
-            } finally {
-                setIsMergedPerforming(false);
-            }
-        }
     };
 
     if (listLoading || docLoading) {
@@ -1758,11 +1773,9 @@ const LinkedDocTab = ({
                 {doctype === "sanction_sheet" && (
                     <button
                         onClick={handleMergedPrint}
-                        disabled={isMergedPerforming}
-                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[12px] font-bold text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-60"
+                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[12px] font-bold text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
                     >
-                        <Printer className="h-3.5 w-3.5" />
-                        {isMergedPerforming ? "Processing…" : hasPrintMarkAction ? "Print & Mark Taken" : "Print / PDF"}
+                        <Printer className="h-3.5 w-3.5" /> Print / PDF
                     </button>
                 )}
             </div>
@@ -1796,7 +1809,6 @@ const LinkedDocTab = ({
                     <SanctionSheetActionButtons
                         docname={docName}
                         onActionComplete={handleReload}
-                        hiddenActions={hasPrintMarkAction ? ["Mark Print Taken"] : []}
                     />
                     <P11PrintModal
                         isOpen={isPrintModalOpen}
@@ -2605,6 +2617,9 @@ const DirectPurchaseDetails: React.FC = () => {
     );
     const highlightAction = searchParams.get("highlight_action") === "1";
     const [dpActions, setDpActions] = useState<string[]>([]);
+    // Set by the Sanction Sheet's Print/PDF button to auto-run the header's
+    // "Mark Print Taken" workflow action (skipping its confirm modal) once it's available.
+    const [dpAutoTrigger, setDpAutoTrigger] = useState<{ action: string; comment?: string } | null>(null);
     const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
     const [isGeneratingPO, setIsGeneratingPO] = useState(false);
     const [isGeneratingP11, setIsGeneratingP11] = useState(false);
@@ -3262,6 +3277,8 @@ const DirectPurchaseDetails: React.FC = () => {
                                 onSanctionMissing={() => setActiveTab("sanction")}
                                 highlight={highlightAction}
                                 onActionsLoaded={setDpActions}
+                                autoTrigger={dpAutoTrigger}
+                                onAutoTriggerConsumed={() => setDpAutoTrigger(null)}
                             />
                         )}
                     </div>
@@ -3519,6 +3536,13 @@ const DirectPurchaseDetails: React.FC = () => {
                                         emptyTitle="No Sanction Sheet Generated Yet"
                                         emptyDescription="The Sanction Sheet is created by RnD Staff after the P-11 Form is verified and approved."
                                         onDataReload={loadData}
+                                        onRequestMarkPrintTaken={() =>
+                                            setDpAutoTrigger({
+                                                action: "Mark Print Taken",
+                                                comment:
+                                                    "Auto-confirmed after printing the Sanction Sheet.",
+                                            })
+                                        }
                                     />
                                 )}
                             </>

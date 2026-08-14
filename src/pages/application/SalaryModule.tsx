@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
@@ -347,11 +347,13 @@ const SalaryModule: React.FC = () => {
     // ─── Salary Processing Status ─────────────────────────────────────────
     const [activeTab, setActiveTab] = useState<"pending" | "processed">("pending");
     const [processedEmployees, setProcessedEmployees] = useState<Set<string>>(new Set());
+    const [stagingRecords, setStagingRecords] = useState<any[]>([]);
     const [isCheckingStatus, setIsCheckingStatus] = useState(false);
 
     // Reset tab when period changes
     useEffect(() => {
         setProcessedEmployees(new Set());
+        setStagingRecords([]);
         setActiveTab("pending");
         setSelectedEmpIds(new Set());
     }, [selectedYear, selectedMonth]);
@@ -896,11 +898,11 @@ const SalaryModule: React.FC = () => {
             );
 
             const processedEmpIds = new Set<string>();
+            let salaryRecords: any[] = [];
 
             if (response.ok) {
                 const json = await response.json();
                 // salary_record is a JSON string array of payment records
-                let salaryRecords: any[] = [];
                 try {
                     const raw = json?.data?.salary_record ?? json?.message?.salary_record ?? "[]";
                     salaryRecords = typeof raw === "string" ? JSON.parse(raw) : raw;
@@ -920,6 +922,7 @@ const SalaryModule: React.FC = () => {
             const currentSYM = `${selectedYear}_${MONTHS[selectedMonth].label.toLowerCase()}`;
             if (salary_year_month === currentSYM) {
                 setProcessedEmployees(new Set(processedEmpIds));
+                setStagingRecords(salaryRecords);
             }
         } catch (err) {
             console.error("Salary Staging fetch failed:", err);
@@ -1215,6 +1218,19 @@ const SalaryModule: React.FC = () => {
         }, 0);
     }, [filtered, getRowInputs, selectedMonth, selectedYear, daysInMonth]);
 
+    // CSV export dropdown state
+    const [showExportDropdown, setShowExportDropdown] = useState(false);
+    const exportBtnRef = useRef<HTMLDivElement>(null);
+    const [exportDropdownPos, setExportDropdownPos] = useState({ top: 0, right: 0 });
+
+    const openExportDropdown = () => {
+        if (exportBtnRef.current) {
+            const rect = exportBtnRef.current.getBoundingClientRect();
+            setExportDropdownPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+        }
+        setShowExportDropdown(true);
+    };
+
     // CSV export
     const exportCSV = () => {
         const monthLabel = MONTHS.find(m => m.value === selectedMonth)?.label || "Month";
@@ -1226,7 +1242,7 @@ const SalaryModule: React.FC = () => {
             "HRA Ded", "Medical Ded.", "P-Tax", "TA", "ID Card Charge", "Electricity Bill", "Other Deduction",
             "Total Deduction", "Net Pay", "Comment", "Remarks"
         ];
-        const rows = filtered.map((r, i) => {
+        const rows = pendingRecords.map((r, i) => {
             const { inputs } = getRowInputs(r.docName);
             const workingDays = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
             const proRataBasic = calcProRataBasic(r.basic_salary, workingDays, daysInMonth);
@@ -1256,7 +1272,42 @@ const SalaryModule: React.FC = () => {
         ).join("\n");
         const a = document.createElement("a");
         a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-        a.download = `Staff_Salary_Statement_${monthLabel}_${selectedYear}.csv`;
+        a.download = `Staff_Salary_Unprocessed_${monthLabel}_${selectedYear}.csv`;
+        a.click();
+    };
+
+    const exportStagingCSV = () => {
+        const monthLabel = MONTHS.find(m => m.value === selectedMonth)?.label || "Month";
+        const headers = [
+            "Sl.No", "Employee ID", "Name", "Email ID", "Department", "Designation",
+            "Joining Date", "Project No", "Period",
+            "Basic Salary", "HRA", "Working Days", "Pro Rata Basic", "Pro Rata HRA", "Arrear", "Gross Pay",
+            "HRA Deduction", "Medical Deduction", "P-Tax", "Total Deduction", "Net Pay",
+            "Commit Amount", "Payment Amount", "Payment Particular", "Payment Date",
+            "BMR", "Frap App ID", "Comment", "Remarks"
+        ];
+        const rows = stagingRecords.map((rec, i) => {
+            const ud = rec?.salary_user_details ?? {};
+            const totalDed = (ud.hra_deduction ?? 0) + (ud.medical_deduction ?? 0) + (ud.p_tax ?? 0);
+            return [
+                i + 1,
+                ud.employee_id ?? "", ud.first_name ?? "", ud.email_id ?? "",
+                ud.department ?? "", ud.designation ?? "", ud.joining_date ?? "",
+                rec?.project_no || rec?.projectNumber || "", rec?.salary_year_month ?? "",
+                ud.basic_salary ?? 0, ud.hra ?? 0, ud.working_days ?? 0,
+                ud.pro_rata_basic ?? 0, ud.pro_rata_hra ?? 0, ud.arrear ?? 0, ud.gross_pay ?? 0,
+                ud.hra_deduction ?? 0, ud.medical_deduction ?? 0, ud.p_tax ?? 0, totalDed, ud.net_pay ?? 0,
+                rec?.commitAmount ?? 0, rec?.payment_amount ?? 0,
+                rec?.payment_particular ?? "", rec?.payment_date ?? "",
+                rec?.bmr ?? "", rec?.frapAppId ?? "", ud.comment ?? "", ud.remarks ?? ""
+            ];
+        });
+        const csv = [headers, ...rows].map(row =>
+            row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")
+        ).join("\n");
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+        a.download = `Salary_Processed_${monthLabel}_${selectedYear}.csv`;
         a.click();
     };
 
@@ -1380,10 +1431,63 @@ const SalaryModule: React.FC = () => {
                                 <RefreshCw className={cn("h-3.5 w-3.5 text-[#71717A]", isLoading && "animate-spin")} /> Refresh
                             </button>
 
-                            <button onClick={exportCSV} disabled={filtered.length === 0 || isLoading || !isPrepared}
-                                className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#D97757] px-3 text-[12px] font-bold text-white shadow-sm transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[#F4F4F5] disabled:text-[#A1A1AA] dark:disabled:bg-[#3F3F46] dark:disabled:text-[#71717A]">
-                                <Download className="h-3.5 w-3.5" /> Export CSV
-                            </button>
+                            <div ref={exportBtnRef} className="relative">
+                                <div className="inline-flex h-10 rounded-lg shadow-sm overflow-hidden border border-[#D97757]">
+                                    <button
+                                        onClick={() => { exportCSV(); setShowExportDropdown(false); }}
+                                        disabled={filtered.length === 0 || isLoading || !isPrepared}
+                                        className="inline-flex items-center gap-2 bg-[#D97757] px-3 text-[12px] font-bold text-white transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[#F4F4F5] disabled:text-[#A1A1AA] dark:disabled:bg-[#3F3F46] dark:disabled:text-[#71717A]"
+                                    >
+                                        <Download className="h-3.5 w-3.5" /> Export CSV
+                                    </button>
+                                    <button
+                                        onClick={showExportDropdown ? () => setShowExportDropdown(false) : openExportDropdown}
+                                        disabled={isLoading || !isPrepared}
+                                        className="inline-flex items-center px-2 bg-[#C4673F] text-white hover:bg-[#B85A35] transition-colors disabled:cursor-not-allowed disabled:bg-[#E4E4E7] disabled:text-[#A1A1AA] dark:disabled:bg-[#3F3F46] dark:disabled:text-[#71717A] border-l border-[#B85A35]"
+                                    >
+                                        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showExportDropdown && "rotate-180")} />
+                                    </button>
+                                </div>
+                            </div>
+                            {showExportDropdown && (
+                                <>
+                                    <div className="fixed inset-0 z-[60]" onClick={() => setShowExportDropdown(false)} />
+                                    <div
+                                        className="fixed z-[61] w-64 rounded-xl border border-[#E4E4E7] bg-white shadow-2xl dark:border-[#3F3F46] dark:bg-[#27272A] overflow-hidden"
+                                        style={{ top: exportDropdownPos.top, right: exportDropdownPos.right }}
+                                    >
+                                        <div className="px-3 py-2 text-[10px] font-extrabold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                                            Select data to export
+                                        </div>
+                                        <button
+                                            onClick={() => { exportCSV(); setShowExportDropdown(false); }}
+                                            disabled={pendingRecords.length === 0 || !isPrepared}
+                                            className="flex w-full items-center gap-3 px-4 py-3 text-left text-[13px] font-medium text-[#3F3F46] hover:bg-[#FAFAF9] dark:text-[#E4E4E7] dark:hover:bg-[#3F3F46] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-orange-50 dark:bg-orange-950/20">
+                                                <Download className="h-3.5 w-3.5 text-[#D97757]" />
+                                            </div>
+                                            <div>
+                                                <p className="font-bold">Unprocessed Records</p>
+                                                <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA]">{pendingRecords.length} pending staff records</p>
+                                            </div>
+                                        </button>
+                                        <button
+                                            onClick={() => { exportStagingCSV(); setShowExportDropdown(false); }}
+                                            disabled={stagingRecords.length === 0}
+                                            className="flex w-full items-center gap-3 px-4 py-3 text-left text-[13px] font-medium text-[#3F3F46] hover:bg-[#FAFAF9] dark:text-[#E4E4E7] dark:hover:bg-[#3F3F46] disabled:opacity-40 disabled:cursor-not-allowed transition-colors border-t border-[#E4E4E7] dark:border-[#3F3F46]"
+                                        >
+                                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-50 dark:bg-emerald-950/20">
+                                                <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                                            </div>
+                                            <div>
+                                                <p className="font-bold">Processed Records</p>
+                                                <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA]">{stagingRecords.length} records from Salary Staging</p>
+                                            </div>
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 </header>
@@ -1630,7 +1734,7 @@ const SalaryModule: React.FC = () => {
                                     </div>
                                     Salary Register
                                     <span className="ml-1 inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/30 px-2.5 py-0.5 text-[11px] font-bold text-blue-700 dark:text-blue-300">
-                                        {displayedRecords.length} {displayedRecords.length === 1 ? 'record' : 'records'}
+                                        {activeTab === "processed" ? stagingRecords.length : displayedRecords.length} {(activeTab === "processed" ? stagingRecords.length : displayedRecords.length) === 1 ? 'record' : 'records'}
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -1661,17 +1765,148 @@ const SalaryModule: React.FC = () => {
                                         <p className="text-xs text-red-400 max-w-md mx-auto break-all bg-red-50 dark:bg-red-950/20 p-3 rounded-lg border border-red-200 dark:border-red-900/30">{error}</p>
                                         <button onClick={fetchData} className="mt-5 text-sm text-[#D97757] hover:underline font-bold">Try again</button>
                                     </div>
-                                ) : displayedRecords.length === 0 ? (
+                                ) : activeTab === "processed" ? (
+                                    stagingRecords.length === 0 ? (
+                                        <div className="py-24 text-center">
+                                            <CheckCircle2 className="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
+                                            <p className="text-base font-bold text-zinc-900 dark:text-white mb-1">No processed salaries yet</p>
+                                            <p className="text-sm text-zinc-400 dark:text-zinc-500 max-w-md mx-auto">
+                                                No salary payments have been processed for this period. Switch to the &ldquo;Salary To Be Processed&rdquo; tab to process payments.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="overflow-x-auto max-h-[calc(100vh-280px)] overflow-y-auto scroll-smooth">
+                                            <table className="min-w-[3800px] table-auto border-collapse divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
+                                                <thead className="sticky top-0 z-20 bg-emerald-50 text-[10px] font-extrabold uppercase tracking-wider text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
+                                                    <tr className="border-b border-emerald-200 dark:border-emerald-900/40">
+                                                        {/* Fixed identity columns */}
+                                                        <th rowSpan={2} className="w-[48px] min-w-[48px] sticky left-0 z-30 bg-emerald-50 dark:bg-emerald-950/30 border-r border-emerald-200 dark:border-emerald-900/40 px-3 py-3 text-left">#</th>
+                                                        <th rowSpan={2} className="w-[120px] min-w-[120px] sticky left-[48px] z-30 bg-emerald-50 dark:bg-emerald-950/30 border-r border-emerald-200 dark:border-emerald-900/40 px-3 py-3 text-left">Emp ID</th>
+                                                        <th rowSpan={2} className="w-[190px] min-w-[190px] sticky left-[168px] z-30 bg-emerald-50 dark:bg-emerald-950/30 border-r border-emerald-200 dark:border-emerald-900/40 px-3 py-3 text-left shadow-[4px_0_8px_-3px_rgba(0,0,0,0.1)]">Name</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[200px] border-r border-emerald-200 dark:border-emerald-900/40">Email ID</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[160px] border-r border-emerald-200 dark:border-emerald-900/40">Department</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[160px] border-r border-emerald-200 dark:border-emerald-900/40">Designation</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[100px] border-r border-emerald-200 dark:border-emerald-900/40">Joining Date</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[110px] border-r border-emerald-200 dark:border-emerald-900/40">Project No</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[80px] border-r border-emerald-200 dark:border-emerald-900/40">Period</th>
+                                                        {/* Earnings group */}
+                                                        <th colSpan={7} className="px-3 py-2 text-center bg-emerald-100/60 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-400 border-b border-emerald-200 dark:border-emerald-900/40">Earnings (₹)</th>
+                                                        {/* Deductions group */}
+                                                        <th colSpan={4} className="px-3 py-2 text-center bg-rose-50/60 dark:bg-rose-950/20 text-rose-800 dark:text-rose-400 border-b border-emerald-200 dark:border-emerald-900/40">Deductions (₹)</th>
+                                                        {/* Net */}
+                                                        <th rowSpan={2} className="px-3 py-3 text-right min-w-[110px] bg-amber-50/50 dark:bg-amber-900/10 text-amber-900 dark:text-amber-300 border-l border-r border-emerald-200 dark:border-emerald-900/40 font-bold">Net Pay (₹)</th>
+                                                        {/* Payment info */}
+                                                        <th rowSpan={2} className="px-3 py-3 text-right min-w-[120px] border-r border-emerald-200 dark:border-emerald-900/40">Commit Amt (₹)</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-right min-w-[120px] border-r border-emerald-200 dark:border-emerald-900/40">Pay Amt (₹)</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[160px] border-r border-emerald-200 dark:border-emerald-900/40">Payment Particular</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[110px] border-r border-emerald-200 dark:border-emerald-900/40">Payment Date</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-center min-w-[120px] border-r border-emerald-200 dark:border-emerald-900/40">Payment Status</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-center min-w-[100px] border-r border-emerald-200 dark:border-emerald-900/40">Status</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[110px] border-r border-emerald-200 dark:border-emerald-900/40">BMR</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[130px] border-r border-emerald-200 dark:border-emerald-900/40">Frap App ID</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[180px] border-r border-emerald-200 dark:border-emerald-900/40">Comment</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[180px]">Remarks</th>
+                                                    </tr>
+                                                    <tr className="bg-emerald-50 dark:bg-emerald-950/30">
+                                                        {/* Earnings sub-headers */}
+                                                        <th className="px-3 py-2 text-right min-w-[100px] bg-emerald-100/40 dark:bg-emerald-900/15 text-emerald-700 dark:text-emerald-400">Basic</th>
+                                                        <th className="px-3 py-2 text-right min-w-[90px] bg-emerald-100/40 dark:bg-emerald-900/15 text-emerald-700 dark:text-emerald-400">HRA</th>
+                                                        <th className="px-3 py-2 text-center min-w-[70px] bg-emerald-100/40 dark:bg-emerald-900/15 text-emerald-600 dark:text-emerald-500">Days</th>
+                                                        <th className="px-3 py-2 text-right min-w-[100px] bg-emerald-100/40 dark:bg-emerald-900/15 text-emerald-700 dark:text-emerald-400">Pro Rata Basic</th>
+                                                        <th className="px-3 py-2 text-right min-w-[100px] bg-emerald-100/40 dark:bg-emerald-900/15 text-emerald-700 dark:text-emerald-400">Pro Rata HRA</th>
+                                                        <th className="px-3 py-2 text-right min-w-[90px] bg-emerald-100/60 dark:bg-emerald-900/20 text-orange-600 dark:text-orange-400">Arrear</th>
+                                                        <th className="px-3 py-2 text-right min-w-[100px] bg-emerald-100/80 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 font-bold border-r border-emerald-200 dark:border-emerald-900/40">Gross</th>
+                                                        {/* Deductions sub-headers */}
+                                                        <th className="px-3 py-2 text-right min-w-[90px] bg-rose-50/40 dark:bg-rose-950/15 text-rose-600 dark:text-rose-400">HRA Ded</th>
+                                                        <th className="px-3 py-2 text-right min-w-[90px] bg-rose-50/40 dark:bg-rose-950/15 text-rose-600 dark:text-rose-400">Medical</th>
+                                                        <th className="px-3 py-2 text-right min-w-[80px] bg-rose-50/40 dark:bg-rose-950/15 text-rose-600 dark:text-rose-400">P-Tax</th>
+                                                        <th className="px-3 py-2 text-right min-w-[90px] bg-rose-50/60 dark:bg-rose-950/20 text-rose-800 dark:text-rose-300 font-bold border-r border-emerald-200 dark:border-emerald-900/40">Total Ded</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/80 text-[12px]">
+                                                    {stagingRecords.map((rec, i) => {
+                                                        const ud = rec?.salary_user_details ?? {};
+                                                        const isPaid = (rec?.payment_status ?? "").toLowerCase() === "paid";
+                                                        const totalDed = (ud.hra_deduction ?? 0) + (ud.medical_deduction ?? 0) + (ud.p_tax ?? 0);
+                                                        const rowBg = i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50/80 dark:bg-zinc-900/60";
+                                                        return (
+                                                            <tr key={i} className={cn("transition-colors hover:bg-emerald-50/30 dark:hover:bg-emerald-950/10", rowBg)}>
+                                                                <td className={cn("sticky left-0 z-10 px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-xs text-zinc-400 tabular-nums w-[48px] min-w-[48px]", rowBg)}>{i + 1}</td>
+                                                                <td className={cn("sticky left-[48px] z-10 px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 font-mono text-xs text-[#4A6CF7] dark:text-[#A5B4FC] w-[120px] min-w-[120px] whitespace-nowrap", rowBg)}>{ud.employee_id ?? "—"}</td>
+                                                                <td className={cn("sticky left-[168px] z-10 px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 font-semibold text-zinc-900 dark:text-white w-[190px] min-w-[190px] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.05)] whitespace-nowrap", rowBg)}>{ud.first_name ?? "—"}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{ud.email_id ?? "—"}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{ud.department ?? "—"}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{ud.designation ?? "—"}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{ud.joining_date ?? "—"}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 font-mono text-xs text-[#4A6CF7] dark:text-[#A5B4FC] whitespace-nowrap">{rec?.project_no || rec?.projectNumber || "—"}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{(rec?.salary_year_month ?? "").replace("_", " ")}</td>
+                                                                {/* Earnings */}
+                                                                <td className="px-3 py-2.5 text-right tabular-nums text-emerald-800 dark:text-emerald-300 bg-emerald-50/10 dark:bg-emerald-950/10 whitespace-nowrap">{fmt(ud.basic_salary ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 dark:bg-emerald-950/10 whitespace-nowrap">{fmt(ud.hra ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 text-center tabular-nums text-zinc-600 dark:text-zinc-400 bg-emerald-50/10 dark:bg-emerald-950/10">{ud.working_days ?? "—"}</td>
+                                                                <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 dark:bg-emerald-950/10 whitespace-nowrap">{fmt(ud.pro_rata_basic ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 dark:bg-emerald-950/10 whitespace-nowrap">{fmt(ud.pro_rata_hra ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 text-right tabular-nums text-orange-600 dark:text-orange-400 bg-emerald-50/15 dark:bg-emerald-950/15 whitespace-nowrap">{fmt(ud.arrear ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 text-right tabular-nums font-bold text-emerald-900 dark:text-emerald-300 bg-emerald-100/40 dark:bg-emerald-900/20 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(ud.gross_pay ?? 0)}</td>
+                                                                {/* Deductions */}
+                                                                <td className="px-3 py-2.5 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 dark:bg-rose-950/10 whitespace-nowrap">{fmt(ud.hra_deduction ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 dark:bg-rose-950/10 whitespace-nowrap">{fmt(ud.medical_deduction ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 dark:bg-rose-950/10 whitespace-nowrap">{fmt(ud.p_tax ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 text-right tabular-nums font-bold text-rose-900 dark:text-rose-300 bg-rose-100/30 dark:bg-rose-900/15 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(totalDed)}</td>
+                                                                {/* Net */}
+                                                                <td className="px-3 py-2.5 text-right tabular-nums font-bold text-amber-900 dark:text-amber-300 bg-amber-50/30 dark:bg-amber-950/15 border-l border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(ud.net_pay ?? 0)}</td>
+                                                                {/* Payment */}
+                                                                <td className="px-3 py-2.5 text-right tabular-nums text-zinc-700 dark:text-zinc-300 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(rec?.commitAmount ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 text-right tabular-nums text-zinc-700 dark:text-zinc-300 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(rec?.payment_amount ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">{rec?.payment_particular ?? "—"}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{rec?.payment_date ?? "—"}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-center">
+                                                                    <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold", isPaid ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400")}>
+                                                                        {isPaid && <CheckCircle2 className="w-3 h-3" />}
+                                                                        {rec?.payment_status ?? "—"}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-center">
+                                                                    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{rec?.status ?? "—"}</span>
+                                                                </td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400">{rec?.bmr ?? "—"}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 font-mono text-xs text-zinc-500 dark:text-zinc-400">{rec?.frapAppId ?? "—"}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400">{ud.comment ?? "—"}</td>
+                                                                <td className="px-3 py-2.5 text-zinc-500 dark:text-zinc-400">{ud.remarks ?? "—"}</td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                                <tfoot className="sticky bottom-0 z-20 bg-zinc-50 dark:bg-zinc-950 border-t-2 border-zinc-200 dark:border-zinc-700 text-[11px] font-bold uppercase tracking-wide">
+                                                    <tr>
+                                                        <td colSpan={9} className="px-3 py-3 sticky left-0 bg-zinc-50 dark:bg-zinc-950 text-zinc-500 dark:text-zinc-400">{stagingRecords.length} payments</td>
+                                                        {/* Earnings totals */}
+                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-800 dark:text-emerald-300 bg-emerald-50/10 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.basic_salary ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.hra ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 bg-emerald-50/10"></td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.pro_rata_basic ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.pro_rata_hra ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-orange-600 dark:text-orange-400 bg-emerald-50/15 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.arrear ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-900 dark:text-emerald-300 bg-emerald-100/40 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.gross_pay ?? 0), 0))}</td>
+                                                        {/* Deductions totals */}
+                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.hra_deduction ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.medical_deduction ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.p_tax ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-900 dark:text-rose-300 bg-rose-100/30 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + ((r?.salary_user_details?.hra_deduction ?? 0) + (r?.salary_user_details?.medical_deduction ?? 0) + (r?.salary_user_details?.p_tax ?? 0)), 0))}</td>
+                                                        {/* Net total */}
+                                                        <td className="px-3 py-3 text-right tabular-nums text-amber-900 dark:text-amber-300 bg-amber-50/30 border-l border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.net_pay ?? 0), 0))}</td>
+                                                        {/* Payment totals */}
+                                                        <td className="px-3 py-3 text-right tabular-nums text-zinc-700 dark:text-zinc-300 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.commitAmount ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-zinc-700 dark:text-zinc-300 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.payment_amount ?? 0), 0))}</td>
+                                                        <td colSpan={7} className="px-3 py-3 bg-zinc-50 dark:bg-zinc-950"></td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    )
+                                ) : pendingRecords.length === 0 ? (
                                     <div className="py-24 text-center">
-                                        {activeTab === "processed" ? (
-                                            <>
-                                                <CheckCircle2 className="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
-                                                <p className="text-base font-bold text-zinc-900 dark:text-white mb-1">No processed salaries yet</p>
-                                                <p className="text-sm text-zinc-400 dark:text-zinc-500 max-w-md mx-auto">
-                                                    No salary payments have been processed for this period. Switch to the &ldquo;Salary To Be Processed&rdquo; tab to process payments.
-                                                </p>
-                                            </>
-                                        ) : pendingRecords.length === 0 && processedRecords.length > 0 ? (
+                                        {processedRecords.length > 0 ? (
                                             <>
                                                 <CheckCircle2 className="w-12 h-12 text-emerald-400 dark:text-emerald-500 mx-auto mb-3" />
                                                 <p className="text-base font-bold text-emerald-700 dark:text-emerald-400 mb-1">All salaries processed!</p>
