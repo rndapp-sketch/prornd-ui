@@ -311,6 +311,17 @@ const router = createBrowserRouter(
                 },
 
                 {
+                    // HoS review route — opened from the dashboard pending-task list,
+                    // keyed by the Proforma Invoice's own name.
+                    path: "proforma-invoice/:docname",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <ProInvForm />
+                        </AuthRouteWrapper>
+                    ),
+                },
+
+                {
                     path: "project-ledger-full/:projectName",
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">

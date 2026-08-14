@@ -466,12 +466,18 @@ const PendingTask: React.FC = () => {
                     modified: record.modified,
                     owner: record.owner,
                     doctype: group.doctype,
-                    project_type: resolveProjectCategory(
-                        record as unknown as Record<string, unknown>,
-                        group.doctype,
-                        prNameToType,
-                        prNoToType,
-                    ),
+                    // Proforma Invoices are only ever raised for Consultancy projects
+                    // (the "Pro Inv" action is gated to project_type === "Consultancy"),
+                    // and the doctype is read-restricted so the generic type-resolution
+                    // can't fetch it — categorize it directly.
+                    project_type: group.doctype === "Proforma_Invoice"
+                        ? 'Consultancy'
+                        : resolveProjectCategory(
+                            record as unknown as Record<string, unknown>,
+                            group.doctype,
+                            prNameToType,
+                            prNoToType,
+                        ),
                 });
             });
         });
@@ -1146,6 +1152,8 @@ const PendingTask: React.FC = () => {
                                                                 navigate(`/project-staff-resignation?edit=${encodeURIComponent(task.id)}`);
                                                             } else if (task.doctype === "Project Staff Extension") {
                                                                 navigate(`/project-staff-extension?edit=${encodeURIComponent(task.id)}`);
+                                                            } else if (task.doctype === "Proforma_Invoice") {
+                                                                navigate(`/proforma-invoice/${task.id}`);
                                                             } else if (task.doctype === "Miscellaneous Commit") {
                                                                 navigate(`/miscellaneous-commit/${task.id}`);
                                                             } else if (task.doctype === "Loan Request") {
@@ -1383,6 +1391,8 @@ const PendingTask: React.FC = () => {
                                     navigate(`/project-staff-resignation?edit=${encodeURIComponent(selectedTask.docname)}`);
                                 } else if (selectedTask.doctype === "Project Staff Extension") {
                                     navigate(`/project-staff-extension?edit=${encodeURIComponent(selectedTask.docname)}`);
+                                } else if (selectedTask.doctype === "Proforma_Invoice") {
+                                    navigate(`/proforma-invoice/${selectedTask.docname}`);
                                 } else if (selectedTask.doctype === "Miscellaneous Commit") {
                                     navigate(`/miscellaneous-commit/${selectedTask.docname}`);
                                 } else if (selectedTask.doctype === "Loan Request") {
