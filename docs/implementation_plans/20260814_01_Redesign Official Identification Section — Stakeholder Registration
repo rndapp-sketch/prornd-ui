@@ -1,0 +1,141 @@
+# Redesign Official Identification Section — Stakeholder Registration
+
+## Background
+
+The current Official Identification section (`uploaded_documents_u_r`) uses the API-provided `child_fields` (Document Type, ID Number, Expiry Date, and a single Attach field). The user wants a redesigned layout with **Document Name**, **Document Type** (auto-set to `Identity`), and two separate file upload fields (**Front** and **Back**) with per-document mandatory rules.
+
+## Proposed Changes
+
+All changes are scoped to **Stakeholder Registration only**. No other form is affected.
+
+---
+
+### 1. Replace child_fields for uploaded_documents_u_r
+
+#### [MODIFY] [UniversalRegistrationForm.tsx](file:///home/iitg_oc_2025/OC_2025/PRORND_UI/prornd-ui-mythos_fable_v0.7/src/pages/application/UniversalRegistrationForm.tsx)
+
+**In the field processing section (around lines 284-296)**, after setting `f.label = "Official Identification (Aadhaar & PAN / Foreigner ID)"`, **replace `f.child_fields`** with custom fields:
+
+```js
+f.child_fields = [
+  { fieldname: "document_type", label: "Document Name", fieldtype: "Data", mandatory: 1, read_only: 0 },
+  { fieldname: "document_category", label: "Document Type", fieldtype: "Data", mandatory: 1, read_only: 1 },
+  { fieldname: "document_front", label: "Front", fieldtype: "Attach", mandatory: 1 },
+  { fieldname: "document_back", label: "Back", fieldtype: "Attach", mandatory: 0 },
+];
+```
+
+> [!IMPORTANT]
+> **`document_type` fieldname** is reused for "Document Name" because the backend already saves this field. The user-facing label changes to "Document Name" but the fieldname stays `document_type` for API compatibility. A new field `document_category` is added for the display-only "Identity" value.
+
+---
+
+### 2. Update nationality useEffect — default row data
+
+#### [MODIFY] [UniversalRegistrationForm.tsx](file:///home/iitg_oc_2025/OC_2025/PRORND_UI/prornd-ui-mythos_fable_v0.7/src/pages/application/UniversalRegistrationForm.tsx)
+
+**In the nationality `useEffect` (lines ~715-811)**, update `defaultRows` and `setFormData` to use the new fields:
+
+**Indian:**
+```js
+defaultRows = [
+  { document_type: "Aadhaar Card", document_category: "Identity" },
+  { document_type: "Pan Card", document_category: "Identity" },
+];
+```
+
+**Foreigner:**
+```js
+defaultRows = [
+  { document_type: "", document_category: "Identity" },
+];
+```
+- For Indian: `document_type` (Document Name) is read-only (pre-filled, user cannot change)
+- For Foreigner: `document_type` (Document Name) is editable (user enters their government ID name)
+
+The `setFormData` section that creates `newDocs` must also include `document_category: "Identity"` in every row.
+
+---
+
+### 3. Per-row mandatory control for Back field
+
+The mandatory rules are:
+| Document | Front | Back |
+|----------|-------|------|
+| Aadhaar Card | Required | Required |
+| PAN Card | Required | Optional |
+| Foreigner ID | Required | Required |
+
+**Approach:** The `ChildTableComponent` already supports `depends_on` for row-scoped visibility. But for *mandatory* control per-row, there's no existing mechanism. Instead, I will handle this via **custom validation in the save handler** (step 5 below), and set `document_back` as `mandatory: 0` in the child_fields definition (to avoid blanket mandatory on all rows). The front is always mandatory via `mandatory: 1`.
+
+---
+
+### 4. Control Document Name read-only per nationality
+
+In the nationality `useEffect`, when updating `docsField.child_fields`:
+- **Indian:** Set `document_type` child field to `read_only: 1` (name is pre-filled, cannot be edited)
+- **Foreigner:** Set `document_type` child field to `read_only: 0` (user enters name)
+
+---
+
+### 5. Add custom validation for document files
+
+#### [MODIFY] [UniversalRegistrationForm.tsx](file:///home/iitg_oc_2025/OC_2025/PRORND_UI/prornd-ui-mythos_fable_v0.7/src/pages/application/UniversalRegistrationForm.tsx)
+
+**In the save/submit handler (around lines 1310-1350)**, after the generic mandatory field validation, add specific validation for Official Identification files:
+
+```
+For each row in uploaded_documents_u_r:
+  - "Front" (document_front) is always required
+  - "Back" (document_back) is required if document_type is "Aadhaar Card" OR if nationality is not "India"
+  - "Back" is optional only for "Pan Card"
+```
+
+If validation fails, display a clear message like:
+`"Aadhaar Card: Back side document is required"`
+
+---
+
+### 6. Ensure mismatch detection uses new field names
+
+The existing mismatch detection at lines ~784-786 checks `currentDocs[0]?.document_type`. Since we kept `document_type` as the fieldname for Document Name, this continues to work correctly.
+
+---
+
+### 7. Update duplicate check to use correct field
+
+The duplicate check at line 1356 currently maps `doc.id_number_u_r`. Since the new schema removes `id_number_u_r`, update the ID extraction to use `document_type` (or skip duplicate check for this table since the new schema doesn't include ID numbers — the duplicate check for registration is primarily on email).
+
+---
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| [UniversalRegistrationForm.tsx](file:///home/iitg_oc_2025/OC_2025/PRORND_UI/prornd-ui-mythos_fable_v0.7/src/pages/application/UniversalRegistrationForm.tsx) | Replace child_fields, update nationality useEffect, add file validation, update duplicate check |
+
+> [!IMPORTANT]
+> **No changes to ChildTableComponent.tsx or DynamicFormRenderer.tsx** — all changes are in UniversalRegistrationForm.tsx only.
+
+## Open Questions
+
+1. **Backend field mapping:** The backend currently expects `document_type`, `id_number_u_r`, and a single `Attach` field in `uploaded_documents_u_r` rows. The new schema uses `document_type` (Document Name), `document_category` (Document Type = "Identity"), `document_front` (Front Attach), and `document_back` (Back Attach). **Will the backend accept these new fieldnames, or does it need to be updated?** If the backend schema is fixed, we may need to map `document_front` → the existing attach fieldname.
+
+> [!WARNING]  
+> If the backend Frappe doctype for `uploaded_documents_u_r` child table doesn't have `document_front`, `document_back`, and `document_category` fields, file uploads will silently fail to save. The safest approach may be to keep the existing API fieldnames and just change labels/UI. Please confirm the backend schema.
+
+2. **ID Number field:** The current schema has an `id_number_u_r` field (e.g., Aadhaar number, PAN number). The user's requirements don't mention an ID number input. Should we remove it entirely, or keep it?
+
+## Verification Plan
+
+### Automated Tests
+- `npx tsc --noEmit` — zero TypeScript errors
+
+### Manual Verification
+- Indian nationality → 2 rows auto-created (Aadhaar Card, PAN Card), Document Type = Identity, Document Name read-only, Front/Back uploads visible
+- Foreigner nationality → 1 row auto-created, Document Type = Identity, Document Name editable, Front/Back uploads visible
+- Switch nationality → rows update correctly, no stale data
+- Submit with missing required Front → validation error
+- Submit with missing required Back (Aadhaar) → validation error
+- Submit with missing optional Back (PAN) → no error
+- Other forms unaffected

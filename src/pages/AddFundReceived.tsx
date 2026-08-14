@@ -1,0 +1,2227 @@
+// -=-=-=-=-=-=
+import React, { useState, useEffect, useCallback, memo } from "react";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
+
+import { useFrappePostCall, useFrappeGetCall } from "frappe-react-sdk";
+import { cn } from "@/lib/utils";
+import { ArrowLeftIcon, LightbulbIcon } from "lucide-react";
+import { AutocompleteEmail } from "../components/AutocompleteEmail";
+import { ErrorModal } from "../components/ErrorModal";
+import { parseFrappeError } from "../utils/errorUtils";
+
+// --- TYPE DEFINITIONS ---
+interface Field {
+    description: any;
+    fieldname: string;
+    label: string | null;
+    fieldtype: string;
+    mandatory: number;
+    read_only: number;
+    hidden: number;
+    options?: string | null;
+    default?: any;
+}
+interface LinkOption {
+    value: string;
+    label: string;
+    project_proposal?: string;
+    refnum_prj_num?: string;
+}
+interface FormDataResponse {
+    message: {
+        fields: Field[];
+        link_options: { [key: string]: LinkOption[] };
+        prefill_data: { [key: string]: any };
+        related_project_data: { [key: string]: any };
+    };
+}
+
+interface FormData {
+    [key: string]: any;
+    fund_transactions?: (any & { id?: string })[];
+    received_amt_breakup?: (any & { id?: string })[];
+}
+
+// --- STYLES & REUSABLE UI COMPONENTS ---
+const inputClasses =
+    "w-full h-10 px-3 bg-white dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl text-[13px] font-medium text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/20 focus:border-[#4A6CF7] disabled:opacity-70 disabled:bg-[#F4F4F5] dark:disabled:bg-zinc-800/40 read-only:bg-[#F4F4F5] dark:read-only:bg-zinc-800/40";
+const FrappeCard = ({ children, className }: any) => (
+    <div
+        className={cn(
+            "bg-white dark:bg-[#27272A] p-5 md:p-6 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm",
+            className,
+        )}
+    >
+        {children}
+    </div>
+);
+const FrappeButton = ({
+    children,
+    onClick,
+    disabled,
+    className,
+    type = "button",
+}: any) => (
+    <button
+        type={type}
+        onClick={onClick}
+        disabled={disabled}
+        className={cn(
+            "h-10 px-4 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl font-bold text-[11px] uppercase tracking-wide text-[#3F3F46] dark:text-[#E4E4E7] bg-white dark:bg-[#27272A] shadow-sm transition-all hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] disabled:opacity-50 disabled:cursor-not-allowed",
+            className,
+        )}
+    >
+        {children}
+    </button>
+);
+const NeoSection = ({ title, children }: any) => (
+    <div className="space-y-4 rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20">
+            <div className="w-1 h-5 rounded-full bg-[#4A6CF7]" />
+            <h2 className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200">{title}</h2>
+        </div>
+        <div className="p-4">{children}</div>
+    </div>
+);
+
+// --- MEMOIZED TABLE COMPONENTS ---
+const MemoizedTransactionsTable = memo(
+    ({ tableData, onRowChange, onFileChange, onAddRow, onDeleteRow }: any) => {
+        return (
+            <div>
+                <h3 className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2.5 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200 mb-3">
+                    Transaction Details
+                </h3>
+                <div className="overflow-x-auto border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl">
+                    <table className="min-w-full divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
+                        <thead className="bg-[#EEF2FF] dark:bg-blue-950/20">
+                            <tr className="divide-x divide-[#C7D2FE] dark:divide-blue-900/40">
+                                {[
+                                    "Transaction Number",
+                                    "Date",
+                                    "Amount (₹)",
+                                    "Attachment",
+                                    "",
+                                ].map((h) => (
+                                    <th
+                                        key={h}
+                                        className="px-3 py-2.5 font-extrabold text-[#1E3A8A] dark:text-blue-200 text-[10px] uppercase tracking-widest text-left"
+                                    >
+                                        {h}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46] bg-white dark:bg-[#27272A]">
+                            {(tableData || []).map((row: any, i: number) => (
+                                <tr
+                                    key={row.id || i}
+                                    className="divide-x divide-[#E4E4E7] dark:divide-[#3F3F46] hover:bg-[#FAFAF9] dark:hover:bg-[#18181B]"
+                                >
+                                    <td className="px-2 py-1.5">
+                                        <input
+                                            type="text"
+                                            className={`${inputClasses} !h-8`}
+                                            value={row.transaction_number || ""}
+                                            onChange={(e) =>
+                                                onRowChange(
+                                                    i,
+                                                    "transaction_number",
+                                                    e.target.value,
+                                                )
+                                            }
+                                            placeholder="Transaction ID"
+                                        />
+                                    </td>
+                                    <td className="px-2 py-1.5">
+                                        <input
+                                            type="date"
+                                            className={`${inputClasses} !h-8`}
+                                            value={row.transaction_date || ""}
+                                            onChange={(e) =>
+                                                onRowChange(
+                                                    i,
+                                                    "transaction_date",
+                                                    e.target.value,
+                                                )
+                                            }
+                                        />
+                                    </td>
+                                    <td className="px-2 py-1.5">
+                                        <input
+                                            type="number"
+                                            className={`${inputClasses} !h-8`}
+                                            value={row.amount || ""}
+                                            onChange={(e) =>
+                                                onRowChange(
+                                                    i,
+                                                    "amount",
+                                                    e.target.value,
+                                                )
+                                            }
+                                            onWheel={(e) =>
+                                                e.currentTarget.blur()
+                                            }
+                                            placeholder="0.00"
+                                        />
+                                    </td>
+                                    <td className="px-2 py-1.5">
+                                        <input
+                                            type="file"
+                                            className={`${inputClasses} !h-8 file:mr-2 file:px-2 file:py-0.5 file:text-xs file:font-medium`}
+                                            onChange={(e) =>
+                                                onFileChange(
+                                                    i,
+                                                    "attachment",
+                                                    e.target.files?.[0] || null,
+                                                )
+                                            }
+                                        />
+                                        {row.attachment_name && (
+                                            <span className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 block">
+                                                {row.attachment_name}
+                                            </span>
+                                        )}
+                                    </td>
+                                    <td className="px-2 py-1.5 text-center">
+                                        <button type="button"
+                                            onClick={() => onDeleteRow(i)}
+                                            className="h-6 px-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wide text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors"
+                                        >
+                                            Delete
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                <button type="button"
+                    onClick={() =>
+                        onAddRow({
+                            transaction_number: "",
+                            transaction_date: "",
+                            amount: "",
+                            attachment: null,
+                        })
+                    }
+                    className="mt-2.5 h-7 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wide text-white bg-[#D97757] border border-[#D97757] hover:bg-[#c5684a] transition-colors"
+                >
+                    + Add Transaction
+                </button>
+            </div>
+        );
+    },
+);
+
+// Progress Bar Component
+const ProgressBar = ({
+    current,
+    total,
+    label,
+    showWarning,
+}: {
+    current: number;
+    total: number;
+    label: string;
+    showWarning: boolean;
+}) => {
+    const percentage = total > 0 ? Math.min((current / total) * 100, 100) : 0;
+    const isOverLimit = current > total;
+
+    return (
+        <div className="space-y-1">
+            <div className="flex justify-between text-[11px] font-medium">
+                <span
+                    className={
+                        isOverLimit
+                            ? "text-red-600"
+                            : "text-zinc-700 dark:text-zinc-300"
+                    }
+                >
+                    {label}
+                </span>
+                <span
+                    className={
+                        isOverLimit
+                            ? "text-red-600 font-bold"
+                            : "text-zinc-600 dark:text-zinc-400"
+                    }
+                >
+                    ₹{current.toLocaleString()} / ₹{total.toLocaleString()}
+                </span>
+            </div>
+            <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2 overflow-hidden">
+                <div
+                    className={`h-2 rounded-full transition-all duration-300 ${isOverLimit
+                        ? "bg-red-600"
+                        : percentage > 90
+                            ? "bg-yellow-500"
+                            : "bg-green-500"
+                        }`}
+                    style={{ width: `${percentage}%` }}
+                />
+            </div>
+            {showWarning && isOverLimit && (
+                <p className="text-[11px] text-red-600 font-semibold">
+                    ⚠️ Exceeds limit by ₹{(current - total).toLocaleString()}
+                </p>
+            )}
+        </div>
+    );
+};
+
+// Validation Alert Component
+const ValidationAlert = ({
+    isValid,
+    message,
+}: {
+    isValid: boolean;
+    message: string;
+    type?: "total" | "head";
+}) => {
+    if (!message || message === "No sanction selected") return null;
+
+    return (
+        <div
+            className={`p-2.5 rounded-md border ${isValid
+                ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900/40 text-green-800 dark:text-green-300"
+                : "bg-red-50 dark:bg-red-950/20 border-red-300 dark:border-red-900/40 text-red-800 dark:text-red-300"
+                }`}
+        >
+            <p className="text-xs font-medium">{message}</p>
+        </div>
+    );
+};
+
+const MemoizedBudgetBreakupTable = memo(
+    ({
+        tableData,
+        onRowChange,
+        onAddRow,
+        onDeleteRow,
+        budgetHeadOptions,
+        hasEmptyAccountHead,
+        usedAccountHeads,
+    }: any) => {
+        const options = budgetHeadOptions || [];
+        return (
+            <div>
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                    <h3 className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2.5 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200">
+                        Budget Breakup of Received Amount
+                    </h3>
+                    {hasEmptyAccountHead && (
+                        <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">
+                            ℹ All rows must have an Account Head selected before submitting.
+                        </span>
+                    )}
+                </div>
+                <div className="overflow-x-auto border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl">
+                    <table className="min-w-full divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
+                        <thead className="bg-[#EEF2FF] dark:bg-blue-950/20">
+                            <tr className="divide-x divide-[#C7D2FE] dark:divide-blue-900/40">
+                                {[
+                                    "Account Head",
+                                    "Amount (₹)",
+                                    "Remarks",
+                                    "",
+                                ].map((h) => (
+                                    <th
+                                        key={h}
+                                        className="px-3 py-2.5 font-extrabold text-[#1E3A8A] dark:text-blue-200 text-[10px] uppercase tracking-widest text-left"
+                                    >
+                                        {h}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46] bg-white dark:bg-[#27272A]">
+                            {(tableData || []).map((row: any, i: number) => {
+                                const otherSelected = (usedAccountHeads || []).filter(
+                                    (_: string, j: number) => j !== i,
+                                );
+                                const isDuplicate =
+                                    row.account_head &&
+                                    otherSelected.includes(row.account_head);
+                                const missingAmount =
+                                    !row.amount_received ||
+                                    parseFloat(row.amount_received) <= 0;
+                                return (
+                                    <tr
+                                        key={row.id || i}
+                                        className={`divide-x divide-[#E4E4E7] dark:divide-[#3F3F46] hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] ${isDuplicate ? "bg-red-50 dark:bg-red-950/20" : ""}`}
+                                    >
+                                        <td className="px-2 py-1.5">
+                                            <select
+                                                className={`${inputClasses} !h-8 ${isDuplicate ? "!border-red-400 !ring-red-300" : ""}`}
+                                                value={row.account_head || ""}
+                                                onChange={(e) =>
+                                                    onRowChange(
+                                                        i,
+                                                        "account_head",
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            >
+                                                <option value="">
+                                                    Select Account Head...
+                                                </option>
+                                                {options.map((opt: string) => {
+                                                    const alreadyUsed =
+                                                        otherSelected.includes(opt);
+                                                    return (
+                                                        <option
+                                                            key={opt}
+                                                            value={opt}
+                                                            disabled={alreadyUsed}
+                                                        >
+                                                            {alreadyUsed
+                                                                ? `${opt} (already added)`
+                                                                : opt}
+                                                        </option>
+                                                    );
+                                                })}
+                                            </select>
+                                            {isDuplicate && (
+                                                <p className="text-[10px] text-red-500 mt-0.5 font-semibold">
+                                                    Duplicate account head
+                                                </p>
+                                            )}
+                                        </td>
+                                        <td className="px-2 py-1.5">
+                                            <input
+                                                type="number"
+                                                className={`${inputClasses} !h-8 ${missingAmount && row.account_head ? "!border-red-400" : ""}`}
+                                                value={row.amount_received || ""}
+                                                onChange={(e) =>
+                                                    onRowChange(
+                                                        i,
+                                                        "amount_received",
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                onWheel={(e) =>
+                                                    e.currentTarget.blur()
+                                                }
+                                                placeholder="0.00"
+                                            />
+                                        </td>
+                                        <td className="px-2 py-1.5">
+                                            <input
+                                                type="text"
+                                                className={`${inputClasses} !h-8`}
+                                                value={row.remarks || ""}
+                                                onChange={(e) =>
+                                                    onRowChange(
+                                                        i,
+                                                        "remarks",
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                placeholder="Remarks"
+                                            />
+                                        </td>
+                                        <td className="px-2 py-1.5 text-center">
+                                            <button type="button"
+                                                onClick={() => onDeleteRow(i)}
+                                                className="h-6 px-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wide text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors"
+                                            >
+                                                Delete
+                                            </button>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+                <button type="button"
+                    onClick={() =>
+                        onAddRow({
+                            account_head: "",
+                            amount_received: "",
+                            remarks: "",
+                        })
+                    }
+                    className="mt-2.5 h-7 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wide text-white bg-[#D97757] border border-[#D97757] hover:bg-[#c5684a] transition-colors"
+                >
+                    + Add Budget Item
+                </button>
+            </div>
+        );
+    },
+);
+
+// Validation state interface
+interface ValidationState {
+    totalValidation: {
+        isValid: boolean;
+        message: string;
+        currentTotal: number;
+        previousTotal: number;
+        sanctionedTotal: number;
+        remaining: number;
+    };
+    headValidations: Record<
+        string,
+        {
+            isValid: boolean;
+            message: string;
+            currentTotal: number;
+            previousTotal: number;
+            sanctionedLimit: number;
+            remaining: number;
+        }
+    >;
+}
+
+const HelpFloating: React.FC = () => {
+    const [open, setOpen] = useState(false);
+    return (
+        <>
+            <button type="button"
+                onClick={() => setOpen((v) => !v)}
+                className="fixed bottom-6 right-6 z-50 h-9 px-4 rounded-full bg-[#4A6CF7] text-white shadow-lg hover:bg-[#3b5ce4] transition-colors flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide"
+                title="Help"
+            >
+                <LightbulbIcon className="h-4 w-4" />
+                How to fill
+            </button>
+            {open && (
+                <div className="fixed bottom-20 right-6 z-50 w-80 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-xl overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20">
+                        <span className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200">How to Add Fund Received</span>
+                        <button type="button" onClick={() => setOpen(false)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 text-lg leading-none">×</button>
+                    </div>
+                    <div className="p-4 space-y-4 max-h-96 overflow-y-auto text-[12px] text-zinc-700 dark:text-zinc-300">
+                        <div className="space-y-2">
+                            <p className="font-bold text-[#1E3A8A] dark:text-blue-300 uppercase tracking-wide text-[10px]">Steps</p>
+                            <ol className="space-y-2 list-none">
+                                {[
+                                    ["1", "Fill in the Fund Received Amount."],
+                                    ["2", "Enter the Bank Account Number / Scheme — Name / Number where the funds were received."],
+                                    ["3", "Add one or more Transaction Details (transaction number, date, amount, and optional attachment)."],
+                                    ["4", "Enter the Budget Breakup — distribute the received amount across account heads."],
+                                    ["5", "Make sure the breakup total exactly equals the Fund Received Amount before submitting."],
+                                ].map(([num, text]) => (
+                                    <li key={num} className="flex gap-2.5 items-start">
+                                        <span className="shrink-0 h-5 w-5 rounded-full bg-[#4A6CF7] text-white text-[10px] font-bold flex items-center justify-center mt-0.5">{num}</span>
+                                        <span>{text}</span>
+                                    </li>
+                                ))}
+                            </ol>
+                        </div>
+                        <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-3 space-y-2">
+                            <p className="font-bold text-[#1E3A8A] dark:text-blue-300 uppercase tracking-wide text-[10px]">Validation Rules</p>
+                            <ul className="space-y-1.5">
+                                {[
+                                    "Budget breakup total must exactly match the Fund Received Amount.",
+                                    "Total funds received (including previous entries) cannot exceed the sanctioned amount.",
+                                    "Each budget head amount cannot exceed its sanctioned limit.",
+                                    "Duplicate account heads in the breakup are not allowed.",
+                                ].map((rule, i) => (
+                                    <li key={i} className="flex gap-2 items-start">
+                                        <span className="shrink-0 text-[#4A6CF7] font-bold mt-0.5">·</span>
+                                        <span>{rule}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                        <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-3 space-y-1.5">
+                            <p className="font-bold text-[#1E3A8A] dark:text-blue-300 uppercase tracking-wide text-[10px]">Tips</p>
+                            <ul className="space-y-1.5">
+                                {[
+                                    "Use the Sanction Details panel on the right to see year-wise budget breakup.",
+                                    "The real-time validation panel updates as you type — check it before submitting.",
+                                    "You can attach transaction receipts or bank slips for each transaction row.",
+                                ].map((tip, i) => (
+                                    <li key={i} className="flex gap-2 items-start">
+                                        <span className="shrink-0 text-[#D97757] font-bold mt-0.5">·</span>
+                                        <span>{tip}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+};
+
+const AddFundReceived: React.FC = () => {
+    const navigate = useNavigate();
+    const { projectName } = useParams<{ projectName: string }>();
+    const location = useLocation();
+    const urlSearchParams = new URLSearchParams(location.search);
+    const projectNoFromUrl = urlSearchParams.get("project_no") || "";
+    const projectRegFromUrl = urlSearchParams.get("project_reg") || "";
+
+    const [fields, setFields] = useState<Field[]>([]);
+    const [formData, setFormData] = useState<FormData>({
+        fund_transactions: [],
+        received_amt_breakup: [],
+    });
+    const [linkOptions, setLinkOptions] = useState<
+        Record<string, LinkOption[]>
+    >({});
+    const [loading, setLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorModal, setErrorModal] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({ open: false, title: "Submission Failed", message: "" });
+    const [validationState, setValidationState] = useState<ValidationState>({
+        totalValidation: {
+            isValid: true,
+            message: "",
+            currentTotal: 0,
+            previousTotal: 0,
+            sanctionedTotal: 0,
+            remaining: 0,
+        },
+        headValidations: {},
+    });
+
+    // ── fund_received_amt vs breakup-total validation ──
+    const totalBreakupAmt = (formData.received_amt_breakup || []).reduce(
+        (sum: number, row: any) =>
+            sum + (row.amount_received ? parseFloat(row.amount_received) : 0),
+        0,
+    );
+    const fundReceivedAmt = formData.fund_received_amt
+        ? parseFloat(formData.fund_received_amt)
+        : NaN;
+    const fundReceivedAmtError: { type: "over" | "under"; remaining: number } | null = (() => {
+        if (isNaN(fundReceivedAmt) || fundReceivedAmt === 0) return null;
+        if (totalBreakupAmt > fundReceivedAmt)
+            return { type: "over", remaining: totalBreakupAmt - fundReceivedAmt };
+        if (totalBreakupAmt < fundReceivedAmt)
+            return { type: "under", remaining: fundReceivedAmt - totalBreakupAmt };
+        return null;
+    })();
+    // Both amounts must be non-zero and exactly equal before submit is allowed.
+    const isFundAmtBreakupValid =
+        !isNaN(fundReceivedAmt) &&
+        fundReceivedAmt > 0 &&
+        Math.abs(totalBreakupAmt - fundReceivedAmt) < 0.01;
+
+    const breakupRows: any[] = formData.received_amt_breakup || [];
+    const usedAccountHeads = breakupRows
+        .map((r: any) => r.account_head)
+        .filter(Boolean);
+    const hasDuplicateAccountHead =
+        new Set(usedAccountHeads).size !== usedAccountHeads.length;
+    const hasEmptyAccountHead =
+        breakupRows.length === 0 ||
+        hasDuplicateAccountHead ||
+        breakupRows.some(
+            (row: any) =>
+                !row.account_head ||
+                String(row.account_head).trim() === "" ||
+                !row.amount_received ||
+                parseFloat(row.amount_received) <= 0,
+        );
+
+    const {
+        call: fetchFormData,
+        result,
+        error,
+    } = useFrappePostCall<FormDataResponse>(
+        "rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_fields",
+    );
+    const { call: submitForm, error: submitError } = useFrappePostCall(
+        "rndopsapp.rndopsapp.doctype.fund_received.fund_received.submit_fund_received",
+    );
+
+    const { data: sanctionData, isLoading: sanctionLoading } = useFrappeGetCall(
+        "rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_sanctions_for_project",
+        { project_name: projectName },
+        { revalidateOnFocus: false },
+    );
+
+    // Fetch previous Fund Received Data for validation — use project_no (not projectName)
+    const { data: previousFundsData } = useFrappeGetCall(
+        "rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg",
+        { prjreg_title: projectNoFromUrl || projectName, limit: 1000 },
+        {
+            revalidateOnFocus: false,
+            isPaused: () => !(projectNoFromUrl || projectName),
+        },
+    );
+
+    useEffect(() => {
+        if (projectName) {
+            fetchFormData({ doc_name: projectName });
+        }
+    }, [fetchFormData, projectName]);
+
+
+    // Handle Edit Mode
+    const editSearchParams = new URLSearchParams(location.search);
+    const editDocName = editSearchParams.get("id");
+
+    // Fetch existing document for editing
+    useEffect(() => {
+        const loadExistingDoc = async () => {
+            if (!editDocName || !result?.message) return;
+
+            try {
+                const response = await fetch(
+                    `/api/v2/document/Fund%20Received/${encodeURIComponent(editDocName)}`,
+                    {
+                        credentials: "include",
+                    },
+                );
+                if (response.ok) {
+                    const json = await response.json();
+                    const doc = json.data;
+                    console.log("Loaded existing doc for edit:", doc);
+
+                    if (doc) {
+                        setFormData((prev) => ({
+                            ...prev,
+                            // Map simple fields
+                            ...doc,
+                            // Map child tables specifically
+                            fund_transactions: (
+                                doc.fund_transactions || []
+                            ).map((row: any) => ({
+                                ...row,
+                                id: row.name, // Use name as ID for existing rows
+                                // Ensure attachment field is set if it exists
+                                attachment: row.attachment || row.file || null,
+                            })),
+                            received_amt_breakup: (
+                                doc.received_amt_breakup || []
+                            ).map((row: any) => ({
+                                ...row,
+                                id: row.name,
+                            })),
+                            // Ensure project ref is set correctly
+                            prjreg_title: doc.prjreg_title || prev.prjreg_title,
+                            sanction_ref_no:
+                                doc.sanction_ref_no || prev.sanction_ref_no,
+                        }));
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to load existing document", err);
+                alert("Failed to load document for editing");
+            }
+        };
+
+        // Load doc only after form fields are initialized
+        loadExistingDoc();
+    }, [editDocName, result]); // depend on result (form fields loaded)
+
+    useEffect(() => {
+        if (result?.message) {
+            const {
+                fields: apiFields,
+                link_options,
+                prefill_data,
+                related_project_data,
+            } = result.message;
+
+            if (Array.isArray(apiFields)) {
+                const prefillData: { [key: string]: any } = {
+                    ...(prefill_data || {}),
+                    prjreg_title: related_project_data?.name || projectName,
+                    prj_type: related_project_data?.project_type || "",
+                    project_title: related_project_data?.project_title || "",
+                };
+
+                const processedFields = apiFields.map((field) => {
+                    if (field.fieldtype === "Section Break") return field;
+                    if (prefillData[field.fieldname] !== undefined) {
+                        return {
+                            ...field,
+                            default: prefillData[field.fieldname],
+                        };
+                    }
+                    if (
+                        field.fieldname === "gst_invoice_issued" &&
+                        !field.default
+                    ) {
+                        return { ...field, default: "No" };
+                    }
+                    return field;
+                });
+
+                setFields(processedFields);
+
+                // Initialize formData with prefill values ONLY if not editing
+                // If editing, the edit loading effect will override/merge.
+                if (!editDocName) {
+                    // Merge prefill data AND field defaults into formData
+                    const defaultsFromFields: Record<string, any> = {};
+                    processedFields.forEach((f) => {
+                        if (
+                            f.fieldtype !== "Section Break" &&
+                            f.fieldtype !== "Table" &&
+                            f.default !== undefined
+                        ) {
+                            defaultsFromFields[f.fieldname] = f.default;
+                        }
+                    });
+                    setFormData((prev) => ({
+                        ...prev,
+                        ...defaultsFromFields,
+                        ...prefillData,
+                        fund_transactions: [],
+                        received_amt_breakup: [],
+                    }));
+                }
+            }
+            setLinkOptions((prev) => ({ ...prev, ...(link_options || {}) }));
+            setLoading(false);
+        }
+        if (error) {
+            console.error("Failed to load form data:", error);
+            alert("Failed to load form data.");
+            setLoading(false);
+        }
+    }, [result, error, projectName]);
+
+    // GST invoice visibility handler
+    useEffect(() => {
+        const gstValue = formData.gst_invoice_issued;
+        const invoiceContainer = document.getElementById(
+            "invoice_no_container",
+        );
+        if (invoiceContainer) {
+            invoiceContainer.style.display =
+                gstValue === "Yes" ? "grid" : "none";
+        }
+    }, [formData.gst_invoice_issued]);
+
+    // Real-time validation function
+    const performValidation = useCallback(() => {
+        const selectedSanction = formData.sanction_ref_no
+            ? sanctionData?.message?.find(
+                (s: any) => s.name === formData.sanction_ref_no,
+            )
+            : sanctionData?.message?.[0];
+
+        if (!selectedSanction) {
+            setValidationState({
+                totalValidation: {
+                    isValid: true,
+                    message: "No sanction selected",
+                    currentTotal: 0,
+                    previousTotal: 0,
+                    sanctionedTotal: 0,
+                    remaining: 0,
+                },
+                headValidations: {},
+            });
+            return;
+        }
+
+        // 1. Calculate Previous Totals (Total & Per Head)
+        let prevTotal = 0;
+        const prevHeadTotals: Record<string, number> = {};
+
+        const rawFunds =
+            previousFundsData?.message?.message ||
+            previousFundsData?.message ||
+            [];
+        const relevantFunds = Array.isArray(rawFunds)
+            ? rawFunds.filter(
+                (f: any) =>
+                    f.sanction_ref_no === selectedSanction.name &&
+                    f.name !== editDocName,
+            ) // Exclude current doc if editing
+            : [];
+
+        relevantFunds.forEach((fund: any) => {
+            if (
+                fund.received_amt_breakup &&
+                Array.isArray(fund.received_amt_breakup)
+            ) {
+                fund.received_amt_breakup.forEach((item: any) => {
+                    const amt = item.amount_received || 0;
+                    const head = item.account_head;
+                    prevTotal += amt;
+                    if (head) {
+                        prevHeadTotals[head] =
+                            (prevHeadTotals[head] || 0) + amt;
+                    }
+                });
+            }
+        });
+
+        // 2. Calculate Current Totals from Form Data
+        let currentTotal = 0;
+        const currentHeadTotals: Record<string, number> = {};
+
+        (formData.received_amt_breakup || []).forEach((row: any) => {
+            const amt = row.amount_received
+                ? parseFloat(row.amount_received)
+                : 0;
+            const head = row.account_head;
+            currentTotal += amt;
+            if (head) {
+                currentHeadTotals[head] = (currentHeadTotals[head] || 0) + amt;
+            }
+        });
+
+        // 3a. Build head-wise sanctioned map first (needed for total fallback)
+        const sanctionedHeadMap: Record<string, number> = {};
+        if (
+            selectedSanction.sanctioned_budget_breakup &&
+            Array.isArray(selectedSanction.sanctioned_budget_breakup)
+        ) {
+            const yearKeys = [
+                "first_year_budget",
+                "second_year_budget",
+                "third_year_budget",
+                "fourth_year_budget",
+                "fifth_year_budget",
+            ];
+            selectedSanction.sanctioned_budget_breakup.forEach((row: any) => {
+                const headTotalSanctioned = yearKeys.reduce(
+                    (sum, key) => sum + (row[key] || 0),
+                    0,
+                );
+                sanctionedHeadMap[row.account_head] = headTotalSanctioned;
+            });
+        }
+
+        // 3b. Validate Total Amount
+        // Use total_sanctioned_amount if available, otherwise derive from budget breakup rows
+        const breakupTotal = Object.values(sanctionedHeadMap).reduce(
+            (sum, v) => sum + v,
+            0,
+        );
+        const totalSanctioned =
+            (selectedSanction.total_sanctioned_amount || 0) > 0
+                ? selectedSanction.total_sanctioned_amount
+                : breakupTotal;
+        const newTotalReceived = prevTotal + currentTotal;
+        const remainingTotal = totalSanctioned - newTotalReceived;
+
+        const totalValidation = {
+            isValid:
+                totalSanctioned === 0 || newTotalReceived <= totalSanctioned,
+            message:
+                totalSanctioned === 0
+                    ? "⚠️ No sanctioned amount found"
+                    : newTotalReceived > totalSanctioned
+                        ? `⚠️ EXCEEDS sanctioned amount by ₹${(newTotalReceived - totalSanctioned).toLocaleString()}`
+                        : remainingTotal > 0
+                            ? `✓ ₹${remainingTotal.toLocaleString()} remaining`
+                            : "✓ Full amount utilized",
+            currentTotal,
+            previousTotal: prevTotal,
+            sanctionedTotal: totalSanctioned,
+            remaining: remainingTotal,
+        };
+
+        // 4. Validate Head-wise Amount
+
+        const headValidations: Record<string, any> = {};
+
+        // Check all heads that have sanctioned amounts
+        Object.keys(sanctionedHeadMap).forEach((head) => {
+            const currentAmt = currentHeadTotals[head] || 0;
+            const prevAmt = prevHeadTotals[head] || 0;
+            const totalForHead = prevAmt + currentAmt;
+            const limit = sanctionedHeadMap[head];
+            const remaining = limit - totalForHead;
+
+            headValidations[head] = {
+                isValid: totalForHead <= limit,
+                message:
+                    totalForHead > limit
+                        ? `⚠️ EXCEEDS by ₹${(totalForHead - limit).toLocaleString()}`
+                        : remaining > 0
+                            ? `✓ ₹${remaining.toLocaleString()} remaining`
+                            : "✓ Fully utilized",
+                currentTotal: currentAmt,
+                previousTotal: prevAmt,
+                sanctionedLimit: limit,
+                remaining,
+            };
+        });
+
+        setValidationState({
+            totalValidation,
+            headValidations,
+        });
+    }, [formData, sanctionData, previousFundsData]);
+
+    // Trigger validation whenever form data changes
+    useEffect(() => {
+        performValidation();
+    }, [performValidation]);
+
+    // --- FORM HANDLERS ---
+    const handleChange = useCallback((fieldname: string, value: any) => {
+        setFormData((prev) => ({ ...prev, [fieldname]: value }));
+    }, []);
+
+    // --- TABLE HANDLERS ---
+    const handleTransactionRowChange = useCallback(
+        (rowIndex: number, fieldname: string, value: any) => {
+            setFormData((prev) => {
+                const table = [...(prev.fund_transactions || [])];
+                table[rowIndex] = { ...table[rowIndex], [fieldname]: value };
+                return { ...prev, fund_transactions: table };
+            });
+        },
+        [],
+    );
+
+    const handleTransactionFileChange = useCallback(
+        (rowIndex: number, fieldname: string, file: File | null) => {
+            setFormData((prev) => {
+                const table = [...(prev.fund_transactions || [])];
+                table[rowIndex] = {
+                    ...table[rowIndex],
+                    [fieldname]: file,
+                    attachment_name: file?.name || "",
+                };
+                return { ...prev, fund_transactions: table };
+            });
+        },
+        [],
+    );
+
+    const addTransactionRow = useCallback((newRow: object) => {
+        const newId = Date.now().toString();
+        setFormData((prev) => ({
+            ...prev,
+            fund_transactions: [
+                ...(prev.fund_transactions || []),
+                { ...newRow, id: newId },
+            ],
+        }));
+    }, []);
+
+    const deleteTransactionRow = useCallback((rowIndex: number) => {
+        setFormData((prev) => ({
+            ...prev,
+            fund_transactions: (prev.fund_transactions || []).filter(
+                (_: any, i: number) => i !== rowIndex,
+            ),
+        }));
+    }, []);
+
+    const handleBudgetRowChange = useCallback(
+        (rowIndex: number, fieldname: string, value: any) => {
+            setFormData((prev) => {
+                const table = [...(prev.received_amt_breakup || [])];
+                table[rowIndex] = { ...table[rowIndex], [fieldname]: value };
+                return { ...prev, received_amt_breakup: table };
+            });
+        },
+        [],
+    );
+
+    const addBudgetRow = useCallback((newRow: object) => {
+        const newId = Date.now().toString();
+        setFormData((prev) => ({
+            ...prev,
+            received_amt_breakup: [
+                ...(prev.received_amt_breakup || []),
+                { ...newRow, id: newId },
+            ],
+        }));
+    }, []);
+
+    const deleteBudgetRow = useCallback((rowIndex: number) => {
+        setFormData((prev) => ({
+            ...prev,
+            received_amt_breakup: (prev.received_amt_breakup || []).filter(
+                (_: any, i: number) => i !== rowIndex,
+            ),
+        }));
+    }, []);
+
+    // Helper to upload file to Frappe
+    const uploadFileToFrappe = async (file: File) => {
+        const formData = new FormData();
+        formData.append("file", file, file.name);
+        formData.append("is_private", "0"); // Public file
+        // formData.append('doctype', 'Fund Transaction'); // Optional: Link to doctype if known, but generic upload is fine
+        // formData.append('docname', ...); // We don't have the docname yet for new docs
+
+        const response = await fetch("/api/method/upload_file", {
+            method: "POST",
+            body: formData,
+            headers: {
+                "X-Frappe-CSRF-Token": (window as any).csrf_token || "",
+            },
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(
+                `File upload failed: ${response.status} ${errorText}`,
+            );
+        }
+
+        const result = await response.json();
+        return result.message; // Returns file object including file_url
+    };
+
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (isSubmitting) return;
+        setIsSubmitting(true);
+
+        // --- ENHANCED VALIDATION LOGIC WITH DETAILED MESSAGES ---
+        try {
+            // ── Validate fund_received_amt vs breakup total ──
+            if (!isFundAmtBreakupValid) {
+                const diff = totalBreakupAmt - fundReceivedAmt;
+                const isOver = diff > 0;
+                const diffLine = isOver
+                    ? `Exceeded By: ₹${diff.toLocaleString("en-IN")}`
+                    : `Shortfall: ₹${Math.abs(diff).toLocaleString("en-IN")}`;
+                const hint = isOver
+                    ? `The total of all budget breakup entries must not exceed the Fund Received Amount.`
+                    : `The total of all budget breakup entries must equal the Fund Received Amount.`;
+                throw new Error(
+                    `❌ TOTAL FUND VALIDATION FAILED\n\n` +
+                    `Budget Breakup Total: ₹${totalBreakupAmt.toLocaleString("en-IN")}\n` +
+                    `Fund Received Amount: ₹${fundReceivedAmt.toLocaleString("en-IN")}\n` +
+                    `${diffLine}\n\n` +
+                    hint,
+                );
+            }
+
+            // Check if overall validation state is valid
+            if (!validationState.totalValidation.isValid) {
+                const { currentTotal, previousTotal, sanctionedTotal } =
+                    validationState.totalValidation;
+                const exceeded = currentTotal + previousTotal - sanctionedTotal;
+                throw new Error(
+                    `❌ TOTAL FUND VALIDATION FAILED\n\n` +
+                    `Total Fund Received: ₹${(currentTotal + previousTotal).toLocaleString()}\n` +
+                    `Sanctioned Amount: ₹${sanctionedTotal.toLocaleString()}\n` +
+                    `Exceeded By: ₹${exceeded.toLocaleString()}\n\n` +
+                    `Breakdown:\n` +
+                    `- Previously Received: ₹${previousTotal.toLocaleString()}\n` +
+                    `- Current Entry: ₹${currentTotal.toLocaleString()}\n\n` +
+                    `Please reduce the current fund amount to stay within sanctioned limits.`,
+                );
+            }
+
+            // Check head-wise validations (soft validation — warn but allow proceed)
+            const invalidHeads = Object.entries(
+                validationState.headValidations,
+            ).filter(([_, validation]) => !validation.isValid);
+
+            if (invalidHeads.length > 0) {
+                const warningDetails = invalidHeads
+                    .map(([head, validation]) => {
+                        const exceeded =
+                            validation.currentTotal +
+                            validation.previousTotal -
+                            validation.sanctionedLimit;
+                        return (
+                            `\n• ${head}:\n` +
+                            `  Total: ₹${(validation.currentTotal + validation.previousTotal).toLocaleString()} ` +
+                            `(Limit: ₹${validation.sanctionedLimit.toLocaleString()})\n` +
+                            `  Exceeded by: ₹${exceeded.toLocaleString()}`
+                        );
+                    })
+                    .join("\n");
+
+                const proceed = window.confirm(
+                    `⚠️ WARNING: Budget Head Limit Exceeded\n\n` +
+                    `${invalidHeads.length} budget head(s) exceed their sanctioned limits:` +
+                    warningDetails +
+                    `\n\nThe overall total is within the sanctioned amount. Do you want to proceed anyway?`,
+                );
+                if (!proceed) {
+                    throw new Error("CANCELLED");
+                }
+            }
+
+            // Get selected sanction for final validation
+            const selectedSanction = formData.sanction_ref_no
+                ? sanctionData?.message?.find(
+                    (s: any) => s.name === formData.sanction_ref_no,
+                )
+                : sanctionData?.message?.[0];
+
+            if (!selectedSanction) {
+                throw new Error(
+                    "❌ No Sanction details found. Please select a sanction reference before submitting.",
+                );
+            }
+
+            // Validation passed - log success
+            console.log("✅ All validations passed:", {
+                total: validationState.totalValidation,
+                heads: validationState.headValidations,
+            });
+        } catch (validationError: any) {
+            if (validationError.message !== "CANCELLED") {
+                setErrorModal({
+                    open: true,
+                    title: "Validation Failed",
+                    message: validationError.message,
+                });
+            }
+            setIsSubmitting(false);
+            return;
+        }
+
+        try {
+            const dataToSubmit: { [key: string]: any } = {};
+
+            // If editing, include the doc name so backend knows to update
+            if (editDocName) {
+                dataToSubmit.name = editDocName;
+                dataToSubmit.doctype = "Fund Received"; // Required for frappe.client.save
+            }
+
+            // Collect regular form fields from formData state
+            fields.forEach((field) => {
+                if (
+                    field.fieldtype !== "Table" &&
+                    field.fieldtype !== "Section Break" &&
+                    !field.hidden
+                ) {
+                    if (formData[field.fieldname] !== undefined) {
+                        dataToSubmit[field.fieldname] =
+                            formData[field.fieldname];
+                    }
+                }
+            });
+
+            // Process fund transactions table
+            dataToSubmit.fund_transactions = await Promise.all(
+                (formData.fund_transactions || []).map(async (row: any) => {
+                    if (
+                        !row.transaction_number &&
+                        !row.transaction_date &&
+                        (!row.amount || parseFloat(row.amount) === 0)
+                    ) {
+                        return null;
+                    }
+
+                    let attachmentUrl =
+                        row.attachment instanceof File ? null : row.attachment;
+
+                    // If it's a new File object, upload it
+                    if (row.attachment instanceof File) {
+                        try {
+                            const uploadedFile = await uploadFileToFrappe(
+                                row.attachment,
+                            );
+                            attachmentUrl = uploadedFile.file_url;
+                        } catch (fileError) {
+                            console.error("Error uploading file:", fileError);
+                            alert(
+                                `Failed to upload attachment for transaction ${row.transaction_number || "partial"}. Proceeding without file.`,
+                            );
+                        }
+                    }
+
+                    const rowData: any = {
+                        transaction_number: row.transaction_number || "",
+                        transaction_date: row.transaction_date || "",
+                        amount: row.amount ? parseFloat(row.amount) : 0,
+                        sanction_ref_no: formData.sanction_ref_no || null,
+                        attachment: attachmentUrl, // Standard field
+                    };
+
+                    // Use name if editing existing row
+                    if (
+                        editDocName &&
+                        row.name &&
+                        !String(row.name).startsWith("new-")
+                    ) {
+                        rowData.name = row.name;
+                    }
+
+                    return rowData;
+                }),
+            );
+            dataToSubmit.fund_transactions =
+                dataToSubmit.fund_transactions.filter((r: any) => r !== null);
+
+            // Process received amount breakup table
+            dataToSubmit.received_amt_breakup = (
+                formData.received_amt_breakup || []
+            )
+                .map((row: any) => {
+                    if (
+                        !row.account_head &&
+                        (!row.amount_received ||
+                            parseFloat(row.amount_received) === 0)
+                    ) {
+                        return null;
+                    }
+                    const rowData: any = {
+                        account_head: row.account_head || "",
+                        amount_received: row.amount_received
+                            ? parseFloat(row.amount_received)
+                            : 0,
+                        sanction_ref_no: formData.sanction_ref_no || null,
+                        remarks: row.remarks || "",
+                    };
+
+                    // Use name if editing existing row
+                    if (
+                        editDocName &&
+                        row.name &&
+                        !String(row.name).startsWith("new-")
+                    ) {
+                        rowData.name = row.name;
+                    }
+
+                    return rowData;
+                })
+                .filter((r: any) => r !== null);
+
+            console.log("Submitting data:", dataToSubmit);
+
+            await submitForm({
+                doc_data: JSON.stringify(dataToSubmit),
+                save: true,
+                project_no: projectNoFromUrl,
+                project_reg: projectRegFromUrl,
+            });
+            alert(
+                editDocName
+                    ? "Fund Received updated and submitted successfully!"
+                    : "Fund Received submitted successfully!",
+            );
+
+            navigate(-1);
+        } catch (err: any) {
+            console.error("Submission error:", submitError || err);
+            setErrorModal({
+                open: true,
+                title: "Submission Failed",
+                message: parseFrappeError(submitError, err),
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const renderFormField = (field: Field) => {
+        if (!field || field.hidden || field.fieldtype === "Section Break")
+            return null;
+
+        const commonProps = {
+            id: field.fieldname,
+            name: field.fieldname,
+            className: inputClasses,
+            readOnly: field.read_only === 1,
+            required: field.mandatory === 1,
+            disabled: field.read_only === 1,
+            value: formData[field.fieldname] ?? field.default ?? "",
+            onChange: (
+                e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+            ) => handleChange(field.fieldname, e.target.value),
+        };
+
+        const renderInput = () => {
+            switch (field.fieldtype) {
+                case "Link":
+                    let linkOpts = linkOptions[field.fieldname] || [];
+                    if (
+                        field.fieldname === "prjreg_title" &&
+                        linkOpts.length === 0 &&
+                        linkOptions.prjreg_refnum
+                    ) {
+                        linkOpts = linkOptions.prjreg_refnum;
+                    }
+                    if (field.fieldname === "principal_investigator") {
+                        return (
+                            <AutocompleteEmail
+                                id={field.fieldname}
+                                name={field.fieldname}
+                                className={inputClasses}
+                                value={
+                                    formData[field.fieldname] ??
+                                    field.default ??
+                                    ""
+                                }
+                                onChange={(value) =>
+                                    handleChange(field.fieldname, value)
+                                }
+                                options={linkOpts}
+                                placeholder="Search principal investigator..."
+                                readOnly={field.read_only === 1}
+                                required={field.mandatory === 1}
+                                disabled={field.read_only === 1}
+                                searchByLabel
+                                showAllOnFocus
+                                displayOnlyLabel
+                            />
+                        );
+                    }
+                    return (
+                        <select {...commonProps}>
+                            <option value="">Select..</option>
+                            {linkOpts.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </option>
+                            ))}
+                        </select>
+                    );
+                case "Select":
+                    if (
+                        field.fieldname === "sanction_ref_no" &&
+                        linkOptions.sanction_ref_no
+                    ) {
+                        return (
+                            <select {...commonProps}>
+                                <option value="">
+                                    Select Sanction Reference...
+                                </option>
+                                {linkOptions.sanction_ref_no.map((opt) => (
+                                    <option key={opt.value} value={opt.value}>
+                                        {opt.label} ({opt.value})
+                                    </option>
+                                ))}
+                            </select>
+                        );
+                    }
+                    const selectOpts =
+                        field.options
+                            ?.split("\n")
+                            .filter((o) => o)
+                            .map((o) => ({ value: o, label: o })) || [];
+                    return (
+                        <select {...commonProps}>
+                            <option value="">Select...</option>
+                            {selectOpts.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </option>
+                            ))}
+                        </select>
+                    );
+                case "Currency":
+                    return (
+                        <input
+                            type="number"
+                            {...commonProps}
+                            onWheel={(e) => e.currentTarget.blur()}
+                        />
+                    );
+                case "Date":
+                    return <input type="date" {...commonProps} />;
+                case "Data":
+                default:
+                    return (
+                        <input
+                            type="text"
+                            {...commonProps}
+                            maxLength={field.fieldname === "bank_account" ? 30 : undefined}
+                        />
+                    );
+            }
+        };
+
+        // Inline error for fund_received_amt
+        const isFundReceivedAmtField =
+            field.fieldname === "fund_received_amt";
+        const isBankAccountField = field.fieldname === "bank_account";
+        const bankAccountValue = String(formData["bank_account"] ?? "");
+
+        return (
+            <div key={field.fieldname} className="space-y-1.5">
+                <label
+                    htmlFor={field.fieldname}
+                    className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200"
+                >
+                    {field.label}
+                    {field.mandatory === 1 && (
+                        <span className="text-red-500">*</span>
+                    )}
+                </label>
+                {renderInput()}
+                {/* Character limit indicator for bank_account */}
+                {isBankAccountField && (
+                    <div className="flex items-center justify-between mt-1">
+                        {bankAccountValue.length >= 30 ? (
+                            <p className="text-xs font-medium text-red-600">
+                                Maximum 30 characters allowed.
+                            </p>
+                        ) : bankAccountValue.length >= 25 ? (
+                            <p className="text-xs font-medium text-amber-600">
+                                {30 - bankAccountValue.length} character{30 - bankAccountValue.length !== 1 ? "s" : ""} remaining.
+                            </p>
+                        ) : (
+                            <span />
+                        )}
+                        <span className={`text-xs font-medium ${bankAccountValue.length >= 30 ? "text-red-600" : bankAccountValue.length >= 25 ? "text-amber-600" : "text-zinc-400"}`}>
+                            {bankAccountValue.length}/30
+                        </span>
+                    </div>
+                )}
+                {/* Real-time validation: breakup total vs fund_received_amt */}
+                {isFundReceivedAmtField && fundReceivedAmtError && (
+                    <p className="text-xs font-medium mt-1 text-blue-600 dark:text-blue-400">
+                        {fundReceivedAmtError.type === "under"
+                            ? `₹${fundReceivedAmtError.remaining.toLocaleString("en-IN")} still unallocated — add it to the budget breakup below.`
+                            : `Budget breakup exceeds the received amount by ₹${fundReceivedAmtError.remaining.toLocaleString("en-IN")} — reduce one of the entries.`}
+                    </p>
+                )}
+                {isFundReceivedAmtField &&
+                    !isNaN(fundReceivedAmt) &&
+                    fundReceivedAmt > 0 &&
+                    Math.abs(totalBreakupAmt - fundReceivedAmt) < 0.01 && (
+                        <p className="text-xs font-medium text-green-600 mt-1">
+                            ✓ Budget breakup total matches Fund Received Amount.
+                        </p>
+                    )}
+                {field.description && (
+                    <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">
+                        {field.description}
+                    </p>
+                )}
+            </div>
+        );
+    };
+
+    const groupFieldsBySection = () => {
+        const sections: { title: string; fields: Field[] }[] = [];
+        let currentSection: { title: string; fields: Field[] } | null = null;
+
+        fields.forEach((field) => {
+            if (field.fieldtype === "Section Break") {
+                if (currentSection) sections.push(currentSection);
+                currentSection = {
+                    title: field.label || "Section",
+                    fields: [],
+                };
+            } else if (currentSection && !field.hidden) {
+                currentSection.fields.push(field);
+            }
+        });
+        if (currentSection) sections.push(currentSection);
+        return sections;
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-claude-bg dark:bg-zinc-900">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b border-[#E4E4E7] dark:border-[#3F3F46] mx-auto"></div>
+                    <p className="mt-3 text-sm font-semibold">
+                        Loading form data...
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    const sections = groupFieldsBySection();
+    const projectTitle =
+        result?.message?.related_project_data?.project_title || projectName;
+
+    // Get selected sanction details based on sanction_ref_no
+    // Note: This logic is also duplicated in handleSubmit for validation.
+    // Keeping it here for UI display.
+    const selectedSanction = formData.sanction_ref_no
+        ? sanctionData?.message?.find(
+            (s: any) => s.name === formData.sanction_ref_no,
+        )
+        : sanctionData?.message?.[0];
+
+    // Derive allowed account heads from the selected sanction's budget breakup
+    const sanctionedAccountHeads: string[] =
+        selectedSanction?.sanctioned_budget_breakup
+            ? selectedSanction.sanctioned_budget_breakup
+                .map((row: any) => row.account_head)
+                .filter(Boolean)
+            : [];
+
+    return (
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
+
+            <main className="flex-1 px-6 md:px-8 pt-7 pb-10">
+                <header className="mb-6 overflow-hidden bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm">
+                    <div className="h-1.5 bg-[linear-gradient(to_right,#4A6CF7,#2563EB,#D97757)]" />
+                    <div className="p-5 flex items-center gap-3">
+                        <button type="button"
+                            onClick={() => navigate(-1)}
+                            className="h-10 w-10 flex items-center justify-center bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl hover:text-[#D97757] transition-colors"
+                        >
+                            <ArrowLeftIcon className="h-4 w-4" />
+                        </button>
+                        <div className="min-w-0">
+                            <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#D97757] mb-1">Fund Received</div>
+                            <h1 className="text-[22px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-normal">
+                                {editDocName
+                                    ? "Edit Received Fund"
+                                    : "Record Received Fund"}
+                            </h1>
+                            <p className="text-[13px] text-[#71717A] dark:text-[#A1A1AA] font-medium mt-1 break-words">
+                                For Project:{" "}
+                                {projectNoFromUrl && (
+                                    <strong>{projectNoFromUrl}</strong>
+                                )}
+                                {projectNoFromUrl ? " - " : ""}
+                                {projectTitle}
+                            </p>
+                        </div>
+                    </div>
+                </header>
+
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-5">
+                    {/* Left: Main Form */}
+                    <div className="lg:col-span-3">
+                        <form onSubmit={handleSubmit}>
+                            <FrappeCard className="space-y-8">
+                                {sections.map((section, index) => (
+                                    <NeoSection
+                                        key={index}
+                                        title={section.title}
+                                    >
+                                        {section.title ===
+                                            "Transaction & Budget Breakups" ? (
+                                            <div className="space-y-6">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+                                                    {section.fields
+                                                        .filter((f) =>
+                                                            [
+                                                                "gst_invoice_issued",
+                                                                "invoice_no",
+                                                            ].includes(
+                                                                f.fieldname,
+                                                            ),
+                                                        )
+                                                        .map((field) =>
+                                                            field.fieldname ===
+                                                                "invoice_no" ? (
+                                                                <div
+                                                                    key={
+                                                                        field.fieldname
+                                                                    }
+                                                                    id="invoice_no_container"
+                                                                    style={{
+                                                                        display:
+                                                                            "none",
+                                                                    }}
+                                                                >
+                                                                    {renderFormField(
+                                                                        field,
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                renderFormField(
+                                                                    field,
+                                                                )
+                                                            ),
+                                                        )}
+                                                </div>
+                                                <MemoizedTransactionsTable
+                                                    tableData={
+                                                        formData.fund_transactions
+                                                    }
+                                                    onRowChange={
+                                                        handleTransactionRowChange
+                                                    }
+                                                    onFileChange={
+                                                        handleTransactionFileChange
+                                                    }
+                                                    onAddRow={addTransactionRow}
+                                                    onDeleteRow={
+                                                        deleteTransactionRow
+                                                    }
+                                                />
+                                                <MemoizedBudgetBreakupTable
+                                                    tableData={
+                                                        formData.received_amt_breakup
+                                                    }
+                                                    onRowChange={
+                                                        handleBudgetRowChange
+                                                    }
+                                                    onAddRow={addBudgetRow}
+                                                    onDeleteRow={
+                                                        deleteBudgetRow
+                                                    }
+                                                    budgetHeadOptions={
+                                                        sanctionedAccountHeads
+                                                    }
+                                                    hasEmptyAccountHead={hasEmptyAccountHead}
+                                                    usedAccountHeads={usedAccountHeads}
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
+                                                {section.fields.map(
+                                                    renderFormField,
+                                                )}
+                                            </div>
+                                        )}
+                                    </NeoSection>
+                                ))}
+                            </FrappeCard>
+
+                            <div className="mt-6 flex justify-end gap-3 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl p-3 shadow-sm">
+                                <FrappeButton
+                                    type="button"
+                                    onClick={() => navigate(-1)}
+                                    className="bg-white dark:bg-[#27272A] hover:bg-[#FAFAF9]"
+                                >
+                                    Cancel
+                                </FrappeButton>
+                                <FrappeButton
+                                    type="submit"
+                                    disabled={isSubmitting || !isFundAmtBreakupValid || hasEmptyAccountHead}
+                                    className="bg-[#D97757] text-white border-[#D97757] hover:bg-[#c5684a] disabled:bg-zinc-300"
+                                >
+                                    {isSubmitting
+                                        ? "Submitting..."
+                                        : "Submit Fund Received"}
+                                </FrappeButton>
+                            </div>
+                        </form>
+                    </div>
+
+                    {/* Right: Sanction Details Panel */}
+                    <div className="lg:col-span-1">
+                        <div className="sticky top-4 space-y-4 max-h-[calc(100vh-2rem)] overflow-y-auto">
+                            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-4">
+                                <h3 className="inline-flex items-center gap-2 rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2.5 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200 mb-3">
+                                    <span className="p-1 rounded-md bg-zinc-50 dark:bg-zinc-800">
+                                        📋
+                                    </span>
+                                    Sanction Details
+                                </h3>
+
+                                {sanctionLoading ? (
+                                    <div className="text-center py-6">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757] mx-auto"></div>
+                                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2">
+                                            Loading...
+                                        </p>
+                                    </div>
+                                ) : selectedSanction ? (
+                                    <div className="space-y-3">
+                                        <div>
+                                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
+                                                Sanction Reference
+                                            </p>
+                                            <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
+                                                {selectedSanction.name}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
+                                                Sanction Letter No
+                                            </p>
+                                            <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
+                                                {selectedSanction.sanction_letter_no ||
+                                                    "-"}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
+                                                Sanction Date
+                                            </p>
+                                            <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
+                                                {selectedSanction.sanction_date ||
+                                                    "-"}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
+                                                Total Amount
+                                            </p>
+                                            <p className="text-base font-bold text-[#D97757]">
+                                                ₹{" "}
+                                                {(
+                                                    selectedSanction.total_sanctioned_amount ||
+                                                    0
+                                                ).toLocaleString("en-IN")}
+                                            </p>
+                                        </div>
+
+                                        {selectedSanction
+                                            .sanctioned_budget_breakup?.length >
+                                            0 &&
+                                            (() => {
+                                                // Determine which years have data
+                                                const yearKeys = [
+                                                    {
+                                                        key: "first_year_budget",
+                                                        label: "Y1",
+                                                    },
+                                                    {
+                                                        key: "second_year_budget",
+                                                        label: "Y2",
+                                                    },
+                                                    {
+                                                        key: "third_year_budget",
+                                                        label: "Y3",
+                                                    },
+                                                    {
+                                                        key: "fourth_year_budget",
+                                                        label: "Y4",
+                                                    },
+                                                    {
+                                                        key: "fifth_year_budget",
+                                                        label: "Y5",
+                                                    },
+                                                ];
+                                                const activeYears =
+                                                    yearKeys.filter((year) =>
+                                                        selectedSanction.sanctioned_budget_breakup.some(
+                                                            (row: any) =>
+                                                                (row[
+                                                                    year.key
+                                                                ] || 0) > 0,
+                                                        ),
+                                                    );
+
+                                                return (
+                                                    <div className="pt-3 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                                                        <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">
+                                                            Budget Breakup
+                                                            (Year-wise)
+                                                        </p>
+                                                        <div className="overflow-x-auto">
+                                                            <table className="w-full text-xs">
+                                                                <thead>
+                                                                    <tr className="border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                                                                        <th className="text-left py-2 font-semibold text-zinc-600 dark:text-zinc-400">
+                                                                            Head
+                                                                        </th>
+                                                                        {activeYears.map(
+                                                                            (
+                                                                                year,
+                                                                            ) => (
+                                                                                <th
+                                                                                    key={
+                                                                                        year.key
+                                                                                    }
+                                                                                    className="text-right py-2 font-semibold text-zinc-600 dark:text-zinc-400"
+                                                                                >
+                                                                                    {
+                                                                                        year.label
+                                                                                    }
+                                                                                </th>
+                                                                            ),
+                                                                        )}
+                                                                        <th className="text-right py-2 font-bold text-zinc-700 dark:text-zinc-300">
+                                                                            Total
+                                                                        </th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {selectedSanction.sanctioned_budget_breakup.map(
+                                                                        (
+                                                                            row: any,
+                                                                            i: number,
+                                                                        ) => {
+                                                                            const total =
+                                                                                activeYears.reduce(
+                                                                                    (
+                                                                                        sum,
+                                                                                        year,
+                                                                                    ) =>
+                                                                                        sum +
+                                                                                        (row[
+                                                                                            year
+                                                                                                .key
+                                                                                        ] ||
+                                                                                            0),
+                                                                                    0,
+                                                                                );
+                                                                            return (
+                                                                                <tr
+                                                                                    key={
+                                                                                        i
+                                                                                    }
+                                                                                    className="border-b border-zinc-100 dark:border-zinc-800"
+                                                                                >
+                                                                                    <td
+                                                                                        className="py-1.5 text-zinc-700 dark:text-zinc-300 truncate max-w-[80px]"
+                                                                                        title={
+                                                                                            row.account_head
+                                                                                        }
+                                                                                    >
+                                                                                        {
+                                                                                            row.account_head
+                                                                                        }
+                                                                                    </td>
+                                                                                    {activeYears.map(
+                                                                                        (
+                                                                                            year,
+                                                                                        ) => {
+                                                                                            const val =
+                                                                                                row[
+                                                                                                year
+                                                                                                    .key
+                                                                                                ] ||
+                                                                                                0;
+                                                                                            return (
+                                                                                                <td
+                                                                                                    key={
+                                                                                                        year.key
+                                                                                                    }
+                                                                                                    className="py-1.5 text-right text-zinc-600 dark:text-zinc-400"
+                                                                                                >
+                                                                                                    {val >
+                                                                                                        0
+                                                                                                        ? (
+                                                                                                            val /
+                                                                                                            1000
+                                                                                                        ).toFixed(
+                                                                                                            0,
+                                                                                                        ) +
+                                                                                                        "k"
+                                                                                                        : "-"}
+                                                                                                </td>
+                                                                                            );
+                                                                                        },
+                                                                                    )}
+                                                                                    <td className="py-1.5 text-right font-semibold text-zinc-900 dark:text-zinc-100">
+                                                                                        {(
+                                                                                            total /
+                                                                                            1000
+                                                                                        ).toFixed(
+                                                                                            0,
+                                                                                        )}
+                                                                                        k
+                                                                                    </td>
+                                                                                </tr>
+                                                                            );
+                                                                        },
+                                                                    )}
+                                                                </tbody>
+                                                                <tfoot className="bg-zinc-50 dark:bg-zinc-800/50">
+                                                                    <tr>
+                                                                        <td className="py-1.5 font-bold text-zinc-800 dark:text-zinc-200">
+                                                                            Total
+                                                                        </td>
+                                                                        {activeYears.map(
+                                                                            (
+                                                                                year,
+                                                                            ) => {
+                                                                                const yearTotal =
+                                                                                    selectedSanction.sanctioned_budget_breakup.reduce(
+                                                                                        (
+                                                                                            sum: number,
+                                                                                            row: any,
+                                                                                        ) =>
+                                                                                            sum +
+                                                                                            (row[
+                                                                                                year
+                                                                                                    .key
+                                                                                            ] ||
+                                                                                                0),
+                                                                                        0,
+                                                                                    );
+                                                                                return (
+                                                                                    <td
+                                                                                        key={
+                                                                                            year.key
+                                                                                        }
+                                                                                        className="py-1.5 text-right font-semibold text-zinc-700 dark:text-zinc-300"
+                                                                                    >
+                                                                                        {yearTotal >
+                                                                                            0
+                                                                                            ? (
+                                                                                                yearTotal /
+                                                                                                1000
+                                                                                            ).toFixed(
+                                                                                                0,
+                                                                                            ) +
+                                                                                            "k"
+                                                                                            : "-"}
+                                                                                    </td>
+                                                                                );
+                                                                            },
+                                                                        )}
+                                                                        <td className="py-1.5 text-right font-bold text-[#D97757]">
+                                                                            {(
+                                                                                selectedSanction.sanctioned_budget_breakup.reduce(
+                                                                                    (
+                                                                                        sum: number,
+                                                                                        row: any,
+                                                                                    ) =>
+                                                                                        activeYears.reduce(
+                                                                                            (
+                                                                                                s,
+                                                                                                y,
+                                                                                            ) =>
+                                                                                                s +
+                                                                                                (row[
+                                                                                                    y
+                                                                                                        .key
+                                                                                                ] ||
+                                                                                                    0),
+                                                                                            sum,
+                                                                                        ),
+                                                                                    0,
+                                                                                ) /
+                                                                                1000
+                                                                            ).toFixed(
+                                                                                0,
+                                                                            )}
+                                                                            k
+                                                                        </td>
+                                                                    </tr>
+                                                                </tfoot>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-6">
+                                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                            No sanction details found.
+                                        </p>
+                                        <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1">
+                                            Please add a sanction first.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Validation Summary Panel */}
+                            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-4">
+                                <h3 className="inline-flex items-center gap-2 rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2.5 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200 mb-3">
+                                    <span className="p-1 rounded-md bg-blue-100">
+                                        ✓
+                                    </span>
+                                    Real-time Validation
+                                </h3>
+
+                                {/* Fund Received Amt vs Breakup Total */}
+                                {!isNaN(fundReceivedAmt) &&
+                                    fundReceivedAmt > 0 && (
+                                        <div className="space-y-2 mb-4 pb-4 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
+                                                Fund Received Amount
+                                            </p>
+                                            <ProgressBar
+                                                current={totalBreakupAmt}
+                                                total={fundReceivedAmt}
+                                                label="Breakup vs Received"
+                                                showWarning={true}
+                                            />
+                                            <div className="grid grid-cols-2 gap-2 text-[11px] mt-1">
+                                                <div className="bg-[#FAFAF9] dark:bg-[#18181B] p-2 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46]">
+                                                    <p className="text-zinc-500 dark:text-zinc-400">
+                                                        Fund Received Amt
+                                                    </p>
+                                                    <p className="font-bold text-xs text-zinc-800 dark:text-zinc-200">
+                                                        ₹
+                                                        {fundReceivedAmt.toLocaleString(
+                                                            "en-IN",
+                                                        )}
+                                                    </p>
+                                                </div>
+                                                <div className="bg-[#FAFAF9] dark:bg-[#18181B] p-2 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46]">
+                                                    <p className="text-zinc-500 dark:text-zinc-400">
+                                                        Breakup Total
+                                                    </p>
+                                                    <p
+                                                        className={`text-xs font-bold ${totalBreakupAmt >
+                                                            fundReceivedAmt
+                                                            ? "text-red-600"
+                                                            : totalBreakupAmt ===
+                                                                fundReceivedAmt
+                                                                ? "text-green-600"
+                                                                : "text-blue-600"
+                                                            }`}
+                                                    >
+                                                        ₹
+                                                        {totalBreakupAmt.toLocaleString(
+                                                            "en-IN",
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            {fundReceivedAmtError ? (
+                                                <p className="text-[11px] font-medium mt-1 text-blue-600 dark:text-blue-400">
+                                                    {fundReceivedAmtError.type === "under"
+                                                        ? `₹${fundReceivedAmtError.remaining.toLocaleString("en-IN")} still unallocated`
+                                                        : `Exceeds by ₹${fundReceivedAmtError.remaining.toLocaleString("en-IN")}`}
+                                                </p>
+                                            ) : (
+                                                <p className="text-[11px] font-semibold text-green-600 mt-1">
+                                                    ✓ Breakup matches Fund
+                                                    Received Amount
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+
+                                {/* Total Budget Validation */}
+                                <div className="space-y-3 mb-4">
+                                    <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
+                                        Total Budget Status
+                                    </p>
+                                    <ProgressBar
+                                        current={
+                                            validationState.totalValidation
+                                                .previousTotal +
+                                            validationState.totalValidation
+                                                .currentTotal
+                                        }
+                                        total={
+                                            validationState.totalValidation
+                                                .sanctionedTotal
+                                        }
+                                        label="Total Funds"
+                                        showWarning={true}
+                                    />
+                                    <ValidationAlert
+                                        isValid={
+                                            validationState.totalValidation
+                                                .isValid
+                                        }
+                                        message={
+                                            validationState.totalValidation
+                                                .message
+                                        }
+                                    />
+                                    <div className="grid grid-cols-2 gap-2 text-[11px] mt-2">
+                                        <div className="bg-[#FAFAF9] dark:bg-[#18181B] p-2 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46]">
+                                            <p className="text-zinc-500 dark:text-zinc-400">
+                                                Previously Received
+                                            </p>
+                                            <p className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                                                ₹
+                                                {validationState.totalValidation.previousTotal.toLocaleString()}
+                                            </p>
+                                        </div>
+                                        <div className="bg-[#FAFAF9] dark:bg-[#18181B] p-2 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46]">
+                                            <p className="text-zinc-500 dark:text-zinc-400">
+                                                Current Entry
+                                            </p>
+                                            <p className="text-xs font-bold text-blue-600">
+                                                ₹
+                                                {validationState.totalValidation.currentTotal.toLocaleString()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Budget Head-wise Validation */}
+                                {Object.keys(validationState.headValidations)
+                                    .length > 0 && (
+                                        <div className="pt-4 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">
+                                                Budget Head Status
+                                            </p>
+                                            <div className="space-y-2.5 max-h-80 overflow-y-auto">
+                                                {Object.entries(
+                                                    validationState.headValidations,
+                                                ).map(([head, validation]) => (
+                                                    <div
+                                                        key={head}
+                                                        className="space-y-2 p-2.5 bg-zinc-50 dark:bg-zinc-800/50 rounded-md"
+                                                    >
+                                                        <p className="font-semibold text-xs text-zinc-800 dark:text-zinc-200">
+                                                            {head}
+                                                        </p>
+                                                        <ProgressBar
+                                                            current={
+                                                                validation.previousTotal +
+                                                                validation.currentTotal
+                                                            }
+                                                            total={
+                                                                validation.sanctionedLimit
+                                                            }
+                                                            label=""
+                                                            showWarning={false}
+                                                        />
+                                                        <div className="flex justify-between text-[11px]">
+                                                            <span
+                                                                className={
+                                                                    validation.isValid
+                                                                        ? "text-green-600"
+                                                                        : "text-red-600"
+                                                                }
+                                                            >
+                                                                {validation.message}
+                                                            </span>
+                                                            <span className="text-zinc-600 dark:text-zinc-400">
+                                                                Prev: ₹
+                                                                {validation.previousTotal.toLocaleString()}{" "}
+                                                                | Curr: ₹
+                                                                {validation.currentTotal.toLocaleString()}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                {/* Overall Status Badge */}
+                                <div className="mt-4 pt-4 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                                    {validationState.totalValidation.isValid &&
+                                        isFundAmtBreakupValid &&
+                                        Object.values(
+                                            validationState.headValidations,
+                                        ).every((v) => v.isValid) ? (
+                                        <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900/40 rounded-md p-2.5 text-center">
+                                            <p className="text-green-800 dark:text-green-300 text-sm font-semibold">
+                                                ✓ Ready to Submit
+                                            </p>
+                                            <p className="text-[11px] text-green-600 dark:text-green-400 mt-1">
+                                                All validations passed
+                                            </p>
+                                        </div>
+                                    ) : isNaN(fundReceivedAmt) || fundReceivedAmt === 0 ? (
+                                        <div className="bg-zinc-50 border border-zinc-200 dark:bg-zinc-800/30 dark:border-zinc-700 rounded-md p-2.5 text-center">
+                                            <p className="text-zinc-500 dark:text-zinc-400 text-[11px]">
+                                                Fill in the fund details above to validate
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 rounded-md p-2.5 text-center">
+                                            <p className="text-blue-800 dark:text-blue-300 text-sm font-semibold">
+                                                ℹ Cannot Submit
+                                            </p>
+                                            <p className="text-[11px] text-blue-600 dark:text-blue-400 mt-1">
+                                                {!isFundAmtBreakupValid
+                                                    ? "Budget breakup total must equal the Fund Received Amount"
+                                                    : !validationState.totalValidation.isValid
+                                                        ? "Total funds exceed sanctioned amount"
+                                                        : Object.values(validationState.headValidations).some((v) => !v.isValid)
+                                                            ? "Some budget heads exceed their sanctioned limits"
+                                                            : "Please fix validation errors above"
+                                                }
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            {/* Floating Help Button */}
+            <HelpFloating />
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() =>
+                    setErrorModal((prev) => ({ ...prev, open: false }))
+                }
+            />
+        </div>
+    );
+};
+
+export default AddFundReceived;
