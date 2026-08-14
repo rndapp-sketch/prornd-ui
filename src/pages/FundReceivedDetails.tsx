@@ -422,7 +422,7 @@ const FundReceivedDetails = () => {
     const [linkedDepositSlip, setLinkedDepositSlip] = useState<{ name: string; doctype: string } | null>(null);
     const [slipRefreshKey, setSlipRefreshKey] = useState(0);
 
-    const { data: docData, isLoading: docLoading, error: docError } = useFrappeGetDoc("Fund Received", name || "");
+    const { data: docData, isLoading: docLoading, error: docError, mutate: mutateDoc } = useFrappeGetDoc("Fund Received", name || "");
 
     // Find deposit slip linked to this Fund Received document across all deposit slip doctypes.
     // `fund_received_ref` on the deposit slip doctypes is a plain Data field, and depending on
@@ -1006,7 +1006,7 @@ const FundReceivedDetails = () => {
                 )}
                 <main className="px-6 md:px-8 pt-7 pb-10">
                     <div className="mb-4 flex items-center gap-3 flex-wrap">
-                        <FundReceivedWorkflowActions docname={name || ""} onActionComplete={(result) => { const s = result?.workflow_state; if (s) setOptimisticWorkflowState(s); globalMutate(() => true); mutate(); setSlipRefreshKey(k => k + 1); setActiveTab("deposit_slip"); }} onBeforeAction={handleBeforeAction} />
+                        <FundReceivedWorkflowActions docname={name || ""} onActionComplete={(result) => { const s = result?.message?.workflow_state ?? result?.workflow_state; if (s) setOptimisticWorkflowState(s); globalMutate(() => true); mutateDoc(); mutate(); setSlipRefreshKey(k => k + 1); setActiveTab("deposit_slip"); }} onBeforeAction={handleBeforeAction} />
                     </div>
                     <HoSApprovalView fundReceivedName={name || ""} />
                 </main>
@@ -1098,7 +1098,7 @@ const FundReceivedDetails = () => {
                             <ViewProjectButton doctype="Fund Received" data={fundData} />
                             <FundReceivedWorkflowActions
                                 docname={name || ""}
-                                onActionComplete={(result) => { const s = result?.workflow_state; if (s) setOptimisticWorkflowState(s); globalMutate(() => true); mutate(); setSlipRefreshKey(k => k + 1); setActiveTab("deposit_slip"); }}
+                                onActionComplete={(result) => { const s = result?.message?.workflow_state ?? result?.workflow_state; if (s) setOptimisticWorkflowState(s); globalMutate(() => true); mutateDoc(); mutate(); setSlipRefreshKey(k => k + 1); setActiveTab("deposit_slip"); }}
                                 onBeforeAction={handleBeforeAction}
                                 disabledCondition={(action) => {
                                     if (action === "Put Back") return false;
