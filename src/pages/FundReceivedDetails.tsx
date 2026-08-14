@@ -37,6 +37,12 @@ import { getFileUrl } from "@/utils/fileUtils";
 import { BudgetHeadName } from "@/components/BudgetHeadName";
 import { ErrorModal } from "../components/ErrorModal";
 import { parseFrappeError } from "../utils/errorUtils";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // ── Attachment helper ──────────────────────────────────────────────────────────
 const TransactionAttachment = ({
@@ -265,25 +271,106 @@ const FundReceivedWorkflowActions = ({ docname, onActionComplete, onBeforeAction
     };
 
     if (actionsLoading || !data?.message?.length) return null;
+
+    if (data.message.length === 1) {
+        const action = data.message[0];
+        const isDisabled = disabledCondition ? disabledCondition(action) : false;
+        return (
+            <>
+                <button onClick={() => handleActionClick(action)}
+                    disabled={actionLoading || isDisabled}
+                    className={cn("inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-bold uppercase tracking-wide transition-all",
+                        isDisabled ? "opacity-40 cursor-not-allowed bg-[#FAFAF9] dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] text-[#71717A]"
+                                   : "bg-[#D97757] hover:bg-[#c66a4e] text-white shadow-sm hover:shadow-md"
+                    )}>
+                    {action}
+                </button>
+                <CommentModal isOpen={modalOpen} onClose={() => setModalOpen(false)} onSubmit={handleConfirmAction} action={selectedAction} isLoading={actionLoading} />
+            </>
+        );
+    }
+
     return (
         <>
-            <div className="flex gap-2 flex-wrap">
-                {data.message.map((action) => {
-                    const isDisabled = disabledCondition ? disabledCondition(action) : false;
-                    return (
-                        <button key={action} onClick={() => handleActionClick(action)}
-                            disabled={actionLoading || isDisabled}
-                            className={cn("inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-bold uppercase tracking-wide transition-all",
-                                isDisabled ? "opacity-40 cursor-not-allowed bg-[#FAFAF9] dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] text-[#71717A]"
-                                           : "bg-[#D97757] hover:bg-[#c66a4e] text-white shadow-sm hover:shadow-md"
-                            )}>
-                            {action}
-                        </button>
-                    );
-                })}
-            </div>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <button disabled={actionLoading}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-bold uppercase tracking-wide transition-all bg-[#D97757] hover:bg-[#c66a4e] text-white shadow-sm hover:shadow-md disabled:opacity-40 disabled:cursor-not-allowed">
+                        Actions
+                        <ChevronDown className="h-3.5 w-3.5" />
+                    </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    {data.message.map((action) => {
+                        const isDisabled = disabledCondition ? disabledCondition(action) : false;
+                        return (
+                            <DropdownMenuItem key={action} disabled={isDisabled}
+                                onSelect={() => handleActionClick(action)}>
+                                {action}
+                            </DropdownMenuItem>
+                        );
+                    })}
+                </DropdownMenuContent>
+            </DropdownMenu>
             <CommentModal isOpen={modalOpen} onClose={() => setModalOpen(false)} onSubmit={handleConfirmAction} action={selectedAction} isLoading={actionLoading} />
         </>
+    );
+};
+
+// ── Account Portal alert toast ──────────────────────────────────────────────────
+interface AccountPortalAlertEntry { content: string; timestamp: string; label: string; }
+
+function useAccountPortalAlert(docname?: string) {
+    const [entry, setEntry] = useState<AccountPortalAlertEntry | null>(null);
+    React.useEffect(() => {
+        if (!docname) return;
+        let cancelled = false;
+        fetch(`/api/method/rndopsapp.rndopsapp.api.get_document_activity?doctype=Fund%20Received&docname=${encodeURIComponent(docname)}`,
+            { credentials: "include" })
+            .then((res) => (res.ok ? res.json() : null))
+            .then((json) => {
+                if (cancelled || !json) return;
+                const entries: any[] = Array.isArray(json?.message) ? json.message : [];
+                // Only surface the alert while the most recent comment is the "[Put Back]" one —
+                // once the document moves on (a newer comment/action is logged), it goes away.
+                const latestComment = entries
+                    .filter((e) => e.type === "comment")
+                    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+                if (!latestComment || !String(latestComment.content || "").toLowerCase().includes("[put back]")) {
+                    setEntry(null);
+                    return;
+                }
+                setEntry({ content: latestComment.content || "", timestamp: latestComment.timestamp, label: latestComment.label });
+            })
+            .catch(() => {});
+        return () => { cancelled = true; };
+    }, [docname]);
+    return entry;
+}
+
+const AccountPortalToast = ({ entry, onDismiss, onOpen }: { entry: AccountPortalAlertEntry; onDismiss: () => void; onOpen: () => void }) => {
+    return (
+        <div className="fixed top-4 right-4 z-[9999] w-full max-w-sm animate-in slide-in-from-right-4 fade-in duration-300">
+            <div onClick={onOpen} role="button" tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onOpen(); }}
+                className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl shadow-2xl overflow-hidden cursor-pointer hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.2)] transition-shadow">
+                <div className="h-1 bg-[#D97757]" />
+                <div className="p-4 flex gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-orange-50 dark:bg-orange-900/30 flex items-center justify-center flex-shrink-0 text-[#D97757]">
+                        <AlertTriangle className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-0.5">Put Back</p>
+                        <div className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] leading-relaxed"
+                            dangerouslySetInnerHTML={{ __html: entry.content }} />
+                    </div>
+                    <button onClick={(e) => { e.stopPropagation(); onDismiss(); }}
+                        className="p-1 rounded-lg hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] text-[#71717A] transition-colors flex-shrink-0">
+                        <X className="h-3.5 w-3.5" />
+                    </button>
+                </div>
+            </div>
+        </div>
     );
 };
 
@@ -879,6 +966,9 @@ const FundReceivedDetails = () => {
         return {};
     }, [isRndMiscellaneous, formData, selectedDepositSlipType, linkedDepositSlip]);
 
+    const accountPortalAlertEntry = useAccountPortalAlert(name);
+    const [accountPortalAlertDismissed, setAccountPortalAlertDismissed] = useState(false);
+
     if (isLoading) return <GlobalLoader isLoading delay={0} />;
 
     if (error || !fundData) {
@@ -909,12 +999,36 @@ const FundReceivedDetails = () => {
     if (workflow_state === "Approved") {
         return (
             <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
+                {accountPortalAlertEntry && !accountPortalAlertDismissed && name && (
+                    <AccountPortalToast entry={accountPortalAlertEntry}
+                        onDismiss={() => setAccountPortalAlertDismissed(true)}
+                        onOpen={() => { setAccountPortalAlertDismissed(true); setShowActivityLog(true); }} />
+                )}
                 <main className="px-6 md:px-8 pt-7 pb-10">
                     <div className="mb-4 flex items-center gap-3 flex-wrap">
                         <FundReceivedWorkflowActions docname={name || ""} onActionComplete={(result) => { const s = result?.workflow_state; if (s) setOptimisticWorkflowState(s); globalMutate(() => true); mutate(); setSlipRefreshKey(k => k + 1); setActiveTab("deposit_slip"); }} onBeforeAction={handleBeforeAction} />
                     </div>
                     <HoSApprovalView fundReceivedName={name || ""} />
                 </main>
+
+                {showActivityLog && (
+                    <div className="fixed inset-0 z-50 flex justify-end">
+                        <div className="absolute inset-0 bg-black/25 backdrop-blur-sm" onClick={() => setShowActivityLog(false)} />
+                        <div className="relative w-full max-w-md bg-white dark:bg-[#27272A] h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+                            <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
+                            <div className="flex items-center justify-between px-5 py-4 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-md bg-[#EEF2FF] flex items-center justify-center text-[#4A6CF7]"><MessageSquare className="h-3.5 w-3.5" /></div>
+                                    <h3 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">Activity Log</h3>
+                                </div>
+                                <button onClick={() => setShowActivityLog(false)} className="p-1.5 rounded-lg hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] text-[#71717A] transition-colors"><X className="h-4 w-4" /></button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-5 bg-[#FAFAF9] dark:bg-[#18181B]">
+                                {name && <ActivityLog doctype="Fund Received" docname={name} maxHeight="100%" />}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
@@ -922,6 +1036,11 @@ const FundReceivedDetails = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans text-[#3F3F46] dark:text-[#E4E4E7]">
+            {accountPortalAlertEntry && !accountPortalAlertDismissed && name && (
+                <AccountPortalToast entry={accountPortalAlertEntry}
+                    onDismiss={() => setAccountPortalAlertDismissed(true)}
+                    onOpen={() => { setAccountPortalAlertDismissed(true); setShowActivityLog(true); }} />
+            )}
             <GlobalLoader isLoading={isSubmitting} />
 
             <main className="px-6 md:px-8 pt-7 pb-16">
