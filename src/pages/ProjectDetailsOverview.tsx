@@ -4263,7 +4263,14 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                             <div className="flex items-start gap-3 min-w-0">
                                 {!embedded && (
                                     <button
-                                        onClick={() => navigate(isCoProjectView ? "/co-projects" : "/projects-view")}
+                                        onClick={() => {
+                                            const historyIdx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+                                            if (historyIdx > 0) {
+                                                navigate(-1);
+                                            } else {
+                                                navigate(isCoProjectView ? "/co-projects" : "/projects-view");
+                                            }
+                                        }}
                                         aria-label="Back to projects"
                                         className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
                                     >

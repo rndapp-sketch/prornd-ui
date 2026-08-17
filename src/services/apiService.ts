@@ -308,6 +308,15 @@ export const delegateUserAPI = {
     delegate: `rndopsapp.rndopsapp.api.delegate_user`,
     undelegate: `rndopsapp.rndopsapp.api.undelegate_user`,
     removeItem: `rndopsapp.rndopsapp.api.remove_delegated_item`,
+    createOnBehalf: `rndopsapp.rndopsapp.api.create_application_on_behalf`,
+};
+
+// Reimbursement API endpoints
+export const reimbursementAPI = {
+    getFields: `${API_BASE}.reimbursement.reimbursement.get_reimbursement_fields`,
+    getWorkflowActions: `${API_BASE}.reimbursement.reimbursement.get_reimbursement_workflow_actions`,
+    performAction: `${API_BASE}.reimbursement.reimbursement.perform_reimbursement_action`,
+    submit: `${API_BASE}.reimbursement.reimbursement.submit_reimbursement`,
 };
 
 // Helper to convert file to base64.

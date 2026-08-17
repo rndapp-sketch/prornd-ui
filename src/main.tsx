@@ -102,6 +102,7 @@ import TopUpFellowshipFacultyAdmission from './pages/application/TopUpFellowship
 import SalaryModule from './pages/application/SalaryModule';
 import SalaryRegisterFull from './pages/application/SalaryRegisterFull';
 import DelegateUser from './pages/DelegateUser.tsx';
+import DelegatedToMe from './pages/DelegatedToMe.tsx';
 import CoProjectView from './pages/CoProjectView.tsx';
 import LeaveModule from './pages/LeaveModule.tsx';
 import LeaveModuleForm from './pages/LeaveModuleForm.tsx';
@@ -871,8 +872,16 @@ const router = createBrowserRouter(
                 {
                     path: "delegate-user",
                     element: (
-                        <AuthRouteWrapper allowedRole="Permanent Employee">
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <DelegateUser />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "delegated-to-me",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <DelegatedToMe />
                         </AuthRouteWrapper>
                     ),
                 },

@@ -30,6 +30,7 @@ import {
     Calendar,
     HelpCircle,
     Search,
+    Share2 as Share2Icon,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -239,6 +240,11 @@ export function AppSidebar() {
             path: "/delegate-user",
         },
         {
+            label: "Delegated to Me",
+            icon: Share2Icon,
+            path: "/delegated-to-me",
+        },
+        {
             label: "Leave Module",
             icon: Calendar,
             path: "/leave-module",
@@ -384,6 +390,9 @@ export function AppSidebar() {
         }
         if (item.label === "Delegate User") {
             return roles?.includes("Permanent Employee") ?? false;
+        }
+        if (item.label === "Delegated to Me") {
+            return roles?.includes("project staff") ?? false;
         }
         if (item.label === "Leave Module") {
             const allowedRoles = ["project staff", "IF - Inspired Faculty", "Independent Researcher"];
