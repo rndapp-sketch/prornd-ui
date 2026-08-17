@@ -13,7 +13,7 @@ import { CommentModal } from "@/components/CommentModal";
 import {
   User as UserIcon, IdCard, Building2, Briefcase,
   FolderOpen, CalendarDays, FileText, AlertCircle, CheckCircle2,
-  ChevronLeft, ChevronDown, ChevronRight as ChevronRightIcon, Loader2, Clock,
+  ChevronLeft, ChevronDown, Loader2, Clock,
   ArrowRightCircle, CheckCircle, XCircle, IndianRupee,
   UserCheck, TrendingUp,
 } from "lucide-react";
@@ -982,8 +982,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                 const fallbackSubmitAvailable = !!docName && isEditable && !availableActions.some(
                   (a) => a.toLowerCase().includes("submit") || a.toLowerCase().includes("forward"),
                 );
-                const hasMenuItems = canEdit || canEditPIFields || canEditStaffFields ||
-                  workflowActions.length > 0 || fallbackSubmitAvailable;
+                const hasWorkflowMenuItems = workflowActions.length > 0 || fallbackSubmitAvailable;
 
                 const categoriseAction = (action: string) => {
                   const a = action.toLowerCase();
@@ -1021,7 +1020,43 @@ const ProjectStaffExtensionForm: React.FC = () => {
                       </button>
                     )}
 
-                    {hasMenuItems && (
+                    {/* Save Draft — only while actively editing */}
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={isBusy}
+                        className={cn(
+                          "inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all",
+                          "bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600",
+                          "text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-600",
+                          "disabled:opacity-50 disabled:cursor-not-allowed",
+                        )}
+                      >
+                        {isBusy && <Loader2 className="h-4 w-4 animate-spin" />}
+                        Save Draft
+                      </button>
+                    )}
+
+                    {/* Save Changes — PI or Staff evaluations */}
+                    {(canEditPIFields || canEditStaffFields) && (
+                      <button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={isBusy}
+                        className={cn(
+                          "inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all",
+                          "bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600",
+                          "text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-600",
+                          "disabled:opacity-50 disabled:cursor-not-allowed",
+                        )}
+                      >
+                        {isBusy && <Loader2 className="h-4 w-4 animate-spin" />}
+                        Save Changes
+                      </button>
+                    )}
+
+                    {hasWorkflowMenuItems && (
                       <div className="relative">
                         <button
                           ref={actionsMenuBtnRef}
@@ -1045,71 +1080,39 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             style={{ position: "absolute", top: actionsMenuPos.top, right: actionsMenuPos.right, zIndex: 9999 }}
                             className="min-w-[210px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden"
                           >
-                            {(canEdit || canEditPIFields || canEditStaffFields) && (
-                              <>
-                                {canEdit && (
+                            <div className="px-4 py-2 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-100 dark:border-zinc-700">
+                              <span className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                                Workflow Actions
+                              </span>
+                            </div>
+                            {workflowGroups.map((group, gi) => (
+                              <React.Fragment key={gi}>
+                                {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
+                                {group.map((action) => (
                                   <button
+                                    key={action}
                                     type="button"
-                                    onClick={() => { setActionsMenuOpen(false); handleSave(); }}
-                                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+                                    onClick={() => openActionModal(action)}
+                                    className={cn(
+                                      "w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left transition-colors",
+                                      actionItemStyle(action),
+                                    )}
                                   >
-                                    <ChevronRightIcon className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />
-                                    Save Draft
+                                    {actionIcon(action)}
+                                    {action}
                                   </button>
-                                )}
-                                {(canEditPIFields || canEditStaffFields) && (
-                                  <button
-                                    type="button"
-                                    onClick={() => { setActionsMenuOpen(false); handleSave(); }}
-                                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
-                                  >
-                                    <ChevronRightIcon className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />
-                                    Save Changes
-                                  </button>
-                                )}
-                              </>
-                            )}
-
-                            {(workflowActions.length > 0 || fallbackSubmitAvailable) && (
-                              <>
-                                {(canEdit || canEditPIFields || canEditStaffFields) && (
-                                  <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3 my-1" />
-                                )}
-                                <div className="px-4 py-2 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-100 dark:border-zinc-700">
-                                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-                                    Workflow Actions
-                                  </span>
-                                </div>
-                                {workflowGroups.map((group, gi) => (
-                                  <React.Fragment key={gi}>
-                                    {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
-                                    {group.map((action) => (
-                                      <button
-                                        key={action}
-                                        type="button"
-                                        onClick={() => openActionModal(action)}
-                                        className={cn(
-                                          "w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left transition-colors",
-                                          actionItemStyle(action),
-                                        )}
-                                      >
-                                        {actionIcon(action)}
-                                        {action}
-                                      </button>
-                                    ))}
-                                  </React.Fragment>
                                 ))}
-                                {fallbackSubmitAvailable && (
-                                  <button
-                                    type="button"
-                                    onClick={() => openActionModal("Submit", false)}
-                                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left text-[#4A6CF7] hover:bg-[#4A6CF7]/10 dark:hover:bg-[#4A6CF7]/15 transition-colors"
-                                  >
-                                    <CheckCircle className="h-3.5 w-3.5" />
-                                    Submit
-                                  </button>
-                                )}
-                              </>
+                              </React.Fragment>
+                            ))}
+                            {fallbackSubmitAvailable && (
+                              <button
+                                type="button"
+                                onClick={() => openActionModal("Submit", false)}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left text-[#4A6CF7] hover:bg-[#4A6CF7]/10 dark:hover:bg-[#4A6CF7]/15 transition-colors"
+                              >
+                                <CheckCircle className="h-3.5 w-3.5" />
+                                Submit
+                              </button>
                             )}
                           </div>,
                           document.body,
@@ -1117,7 +1120,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                       </div>
                     )}
 
-                    {!hasMenuItems && !isEditable && (
+                    {!canEdit && !canEditPIFields && !canEditStaffFields && !hasWorkflowMenuItems && !isEditable && (
                       <p className="text-sm text-[#71717A] dark:text-[#A1A1AA]">
                         No actions available for your role in this state.
                       </p>
