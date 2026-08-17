@@ -8,7 +8,6 @@ import { useUserRoles } from "@/components/UserRole";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { extensionAPI } from "@/services/apiService";
 import ViewProjectButton from "@/components/ViewProjectButton";
-import { ActivityLog } from "@/components/ActivityLog";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import { CommentModal } from "@/components/CommentModal";
 import {
@@ -1186,8 +1185,8 @@ const ProjectStaffExtensionForm: React.FC = () => {
               </p>
             </div>
           ) : (
-            <div className={cn((showCommitSection || docName) ? "grid grid-cols-1 lg:grid-cols-4 gap-6" : "space-y-5")}>
-              <div className={cn("space-y-5", (showCommitSection || docName) && "lg:col-span-3")}>
+            <div className={cn(showCommitSection ? "grid grid-cols-1 lg:grid-cols-4 gap-6" : "space-y-5")}>
+              <div className={cn("space-y-5", showCommitSection && "lg:col-span-3")}>
 
                 {/* Workflow Timeline */}
                 {docName && (
@@ -1631,28 +1630,20 @@ const ProjectStaffExtensionForm: React.FC = () => {
                 )}
               </div>
 
-              {/* Right Sidebar Column: Commit window + Activity Log */}
-              {(showCommitSection || docName) && (
+              {/* Right Sidebar Column: Commit window */}
+              {showCommitSection && (
                 <aside className="lg:col-span-1 space-y-5">
-                  {showCommitSection && (
-                    <CommitPayment
-                      doctype="Project Staff Extension"
-                      docName={docName || ""}
-                      projectName={projectNo}
-                      budgetHeads={budgetHeads}
-                      actualBalance={actualBalance}
-                      title="Release Extension Commitment"
-                      description="Stage the project commitment required before forwarding this extension request."
-                      onCommitSuccess={() => showToast("success", "Commitment staged successfully.")}
-                      onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
-                    />
-                  )}
-
-                  {docName && (
-                    <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-5">
-                      <ActivityLog doctype="Project Staff Extension" docname={docName} maxHeight="600px" onlyComments />
-                    </div>
-                  )}
+                  <CommitPayment
+                    doctype="Project Staff Extension"
+                    docName={docName || ""}
+                    projectName={projectNo}
+                    budgetHeads={budgetHeads}
+                    actualBalance={actualBalance}
+                    title="Release Extension Commitment"
+                    description="Stage the project commitment required before forwarding this extension request."
+                    onCommitSuccess={() => showToast("success", "Commitment staged successfully.")}
+                    onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
+                  />
                 </aside>
               )}
             </div>
