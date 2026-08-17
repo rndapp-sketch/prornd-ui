@@ -1038,24 +1038,6 @@ const ProjectStaffExtensionForm: React.FC = () => {
                       </button>
                     )}
 
-                    {/* Save Changes — PI or Staff evaluations */}
-                    {(canEditPIFields || canEditStaffFields) && (
-                      <button
-                        type="button"
-                        onClick={handleSave}
-                        disabled={isBusy}
-                        className={cn(
-                          "inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all",
-                          "bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600",
-                          "text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-600",
-                          "disabled:opacity-50 disabled:cursor-not-allowed",
-                        )}
-                      >
-                        {isBusy && <Loader2 className="h-4 w-4 animate-spin" />}
-                        Save Changes
-                      </button>
-                    )}
-
                     {hasWorkflowMenuItems && (
                       <div className="relative">
                         <button
@@ -1525,6 +1507,24 @@ const ProjectStaffExtensionForm: React.FC = () => {
                         )}
                       </div>
                     </div>
+
+                    {canEditPIFields && (
+                      <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={handleSave}
+                          disabled={isBusy}
+                          className={cn(
+                            "inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all shadow-sm",
+                            "bg-[#4A6CF7] text-white hover:bg-[#3b5cf6]",
+                            "disabled:opacity-50 disabled:cursor-not-allowed",
+                          )}
+                        >
+                          {isBusy && <Loader2 className="h-4 w-4 animate-spin" />}
+                          Save Changes
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1612,6 +1612,24 @@ const ProjectStaffExtensionForm: React.FC = () => {
                         )}
                       </div>
                     </div>
+
+                    {canEditStaffFields && (
+                      <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={handleSave}
+                          disabled={isBusy}
+                          className={cn(
+                            "inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all shadow-sm",
+                            "bg-[#4A6CF7] text-white hover:bg-[#3b5cf6]",
+                            "disabled:opacity-50 disabled:cursor-not-allowed",
+                          )}
+                        >
+                          {isBusy && <Loader2 className="h-4 w-4 animate-spin" />}
+                          Save Changes
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
