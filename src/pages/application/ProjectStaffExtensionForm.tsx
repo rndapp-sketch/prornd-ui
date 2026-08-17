@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
-import { AppSidebar } from "@/components/RndSidebar";
+
 import { CommitPayment } from "@/components/CommitPayment";
 import { useUserRoles } from "@/components/UserRole";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
@@ -239,8 +239,12 @@ const ProjectStaffExtensionForm: React.FC = () => {
     { revalidateOnFocus: false },
   );
   const basic = basicResp?.message ?? null;
+  const isEditMode = !!editDocName;
+  // In edit/review mode `basic` describes the current viewer (e.g. a reviewing PI),
+  // not the applicant, so it must never win over the saved application data.
+  const applicantSource = isEditMode ? null : basic;
   const projectNo = basic?.project_no || loadedExtension?.ex_proj_no || projectParam;
-  
+
   // Fetch Project Details (for project title)
   const { data: projectList } = useFrappeGetCall<{ message: { project_title: string }[] }>(
     "frappe.client.get_list",
@@ -253,11 +257,11 @@ const ProjectStaffExtensionForm: React.FC = () => {
     projectNo ? undefined : null,
     { revalidateOnFocus: false }
   );
-  const projectTitle = basic?.project_name || (projectList?.message as any)?.[0]?.project_title || loadedExtension?.ex_proj_name || "";
+  const projectTitle = applicantSource?.project_name || (projectList?.message as any)?.[0]?.project_title || loadedExtension?.ex_proj_name || "";
 
-  const fullName = basic
-    ? [basic.ps_first_name, basic.ps_middle_name, basic.ps_last_name].filter(Boolean).join(" ")
-    : loadedExtension?.ex_name || currentUser || "";
+  const fullName = applicantSource
+    ? [applicantSource.ps_first_name, applicantSource.ps_middle_name, applicantSource.ps_last_name].filter(Boolean).join(" ")
+    : loadedExtension?.ex_name || (isEditMode ? "" : currentUser || "");
   const { heads: budgetHeads, actualBalance } = useProjectBudget(projectNo);
 
   const { call: fetchDoc, loading: editDocLoading } = useFrappePostCall<{ message: ExtensionDoc }>(
@@ -655,24 +659,23 @@ const ProjectStaffExtensionForm: React.FC = () => {
 
   // ── Derived state ────────────────────────────────────────────────────────────
   const isLoading = basicLoading || listLoading || editDocLoading;
-  const isEditMode = !!editDocName;
   const hasFormData = !!basic || !!loadedExtension || (!isEditMode && !!currentUser);
-  const applicantEmpId = basic?.ps_emp_id || loadedExtension?.ex_emp_id || "";
-  const applicantDesignation = basic?.ps_designation || loadedExtension?.ex_designation || "";
-  const applicantDepartment = basic?.ps_department_name || basic?.ps_department || loadedExtension?.department || "";
-  const dateOfJoining = basic?.ps_joining_date || loadedExtension?.ex_doj || "";
+  const applicantEmpId = applicantSource?.ps_emp_id || loadedExtension?.ex_emp_id || "";
+  const applicantDesignation = applicantSource?.ps_designation || loadedExtension?.ex_designation || "";
+  const applicantDepartment = applicantSource?.ps_department_name || applicantSource?.ps_department || loadedExtension?.department || "";
+  const dateOfJoining = applicantSource?.ps_joining_date || loadedExtension?.ex_doj || "";
   const expiryOfTenure =
-    basic?.ex_date_of_expiry ||
+    applicantSource?.ex_date_of_expiry ||
     loadedExtension?.ex_date_of_expiry ||
-    basic?.ps_term_completion_date ||
+    applicantSource?.ps_term_completion_date ||
     "";
-  const currentBasic = basic?.ps_basic_salary || loadedExtension?.ex_current_basic || "";
+  const currentBasic = applicantSource?.ps_basic_salary || loadedExtension?.ex_current_basic || "";
 
   // All tenure terms (joining + completion per term) for the applicant details table.
   // Falls back to a single-row view when the full tenure history isn't available.
   const tenureRows: Tenure[] =
-    basic?.tenures && basic.tenures.length > 0
-      ? basic.tenures
+    applicantSource?.tenures && applicantSource.tenures.length > 0
+      ? applicantSource.tenures
       : dateOfJoining || expiryOfTenure
         ? [{ joining_date: dateOfJoining, term_completion_date: expiryOfTenure }]
         : [];
@@ -680,7 +683,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
   const isTerminal = workflowState === "Approved" || workflowState === "Rejected" || workflowState === "Cancelled";
   const isEditable = workflowState === "Draft" && docstatus === 0;
   const canEdit = isEditable && isEditing;
-  
+
   const isRnDStaff = roles.some((r) => {
     const lower = r.toLowerCase();
     return (
@@ -721,10 +724,10 @@ const ProjectStaffExtensionForm: React.FC = () => {
   const canUserActOnCurrentState = Boolean(
     !isFromRegistry &&
     !isTerminal &&
-      ((workflowState === "Draft" && isEditable) ||
-        isPIActor ||
-        isStaffActor ||
-        isOtherActor)
+    ((workflowState === "Draft" && isEditable) ||
+      isPIActor ||
+      isStaffActor ||
+      isOtherActor)
   );
 
   const canEditPIFields = !isFromRegistry && isPIActor;
@@ -733,7 +736,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
   const hasUnsavedEvaluationChanges =
     (canEditPIFields && (extensionPeriodPI !== savedPIPeriod || incrementPI !== savedPIIncrement)) ||
     (canEditStaffFields && (extensionPeriodStaff !== savedStaffPeriod || incrementStaff !== savedStaffIncrement));
-  
+
   const showCommitSection =
     !!docName &&
     !!projectNo &&
@@ -759,7 +762,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
   if (!editDocName && listLoading) {
     return (
       <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] flex items-center justify-center">
-        <AppSidebar />
+
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-[#4A6CF7]" />
           <p className="text-sm font-medium text-[#71717A] dark:text-[#A1A1AA]">
@@ -774,7 +777,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
   if (!editDocName && !isCreatingNew && userApplications.length > 0) {
     return (
       <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
-        <AppSidebar />
+
         <main className="flex-1 p-4 md:p-8">
           <div className="w-full max-w-7xl mx-auto">
             {/* Header */}
@@ -888,7 +891,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
-      <AppSidebar />
+
       <main className="flex-1 p-4 md:p-8">
         <div className="w-full max-w-9xl mx-auto">
 
@@ -984,13 +987,13 @@ const ProjectStaffExtensionForm: React.FC = () => {
                       label="Project No."
                       value={
                         <div className="flex items-center gap-2 flex-wrap">
-                           <span>{projectNo}</span>
-                           {isRnDStaff && projectNo && (
-                             <ViewProjectButton
-                               doctype="Project Staff Extension"
-                               data={loadedExtension || { ex_proj_no: projectNo }}
-                             />
-                           )}
+                          <span>{projectNo}</span>
+                          {isRnDStaff && projectNo && (
+                            <ViewProjectButton
+                              doctype="Project Staff Extension"
+                              data={loadedExtension || { ex_proj_no: projectNo }}
+                            />
+                          )}
                         </div>
                       }
                     />
@@ -1463,19 +1466,19 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             <span className="text-red-500 ml-0.5">*</span>
                           </label>
                           <textarea
-                             value={workflowComment}
-                             onChange={(e) => setWorkflowComment(e.target.value)}
-                             disabled={isBusy}
-                             rows={3}
-                             placeholder="Add a comment for the workflow audit trail..."
-                             maxLength={FIELD_CHAR_LIMITS.Text}
-                             className={cn(
-                               "w-full px-3 py-2 text-sm rounded-lg border transition-colors resize-none",
-                               "bg-white dark:bg-zinc-900 text-[#27272A] dark:text-[#E4E4E7]",
-                               "border-zinc-200 dark:border-zinc-700 placeholder:text-[#A1A1AA]",
-                               "focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]",
-                               "disabled:opacity-60 disabled:cursor-not-allowed",
-                             )}
+                            value={workflowComment}
+                            onChange={(e) => setWorkflowComment(e.target.value)}
+                            disabled={isBusy}
+                            rows={3}
+                            placeholder="Add a comment for the workflow audit trail..."
+                            maxLength={FIELD_CHAR_LIMITS.Text}
+                            className={cn(
+                              "w-full px-3 py-2 text-sm rounded-lg border transition-colors resize-none",
+                              "bg-white dark:bg-zinc-900 text-[#27272A] dark:text-[#E4E4E7]",
+                              "border-zinc-200 dark:border-zinc-700 placeholder:text-[#A1A1AA]",
+                              "focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]",
+                              "disabled:opacity-60 disabled:cursor-not-allowed",
+                            )}
                           />
                           <CharLimitAlert value={workflowComment} maxLength={FIELD_CHAR_LIMITS.Text} className="mt-1" />
                         </div>
