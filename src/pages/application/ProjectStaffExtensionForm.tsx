@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
 
@@ -8,17 +9,18 @@ import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { extensionAPI } from "@/services/apiService";
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { ActivityLog } from "@/components/ActivityLog";
-import { getActionButtonStyle } from "@/utils/workflowUtils";
+import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
+import { CommentModal } from "@/components/CommentModal";
 import {
   User as UserIcon, IdCard, Building2, Briefcase,
   FolderOpen, CalendarDays, FileText, AlertCircle, CheckCircle2,
-  ChevronLeft, Loader2, MessageSquare, Clock,
+  ChevronLeft, ChevronDown, ChevronRight as ChevronRightIcon, Loader2, Clock,
   ArrowRightCircle, CheckCircle, XCircle, IndianRupee,
   UserCheck, TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
-import { INT_MAX_LENGTH, CURRENCY_MAX_LENGTH, FIELD_CHAR_LIMITS } from "@/utils/fieldLimits";
+import { INT_MAX_LENGTH, CURRENCY_MAX_LENGTH } from "@/utils/fieldLimits";
 import { parseISO, subMonths, isBefore, startOfDay, isValid, format } from "date-fns";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -222,11 +224,18 @@ const ProjectStaffExtensionForm: React.FC = () => {
   const [loadedExtension, setLoadedExtension] = useState<ExtensionDoc | null>(null);
   const [availableActions, setAvailableActions] = useState<string[]>([]);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
-  const [workflowComment, setWorkflowComment] = useState("");
   const [isBusy, setIsBusy] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
   const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
   const [isEditing, setIsEditing] = useState(true);
+
+  // Actions dropdown + comment modal (mirrors the workflow-actions pattern used elsewhere in the app)
+  const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
+  const [actionsMenuPos, setActionsMenuPos] = useState({ top: 0, right: 0 });
+  const actionsMenuBtnRef = useRef<HTMLButtonElement>(null);
+  const actionsMenuPortalRef = useRef<HTMLDivElement>(null);
+  const [modalAction, setModalAction] = useState<string | null>(null);
+  const [modalRequireComment, setModalRequireComment] = useState(true);
 
   // ── Data fetching ───────────────────────────────────────────────────────────
 
@@ -632,8 +641,6 @@ const ProjectStaffExtensionForm: React.FC = () => {
       if (!succeeded) {
         const detail = actionStatusMsg || getErrorText(actionError);
         showToast("error", detail ? `Submission failed: ${detail}` : "Action failed. Please try again.");
-      } else {
-        setWorkflowComment("");
       }
     } catch (e: unknown) {
       showToast("error", getErrorText(e, "Action failed."));
@@ -643,18 +650,66 @@ const ProjectStaffExtensionForm: React.FC = () => {
     }
   };
 
-  const handleWorkflowAction = async (action: string) => {
-    if (workflowState === "Draft" && !docName) {
+  // Actions dropdown — position + outside-click handling (same pattern as TADASettlementActionButtons).
+  useEffect(() => {
+    if (!actionsMenuOpen) return;
+    const handleOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (!actionsMenuBtnRef.current?.contains(target) && !actionsMenuPortalRef.current?.contains(target)) {
+        setActionsMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [actionsMenuOpen]);
+
+  const toggleActionsMenu = () => {
+    if (!actionsMenuOpen && actionsMenuBtnRef.current) {
+      const rect = actionsMenuBtnRef.current.getBoundingClientRect();
+      setActionsMenuPos({ top: rect.bottom + window.scrollY + 4, right: window.innerWidth - rect.right });
+    }
+    setActionsMenuOpen((o) => !o);
+  };
+
+  // Opens the shared comment modal for a workflow transition — same eligibility checks that
+  // previously disabled the inline action buttons (with a matching tooltip) now short-circuit here.
+  const openActionModal = (action: string, requireComment = true) => {
+    setActionsMenuOpen(false);
+    const isForwardOrApprove =
+      action.toLowerCase().includes("forward") ||
+      action.toLowerCase().includes("approve") ||
+      action.toLowerCase().includes("submit");
+    const evaluationUnsaved = isForwardOrApprove && hasUnsavedEvaluationChanges;
+    const isDraftUnsaved = isForwardOrApprove && workflowState === "Draft" && !docName;
+    const applicantIneligible =
+      isForwardOrApprove && workflowState === "Draft" && (!isWithinApplicationWindow || serviceCapReached);
+
+    if (applicantIneligible) {
+      showToast("error", !isWithinApplicationWindow ? applicationWindowMessage : serviceCapMessage);
+      return;
+    }
+    if (isDraftUnsaved) {
       showToast("error", "Please Save as draft before submitting");
       return;
     }
-    const comment = workflowComment.trim();
-    if (!comment) {
-      showToast("error", "Please enter a comment before performing this action.");
+    if (evaluationUnsaved) {
+      showToast("error", "Please Click save changes before forwarding");
       return;
     }
+    if (commitRequired) {
+      showToast("error", "Submit a commitment first");
+      return;
+    }
+    setModalRequireComment(requireComment);
+    setModalAction(action);
+  };
+
+  const handleSubmitActionModal = async (comment: string) => {
+    const action = modalAction;
+    if (!action) return;
+    setModalAction(null);
     setPendingAction(action);
-    await handleActionConfirm(comment, action);
+    await handleActionConfirm(comment.trim() || "Submitted for approval", action);
   };
 
   // ── Derived state ────────────────────────────────────────────────────────────
@@ -903,25 +958,201 @@ const ProjectStaffExtensionForm: React.FC = () => {
             >
               <ChevronLeft className="h-4 w-4" /> Back to Dashboard
             </button>
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div>
-                <h1 className="text-2xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
-                  Extension Form
-                </h1>
-                <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] mt-0.5">
-                  Project Staff Re-Engagement / Extension Request
-                </p>
+            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-5">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <h1 className="text-2xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
+                    Extension Form
+                  </h1>
+                  <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] mt-0.5">
+                    Project Staff Re-Engagement / Extension Request
+                  </p>
+                </div>
+                {workflowState && (
+                  <span className={cn(
+                    "px-3 py-1 rounded-full text-xs font-semibold",
+                    stateBadgeClass(workflowState),
+                  )}>
+                    {workflowState}
+                  </span>
+                )}
               </div>
-              {workflowState && (
-                <span className={cn(
-                  "px-3 py-1 rounded-full text-xs font-semibold",
-                  stateBadgeClass(workflowState),
-                )}>
-                  {workflowState}
-                </span>
-              )}
+
+              {/* Action Row — Save Draft/Save Changes + Workflow actions dropdown, same pattern as the Pending Task action menus */}
+              {!isLoading && hasFormData && !isTerminal && !isFromRegistry && (() => {
+                const fallbackSubmitAvailable = !!docName && isEditable && !availableActions.some(
+                  (a) => a.toLowerCase().includes("submit") || a.toLowerCase().includes("forward"),
+                );
+                const hasMenuItems = canEdit || canEditPIFields || canEditStaffFields ||
+                  workflowActions.length > 0 || fallbackSubmitAvailable;
+
+                const categoriseAction = (action: string) => {
+                  const a = action.toLowerCase();
+                  if (a.includes("forward") || a.includes("approve") || a.includes("submit")) return "forward";
+                  if (a.includes("reject") || a.includes("cancel")) return "reject";
+                  return "neutral";
+                };
+                const actionItemStyle = (action: string) => {
+                  const cat = categoriseAction(action);
+                  if (cat === "forward") return "text-[#4A6CF7] hover:bg-[#4A6CF7]/10 dark:hover:bg-[#4A6CF7]/15";
+                  if (cat === "reject") return "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20";
+                  return "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700";
+                };
+                const workflowGroups = [
+                  workflowActions.filter((a) => categoriseAction(a) === "forward"),
+                  workflowActions.filter((a) => categoriseAction(a) === "neutral"),
+                  workflowActions.filter((a) => categoriseAction(a) === "reject"),
+                ].filter((g) => g.length > 0);
+
+                return (
+                  <div className="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                    {/* Edit — switch from read-only to edit mode while in Draft */}
+                    {isEditable && !isEditing && (
+                      <button
+                        type="button"
+                        onClick={() => setIsEditing(true)}
+                        disabled={isBusy}
+                        className={cn(
+                          "inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all",
+                          "bg-[#4A6CF7] text-white hover:bg-[#3b5cf6] shadow-sm",
+                          "disabled:opacity-50 disabled:cursor-not-allowed",
+                        )}
+                      >
+                        Edit
+                      </button>
+                    )}
+
+                    {hasMenuItems && (
+                      <div className="relative">
+                        <button
+                          ref={actionsMenuBtnRef}
+                          type="button"
+                          onClick={toggleActionsMenu}
+                          disabled={isBusy}
+                          className={cn(
+                            "inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg shadow-sm transition-all disabled:opacity-50",
+                            actionsMenuOpen
+                              ? "bg-[#4A6CF7] text-white border border-[#3b5cf6]"
+                              : "bg-[#EEF2FF] dark:bg-[#4A6CF7]/15 text-[#4A6CF7] border border-[#4A6CF7]/40 hover:bg-[#4A6CF7] hover:text-white dark:hover:bg-[#4A6CF7]/30",
+                          )}
+                        >
+                          {isBusy ? "Processing…" : "Actions"}
+                          <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-150", actionsMenuOpen && "rotate-180")} />
+                        </button>
+
+                        {actionsMenuOpen && createPortal(
+                          <div
+                            ref={actionsMenuPortalRef}
+                            style={{ position: "absolute", top: actionsMenuPos.top, right: actionsMenuPos.right, zIndex: 9999 }}
+                            className="min-w-[210px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden"
+                          >
+                            {(canEdit || canEditPIFields || canEditStaffFields) && (
+                              <>
+                                {canEdit && (
+                                  <button
+                                    type="button"
+                                    onClick={() => { setActionsMenuOpen(false); handleSave(); }}
+                                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+                                  >
+                                    <ChevronRightIcon className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />
+                                    Save Draft
+                                  </button>
+                                )}
+                                {(canEditPIFields || canEditStaffFields) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => { setActionsMenuOpen(false); handleSave(); }}
+                                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+                                  >
+                                    <ChevronRightIcon className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />
+                                    Save Changes
+                                  </button>
+                                )}
+                              </>
+                            )}
+
+                            {(workflowActions.length > 0 || fallbackSubmitAvailable) && (
+                              <>
+                                {(canEdit || canEditPIFields || canEditStaffFields) && (
+                                  <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3 my-1" />
+                                )}
+                                <div className="px-4 py-2 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-100 dark:border-zinc-700">
+                                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                                    Workflow Actions
+                                  </span>
+                                </div>
+                                {workflowGroups.map((group, gi) => (
+                                  <React.Fragment key={gi}>
+                                    {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
+                                    {group.map((action) => (
+                                      <button
+                                        key={action}
+                                        type="button"
+                                        onClick={() => openActionModal(action)}
+                                        className={cn(
+                                          "w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left transition-colors",
+                                          actionItemStyle(action),
+                                        )}
+                                      >
+                                        {actionIcon(action)}
+                                        {action}
+                                      </button>
+                                    ))}
+                                  </React.Fragment>
+                                ))}
+                                {fallbackSubmitAvailable && (
+                                  <button
+                                    type="button"
+                                    onClick={() => openActionModal("Submit", false)}
+                                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left text-[#4A6CF7] hover:bg-[#4A6CF7]/10 dark:hover:bg-[#4A6CF7]/15 transition-colors"
+                                  >
+                                    <CheckCircle className="h-3.5 w-3.5" />
+                                    Submit
+                                  </button>
+                                )}
+                              </>
+                            )}
+                          </div>,
+                          document.body,
+                        )}
+                      </div>
+                    )}
+
+                    {!hasMenuItems && !isEditable && (
+                      <p className="text-sm text-[#71717A] dark:text-[#A1A1AA]">
+                        No actions available for your role in this state.
+                      </p>
+                    )}
+
+                    {commitRequired && (
+                      <p className="basis-full text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                        A commitment must be submitted before forwarding this application.
+                      </p>
+                    )}
+                    {hasUnsavedEvaluationChanges && (
+                      <p className="basis-full text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                        Please click "Save Changes" before forwarding.
+                      </p>
+                    )}
+                    {workflowState === "Draft" && !docName && (
+                      <p className="basis-full text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                        Please Save as draft before submitting.
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
+
+          <CommentModal
+            isOpen={!!modalAction}
+            onClose={() => setModalAction(null)}
+            onSubmit={handleSubmitActionModal}
+            action={modalAction || "Action"}
+            isLoading={isBusy}
+            requireComment={modalRequireComment}
+          />
 
           {/* Toast */}
           {toast && (
@@ -1398,194 +1629,6 @@ const ProjectStaffExtensionForm: React.FC = () => {
                       : `Your extension request has been ${workflowState.toLowerCase()}. No further actions are available.`}
                   </div>
                 )}
-
-                {/* Action Row — Save Draft (editable only) + Workflow actions */}
-                {(!isTerminal && !isFromRegistry) && (
-                  <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-5">
-                    <h2 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-sm uppercase tracking-wide mb-4">
-                      Actions
-                    </h2>
-                    <div className="flex flex-wrap items-center gap-3">
-                      {/* Edit — switch from read-only to edit mode while in Draft */}
-                      {isEditable && !isEditing && (
-                        <button
-                          type="button"
-                          onClick={() => setIsEditing(true)}
-                          disabled={isBusy}
-                          className={cn(
-                            "inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all",
-                            "bg-[#4A6CF7] text-white hover:bg-[#3b5cf6] shadow-sm",
-                            "disabled:opacity-50 disabled:cursor-not-allowed",
-                          )}
-                        >
-                          Edit
-                        </button>
-                      )}
-
-                      {/* Save Draft — only while actively editing */}
-                      {canEdit && (
-                        <button
-                          type="button"
-                          onClick={handleSave}
-                          disabled={isBusy}
-                          className={cn(
-                            "inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all",
-                            "bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600",
-                            "text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-600",
-                            "disabled:opacity-50 disabled:cursor-not-allowed",
-                          )}
-                        >
-                          {isBusy && !pendingAction && <Loader2 className="h-4 w-4 animate-spin" />}
-                          Save Draft
-                        </button>
-                      )}
-
-                      {/* Save Changes button for PI or Staff evaluations */}
-                      {(canEditPIFields || canEditStaffFields) && (
-                        <button
-                          type="button"
-                          onClick={handleSave}
-                          disabled={isBusy}
-                          className={cn(
-                            "inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all",
-                            "bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600",
-                            "text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-600",
-                            "disabled:opacity-50 disabled:cursor-not-allowed",
-                          )}
-                        >
-                          {isBusy && !pendingAction && <Loader2 className="h-4 w-4 animate-spin" />}
-                          Save Changes
-                        </button>
-                      )}
-
-                      {workflowActions.length > 0 && (
-                        <div className="basis-full">
-                          <label className="flex items-center gap-1.5 text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
-                            <MessageSquare className="h-4 w-4 text-[#A1A1AA]" />
-                            Workflow Comment
-                            <span className="text-red-500 ml-0.5">*</span>
-                          </label>
-                          <textarea
-                            value={workflowComment}
-                            onChange={(e) => setWorkflowComment(e.target.value)}
-                            disabled={isBusy}
-                            rows={3}
-                            placeholder="Add a comment for the workflow audit trail..."
-                            maxLength={FIELD_CHAR_LIMITS.Text}
-                            className={cn(
-                              "w-full px-3 py-2 text-sm rounded-lg border transition-colors resize-none",
-                              "bg-white dark:bg-zinc-900 text-[#27272A] dark:text-[#E4E4E7]",
-                              "border-zinc-200 dark:border-zinc-700 placeholder:text-[#A1A1AA]",
-                              "focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]",
-                              "disabled:opacity-60 disabled:cursor-not-allowed",
-                            )}
-                          />
-                          <CharLimitAlert value={workflowComment} maxLength={FIELD_CHAR_LIMITS.Text} className="mt-1" />
-                        </div>
-                      )}
-
-                      {/* Workflow action buttons */}
-                      {workflowActions.map((action) => {
-                        const isForwardOrApprove =
-                          action.toLowerCase().includes("forward") ||
-                          action.toLowerCase().includes("approve") ||
-                          action.toLowerCase().includes("submit");
-
-                        const evaluationUnsaved = isForwardOrApprove && hasUnsavedEvaluationChanges;
-                        const isDraftUnsaved = isForwardOrApprove && workflowState === "Draft" && !docName;
-                        // Policy block: applicant not in window / over the 33-month cap.
-                        const applicantIneligible =
-                          isForwardOrApprove &&
-                          workflowState === "Draft" &&
-                          (!isWithinApplicationWindow || serviceCapReached);
-                        const isDisabled =
-                          isBusy || commitRequired || !workflowComment.trim() ||
-                          evaluationUnsaved || isDraftUnsaved || applicantIneligible;
-
-                        let tooltipText: string | undefined = undefined;
-                        if (applicantIneligible) {
-                          tooltipText = !isWithinApplicationWindow ? applicationWindowMessage : serviceCapMessage;
-                        } else if (isDraftUnsaved) {
-                          tooltipText = "Please Save as draft before submitting";
-                        } else if (evaluationUnsaved) {
-                          tooltipText = "Please Click save changes before forwarding";
-                        } else if (commitRequired) {
-                          tooltipText = "Submit a commitment first";
-                        } else if (!workflowComment.trim()) {
-                          tooltipText = "Enter a workflow comment first";
-                        }
-
-                        return (
-                          <span key={action} title={tooltipText} className="inline-block">
-                            <button
-                              type="button"
-                              onClick={() => handleWorkflowAction(action)}
-                              disabled={isDisabled}
-                              className={cn(
-                                "inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all shadow-sm",
-                                getActionButtonStyle(action),
-                                "disabled:opacity-50 disabled:cursor-not-allowed",
-                              )}
-                            >
-                              {actionIcon(action)}
-                              {action}
-                            </button>
-                          </span>
-                        );
-                      })}
-
-                      {/* Fallback Submit */}
-                      {docName && isEditable && !availableActions.some(
-                        (a) => a.toLowerCase().includes("submit") || a.toLowerCase().includes("forward"),
-                      ) && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPendingAction("Submit");
-                              handleActionConfirm(workflowComment.trim() || "Submitted for approval", "Submit");
-                            }}
-                            disabled={isBusy}
-                            className={cn(
-                              "inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all shadow-sm",
-                              "bg-[#4A6CF7] hover:bg-[#3b5cf6] text-white",
-                              "disabled:opacity-50 disabled:cursor-not-allowed",
-                            )}
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                            Submit
-                          </button>
-                        )}
-
-                      {workflowActions.length === 0 && !isEditable && (
-                        <p className="text-sm text-[#71717A] dark:text-[#A1A1AA]">
-                          No actions available for your role in this state.
-                        </p>
-                      )}
-                    </div>
-
-                    {commitRequired && (
-                      <p className="mt-3 text-[11px] font-medium text-amber-700 dark:text-amber-300">
-                        A commitment must be submitted before forwarding this application.
-                      </p>
-                    )}
-                    {hasUnsavedEvaluationChanges && (
-                      <p className="mt-3 text-[11px] font-medium text-amber-700 dark:text-amber-300">
-                        Please click "Save Changes" before forwarding.
-                      </p>
-                    )}
-                    {workflowState === "Draft" && !docName && (
-                      <p className="mt-3 text-[11px] font-medium text-amber-700 dark:text-amber-300">
-                        Please Save as draft before submitting.
-                      </p>
-                    )}
-                    {workflowActions.length > 0 && (
-                      <p className="mt-3 text-[11px] text-[#A1A1AA] flex items-center gap-1.5">
-                        <MessageSquare className="h-3 w-3" />
-                        A comment is required for every workflow action to maintain an audit trail.
-                      </p>
-                    )}
-                  </div>
-                )}
               </div>
 
               {/* Right Sidebar Column: Commit window + Activity Log */}
@@ -1616,6 +1659,8 @@ const ProjectStaffExtensionForm: React.FC = () => {
           )}
         </div>
       </main>
+
+      {docName && <FloatingActivityLogButton doctype="Project Staff Extension" docname={docName} />}
     </div>
   );
 };
