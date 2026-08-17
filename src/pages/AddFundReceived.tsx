@@ -639,6 +639,7 @@ const AddFundReceived: React.FC = () => {
     const { data: sanctionData, isLoading: sanctionLoading } = useFrappeGetCall(
         "rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_sanctions_for_project",
         { project_name: projectName },
+        undefined,
         { revalidateOnFocus: false },
     );
 
@@ -646,6 +647,7 @@ const AddFundReceived: React.FC = () => {
     const { data: previousFundsData } = useFrappeGetCall(
         "rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg",
         { prjreg_title: projectNoFromUrl || projectName, limit: 1000 },
+        undefined,
         {
             revalidateOnFocus: false,
             isPaused: () => !(projectNoFromUrl || projectName),
