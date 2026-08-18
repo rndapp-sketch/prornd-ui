@@ -32,7 +32,6 @@ import {
   X,
   CalendarIcon,
   FileSpreadsheetIcon as LedgerIcon,
-  AlertCircle,
   Upload,
   FileText,
   ExternalLink,
@@ -1862,7 +1861,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [actionComment, setActionComment] = useState("");
   const [isLedgerOpen, setIsLedgerOpen] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState("");
   const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(
     null,
   );
@@ -1962,9 +1960,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     "rndopsapp.rndopsapp.commitPayment.manually_publish_staged_commit",
   );
   const { call: getListCall } = useFrappePostCall("frappe.client.get_list");
-  const { call: submitPayment, loading: isPaying } = useFrappePostCall(
-    "rndopsapp.rndopsapp.commitPayment.submit_payment_data",
-  );
   const { call: addComment } = useFrappePostCall(
     "rndopsapp.rndopsapp.api.add_project_comment",
   );
@@ -2084,11 +2079,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     formData.icss_other_account_head,
   ]);
 
-  const linkedCommitment = budgetData.find(
-    (entry) =>
-      (entry.ref === currentDocName || entry.frapAppId === currentDocName) &&
-      entry.type === "commitment",
-  );
   const poCommitReferenceName = currentDocName || "";
   const previousIcssCommitment = React.useMemo(() => {
     const entries = budgetData.filter(
@@ -2110,15 +2100,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     () => getIcssPoCommitAmount(poDraftData, formData),
     [formData, poDraftData],
   );
-  const isCommitted = !!linkedCommitment;
-  const displayCommitment = linkedCommitment
-    ? { head: linkedCommitment.head, committed: linkedCommitment.committed }
-    : null;
-  const showCommitSection =
-    isRnDStaff &&
-    !!currentDocName &&
-    !!workflowState &&
-    !["Draft", "Rejected", "Cancelled"].includes(workflowState);
   const commitRequired =
     workflowState === "Pending Staff Approval" &&
     isRnDStaff &&
@@ -2170,12 +2151,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
 
     fetchBudgetHeads();
   }, []);
-
-  useEffect(() => {
-    if (linkedCommitment && !paymentAmount) {
-      setPaymentAmount(String(linkedCommitment.committed));
-    }
-  }, [linkedCommitment, paymentAmount]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -4426,39 +4401,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     }
   };
 
-  const handlePayment = async () => {
-    if (
-      !displayCommitment?.head ||
-      !paymentAmount ||
-      !currentDocName ||
-      !projectCode
-    ) {
-      alert("Please ensure a commitment exists and enter a payment amount.");
-      return;
-    }
-
-    try {
-      await submitPayment({
-        doctype: "Indent Cum Sanction Sheet",
-        name: currentDocName,
-        project_name: projectCode,
-        payment_amount: parseFloat(paymentAmount),
-        budget_head: displayCommitment.head,
-        bmr: "",
-      });
-      alert("Payment recorded successfully!");
-      setPaymentAmount("");
-      window.location.reload();
-    } catch (error: any) {
-      console.error("ICSS payment failed:", error);
-      setErrorModal({
-        open: true,
-        title: "Payment Failed",
-        message: parseFrappeError(error),
-      });
-    }
-  };
-
   const getLinkOptionLabel = useCallback(
     (fieldname: string, value: any) => {
       if (!value) return "";
@@ -6252,7 +6194,41 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             ) &&
               isRnDStaff &&
               currentDocName && (
-                <CommitPayment
+                <>
+                  {previousIcssCommitment && (
+                    <FrappeCard>
+                      <div className="p-5">
+                        <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
+                          Previous Commitment
+                        </h3>
+                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex flex-col gap-1">
+                          <div className="flex justify-between items-center gap-3">
+                            <p className="text-xs font-medium text-blue-900">
+                              Ref ID: {previousIcssCommitment.transactionId ?? "-"}
+                            </p>
+                            <p className="text-xs text-blue-700">
+                              {previousIcssCommitment.date}
+                            </p>
+                          </div>
+                          <p className="text-sm font-medium text-blue-900">
+                            {previousIcssCommitment.head}
+                          </p>
+                          {previousIcssCommitment.particulars && (
+                            <p className="text-xs text-blue-700">
+                              {previousIcssCommitment.particulars}
+                            </p>
+                          )}
+                          <p className="text-lg font-bold text-blue-700 text-right">
+                            ₹{" "}
+                            {Number(
+                              previousIcssCommitment.committed || 0,
+                            ).toLocaleString("en-IN")}
+                          </p>
+                        </div>
+                      </div>
+                    </FrappeCard>
+                  )}
+                  <CommitPayment
                   doctype="Indent Cum Sanction Sheet"
                   docName={currentDocName}
                   stagingReferenceName={poCommitReferenceName}
@@ -6290,81 +6266,9 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                   onStagingStatusChange={(committed) =>
                     setIsPoCommittedForGate(committed)
                   }
-                />
+                  />
+                </>
               )}
-
-            {showCommitSection && (
-              <FrappeCard>
-                <div className="p-5">
-                  <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-                    Record Payment
-                  </h3>
-                  {isCommitted ? (
-                    <div className="space-y-4">
-                      <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex flex-col gap-1">
-                        <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
-                          Linked Commitment
-                        </p>
-                        <div className="flex justify-between items-end gap-3">
-                          <p className="text-sm font-medium text-blue-900">
-                            {displayCommitment?.head}
-                          </p>
-                          <p className="text-lg font-bold text-blue-700">
-                            ₹{" "}
-                            {Number(
-                              displayCommitment?.committed || 0,
-                            ).toLocaleString("en-IN")}
-                          </p>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                          Payment Amount (₹)
-                        </label>
-                        <input
-                          type="number"
-                          className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25"
-                          placeholder="e.g., 5000"
-                          value={paymentAmount}
-                          onChange={(e) => setPaymentAmount(e.target.value)}
-                          max={displayCommitment?.committed}
-                        />
-                        <p className="text-xs text-zinc-500 mt-1">
-                          Max: ₹{" "}
-                          {Number(
-                            displayCommitment?.committed || 0,
-                          ).toLocaleString("en-IN")}
-                        </p>
-                      </div>
-                      <FrappeButton
-                        className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                        onClick={handlePayment}
-                        disabled={
-                          isPaying ||
-                          !paymentAmount ||
-                          parseFloat(paymentAmount) >
-                          (displayCommitment?.committed || 0)
-                        }
-                      >
-                        {isPaying ? "Processing..." : "Submit Payment"}
-                      </FrappeButton>
-                    </div>
-                  ) : (
-                    <div className="text-center py-6 px-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-dashed border-zinc-200 dark:border-zinc-700">
-                      <div className="mx-auto w-10 h-10 bg-zinc-200 dark:bg-zinc-700 rounded-full flex items-center justify-center mb-3">
-                        <AlertCircle className="w-5 h-5 text-zinc-400" />
-                      </div>
-                      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                        Commitment Required
-                      </p>
-                      <p className="text-xs text-zinc-500 mt-1">
-                        Make a commitment above before recording payment.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </FrappeCard>
-            )}
           </aside>
         </div>
       </main>
