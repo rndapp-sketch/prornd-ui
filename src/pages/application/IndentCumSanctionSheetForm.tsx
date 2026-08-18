@@ -2001,6 +2001,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     heads: budgetHeads,
     actualBalance,
     commitableBalance,
+    headBalances,
   } = useProjectBudget(projectCode);
   const balanceApiParams = React.useMemo(
     () => ({ project_number: projectCode }),
@@ -6234,6 +6235,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                 docName={currentDocName}
                 projectName={projectCode}
                 budgetHeads={budgetHeads}
+                headBalances={headBalances}
                 defaultBudgetHead={defaultCommitBudgetHead}
                 actualBalance={actualBalance}
                 commitableBalance={commitableBalance}
@@ -6257,6 +6259,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                   frapAppId={currentDocName}
                   projectName={projectCode}
                   budgetHeads={budgetHeads}
+                  headBalances={headBalances}
                   defaultBudgetHead={defaultCommitBudgetHead}
                   actualBalance={actualBalance}
                   commitableBalance={commitableBalance}

@@ -116,11 +116,17 @@ export const useProjectBudget = (projectCode: string) => {
             0,
           );
           const headCommitted = data.reduce(
-            (sum: number, item: any) => sum + (item.commitAmount || 0),
+            (sum: number, item: any) =>
+              item.status === "CANCELLED"
+                ? sum
+                : sum + (item.commitAmount || 0),
             0,
           );
           const headPayment = data.reduce(
-            (sum: number, item: any) => sum + (item.paymentAmount || 0),
+            (sum: number, item: any) =>
+              item.status === "CANCELLED"
+                ? sum
+                : sum + (item.paymentAmount || 0),
             0,
           );
 
