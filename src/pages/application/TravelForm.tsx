@@ -371,7 +371,6 @@ const TravelForm: React.FC = () => {
                         }));
                     }
                 } catch (err) {
-                    console.error('Error fetching account heads:', err);
                 }
 
                 try {
@@ -413,7 +412,6 @@ const TravelForm: React.FC = () => {
                         );
                     }
                 } catch (err) {
-                    console.error('Error fetching users list:', err);
                 }
 
                 let initialData = { ...prefill_data };
@@ -430,7 +428,6 @@ const TravelForm: React.FC = () => {
                             initialData = { ...initialData, ...existingDoc.message };
                         }
                     } catch (err) {
-                        console.error('Error fetching existing document:', err);
                         alert('Failed to load document for editing');
                     }
                 }
@@ -468,7 +465,6 @@ const TravelForm: React.FC = () => {
                             initialData.travel_project_number = projectName;
                         }
                     } catch (err) {
-                        console.error('Error resolving Travel project details:', err);
                         if (projectName && !initialData.travel_project_number) {
                             initialData.travel_project_number = projectName;
                         }
@@ -490,7 +486,6 @@ const TravelForm: React.FC = () => {
                 setLoading(false);
             }
             if (formDataError) {
-                console.error("Failed to load form data:", formDataError);
                 alert("Error: Could not load the Travel form.");
                 setLoading(false);
             }
@@ -535,7 +530,6 @@ const TravelForm: React.FC = () => {
                     message: payload.message,
                 });
             } catch (err) {
-                console.error("Failed to fetch SCL balance:", err);
                 if (!cancelled) {
                     setSclBalance({
                         available: null,
@@ -644,7 +638,6 @@ const TravelForm: React.FC = () => {
                     }));
                 }
             } catch (err) {
-                console.error('Failed to fetch user details:', err);
             }
         }
 
@@ -698,7 +691,6 @@ const TravelForm: React.FC = () => {
                     }));
                 }
             } catch (err) {
-                console.error('Failed to fetch traveler details:', err);
             }
         }
     }, [handleChange, fetchUserDetailsByEmail]);
@@ -754,7 +746,6 @@ const TravelForm: React.FC = () => {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
-            console.error(saveError || err);
             setErrorModal({
                 open: true,
                 title: "Submission Failed",
@@ -797,7 +788,6 @@ const TravelForm: React.FC = () => {
                 throw new Error(submitRes?.message?.message || "Submission failed");
             }
         } catch (err: any) {
-            console.error(submitError || err);
             setErrorModal({
                 open: true,
                 title: "Submission Failed",

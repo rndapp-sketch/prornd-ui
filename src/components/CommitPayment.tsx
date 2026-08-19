@@ -630,7 +630,6 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                         }
                     }
                 } catch (ledgerErr) {
-                    console.error("Failed to fetch parent TID from ledger:", ledgerErr);
                 }
 
                 if (!refDetails) {

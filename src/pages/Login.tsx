@@ -72,7 +72,6 @@ const Login: React.FC = () => {
   // --- LOGIC: Effects ---
   useEffect(() => {
     if (currentUser) {
-      console.log('Login successful');
       window.location.href = '/dashboard'; // Redirect with full reload to reset all SWR caches
     }
   }, [currentUser]);
@@ -118,7 +117,6 @@ const Login: React.FC = () => {
         window.location.href = '/dashboard';
         return;
       } catch (err: any) {
-        console.error(`Login attempt ${attempt} failed:`, err);
 
         // If it's the last attempt, show error
         if (attempt === maxAttempts) {

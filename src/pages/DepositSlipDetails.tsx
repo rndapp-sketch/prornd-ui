@@ -279,7 +279,6 @@ const DepositSlipDetails = () => {
             await submitDoc({ docname: name });
             window.location.reload();
         } catch (e) {
-            console.error(e);
             alert("Failed to submit");
         }
     }

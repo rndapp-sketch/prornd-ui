@@ -289,7 +289,6 @@ const OriginalCommitmentSidebar = ({ refName, refDoctype }: { refName?: string; 
                     }
                 }
             } catch (err) {
-                console.error("Error fetching original commitment:", err);
             } finally {
                 setLoading(false);
             }
@@ -1772,10 +1771,6 @@ const TaskRegistryDetails: React.FC = () => {
                         updates[field.fieldname] = readable;
                     }
                 } catch (e) {
-                    console.warn(
-                        `Failed to resolve link for ${field.fieldname}`,
-                        e,
-                    );
                 }
             }),
         );
@@ -1811,7 +1806,7 @@ const TaskRegistryDetails: React.FC = () => {
                     .then(res => {
                         if (res.data) setResolvedAccountHead(res.data.budget_head || res.data.name);
                     })
-                    .catch(err => console.error("Failed to resolve budget head", err));
+                    .catch(() => {});
             }
 
             // Department — resolve raw ID to human-readable name for print
@@ -1872,7 +1867,6 @@ const TaskRegistryDetails: React.FC = () => {
                             setResolvedProjectTitle(data.project_name);
                         }
                     } catch (err) {
-                        console.error("Failed to resolve project", err);
                         if (data.project_name) setResolvedProjectTitle(data.project_name);
                     }
                 };

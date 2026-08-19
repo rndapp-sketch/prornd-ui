@@ -445,7 +445,6 @@ export function AppSidebar() {
         try {
             await logout();
         } catch (error) {
-            console.error("Primary logout failed, attempting fallback logout:", error);
             const csrfToken = (window as any).csrf_token || "";
             const requests: Array<{ method: "POST" | "GET"; url: string }> = [
                 { method: "POST", url: "/api/method/logout" },

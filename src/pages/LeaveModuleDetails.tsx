@@ -172,10 +172,9 @@ const LeaveModuleDetails = () => {
                     if (res?.message?.doc) {
                         setDoc(res.message.doc);
                     } else if (res?.message?.error) {
-                        console.error(res.message.error);
                     }
                 })
-                .catch((err) => console.error("Failed to fetch leave detail:", err))
+                .catch(() => {})
                 .finally(() => setLoading(false));
         }
     }, [id, refreshKey]);
@@ -197,7 +196,6 @@ const LeaveModuleDetails = () => {
                 alert(data?.exc_type || 'Failed to delete draft.');
             }
         } catch (err) {
-            console.error('Delete error:', err);
             alert('Failed to delete draft.');
         } finally {
             setIsDeleting(false);

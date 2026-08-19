@@ -17,16 +17,10 @@ const fmtNum = (val: any) => {
 
 export function generateP11Html(formData: Record<string, any>): string {
   // ── DEBUG: log all array-valued keys so we can find the right child table name ──
-  console.group("[p11Print] formData array keys:");
   for (const key in formData) {
     if (Array.isArray(formData[key])) {
-      console.log(
-        `  ${key} (${formData[key].length} rows):`,
-        formData[key][0] ?? "(empty)",
-      );
     }
   }
-  console.groupEnd();
 
   // ── Item rows (table_hsrb) ────────────────────────────────────────────────
   const rows: any[] = Array.isArray(formData.table_hsrb)
@@ -49,17 +43,12 @@ export function generateP11Html(formData: Record<string, any>): string {
       if (Array.isArray(val) && val.length > 0) {
         const first = val[0];
         if ("pc_name" in first || "webmail_id" in first) {
-          console.log(`[p11Print] Found PC members in field: "${key}"`, val);
           pcMembers = val;
           break;
         }
       }
     }
     if (pcMembers.length === 0) {
-      console.warn(
-        "[p11Print] table_teqd not found. Keys available:",
-        Object.keys(formData),
-      );
     }
   }
 

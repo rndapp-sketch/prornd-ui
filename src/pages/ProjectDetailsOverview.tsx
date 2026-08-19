@@ -417,10 +417,6 @@ const AdvanceSettlementModal = ({
 }) => {
     useEffect(() => {
         if (isOpen) {
-            console.log(
-                ">>> AdvanceSettlementModal MOUNTED/OPENED with settlements:",
-                settlements,
-            );
         }
     }, [isOpen, settlements]);
 
@@ -855,12 +851,8 @@ const QuickActions = ({
 
     const handleSettleClick = async (item: any) => {
         setIsLoading(true);
-        console.log(">>> handleSettleClick triggered for:", item.name);
         try {
             // Check for existing settlements
-            console.log(
-                "Fetching ALL Advance Settlements to debug filter (client-side filtering enabled)",
-            );
             const response = await fetchReimbursements({
                 doctype: "Advance Settlement",
                 fields: [
@@ -875,7 +867,6 @@ const QuickActions = ({
                 limit_page_length: 50,
             });
 
-            console.log(">>> ALL Advance Settlements (last 50):", response);
             const allSettlements = (response?.message || []).map((s: any) => ({
                 ...s,
                 workflow_state:
@@ -892,23 +883,18 @@ const QuickActions = ({
                 (s: any) => s.temporary_advance_application === item.name,
             );
 
-            console.log(">>> Match candidate ID:", item.name);
-            console.log(">>> Filtered Settlements (Client-Side):", settlements);
 
             if (settlements.length > 0) {
                 setExistingSettlements(settlements);
                 setSelectedAdvanceForSettle(item);
                 setIsSettleModalOpen(true);
-                console.log(">>> Opening Modal (Client-Side Match)");
             } else {
-                console.log(">>> No settlements found, navigating to new form");
                 // No existing settlements, go straight to new form
                 onNavigate(
                     `/advance-settlement?advance=${item.name}&project=${projectName}`,
                 );
             }
         } catch (error) {
-            console.error("Error checking for settlements:", error);
             // Fallback: just go to new form
             onNavigate(
                 `/advance-settlement?advance=${item.name}&project=${projectName}`,
@@ -919,7 +905,6 @@ const QuickActions = ({
     };
     const handleTravelSettleClick = async (item: any) => {
         setIsLoading(true);
-        console.log(">>> handleTravelSettleClick triggered for:", item.name);
 
         try {
             // Direct fetch to v2 document API for the filtered settlement records
@@ -938,7 +923,6 @@ const QuickActions = ({
             }
 
             const result = await response.json();
-            console.log(">>> TA DA Settlement raw API response:", result);
 
             const fetchedSettlements = result.data || [];
 
@@ -956,24 +940,17 @@ const QuickActions = ({
                 total_amount: s.ta_da_total_claimed || s.ta_da_net_claimed || 0,
             }));
 
-            console.log(">>> Mapped TA DA Settlements:", mappedSettlements);
 
             if (mappedSettlements.length > 0) {
                 setExistingTADASettlements(mappedSettlements);
                 setSelectedTravelForSettle(item);
                 setIsTADASettleModalOpen(true);
-                console.log(">>> Opening Modal with existing settlements");
             } else {
-                console.log(">>> No settlements found, navigating to new form");
                 onNavigate(
                     `/ta-da-settlement?project=${projectNo}&travel_ref=${item.name}`,
                 );
             }
         } catch (error) {
-            console.error(
-                "Error fetching TA DA settlements via v2 API:",
-                error,
-            );
             // Fallback: navigate directly to form
             onNavigate(
                 `/ta-da-settlement?project=${projectNo}&travel_ref=${item.name}`,
@@ -1014,7 +991,6 @@ const QuickActions = ({
 
             setExistingP11Forms(forms);
         } catch (error) {
-            console.error("Error fetching P_11 forms:", error);
             setExistingP11Forms([]);
         } finally {
             setSelectedDirectPurchaseForP11(item);
@@ -1039,7 +1015,6 @@ const QuickActions = ({
                 alert(data?.exc_type || "Failed to delete draft.");
             }
         } catch (error) {
-            console.error("Error deleting Direct Purchase draft:", error);
             alert("Failed to delete draft.");
         } finally {
             setDeletingDraftName(null);
@@ -1062,7 +1037,6 @@ const QuickActions = ({
                 alert(data?.exc_type || "Failed to delete draft.");
             }
         } catch (error) {
-            console.error("Error deleting Disbursal of Honorarium draft:", error);
             alert("Failed to delete draft.");
         } finally {
             setDeletingDraftName(null);
@@ -1099,7 +1073,6 @@ const QuickActions = ({
                 );
             }
         } catch (error) {
-            console.error("Error checking for existing SCRs:", error);
             onNavigate(`/selection-committee-report?interview_id=${item.name}`);
         } finally {
             setIsLoading(false);
@@ -1187,17 +1160,8 @@ const QuickActions = ({
 
     // Fetch data when application is selected
     const fetchApplicationData = useCallback(async () => {
-        console.log(
-            ">>> fetchApplicationData triggered. selectedApplication:",
-            selectedApplication,
-            "projectName:",
-            projectName,
-        );
 
         if (!selectedApplication || !projectName) {
-            console.log(
-                ">>> Early return - missing selectedApplication or projectName",
-            );
             setApplicationData([]);
             return;
         }
@@ -1210,8 +1174,6 @@ const QuickActions = ({
             let data: any[] = [];
 
             if (selectedApplication === "Reimbursement") {
-                console.log("=== FETCHING REIMBURSEMENTS ===");
-                console.log("Project Name from URL:", projectName);
 
                 try {
                     // Use direct fetch to Frappe REST API with cache-busting
@@ -1231,25 +1193,11 @@ const QuickActions = ({
                     }
 
                     const result = await fetchResponse.json();
-                    console.log("API Response:", result);
 
                     const allReimbursements = result?.data || [];
-                    console.log(
-                        "All Reimbursements count:",
-                        allReimbursements.length,
-                    );
-                    console.log("All Reimbursements data:", allReimbursements);
 
                     // Log first few items to see field values
                     if (allReimbursements.length > 0) {
-                        console.log(
-                            "Sample reimbursement items:",
-                            allReimbursements.slice(0, 3).map((item: any) => ({
-                                name: item.name,
-                                project_name: item.project_name,
-                                project_number: item.project_number,
-                            })),
-                        );
                     }
 
                     // Filter client-side: match project_name OR project_number (case-insensitive, partial match)
@@ -1273,14 +1221,11 @@ const QuickActions = ({
 
                         return matches;
                     });
-                    console.log("Filtered Reimbursement data:", data);
                 } catch (fetchError) {
-                    console.error("Direct fetch error:", fetchError);
                     data = [];
                 }
             } else if (selectedApplication === "Temporary Advance Apply") {
                 try {
-                    console.log("=== FETCHING TEMPORARY ADVANCE (V2) ===");
                     const timestamp = Date.now();
                     const projectCode = projectNo || projectName;
                     // Filter at API level by project_code
@@ -1289,10 +1234,6 @@ const QuickActions = ({
                         : "";
                     const apiUrl = `/api/v2/document/Temporary Advance?fields=["*"]&limit_page_length=0${filters}&_=${timestamp}`;
 
-                    console.log(
-                        "Fetching with project_code filter:",
-                        projectCode,
-                    );
 
                     const fetchResponse = await fetch(apiUrl, {
                         method: "GET",
@@ -1307,9 +1248,6 @@ const QuickActions = ({
 
                     const result = await fetchResponse.json();
                     data = result?.data || [];
-                    console.log(
-                        `Fetched ${data.length} Temporary Advance items for project_code: ${projectCode}`,
-                    );
 
                     // Map for display consistency
                     data = data.map((item: any) => ({
@@ -1325,11 +1263,7 @@ const QuickActions = ({
                         applicant_webmail: item.applicant_webmail || item.owner,
                     }));
 
-                    console.log(
-                        `Mapped ${data.length} Temporary Advance items`,
-                    );
                 } catch (fetchError) {
-                    console.error("Temporary Advance fetch error:", fetchError);
                     data = [];
                 }
             } else if (selectedApplication === "Project Staff Resignation") {
@@ -1406,7 +1340,6 @@ const QuickActions = ({
                             applicant_webmail: item.email_id,
                         }));
                 } catch (e) {
-                    console.error(e);
                     data = [];
                 }
             } else if (selectedApplication === "Rate Contract") {
@@ -1432,7 +1365,6 @@ const QuickActions = ({
                             applicant_webmail: item.email_id,
                         }));
                 } catch (e) {
-                    console.error(e);
                     data = [];
                 }
             } else if (selectedApplication === "Travel") {
@@ -1461,14 +1393,6 @@ const QuickActions = ({
                         settlementPromise,
                     ]);
 
-                    console.log(
-                        "[Travel Fetch] Raw travelRes.data:",
-                        travelRes.data,
-                    );
-                    console.log(
-                        "[Travel Fetch] Filtering by travel_project_title:",
-                        projectName,
-                    );
 
                     // Filter by travel_project_title which contains the project ID
                     const travelItems = (travelRes.data || [])
@@ -1482,11 +1406,6 @@ const QuickActions = ({
                             type: "Travel Apply",
                         }));
 
-                    console.log(
-                        "[Travel Fetch] Filtered travelItems:",
-                        travelItems.length,
-                        "items",
-                    );
 
                     const settlementItems = (settlementRes.data || [])
                         .filter(
@@ -1505,13 +1424,7 @@ const QuickActions = ({
                             new Date(b.creation).getTime() -
                             new Date(a.creation).getTime(),
                     );
-                    console.log(
-                        "[Travel Fetch] Combined data:",
-                        data.length,
-                        "items",
-                    );
                 } catch (fetchError) {
-                    console.error("Travel combined fetch error:", fetchError);
                     data = [];
                 }
             } else if (selectedApplication === "Top Up Fellowship") {
@@ -1542,11 +1455,7 @@ const QuickActions = ({
                                         : "Draft"),
                             applicant_webmail: item.pi_webmail || item.owner,
                         }));
-                    console.log(
-                        `Top Up Fellowship: fetched ${allItems.length} for project_no ${tufProjectNo}`,
-                    );
                 } catch (fetchError) {
-                    console.error("Top Up Fellowship fetch error:", fetchError);
                     data = [];
                 }
             } else if (selectedApplication === "Disbursal of Honorarium") {
@@ -1585,14 +1494,7 @@ const QuickActions = ({
                             item.owner,
                     }));
 
-                    console.log(
-                        `Disbursal of Honorarium: fetched ${data.length} for project_no ${honorariumProjectNo}`,
-                    );
                 } catch (fetchError) {
-                    console.error(
-                        "Disbursal of Honorarium fetch error:",
-                        fetchError,
-                    );
                     data = [];
                 }
             } else if (selectedApplication === "Disbursal of Consultancy") {
@@ -1649,10 +1551,6 @@ const QuickActions = ({
                             total_amount: item.total_disbursal_amount,
                         }));
                 } catch (fetchError) {
-                    console.error(
-                        "Disbursal of Consultancy fetch error:",
-                        fetchError,
-                    );
                     data = [];
                 }
             } else if (selectedApplication === "Direct Purchase") {
@@ -1684,7 +1582,6 @@ const QuickActions = ({
                         applicant_webmail: item.applicant_name || item.owner,
                     }));
                 } catch (fetchError) {
-                    console.error("Direct Purchase fetch error:", fetchError);
                     data = [];
                 }
             } else if (selectedApplication === "Adhoc/Contractual") {
@@ -1722,7 +1619,6 @@ const QuickActions = ({
                             applicant_webmail: item.webmail_id || item.owner,
                         }));
                 } catch (fetchError) {
-                    console.error("Adhoc/Contractual fetch error:", fetchError);
                     data = [];
                 }
             } else if (selectedApplication === "Indent General Form") {
@@ -1756,10 +1652,6 @@ const QuickActions = ({
                             item.igf_webmail_user_id || item.owner,
                     }));
                 } catch (fetchError) {
-                    console.error(
-                        "Indent General Form fetch error:",
-                        fetchError,
-                    );
                     data = [];
                 }
             } else if (selectedApplication === "Indent cum Sanction") {
@@ -1874,19 +1766,11 @@ const QuickActions = ({
                                     actual_workflow_state: item.workflow_state,
                                 };
                             } catch (fileError) {
-                                console.error(
-                                    "ICSS signed PO attachment fetch error:",
-                                    fileError,
-                                );
                                 return item;
                             }
                         }),
                     );
                 } catch (fetchError) {
-                    console.error(
-                        "Indent cum Sanction fetch error:",
-                        fetchError,
-                    );
                     data = [];
                 }
             } else if (selectedApplication === "Loan Request") {
@@ -1924,7 +1808,6 @@ const QuickActions = ({
                                         : "Draft"),
                         }));
                 } catch (fetchError) {
-                    console.error("Loan Request fetch error:", fetchError);
                     data = [];
                 }
             } else if (selectedApplication === "Miscellaneous Commit") {
@@ -1952,13 +1835,11 @@ const QuickActions = ({
                             workflow_state: item.workflow_state || "Draft",
                         }));
                 } catch (fetchError) {
-                    console.error("Miscellaneous Commit fetch error:", fetchError);
                     data = [];
                 }
             }
             setApplicationData(data);
         } catch (error) {
-            console.error("Error fetching application data:", error);
             setApplicationData([]);
         } finally {
             setIsLoading(false);
@@ -2945,7 +2826,6 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
                 setNewComment("");
                 refetchActivity();
             } catch (error) {
-                console.error("Failed to add comment:", error);
             } finally {
                 setIsSubmitting(false);
             }
@@ -3362,8 +3242,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                     '/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0',
                 );
                 const result = await response.json();
-                console.log("[PDO] Budget Head API raw result:", result);
-                console.log("[PDO] Budget Heads fetched:", result?.data?.length ?? 0, "records:", result?.data?.map((h: any) => `${h.budget_head}(id=${h.id})`));
                 if (result?.data) {
                     setBudgetHeadList(
                         result.data.map((item: any) => ({
@@ -3373,7 +3251,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                     );
                 }
             } catch (err) {
-                console.error("[PDO] Failed to fetch Budget Heads:", err);
             }
         };
         fetchBudgetHeads();
@@ -3385,7 +3262,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             if (!projectName || budgetHeadList.length === 0) return;
 
             const effectiveProjectNo = data?.project_no || projectName;
-            console.log(`[PDO] checkHeadsWithData — project: "${effectiveProjectNo}", heads: ${budgetHeadList.length}, data?.project_no: "${data?.project_no}"`);
 
             setIsCheckingHeads(true);
             const headsSet = new Set<number>();
@@ -3399,23 +3275,18 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                         if (response.ok) {
                             const txns = await response.json();
                             const hasData = Array.isArray(txns) && txns.length > 0;
-                            console.log(`[PDO] Head "${head.name}" (id=${head.id}): ${txns?.length ?? "err"} txns → ${hasData ? "HAS DATA" : "empty"}`);
                             if (hasData) {
                                 headsSet.add(head.id);
                             }
                         } else {
-                            console.warn(`[PDO] Head "${head.name}" (id=${head.id}): HTTP ${response.status}`);
                         }
                     } catch (err) {
-                        console.error(`[PDO] Head "${head.name}" (id=${head.id}): fetch error`, err);
                     }
                 });
 
                 await Promise.all(promises);
                 setHeadsWithData(headsSet);
-                console.log("[PDO] headsWithData ids:", [...headsSet]);
             } catch (err) {
-                console.error("[PDO] checkHeadsWithData failed:", err);
             } finally {
                 setIsCheckingHeads(false);
             }
@@ -3446,12 +3317,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
 
     // Fetch Ledger Data when tab/head changes
     useEffect(() => {
-        console.log(
-            "Ledger useEffect - activeTab:",
-            activeTab,
-            "activeLedgerHeadId:",
-            activeLedgerHeadId,
-        );
         if (activeTab === "ledger" && activeLedgerHeadId) {
             fetchLedgerData(activeLedgerHeadId);
         }
@@ -3473,27 +3338,11 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             const response = await fetch(
                 `/ledger-api/commit-payment-transactions?projectNumber=${data?.project_no || projectName}&accountHeadId=${headId}`,
             );
-            console.log(
-                "Ledger API response status:",
-                response,
-                "for projectNumber:",
-                projectName,
-                "headId:",
-                headId,
-            );
             if (!response.ok) {
                 throw new Error(`API Error: ${response.statusText} `);
             }
 
             const result = await response.json();
-            console.log(
-                "Ledger API response data:",
-                result,
-                "for projectNumber:",
-                projectName,
-                "headId:",
-                headId,
-            );
 
             const rawData = Array.isArray(result) ? result : [];
             let runningPaymentBalance = 0;
@@ -3750,7 +3599,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                 // setActiveTab("activity");
             }
         } catch (error) {
-            console.error("Failed to add comment:", error);
             alert("Failed to submit comment. Please try again.");
         }
     };
@@ -3774,7 +3622,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                             content: `[Submit] ${comment.trim()} `,
                         });
                     } catch (commentError) {
-                        console.error("Error adding comment:", commentError);
                         // Don't fail the whole operation if comment fails
                     }
                 }
@@ -3782,7 +3629,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                 setSanctionModalOpen(false);
                 refetchSanctions();
             } catch (error: any) {
-                console.error("Error submitting sanction:", error);
                 alert("Failed to submit sanction. Please try again.");
             }
         },
@@ -3830,7 +3676,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                 }
                 setPaymentModalOpen(true);
             } catch (err) {
-                console.error("Failed to fetch payment fields:", err);
                 alert("Failed to load payment form. Please try again.");
             }
         },
@@ -3879,7 +3724,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             }
             alert("Payment submitted successfully!");
         } catch (err: any) {
-            console.error("Payment submission failed:", err);
             alert(
                 "Failed to submit payment: " + (err.message || "Unknown error"),
             );
@@ -3908,9 +3752,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                     mutate();
                     activityStreamRef.current?.refetch();
                 })
-                .catch((err: any) =>
-                    console.error(`Error during workflow action: `, err),
-                );
+                .catch(() => {});
         },
         [triggerWorkflowAction, submitProjectRegistration, mutate, projectName],
     );
@@ -3971,7 +3813,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             setIsEditingBudget(false);
             setEditBudgetRows([]);
         } catch (err) {
-            console.error("Failed to update budget breakup:", err);
         } finally {
             setIsSavingBudget(false);
         }
@@ -4063,7 +3904,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             setEditSanctionLetterNo("");
             setEditSanctionLetterDate("");
         } catch (err) {
-            console.error("Failed to update sanction:", err);
             setSanctionSaveError("Failed to save changes. Please try again.");
         } finally {
             setIsSavingSanctionBudget(false);
@@ -4252,7 +4092,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             );
         }
 
-        console.log("data:", data);
 
         return (
             <>
@@ -4626,7 +4465,16 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                             />
                                             <FieldDisplay
                                                 label="Project Duration"
-                                                value={`${data?.project_duration_months}m ${data?.project_duration_days || 0}d`}
+                                                value={(() => {
+                                                    const months = data?.project_duration_months || 0;
+                                                    const days = data?.project_duration_days || 0;
+                                                    if (months && days) {
+                                                        const totalDays = months * 30 + days;
+                                                        return `${months}m and ${days}d = ${totalDays} days total`;
+                                                    }
+                                                    if (months) return `${months}m`;
+                                                    return `${days}d`;
+                                                })()}
                                                 icon={CalendarIcon}
                                             />
                                             <FieldDisplay

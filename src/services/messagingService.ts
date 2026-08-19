@@ -231,7 +231,7 @@ export async function sendMessage({
             last_message_preview: body.slice(0, 140),
             last_sender_id: sender.userId,
         })
-        .catch((err) => console.warn("[messaging] failed to bump conversation summary", err));
+        .catch(() => {});
 
     return message;
 }

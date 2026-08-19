@@ -182,7 +182,6 @@ const DocumentRow = ({ doc }: { doc: Document }) => {
             window.document.body.removeChild(a);
             URL.revokeObjectURL(url);
         } catch (err) {
-            console.error("Download failed:", err);
             window.open(viewUrl, "_blank");
         } finally {
             setIsDownloading(false);
@@ -280,7 +279,6 @@ const CandidateDetails: React.FC = () => {
             const matchingApp = result.applications?.find((a) => String(a.id) === applicationId);
             if (matchingApp?.status) setSelectedStatus(matchingApp.status);
         } catch (err: any) {
-            console.error("Error fetching candidate profile:", err);
             setError(err.message || "Failed to load candidate profile.");
         } finally {
             setIsLoading(false);
@@ -317,7 +315,6 @@ const CandidateDetails: React.FC = () => {
             alert("Status updated successfully!");
             fetchProfile();
         } catch (err: any) {
-            console.error("Error updating status:", err);
             setErrorModal({ open: true, title: "Status Update Failed", message: parseFrappeError(err) });
         } finally {
             setIsUpdating(false);

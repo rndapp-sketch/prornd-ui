@@ -247,7 +247,6 @@ const ProjectProposal: React.FC = () => {
             }
         }
         if (formDataError) {
-            console.error("❌ Failed to fetch form data:", formDataError);
             alert("Error fetching form data.");
             setLoading(false);
         }
@@ -291,7 +290,7 @@ const ProjectProposal: React.FC = () => {
                             applicant_department: departmentLinkValue
                         }));
                     }
-                } catch (err) { console.error("Failed to fetch main PI details:", err); }
+                } catch (err) {  }
             } else {
                 setFormData(prev => ({ ...prev, pi_userid: "", pi_employee_id: "", principal_investigator_name: "", designation: "", applicant_department: "" }));
             }
@@ -322,7 +321,7 @@ const ProjectProposal: React.FC = () => {
                     }
                     address = details?.inst_name_address || details?.copi_address || details?.address || details?.department_name || details?.applicant_department || "";
                     contact = details?.mobile_no || details?.copi_contact || details?.contact_number || details?.cell_phone_number || "";
-                } catch (err) { console.error("Failed to fetch collaborator details:", err); }
+                } catch (err) {  }
             }
             setFormData(prev => {
                 const t = [...(prev[tableName] || [])];

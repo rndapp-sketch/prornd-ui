@@ -304,7 +304,6 @@ const ActionsDropdown = ({
       setModalOpen(false);
       onActionComplete();
     } catch (error) {
-      console.error("Error performing action:", error);
       onError(parseFrappeError(performActionError, error));
     }
   };
@@ -575,7 +574,6 @@ const ReimbursementDetails: React.FC = () => {
           );
         }
       } catch (err) {
-        console.error("Failed to fetch Budget Heads:", err);
       }
     };
     fetchBudgetHeads();
@@ -658,7 +656,6 @@ const ReimbursementDetails: React.FC = () => {
       setPaymentAmount("");
       window.location.reload();
     } catch (error: any) {
-      console.error("Payment failed:", error);
       setErrorModal({
         open: true,
         title: "Payment Failed",
@@ -678,7 +675,6 @@ const ReimbursementDetails: React.FC = () => {
       const refreshed = await fetchDoc({ doctype: "Reimbursement", name: data.name });
       if (refreshed?.message) setData(refreshed.message);
     } catch (err: any) {
-      console.error("Error submitting reimbursement:", err);
       setErrorModal({
         open: true,
         title: "Submission Failed",
@@ -731,7 +727,6 @@ const ReimbursementDetails: React.FC = () => {
           setError("Reimbursement not found");
         }
       } catch (err) {
-        console.error("Error fetching reimbursement:", err);
         setError("Failed to load reimbursement details");
       } finally {
         setLoading(false);

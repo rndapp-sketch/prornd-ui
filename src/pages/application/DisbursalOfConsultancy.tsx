@@ -38,7 +38,6 @@ const DisbursalOfConsultancy: React.FC = () => {
                 setDisbursalList(data.data);
             }
         } catch (error) {
-            console.error('Error fetching disbursal of consultancy list:', error);
         } finally {
             setLoading(false);
         }

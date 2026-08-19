@@ -781,7 +781,6 @@ const CandidateApplications: React.FC = () => {
             }
             setPostDetailsCache(cache);
         } catch (err: any) {
-            console.error("Error fetching candidate applications:", err);
             setError(err.message || "Failed to fetch candidate applications.");
             setApplications([]);
         } finally {
@@ -870,7 +869,6 @@ const CandidateApplications: React.FC = () => {
                             return { ...app, phone_number: profileData?.candidate?.phone_number || "" };
                         }
                     } catch (e) {
-                        console.warn("Failed to fetch phone number for", app.candidate_id);
                     }
                     return { ...app, phone_number: "" };
                 })

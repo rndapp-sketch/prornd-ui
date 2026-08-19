@@ -121,7 +121,6 @@ const evaluateDependsOn = (expression: string | null | undefined, doc: any): boo
         const result = new Function('doc', `return ${cleanExpression}`)(doc);
         return !!result;
     } catch (e) {
-        console.warn('Error evaluating depends_on:', expression, e);
         return false;
     }
 };
@@ -340,11 +339,8 @@ const ChildTableEditor = ({
     const listViewFields = allChildFields.filter(cf => cf.in_list_view);
     const childFields = listViewFields.length > 0 ? listViewFields : allChildFields;
 
-    console.log(`[ChildTable] "${field.fieldname}": child_fields raw=${(field.child_fields || []).length}, in_list_view=${listViewFields.length}, rendering=${childFields.length}`,
-        field.child_fields?.map(cf => ({ name: cf.fieldname, type: cf.fieldtype, options: cf.options, in_list_view: cf.in_list_view })));
 
     if (childFields.length === 0) {
-        console.warn(`[ChildTable] "${field.fieldname}" has NO child fields — nothing to render`);
         return null;
     }
 
@@ -369,7 +365,6 @@ const ChildTableEditor = ({
                     )(...rule.trigger_fields.map(f => parseFloat(row[f]) || 0));
                     updated[index][rule.target_field] = Math.round(result * 100) / 100;
                 } catch (e) {
-                    console.warn('Row calculation error:', e);
                 }
             }
         }
@@ -661,7 +656,6 @@ const DirectPurchase: React.FC = () => {
                 );
             }
         }
-        console.log('[Aggregations] Computed:', aggs, 'from childTableData:', Object.keys(childTableData));
         return aggs;
     }, [childTableData, computationRules.aggregations]);
 
@@ -728,7 +722,6 @@ const DirectPurchase: React.FC = () => {
 
         if (rowsToPopulate.length === 0) return;
 
-        console.log('[AutoPopulate] Rows needing populate:', rowsToPopulate.map(r => r.row.webmail_id));
 
         // Use existing linkOptions to get the name (no API call needed)
         const userList = linkOptions['User'] || linkOptions['webmail_id'] || linkOptions['applying_for_name'] || [];
@@ -752,7 +745,6 @@ const DirectPurchase: React.FC = () => {
                         };
                     }
                 }
-                console.log('[AutoPopulate] Updated rows from linkOptions:', rows);
                 return { ...prev, table_teqd: rows };
             });
         }
@@ -774,7 +766,6 @@ const DirectPurchase: React.FC = () => {
                         const department = data.department_name || '';
                         const fullName = data.full_name || row.pc_name; // fallback to earlier mapped
 
-                        console.log(`[AutoPopulate] Details for ${row.webmail_id}:`, data);
 
                         setChildTableData(prev => {
                             const rows = [...(prev['table_teqd'] || [])];
@@ -790,7 +781,6 @@ const DirectPurchase: React.FC = () => {
                         });
                     }
                 } catch (err) {
-                    console.error(`[AutoPopulate] Error fetching details for ${row.webmail_id}:`, err);
                 }
             }
         };
@@ -812,9 +802,6 @@ const DirectPurchase: React.FC = () => {
             const initForm = async () => {
                 const { fields: apiFields, link_options, prefill_data, computation_rules: rules } = result.message;
 
-                console.log('=== DIRECT PURCHASE FORM DATA ===');
-                console.log('API Result:', result);
-                console.log('Computation Rules:', rules);
 
                 if (rules) {
                     setComputationRules(rules);
@@ -843,7 +830,6 @@ const DirectPurchase: React.FC = () => {
                                 }
                             }
                         } catch (err) {
-                            console.error('Error fetching existing document:', err);
                             alert('Failed to load document for editing');
                         }
                     }
@@ -876,7 +862,6 @@ const DirectPurchase: React.FC = () => {
                     setFormData(initialData);
                     setChildTableData(initialChildData);
                 } else {
-                    console.error("API did not return a valid 'fields' array.");
                 }
 
                 setLinkOptions(prev => {
@@ -896,7 +881,6 @@ const DirectPurchase: React.FC = () => {
             initForm();
         }
         if (error) {
-            console.error("Failed to load form data:", error);
             alert("Failed to load form data.");
             setLoading(false);
         }
@@ -933,7 +917,6 @@ const DirectPurchase: React.FC = () => {
                     }
                 }
             } catch (err) {
-                console.error("Error fetching user details:", err);
             }
         }
     };
@@ -1014,10 +997,8 @@ const DirectPurchase: React.FC = () => {
             if (savedDocName) {
                 dataToSubmit.name = savedDocName;
             }
-            console.log('Saving Draft:', dataToSubmit);
 
             const result: any = await submitForm({ data: JSON.stringify(dataToSubmit) });
-            console.log('Draft save result (full):', JSON.stringify(result));
 
             // Extract doc name from various possible response structures
             const docName = result?.message?.name
@@ -1026,19 +1007,15 @@ const DirectPurchase: React.FC = () => {
                 || result?.name
                 || savedDocName;
 
-            console.log('Extracted docName:', docName, 'type:', typeof docName);
 
             if (docName && typeof docName === 'string') {
                 setSavedDocName(docName);
-                console.log('savedDocName set to:', docName);
             } else if (docName && typeof docName === 'object' && docName.name) {
                 setSavedDocName(docName.name);
-                console.log('savedDocName set to:', docName.name);
             }
 
             alert('Direct Purchase saved as draft successfully!');
         } catch (err: any) {
-            console.error('Draft save error:', submitError || err);
             setErrorModal({ open: true, title: "Save Failed", message: parseFrappeError(submitError, err) });
         } finally {
             setIsSavingDraft(false);
@@ -1073,7 +1050,6 @@ const DirectPurchase: React.FC = () => {
                 action: 'Submit',
                 comment: comment.trim() || undefined,
             });
-            console.log('Submit result:', result);
 
             alert('Direct Purchase submitted successfully!');
             const targetProject = formData.project_no || projectName || formData.project_name || formData.project || '';
@@ -1081,7 +1057,6 @@ const DirectPurchase: React.FC = () => {
                 state: { tab: 'quick-actions', category: 'Purchase', app: 'Direct Purchase' }
             });
         } catch (err: any) {
-            console.error('Submit error:', err);
             setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(submitDocError, err) });
         } finally {
             setIsSubmitting(false);
@@ -1125,8 +1100,6 @@ const DirectPurchase: React.FC = () => {
             if (hasComputationVisibility) {
                 // Use computation_rules visibility (overrides depends_on AND hidden)
                 isVisible = visibilityMap[field.fieldname];
-                console.log(`[Visibility] Table "${field.fieldname}": computation_rules -> ${isVisible}`,
-                    { effectiveTotal: effectiveFormData.total_estimate, hidden: field.hidden });
             } else {
                 // Standard depends_on evaluation
                 if (field.depends_on_eval) {
@@ -1156,7 +1129,6 @@ const DirectPurchase: React.FC = () => {
                         if (fields[i].fieldtype === 'Section Break') break;
                         if (fields[i].fieldtype === 'Table' && visibilityMap[fields[i].fieldname] === true) {
                             sectionHidden = false;
-                            console.log(`[Visibility] Section "${field.label}" forced visible — contains visible table "${fields[i].fieldname}"`);
                             break;
                         }
                     }
@@ -1192,7 +1164,6 @@ const DirectPurchase: React.FC = () => {
         }
 
         const result = sections.filter(s => !(s as any).hidden && s.fields.length > 0);
-        console.log('[Sections] Final sections:', result.map(s => ({ title: s.title, fieldCount: s.fields.length, fieldNames: s.fields.map(f => f.fieldname) })));
         return result;
     };
 

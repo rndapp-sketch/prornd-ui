@@ -146,13 +146,11 @@ const LoanRequestActionButtons = ({
                         content: `[${selectedAction}] ${comment.trim()}`,
                     });
                 } catch (commentError) {
-                    console.error("Error adding comment:", commentError);
                 }
             }
             setModalOpen(false);
             onActionComplete();
         } catch (error: any) {
-            console.error("Error performing action:", error);
             setModalOpen(false);
             setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(error) });
         }

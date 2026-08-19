@@ -197,12 +197,10 @@ const MiscellaneousCommitDetails: React.FC = () => {
                     const doc = await fetchDocument({ doctype: 'Miscellaneous Commit', name: id });
                     if (doc?.message) setFormData(doc.message);
                 } catch (err) {
-                    console.error('Error fetching document:', err);
                 }
                 setLoading(false);
             }
             if (formDataError) {
-                console.error('Failed to load form data:', formDataError);
                 setLoading(false);
             }
         };
@@ -230,7 +228,6 @@ const MiscellaneousCommitDetails: React.FC = () => {
                 throw new Error(submitRes?.message?.message || 'Submission failed');
             }
         } catch (err: any) {
-            console.error('Submission error:', err);
             setErrorModal({ open: true, title: 'Submission Failed', message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);

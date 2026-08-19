@@ -164,10 +164,8 @@ const Payments: React.FC = () => {
                 const dateB = b.commitDate ? new Date(b.commitDate).getTime() : 0;
                 return dateB - dateA;
             });
-            console.log("allCommits:", allCommits);
             setPendingCommits(allCommits);
         } catch (err) {
-            console.error('Failed to fetch pending commits', err);
         }
     }, []);
 
@@ -193,7 +191,6 @@ const Payments: React.FC = () => {
                 setBudgetHeadMap(map);
             }
         } catch (err) {
-            console.error('Failed to fetch budget heads:', err);
         }
     }, []);
 
@@ -245,7 +242,6 @@ const Payments: React.FC = () => {
             }
             setModuleNameMap(map);
         } catch (err) {
-            console.error('Failed to fetch module registry, using fallback:', err);
             setModuleNameMap(fallbackMap);
         }
     }, []);
@@ -283,7 +279,6 @@ const Payments: React.FC = () => {
                 setPayments(loadedPayments);
             }
         } catch (err) {
-            console.error('Failed to fetch payments:', err);
         } finally {
             setIsLoading(false);
         }
@@ -553,7 +548,6 @@ const Payments: React.FC = () => {
             setPayConfirmComment('');
             initiatePaymentForCommit(commit);
         } catch (err: any) {
-            console.error('Failed to add payment confirmation comment:', err);
             setPayConfirmError(err?.message || 'Failed to save comment. Please try again.');
         } finally {
             setIsSubmittingPayConfirm(false);

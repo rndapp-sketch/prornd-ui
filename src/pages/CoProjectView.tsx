@@ -59,7 +59,6 @@ const DEBUG_CO_PROJECTS = true;
 
 const debugCoProjects = (...args: unknown[]) => {
     if (DEBUG_CO_PROJECTS) {
-        console.log("[CoProjectView]", ...args);
     }
 };
 
@@ -430,7 +429,6 @@ export default function CoProjectView() {
                             });
                             return (result?.data || { name: projectName }) as Project;
                         } catch (error) {
-                            console.warn("Unable to load project details for co-project filtering:", projectName, error);
                             return { name: projectName } as Project;
                         }
                     }),

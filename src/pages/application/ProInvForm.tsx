@@ -1030,7 +1030,6 @@ export default function ProInvForm() {
             pdf.addImage(imgData, "PNG", margin, margin, contentWidth, contentHeight);
             pdf.save(`Proforma-Invoice-${invoiceNo.replace(/\//g, "-")}.pdf`);
         } catch (err) {
-            console.error("PDF generation failed:", err);
             alert("Could not generate PDF. Please try again.");
             if (document.body.contains(iframe)) {
                 document.body.removeChild(iframe);

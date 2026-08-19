@@ -657,7 +657,6 @@ const FundReceivedDetails = () => {
             await mutate();
             setIsEditMode(false);
         } catch (err: any) {
-            console.error("Failed to save Fund Received edits:", err);
             setErrorModal({ open: true, title: "Save Failed", message: parseFrappeError(err) });
         } finally {
             setIsSaving(false);
@@ -771,7 +770,6 @@ const FundReceivedDetails = () => {
         prevProjectTitleRef.current = "";
         if (!type || !DEPOSIT_SLIP_TYPES[type]) return;
         setDepositFormLoading(true);
-        console.log(`[DepositSlip] type selected: "${type}", getFields: ${DEPOSIT_SLIP_TYPES[type].getFields}`);
 
         // Step 1: try backend — extract what we can, silently ignore failures.
         let apiFields: any[] | undefined;
@@ -782,14 +780,10 @@ const FundReceivedDetails = () => {
 
         try {
             const getFieldsUrl = `/api/method/${DEPOSIT_SLIP_TYPES[type].getFields}`;
-            console.log(`[DepositSlip] fetching fields from: ${getFieldsUrl}`);
             const response = await fetch(getFieldsUrl, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doc_name: name || undefined }) });
-            console.log(`[DepositSlip] response status: ${response.status}`);
             const result = await response.json();
-            console.log(`[DepositSlip] raw result:`, result);
             const messagePayload = result?.message;
             const payload = Array.isArray(messagePayload) ? { fields: messagePayload } : (messagePayload && typeof messagePayload === "object" ? messagePayload : null);
-            console.log(`[DepositSlip] payload:`, payload);
             if (payload) {
                 apiFields = payload.fields;
                 link_options = payload.link_options || {};
@@ -810,12 +804,9 @@ const FundReceivedDetails = () => {
                         },
                     }));
                 }
-                console.log(`[DepositSlip] apiFields from backend: ${apiFields?.length ?? 0} fields`);
             } else {
-                console.log(`[DepositSlip] backend returned no usable payload — will use static fallback`);
             }
         } catch (err) {
-            console.log(`[DepositSlip] backend fetch failed (will use static fallback):`, err);
         }
 
         // Step 2: resolve fields — backend wins, static fallback if backend returned nothing.
@@ -823,15 +814,12 @@ const FundReceivedDetails = () => {
         const resolvedFields: any[] = Array.isArray(apiFields) && apiFields.length > 0
             ? apiFields
             : staticFields;
-        console.log(`[DepositSlip] resolvedFields: ${resolvedFields.length} fields (source: ${Array.isArray(apiFields) && apiFields.length > 0 ? "backend" : "static"})`);
-        console.log(`[DepositSlip] DEPOSIT_SLIP_STATIC_FIELDS["${type}"] length: ${staticFields.length}`);
 
         if (resolvedFields.length > 0) {
             const processedFields = resolvedFields.map((field: any) => {
                 if (field.fieldtype === "Section Break" || field.fieldtype === "SectionBreak") return field;
                 return { ...field, mandatory: !!field.mandatory, hidden: !!field.hidden, read_only: !!field.read_only, ...(prefill_data && prefill_data[field.fieldname] !== undefined ? { default: prefill_data[field.fieldname] } : {}) };
             });
-            console.log(`[DepositSlip] calling setFields with ${processedFields.length} fields`);
             setFields(processedFields);
             const initialData: FormData = {};
             processedFields.forEach((f: Field) => { if (f.default) initialData[f.fieldname] = f.default; });
@@ -855,7 +843,6 @@ const FundReceivedDetails = () => {
             // Also check sanction doc for a direct project registration reference
             const sanctionProjectRef = sanctionDetails?.prjreg_title || sanctionDetails?.project_registration
                 || sanctionDetails?.project || sanctionDetails?.project_name;
-            console.log(`[DepositSlip] prjregHint:`, prjregHint, `sanctionProjectRef:`, sanctionProjectRef);
 
             if (prjregHint || sanctionProjectRef) {
                 const prjFields = ["name", "pi_userid", "project_no", "fund_agen_initials", "funding_agen",
@@ -887,7 +874,6 @@ const FundReceivedDetails = () => {
                         const j3 = await r3.json();
                         if (j3?.message?.length > 0) prjDoc = j3.message[0];
                     }
-                    console.log(`[DepositSlip] prjDoc fetched:`, prjDoc);
                     if (prjDoc) {
                         const pi = prjDoc.principal_investigator || prjDoc.pi_userid;
                         const fa = prjDoc.funding_agency || prjDoc.funding_agen || prjDoc.fund_agen_initials;
@@ -907,7 +893,6 @@ const FundReceivedDetails = () => {
                         if (prjDoc.gstin_of_funding_agency) initialData.gstin_of_funding_agency = prjDoc.gstin_of_funding_agency;
                     }
                 } catch (err) {
-                    console.log(`[DepositSlip] prjDoc fetch failed:`, err);
                 }
             }
             // Always stamp the current Fund Received doc name so all deposit slip
@@ -954,7 +939,6 @@ const FundReceivedDetails = () => {
             alert(result?.message?.name ? `Deposit Slip saved: ${result.message.name}` : "Deposit Slip saved successfully!");
             mutate();
         } catch (err: any) {
-            console.error("Failed to save Deposit Slip:", err);
             setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
         } finally { setIsSubmitting(false); }
     };

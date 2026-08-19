@@ -88,7 +88,6 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                             }
                         }
                     } catch (err) {
-                        console.error(`Failed to check head ${head.name}:`, err);
                     }
                 });
 
@@ -108,7 +107,6 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                 }
 
             } catch (error) {
-                console.error("Error checking budget heads:", error);
             } finally {
                 setIsCheckingHeads(false);
             }
@@ -177,7 +175,6 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
         setIsLedgerLoading(true);
         setLedgerError(null);
         try {
-            console.log(`[ProjectLedgerModal] Fetching ledger for Project: ${projectName} Head: ${headId}`);
             const response = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(String(projectName))}&accountHeadId=${encodeURIComponent(String(headId))}`);
             if (!response.ok) {
                 throw new Error(`API Error: ${response.statusText}`);
@@ -204,7 +201,6 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
 
             setLedgerTransactions(calculatedData);
         } catch (err: any) {
-            console.error("Ledger API Error:", err);
             setLedgerError(err.message || "Failed to load ledger data");
             setLedgerTransactions([]);
         } finally {

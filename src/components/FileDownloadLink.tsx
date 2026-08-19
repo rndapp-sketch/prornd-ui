@@ -74,7 +74,6 @@ export const FileDownloadLink: React.FC<FileDownloadLinkProps> = ({
             window.URL.revokeObjectURL(downloadUrl);
 
         } catch (error: any) {
-            console.error("Error downloading file:", error);
             alert("Failed to download file. You may not have permission to access it.");
         } finally {
             setIsDownloading(false);

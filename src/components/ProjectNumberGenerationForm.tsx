@@ -119,7 +119,6 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
         projectData?.name ? { doc_name: projectData.name } : undefined,
         refreshKey
     );
-    console.log("prefillResponse", prefillResponse);
 
     // Reset prefill flag any time the project modified timestamp changes to allow fresh backend data
     useEffect(() => {
@@ -268,7 +267,6 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
                 setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(response?.message) });
             }
         } catch (error: any) {
-            console.error("Error saving project number:", error);
             setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(error) });
         }
     };

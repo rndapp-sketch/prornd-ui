@@ -64,7 +64,6 @@ const AdminLogin: React.FC = () => {
         const isLocal = (ip: string) =>
           ip.startsWith('10.') || ip.startsWith('172.') || ip.startsWith('192.168.') || ip.startsWith('169.254.');
 
-        console.log('[AdminLogin] Starting WebRTC IP resolution...');
         clientIp = await Promise.race([
           new Promise<string>((resolve) => {
             const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
@@ -72,36 +71,29 @@ const AdminLogin: React.FC = () => {
             const reflexiveIPs: string[] = [];
             pc.createDataChannel('');
             pc.createOffer()
-              .then((o) => { console.log('[AdminLogin] Offer created'); return pc.setLocalDescription(o); })
-              .catch((err) => { console.warn('[AdminLogin] Offer failed:', err); resolve(''); });
+              .then((o) => {  return pc.setLocalDescription(o); })
+              .catch((err) => {  resolve(''); });
             pc.onicecandidate = (evt) => {
-              console.log('[AdminLogin] ICE candidate:', evt.candidate?.candidate ?? '(null)');
               if (!evt.candidate) return;
               const m = evt.candidate.candidate.match(/(\d{1,3}(?:\.\d{1,3}){3})/);
               if (!m) return;
               const ip = m[1];
-              if (isLocal(ip)) { console.log('[AdminLogin] Local IP found:', ip); localIPs.push(ip); }
-              else { console.log('[AdminLogin] Reflexive IP found:', ip); reflexiveIPs.push(ip); }
+              if (isLocal(ip)) {  localIPs.push(ip); }
+              else {  reflexiveIPs.push(ip); }
             };
             pc.onicegatheringstatechange = () => {
-              console.log('[AdminLogin] Gathering state:', pc.iceGatheringState);
               if (pc.iceGatheringState === 'complete') {
                 const chosen = localIPs[0] || reflexiveIPs[0] || '';
-                console.log('[AdminLogin] All local IPs:', localIPs, '| All reflexive IPs:', reflexiveIPs);
-                console.log('[AdminLogin] Chosen (prefer local):', chosen || '(empty)');
                 resolve(chosen);
                 pc.close();
               }
             };
           }),
           new Promise<string>((resolve) => setTimeout(() => {
-            console.warn('[AdminLogin] Timed out after 3s — sending empty client_ip');
             resolve('');
           }, 3000)),
         ]);
-        console.log('[AdminLogin] Final clientIp sent:', clientIp || '(empty)');
       } catch (err) {
-        console.warn('[AdminLogin] WebRTC threw:', err);
       }
 
       const res = await fetch('/api/method/login', {

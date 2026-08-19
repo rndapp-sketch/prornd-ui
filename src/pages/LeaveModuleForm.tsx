@@ -180,7 +180,6 @@ const LeaveModuleForm = () => {
     useEffect(() => {
         if (!formDataResult?.message || dataLoaded) {
             if (formDataError) {
-                console.error("Failed to load form data:", formDataError);
                 alert("Error: Could not load the Leave form.");
                 setLoading(false);
             }
@@ -198,7 +197,6 @@ const LeaveModuleForm = () => {
                     if (res?.message) setFormData(res.message);
                 })
                 .catch((err) => {
-                    console.error("Failed to load existing leave application:", err);
                     alert("Error: Could not load the existing leave application.");
                 })
                 .finally(() => {
@@ -342,7 +340,6 @@ const LeaveModuleForm = () => {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
-            console.error("Save error:", saveError || err);
             setErrorModal({
                 open: true,
                 title: "Save Failed",
@@ -383,7 +380,6 @@ const LeaveModuleForm = () => {
                 throw new Error(submitRes?.message?.message || "Submission failed");
             }
         } catch (err: any) {
-            console.error("Submit error:", submitError || err);
             setErrorModal({
                 open: true,
                 title: "Submission Failed",

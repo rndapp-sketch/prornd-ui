@@ -230,7 +230,6 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                         }));
                     }
                 } catch (err) {
-                    console.error('Error fetching account heads:', err);
                 }
 
                 // Fetch Users list for the consultancy table dropdown (web_mail_id is Link to User)
@@ -250,7 +249,6 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                         baseLinkOptions['User'] = baseLinkOptions['web_mail_id'];
                     }
                 } catch (err) {
-                    console.error('Error fetching users list:', err);
                 }
 
                 setLinkOptions(baseLinkOptions);
@@ -269,7 +267,6 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                             initialData = { ...initialData, ...existingDoc.message };
                         }
                     } catch (err) {
-                        console.error('Error fetching existing document:', err);
                         alert('Failed to load document for editing');
                     }
                 }
@@ -351,7 +348,6 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                             }
                         }
                     } catch (e) {
-                        console.error('Failed to fetch project details:', e);
                     }
                 }
 
@@ -375,7 +371,6 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                 setLoading(false);
             }
             if (formDataError) {
-                console.error("Failed to load form data:", formDataError);
                 alert("Error: Could not load the form.");
                 setLoading(false);
             }
@@ -478,7 +473,6 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                     return;
                 }
             } catch (err) {
-                console.error('Failed to fetch user details:', err);
             }
         }
 
@@ -566,7 +560,6 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
-            console.error(err);
             setErrorModal({ open: true, title: "Save Failed", message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);
@@ -605,7 +598,6 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                         budget_head: "Consultancy",
                     });
                 } catch (commitErr) {
-                    console.warn("Commit staging failed (non-fatal):", commitErr);
                 }
                 alert("Disbursal of Consultancy submitted successfully!");
                 navigate(`/disbursal-of-consultancy/${docname}`);
@@ -613,7 +605,6 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                 throw new Error(msg?.message || "Submission failed");
             }
         } catch (err: any) {
-            console.error(err);
             setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);

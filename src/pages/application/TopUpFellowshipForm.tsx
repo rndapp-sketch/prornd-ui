@@ -257,7 +257,6 @@ const TopUpFellowshipForm: React.FC = () => {
                 setMonthlyStatus(prev => ({ ...prev, [key]: data }));
             }
         } catch (err) {
-            console.warn('Monthly summary fetch failed:', err);
         }
     }, [fetchMonthlySummary, editDocName, savedDocName]);
 
@@ -325,7 +324,6 @@ const TopUpFellowshipForm: React.FC = () => {
                         }));
                     }
                 } catch (err) {
-                    console.warn('Could not fetch departments:', err);
                 }
                 setLinkOptions(mergedLinkOptions);
 
@@ -341,7 +339,6 @@ const TopUpFellowshipForm: React.FC = () => {
                             initialData = { ...initialData, ...existingDoc.message };
                         }
                     } catch (err) {
-                        console.error('Error fetching existing document:', err);
                         alert('Failed to load document for editing');
                     }
                 }
@@ -380,7 +377,6 @@ const TopUpFellowshipForm: React.FC = () => {
                             }
                         }
                     } catch (err) {
-                        console.warn('Could not fetch project for pre-fill:', err);
                     }
                 }
 
@@ -393,7 +389,6 @@ const TopUpFellowshipForm: React.FC = () => {
                 setLoading(false);
             }
             if (formDataError) {
-                console.error('Failed to load form data:', formDataError);
                 alert('Error: Could not load the Top Up Fellowship form.');
                 setLoading(false);
             }
@@ -449,7 +444,6 @@ const TopUpFellowshipForm: React.FC = () => {
                     }
                 }
             } catch (err) {
-                console.warn('Could not fetch project details:', err);
             }
         }
     }, [handleChange, fetchProjectDetails, linkOptions]);
@@ -554,7 +548,6 @@ const TopUpFellowshipForm: React.FC = () => {
             // Fetch monthly status for this newly-selected student
             refreshMonthlyStatus(value, periodFrom);
         } catch (err) {
-            console.warn('Could not fetch student details:', err);
         }
     }, [fetchStudentDetails, refreshMonthlyStatus, linkOptions.dept_centre, handleTableRowChange]);
 
@@ -617,7 +610,6 @@ const TopUpFellowshipForm: React.FC = () => {
                 throw new Error(res?.message?.message || 'Save failed');
             }
         } catch (err: any) {
-            console.error(saveError || err);
             setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(saveError, err) });
         } finally {
             setIsSubmitting(false);
@@ -648,7 +640,6 @@ const TopUpFellowshipForm: React.FC = () => {
                 throw new Error(submitRes?.message?.message || 'Submission failed');
             }
         } catch (err: any) {
-            console.error(submitError || err);
             setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(submitError, err) });
         } finally {
             setIsSubmitting(false);

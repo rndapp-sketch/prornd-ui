@@ -82,7 +82,6 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
                                 }
                             }
                         } catch (err) {
-                            console.error("Failed to fetch Project Registration for PaymentForm:", err);
                         }
 
                         setFormData({
@@ -99,11 +98,9 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
 
                     setLinkOptions(mergedLinkOptions);
                 } else {
-                    console.error("API Error Result:", result);
                     throw new Error(result.exc || result.exception || "Invalid response from server");
                 }
             } catch (err: any) {
-                console.error('Failed to load form:', err);
                 setError(err.message || 'Failed to load form configuration');
             } finally {
                 setLoading(false);
@@ -114,13 +111,6 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
     }, [docName, commitData]);
 
     const handleSubmit = async (data: any) => {
-        console.log('=== PAYMENT FORM DATA ===', {
-            submittedData: data,
-            commitData,
-            docName,
-            resolvedBudgetHead,
-            formDataState: formData
-        });
         setSubmitting(true);
         try {
             // Route to the correct payment endpoint based on module
@@ -180,7 +170,6 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
                     moduleName: commitData?.moduleId || undefined,
                 };
 
-            console.log(`Submitting Payment (${isAdvanceSettlement ? 'Advance Settlement' : isSalaryPayment ? 'Salary Staging' : 'Generic'}):`, body);
 
             const response = await fetch(paymentEndpoint, {
                 method: 'POST',
@@ -205,7 +194,6 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
             alert(successMsg);
             onSuccess();
         } catch (err: any) {
-            console.error('Submission failed:', err);
             setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
         } finally {
             setSubmitting(false);

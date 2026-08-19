@@ -53,7 +53,6 @@ const ProjectAnalytics = () => {
     }
 
     if (error) {
-        console.error("Error fetching analytics:", error);
         // Fallback or error state could be added here
     }
 

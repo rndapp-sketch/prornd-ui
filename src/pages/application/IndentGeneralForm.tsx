@@ -209,7 +209,6 @@ const IndentGeneralForm: React.FC = () => {
             const msg = res?.message;
             setAvailableActions(Array.isArray(msg?.actions) ? msg.actions : []);
         } catch (e) {
-            console.error("Error fetching workflow actions:", e);
         }
     }, [getActionsCall]);
 
@@ -376,7 +375,6 @@ const IndentGeneralForm: React.FC = () => {
                     setFormData(applyClientScript(prefill));
                 }
             } catch (e) {
-                console.error("Failed to load Indent General Form:", e);
             } finally {
                 setLoading(false);
             }
@@ -493,17 +491,10 @@ const IndentGeneralForm: React.FC = () => {
         }
 
         if (isSavingRef.current) {
-            console.warn("[SAVE] BLOCKED — save already in progress");
             return;
         }
 
         const saveId = Date.now();
-        console.log(`[SAVE #${saveId}] handleSave ENTERED`, {
-            savedDocNameRef: savedDocNameRef.current,
-            editDocName,
-            savedDocName,
-            isSavingRef: isSavingRef.current,
-        });
 
         isSavingRef.current = true;
         setIsSaving(true);
@@ -512,7 +503,6 @@ const IndentGeneralForm: React.FC = () => {
 
             // Log raw formData file fields before conversion
             const rawFileFields = Object.entries(formData).filter(([, v]) => v instanceof File);
-            console.log(`[SAVE #${saveId}] Raw File fields in formData:`, rawFileFields.map(([k, v]) => ({ field: k, name: (v as File).name, size: (v as File).size, type: (v as File).type })));
 
             // Use prepareFormDataForApi — converts all File objects (including table rows) to base64 in-place
             const cleanData = await prepareFormDataForApi({ ...formData });
@@ -532,24 +522,19 @@ const IndentGeneralForm: React.FC = () => {
                     typeof (val as any).file_data === "string"
                 ) {
                     const fileVal = val as { file_name: string; file_data: string };
-                    console.log(`[SAVE #${saveId}] Extracted file from field "${key}":`, { file_name: fileVal.file_name, file_data_length: fileVal.file_data.length, file_data_prefix: fileVal.file_data.slice(0, 50) });
                     filesArray.push(fileVal);
                     delete cleanData[key];
                 }
             }
 
-            console.log(`[SAVE #${saveId}] filesArray built:`, filesArray.map((f) => ({ file_name: f.file_name, file_data_length: f.file_data.length })));
-            console.log(`[SAVE #${saveId}] cleanData keys:`, Object.keys(cleanData));
 
             const callArgs: Record<string, string> = { data: JSON.stringify(cleanData) };
             if (filesArray.length > 0) {
                 callArgs.files = JSON.stringify(filesArray);
             }
 
-            console.log(`[SAVE #${saveId}] Calling saveForm with args:`, { data_length: callArgs.data.length, files: callArgs.files ? `${filesArray.length} file(s)` : "none" });
 
             const res = await saveForm(callArgs);
-            console.log(`[SAVE #${saveId}] saveForm response:`, res);
 
             if (res?.message?.status === "success") {
                 const docname = res.message.docname || currentDocName;
@@ -568,7 +553,6 @@ const IndentGeneralForm: React.FC = () => {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
-            console.error("Save error:", err);
             setErrorModal({ open: true, title: "Save Failed", message: parseFrappeError(err) });
         } finally {
             isSavingRef.current = false;
@@ -589,7 +573,6 @@ const IndentGeneralForm: React.FC = () => {
             await performActionCall({ docname, action });
             navigate(`/indent-general-form-details/${docname}`);
         } catch (err: any) {
-            console.error("Action error:", err);
             setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(err) });
         } finally {
             setIsActionLoading(false);

@@ -79,7 +79,6 @@ const evaluateDependsOn = (expression: string | null | undefined, doc: any): boo
         const result = new Function('doc', `return ${cleanExpression}`)(doc);
         return !!result;
     } catch (e) {
-        console.warn('Error evaluating depends_on:', expression, e);
         return false; // Default to false (hidden) on error
     }
 };
@@ -376,8 +375,6 @@ const TemporaryAdvance: React.FC = () => {
             const initForm = async () => {
                 const { fields: apiFields, link_options, prefill_data } = result.message;
 
-                console.log('=== TEMPORARY ADVANCE FORM DATA ===');
-                console.log('API Result:', result);
 
                 if (Array.isArray(apiFields)) {
                     // Initialize form data with defaults
@@ -394,7 +391,6 @@ const TemporaryAdvance: React.FC = () => {
                                 initialData = { ...initialData, ...existingDoc.message };
                             }
                         } catch (err: any) {
-                            console.error('Error fetching existing document:', err);
                             setErrorModal({
                                 open: true,
                                 title: "Load Failed",
@@ -441,7 +437,6 @@ const TemporaryAdvance: React.FC = () => {
                     // CRITICAL: If applicant_webmail is present (e.g. from prefill), fetch and populate details
                     if (initialData.applicant_webmail) {
                         try {
-                            console.log('Fetching initial user details for:', initialData.applicant_webmail);
                             const userRes = await fetchUserDetails({ user_email: initialData.applicant_webmail });
                             if (userRes?.message) {
                                 const details = userRes.message;
@@ -450,7 +445,6 @@ const TemporaryAdvance: React.FC = () => {
                                 initialData.applicant_category = details.empclass || '';
                             }
                         } catch (e) {
-                            console.error("Failed to fetch initial user details", e);
                         }
                     }
 
@@ -458,7 +452,6 @@ const TemporaryAdvance: React.FC = () => {
                     setFormData(initialData);
 
                 } else {
-                    console.error("API did not return a valid 'fields' array.");
                 }
 
                 setLinkOptions(prev => ({ ...prev, ...(link_options || {}) }));
@@ -469,7 +462,6 @@ const TemporaryAdvance: React.FC = () => {
             initForm();
         }
         if (error) {
-            console.error("Failed to load form data:", error);
             setErrorModal({
                 open: true,
                 title: "Load Failed",
@@ -550,13 +542,10 @@ const TemporaryAdvance: React.FC = () => {
 
         if (value) {
             try {
-                console.log('Fetching user details for:', value);
                 const response = await fetchUserDetails({ user_email: value });
-                console.log('User Details API Response:', response);
 
                 if (response?.message) {
                     const userDetails = response.message;
-                    console.log('User Details:', userDetails);
 
                     setFormData(prev => {
                         const updated = {
@@ -581,7 +570,6 @@ const TemporaryAdvance: React.FC = () => {
                     });
                 }
             } catch (err) {
-                console.error('Error fetching user details:', err);
             }
         }
     };
@@ -650,7 +638,6 @@ const msg = saveResult?.message;
             if (comment.trim()) params.set("comment", comment.trim());
             navigate(`/temporary-advance/${encodeURIComponent(docname)}?${params.toString()}`);
         } catch (err: any) {
-            console.error('Submission error:', submitError || err);
             setErrorModal({
                 open: true,
                 title: "Save Failed",

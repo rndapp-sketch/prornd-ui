@@ -351,7 +351,6 @@ const JoiningReportPage: React.FC = () => {
           }
         }
       } catch (e) {
-        console.error("JoiningReport load error:", e);
       } finally {
         setLoading(false);
       }

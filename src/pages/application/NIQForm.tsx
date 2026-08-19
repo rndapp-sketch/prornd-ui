@@ -1452,7 +1452,7 @@ const NIQPage: React.FC = () => {
                                 setIgf({ ...data });
                             }
                         }
-                    } catch (e) { console.error('Failed to fetch user details:', e); }
+                    } catch (e) {  }
                 }
 
                 if (!data.igf_indenter && piMember?.igf_member_name) {

@@ -30,7 +30,6 @@ export const FloatingActivityLogButton: React.FC<FloatingActivityLogButtonProps>
       clearActivityLogCache(doctype, docname);
       setRefreshKey((k) => k + 1);
     } catch (err) {
-      console.error("Error adding comment:", err);
     } finally {
       setIsSubmitting(false);
     }

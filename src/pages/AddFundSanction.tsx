@@ -439,7 +439,6 @@ const AddFundSanction: React.FC = () => {
             setLoading(false);
         }
         if (formDataError) {
-            console.error("Failed to load form data:", formDataError);
             alert("Error: Could not load the form.");
             setLoading(false);
         }
@@ -597,7 +596,6 @@ const AddFundSanction: React.FC = () => {
             setSavedAsDraft(true);
             alert("Fund Sanction saved as draft!");
         } catch (err: any) {
-            console.error("Save Failed:", submitError || err);
             setErrorModal({
                 open: true,
                 title: "Save Failed",
@@ -636,7 +634,6 @@ const AddFundSanction: React.FC = () => {
             alert("Fund Sanction submitted successfully!");
             navigate(-1);
         } catch (err: any) {
-            console.error("Submission Failed:", submitError || err);
             setErrorModal({
                 open: true,
                 title: "Submission Failed",

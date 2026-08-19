@@ -179,7 +179,6 @@ const MiscellaneousCommit: React.FC = () => {
                 setList(data.data);
             }
         } catch (error) {
-            console.error("Error fetching Miscellaneous Commit list:", error);
         } finally {
             setLoading(false);
         }

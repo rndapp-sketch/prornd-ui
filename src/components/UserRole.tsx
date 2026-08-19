@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useRef } from "react";
 import { useFrappeGetCall } from "frappe-react-sdk";
 
 interface UseUserRolesResult {
@@ -27,12 +27,6 @@ export const useUserRoles = (user: string | null): UseUserRolesResult => {
   if (data?.message) {
     hasEverLoaded.current = true;
   }
-
-  useEffect(() => {
-    if (isLoading && user) console.log("Fetching roles for:", user);
-    if (error) console.error("Error fetching roles:", error);
-    if (data) console.log("Fetched roles data:", data);
-  }, [data, error, isLoading, user]);
 
   // Only show loading on INITIAL load, not on revalidation
   // Once we have data, never show loading again

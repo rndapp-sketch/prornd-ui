@@ -556,7 +556,6 @@ const TableRow = ({ doc, onDone }: { doc: PendingDoc; onDone: () => void }) => {
             if (!bindRes.ok) throw new Error(await bindRes.text());
             onDone();
         } catch (err: any) {
-            console.error("Director PDF upload failed", err);
             setErrMsg(err?.message || String(err));
         } finally {
             setIsUploading(false);

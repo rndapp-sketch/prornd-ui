@@ -251,7 +251,6 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({
             })
             .catch((err) => {
                 if (err.name === "AbortError") return; // cancelled — do nothing
-                console.warn("[ActivityLog] fetch failed:", err);
                 setError("Unable to load activity");
                 setLoading(false);
             });

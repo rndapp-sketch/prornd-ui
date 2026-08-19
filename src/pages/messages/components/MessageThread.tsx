@@ -140,7 +140,6 @@ export function MessageThread({
                 );
                 return;
             }
-            console.error("Failed to delete message for me:", error);
             setErrorModal({
                 open: true,
                 title: "Delete Failed",
@@ -163,7 +162,6 @@ export function MessageThread({
                 );
                 return;
             }
-            console.error("Failed to delete message for everyone:", error);
             setErrorModal({
                 open: true,
                 title: "Delete Failed",
@@ -184,7 +182,6 @@ export function MessageThread({
                 );
                 return;
             }
-            console.error("Failed to react to message:", error);
             setErrorModal({
                 open: true,
                 title: "Reaction Failed",

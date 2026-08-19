@@ -190,12 +190,10 @@ const AdvanceSettlementWorkflowActions = ({
     const loadActions = async () => {
       try {
         const res = await fetchActions({ docname });
-        console.log("Workflow actions response:", res);
         if (res?.message) {
           setActions(Array.isArray(res.message) ? res.message : []);
         }
       } catch (err) {
-        console.error("Failed to fetch workflow actions:", err);
       } finally {
         setActionsLoading(false);
       }
@@ -214,7 +212,6 @@ const AdvanceSettlementWorkflowActions = ({
       setModalOpen(false);
       onActionComplete();
     } catch (error) {
-      console.error("Error performing action:", error);
       alert("Failed to perform action. Please try again.");
     }
   };
@@ -328,7 +325,6 @@ const AdvanceSettlementDetails: React.FC = () => {
           );
         }
       } catch (err) {
-        console.error("Failed to fetch Budget Heads:", err);
       }
     };
     fetchBudgetHeads();
@@ -392,7 +388,7 @@ const AdvanceSettlementDetails: React.FC = () => {
                 doctype: "Budget Head",
                 name: doc.account_head,
               });
-              console.log(">>> Budget Head Response:", bhResponse); // Debug log
+               // Debug log
 
               if (bhResponse?.message) {
                 const bh = bhResponse.message;
@@ -405,14 +401,12 @@ const AdvanceSettlementDetails: React.FC = () => {
                 if (name) setBudgetHeadName(name);
               }
             } catch (e) {
-              console.warn("Could not fetch budget head details", e);
             }
           }
         } else {
           setError("Settlement not found");
         }
       } catch (err) {
-        console.error("Error fetching settlement:", err);
         setError("Failed to load settlement details");
       } finally {
         setLoading(false);
@@ -437,7 +431,6 @@ const AdvanceSettlementDetails: React.FC = () => {
       // Refresh data
       window.location.reload();
     } catch (err) {
-      console.error("Error submitting settlement:", err);
       alert("Failed to submit settlement. Please try again.");
     } finally {
       setIsSubmitting(false);

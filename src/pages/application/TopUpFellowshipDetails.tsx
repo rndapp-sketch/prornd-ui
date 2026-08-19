@@ -250,7 +250,6 @@ const TopUpFellowshipDetails: React.FC = () => {
                 if (cd?.message) setCommitDetails(cd.message);
             } catch { /* non-critical */ }
         } catch (err) {
-            console.error('Failed to load Top Up Fellowship details:', err);
         } finally {
             setLoading(false);
         }

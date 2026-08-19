@@ -226,7 +226,6 @@ const ProjectProposalDetails: React.FC = () => {
             mutate(); // Refresh data to reflect new status
             alert("Project Proposal Submitted Successfully!");
         } catch (err: any) {
-            console.error("Submission error:", submitError || err);
             setErrorModal({
                 open: true,
                 title: "Submission Failed",

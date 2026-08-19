@@ -338,24 +338,17 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                 }
 
                 const result = await response.json();
-                console.log("[HoSApprovalView] Fetched fund data:", result.data);
 
                 if (result.data) {
                     setFundReceived(result.data);
 
                     // Log breakup specifically
                     if (result.data.received_amt_breakup) {
-                        console.log(
-                            "[HoSApprovalView] Breakup rows:",
-                            result.data.received_amt_breakup,
-                        );
                         result.data.received_amt_breakup.forEach((row: any, i: number) => {
-                            console.log(`[HoSApprovalView] Row ${i} remarks:`, row.remarks);
                         });
                     }
                 }
             } catch (err: any) {
-                console.error("Error fetching fund received:", err);
                 setFundError(err);
             } finally {
                 setFundLoading(false);
@@ -416,7 +409,6 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                     });
 
                     if (!res.ok) {
-                        console.log(`Skipping ${doctype}: ${res.status}`);
                         return false;
                     }
 
@@ -444,7 +436,6 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                         }
                     }
                 } catch (err) {
-                    console.log(`Skipping ${doctype} due to error:`, err);
                 }
                 return false;
             };
@@ -483,15 +474,6 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
     // Debug: Log the received data to check if remarks field exists
     useEffect(() => {
         if (fundReceived?.received_amt_breakup) {
-            console.log("[HoSApprovalView] fundReceived data:", fundReceived);
-            console.log(
-                "[HoSApprovalView] received_amt_breakup:",
-                fundReceived.received_amt_breakup,
-            );
-            console.log(
-                "[HoSApprovalView] First row remarks:",
-                fundReceived.received_amt_breakup[0]?.remarks,
-            );
         }
     }, [fundReceived]);
 

@@ -158,7 +158,6 @@ const TravelActionButtons: React.FC<TravelActionButtonsProps> = ({
                         content: `[${selectedAction}] ${comment.trim()}`,
                     });
                 } catch (commentError) {
-                    console.error('Error adding comment:', commentError);
                 }
             }
 
@@ -167,7 +166,6 @@ const TravelActionButtons: React.FC<TravelActionButtonsProps> = ({
             fetchActions({ docname: docName });
             onActionComplete?.();
         } catch (error: unknown) {
-            console.error('Action error:', error);
             alert('An error occurred while performing the action.');
         }
     };

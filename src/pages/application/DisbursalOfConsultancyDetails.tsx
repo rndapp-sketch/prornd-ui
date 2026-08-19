@@ -233,7 +233,6 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                     );
                 }
             } catch (err) {
-                console.error("Failed to fetch Budget Heads:", err);
             }
         };
         fetchBudgetHeads();
@@ -408,13 +407,11 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                         setFormData(doc.message);
                     }
                 } catch (err) {
-                    console.error("Error fetching document:", err);
                 }
 
                 setLoading(false);
             }
             if (formDataError) {
-                console.error("Failed to load form data:", formDataError);
                 setLoading(false);
             }
         };
@@ -446,7 +443,6 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                         budget_head: "Consultancy",
                     });
                 } catch (commitErr) {
-                    console.warn("Commit staging failed (non-fatal):", commitErr);
                 }
                 alert("Disbursal of Consultancy submitted successfully!");
                 handleRefresh();

@@ -127,17 +127,14 @@ const P11Form: React.FC = () => {
 
     const refreshWorkflowActions = () => {
         if (!savedDocName) {
-            console.log("[P11Form] refreshWorkflowActions skipped — no savedDocName yet");
             return;
         }
         fetchWorkflowActions({ docname: savedDocName })
             .then((res) => {
                 const list = Array.isArray(res?.message) ? res.message : [];
-                console.log(`[P11Form ${savedDocName}] workflow actions available:`, list, "raw response:", res);
                 setWorkflowActions(list);
             })
             .catch((err) => {
-                console.error(`[P11Form ${savedDocName}] failed to fetch workflow actions:`, err);
                 setWorkflowActions([]);
             });
     };
@@ -182,7 +179,6 @@ const P11Form: React.FC = () => {
                             initialData = { ...initialData, ...existingDoc.message };
                         }
                     } catch (err) {
-                        console.error('Error fetching existing document:', err);
                     }
                 }
 
@@ -208,7 +204,6 @@ const P11Form: React.FC = () => {
                             item_gst: 0,
                         }));
                     } catch (err) {
-                        console.error('Error fetching Direct Purchase for P-11 prefill:', err);
                     }
                 }
 
@@ -236,7 +231,6 @@ const P11Form: React.FC = () => {
                 setLoading(false);
             }
             if (formDataError) {
-                console.error("Failed to load form data:", formDataError);
                 alert("Error: Could not load the P_11 Form.");
                 setLoading(false);
             }
@@ -408,7 +402,6 @@ const P11Form: React.FC = () => {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
-            console.error(saveError || err);
             setErrorModal({ open: true, title: "Save Failed", message: parseFrappeError(saveError, err) });
         } finally {
             setIsSubmitting(false);
@@ -451,7 +444,6 @@ const P11Form: React.FC = () => {
                     try {
                         await addActionComment({ doctype: 'P_11 Form', docname: savedDocName, content: comment.trim() });
                     } catch (e) {
-                        console.warn('Failed to save action comment:', e);
                     }
                 }
                 alert(`Action '${action}' completed successfully!`);
@@ -460,7 +452,6 @@ const P11Form: React.FC = () => {
                 throw new Error(res?.message?.message || `Failed to perform action '${action}'.`);
             }
         } catch (err: any) {
-            console.error(err);
             setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);

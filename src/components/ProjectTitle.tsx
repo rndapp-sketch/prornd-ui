@@ -22,17 +22,14 @@ export const ProjectTitle: React.FC<ProjectTitleProps> = ({ projectId, fallbackT
             setLoading(true);
             try {
                 const safeId = projectId || "";
-                console.log("Fetching title for projectId:", safeId);
 
                 // Try fetching from Project Registration
                 const res = await fetch(`/api/v2/document/Project Registration/${encodeURIComponent(safeId)}`, {
                     credentials: "include"
                 });
 
-                console.log("Fetch response status:", res.status);
                 if (res.ok) {
                     const json = await res.json();
-                    console.log("Fetch response JSON:", json);
                     if (json.data?.project_title) {
                         setTitle(json.data.project_title);
                         return; // Found it, stop here
@@ -44,7 +41,6 @@ export const ProjectTitle: React.FC<ProjectTitleProps> = ({ projectId, fallbackT
                     setTitle(fallbackTitle);
                 }
             } catch (err) {
-                console.error("Failed to fetch project title:", err);
                 if (fallbackTitle && fallbackTitle !== "-") {
                     setTitle(fallbackTitle);
                 }
