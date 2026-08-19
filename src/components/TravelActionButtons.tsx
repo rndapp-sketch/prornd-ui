@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useFrappePostCall } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { travelAPI, commonAPI } from '@/services/apiService';
 import { CommentModal } from '@/components/CommentModal';
@@ -11,6 +11,14 @@ interface TravelActionButtonsProps {
     onActionComplete?: () => void;
     /** When true, "Forward" is disabled until a commitment exists (Staff RnD gate) */
     commitRequired?: boolean;
+    /** Current workflow state — used to detect the Other-PI approval step */
+    workflowState?: string;
+    /** The PI this travel is charged to; only they may act at "Pending Other PI" */
+    otherPiId?: string;
+    /** Other-PI selection, owned by TravelDetails (rendered full-width in the body) */
+    otherPiProject?: string;
+    otherPiHead?: string;
+    otherPiProjects?: any[];
 }
 
 // Same grouping/style convention as Project Registration's workflow actions dropdown
@@ -44,6 +52,11 @@ const TravelActionButtons: React.FC<TravelActionButtonsProps> = ({
     docName,
     onActionComplete,
     commitRequired = false,
+    workflowState,
+    otherPiId,
+    otherPiProject = '',
+    otherPiHead = '',
+    otherPiProjects = [],
 }) => {
     const [actions, setActions] = useState<string[]>([]);
 
@@ -51,6 +64,19 @@ const TravelActionButtons: React.FC<TravelActionButtonsProps> = ({
         useFrappePostCall<{ message: string[] }>(travelAPI.getWorkflowActions);
     const { call: performAction, loading: actionLoading } = useFrappePostCall(travelAPI.performAction);
     const { call: addComment } = useFrappePostCall(commonAPI.addComment);
+    const { currentUser } = useFrappeAuth();
+
+    // Other-PI approval step: only the assigned PI may act. The project/account
+    // head selectors are rendered by TravelDetails (full page width); this
+    // component just validates the choice and sends it with the action.
+    const isPiStep =
+        workflowState === "Pending Other PI" &&
+        !!currentUser &&
+        (otherPiId || "").toLowerCase() === currentUser.toLowerCase();
+
+    const selectedProject = otherPiProject;
+    const selectedHead = otherPiHead;
+    const projects = otherPiProjects;
 
     // Dropdown state
     const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -91,6 +117,13 @@ const TravelActionButtons: React.FC<TravelActionButtonsProps> = ({
     };
 
     const handleActionClick = (action: string) => {
+        // At the Other-PI step the PI must choose their project + account head
+        // before the travel can be forwarded/approved.
+        const isForward = action.toLowerCase() === 'forward' || action.toLowerCase() === 'approve';
+        if (isPiStep && isForward && (!selectedProject || !selectedHead)) {
+            alert('Please select a project and account head before approving.');
+            return;
+        }
         setDropdownOpen(false);
         setSelectedAction(action);
         setModalOpen(true);
@@ -99,7 +132,18 @@ const TravelActionButtons: React.FC<TravelActionButtonsProps> = ({
     const handleConfirmAction = async (comment: string) => {
         if (!selectedAction) return;
         try {
-            const response = await performAction({ docname: docName, action: selectedAction });
+            const payload: Record<string, any> = { docname: docName, action: selectedAction };
+            const isForward =
+                selectedAction.toLowerCase() === 'forward' || selectedAction.toLowerCase() === 'approve';
+            if (isPiStep && isForward) {
+                const proj = projects.find((p) => p.value === selectedProject);
+                payload.extra_data = JSON.stringify({
+                    project_name: selectedProject,
+                    project_number: proj?.project_number || proj?.project_no || '',
+                    account_head: selectedHead,
+                });
+            }
+            const response = await performAction(payload);
 
             if (response?.message?.status && response.message.status !== 'success') {
                 alert(response.message.message || 'Action failed');

@@ -562,7 +562,21 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
         const amount = parseFloat(commitAmount);
         if (!commitHead) { setSubmitError("Please select a budget head."); return; }
         if (isNaN(amount) || amount <= 0) { setSubmitError("Please enter a valid positive amount."); return; }
-        if (!commitReferenceName || !payloadFrapAppId || !projectName) { setSubmitError("Missing document or project information."); return; }
+        if (!commitReferenceName || !payloadFrapAppId || !projectName) {
+            // Name the missing piece — "project" is almost always the culprit on
+            // an Other-PI form whose page was loaded before the PI assigned their
+            // project (SWR auto-revalidation is disabled app-wide, so the stale
+            // value persists until a full reload).
+            const missing = [
+                !commitReferenceName && "document reference",
+                !payloadFrapAppId && "application id",
+                !projectName && "project number",
+            ].filter(Boolean).join(", ");
+            setSubmitError(
+                `Missing ${missing}. If this application was just approved by the other PI, reload the page to pick up the assigned project.`
+            );
+            return;
+        }
         if (disabled) { setSubmitError(disabledReason || "Commitment cannot be submitted yet."); return; }
         if (headBalances && commitHead && headBalances[commitHead] != null) {
             const headCommitable = headBalances[commitHead].commitable;

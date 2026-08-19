@@ -29,6 +29,7 @@ import AddFundSanction from './pages/AddFundSanction.tsx';
 // import { UserCreation } from './pages/UserCreation.tsx'; // This one was correct as named
 // import UserList from './pages/UserList.tsx';
 import ProjectsView from './pages/ProjectsView.tsx';
+import { OtherPIView } from './pages/OtherPIView.tsx';
 import ProjectDetails from './pages/ProjectDetails.tsx'; // Import ProjectDetails
 import ProjectDetailsOverview from './pages/ProjectDetailsOverview.tsx';
 import ProjectLedgerFull from './pages/ProjectLedgerFull.tsx';
@@ -90,6 +91,7 @@ import CandidateDetails from './pages/application/CandidateDetails.tsx';
 import IndentCumSanctionSheetForm from './pages/application/IndentCumSanctionSheetForm.tsx';
 import IndentGeneralForm from './pages/application/IndentGeneralForm.tsx';
 import IndentGeneralFormDetails from './pages/application/IndentGeneralFormDetails.tsx';
+import RateContractForm from './pages/application/RateContractForm.tsx';
 import UniversalRegistrationForm from './pages/application/UniversalRegistrationForm.tsx';
 import UniversalUserForm from './pages/application/UniversalUserForm.tsx';
 import SelectionCommitteeReportForm from './pages/application/SelectionCommitteeReportForm.tsx';
@@ -284,6 +286,14 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <CoProjectView />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "other-pi",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <OtherPIView />
                         </AuthRouteWrapper>
                     ),
                 },
@@ -841,6 +851,14 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <IndentGeneralFormDetails />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "rate-contract",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <RateContractForm />
                         </AuthRouteWrapper>
                     )
                 },

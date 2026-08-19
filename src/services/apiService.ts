@@ -19,6 +19,8 @@ export const rateContractAPI = {
     getVendorDetails: `${API_BASE}.rate_contract.rate_contract.get_vendor_details`,
     getFormTypeConfig: `${API_BASE}.rate_contract.rate_contract.get_form_type_config`,
     getVendorsByP4ItemType: `${API_BASE}.rate_contract.rate_contract.get_vendors_by_p4_item_type`,
+    getPiProjects: `${API_BASE}.rate_contract.rate_contract.get_rate_contract_pi_projects`,
+    getProjectAccountHeads: `${API_BASE}.rate_contract.rate_contract.get_rate_contract_project_account_heads`,
 };
 
 export const annualMaintenanceContractAPI = {
@@ -38,6 +40,9 @@ export const travelAPI = {
     getSclBalance: `${API_BASE}.travel.travel.get_special_leave_balance_for_travel`,
     attachDirectorPdf: `${API_BASE}.travel.travel.attach_director_pdf_travel`,
     getPendingDirectorUploads: `${API_BASE}.travel.travel.get_pending_director_uploads_travel`,
+    // Other-PI flow: the assigned PI picks one of their own projects + account head
+    getPiProjects: `${API_BASE}.travel.travel.get_travel_pi_projects`,
+    getProjectAccountHeads: `${API_BASE}.travel.travel.get_travel_project_account_heads`,
 };
 
 // TA DA Settlement API endpoints
@@ -192,6 +197,8 @@ export const icssAPI = {
     updateSendToDirector: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.update_send_to_director_icss`,
     attachDirectorPdf: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.attach_director_pdf_icss`,
     getPendingDirectorUploads: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_pending_director_uploads_icss`,
+    getPiProjects: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_icss_pi_projects`,
+    getProjectAccountHeads: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_icss_project_account_heads`,
 };
 
 export const proprietaryPurchaseAPI = {
@@ -262,6 +269,7 @@ export const indentGeneralFormAPI = {
     getPendingDirectorUploads: `${API_BASE}.indent_general_form.indent_general_form.get_pending_director_uploads_igf`,
     getAvailableBackActions: `${API_BASE}.indent_general_form.indent_general_form.get_available_back_actions`,
     putBack: `${API_BASE}.indent_general_form.indent_general_form.put_back`,
+    getPiProjects: `${API_BASE}.indent_general_form.indent_general_form.get_igf_pi_projects`,
 };
 
 // Loan Request API endpoints
