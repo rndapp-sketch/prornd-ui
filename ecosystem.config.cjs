@@ -16,4 +16,4 @@ module.exports = {
   ]
 };
 
-// git clone -b mythos_fable_v0.8 --single-branch https://github.com/rndapp-sketch/prornd-ui.git
+// git clone -b pragati_v0.01 --single-branch https://github.com/rndapp-sketch/prornd-ui.git

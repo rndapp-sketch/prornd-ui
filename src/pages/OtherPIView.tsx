@@ -250,7 +250,7 @@ export function OtherPIView() {
     };
 
     return (
-        <div className="container mx-auto space-y-8 p-4 md:p-8 max-w-7xl">
+        <div className="w-full space-y-8 p-4 md:p-8">
             {/* Header Section */}
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <div>
