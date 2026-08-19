@@ -265,7 +265,6 @@ export default function MessagesPage() {
             refreshConvos();
             refreshUnreadCounts();
         } catch (error) {
-            console.error("Failed to delete chat:", error);
             setErrorModal({
                 open: true,
                 title: "Delete Failed",
@@ -285,7 +284,6 @@ export default function MessagesPage() {
             } catch (error) {
                 const message = error instanceof Error ? error.message : "";
                 if (/unknown attribute:\s*"typing_/i.test(message)) return;
-                console.warn("[messaging] failed to update typing status", error);
             }
         },
         [activeConversation, myEmail, myUserId, refreshConvos],
@@ -316,7 +314,6 @@ export default function MessagesPage() {
             refreshConvos();
             selectConversation(conversation.$id);
         } catch (error) {
-            console.error("Failed to open admin chat:", error);
             setErrorModal({
                 open: true,
                 title: "Unable to Open Chat",

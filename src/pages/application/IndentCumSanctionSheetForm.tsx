@@ -2173,7 +2173,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           );
         }
       } catch (error) {
-        console.error("Failed to fetch budget heads for ICSS:", error);
       }
     };
 
@@ -2207,7 +2206,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           designation: details.designation_name || details.designation || "",
         });
       } catch (error) {
-        console.error("Failed to fetch checked-by user details:", error);
         if (!isCancelled) {
           setCheckedByUser({ name: currentUser, designation: "" });
         }
@@ -2251,7 +2249,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             "Hos, RnD (Head of Section, RnD)",
         });
       } catch (error) {
-        console.error("Failed to fetch HoS, RnD signatory details:", error);
       }
     };
 
@@ -2267,7 +2264,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           designation: details.designation_name || details.designation || "",
         });
       } catch (error) {
-        console.error("Failed to fetch rndadmin signatory details:", error);
       }
     };
 
@@ -2644,7 +2640,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           designation: userDetails.designation || data.designation,
         };
       } catch (e) {
-        console.error("Failed to fetch ICSS applicant display details", e);
         return data;
       }
     },
@@ -2827,10 +2822,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         compositeResponse?.message?.message || "Composite save failed",
       );
     } catch (compositeError) {
-      console.warn(
-        "ICSS composite save failed, falling back to flat save.",
-        compositeError,
-      );
     }
 
     const flatResponse = await saveCall({ data: preparedData });
@@ -2982,7 +2973,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             newData.total_estimate_in_words = inWords;
         }
       } catch (e) {
-        console.error("Computation engine error:", e);
       }
       return newData;
     },
@@ -3114,10 +3104,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       setIsLoadingFields(true);
       try {
         const currentDocName = docNameOverride || editDocName || savedDocName;
-        console.log(
-          "Fetching ICSS config for:",
-          currentDocName ? `Doc: ${currentDocName}` : "New Document",
-        );
 
         const response = await getFieldsCall({ doc_name: currentDocName });
         if (response && response.message) {
@@ -3126,7 +3112,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             prefill_data,
             link_options,
           } = response.message;
-          console.log("Fetched ICSS Fields:", fetchedFields?.length);
 
           const HIDDEN_FIELDS = [
             "amended_from",
@@ -3165,7 +3150,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
               }));
             }
           } catch (e) {
-            console.error("Failed to load all principal suppliers:", e);
           }
 
           if (response.message.computation_rules) {
@@ -3221,7 +3205,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                   initialData.head = headRes.message.piheadmentor_user_id;
                 }
               } catch (e) {
-                console.error("Failed to fetch head (piheadmentor_user_id)", e);
               }
             }
 
@@ -3263,7 +3246,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                   }
                 }
               } catch (e) {
-                console.error("Failed to fetch project details:", e);
               }
             }
 
@@ -3282,7 +3264,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           }
         }
       } catch (error) {
-        console.error("Error fetching ICSS form details:", error);
         alert("Failed to load form schema");
       } finally {
         setIsLoadingFields(false);
@@ -3340,10 +3321,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             child_docname: childDocname,
           });
         } catch (genericChildError) {
-          console.warn(
-            "Generic ICSS child field API failed, falling back to legacy child API.",
-            genericChildError,
-          );
         }
 
         if (!response?.message) {
@@ -3416,7 +3393,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           }
         }
       } catch (error) {
-        console.error("Error fetching sub-form fields:", error);
       } finally {
         setIsLoadingSubForm(false);
       }
@@ -3536,10 +3512,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         });
       }
     } catch (error) {
-      console.error(
-        "Failed to hydrate Rate Contract P3 display options:",
-        error,
-      );
     }
   }, [
     applyComputations,
@@ -3607,7 +3579,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         }));
       }
     } catch (error) {
-      console.error("Failed to hydrate Rate Contract P4 vendor list:", error);
     }
   }, [
     fetchVendorsByP4ItemType,
@@ -3641,7 +3612,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         );
       }
     } catch (error) {
-      console.error("Failed to hydrate Rate Contract P4 vendor details:", error);
     }
   }, [
     applyComputations,
@@ -3665,7 +3635,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           if (!mounted) return;
         })
         .catch((err) => {
-          console.error("Subform fetch failed", err);
         });
     }
     return () => {
@@ -3682,7 +3651,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           setAvailableActions(response.message);
         }
       } catch (error) {
-        console.error("Failed to fetch workflow actions:", error);
         setAvailableActions([]);
       }
     },
@@ -3781,7 +3749,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
               });
             }
           } catch (e) {
-            console.error("Failed to fetch user details", e);
           }
         }
         return;
@@ -3888,7 +3855,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                     }),
                   );
                 } catch (localErr) {
-                  console.error("Failed to auto-fetch local supplier details:", localErr);
                 }
               }
             } else {
@@ -4033,7 +3999,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             break;
         }
       } catch (e) {
-        console.error(`Rate Contract side effect error for ${fieldname}:`, e);
       }
     },
     [
@@ -4283,7 +4248,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           });
         }
       } catch (error: any) {
-        console.error("Save error:", error);
         setErrorModal({
           open: true,
           title: "Save Failed",
@@ -4388,7 +4352,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         });
       }
     } catch (error: any) {
-      console.error(`Workflow Action ${action} Error:`, error);
       setErrorModal({
         open: true,
         title: "Action Failed",
@@ -4438,7 +4401,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         alert("Could not find the linked project for this ICSS.");
       }
     } catch (error) {
-      console.error("Failed to open ICSS project", error);
       alert("Failed to open the linked project.");
     } finally {
       setIsProjectViewLoading(false);
@@ -4673,9 +4635,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         setSavedPoDraftLoadError(
           `Failed to load saved PO draft: ${listResponse.status} ${listResponse.statusText}`,
         );
-        console.error(
-          `Failed to fetch ICSS_PO list: ${listResponse.status} ${listResponse.statusText}`,
-        );
         return null;
       }
 
@@ -4692,9 +4651,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       if (!detailResponse.ok) {
         setSavedPoDraftLoadError(
           `Failed to load saved PO draft details: ${detailResponse.status} ${detailResponse.statusText}`,
-        );
-        console.error(
-          `Failed to fetch ICSS_PO detail: ${detailResponse.status} ${detailResponse.statusText}`,
         );
         return null;
       }
@@ -4728,7 +4684,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         _icss_po_name: poDocName,
       };
     } catch (error) {
-      console.error("Failed to fetch saved ICSS PO draft:", error);
       setSavedPoDraftLoadError("Failed to load saved PO draft details.");
       return null;
     } finally {
@@ -4770,7 +4725,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         setSignedPoFileUrl("");
       }
     } catch (error) {
-      console.error("Failed to fetch signed PO attachment:", error);
     }
   }, [currentDocName]);
 
@@ -4819,7 +4773,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         );
         alert("Signed PO uploaded successfully.");
       } catch (error: any) {
-        console.error("Signed PO upload failed:", error);
         setErrorModal({
           open: true,
           title: "Upload Failed",
@@ -4926,7 +4879,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           accountHeadLabel =
             accountHeadRes?.message?.budget_head || accountHeadLabel;
         } catch (error) {
-          console.error("Failed to resolve ICSS PO account head label:", error);
         }
       }
 
@@ -5226,7 +5178,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       );
       await fetchFormConfiguration(currentDocName);
     } catch (error: any) {
-      console.error("Failed to send ICSS for Director approval:", error);
       setErrorModal({
         open: true,
         title: "Failed to Send for Director Approval",
@@ -5749,7 +5700,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                     type="button"
                     onClick={() => {
                       handleGeneratePo().catch((error) => {
-                        console.error("PO generation failed:", error);
                         setErrorModal({
                           open: true,
                           title: "PO Generation Failed",

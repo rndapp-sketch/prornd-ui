@@ -24,3 +24,7 @@ dist-ssr
 *.sw?
 
 proxyOptions.ts
+
+# Derived at build/dev time by scripts/git-leaderboard.cjs — regenerated
+# fresh on every run, only used as a fallback when git itself is unavailable.
+.leaderboard-cache.json

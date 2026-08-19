@@ -178,9 +178,6 @@ export const useDepositSlipCalculations = (
       return;
     }
 
-    console.log(
-      `useDepositSlipCalculations [${depositSlipType}]: Calculating...`,
-    );
 
     // Update signature reference immediately
     lastSignatureRef.current = currentSignature;

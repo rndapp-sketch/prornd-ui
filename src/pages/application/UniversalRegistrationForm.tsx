@@ -615,7 +615,6 @@ export default function UniversalRegistrationForm({
                         const parsedDraft = JSON.parse(draftStr);
                         initialData = { ...initialData, ...parsedDraft };
                     } catch (e) {
-                        console.error("Failed to parse draft", e);
                     }
                 }
 
@@ -663,7 +662,6 @@ export default function UniversalRegistrationForm({
                 setFormData(initialData);
             }
         } catch (error) {
-            console.error("Error fetching form configuration:", error);
             alert("Failed to load form configuration.");
         } finally {
             setIsLoadingFields(false);
@@ -943,7 +941,6 @@ export default function UniversalRegistrationForm({
                         setEmailMessage("");
                     }
                 } catch (err) {
-                    console.error("Email availability check failed:", err);
                     setEmailStatus("idle");
                     setEmailMessage("");
                 }
@@ -979,7 +976,7 @@ export default function UniversalRegistrationForm({
                         });
                     }
                 })
-                .catch((err) => console.error("Error fetching pincode details:", err));
+                .catch(() => {});
         }
     }, [checkEmailCall, savedDocName]);
 
@@ -1062,7 +1059,7 @@ export default function UniversalRegistrationForm({
                             });
                         }
                     })
-                    .catch((err) => console.error("Error fetching pincode details:", err));
+                    .catch(() => {});
             }
 
             if (
@@ -1128,7 +1125,6 @@ export default function UniversalRegistrationForm({
                             }
                         })
                         .catch((err) => {
-                            console.error("Error fetching bank details from IFSC API:", err);
                             ifscCacheRef.current[cleanIfsc] = { error: true };
                             setFormData((prev) => {
                                 const tableData = [...(prev[tableName] || [])];
@@ -1579,7 +1575,6 @@ export default function UniversalRegistrationForm({
                 throw new Error("Invalid response received from the server.");
             }
         } catch (error: any) {
-            console.error("Error saving form:", error);
             const errorMsg = error.exc
                 ? JSON.parse(error.exc)[0]
                 : error.message || "An unexpected error occurred while saving.";

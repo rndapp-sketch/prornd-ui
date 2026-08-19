@@ -91,9 +91,6 @@ export const useFrappeFetchFrom = (
         const doctype = sourceFieldDef?.options;
 
         if (doctype) {
-          console.log(
-            `useFrappeFetchFrom: Fetching ${sourceProperty} from ${doctype} (${currentSourceValue}) for ${targetField.fieldname}`,
-          );
 
           fetchingRef.current.add(fetchSignature);
           initialFetchDoneRef.current.add(
@@ -116,9 +113,6 @@ export const useFrappeFetchFrom = (
             .then((data) => {
               if (data.message) {
                 const fetchedValue = data.message[sourceProperty];
-                console.log(
-                  `useFrappeFetchFrom: Fetched value ${fetchedValue} for ${targetField.fieldname}`,
-                );
 
                 setFormData((prev) => ({
                   ...prev,
@@ -127,18 +121,11 @@ export const useFrappeFetchFrom = (
               }
             })
             .catch((err) => {
-              console.error(
-                "useFrappeFetchFrom: Error fetching linked data",
-                err,
-              );
             })
             .finally(() => {
               fetchingRef.current.delete(fetchSignature);
             });
         } else {
-          console.warn(
-            `useFrappeFetchFrom: Could not find Doctype for source field ${sourceFieldName}`,
-          );
         }
       } else if (!currentSourceValue && prevSourceValue) {
         // Source cleared -> Clear target

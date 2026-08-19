@@ -51,7 +51,6 @@ export const evaluateExpression = (
 
         return evalFn(doc);
     } catch (error) {
-        console.error('Expression evaluation error:', error, 'Expression:', expression);
         return true; // Default to showing the field on error
     }
 };

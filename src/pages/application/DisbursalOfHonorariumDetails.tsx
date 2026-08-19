@@ -309,7 +309,6 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                     );
                 }
             } catch (err) {
-                console.error("Failed to fetch Budget Heads:", err);
             }
         };
         fetchBudgetHeads();
@@ -500,13 +499,11 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                         setFormData(doc.message);
                     }
                 } catch (err) {
-                    console.error("Error fetching document:", err);
                 }
 
                 setLoading(false);
             }
             if (formDataError) {
-                console.error("Failed to load form data:", formDataError);
                 setLoading(false);
             }
         };
@@ -564,7 +561,6 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                 throw new Error(submitRes?.message?.message || "Submission failed");
             }
         } catch (err: any) {
-            console.error(err);
             setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);

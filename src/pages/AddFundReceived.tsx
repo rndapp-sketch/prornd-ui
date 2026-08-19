@@ -680,7 +680,6 @@ const AddFundReceived: React.FC = () => {
                 if (response.ok) {
                     const json = await response.json();
                     const doc = json.data;
-                    console.log("Loaded existing doc for edit:", doc);
 
                     if (doc) {
                         setFormData((prev) => ({
@@ -710,7 +709,6 @@ const AddFundReceived: React.FC = () => {
                     }
                 }
             } catch (err) {
-                console.error("Failed to load existing document", err);
                 alert("Failed to load document for editing");
             }
         };
@@ -782,7 +780,6 @@ const AddFundReceived: React.FC = () => {
             setLoading(false);
         }
         if (error) {
-            console.error("Failed to load form data:", error);
             alert("Failed to load form data.");
             setLoading(false);
         }
@@ -1160,10 +1157,6 @@ const AddFundReceived: React.FC = () => {
             }
 
             // Validation passed - log success
-            console.log("✅ All validations passed:", {
-                total: validationState.totalValidation,
-                heads: validationState.headValidations,
-            });
         } catch (validationError: any) {
             if (validationError.message !== "CANCELLED") {
                 setErrorModal({
@@ -1221,7 +1214,6 @@ const AddFundReceived: React.FC = () => {
                             );
                             attachmentUrl = uploadedFile.file_url;
                         } catch (fileError) {
-                            console.error("Error uploading file:", fileError);
                             alert(
                                 `Failed to upload attachment for transaction ${row.transaction_number || "partial"}. Proceeding without file.`,
                             );
@@ -1285,7 +1277,6 @@ const AddFundReceived: React.FC = () => {
                 })
                 .filter((r: any) => r !== null);
 
-            console.log("Submitting data:", dataToSubmit);
 
             await submitForm({
                 doc_data: JSON.stringify(dataToSubmit),
@@ -1301,7 +1292,6 @@ const AddFundReceived: React.FC = () => {
 
             navigate(-1);
         } catch (err: any) {
-            console.error("Submission error:", submitError || err);
             setErrorModal({
                 open: true,
                 title: "Submission Failed",

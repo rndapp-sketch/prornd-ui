@@ -222,10 +222,6 @@ const SanctionSheetForm: React.FC = () => {
                             setWorkflowActions(actionsRes.message);
                         }
                     } catch (err) {
-                        console.error(
-                            "Error fetching existing document or workflow actions:",
-                            err,
-                        );
                     }
                 }
 
@@ -342,7 +338,6 @@ const SanctionSheetForm: React.FC = () => {
                             }));
                         }
                     } catch (err) {
-                        console.error("Error fetching prefill data:", err);
                     }
 
                     // Mark project_no and app_id read-only, hide p11_no
@@ -391,7 +386,6 @@ const SanctionSheetForm: React.FC = () => {
                 setLoading(false);
             }
             if (formDataError) {
-                console.error("Failed to load form data:", formDataError);
                 alert("Error: Could not load the Sanction Sheet.");
                 setLoading(false);
             }
@@ -519,7 +513,6 @@ const SanctionSheetForm: React.FC = () => {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
-            console.error(saveError || err);
             setErrorModal({
                 open: true,
                 title: "Submission Failed",
@@ -573,7 +566,6 @@ const SanctionSheetForm: React.FC = () => {
                 );
             }
         } catch (err: any) {
-            console.error(err);
             setErrorModal({
                 open: true,
                 title: "Submission Failed",

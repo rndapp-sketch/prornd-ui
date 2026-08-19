@@ -103,7 +103,6 @@ export const DirectPurchaseForm: React.FC<DirectPurchaseFormProps> = ({ payload,
                 setFileData(prev => ({ ...prev, [fieldname]: { file, base64 } }));
                 handleFieldChange(fieldname, base64); // Also store string in form data as attachment indicator
             } catch (err) {
-                console.error("File reading error", err);
             }
         }
     }, [handleFieldChange]);

@@ -175,6 +175,19 @@ const CreateApplicationOnBehalf: React.FC<{ hideHeader?: boolean }> = ({ hideHea
         setFormData({});
     }, [selectedDelegator]);
 
+    // The chosen project is tracked separately (selectedProjectName) and
+    // excluded from the rendered/submitted fields — it's sent to the backend
+    // as its own `project_name` param, which sets the doctype's project link
+    // field server-side. But DynamicFormRenderer's depends_on/mandatory_depends_on
+    // evaluation (and any field whose Link options are scoped to the project,
+    // e.g. account head) reads off `formData`, which never otherwise contains
+    // this value under the doctype's real field name — so project-dependent
+    // fields silently stayed hidden or unresolved. Mirror it into formData too.
+    React.useEffect(() => {
+        if (!selectedDoctypeMeta?.projectField) return;
+        setFormData((prev) => ({ ...prev, [selectedDoctypeMeta.projectField as string]: selectedProjectName }));
+    }, [selectedProjectName, selectedDoctypeMeta]);
+
     React.useEffect(() => {
         setSelectedProjectName("");
         setFields([]);

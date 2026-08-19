@@ -124,7 +124,6 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
                 setNewComment("");
                 await refetchActivity();
             } catch (err: any) {
-                console.error("Failed to add comment:", err);
                 setErrorModal({
                     open: true,
                     title: "Submission Failed",
@@ -319,7 +318,6 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
                     })));
                 }
             } catch (err) {
-                console.error("Failed to fetch Budget Heads:", err);
             }
         };
         fetchBudgetHeads();
@@ -370,7 +368,6 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
             setCommitAmount("");
             window.location.reload();
         } catch (error: any) {
-            console.error("Commit failed:", error);
             setErrorModal({
                 open: true,
                 title: "Commitment Failed",
@@ -400,7 +397,6 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
             setPaymentAmount("");
             window.location.reload();
         } catch (error: any) {
-            console.error("Payment failed:", error);
             setErrorModal({
                 open: true,
                 title: "Payment Failed",
@@ -423,7 +419,6 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
             });
             return true;
         } catch (error) {
-            console.error("Error adding comment:", error);
             return false;
         }
     };
@@ -438,7 +433,7 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
                     setTaLinkOptions(res.message.link_options || {});
                 }
             })
-            .catch(console.error)
+            .catch(() => {})
             .finally(() => setIsFieldsLoading(false));
     }, [docName]);
 
@@ -450,7 +445,7 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
             .then(res => {
                 if (res.data) setResolvedProjectTitle(res.data.project_title || res.data.name);
             })
-            .catch(err => console.error("Failed to resolve project", err));
+            .catch(() => {});
     }, [data]);
 
 

@@ -38,7 +38,6 @@ const Dashboard = () => {
 
     // Handle error during role fetching
     if (rolesError) {
-      console.error("Error fetching user roles:", rolesError);
       if (retryCount < 5) {
         setTimeout(() => {
           setRetryCount(prev => prev + 1);
@@ -56,7 +55,6 @@ const Dashboard = () => {
 
     // If roles are loaded, perform the redirection
     if (roles.length > 0) {
-      console.log("Dashboard: Roles loaded:", roles);
       const isHosRnd = roles.includes('Hos, RnD (Head of Section, RnD)');
       const isPermanentEmployee = roles.includes('Permanent Employee');
       const isDirector = roles.includes('Director');
@@ -70,7 +68,6 @@ const Dashboard = () => {
       const isInspiredFaculty = roles.includes('Inspired Faculty');
       const isIndependentResearcher = roles.includes('Independent Researcher');
 
-      console.log("Dashboard Checks:", { isHosRnd, isPermanentEmployee, isDirector, isDean, isHead, isProjectStaff, isRndStaff, isAdoRnd, isStudent, isInspiredFaculty, isIndependentResearcher });
 
       // Role-based redirection (in order of priority)
       // Higher administrative roles first, then specialized roles, then general roles

@@ -247,7 +247,6 @@ const ActionsDropdown = ({
             setModalOpen(false);
             onActionComplete();
         } catch (error) {
-            console.error("Error performing action:", error);
             setErrorModal({
                 open: true,
                 title: "Action Failed",
@@ -464,7 +463,7 @@ const TemporaryAdvanceDetails: React.FC = () => {
                 const res = await fetch('/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0');
                 const json = await res.json();
                 if (json?.data) setBudgetHeadList(json.data.map((item: any) => ({ name: item.budget_head, id: item.id })));
-            } catch (err) { console.error("Failed to fetch Budget Heads:", err); }
+            } catch (err) {  }
         };
         fetchBudgetHeads();
     }, []);
@@ -495,7 +494,7 @@ const TemporaryAdvanceDetails: React.FC = () => {
                     setTaLinkOptions(res.message.link_options || {});
                 }
             })
-            .catch(console.error)
+            .catch(() => {})
             .finally(() => setIsFieldsLoading(false));
     }, [id]);
 

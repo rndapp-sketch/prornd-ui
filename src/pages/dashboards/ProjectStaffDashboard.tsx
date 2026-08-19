@@ -607,6 +607,7 @@ export function ProjectStaffDashboard() {
               <UserIcon className="h-4 w-4" />
               Overview
             </button>
+            {/* New Application tab — commented out, keep code for later re-enable.
             <button
               onClick={() => navigate("/project-staff-dashboard?tab=quick-actions")}
               className={cn(
@@ -619,6 +620,7 @@ export function ProjectStaffDashboard() {
               <Layers className="h-4 w-4" />
               New Application
             </button>
+            */}
             <button
               onClick={() => navigate("/project-staff-dashboard?tab=tracking")}
               className={cn(
@@ -787,8 +789,11 @@ export function ProjectStaffDashboard() {
             </>
           )}
 
-          {/* Tab Content: New Application */}
-          {activeTab === "quick-actions" && (
+          {/* Tab Content: New Application — commented out (disabled via `false &&`
+              rather than a block comment, since this JSX contains nested
+              {/* ... *\/} comments that would otherwise prematurely close a
+              wrapping comment). Remove `false && ` to re-enable. */}
+          {false && activeTab === "quick-actions" && (
             <section className="mb-6 space-y-6">
               {/* Intro + Search */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-zinc-800 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm">

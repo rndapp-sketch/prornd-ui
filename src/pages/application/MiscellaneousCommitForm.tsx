@@ -192,7 +192,6 @@ const MiscellaneousCommitForm: React.FC = () => {
                 }
             }
             if (formDataError) {
-                console.error('Failed to load Miscellaneous Commit form:', formDataError);
                 setLoading(false);
             }
         };
@@ -225,7 +224,6 @@ const MiscellaneousCommitForm: React.FC = () => {
                     }));
                 }
             } catch (err) {
-                console.warn('Could not fetch project/PI details:', err);
             }
         }
     }, [handleChange, fetchDocument]);
@@ -277,7 +275,6 @@ const MiscellaneousCommitForm: React.FC = () => {
                 throw new Error(res?.message?.message || 'Save failed');
             }
         } catch (err: any) {
-            console.error('Save error:', err);
             setErrorModal({ open: true, title: 'Save Failed', message: parseFrappeError(err) });
         } finally {
             setIsSaving(false);
@@ -303,7 +300,6 @@ const MiscellaneousCommitForm: React.FC = () => {
                 throw new Error(submitRes?.message?.message || 'Submission failed');
             }
         } catch (err: any) {
-            console.error('Submission error:', err);
             setErrorModal({ open: true, title: 'Submission Failed', message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);

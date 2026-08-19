@@ -598,7 +598,6 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
         project.name,
       );
     } catch (error) {
-      console.error("Download endorsement certificate error:", error);
       alert("Could not download endorsement certificate.");
     } finally {
       setDownloadingEndorsementProject(null);
@@ -806,15 +805,12 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     (allSanctions ?? []).forEach((doc: any) => {
       if (doc.refnum_prj_num) s.add(doc.refnum_prj_num);
     });
-    console.log("[Sanction] allSanctions raw:", allSanctions);
-    console.log("[Sanction] sanctionedProjectsSet:", Array.from(s));
     return s;
   }, [allSanctions]);
 
   // p.name == Fund Sanction.refnum_prj_num
   const hasSanction = (p: any) => {
     const result = sanctionedProjectsSet.has(p.name);
-    console.log(`[Sanction] hasSanction(${p.name}):`, result, "| set size:", sanctionedProjectsSet.size);
     return result;
   };
 
@@ -1033,10 +1029,6 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                                   `/project-proposal-details/${task.id}`,
                                 );
                               } else {
-                                console.log(
-                                  "View clicked for",
-                                  task.id,
-                                );
                               }
                             }}
                           >

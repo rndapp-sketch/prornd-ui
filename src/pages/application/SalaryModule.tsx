@@ -455,10 +455,8 @@ const SalaryModule: React.FC = () => {
         let commitFromApi: any = null;
         try {
             const apiUrl = `/api/method/rndopsapp.rndopsapp.commitPayment.salary_payment_data?ps_emp_id=${r.employee_id}&yyyy_month=${salary_year_month}`;
-            console.log(`[SalaryModule][buildCommitData] Fetching commit for ${r.employee_id}:`, apiUrl);
             const response = await fetch(apiUrl, { credentials: "include" });
             const json = await response.json();
-            console.log(`[SalaryModule][buildCommitData] Raw API response for ${r.employee_id}:`, JSON.stringify(json, null, 2));
             if (!response.ok) {
                 return { ok: false, reason: `salary_payment_data request failed (HTTP ${response.status})` };
             }
@@ -474,12 +472,9 @@ const SalaryModule: React.FC = () => {
                     return { ok: false, reason: first.message || `Backend error: ${first.status}` };
                 }
                 commitFromApi = first;
-                console.log(`[SalaryModule][buildCommitData] commitFromApi for ${r.employee_id}:`, commitFromApi);
             } else {
-                console.warn(`[SalaryModule][buildCommitData] No commit record found for ${r.employee_id} (${salary_year_month}). message:`, json?.message);
             }
         } catch (err) {
-            console.error(`[SalaryModule][buildCommitData] Fetch failed for ${r.employee_id}:`, err);
             return { ok: false, reason: `Failed to fetch salary payment data: ${err instanceof Error ? err.message : String(err)}` };
         }
 
@@ -494,7 +489,6 @@ const SalaryModule: React.FC = () => {
             if (!commitFromApi.transactionCommitNumber) missingFields.push("transactionCommitNumber");
 
             if (missingFields.length > 0) {
-                console.warn(`[SalaryModule] Incomplete commit data for ${r.employee_id} — missing: [${missingFields.join(", ")}]`, commitFromApi);
                 return { ok: false, reason: `Incomplete commit data — missing: ${missingFields.join(", ")}` };
             }
             return {
@@ -521,14 +515,11 @@ const SalaryModule: React.FC = () => {
         }
 
         // No commit data found — try ledger fallback
-        console.warn(`[SalaryModule] No salary_payment_data found for ${r.employee_id} (${salary_year_month}) — trying ledger fallback`);
         try {
             const ledgerFallbackUrl = `/ledger-api/account-head-commit/by-status/COMMITTED`;
-            console.log(`[SalaryModule][buildCommitData] Ledger fallback for ${r.employee_id}:`, ledgerFallbackUrl);
             const ledgerRes = await fetch(ledgerFallbackUrl);
             if (ledgerRes.ok) {
                 const commits = await ledgerRes.json();
-                console.log(`[SalaryModule][buildCommitData] Ledger returned ${commits?.length ?? 0} commits. Searching for employee ${r.employee_id} on project ${r.project_no}...`);
 
                 // Must match this employee's own project — matching on moduleId alone
                 // (or against department, which isn't a project number) previously let
@@ -547,12 +538,7 @@ const SalaryModule: React.FC = () => {
                     : undefined;
 
                 if (!match) {
-                    console.warn(
-                        `[SalaryModule][buildCommitData] No project match for ${r.employee_id} (project_no="${r.project_no}"). Available COMMITTED moduleId=11 project numbers:`,
-                        commits.filter((c: any) => String(c.moduleId) === '11').map((c: any) => c.projectNumber)
-                    );
                 }
-                console.log(`[SalaryModule][buildCommitData] Ledger fallback match for ${r.employee_id}:`, match || "NO MATCH");
                 if (match) {
                     return {
                         ok: true,
@@ -573,18 +559,15 @@ const SalaryModule: React.FC = () => {
                 return { ok: false, reason: `No committed budget-head entry found for project ${r.project_no || "(unknown)"}` };
             }
         } catch (ledgerErr) {
-            console.error(`[SalaryModule][buildCommitData] Ledger fallback failed for ${r.employee_id}:`, ledgerErr);
             return { ok: false, reason: `Ledger fallback failed: ${ledgerErr instanceof Error ? ledgerErr.message : String(ledgerErr)}` };
         }
 
         // No commit data found — skip this employee
-        console.warn(`[SalaryModule] No salary payment data found for ${r.employee_id} (${salary_year_month}) — skipping`);
         return { ok: false, reason: "No salary commit data found for this employee/month" };
     }, [selectedYear, selectedMonth, overrides]);
 
     // ── Open BMR modal: build all commit payloads for selected pending staff ──
     const handlePaySelected = useCallback(async (selectedRecords: StaffRecord[]) => {
-        console.log("[SalaryModule][handlePaySelected] Called with", selectedRecords.length, "records");
         if (selectedRecords.length === 0) return;
 
         // All selected must share the same scheme number (not project_no —
@@ -606,7 +589,6 @@ const SalaryModule: React.FC = () => {
         try {
             const commits: Record<string, any> = {};
             const failures: PaymentOutcome[] = [];
-            console.log("[SalaryModule][handlePaySelected] Building commits for", selectedRecords.length, "records");
             for (const r of selectedRecords) {
                 const dim = getDaysInMonth(selectedYear, selectedMonth);
                 const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
@@ -630,7 +612,6 @@ const SalaryModule: React.FC = () => {
                 const totalDed = hraDed + inputs.medicalDeduction + calcPTax(r.basic_salary) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
                 const netPay = Math.round(grossPay - totalDed);
                 const result = await buildCommitData(r, netPay);
-                console.log(`[SalaryModule][handlePaySelected] buildCommitData result for ${r.employee_id}:`, result);
                 if (result.ok) {
                     commits[r.employee_id] = result.commit;
                 } else {
@@ -638,7 +619,6 @@ const SalaryModule: React.FC = () => {
                     failures.push({ employeeId: r.employee_id, name: r.first_name, status: isSkip ? "skipped" : "error", message: result.reason });
                 }
             }
-            console.log("[SalaryModule][handlePaySelected] Final commits object:", commits, "build failures:", failures);
             setBuildFailures(failures);
 
             if (Object.keys(commits).length === 0) {
@@ -778,12 +758,10 @@ const SalaryModule: React.FC = () => {
     // ── Submit all pending commits with the entered BMR number ──
     const handleBmrSubmit = useCallback(async () => {
         const bmr = bmrInput.trim();
-        console.log("[SalaryModule][handleBmrSubmit] Called with BMR:", bmr, "pendingBulkCommits:", pendingBulkCommits);
         if (!bmr) { setBmrError("Please enter a BMR number before submitting."); return; }
         setBmrSubmitting(true);
         setBmrError(null);
         const paymentEndpoint = "/api/method/rndopsapp.rndopsapp.commitPayment.submit_payment_data";
-        console.log("[SalaryModule][handleBmrSubmit] Starting payment submission for", Object.keys(pendingBulkCommits).length, "employees");
         const outcomes: PaymentOutcome[] = [];
         // Cache Project Registration doc-name lookups by project_no — the backend
         // needs project_name to be the actual Project Registration document name
@@ -804,7 +782,6 @@ const SalaryModule: React.FC = () => {
                     }
                 }
             } catch (err) {
-                console.error(`[SalaryModule][handleBmrSubmit] Failed to resolve Project Registration for ${projectNo}:`, err);
             }
             return projectNo;
         };
@@ -833,7 +810,6 @@ const SalaryModule: React.FC = () => {
                     salary_user_details: commitData.salary_user_details,
                     salary_backend_details: commitData.salary_backend_details,
                 };
-                console.log(`[SalaryModule][handleBmrSubmit] Sending payment for ${empId} to ${paymentEndpoint}`, body);
                 const res = await fetch(paymentEndpoint, {
                     method: "POST",
                     headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -841,7 +817,6 @@ const SalaryModule: React.FC = () => {
                     body: JSON.stringify(body),
                 });
                 const result = await res.json();
-                console.log(`[SalaryModule][handleBmrSubmit] Response for ${empId}:`, result);
                 const msg = result?.message;
                 if (!res.ok) throw new Error(msg?.message || `Request failed (HTTP ${res.status})`);
                 if (msg?.status === "error") throw new Error(msg?.message || "Salary staging failed");
@@ -850,7 +825,6 @@ const SalaryModule: React.FC = () => {
                 // absence of an error shape — an HTTP 200 with no `name` means the backend
                 // didn't actually stage the payment even though nothing "failed" explicitly.
                 if (!msg?.name) throw new Error(msg?.message || "Backend did not confirm the payment was staged");
-                console.log(`[SalaryModule][handleBmrSubmit] Payment processed successfully for ${empId}: ${msg.name}`);
                 markAsProcessed(empId);
                 outcomes.push({
                     employeeId: empId,
@@ -859,7 +833,6 @@ const SalaryModule: React.FC = () => {
                     message: `Staged as ${msg.name}`,
                 });
             } catch (err: any) {
-                console.error(`Payment failed for ${empId}:`, err);
                 outcomes.push({
                     employeeId: empId,
                     name: commitData.salary_user_details?.first_name || empId,
@@ -925,7 +898,6 @@ const SalaryModule: React.FC = () => {
                 setStagingRecords(salaryRecords);
             }
         } catch (err) {
-            console.error("Salary Staging fetch failed:", err);
         } finally {
             setIsCheckingStatus(false);
         }
@@ -974,7 +946,6 @@ const SalaryModule: React.FC = () => {
             setSchemeMap(map);
             setSchemeNumberMap(numberMap);
         } catch (err) {
-            console.error("Failed to fetch scheme mapping:", err);
             setSchemeMap({});
             setSchemeNumberMap({});
         }

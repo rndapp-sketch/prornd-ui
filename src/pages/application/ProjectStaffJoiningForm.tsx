@@ -266,7 +266,6 @@ const ProjectStaffJoiningForm: React.FC = () => {
                         };
                     }
                 } catch (e) {
-                    console.error("ProjectStaffJoiningForm SCR prefill error:", e);
                 }
             }
 
@@ -403,7 +402,6 @@ const ProjectStaffJoiningForm: React.FC = () => {
                 setWorkflowActions([]);
             }
         } catch (e) {
-            console.error("Failed to fetch workflow actions:", e);
             setWorkflowActions([]);
         }
     }, [fetchPSDWorkflowActions]);
@@ -441,7 +439,6 @@ const ProjectStaffJoiningForm: React.FC = () => {
                             content: trimmedComment,
                         });
                     } catch (commentErr) {
-                        console.error("Failed to add workflow comment:", commentErr);
                     }
                 }
                 if (action === "Submit") {
@@ -455,7 +452,6 @@ const ProjectStaffJoiningForm: React.FC = () => {
                             const docRes = await fetchFields({ doc_name: savedDocName });
                             allottedEmpId = docRes?.message?.prefill_data?.ps_emp_id || "";
                         } catch (refetchErr) {
-                            console.error("Failed to refetch ps_emp_id after submit:", refetchErr);
                         }
                     }
                     if (allottedEmpId) {
@@ -473,7 +469,6 @@ const ProjectStaffJoiningForm: React.FC = () => {
                 activityStreamRef.current?.refetch();
             }
         } catch (e: any) {
-            console.error(`${action} error:`, e);
             alert(e?.message || `An error occurred while performing ${action}.`);
         } finally {
             setActionLoading("");
@@ -516,7 +511,6 @@ const ProjectStaffJoiningForm: React.FC = () => {
                 alert(res?.message?.message || "Failed to save.");
             }
         } catch (e: any) {
-            console.error("Project Staff Joining save error:", e);
             alert(e?.message || "An error occurred while saving.");
         } finally {
             setSaving(false);

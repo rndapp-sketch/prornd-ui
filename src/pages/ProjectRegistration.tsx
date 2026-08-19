@@ -181,7 +181,6 @@ const evaluateDependsOn = (
         // console.log(`Eval '${expression}' -> ${result} (doc.project_type: ${doc.project_type})`);
         return !!result;
     } catch (e) {
-        console.warn("Error evaluating depends_on:", expression, e);
         return false; // Default to false (hidden) on error to prevent broken UI
     }
 };
@@ -1245,7 +1244,6 @@ const ProjectRegistration: React.FC = () => {
             setNewAgencyData({ fundingagency_country: "India" });
             mutateFundingAgencies();
         } catch (err: any) {
-            console.error("Failed to save funding agency:", err);
             setErrorModal({
                 open: true,
                 title: "Failed to Save Funding Agency",
@@ -1590,7 +1588,6 @@ const ProjectRegistration: React.FC = () => {
                     };
                 }
             } catch (e) {
-                console.error("Failed to fetch department head", e);
             }
             return {};
         },
@@ -1661,7 +1658,6 @@ const ProjectRegistration: React.FC = () => {
                             };
                         }
                     } catch (err) {
-                        console.error("Failed to fetch main PI details:", err);
                     } finally {
                         setIsFetchingPiDetails(false);
                     }
@@ -1892,7 +1888,6 @@ const ProjectRegistration: React.FC = () => {
                 setQuickEntryState(prev => prev ? { ...prev, isSubmitting: false } : null);
             }
         } catch (e: any) {
-            console.error("Quick Entry error", e);
             setErrorModal({
                 open: true,
                 title: "Failed to Create Designation",
@@ -2035,7 +2030,6 @@ const ProjectRegistration: React.FC = () => {
                         details?.cell_phone_number ||
                         "";
                 } catch (err) {
-                    console.error("Failed to fetch collaborator details:", err);
                 }
             }
             setFormData((prev) => {
@@ -2430,7 +2424,6 @@ const ProjectRegistration: React.FC = () => {
             const { doc_data, files } = await prepareDataWithFiles();
             await submitForm({ docname, doc: doc_data, files });
         } catch (err: any) {
-            console.error("Submit error:", err);
             setErrorModal({
                 open: true,
                 title: "Submission Failed",
@@ -2462,16 +2455,7 @@ const ProjectRegistration: React.FC = () => {
     };
 
     const handleSaveDraft = async () => {
-        console.log(
-            ">>> handleSaveDraft called! isSavingDraft:",
-            isSavingDraft,
-            "isSubmitting:",
-            isSubmitting,
-        );
         if (isSavingDraft || isSubmitting) {
-            console.log(
-                ">>> Early return due to isSavingDraft or isSubmitting",
-            );
             return;
         }
         const errors = validateMandatoryFields();
@@ -2527,14 +2511,6 @@ const ProjectRegistration: React.FC = () => {
             });
 
             // Debug logging
-            console.log("=== SAVE DRAFT DEBUG ===");
-            console.log("doc_data keys:", Object.keys(doc_data));
-            console.log("files count:", files.length);
-            console.log("html_content length:", endorsementHtml?.length || 0);
-            console.log(
-                "html_content preview:",
-                endorsementHtml?.substring(0, 200),
-            );
 
             const payload = {
                 docname,
@@ -2543,13 +2519,6 @@ const ProjectRegistration: React.FC = () => {
                 html_content: endorsementHtml,
             };
 
-            console.log("API Payload keys:", Object.keys(payload));
-            console.log(
-                "html_content in payload:",
-                payload.html_content
-                    ? `${payload.html_content.length} chars`
-                    : "MISSING!",
-            );
 
             await saveDraft(payload);
 
@@ -2559,7 +2528,6 @@ const ProjectRegistration: React.FC = () => {
                 document.documentElement.outerHTML,
             );
         } catch (err: any) {
-            console.error("Save draft error:", err);
             setErrorModal({
                 open: true,
                 title: "Draft Save Failed",
@@ -2582,7 +2550,6 @@ const ProjectRegistration: React.FC = () => {
             const { doc_data, files } = await prepareDataWithFiles();
             await submitForm({ doc: doc_data, files });
         } catch (err: any) {
-            console.error("Submit error:", err);
             setErrorModal({
                 open: true,
                 title: "Submission Failed",
@@ -2675,7 +2642,6 @@ const ProjectRegistration: React.FC = () => {
             }
         }
         if (formDataError) {
-            console.error("❌ Failed to fetch form data:", formDataError);
             alert("Error fetching form data.");
             setLoading(false);
         }
@@ -2911,7 +2877,6 @@ const ProjectRegistration: React.FC = () => {
             navigate(`/project-details/${savedDocname}`);
         }
         if (submitError) {
-            console.error("Submission error:", submitError);
             setErrorModal({
                 open: true,
                 title: "Submission Failed",
@@ -2927,7 +2892,6 @@ const ProjectRegistration: React.FC = () => {
             setShowPreviewModal(true);
         }
         if (saveError) {
-            console.error("Draft save error:", saveError);
             setErrorModal({
                 open: true,
                 title: "Draft Save Failed",
@@ -2944,7 +2908,6 @@ Endorsement is optional. You may continue completing Project Registration while 
             navigate("/projects-view");
         }
         if (saveEndorsementError) {
-            console.error("Endorsement save error:", saveEndorsementError);
             setErrorModal({
                 open: true,
                 title: "Endorsement Save Failed",
@@ -3883,6 +3846,18 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                     renderField("project_duration_months")
                                                 )}
                                             </div>
+                                            {formData.project_type === "Consultancy" &&
+                                                (Number(formData.project_duration_months) > 0 ||
+                                                    Number(formData.project_duration_days) > 0) && (
+                                                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                                                        {(() => {
+                                                            const months = Number(formData.project_duration_months) || 0;
+                                                            const days = Number(formData.project_duration_days) || 0;
+                                                            const totalDays = months * 30 + days;
+                                                            return `${months}m and ${days}d = ${totalDays} days total`;
+                                                        })()}
+                                                    </p>
+                                                )}
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 {renderField("prj_start_date")}
                                                 {renderField("prj_end_date")}
@@ -3958,7 +3933,6 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                                             "Account details saved successfully.",
                                                                         );
                                                                     } catch (e: any) {
-                                                                        console.error("Failed to save account details:", e);
                                                                         setErrorModal({
                                                                             open: true,
                                                                             title: "Failed to Save Account Details",
@@ -4750,7 +4724,6 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                 });
                                                 setShowEndorsementModal(false);
                                             } catch (err: any) {
-                                                console.error("Error processing endorsement:", err);
                                                 setErrorModal({
                                                     open: true,
                                                     title: "Endorsement Failed",
@@ -4910,7 +4883,6 @@ Endorsement is optional. You may continue completing Project Registration while 
                                             setShowPreviewModal(false);
                                             navigate(`/project-details/${docname}`);
                                         } catch (err: any) {
-                                            console.error("Submit failed:", err);
                                             setErrorModal({
                                                 open: true,
                                                 title: "Submission Failed",

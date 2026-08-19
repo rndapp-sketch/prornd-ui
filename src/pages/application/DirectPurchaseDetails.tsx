@@ -1145,9 +1145,7 @@ const DirectPurchaseActionButtons = ({
                 setActions(loaded);
                 onActionsLoaded?.(loaded);
             })
-            .catch((err) =>
-                console.error("Error fetching workflow actions:", err),
-            );
+            .catch(() => {});
     }, [docname]);
 
     const refreshActions = () => {
@@ -1171,7 +1169,6 @@ const DirectPurchaseActionButtons = ({
                     try {
                         await addComment({ doctype: "Direct Purchase", docname, content: actionComment.trim() });
                     } catch (e) {
-                        console.warn("Failed to save action comment:", e);
                     }
                 }
                 alert(result?.message?.message || `Action "${action}" completed.`);
@@ -1332,9 +1329,7 @@ const P11FormActionButtons = ({
                         );
                     }
                 })
-                .catch((err) =>
-                    console.error("Error fetching P11 workflow actions:", err),
-                );
+                .catch(() => {});
         }
     }, [docname]);
 
@@ -1373,7 +1368,6 @@ const P11FormActionButtons = ({
                     try {
                         await addComment({ doctype: "P_11 Form", docname, content: actionComment.trim() });
                     } catch (e) {
-                        console.warn("Failed to save action comment:", e);
                     }
                 }
                 alert(result?.message?.message || `Action "${action}" completed successfully.`);
@@ -1515,12 +1509,7 @@ const SanctionSheetActionButtons = ({
                         onActionsChange?.(list);
                     }
                 })
-                .catch((err) =>
-                    console.error(
-                        "Error fetching Sanction Sheet workflow actions:",
-                        err,
-                    ),
-                );
+                .catch(() => {});
         }
     }, [docname]);
 
@@ -1559,7 +1548,6 @@ const SanctionSheetActionButtons = ({
                     try {
                         await addComment({ doctype: "sanction_sheet", docname, content: actionComment.trim() });
                     } catch (e) {
-                        console.warn("Failed to save action comment:", e);
                     }
                 }
                 alert(result?.message?.message || `Action "${action}" completed successfully.`);
@@ -2783,7 +2771,6 @@ const DirectPurchaseDetails: React.FC = () => {
                     );
                 }
             } catch (err) {
-                console.error("Failed to fetch Budget Heads:", err);
             }
         };
         fetchBudgetHeads();
@@ -2989,7 +2976,6 @@ const DirectPurchaseDetails: React.FC = () => {
                 setDpPoDocname(dpPoName);
                 setPoSanctionData(merged);
             } catch (err) {
-                console.error("Error fetching PO data:", err);
             } finally {
                 setIsLoadingPOData(false);
             }
@@ -3019,7 +3005,6 @@ const DirectPurchaseDetails: React.FC = () => {
             setPaymentAmount("");
             window.location.reload();
         } catch (error: any) {
-            console.error("Payment failed:", error);
             setErrorModal({ open: true, title: "Payment Failed", message: parseFrappeError(error) });
         }
     };

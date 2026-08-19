@@ -71,7 +71,6 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
                     })));
                 }
             } catch (err) {
-                console.error("Failed to fetch Budget Heads:", err);
             }
         };
         fetchBudgetHeads();

@@ -529,7 +529,6 @@ const TravelDetails: React.FC = () => {
                     }));
                 }
             } catch (err) {
-                console.error("Failed to fetch Budget Heads:", err);
             }
         };
         fetchBudgetHeads();
@@ -559,13 +558,11 @@ const TravelDetails: React.FC = () => {
                         setFormData(doc.message);
                     }
                 } catch (err) {
-                    console.error('Error fetching document:', err);
                 }
 
                 setLoading(false);
             }
             if (formDataError) {
-                console.error("Failed to load form data:", formDataError);
                 setLoading(false);
             }
         };

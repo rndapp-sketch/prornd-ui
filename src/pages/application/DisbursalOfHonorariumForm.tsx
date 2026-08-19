@@ -228,7 +228,6 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                         }));
                     }
                 } catch (err) {
-                    console.error('Error fetching account heads:', err);
                 }
 
                 // Fetch System Users for the initial static dropdown options.
@@ -250,7 +249,6 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                         baseLinkOptions['User'] = userOpts;
                     }
                 } catch (err) {
-                    console.error('Error fetching users list:', err);
                 }
 
                 setLinkOptions(baseLinkOptions);
@@ -270,7 +268,6 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                             setIsSaved(true); // Existing doc is already saved, enable submit
                         }
                     } catch (err) {
-                        console.error('Error fetching existing document:', err);
                         alert('Failed to load document for editing');
                     }
                 }
@@ -328,7 +325,6 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                             }
                         }
                     } catch (e) {
-                        console.error('Failed to fetch project details:', e);
                     }
                 }
 
@@ -352,7 +348,6 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                 setLoading(false);
             }
             if (formDataError) {
-                console.error("Failed to load form data:", formDataError);
                 alert("Error: Could not load the form.");
                 setLoading(false);
             }
@@ -441,7 +436,6 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                     return;
                 }
             } catch (err) {
-                console.error('Failed to fetch user registration profile:', err);
             }
         }
 
@@ -523,7 +517,6 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
-            console.error(err);
             setErrorModal({ open: true, title: "Save Failed", message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);
@@ -559,7 +552,6 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                 throw new Error(submitRes?.message?.message || "Submission failed");
             }
         } catch (err: any) {
-            console.error(err);
             setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);

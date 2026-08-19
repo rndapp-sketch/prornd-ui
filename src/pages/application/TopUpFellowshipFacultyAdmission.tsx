@@ -362,7 +362,6 @@ const TableRow = ({ doc, onDone }: { doc: TopUpDoc; onDone: () => void }) => {
             if (!bindRes.ok) throw new Error(await bindRes.text());
             onDone();
         } catch (err: any) {
-            console.error("Faculty Admission PDF upload failed", err);
             setErrMsg(err?.message || String(err));
         } finally {
             setIsUploading(false);

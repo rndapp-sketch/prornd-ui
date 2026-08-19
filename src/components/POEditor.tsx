@@ -421,7 +421,6 @@ const PreviewModal = ({
             }
             pdf.save(`PO-${docName || "form"}.pdf`);
         } catch (err) {
-            console.error("PDF generation failed:", err);
         } finally {
             setIsGeneratingPdf(false);
         }
@@ -554,7 +553,6 @@ export const POEditor: React.FC<POEditorProps> = ({
             setHasSaved(true);
             setTimeout(() => setSaveSuccess(false), 3000);
         } catch (err) {
-            console.error("Save failed:", err);
         } finally {
             setIsSaving(false);
         }
@@ -586,7 +584,6 @@ export const POEditor: React.FC<POEditorProps> = ({
             await onUploadSignedPO(file);
             setUploadedFile(file.name);
         } catch (err) {
-            console.error("Upload failed:", err);
         } finally {
             setIsUploading(false);
             e.target.value = "";

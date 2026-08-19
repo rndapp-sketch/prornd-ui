@@ -182,7 +182,6 @@ const MedicalReportPage: React.FC = () => {
                     }
                 }
             } catch (e) {
-                console.error('MedicalReport load error:', e);
             } finally {
                 setLoading(false);
             }

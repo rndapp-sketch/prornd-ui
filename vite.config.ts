@@ -3,6 +3,13 @@ import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react'
 import proxyOptions, { previewProxyOptions } from './proxyOptions';
 import { decodeCredit } from './src/lib/credit';
+import { getLeaderboard } from './scripts/git-leaderboard';
+
+// Computed once per `vite`/`vite build`/`vite preview` invocation (this file
+// is re-evaluated fresh each time), so the leaderboard is current on every
+// run without needing a separate build step. See scripts/git-leaderboard.cjs
+// for the "keep the previous record on error" fallback behavior.
+const GIT_LEADERBOARD = getLeaderboard();
 
 // rollupOptions.output.banner is silently dropped by Vite's build pipeline
 // (confirmed: a bare Rollup build honors it, but going through `vite build`
@@ -24,6 +31,13 @@ function creditBannerPlugin(): Plugin {
 
 // https://vitejs.dev/config/
 export default defineConfig({
+    define: {
+        // `define` substitutes this identifier with raw source code, not an
+        // auto-quoted value — so the object must be JSON.stringify'd twice:
+        // once to serialize it, once more to produce a valid quoted JS string
+        // literal (what src/lib/leaderboard.ts's JSON.parse expects).
+        __GIT_LEADERBOARD__: JSON.stringify(JSON.stringify(GIT_LEADERBOARD)),
+    },
     plugins: [react(), creditBannerPlugin()],
     server: {
         port: 8081,

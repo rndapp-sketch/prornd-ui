@@ -20,13 +20,11 @@ export const FundingAgencyName = ({ value }: FundingAgencyNameProps) => {
         { revalidateOnFocus: false },
     );
 
-    console.log("[FundingAgencyName] value:", value, "| isLoading:", isLoading, "| error:", error, "| data:", data);
 
     if (!hasValue) return null;
     if (isLoading) return <span className="text-zinc-400">Loading...</span>;
-    if (error) { console.error("[FundingAgencyName] error:", error); return <span>{fallback}</span>; }
+    if (error) {  return <span>{fallback}</span>; }
 
     const name = (data?.message as any)?.[0]?.funding_agency_name;
-    console.log("[FundingAgencyName] resolved name:", name, "| raw message:", data?.message);
     return <span>{name || fallback}</span>;
 };

@@ -372,7 +372,6 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
             if (gst > 0) items.push({ label: 'GST Amount', amount: gst });
         }
 
-        console.log("depositSlip:", depositSlip)
         return items.map((item, idx) => (
             <tr key={idx}>
                 <td className="border border-black p-1 text-center">({String.fromCharCode(97 + idx)})</td>

@@ -146,7 +146,7 @@ function ProjectLedgerPanel({ projectNo }: { projectNo: string }) {
           setBudgetHeads(result.data.map((i: { budget_head: string; id: number }) => ({ name: i.budget_head, id: i.id })));
         }
       })
-      .catch(console.error)
+      .catch(() => {})
       .finally(() => setHeadsLoading(false));
   }, []);
 

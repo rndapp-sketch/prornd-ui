@@ -5,12 +5,21 @@ import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { FrappeProvider } from 'frappe-react-sdk';
 import { decodeCredit } from '@/lib/credit';
+import { getGitLeaderboard } from '@/lib/leaderboard';
 
 import './index.css';
 
 if (typeof window !== 'undefined') {
+    const board = getGitLeaderboard();
+    const contributorsLine = board.contributors.length
+        ? '\n' + board.contributors.map((c) => `${c.name} (${c.percentage}%)`).join(', ')
+        : '';
     // eslint-disable-next-line no-console
-    console.log('%cProRnD', 'font-size:18px;font-weight:bold;color:#D97757;', `\nDeveloped by ${decodeCredit()}`);
+    console.log(
+        '%cProRnD',
+        'font-size:18px;font-weight:bold;color:#D97757;',
+        `\nDeveloped by ${decodeCredit()}${contributorsLine}`,
+    );
 }
 
 // Import Components and Pages
@@ -1008,7 +1017,18 @@ const router = createBrowserRouter(
 
 createRoot(document.getElementById('root') as HTMLElement).render(
     <StrictMode>
-        <FrappeProvider url={import.meta.env.VITE_FRAPPE_URL || 'http://localhost:8000'}>
+        {/*
+          enableSocket={false}: this outer provider mounts its own socket.io
+          client independently of any nested <FrappeProvider> (App.tsx wraps
+          its own subtree in one with enableSocket={false} already) — React
+          context nesting doesn't stop a provider component from running its
+          own effects. Without this, it opens a socket.io connection with no
+          explicit socketPort, which resolves to the page's own origin with
+          no port and fails outright (ERR_CONNECTION_REFUSED to
+          http://<host>/socket.io/...), retrying forever. Nothing in this
+          app currently relies on real-time socket updates.
+        */}
+        <FrappeProvider url={import.meta.env.VITE_FRAPPE_URL || 'http://localhost:8000'} enableSocket={false}>
             <RouterProvider router={router} />
         </FrappeProvider>
     </StrictMode>
@@ -1031,4 +1051,15 @@ if (typeof document !== 'undefined') {
     // "View Page Source" (which shows the raw, un-decoded HTML) reveals
     // nothing.
     document.documentElement.prepend(document.createComment(` Developed by ${credit} `));
+
+    const board = getGitLeaderboard();
+    if (board.contributors.length > 0) {
+        const leaderboardMarker = document.createElement('meta');
+        leaderboardMarker.setAttribute('name', 'contributors');
+        leaderboardMarker.setAttribute(
+            'content',
+            board.contributors.map((c) => `${c.name} (${c.percentage}%)`).join(', '),
+        );
+        document.head.appendChild(leaderboardMarker);
+    }
 }

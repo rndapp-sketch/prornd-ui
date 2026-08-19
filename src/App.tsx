@@ -104,7 +104,6 @@ function AppContent() {
     try {
       await logout();
     } catch (error) {
-      console.error("Primary logout failed, attempting fallback logout:", error);
       await forceServerLogout();
     } finally {
       await mutate(() => true, undefined, { revalidate: false });

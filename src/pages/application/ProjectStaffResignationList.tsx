@@ -49,7 +49,6 @@ const ProjectStaffResignationList: React.FC = () => {
             setResignations(result.message.data || []);
             setLoading(false);
         } else if (error) {
-            console.error("Failed to fetch resignations:", error);
             setLoading(false);
         }
     }, [result, error]);

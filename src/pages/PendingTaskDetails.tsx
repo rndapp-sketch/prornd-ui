@@ -245,7 +245,6 @@ const ReimbursementWorkflowActions = ({
             setModalOpen(false);
             onActionComplete();
         } catch (error) {
-            console.error("Error performing action:", error);
         }
     };
 
@@ -446,7 +445,6 @@ const FundSanctionWorkflowActions = ({
             setModalOpen(false);
             onActionComplete();
         } catch (error) {
-            console.error("Error performing action:", error);
         }
     };
 
@@ -613,7 +611,6 @@ const TravelWorkflowActions = ({
             setModalOpen(false);
             onActionComplete();
         } catch (error) {
-            console.error("Error performing action:", error);
         }
     };
 
@@ -673,20 +670,11 @@ const DirectPurchaseWorkflowActions = ({
         try {
             const response = await fetchActions({ docname });
             if (!isMountedRef.current) return;
-            console.log("[DirectPurchaseWorkflowActions] fetched actions", {
-                docname,
-                endpoint: directPurchaseAPI.getWorkflowActions,
-                actions: response?.message,
-            });
             setActions(
                 Array.isArray(response?.message) ? response.message : [],
             );
         } catch (error) {
             if (isMountedRef.current) {
-                console.error(
-                    "Error fetching direct purchase workflow actions:",
-                    error,
-                );
                 setActions([]);
             }
         } finally {
@@ -706,45 +694,22 @@ const DirectPurchaseWorkflowActions = ({
     }, [loadActions]);
 
     const handleActionClick = (action: string) => {
-        console.log("[DirectPurchaseWorkflowActions] action clicked", {
-            docname,
-            action,
-            endpoint: directPurchaseAPI.performAction,
-        });
         setSelectedAction(action);
         setModalOpen(true);
     };
 
     const handleConfirmAction = async (comment: string) => {
         try {
-            console.log("[DirectPurchaseWorkflowActions] submitting action", {
-                docname,
-                action: selectedAction,
-                comment,
-                endpoint: directPurchaseAPI.performAction,
-            });
             const response = await performAction({
                 docname,
                 action: selectedAction,
                 comment,
-            });
-            console.log("[DirectPurchaseWorkflowActions] action response", {
-                docname,
-                action: selectedAction,
-                endpoint: directPurchaseAPI.performAction,
-                response,
             });
             await loadActions();
             setModalOpen(false);
             onActionComplete();
             onAfterAction?.(selectedAction);
         } catch (error) {
-            console.error("[DirectPurchaseWorkflowActions] action failed", {
-                docname,
-                action: selectedAction,
-                endpoint: directPurchaseAPI.performAction,
-                error,
-            });
         }
     };
 
@@ -850,7 +815,6 @@ const TopUpFellowshipWorkflowActions = ({
             refreshBackActions();
             onActionComplete();
         } catch (err: any) {
-            console.error("put_back failed:", err);
             setErrorModal({
                 open: true,
                 title: "Action Failed",
@@ -899,7 +863,6 @@ const TopUpFellowshipWorkflowActions = ({
             downloadGeneratedPdf();
             onActionComplete();
         } catch (err: any) {
-            console.error("Send-to-Faculty-Admission failed:", err);
             setErrorModal({
                 open: true,
                 title: "Could Not Mark As Sent",
@@ -930,7 +893,6 @@ const TopUpFellowshipWorkflowActions = ({
             setActionModalOpen(false);
             onActionComplete();
         } catch (err: any) {
-            console.error("Top Up Fellowship action failed:", err);
             setErrorModal({
                 open: true,
                 title: "Action Failed",
@@ -1218,7 +1180,6 @@ const RecruitmentAdhocContractualWorkflowActions = ({
             setModalOpen(false);
             onActionComplete();
         } catch (error) {
-            console.error("Error performing action:", error);
         }
     };
 
@@ -1550,7 +1511,6 @@ const OriginalCommitmentSidebar = ({ refName, refDoctype }: { refName?: string; 
                     }
                 }
             } catch (err) {
-                console.error("Error fetching original commitment:", err);
             } finally {
                 setLoading(false);
             }
@@ -2194,7 +2154,6 @@ const DirectPurchaseTabView = ({
                     }
                 }
             } catch (err) {
-                console.error("Error fetching sanction sheet for PO:", err);
             } finally {
                 setIsLoadingPOData(false);
             }
@@ -2975,7 +2934,7 @@ const PendingTaskDetails: React.FC = () => {
                     return next;
                 });
             })
-            .catch((err: any) => console.error("Failed to resolve dept_centre names:", err));
+            .catch(() => {});
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [doctype, (data as any)?.students]);
 
@@ -3105,7 +3064,7 @@ const PendingTaskDetails: React.FC = () => {
                     .then(res => {
                         if (res.data) setResolvedAccountHead(res.data.budget_head || res.data.name);
                     })
-                    .catch(err => console.error("Failed to resolve budget head", err));
+                    .catch(() => {});
             }
 
             // Department — resolve raw ID to human-readable name for print
@@ -3163,7 +3122,6 @@ const PendingTaskDetails: React.FC = () => {
                             setResolvedProjectTitle(data.project_name);
                         }
                     } catch (err) {
-                        console.error("Failed to resolve project", err);
                         if (data.project_name) setResolvedProjectTitle(data.project_name);
                     }
                 };
@@ -3263,10 +3221,6 @@ const PendingTaskDetails: React.FC = () => {
                         updates[field.fieldname] = readable;
                     }
                 } catch (e) {
-                    console.warn(
-                        `Failed to resolve link for ${field.fieldname}`,
-                        e,
-                    );
                 }
             }),
         );
@@ -3311,9 +3265,7 @@ const PendingTaskDetails: React.FC = () => {
                         setTravelLinkOptions(res.message.link_options || {});
                     }
                 })
-                .catch((err) =>
-                    console.error("Error fetching travel fields", err),
-                )
+                .catch(() => {})
                 .finally(() => setIsTravelLoading(false));
         }
     }, [doctype, name, fetchTravelFields]);
@@ -3357,12 +3309,7 @@ const PendingTaskDetails: React.FC = () => {
                         );
                     }
                 })
-                .catch((err) =>
-                    console.error(
-                        "Error fetching advance settlement fields",
-                        err,
-                    ),
-                )
+                .catch(() => {})
                 .finally(() => setIsAdvanceSettlementLoading(false));
         }
     }, [doctype, name, fetchAdvanceSettlementFields]);
@@ -3380,12 +3327,7 @@ const PendingTaskDetails: React.FC = () => {
                         );
                     }
                 })
-                .catch((err) =>
-                    console.error(
-                        "Error fetching temporary advance fields",
-                        err,
-                    ),
-                )
+                .catch(() => {})
                 .finally(() => setIsTemporaryAdvanceLoading(false));
         }
     }, [doctype, name, fetchTemporaryAdvanceFields]);
@@ -3426,12 +3368,7 @@ const PendingTaskDetails: React.FC = () => {
                         setTadaLinkOptions(res.message.link_options || {});
                     }
                 })
-                .catch((err) =>
-                    console.error(
-                        "Error fetching TA DA Settlement fields",
-                        err,
-                    ),
-                )
+                .catch(() => {})
                 .finally(() => setIsTadaLoading(false));
         }
     }, [doctype, name, fetchTadaFields]);
@@ -3474,12 +3411,7 @@ const PendingTaskDetails: React.FC = () => {
                         );
                     }
                 })
-                .catch((err) =>
-                    console.error(
-                        "Error fetching Recruitment Adhoc Contractual fields",
-                        err,
-                    ),
-                )
+                .catch(() => {})
                 .finally(() => setIsRecruitmentLoading(false));
         }
     }, [doctype, name, fetchRecruitmentFields]);

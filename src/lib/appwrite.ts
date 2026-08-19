@@ -4,9 +4,6 @@ const rawEndpoint = import.meta.env.VITE_APPWRITE_ENDPOINT as string | undefined
 const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID as string | undefined;
 
 if (!rawEndpoint || !projectId) {
-    console.warn(
-        "[appwrite] VITE_APPWRITE_ENDPOINT and VITE_APPWRITE_PROJECT_ID must be set in .env. Messaging will not function until configured.",
-    );
 }
 
 // The Appwrite SDK rejects relative URLs. Resolve "/appwrite/v1" against the

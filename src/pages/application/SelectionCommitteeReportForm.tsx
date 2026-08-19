@@ -2392,7 +2392,6 @@ const SelectionCommitteeReportForm: React.FC = () => {
             if (!res.ok) return;
             const data = await res.json();
             const rawList = Array.isArray(data) ? data : (data?.data || []);
-            console.log("[SCR] first application record keys:", rawList[0] ? Object.keys(rawList[0]) : "empty", rawList[0]);
             const records: CandidateRecord[] = rawList.map((app: any) => ({
                 application_id: String(app.application_id || ""),
                 recruitment_post_id: String(app.recruitment_post_id || ""),
@@ -2411,7 +2410,6 @@ const SelectionCommitteeReportForm: React.FC = () => {
                         if (!postRes.ok) return null;
                         const postData = await postRes.json();
                         const p = postData?.data ?? postData;
-                        console.log("[SCR] post record keys:", Object.keys(p), p);
                         return [postId, {
                             upfa_designation: p.designation || p.upfa_designation || p.post_name || p.title || p.position || "",
                             upfa_basic_pay: p.basic_pay ?? p.upfa_basic_pay ?? 0,
@@ -2438,7 +2436,6 @@ const SelectionCommitteeReportForm: React.FC = () => {
                     "",
             })));
         } catch (e) {
-            console.error("Failed to fetch candidates:", e);
         } finally {
             setIsFetchingCandidates(false);
         }
@@ -2466,10 +2463,6 @@ const SelectionCommitteeReportForm: React.FC = () => {
                         getChairpersonLabel(chairpersonEmail, optionsSource) || "",
                 };
             } catch (e) {
-                console.error(
-                    "Failed to fetch department head for chairperson autofill",
-                    e,
-                );
                 return {};
             }
         },
@@ -2481,10 +2474,6 @@ const SelectionCommitteeReportForm: React.FC = () => {
         setIsLoadingFields(true);
         try {
             const currentDocName = editDocName || savedDocName;
-            console.log(
-                "Fetching config for:",
-                currentDocName ? `Doc: ${currentDocName}` : "New Document",
-            );
 
             const response = await getFieldsCall({ doc_name: currentDocName });
             if (response && response.message) {
@@ -2493,7 +2482,6 @@ const SelectionCommitteeReportForm: React.FC = () => {
                     prefill_data,
                     link_options,
                 } = response.message;
-                console.log("Fetched Form Fields:", fetchedFields);
 
                 // WORKAROUND: The custom Python API `get_fields` drops the `hidden` property from the schema payload.
                 // Filter out system/hidden fields that should not be rendered.
@@ -2625,7 +2613,6 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                     }
                                 }
                             } catch (e) {
-                                console.error("Failed to fetch recruitment doc for existing doc:", e);
                             }
                         }
                         await fetchCandidatesWithPostDetails(existingInterviewId);
@@ -2660,16 +2647,6 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                     initialData.upfa_department = rec.upfa_department;
                                 }
                                 // Debug: log all rec keys to find chairperson field names
-                                console.log("[SCR] rec keys:", Object.keys(rec));
-                                console.log("[SCR] rec chairperson candidates:", {
-                                    chairperson_webmail_id: rec.chairperson_webmail_id,
-                                    upfa_chairperson_webmail_id: rec.upfa_chairperson_webmail_id,
-                                    upfa_chairperson: rec.upfa_chairperson,
-                                    chairperson: rec.chairperson,
-                                    chairperson_name: rec.chairperson_name,
-                                    upfa_chairperson_name: rec.upfa_chairperson_name,
-                                    upfa_department: rec.upfa_department,
-                                });
 
                                 // Try to read chairperson directly from recruitment doc fields
                                 const recChairpersonEmail =
@@ -2762,11 +2739,6 @@ const SelectionCommitteeReportForm: React.FC = () => {
 
                             }
                         } catch (e) {
-                            console.error(
-                                "Failed to fetch Recruitment Adhoc Contractual data for interview_id:",
-                                interviewIdParam,
-                                e,
-                            );
                         }
                     }
 
@@ -2790,7 +2762,6 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                 initialData.head = headRes.message.piheadmentor_user_id;
                             }
                         } catch (e) {
-                            console.error("Failed to fetch head (piheadmentor_user_id)", e);
                         }
                     }
 
@@ -2845,7 +2816,6 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                 );
                             }
                         } catch (e) {
-                            console.error("Failed to fetch project details:", e);
                         }
                     }
 
@@ -2854,7 +2824,6 @@ const SelectionCommitteeReportForm: React.FC = () => {
                 }
             }
         } catch (error) {
-            console.error("Error fetching form details:", error);
             alert("Failed to load form schema");
         } finally {
             setIsLoadingFields(false);
@@ -2882,7 +2851,6 @@ const SelectionCommitteeReportForm: React.FC = () => {
                     setAvailableActions(response.message);
                 }
             } catch (error) {
-                console.error("Failed to fetch workflow actions:", error);
                 setAvailableActions([]);
             }
         },
@@ -2929,7 +2897,6 @@ const SelectionCommitteeReportForm: React.FC = () => {
                             }));
                         }
                     } catch (e) {
-                        console.error("Failed to fetch head for webmail_id change", e);
                     }
                 } else {
                     // Clear head if webmail_id is cleared or set to system user
@@ -3053,7 +3020,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                             return { ...prev, [tableName]: tData };
                         });
                     }
-                }).catch(e => console.error("Auto fetch full name failed", e));
+                }).catch(() => {});
             }
         },
         [fetchFrappeValue, fields],
@@ -3256,7 +3223,6 @@ const SelectionCommitteeReportForm: React.FC = () => {
                 committee_members: buildCommitteeMembersPayload(formData),
             });
 
-            console.log("Saving Selection Committee Report:", preparedData);
             const response = await saveCall({ data: preparedData });
 
             if (response && response.message?.status === "success") {
@@ -3280,7 +3246,6 @@ const SelectionCommitteeReportForm: React.FC = () => {
             }
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
-            console.error("Save error:", error);
             const errMsg =
                 error.exc_type === "ValidationError"
                     ? JSON.parse(error._server_messages || "[]")
@@ -3366,7 +3331,6 @@ const SelectionCommitteeReportForm: React.FC = () => {
             }
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
-            console.error(`Workflow Action ${action} Error:`, error);
 
             let errMsg = `An error occurred while performing action: ${action}`;
             try {
@@ -3378,7 +3342,6 @@ const SelectionCommitteeReportForm: React.FC = () => {
                     errMsg = error.message;
                 }
             } catch (e) {
-                console.error("Failed to parse server messages", e);
             }
             alert(errMsg);
         } finally {
@@ -3660,7 +3623,6 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                     setFormData(prev => ({ ...prev, send_to_director: 1 }));
                                                     handlePrint();
                                                 } catch (err) {
-                                                    console.error("Failed to send to director", err);
                                                 }
                                             }}
                                             disabled={isUpdatingSendToDirector || !savedDocName}

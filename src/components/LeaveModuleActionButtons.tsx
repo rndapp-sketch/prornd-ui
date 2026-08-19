@@ -96,7 +96,6 @@ const LeaveModuleActionButtons: React.FC<LeaveModuleActionButtonsProps> = ({ doc
                 alert(response?.message?.message || "Action failed");
             }
         } catch (error: unknown) {
-            console.error("Action error:", error);
             alert("An error occurred while performing the action.");
         } finally {
             setSelectedAction(null);

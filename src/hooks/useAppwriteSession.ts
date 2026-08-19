@@ -145,30 +145,24 @@ export function useAppwriteSession(): AppwriteSessionState {
         (async () => {
             try {
                 setState((s) => ({ ...s, status: "connecting", error: null }));
-                console.log("[appwrite] starting session bridge for", normalizedEmail);
 
                 let sessionPromise = sessionPromises.get(normalizedEmail);
                 if (!sessionPromise) {
                     sessionPromise = (async () => {
                         // 1. If a session already exists for this user, reuse it.
                         try {
-                            console.log("[appwrite] step 1: check existing session");
                             const existing = await withTimeout("account.get", appwriteAccount.get());
                             if (existing.email?.toLowerCase() === normalizedEmail) {
-                                console.log("[appwrite] reusing existing session", existing.$id);
                                 return existing;
                             }
-                            console.log("[appwrite] stale session for different user, signing out");
                             await appwriteAccount.deleteSession("current").catch(() => undefined);
                         } catch (e) {
                             if (isRateLimited(e)) throw getRateLimitError();
-                            console.log("[appwrite] no existing session:", getErrorMessage(e));
                         }
 
                         // 2. Try to log in. If the Appwrite user doesn't exist yet, create them.
                         const password = await deriveDevPassword(normalizedEmail);
                         try {
-                            console.log("[appwrite] step 2: createEmailPasswordSession");
                             await withTimeout(
                                 "createEmailPasswordSession",
                                 appwriteAccount.createEmailPasswordSession(normalizedEmail, password),
@@ -176,12 +170,7 @@ export function useAppwriteSession(): AppwriteSessionState {
                         } catch (loginError) {
                             if (isRateLimited(loginError)) throw getRateLimitError();
                             if (!isUnauthorized(loginError)) throw loginError;
-                            console.log(
-                                "[appwrite] login failed, will try to create user:",
-                                getErrorMessage(loginError),
-                            );
                             const userId = await deriveAppwriteUserId(normalizedEmail);
-                            console.log("[appwrite] step 3: create user", userId);
 
                             try {
                                 await withTimeout(
@@ -203,7 +192,6 @@ export function useAppwriteSession(): AppwriteSessionState {
                                 throw createError;
                             }
 
-                            console.log("[appwrite] step 4: createEmailPasswordSession after create");
                             try {
                                 await withTimeout(
                                     "createEmailPasswordSession",
@@ -215,7 +203,6 @@ export function useAppwriteSession(): AppwriteSessionState {
                             }
                         }
 
-                        console.log("[appwrite] step 5: account.get to confirm session");
                         try {
                             return await withTimeout("account.get", appwriteAccount.get());
                         } catch (confirmError) {
@@ -227,12 +214,10 @@ export function useAppwriteSession(): AppwriteSessionState {
                 }
 
                 const me = await sessionPromise;
-                console.log("[appwrite] session ready", me.$id);
                 if (!cancelled) setState({ status: "ready", user: me, error: null });
             } catch (err) {
                 sessionPromises.delete(normalizedEmail);
                 const message = err instanceof Error ? err.message : "Failed to connect to messaging";
-                console.error("[appwrite] session error:", err);
                 if (!cancelled) setState({ status: "error", user: null, error: message });
             } finally {
                 if (!cancelled) {

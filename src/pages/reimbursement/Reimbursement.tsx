@@ -660,8 +660,6 @@ const Reimbursement: React.FC = () => {
 
                 setFields(enhancedFields);
                 setLinkOptions(link_options || {});
-                console.log("link_options keys:", Object.keys(link_options || {}));
-                console.log("link_options:", link_options);
                 let initialData = { ...prefill_data };
 
                 // If editing, fetch existing document data
@@ -676,7 +674,6 @@ const Reimbursement: React.FC = () => {
                             initialData = { ...initialData, ...existingDoc.message };
                         }
                     } catch (err) {
-                        console.error('Error fetching existing document:', err);
                         alert('Failed to load document for editing');
                     }
                 }
@@ -701,7 +698,6 @@ const Reimbursement: React.FC = () => {
                             if (projectTitleFromUrl) setProjectTitle(projectTitleFromUrl);
                         }
                     } catch (err) {
-                        console.warn('Could not fetch project details for auto-fill:', err);
                         initialData.project_name = projectFromUrl;
                         initialData.project_number = projectFromUrl;
                         if (projectTitleFromUrl) setProjectTitle(projectTitleFromUrl);
@@ -730,7 +726,6 @@ const Reimbursement: React.FC = () => {
                             initialData.applicant_department = details.applicant_department || "";
                         }
                     } catch (err) {
-                        console.warn('Could not fetch applicant details:', err);
                     }
                 }
 
@@ -739,7 +734,6 @@ const Reimbursement: React.FC = () => {
                 setLoading(false);
             }
             if (formDataError) {
-                console.error("Failed to load form data:", formDataError);
                 alert("Error: Could not load the reimbursement form.");
                 setLoading(false);
             }
@@ -875,7 +869,6 @@ const Reimbursement: React.FC = () => {
                             }
                         }
                     } catch (err) {
-                        console.warn('Could not fetch project details for auto-fill:', err);
                     }
                 } else {
                     setProjectTitle('');
@@ -883,7 +876,6 @@ const Reimbursement: React.FC = () => {
             }
 
         } catch (error) {
-            console.error(`Error handling field change for ${fieldname}:`, error);
         }
     }, [handleChange, fetchPiDetails, fetchProjectDetails]);
 
@@ -960,7 +952,6 @@ const Reimbursement: React.FC = () => {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
-            console.error(effectiveDocName ? editError : saveError || err);
             setErrorMsg(parseFrappeError(err.message || "Unknown error", fields));
         } finally {
             setIsSubmitting(false);
@@ -998,7 +989,6 @@ const Reimbursement: React.FC = () => {
                 throw new Error(submitRes?.message?.message || "Submission failed");
             }
         } catch (err: any) {
-            console.error(submitError || err);
             setErrorMsg(parseFrappeError(err.message || "Please check the console for details.", fields));
         } finally {
             setIsSubmitting(false);

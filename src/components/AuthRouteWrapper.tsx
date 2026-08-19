@@ -64,7 +64,6 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, blocke
       // If we had a previous user, this might be a transient failure
       // Retry a few times before redirecting to login
       if (lastKnownUser && retryCount < maxRetries) {
-        console.log(`AuthRouteWrapper: No user but had previous session, retry ${retryCount + 1}/${maxRetries}`);
         const timer = setTimeout(() => {
           setRetryCount(prev => prev + 1);
         }, 500);
@@ -73,7 +72,6 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, blocke
 
       // Clear stored user and redirect to login
       localStorage.removeItem(AUTH_STORAGE_KEY);
-      console.log('AuthRouteWrapper: Session expired or no user, redirecting to login');
       navigate('/login');
       return;
     }
@@ -85,13 +83,11 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, blocke
 
     // If there was an actual error fetching roles, log it but don't redirect
     if (rolesError) {
-      console.error("AuthRouteWrapper: Error fetching roles:", rolesError);
       return;
     }
 
     // If roles is null/undefined/empty after loading completes, wait — don't redirect yet
     if (!roles || roles.length === 0) {
-      console.warn("AuthRouteWrapper: No roles data available after loading.");
       return;
     }
 
@@ -103,7 +99,6 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, blocke
       const blockedRoles = Array.isArray(blockedRole) ? blockedRole : [blockedRole];
       const isBlocked = blockedRoles.some(role => roles.includes(role));
       if (isBlocked) {
-        console.warn(`Access Denied: User with roles [${roles.join(', ')}] is blocked from this route.`);
         navigate('/dashboard');
         return;
       }
@@ -118,7 +113,6 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, blocke
     const hasAccess = allowedRoles.some(role => roles.includes(role));
 
     if (!hasAccess) {
-      console.warn(`Access Denied: User with roles [${roles.join(', ')}] tried to access a route for '${allowedRoles.join(', ')}'. Redirecting to dashboard.`);
       navigate('/dashboard');
     }
 

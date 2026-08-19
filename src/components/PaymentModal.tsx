@@ -50,7 +50,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                         setPaymentFormData(baseData);
                     }
                 } catch (err) {
-                    console.error('Failed to fetch payment fields:', err);
                 } finally {
                     setIsLoadingFields(false);
                 }
@@ -91,7 +90,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             onClose();
             alert('Payment submitted successfully!');
         } catch (err: any) {
-            console.error('Payment submission failed:', err);
             setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
         } finally {
             setIsPaymentSubmitting(false);

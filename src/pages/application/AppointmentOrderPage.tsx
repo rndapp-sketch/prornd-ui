@@ -227,7 +227,6 @@ const AppointmentOrderPage: React.FC = () => {
                     }
                 }
             } catch (e) {
-                console.error('AppointmentOrder load error:', e);
             } finally {
                 setLoading(false);
             }

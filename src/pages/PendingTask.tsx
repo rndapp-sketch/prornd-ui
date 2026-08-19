@@ -284,7 +284,6 @@ const PendingTask: React.FC = () => {
                         })
                         .map(normalizeSCRCandidate);
                 } catch (scrErr) {
-                    console.error("Failed to fetch SCR candidate rows:", scrErr);
                 }
 
                 // Enrich fallback candidates with appointment_order_number and

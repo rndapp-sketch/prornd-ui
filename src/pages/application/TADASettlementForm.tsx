@@ -363,7 +363,6 @@ const TADASettlementForm: React.FC = () => {
           } catch { /* try next head */ }
         }
       } catch (err) {
-        console.error("[AdvanceTaken] Error:", err);
       }
       return null;
     },
@@ -396,7 +395,6 @@ const TADASettlementForm: React.FC = () => {
         return deptResult.message.dept_name;
       }
     } catch (e) {
-      console.error("Failed to fetch department name for ID:", deptId, e);
     }
     return deptId; // fallback to the ID if resolution fails
   };
@@ -433,7 +431,6 @@ const TADASettlementForm: React.FC = () => {
         };
       }
     } catch (err) {
-      console.error("Failed to fetch user details:", err);
     }
     return currentData;
   };
@@ -483,7 +480,6 @@ const TADASettlementForm: React.FC = () => {
             };
           }
         } catch (err) {
-          console.error("Error fetching TA DA budget heads:", err);
         }
         setLinkOptions(baseLinkOptions);
 
@@ -501,7 +497,6 @@ const TADASettlementForm: React.FC = () => {
               initialData = { ...initialData, ...existingDoc.message };
             }
           } catch (err) {
-            console.error("Error fetching existing document:", err);
             alert("Failed to load document for editing");
           }
         }
@@ -597,10 +592,6 @@ const TADASettlementForm: React.FC = () => {
               }
             }
           } catch (err) {
-            console.error(
-              "Failed to automatically prefill from Travel details:",
-              err,
-            );
           }
         }
 
@@ -633,7 +624,6 @@ const TADASettlementForm: React.FC = () => {
         setLoading(false);
       }
       if (formDataError) {
-        console.error("Failed to load form data:", formDataError);
         alert("Error: Could not load the TA DA Settlement form.");
         setLoading(false);
       }
@@ -863,7 +853,6 @@ const TADASettlementForm: React.FC = () => {
             }
           }
         } catch (err) {
-          console.error("Failed to fetch travel details:", err);
         }
       }
     },
@@ -962,7 +951,6 @@ const TADASettlementForm: React.FC = () => {
         throw new Error(res?.message?.message || "Save failed");
       }
     } catch (err: any) {
-      console.error(saveError || err);
       setErrorModal({
         open: true,
         title: "Save Failed",
@@ -1003,7 +991,6 @@ const TADASettlementForm: React.FC = () => {
         throw new Error(submitRes?.message?.message || "Submission failed");
       }
     } catch (err: any) {
-      console.error(submitError || err);
       setErrorModal({
         open: true,
         title: "Submission Failed",

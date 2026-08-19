@@ -168,7 +168,6 @@ const MiscellaneousCommitActionButtons = ({
             setModalOpen(false);
             onActionComplete();
         } catch (error: any) {
-            console.error("Error performing action:", error);
             setModalOpen(false);
             setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(error) });
         }

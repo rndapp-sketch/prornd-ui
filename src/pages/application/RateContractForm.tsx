@@ -181,7 +181,6 @@ const RateContractForm: React.FC = () => {
                             initialData = { ...initialData, ...existingDoc.message };
                         }
                     } catch (err) {
-                        console.error('Error fetching existing document:', err);
                         alert('Failed to load document for editing');
                     }
                 }
@@ -201,7 +200,6 @@ const RateContractForm: React.FC = () => {
                 setLoading(false);
             }
             if (formDataError) {
-                console.error("Failed to load form data:", formDataError);
                 alert("Error: Could not load the Rate Contract form.");
                 setLoading(false);
             }
@@ -419,7 +417,6 @@ const RateContractForm: React.FC = () => {
                     break;
             }
         } catch (error) {
-            console.error(`Error handling field change for ${fieldname}:`, error);
         }
     }, [handleChange, fetchPrincipalSuppliersByItemType, fetchPrincipalSupplierDetails, fetchLocalSuppliersByPrincipal, fetchLocalSupplierDetails, fetchVendorDetails, fetchVendorsByP4ItemType, fetchUserDetails, fetchFrappeValue]);
 
@@ -526,7 +523,6 @@ const RateContractForm: React.FC = () => {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
-            console.error(saveError || err);
             setErrorModal({ open: true, title: "Save Failed", message: parseFrappeError(saveError, err) });
         } finally {
             setIsSubmitting(false);
@@ -557,7 +553,6 @@ const RateContractForm: React.FC = () => {
                 throw new Error(submitRes?.message?.message || "Submission failed");
             }
         } catch (err: any) {
-            console.error(submitError || err);
             setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(submitError, err) });
         } finally {
             setIsSubmitting(false);
