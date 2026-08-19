@@ -52,8 +52,10 @@ type ActiveDelegation = {
     scope_type?: "all" | "project" | "application";
     project_count?: number;
     application_count?: number;
-    project_names?: string;
-    applications?: string;
+    // getActiveDelegations returns already-parsed arrays; getDocList/REST
+    // return the raw doctype field as a JSON-encoded string.
+    project_names?: string | string[];
+    applications?: string | DelegationApplication[];
     valid_from?: string;
     valid_to?: string;
     enabled?: number;
@@ -67,10 +69,12 @@ type ScopeResponse = {
 
 const applicationKey = (app: DelegationApplication) => `${app.doctype}::${app.name}`;
 
-const parseJsonApplicationArray = (raw?: string): DelegationApplication[] => {
+const parseJsonApplicationArray = (raw?: string | DelegationApplication[]): DelegationApplication[] => {
     if (!raw) return [];
     try {
-        const parsed = JSON.parse(raw);
+        // getActiveDelegations returns already-parsed arrays, while the raw
+        // doctype field (via getDocList / REST) returns a JSON-encoded string.
+        const parsed = Array.isArray(raw) ? raw : JSON.parse(raw);
         return Array.isArray(parsed)
             ? parsed.filter(
                 (value): value is DelegationApplication =>
@@ -82,7 +86,7 @@ const parseJsonApplicationArray = (raw?: string): DelegationApplication[] => {
     }
 };
 
-const removeFromJsonApplicationArray = (raw: string | undefined, target: DelegationApplication) =>
+const removeFromJsonApplicationArray = (raw: string | DelegationApplication[] | undefined, target: DelegationApplication) =>
     JSON.stringify(
         parseJsonApplicationArray(raw).filter((item) => !(item.doctype === target.doctype && item.name === target.name)),
     );
@@ -93,10 +97,12 @@ const inputClasses =
 const cardClasses =
     "rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm";
 
-const parseJsonStringArray = (raw?: string): string[] => {
+const parseJsonStringArray = (raw?: string | string[]): string[] => {
     if (!raw) return [];
     try {
-        const parsed = JSON.parse(raw);
+        // getActiveDelegations returns already-parsed arrays, while the raw
+        // doctype field (via getDocList / REST) returns a JSON-encoded string.
+        const parsed = Array.isArray(raw) ? raw : JSON.parse(raw);
         return Array.isArray(parsed)
             ? parsed.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
             : [];
@@ -105,7 +111,7 @@ const parseJsonStringArray = (raw?: string): string[] => {
     }
 };
 
-const removeFromJsonArray = (raw: string | undefined, value: string) =>
+const removeFromJsonArray = (raw: string | string[] | undefined, value: string) =>
     JSON.stringify(parseJsonStringArray(raw).filter((item) => item !== value));
 
 const toFrappeDateTime = (value: string) => {
