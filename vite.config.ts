@@ -1,18 +1,59 @@
 import path from 'path';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react'
-import proxyOptions from './proxyOptions';
+import proxyOptions, { previewProxyOptions } from './proxyOptions';
+import { decodeCredit } from './src/lib/credit';
+
+// rollupOptions.output.banner is silently dropped by Vite's build pipeline
+// (confirmed: a bare Rollup build honors it, but going through `vite build`
+// does not), so inject the credit banner directly into the final bundle
+// instead, via generateBundle — the last hook before files are written.
+function creditBannerPlugin(): Plugin {
+    return {
+        name: 'credit-banner',
+        generateBundle(_options, bundle) {
+            const banner = `/*! Developed by ${decodeCredit()} */\n`;
+            for (const file of Object.values(bundle)) {
+                if (file.type === 'chunk') {
+                    file.code = banner + file.code;
+                }
+            }
+        },
+    };
+}
 
 // https://vitejs.dev/config/
 export default defineConfig({
-    plugins: [react()],
+    plugins: [react(), creditBannerPlugin()],
     server: {
         port: 8081,
         host: '0.0.0.0',
+        // Nginx fronts this dev server as http://pragati.iitg.ac.in ->
+        // http://172.16.135.118:8081. Vite rejects requests whose Host header
+        // isn't recognized, so the proxied domain must be explicitly allowed.
+        allowedHosts: ['pragati.iitg.ac.in'],
         hmr: {
-            clientPort: 8081,
+            // No clientPort override: let the HMR client infer the port from
+            // window.location, so it connects back through Nginx on whatever
+            // port the page was loaded on (80 for http://pragati.iitg.ac.in)
+            // instead of trying to dial 8081 directly. Nginx must forward the
+            // Upgrade/Connection headers for this /?token= websocket to reach
+            // the dev server, e.g.:
+            //   location / {
+            //       proxy_pass http://172.16.135.118:8081;
+            //       proxy_http_version 1.1;
+            //       proxy_set_header Upgrade $http_upgrade;
+            //       proxy_set_header Connection "upgrade";
+            //       proxy_set_header Host $host;
+            //   }
         },
         proxy: proxyOptions
+    },
+    preview: {
+        // vite preview (used by deploy-prod.sh under PM2) listens on the same
+        // port 8081 and enforces the same Host allow-list.
+        allowedHosts: ['pragati.iitg.ac.in'],
+        proxy: previewProxyOptions
     },
     resolve: {
         alias: {
@@ -24,32 +65,3 @@ export default defineConfig({
     },
 });
 
-// import path from "path";
-// import { defineConfig } from "vite";
-// import react from "@vitejs/plugin-react";
-// import proxyOptions from "./proxyOptions";
-
-// export default defineConfig({
-//     base: "/rndproj/prornd/", // THIS is the critical line
-
-//     plugins: [react()],
-
-//     server: {
-//         port: 8081,
-//         host: "0.0.0.0",
-//         hmr: {
-//             clientPort: 8081,
-//         },
-//         proxy: proxyOptions,
-//     },
-
-//     resolve: {
-//         alias: {
-//             "@": path.resolve(__dirname, "src"),
-//         },
-//     },
-
-//     build: {
-//         target: "es2015",
-//     },
-// });

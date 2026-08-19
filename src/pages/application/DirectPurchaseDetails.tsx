@@ -762,12 +762,14 @@ const HighlightHeading = ({
 );
 
 // --- FIELD TYPE HELPERS ---
+const MINIO_HOST = import.meta.env.VITE_MINIO_HOST || "172.16.135.118";
+const MINIO_ALT_PORT = import.meta.env.VITE_MINIO_ALT_PORT || "8081";
 const isFilePath = (val: any): boolean => {
     if (typeof val !== "string") return false;
     return (
         val.startsWith("/private/files/") ||
         val.startsWith("/files/") ||
-        val.startsWith("http://172.16.135.118:8081/") ||
+        val.startsWith(`http://${MINIO_HOST}:${MINIO_ALT_PORT}/`) ||
         /\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx|zip)$/i.test(val)
     );
 };

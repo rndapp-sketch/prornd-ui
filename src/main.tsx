@@ -4,8 +4,14 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { FrappeProvider } from 'frappe-react-sdk';
+import { decodeCredit } from '@/lib/credit';
 
 import './index.css';
+
+if (typeof window !== 'undefined') {
+    // eslint-disable-next-line no-console
+    console.log('%cProRnD', 'font-size:18px;font-weight:bold;color:#D97757;', `\nDeveloped by ${decodeCredit()}`);
+}
 
 // Import Components and Pages
 import App from './App.tsx';
@@ -109,6 +115,7 @@ import LeaveModuleForm from './pages/LeaveModuleForm.tsx';
 import LeaveModuleDetails from './pages/LeaveModuleDetails.tsx';
 import FormApplication from './pages/FormApplication.tsx';
 import { ProjectSearch } from './pages/ProjectSearch.tsx';
+import NotFound from './pages/NotFound.tsx';
 
 const router = createBrowserRouter(
     [
@@ -969,6 +976,12 @@ const router = createBrowserRouter(
                 },
             ],
         },
+        {
+            // Catch-all for unmatched paths — rendered outside the App shell
+            // so it doesn't depend on auth/layout state.
+            path: "*",
+            element: <NotFound />,
+        },
     ],
     {
         basename: import.meta.env.VITE_BASE_PATH || '',
@@ -982,3 +995,22 @@ createRoot(document.getElementById('root') as HTMLElement).render(
         </FrappeProvider>
     </StrictMode>
 );
+
+// Hidden, route-independent credit markers — decoded and inserted only at
+// runtime, so the plaintext exists solely in the live page, never in a
+// source file. Present on every route (including the 404 page) since these
+// run once at module load, outside any route component.
+if (typeof document !== 'undefined') {
+    const credit = decodeCredit();
+
+    const marker = document.createElement('meta');
+    marker.setAttribute('name', 'developer');
+    marker.setAttribute('content', credit);
+    document.head.appendChild(marker);
+
+    // Also visible via "Inspect Element" as an HTML comment, mirroring what
+    // a static index.html comment would show — but only after JS runs, so
+    // "View Page Source" (which shows the raw, un-decoded HTML) reveals
+    // nothing.
+    document.documentElement.prepend(document.createComment(` Developed by ${credit} `));
+}

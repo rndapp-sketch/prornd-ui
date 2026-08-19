@@ -1617,7 +1617,7 @@ const NIQPage: React.FC = () => {
                                                 <tr>
                                                     <td style={{ width: '65%', verticalAlign: 'top', padding: '6px 10px 10px 0', borderBottom: '2px solid black' }}>
                                                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                                                            <img src="http://172.16.131.206:8000/files/IITG_logo.png" alt="IITG"
+                                                            <img src={`http://${import.meta.env.VITE_APP_BACKEND_HOST || '172.16.131.206'}:${import.meta.env.VITE_APP_BACKEND_PORT || '8000'}/files/IITG_logo.png`} alt="IITG"
                                                                 style={{ width: '55px', height: 'auto', flexShrink: 0 }}
                                                                 onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                                                             <div>

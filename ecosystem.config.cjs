@@ -2,12 +2,14 @@ module.exports = {
   apps: [
     {
       name: "prornd-ui-mythos_fable_v0.8",
-      script: "npm",
-      args: "run dev",
-      cwd: "/home/prornd/Projects/mythos_fable_v0.8/prornd-ui",
-      interpreter: "none",
+      script: "./deploy-prod.sh",
+      // Resolved relative to this config file's own location, so it works
+      // regardless of which machine/user path this repo is checked out to
+      // (was previously hardcoded to a specific server's path).
+      cwd: __dirname,
+      interpreter: "bash",
       env: {
-        NODE_ENV: "development",
+        NODE_ENV: "production",
         PORT: 8081
       }
     }

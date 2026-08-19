@@ -86,12 +86,14 @@ const normalizeProjectType = (raw?: string): ProjectTypeTab => {
   return 'Others';
 };
 
-const DORND_SIGNATURE_SEAL_URL = "http://172.16.131.206:8000/files/Sign_dornd_stamp_rnd.jpg";
+const APP_BACKEND_HOST = import.meta.env.VITE_APP_BACKEND_HOST || "172.16.131.206";
+const APP_BACKEND_PORT = import.meta.env.VITE_APP_BACKEND_PORT || "8000";
+const DORND_SIGNATURE_SEAL_URL = `http://${APP_BACKEND_HOST}:${APP_BACKEND_PORT}/files/Sign_dornd_stamp_rnd.jpg`;
 
 const toSameOriginFileUrl = (src: string) => {
   try {
     const url = new URL(src, window.location.origin);
-    if (url.hostname === "172.16.131.206" || url.hostname === window.location.hostname) {
+    if (url.hostname === APP_BACKEND_HOST || url.hostname === window.location.hostname) {
       return `${url.pathname}${url.search}${url.hash}`;
     }
   } catch {

@@ -1,5 +1,10 @@
 import ssTemplate from "@/pages/printformat/sanction_sheet_format.html?raw";
 
+// The .html?raw template is static text pulled in at build time, so it can't
+// reference import.meta.env itself; substitute the asset host here instead.
+const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.117.39";
+const ASSET_PORT = import.meta.env.VITE_ASSET_PORT || "8000";
+
 const fmt = (val: any) => {
     const n = Number(val);
     if (!val && val !== 0) return "";
@@ -79,6 +84,7 @@ export function generateSanctionSheetHtml(
         : "";
 
     return ssTemplate
+        .replace(/http:\/\/172\.16\.117\.39:8000/g, `http://${ASSET_HOST}:${ASSET_PORT}`)
         .replace("{{FILE_NUMBER}}", formData.ss_file_number || "")
         .replace(
             "{{PROJECT_NO}}",

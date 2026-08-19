@@ -103,7 +103,9 @@ interface ProjectDetailsProps {
     backLabel?: string;
 }
 
-const DORND_SIGNATURE_SEAL_URL = "http://172.16.131.206:8000/files/Sign_dornd_stamp_rnd.jpg";
+const APP_BACKEND_HOST = import.meta.env.VITE_APP_BACKEND_HOST || "172.16.131.206";
+const APP_BACKEND_PORT = import.meta.env.VITE_APP_BACKEND_PORT || "8000";
+const DORND_SIGNATURE_SEAL_URL = `http://${APP_BACKEND_HOST}:${APP_BACKEND_PORT}/files/Sign_dornd_stamp_rnd.jpg`;
 
 const waitForDocumentAssets = async (document: Document) => {
     if (document.fonts?.ready) {
@@ -330,7 +332,7 @@ const toSameOriginFileUrl = (src: string) => {
     try {
         const url = new URL(src, window.location.origin);
         if (
-            url.hostname === "172.16.131.206" ||
+            url.hostname === APP_BACKEND_HOST ||
             url.hostname === window.location.hostname
         ) {
             return `${url.pathname}${url.search}${url.hash}`;
@@ -1526,7 +1528,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
         }
     };
 
-    const MINIO_BASE = "http://172.16.135.118:9000";
+    const MINIO_BASE = `http://${import.meta.env.VITE_MINIO_HOST || "172.16.135.118"}:${import.meta.env.VITE_MINIO_PORT || "9000"}`;
     const attachmentsPath = `${MINIO_BASE}/prod-rnd-files/Project_Registration/${projectName}/attachments`;
 
     const { data: frappeFiles } = useFrappeGetDocList("File", {
@@ -2026,7 +2028,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                             </p>
                                                         </div>
                                                         <a
-                                                            href={`http://172.16.135.118:9000/prod-rnd-files/Project_Registration/${projectName}/attachments/${data.upload_proj_prop.split("/").pop()}`}
+                                                            href={`${MINIO_BASE}/prod-rnd-files/Project_Registration/${projectName}/attachments/${data.upload_proj_prop.split("/").pop()}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="text-sm font-medium text-[#D97757] hover:underline flex items-center gap-1"

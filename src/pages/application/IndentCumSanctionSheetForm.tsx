@@ -983,7 +983,7 @@ const buildDirectorApprovalPrintHtml = ({
     <div class="page">
         <div class="letterhead">
             <div class="brand">
-                <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo" onerror="this.style.display='none'" />
+                <img src="http://${import.meta.env.VITE_ASSET_HOST || '172.16.117.39'}:${import.meta.env.VITE_ASSET_PORT || '8000'}/files/IITG_logo.png" alt="IITG Logo" onerror="this.style.display='none'" />
                 <div>
                     <div class="inst-en">Indian Institute of Technology Guwahati</div>
                     <div class="inst-hi">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>

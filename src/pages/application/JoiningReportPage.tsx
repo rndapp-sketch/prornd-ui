@@ -505,7 +505,7 @@ const JoiningReportPage: React.FC = () => {
             }}
           >
             <img
-              src="http://172.16.131.206:8000/files/IITG_logo.png"
+              src={`http://${import.meta.env.VITE_APP_BACKEND_HOST || '172.16.131.206'}:${import.meta.env.VITE_APP_BACKEND_PORT || '8000'}/files/IITG_logo.png`}
               alt="IITG"
               style={{ width: "55px", height: "auto", flexShrink: 0 }}
               onError={(e) => {

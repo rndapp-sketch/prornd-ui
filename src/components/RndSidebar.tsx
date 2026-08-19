@@ -306,7 +306,7 @@ export function AppSidebar() {
                         String.fromCharCode(b),
                     ).join(""),
                 );
-                window.open(`http://172.16.135.27:7079/sso?token=${encodedJson}`, "_blank");
+                window.open(`http://${import.meta.env.VITE_ATTENDANCE_HOST || "172.16.135.27"}:${import.meta.env.VITE_ATTENDANCE_SSO_PORT || "7079"}/sso?token=${encodedJson}`, "_blank");
             },
         },
         {

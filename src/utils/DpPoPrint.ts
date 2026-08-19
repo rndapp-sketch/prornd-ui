@@ -1,6 +1,11 @@
 import poTemplate from "@/pages/printformat/dp_po_format.html?raw";
 import { ToWords } from "to-words";
 
+// The .html?raw template is static text pulled in at build time, so it can't
+// reference import.meta.env itself; substitute the asset host here instead.
+const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.117.39";
+const ASSET_PORT = import.meta.env.VITE_ASSET_PORT || "8000";
+
 const toWords = new ToWords({ localeCode: "en-IN", converterOptions: { ignoreDecimal: true } });
 
 const fmt = (val: any) => {
@@ -149,6 +154,7 @@ export function generatePOHtml(poData: Record<string, any>): string {
         : "";
 
     return poTemplate
+        .replace(/http:\/\/172\.16\.117\.39:8000/g, `http://${ASSET_HOST}:${ASSET_PORT}`)
         .replace("{{VENDOR_ADDRESS}}", poData.vendor_address || poData.ss_name_of_firms || "")
         .replace("{{PO_NUMBER}}", poData.po_number || poData.name || "")
         .replace("{{PO_DATE}}", poData.po_date || new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }))

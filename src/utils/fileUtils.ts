@@ -12,8 +12,11 @@
  * paths and are served from the Frappe backend.
  */
 
-const MINIO_BASE = "http://172.16.135.118:9000/prod-rnd-files";
-const MINIO_HOST_8081 = "http://172.16.135.118:8081/";
+const MINIO_HOST = import.meta.env.VITE_MINIO_HOST || "172.16.135.118";
+const MINIO_PORT = import.meta.env.VITE_MINIO_PORT || "9000";
+const MINIO_ALT_PORT = import.meta.env.VITE_MINIO_ALT_PORT || "8081";
+const MINIO_BASE = `http://${MINIO_HOST}:${MINIO_PORT}/prod-rnd-files`;
+const MINIO_HOST_8081 = `http://${MINIO_HOST}:${MINIO_ALT_PORT}/`;
 const MINIO_BUCKET = "prod-rnd-files";
 
 // Path prefixes that indicate a MinIO-stored file
@@ -45,7 +48,7 @@ export function getFileUrl(path: string | null | undefined): string {
 
     // Already a MinIO proxy path — prepend the MinIO base
     if (path.startsWith("/prod-rnd-files/")) {
-        return `http://172.16.135.118:9000${path}`;
+        return `http://${MINIO_HOST}:${MINIO_PORT}${path}`;
     }
 
     // MinIO-stored file referenced by its object path (no bucket prefix)
