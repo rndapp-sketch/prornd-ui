@@ -8,6 +8,7 @@ import { isFieldVisible } from '@/utils/evalExpression';
 import { prepareFormDataForApi } from '@/services/apiService';
 import {
     HelpCircle, X, BookOpen, IndianRupee, Clock, CheckCircle2,
+    ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { ErrorModal } from "../../components/ErrorModal";
 import { parseFrappeError } from "../../utils/errorUtils";
@@ -197,6 +198,7 @@ const TopUpFellowshipForm: React.FC = () => {
     const [dataLoaded, setDataLoaded] = useState(false);
     const [projectTitle, setProjectTitle] = useState<string>(projectTitleFromUrl || '');
     const [helpOpen, setHelpOpen] = useState(false);
+    const [guideExpanded, setGuideExpanded] = useState(true);
     const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall<FormDataResponse>(
@@ -793,20 +795,38 @@ const TopUpFellowshipForm: React.FC = () => {
                 </form>
             </main>
 
-            {/* Floating help button */}
-            <button
-                onClick={() => setHelpOpen(true)}
-                className="fixed bottom-8 right-7 z-40 flex h-11 items-center gap-2 rounded-full border border-[#4A6CF7]/30 bg-white/95 px-3.5 text-[#1E3A8A] shadow-lg shadow-[#18181B]/10 backdrop-blur transition-all hover:-translate-y-0.5 hover:border-[#4A6CF7]/50 hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/35 dark:bg-[#27272A]/95 dark:text-[#C7D2FE]"
-                aria-label="Help"
-                title="How to fill Top Up Fellowship?"
-            >
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#4A6CF7] text-white shadow-sm">
-                    <HelpCircle className="h-4 w-4" />
-                </span>
-                <span className="hidden text-[12px] font-extrabold uppercase tracking-wide md:block">
-                    Module Guide
-                </span>
-            </button>
+            {/* Floating help button — collapsible to just the icon via the chevron. */}
+            <div className="fixed bottom-8 right-7 z-40 flex items-center gap-1.5">
+                <button
+                    onClick={() => setHelpOpen(true)}
+                    className={cn(
+                        "flex h-11 items-center gap-2 rounded-full border border-[#4A6CF7]/30 bg-white/95 text-[#1E3A8A] shadow-lg shadow-[#18181B]/10 backdrop-blur transition-all hover:-translate-y-0.5 hover:border-[#4A6CF7]/50 hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/35 dark:bg-[#27272A]/95 dark:text-[#C7D2FE]",
+                        guideExpanded ? "px-3.5" : "w-11 justify-center px-0",
+                    )}
+                    aria-label="Help"
+                    title="How to fill Top Up Fellowship?"
+                >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#4A6CF7] text-white shadow-sm">
+                        <HelpCircle className="h-4 w-4" />
+                    </span>
+                    {guideExpanded && (
+                        <span className="hidden text-[12px] font-extrabold uppercase tracking-wide md:block">
+                            Module Guide
+                        </span>
+                    )}
+                </button>
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setGuideExpanded((v) => !v);
+                    }}
+                    className="hidden h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#4A6CF7]/30 bg-white/95 text-[#4A6CF7] shadow-sm backdrop-blur transition-all hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/35 dark:bg-[#27272A]/95 dark:hover:bg-[#27272A] md:flex"
+                    aria-label={guideExpanded ? "Collapse module guide button" : "Expand module guide button"}
+                    title={guideExpanded ? "Collapse" : "Expand"}
+                >
+                    {guideExpanded ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
+                </button>
+            </div>
 
             {helpOpen && <HelpPanel onClose={() => setHelpOpen(false)} />}
 
