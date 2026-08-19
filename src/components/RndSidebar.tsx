@@ -389,7 +389,22 @@ export function AppSidebar() {
             return !(roles?.includes("project staff") ?? false);
         }
         if (item.label === "Delegate User") {
-            return roles?.includes("Permanent Employee") ?? false;
+            const allowedRoles = [
+                "Permanent Employee",
+                "HoS (Head of School)",
+                "Hos, RnD (Head of Section, RnD)",
+                "HOSRnD",
+                "HoC (Head of Center)",
+                "HoD",
+                "HoD (Head of Department)",
+                "head_department_center_school",
+                "head_approver_1",
+                "Ado_RnD",
+                "Associate Dean, RND",
+                "Dean, RnD",
+                "Director",
+            ];
+            return roles ? allowedRoles.some((role) => roles.includes(role)) : false;
         }
         if (item.label === "Delegated to Me") {
             return roles?.includes("project staff") ?? false;
