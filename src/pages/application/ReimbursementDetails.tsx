@@ -187,6 +187,7 @@ const CommentModal = ({
 const ActionsDropdown = ({
   docname,
   workflowState,
+  reimbursementForId,
   onActionComplete,
   onEdit,
   onSubmit,
@@ -197,6 +198,7 @@ const ActionsDropdown = ({
 }: {
   docname: string;
   workflowState: string;
+  reimbursementForId?: string;
   onActionComplete: () => void;
   onEdit: () => void;
   onSubmit: () => void;
@@ -212,6 +214,43 @@ const ActionsDropdown = ({
   const { call: performAction, loading: actionLoading, error: performActionError } = useFrappePostCall(
     "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.perform_reimbursement_action",
   );
+  const { call: fetchPiProjects } = useFrappePostCall(
+    "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_pi_projects",
+  );
+  const { call: fetchProjectHeads } = useFrappePostCall(
+    "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_project_account_heads",
+  );
+  const { currentUser } = useFrappeAuth();
+
+  // Other-PI approval step: only the assigned PI picks which of their own
+  // projects to charge and the matching account head.
+  const isPiStep =
+    workflowState === "Pending PI Approval" &&
+    !!currentUser &&
+    (reimbursementForId || "").toLowerCase() === currentUser.toLowerCase();
+
+  const [piProjects, setPiProjects] = useState<any[]>([]);
+  const [piHeads, setPiHeads] = useState<any[]>([]);
+  const [selectedProject, setSelectedProject] = useState("");
+  const [selectedHead, setSelectedHead] = useState("");
+
+  React.useEffect(() => {
+    if (!isPiStep) return;
+    fetchPiProjects({})
+      .then((res: any) => setPiProjects(res?.message || []))
+      .catch(() => setPiProjects([]));
+  }, [isPiStep, fetchPiProjects]);
+
+  React.useEffect(() => {
+    setSelectedHead("");
+    if (!selectedProject) {
+      setPiHeads([]);
+      return;
+    }
+    fetchProjectHeads({ project_name: selectedProject })
+      .then((res: any) => setPiHeads(res?.message || []))
+      .catch(() => setPiHeads([]));
+  }, [selectedProject, fetchProjectHeads]);
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
@@ -241,6 +280,10 @@ const ActionsDropdown = ({
   };
 
   const handleWorkflowClick = (action: string) => {
+    if (isPiStep && action.toLowerCase() === "approve" && (!selectedProject || !selectedHead)) {
+      alert("Please select a project and account head before approving.");
+      return;
+    }
     setDropdownOpen(false);
     setSelectedAction(action);
     setModalOpen(true);
@@ -248,7 +291,16 @@ const ActionsDropdown = ({
 
   const handleConfirmAction = async (comment: string) => {
     try {
-      await performAction({ docname, action: selectedAction, comment });
+      const payload: Record<string, any> = { docname, action: selectedAction, comment };
+      if (isPiStep && selectedAction.toLowerCase() === "approve") {
+        const proj = piProjects.find((p) => p.value === selectedProject);
+        payload.extra_data = JSON.stringify({
+          project_name: selectedProject,
+          project_number: proj?.project_number || proj?.project_no || "",
+          account_head: selectedHead,
+        });
+      }
+      await performAction(payload);
       setModalOpen(false);
       onActionComplete();
     } catch (error) {
@@ -322,6 +374,36 @@ const ActionsDropdown = ({
                 Actions
               </span>
             </div>
+
+            {/* Other-PI approval: PI selects one of their own projects + account head */}
+            {isPiStep && (
+              <div className="px-3 pt-3 pb-1 flex flex-col gap-2 border-b border-zinc-100 dark:border-zinc-700">
+                <span className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-300">
+                  Approve against one of your projects
+                </span>
+                <select
+                  value={selectedProject}
+                  onChange={(e) => setSelectedProject(e.target.value)}
+                  className="w-full min-w-0 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-[12px] text-zinc-900 dark:text-zinc-100"
+                >
+                  <option value="">Select project…</option>
+                  {piProjects.map((p) => (
+                    <option key={p.value} value={p.value}>{p.label}</option>
+                  ))}
+                </select>
+                <select
+                  value={selectedHead}
+                  onChange={(e) => setSelectedHead(e.target.value)}
+                  disabled={!selectedProject}
+                  className="w-full min-w-0 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-[12px] text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+                >
+                  <option value="">Select account head…</option>
+                  {piHeads.map((h) => (
+                    <option key={h.value} value={h.value}>{h.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Commit gate warning */}
             {commitRequired && (
@@ -1026,6 +1108,7 @@ const ReimbursementDetails: React.FC = () => {
               <ActionsDropdown
                 docname={data.name}
                 workflowState={data.workflow_state || "Draft"}
+                reimbursementForId={data.reimbursement_for_id}
                 onActionComplete={() => window.location.reload()}
                 onEdit={() => navigate(`/reimbursement?edit=${data.name}`)}
                 onSubmit={handleSubmit}

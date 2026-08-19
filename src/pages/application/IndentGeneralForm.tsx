@@ -263,9 +263,15 @@ const IndentGeneralForm: React.FC = () => {
                 }));
 
                 // User options for committee member webmail autocomplete
+                // Include the email in the label: distinct accounts can share the
+                // same full name (personal vs role account), and an ambiguous
+                // label lets the applicant pick the wrong person.
                 const userOptions: LinkOption[] = (userRes?.data || [])
                     .filter((u: any) => u.name !== "Administrator" && u.name !== "Guest")
-                    .map((u: any) => ({ value: u.name, label: u.full_name || u.name }));
+                    .map((u: any) => ({
+                        value: u.name,
+                        label: u.full_name ? `${u.full_name} (${u.name})` : u.name,
+                    }));
 
                 const { fields: apiFields, link_options, prefill_data } = res.message;
 
@@ -360,9 +366,10 @@ const IndentGeneralForm: React.FC = () => {
                             }
                         } catch { /* ignore */ }
                     }
-                    if (projectNoParam) {
-                        // Data field stores the project number/code
-                        prefill.igf_project_code = projectNoParam;
+                    if (searchParams.get("other_pi") === "1") {
+                        prefill.igf_other_pi = "Other";
+                        prefill.igf_project_title = "";
+                        prefill.igf_project_code = "";
                     }
 
                     setLinkOptions(mergedLinkOptions);
@@ -674,6 +681,8 @@ const IndentGeneralForm: React.FC = () => {
                                     "igf_employee_code",
                                     "section_break_nvnk",
                                     "igf_project_details",
+                                    "igf_other_pi",
+                                    "igf_other_pi_id",
                                     "igf_project_title",
                                     "igf_project_code",
                                     "igf_account_head",

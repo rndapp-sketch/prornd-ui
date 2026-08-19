@@ -216,6 +216,7 @@ export function AppSidebar() {
             subMenu: [
                 { label: "Projects View", path: "/projects-view" },
                 { label: "Co-Projects", path: "/co-projects" },
+                { label: "Other PI", path: "/other-pi" },
                 { label: "Registration", path: "/project-registration" },
             ],
         },
@@ -259,11 +260,11 @@ export function AppSidebar() {
             icon: FileText,
             path: "/project-staff-extension",
         },
-        // ...(isPermanentEmployee ? [{
-        //     label: "Form Cancellation",
-        //     icon: FileText,
-        //     path: "/form-application",
-        // }] : []),
+        ...(isPermanentEmployee ? [{
+            label: "Form Cancellation",
+            icon: FileText,
+            path: "/form-application",
+        }] : []),
         {
             label: "Pending Task",
             icon: ListTodo,

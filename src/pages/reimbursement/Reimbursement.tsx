@@ -708,12 +708,12 @@ const Reimbursement: React.FC = () => {
                     }
                 }
 
-                // Set defaults for any missing fields
-                enhancedFields.forEach((field: FormField) => {
-                    if (initialData[field.fieldname] === undefined && field.default !== undefined) {
-                        initialData[field.fieldname] = field.default;
-                    }
-                });
+                // If launched from Other PI tab, default self_other to "Other" and clear project fields
+                if (searchParams.get("other_pi") === "1") {
+                    initialData.self_other = "Other";
+                    initialData.project_name = "";
+                    initialData.project_number = "";
+                }
 
                 // Default applicant_webmail to current logged-in user if not already set
                 if (!initialData.applicant_webmail && !editDocName && currentUser) {
