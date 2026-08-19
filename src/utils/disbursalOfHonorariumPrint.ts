@@ -1,5 +1,10 @@
 import dohTemplate from "@/pages/printformat/disbursal_of_honorarium_format.html?raw";
 
+// The .html?raw template is static text pulled in at build time, so it can't
+// reference import.meta.env itself; substitute the asset host here instead.
+const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.117.39";
+const ASSET_PORT = import.meta.env.VITE_ASSET_PORT || "8000";
+
 export interface ActivityItem {
     owner: string;
     creation: string;
@@ -188,6 +193,7 @@ export function generateDisbursalOfHonorariumHtml(
     }
 
     return dohTemplate
+        .replace(/http:\/\/172\.16\.117\.39:8000/g, `http://${ASSET_HOST}:${ASSET_PORT}`)
         .replace("{{DOC_REF}}", formData.name || "")
         .replace("{{DATE}}", creation)
         .replace("{{APPLICANT_NAME}}", formData.name_of_applicant || "")

@@ -816,7 +816,7 @@ const ReimbursementDetails: React.FC = () => {
 
     <!-- Header -->
     <div class="header">
-        <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo" class="logo-img" />
+        <img src="http://${import.meta.env.VITE_ASSET_HOST || '172.16.117.39'}:${import.meta.env.VITE_ASSET_PORT || '8000'}/files/IITG_logo.png" alt="IITG Logo" class="logo-img" />
         <div class="header-text">
             <div class="inst-hi">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
             <div class="inst-en">Indian Institute of Technology Guwahati</div>

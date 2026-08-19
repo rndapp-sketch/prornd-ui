@@ -3490,7 +3490,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                 <table style={{ ...tbl, border: '1px solid #000', marginBottom: '4px' }}>
                                     <tbody><tr>
                                         <td style={{ width: '14%', padding: '4px', textAlign: 'center', verticalAlign: 'middle', border: '1px solid #000' }}>
-                                            <img src="http://172.16.131.206:8000/files/IITG_logo.png" alt="IITG" style={{ width: '52px', height: 'auto' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                            <img src={`http://${import.meta.env.VITE_APP_BACKEND_HOST || '172.16.131.206'}:${import.meta.env.VITE_APP_BACKEND_PORT || '8000'}/files/IITG_logo.png`} alt="IITG" style={{ width: '52px', height: 'auto' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                                         </td>
                                         <td style={{ padding: '4px 8px', textAlign: 'center', verticalAlign: 'middle' }}>
                                             <div style={{ fontSize: '12pt', fontWeight: 900 }}>भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>

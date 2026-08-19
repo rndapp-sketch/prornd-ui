@@ -3,6 +3,11 @@ import { ToWords } from "to-words";
 
 import type { ActivityItem } from "@/utils/disbursalOfHonorariumPrint";
 
+// The .html?raw template is static text pulled in at build time, so it can't
+// reference import.meta.env itself; substitute the asset host here instead.
+const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.117.39";
+const ASSET_PORT = import.meta.env.VITE_ASSET_PORT || "8000";
+
 function buildActivityLogHtml(items: ActivityItem[]): string {
     const filtered = (items || []).filter(
         (c) =>
@@ -88,6 +93,7 @@ export function generateTemporaryAdvanceHtml(
     const indenterName = resolvedApplicantName || data.applicant_name || data.owner || "";
 
     const cleanHtml = tempTemplate
+        .replace(/http:\/\/172\.16\.117\.39:8000/g, `http://${ASSET_HOST}:${ASSET_PORT}`)
         .replace("{{DOC_REF}}", data.name || "")
         .replace("{{DATE}}", creation)
         .replace("{{PROJECT_CODE}}", data.project_code || "")

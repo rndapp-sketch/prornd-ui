@@ -537,7 +537,7 @@ const AdvanceSettlementDetails: React.FC = () => {
     </div>
 
     <div class="header-box">
-        <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo" class="logo-img" />
+        <img src="http://${import.meta.env.VITE_ASSET_HOST || '172.16.117.39'}:${import.meta.env.VITE_ASSET_PORT || '8000'}/files/IITG_logo.png" alt="IITG Logo" class="logo-img" />
         <div class="header-text">
             <h1>भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</h1>
             <h2>INDIAN INSTITUTE OF TECHNOLOGY GUWAHATI</h2>
