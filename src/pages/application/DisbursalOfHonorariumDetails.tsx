@@ -81,6 +81,8 @@ import {
     FileSpreadsheetIcon as LedgerIcon,
     EditIcon,
     Send,
+    UploadIcon,
+    ExternalLink,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlobalLoader } from "@/components/ui/global-loader";
@@ -203,6 +205,11 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
     // Track commitment staging status to gate workflow action buttons for Staff RnD
     const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
 
+    // Director-signed PDF gate (Dean's discretionary escalation + Staff upload)
+    const [isUpdatingDirectorFlag, setIsUpdatingDirectorFlag] = useState(false);
+    const [isUploadingPdf, setIsUploadingPdf] = useState(false);
+    const directorPdfInputRef = React.useRef<HTMLInputElement>(null);
+
     // --- API HOOKS ---
     const {
         call: fetchFormData,
@@ -231,6 +238,9 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
     );
     const { call: submitForm } = useFrappePostCall(
         disbursalOfHonorariumAPI.submit,
+    );
+    const { call: updateSendToDirectorCall } = useFrappePostCall(
+        disbursalOfHonorariumAPI.updateSendToDirector,
     );
 
     const { currentUser } = useFrappeAuth();
@@ -381,6 +391,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
             r === "staff, RnD" ||
             r === "Hos, RnD (Head of Section, RnD)",
     );
+    const isDeanRnD = roles.some((r) => r === "Dean, RnD" || r === "System Manager");
 
     // --- DATA FETCHING ---
     useEffect(() => {
@@ -568,6 +579,56 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
     };
 
 
+    // --- DIRECTOR-SIGNED PDF GATE ---
+    const workflowState = formData.workflow_state || "Draft";
+    const isAtDeanApproval = workflowState === "Pending Dean Approval";
+    const isAtDirectorApproval = workflowState === "Pending Director Approval";
+    const sendToDirector = Boolean(Number(formData.send_to_director || 0));
+    const directorSignedPdf = String(formData.director_signed_pdf || "").trim();
+    // Backend auto-routes Dean → Director above ₹2,00,000; this opt-in is only
+    // for the Dean's discretionary escalation of a smaller amount.
+    const totalAmount = Number(formData.total_amount || 0);
+    const autoRequiresDirector = totalAmount > 200000;
+    const directorPdfBlocked = isDeanRnD && isAtDirectorApproval && !directorSignedPdf;
+
+    const handleSendToDirector = async () => {
+        if (!id || isUpdatingDirectorFlag) return;
+        setIsUpdatingDirectorFlag(true);
+        try {
+            await updateSendToDirectorCall({ docname: id, send_to_director: 1 });
+            setFormData((prev) => ({ ...prev, send_to_director: 1 }));
+            handleRefresh();
+        } catch (err: any) {
+            setErrorModal({ open: true, title: "Failed to Send for Director Approval", message: parseFrappeError(err) });
+        } finally {
+            setIsUpdatingDirectorFlag(false);
+        }
+    };
+
+    const handleDirectorPdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !id) return;
+        setIsUploadingPdf(true);
+        try {
+            const fileUrl = await uploadFileToFrappe(file);
+            const csrfToken = (window as any).csrf_token;
+            const bindRes = await fetch(`/api/method/${disbursalOfHonorariumAPI.attachDirectorPdf}`, {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json", ...(csrfToken ? { "X-Frappe-CSRF-Token": csrfToken } : {}) },
+                body: JSON.stringify({ docname: id, file_url: fileUrl }),
+            });
+            if (!bindRes.ok) throw new Error(await bindRes.text());
+            setFormData((prev) => ({ ...prev, director_signed_pdf: fileUrl }));
+            handleRefresh();
+        } catch (err: any) {
+            setErrorModal({ open: true, title: "Upload Failed", message: parseFrappeError(err) });
+        } finally {
+            setIsUploadingPdf(false);
+            if (directorPdfInputRef.current) directorPdfInputRef.current.value = "";
+        }
+    };
+
     // No-op handlers for read-only form
     const noOp = () => { };
     const noOpTable = () => { };
@@ -618,6 +679,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                                     formData.workflow_state === "Pending Staff Approval" &&
                                     isCommittedForGate === false
                                 }
+                                directorPdfBlocked={directorPdfBlocked}
                             />
                         )}
                     </div>
@@ -686,6 +748,85 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                             </button>
                         </div>
 
+
+                        {/* Dean's discretionary escalation to Director — only
+                            when the amount doesn't already auto-route there */}
+                        {isDeanRnD && isAtDeanApproval && !autoRequiresDirector && !sendToDirector && (
+                            <div className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
+                                    Director Approval
+                                </h3>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
+                                    Optionally escalate this application for Director sign-off before approving.
+                                </p>
+                                <FrappeButton
+                                    className="w-full"
+                                    variant="outline"
+                                    onClick={handleSendToDirector}
+                                    disabled={isUpdatingDirectorFlag}
+                                >
+                                    {isUpdatingDirectorFlag ? "Saving…" : "Send for Director Approval"}
+                                </FrappeButton>
+                            </div>
+                        )}
+
+                        {/* Director-Signed PDF — Staff uploads, Dean views/is gated */}
+                        {isAtDirectorApproval && (isRnDStaff || isDeanRnD) && (
+                            <div className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
+                                    Director-Signed PDF
+                                </h3>
+                                {directorSignedPdf ? (
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 px-3 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                                            PDF uploaded
+                                        </div>
+                                        <FrappeButton
+                                            className="w-full"
+                                            variant="outline"
+                                            onClick={() => window.open(directorSignedPdf, "_blank", "noopener,noreferrer")}
+                                        >
+                                            <ExternalLink className="w-3.5 h-3.5" />
+                                            View Director PDF
+                                        </FrappeButton>
+                                        {isRnDStaff && (
+                                            <>
+                                                <input ref={directorPdfInputRef} type="file" accept="application/pdf" className="hidden" onChange={handleDirectorPdfUpload} />
+                                                <FrappeButton
+                                                    className="w-full"
+                                                    variant="ghost"
+                                                    onClick={() => directorPdfInputRef.current?.click()}
+                                                    disabled={isUploadingPdf}
+                                                >
+                                                    <UploadIcon className="w-3.5 h-3.5" />
+                                                    {isUploadingPdf ? "Replacing…" : "Replace PDF"}
+                                                </FrappeButton>
+                                            </>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                                            {isRnDStaff ? "Upload the Director-signed scan to unblock Dean approval." : "Awaiting Director-signed PDF upload by Staff."}
+                                        </div>
+                                        {isRnDStaff && (
+                                            <>
+                                                <input ref={directorPdfInputRef} type="file" accept="application/pdf" className="hidden" onChange={handleDirectorPdfUpload} />
+                                                <FrappeButton
+                                                    className="w-full"
+                                                    variant="primary"
+                                                    onClick={() => directorPdfInputRef.current?.click()}
+                                                    disabled={isUploadingPdf}
+                                                >
+                                                    <UploadIcon className="w-3.5 h-3.5" />
+                                                    {isUploadingPdf ? "Uploading…" : "Upload Director PDF"}
+                                                </FrappeButton>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Make a Commitment / Committed Data Display */}
                         {(formData.workflow_state === "Pending Staff Approval" ||

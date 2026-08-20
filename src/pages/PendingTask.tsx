@@ -744,7 +744,7 @@ const PendingTask: React.FC = () => {
     }, [allTasks]);
 
     // Phase-3: fetch director_signed_pdf for all doctypes that support Director Approval flow
-    const DIRECTOR_PDF_DOCTYPES = ["Indent General Form", "Selection Committee Report", "Indent Cum Sanction Sheet"];
+    const DIRECTOR_PDF_DOCTYPES = ["Indent General Form", "Selection Committee Report", "Indent Cum Sanction Sheet", "Disbursal of Honorarium"];
     const [directorPdfStatus, setDirectorPdfStatus] = React.useState<Map<string, boolean>>(new Map());
     React.useEffect(() => {
         const byDoctype = new Map<string, string[]>();
