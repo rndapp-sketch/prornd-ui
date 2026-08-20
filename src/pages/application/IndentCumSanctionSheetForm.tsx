@@ -3152,6 +3152,32 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           } catch (e) {
           }
 
+          // Load all enabled Users so Other PI Webmail Id (and any other
+          // User-link field) isn't limited to whatever subset the backend
+          // pre-packages in link_options.
+          try {
+            const userRes = await getListCall({
+              doctype: "User",
+              fields: ["name", "full_name"],
+              filters: [["enabled", "=", 1]],
+              limit_page_length: 0,
+            });
+            if (userRes?.message?.length) {
+              const allUsers = userRes.message
+                .filter((u: any) => u.name !== "Administrator" && u.name !== "Guest")
+                .map((u: any) => ({
+                  value: u.name,
+                  label: u.full_name ? `${u.full_name} (${u.name})` : u.name,
+                }));
+              setLinkOptions((prev) => ({
+                ...prev,
+                User: mergeLinkOptionLists(prev.User, allUsers),
+                webmail_id: mergeLinkOptionLists(prev.webmail_id, allUsers),
+              }));
+            }
+          } catch (e) {
+          }
+
           if (response.message.computation_rules) {
             setComputationRules(response.message.computation_rules);
           }
@@ -6019,6 +6045,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                         handleFieldChangeWithSideEffects
                       }
                       readOnly={isReadOnly}
+                      autocompleteFields={["icss_other_pi_id"]}
                     />
                   </div>
                 </FrappeCard>
