@@ -63,6 +63,9 @@ import {
   isAnnualMaintenanceContractIndent,
 } from "@/utils/IcssPoPrint";
 
+// Person pickers should be type-to-search, not a long dropdown.
+const ICSS_AUTOCOMPLETE_FIELDS = ['icss_other_pi_id', 'icss_applying_for_mail'];
+
 // --- CLAUDE UI WRAPPERS ---
 const FrappeCard = ({ children, className }: any) => (
   <Card
@@ -6125,6 +6128,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                       onFieldChangeWithSideEffects={
                         handleFieldChangeWithSideEffects
                       }
+                      autocompleteFields={ICSS_AUTOCOMPLETE_FIELDS}
                       readOnly={isReadOnly}
                     />
                   </div>
@@ -6204,6 +6208,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                             onFieldChangeWithSideEffects={
                               handleFieldChangeWithSideEffects
                             }
+                            autocompleteFields={ICSS_AUTOCOMPLETE_FIELDS}
                             readOnly={isReadOnly}
                           />
                         )}

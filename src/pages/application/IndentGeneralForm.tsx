@@ -599,6 +599,9 @@ const IndentGeneralForm: React.FC = () => {
     const isReadOnly = docStatus === 1 || docStatus === 2;
     const effectiveFields = getEffectiveFields(fields, formData);
 
+    // Person pickers should be type-to-search, not a long dropdown.
+    const IGF_AUTOCOMPLETE_FIELDS = ['igf_other_pi_id'];
+
     const commonRendererProps = {
         formData,
         linkOptions,
@@ -610,6 +613,7 @@ const IndentGeneralForm: React.FC = () => {
         onDeleteTableRow: handleDeleteTableRow,
         hideSectionHeaders: true,
         hideTableLabels: true,
+        autocompleteFields: IGF_AUTOCOMPLETE_FIELDS,
     };
 
     if (loading) return <GlobalLoader isLoading={true} />;

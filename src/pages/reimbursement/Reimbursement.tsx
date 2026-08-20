@@ -607,7 +607,7 @@ const parseFrappeError = (errMsg: string, fieldsList: FormField[]): string => {
 };
 
 // --- MAIN REIMBURSEMENT COMPONENT ---
-const AUTOCOMPLETE_FIELDS = ['applicant_webmail', 'reimbursement_for_id'];
+const AUTOCOMPLETE_FIELDS = ['applicant_webmail', 'reimbursement_for_id', 'reimb_applying_for_mail'];
 
 const Reimbursement: React.FC = () => {
     const navigate = useNavigate();
@@ -818,6 +818,31 @@ const Reimbursement: React.FC = () => {
                 }
             } else if (fieldname === 'reimbursement_for_id' && !value) {
                 setFormData(prev => ({ ...prev, reimbursement_for_id: "", reimbursement_for_designation: "", reimbursement_for_department: "" }));
+            }
+
+            // Applying-for beneficiary. The doctype declares fetch_from for these,
+            // but that only resolves server-side on save — the form fills linked
+            // details explicitly, the same way applicant_webmail does above.
+            if (fieldname === 'reimb_applying_for_mail' && value) {
+                const result = await fetchPiDetails({ user_email: value });
+                if (result?.message) {
+                    const details = result.message;
+                    setFormData(prev => ({
+                        ...prev,
+                        reimb_applying_for_mail: value,
+                        reimb_applying_for_name: details.principal_investigator_name || "",
+                        reimb_applying_for_designation: details.designation || "",
+                        reimb_applying_for_department: details.applicant_department || "",
+                    }));
+                }
+            } else if (fieldname === 'reimb_applying_for_mail' && !value) {
+                setFormData(prev => ({
+                    ...prev,
+                    reimb_applying_for_mail: "",
+                    reimb_applying_for_name: "",
+                    reimb_applying_for_designation: "",
+                    reimb_applying_for_department: "",
+                }));
             }
 
             if (fieldname === 'applicant_webmail' && value) {
