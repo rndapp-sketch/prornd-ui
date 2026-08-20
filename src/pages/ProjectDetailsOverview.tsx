@@ -1369,9 +1369,19 @@ const QuickActions = ({
                 }
             } else if (selectedApplication === "Travel") {
                 try {
-                    // Use v2 API which works correctly
+                    // Use v2 API which works correctly.
+                    // The v2 endpoint does not treat limit_page_length=0 as "unlimited"
+                    // the way the v1 REST API does (same issue as Disbursal of
+                    // Honorarium below) — it silently caps to the default page size,
+                    // so older Travel docs (beyond the most recent page, system-wide)
+                    // were dropped before the client-side project filter even ran.
+                    // Filter server-side by travel_project_title and pass an explicit
+                    // high ceiling for both limit param names.
+                    const travelFilters = projectName
+                        ? `&filters=${encodeURIComponent(JSON.stringify([["travel_project_title", "=", projectName]]))}`
+                        : "";
                     const travelPromise = fetch(
-                        `/api/v2/document/Travel?fields=["name","creation","workflow_state","owner","travel_project_title","travel_project_number","webmail_id_travel","applicant_name_travel"]&order_by=creation desc&limit_page_length=0`,
+                        `/api/v2/document/Travel?fields=["name","creation","workflow_state","owner","travel_project_title","travel_project_number","webmail_id_travel","applicant_name_travel"]&order_by=creation desc&limit_page_length=100000&limit=100000${travelFilters}`,
                         {
                             method: "GET",
                             headers: { Accept: "application/json" },
