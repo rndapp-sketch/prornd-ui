@@ -250,6 +250,9 @@ export const disbursalOfHonorariumAPI = {
     performAction: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.perform_disbursal_of_honorarium_action`,
     getByProject: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.get_disbursal_of_honorarium_by_project`,
     getByWebmail: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.get_disbursal_of_honorarium_by_webmail`,
+    updateSendToDirector: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.update_send_to_director_honorarium`,
+    attachDirectorPdf: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.attach_director_pdf_honorarium`,
+    getPendingDirectorUploads: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.get_pending_director_uploads_honorarium`,
 };
 
 // Universal User API endpoints

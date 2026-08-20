@@ -13,12 +13,12 @@ import {
     XIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { selectionCommitteeReportAPI, icssAPI, indentGeneralFormAPI, travelAPI } from "@/services/apiService";
+import { selectionCommitteeReportAPI, icssAPI, indentGeneralFormAPI, travelAPI, disbursalOfHonorariumAPI } from "@/services/apiService";
 import { DepartmentName } from "@/components/DepartmentName";
 
 type PendingDoc = {
     name: string;
-    _doctype: "Selection Committee Report" | "Indent Cum Sanction Sheet" | "Indent General Form" | "Travel";
+    _doctype: "Selection Committee Report" | "Indent Cum Sanction Sheet" | "Indent General Form" | "Travel" | "Disbursal of Honorarium";
     _attachApi: string;
     interview_id?: string;
     principal_investigator?: string;
@@ -30,7 +30,7 @@ type PendingDoc = {
     modified?: string;
 };
 
-type ModuleFilter = "" | "Indent Cum Sanction Sheet" | "Selection Committee Report" | "Indent General Form" | "Travel";
+type ModuleFilter = "" | "Indent Cum Sanction Sheet" | "Selection Committee Report" | "Indent General Form" | "Travel" | "Disbursal of Honorarium";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -40,6 +40,7 @@ const MODULE_OPTIONS: { label: string; short: string; value: ModuleFilter }[] = 
     { label: "Selection Committee Report", short: "SCR", value: "Selection Committee Report" },
     { label: "Indent General Form", short: "IGF", value: "Indent General Form" },
     { label: "Travel", short: "Travel", value: "Travel" },
+    { label: "Disbursal of Honorarium", short: "Honorarium", value: "Disbursal of Honorarium" },
 ];
 
 const MODULE_BADGE: Record<string, { bg: string; text: string }> = {
@@ -59,6 +60,10 @@ const MODULE_BADGE: Record<string, { bg: string; text: string }> = {
         bg: "bg-orange-100 dark:bg-orange-900/40",
         text: "text-orange-700 dark:text-orange-300",
     },
+    "Disbursal of Honorarium": {
+        bg: "bg-pink-100 dark:bg-pink-900/40",
+        text: "text-pink-700 dark:text-pink-300",
+    },
 };
 
 const MODULE_SHORT: Record<string, string> = {
@@ -66,6 +71,7 @@ const MODULE_SHORT: Record<string, string> = {
     "Selection Committee Report": "SCR",
     "Indent General Form": "IGF",
     "Travel": "Travel",
+    "Disbursal of Honorarium": "Honorarium",
 };
 
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
@@ -128,16 +134,27 @@ const DirectorPdfUpload = () => {
         {},
     );
 
-    const isLoading = scrLoading || icssLoading || igfLoading || travelLoading;
+    const {
+        data: honorariumData,
+        isLoading: honorariumLoading,
+        error: honorariumError,
+        mutate: honorariumMutate,
+    } = useFrappeGetCall<{ message: { status: string; data: any[] } }>(
+        disbursalOfHonorariumAPI.getPendingDirectorUploads,
+        {},
+    );
+
+    const isLoading = scrLoading || icssLoading || igfLoading || travelLoading || honorariumLoading;
     // Only block the whole page if every module failed — a single module's
     // endpoint being down (e.g. Indent General Form's director-approval
     // backend isn't implemented yet) shouldn't hide data from the others.
-    const error = scrError && icssError && igfError && travelError;
+    const error = scrError && icssError && igfError && travelError && honorariumError;
     const partiallyFailedModules = [
         scrError && "Selection Committee Report",
         icssError && "Indent Cum Sanction Sheet",
         igfError && "Indent General Form",
         travelError && "Travel",
+        honorariumError && "Disbursal of Honorarium",
     ].filter(Boolean) as string[];
 
     const allDocs: PendingDoc[] = useMemo(() => [
@@ -172,7 +189,15 @@ const DirectorPdfUpload = () => {
             project_number: d.travel_project_number,
             upfa_department: d.department_travel,
         })),
-    ], [icssData, scrData, igfData, travelData]);
+        ...(honorariumData?.message?.data ?? []).map((d: any) => ({
+            ...d,
+            _doctype: "Disbursal of Honorarium" as const,
+            _attachApi: disbursalOfHonorariumAPI.attachDirectorPdf,
+            principal_investigator: d.name_of_applicant || d.webmail_id,
+            project_number: d.project_no || d.project_number,
+            upfa_department: d.applicant_department || d.upfa_department,
+        })),
+    ], [icssData, scrData, igfData, travelData, honorariumData]);
 
     const { call: fetchProjectTitles } = useFrappePostCall<{ message: any[] }>("frappe.client.get_list");
     const [projectTitleMap, setProjectTitleMap] = useState<Record<string, string>>({});
@@ -247,6 +272,7 @@ const DirectorPdfUpload = () => {
         icssMutate();
         igfMutate();
         travelMutate();
+        honorariumMutate();
     };
 
     const handleModuleChange = (val: ModuleFilter) => {
