@@ -1,6 +1,6 @@
 import React from 'react';
 import Editor from '../components/Editor';
-import { AppSidebar } from "../components/RndSidebar";
+
 import UserRoleCheck from "../components/UserRoleCheck"; // Import UserRoleCheck
 
 const Endorsement: React.FC = () => {
@@ -8,8 +8,7 @@ const Endorsement: React.FC = () => {
 
   return (
     <div >
-      {/* Sidebar */}
-      <AppSidebar />
+
 
       {/* Main Content */}
       <div >
