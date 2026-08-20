@@ -86,7 +86,19 @@ const NeoSection = ({ title, children }: any) => (
 
 // --- MEMOIZED TABLE COMPONENTS ---
 const MemoizedTransactionsTable = memo(
-    ({ tableData, onRowChange, onFileChange, onAddRow, onDeleteRow }: any) => {
+    ({ tableData, onRowChange, onFileChange, onAddRow, onDeleteRow, fundReceivedAmt }: any) => {
+        const totalTransactionAmt = (tableData || []).reduce(
+            (sum: number, row: any) =>
+                sum + (row.amount ? parseFloat(row.amount) : 0),
+            0,
+        );
+        const hasFundReceivedAmt =
+            typeof fundReceivedAmt === "number" &&
+            !isNaN(fundReceivedAmt) &&
+            fundReceivedAmt > 0;
+        const isMatch =
+            hasFundReceivedAmt &&
+            Math.abs(totalTransactionAmt - fundReceivedAmt) < 0.01;
         return (
             <div>
                 <h3 className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2.5 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200 mb-3">
@@ -209,6 +221,44 @@ const MemoizedTransactionsTable = memo(
                 >
                     + Add Transaction
                 </button>
+                {(tableData || []).length > 0 && (
+                    <div className="mt-3 flex items-center justify-between px-3 py-2 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
+                        <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                            Transaction Total
+                        </span>
+                        <span
+                            className={`text-sm font-bold ${
+                                hasFundReceivedAmt
+                                    ? isMatch
+                                        ? "text-green-600"
+                                        : totalTransactionAmt > fundReceivedAmt
+                                            ? "text-red-600"
+                                            : "text-blue-600"
+                                    : "text-zinc-800 dark:text-zinc-200"
+                            }`}
+                        >
+                            ₹{totalTransactionAmt.toLocaleString("en-IN")}
+                            {hasFundReceivedAmt && (
+                                <span className="text-zinc-400 dark:text-zinc-500 font-medium">
+                                    {" "}
+                                    / ₹{fundReceivedAmt.toLocaleString("en-IN")}
+                                </span>
+                            )}
+                        </span>
+                    </div>
+                )}
+                {hasFundReceivedAmt && !isMatch && (
+                    <p className="text-xs font-medium mt-1.5 text-blue-600 dark:text-blue-400">
+                        {totalTransactionAmt < fundReceivedAmt
+                            ? `₹${(fundReceivedAmt - totalTransactionAmt).toLocaleString("en-IN")} still unaccounted — add it as a transaction.`
+                            : `Transaction total exceeds the Fund Received Amount by ₹${(totalTransactionAmt - fundReceivedAmt).toLocaleString("en-IN")} — reduce one of the entries.`}
+                    </p>
+                )}
+                {hasFundReceivedAmt && isMatch && (
+                    <p className="text-xs font-medium mt-1.5 text-green-600">
+                        ✓ Transaction total matches Fund Received Amount.
+                    </p>
+                )}
             </div>
         );
     },
@@ -607,6 +657,26 @@ const AddFundReceived: React.FC = () => {
         !isNaN(fundReceivedAmt) &&
         fundReceivedAmt > 0 &&
         Math.abs(totalBreakupAmt - fundReceivedAmt) < 0.01;
+
+    // ── fund_received_amt vs transaction-total validation ──
+    const totalTransactionAmt = (formData.fund_transactions || []).reduce(
+        (sum: number, row: any) =>
+            sum + (row.amount ? parseFloat(row.amount) : 0),
+        0,
+    );
+    const transactionAmtError: { type: "over" | "under"; remaining: number } | null = (() => {
+        if (isNaN(fundReceivedAmt) || fundReceivedAmt === 0) return null;
+        if (totalTransactionAmt > fundReceivedAmt)
+            return { type: "over", remaining: totalTransactionAmt - fundReceivedAmt };
+        if (totalTransactionAmt < fundReceivedAmt)
+            return { type: "under", remaining: fundReceivedAmt - totalTransactionAmt };
+        return null;
+    })();
+    // Both amounts must be non-zero and exactly equal before submit is allowed.
+    const isTransactionAmtValid =
+        !isNaN(fundReceivedAmt) &&
+        fundReceivedAmt > 0 &&
+        Math.abs(totalTransactionAmt - fundReceivedAmt) < 0.01;
 
     const breakupRows: any[] = formData.received_amt_breakup || [];
     const usedAccountHeads = breakupRows
@@ -1075,6 +1145,25 @@ const AddFundReceived: React.FC = () => {
 
         // --- ENHANCED VALIDATION LOGIC WITH DETAILED MESSAGES ---
         try {
+            // ── Validate fund_received_amt vs transaction total ──
+            if (!isTransactionAmtValid) {
+                const diff = totalTransactionAmt - fundReceivedAmt;
+                const isOver = diff > 0;
+                const diffLine = isOver
+                    ? `Exceeded By: ₹${diff.toLocaleString("en-IN")}`
+                    : `Shortfall: ₹${Math.abs(diff).toLocaleString("en-IN")}`;
+                const hint = isOver
+                    ? `The total of all transaction entries must not exceed the Fund Received Amount.`
+                    : `The total of all transaction entries must equal the Fund Received Amount.`;
+                throw new Error(
+                    `❌ TOTAL FUND VALIDATION FAILED\n\n` +
+                    `Transaction Total: ₹${totalTransactionAmt.toLocaleString("en-IN")}\n` +
+                    `Fund Received Amount: ₹${fundReceivedAmt.toLocaleString("en-IN")}\n` +
+                    `${diffLine}\n\n` +
+                    hint,
+                );
+            }
+
             // ── Validate fund_received_amt vs breakup total ──
             if (!isFundAmtBreakupValid) {
                 const diff = totalBreakupAmt - fundReceivedAmt;
@@ -1628,6 +1717,9 @@ const AddFundReceived: React.FC = () => {
                                                     onDeleteRow={
                                                         deleteTransactionRow
                                                     }
+                                                    fundReceivedAmt={
+                                                        fundReceivedAmt
+                                                    }
                                                 />
                                                 <MemoizedBudgetBreakupTable
                                                     tableData={
@@ -1668,7 +1760,7 @@ const AddFundReceived: React.FC = () => {
                                 </FrappeButton>
                                 <FrappeButton
                                     type="submit"
-                                    disabled={isSubmitting || !isFundAmtBreakupValid || hasEmptyAccountHead}
+                                    disabled={isSubmitting || !isFundAmtBreakupValid || !isTransactionAmtValid || hasEmptyAccountHead}
                                     className="bg-[#D97757] text-white border-[#D97757] hover:bg-[#c5684a] disabled:bg-zinc-300"
                                 >
                                     {isSubmitting
@@ -1992,6 +2084,66 @@ const AddFundReceived: React.FC = () => {
                                     Real-time Validation
                                 </h3>
 
+                                {/* Fund Received Amt vs Transaction Total */}
+                                {!isNaN(fundReceivedAmt) &&
+                                    fundReceivedAmt > 0 && (
+                                        <div className="space-y-2 mb-4 pb-4 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
+                                                Fund Received Amount vs Transactions
+                                            </p>
+                                            <ProgressBar
+                                                current={totalTransactionAmt}
+                                                total={fundReceivedAmt}
+                                                label="Transactions vs Received"
+                                                showWarning={true}
+                                            />
+                                            <div className="grid grid-cols-2 gap-2 text-[11px] mt-1">
+                                                <div className="bg-[#FAFAF9] dark:bg-[#18181B] p-2 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46]">
+                                                    <p className="text-zinc-500 dark:text-zinc-400">
+                                                        Fund Received Amt
+                                                    </p>
+                                                    <p className="font-bold text-xs text-zinc-800 dark:text-zinc-200">
+                                                        ₹
+                                                        {fundReceivedAmt.toLocaleString(
+                                                            "en-IN",
+                                                        )}
+                                                    </p>
+                                                </div>
+                                                <div className="bg-[#FAFAF9] dark:bg-[#18181B] p-2 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46]">
+                                                    <p className="text-zinc-500 dark:text-zinc-400">
+                                                        Transaction Total
+                                                    </p>
+                                                    <p
+                                                        className={`text-xs font-bold ${totalTransactionAmt >
+                                                            fundReceivedAmt
+                                                            ? "text-red-600"
+                                                            : totalTransactionAmt ===
+                                                                fundReceivedAmt
+                                                                ? "text-green-600"
+                                                                : "text-blue-600"
+                                                            }`}
+                                                    >
+                                                        ₹
+                                                        {totalTransactionAmt.toLocaleString(
+                                                            "en-IN",
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            {transactionAmtError ? (
+                                                <p className="text-[11px] font-medium mt-1 text-blue-600 dark:text-blue-400">
+                                                    {transactionAmtError.type === "under"
+                                                        ? `₹${transactionAmtError.remaining.toLocaleString("en-IN")} still unaccounted`
+                                                        : `Exceeds by ₹${transactionAmtError.remaining.toLocaleString("en-IN")}`}
+                                                </p>
+                                            ) : (
+                                                <p className="text-[11px] font-semibold text-green-600 mt-1">
+                                                    ✓ Transaction total matches Fund Received Amount
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+
                                 {/* Fund Received Amt vs Breakup Total */}
                                 {!isNaN(fundReceivedAmt) &&
                                     fundReceivedAmt > 0 && (
@@ -2160,6 +2312,7 @@ const AddFundReceived: React.FC = () => {
                                 <div className="mt-4 pt-4 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
                                     {validationState.totalValidation.isValid &&
                                         isFundAmtBreakupValid &&
+                                        isTransactionAmtValid &&
                                         Object.values(
                                             validationState.headValidations,
                                         ).every((v) => v.isValid) ? (
@@ -2183,7 +2336,9 @@ const AddFundReceived: React.FC = () => {
                                                 ℹ Cannot Submit
                                             </p>
                                             <p className="text-[11px] text-blue-600 dark:text-blue-400 mt-1">
-                                                {!isFundAmtBreakupValid
+                                                {!isTransactionAmtValid
+                                                    ? "Transaction total must equal the Fund Received Amount"
+                                                    : !isFundAmtBreakupValid
                                                     ? "Budget breakup total must equal the Fund Received Amount"
                                                     : !validationState.totalValidation.isValid
                                                         ? "Total funds exceed sanctioned amount"

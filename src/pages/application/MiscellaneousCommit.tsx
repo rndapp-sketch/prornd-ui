@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { AppSidebar } from "@/components/RndSidebar";
+
 import { cn } from "@/lib/utils";
 import {
     Plus, ArrowLeftIcon, HelpCircle, X, ArrowRightLeft,
@@ -231,7 +231,7 @@ const MiscellaneousCommit: React.FC = () => {
 
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-            <AppSidebar />
+         
             {/* pb-24: extra clearance so the pagination bar's Next button never
                 sits under the floating "Module Guide" button (fixed bottom-8 right-7). */}
             <main className="flex-1 p-4 md:p-8 pb-24 w-full overflow-hidden">

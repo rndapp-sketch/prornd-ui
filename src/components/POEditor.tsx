@@ -19,8 +19,11 @@ import {
 } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { ToWords } from "to-words";
 import { generatePOHtml, DEFAULT_TERMS, getFormattedTerms } from "@/utils/DpPoPrint";
 import { generatePOHtml as generateIcssPOHtml } from "@/utils/IcssPoPrint";
+
+const toWords = new ToWords({ localeCode: "en-IN", converterOptions: { ignoreDecimal: true } });
 
 // ── Terms Editor Modal ──────────────────────────────────────────────────────
 const icons = {
@@ -529,7 +532,13 @@ export const POEditor: React.FC<POEditorProps> = ({
             quotation_no: ssData.quotation_no || "",
             signee_name: ssData.signee_name || "",
             signee_designation: ssData.signee_designation || "",
-            amount_in_words: ssData.amount_in_words || "",
+            // amount_in_words on the sanction sheet reflects its own total (e.g. basic
+            // value), not the PO grand total — recompute from ss_grand_total so the PO
+            // print shows the correct amount in words. Only fall back to the sanction
+            // sheet's field when no grand total is available at all.
+            amount_in_words: ssData.ss_grand_total
+                ? toWords.convert(Number(ssData.ss_grand_total))
+                : ssData.amount_in_words || "",
             terms_and_conditions:
                 ssData.terms_and_conditions || getFormattedTerms(DEFAULT_TERMS, ssData),
         });
