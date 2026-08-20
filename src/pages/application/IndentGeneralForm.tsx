@@ -593,6 +593,7 @@ const IndentGeneralForm: React.FC = () => {
         onDeleteTableRow: handleDeleteTableRow,
         hideSectionHeaders: true,
         hideTableLabels: true,
+        autocompleteFields: ["igf_other_pi_id"],
     };
 
     if (loading) return <GlobalLoader isLoading={true} />;
