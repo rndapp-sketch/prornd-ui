@@ -496,6 +496,11 @@ export const POEditor: React.FC<POEditorProps> = ({
     const [isUploading, setIsUploading] = useState(false);
     const [uploadedFile, setUploadedFile] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    // Upload requires both a saved PO and an actual upload handler from the
+    // parent — some views (e.g. Task Registry) render this editor read-only
+    // without wiring onUploadSignedPO, and the button must stay disabled there
+    // even once hasSaved is true and Preview & Print unlocks.
+    const canUpload = hasSaved && !!onUploadSignedPO;
     // Track which doc we've already initialized so onChange-driven ssData updates don't reset user input
     const lastInitKeyRef = useRef<string>("");
 
@@ -711,10 +716,10 @@ export const POEditor: React.FC<POEditorProps> = ({
                                 className="hidden"
                             />
                             <button
-                                onClick={hasSaved ? handleUploadClick : undefined}
-                                disabled={isUploading || !hasSaved}
-                                title={!hasSaved ? "Save the PO first to enable upload" : undefined}
-                                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-bold ${hasSaved ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-emerald-200 dark:bg-emerald-900/30 text-emerald-400 dark:text-emerald-600 cursor-not-allowed"} disabled:opacity-60`}
+                                onClick={canUpload ? handleUploadClick : undefined}
+                                disabled={isUploading || !canUpload}
+                                title={!onUploadSignedPO ? "Uploading the signed PO isn't available here" : !hasSaved ? "Save the PO first to enable upload" : undefined}
+                                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-bold ${canUpload ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-emerald-200 dark:bg-emerald-900/30 text-emerald-400 dark:text-emerald-600 cursor-not-allowed"} disabled:opacity-60`}
                             >
                                 {isUploading ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
