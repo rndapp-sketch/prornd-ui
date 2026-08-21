@@ -12,7 +12,7 @@ import { AppSidebar } from '@/components/RndSidebar';
 import { PageHeader } from '@/components/common/PageHeader';
 import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButton';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
-import { travelAPI, advanceSettlementAPI, temporaryAdvanceAPI, tadaAPI, recruitmentAdhocContractualAPI, selectionCommitteeReportAPI, disbursalOfHonorariumAPI } from '@/services/apiService';
+import { travelAPI, advanceSettlementAPI, temporaryAdvanceAPI, tadaAPI, recruitmentAdhocContractualAPI, selectionCommitteeReportAPI, disbursalOfHonorariumAPI, dpPoAPI, directPurchaseAPI } from '@/services/apiService';
 import { useUserRoles } from '@/components/UserRole';
 import { getFileUrl } from '@/utils/fileUtils';
 import { BudgetHeadName } from '@/components/BudgetHeadName';
@@ -751,29 +751,94 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
     const [poSanctionData, setPoSanctionData] = React.useState<Record<string, any> | null>(null);
     const [isLoadingPOData, setIsLoadingPOData] = React.useState(false);
     const [ssSanctionData, setSsSanctionData] = React.useState<Record<string, any> | null>(null);
+    // Whether a dp_po doc already exists for this Direct Purchase — i.e. the PO
+    // has actually been generated (not just that the sanction sheet exists).
+    const [dpPoName, setDpPoName] = React.useState<string | null>(null);
     const navigate = useNavigate();
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
     const isStaffRnD = roles.some(r => ["staff, RnD", "Staff RnD", "RnD Staff", "System Manager"].includes(r));
+    const isPermanentEmployee = roles.some(r => r === "Permanent Employee");
 
     React.useEffect(() => {
         if (activeTab !== 'po' || !docName || poSanctionData) return;
         setIsLoadingPOData(true);
-        const filters = JSON.stringify([["app_id", "=", docName]]);
-        fetch(`/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`, {
-            credentials: 'include', headers: { Accept: 'application/json' },
-        }).then(r => r.json()).then(async res => {
-            const ssName = res?.data?.[0]?.name;
-            if (ssName) {
-                const docRes = await fetch('/api/method/frappe.client.get', {
-                    method: 'POST', credentials: 'include',
-                    headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Frappe-CSRF-Token': (window as any).csrf_token || '' },
-                    body: JSON.stringify({ doctype: 'sanction_sheet', name: ssName }),
-                }).then(r => r.json()).catch(() => null);
-                if (docRes?.message) setPoSanctionData(docRes.message);
+        const csrf = (window as any).csrf_token || '';
+        const load = async () => {
+            const filters = JSON.stringify([["app_id", "=", docName]]);
+            const ssRes = await fetch(`/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`, {
+                credentials: 'include', headers: { Accept: 'application/json' },
+            }).then(r => r.json()).catch(() => null);
+            const ssName = ssRes?.data?.[0]?.name;
+            if (!ssName) return;
+
+            const docRes = await fetch('/api/method/frappe.client.get', {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Frappe-CSRF-Token': csrf },
+                body: JSON.stringify({ doctype: 'sanction_sheet', name: ssName }),
+            }).then(r => r.json()).catch(() => null);
+            const ssDoc = docRes?.message;
+            if (!ssDoc) return;
+
+            // Read-only lookup — unlike the Direct Purchase application page, this
+            // view must NOT auto-create a dp_po doc if one doesn't exist yet.
+            const dpPoRes = await fetch(`/api/method/${dpPoAPI.getByDirectPurchase}`, {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Frappe-CSRF-Token': csrf },
+                body: JSON.stringify({ dp_docname: docName }),
+            }).then(r => r.json()).catch(() => null);
+            const dpPoData = dpPoRes?.message?.data ?? null;
+            const dpPoName = dpPoRes?.message?.docname ?? null;
+            setDpPoName(dpPoName);
+
+            // Signatory details (HoS RnD → fallback rndadmin), same as the Direct
+            // Purchase application page, so the printed PO isn't missing a signee.
+            let signeeName = dpPoData?.signee_name || "";
+            let signeeDesignation = dpPoData?.signee_designation || "";
+            if (!signeeName) {
+                try {
+                    const roleRes = await fetch("/api/method/frappe.client.get_list", {
+                        method: "POST", credentials: "include",
+                        headers: { "Content-Type": "application/json", Accept: "application/json", "X-Frappe-CSRF-Token": csrf },
+                        body: JSON.stringify({ doctype: "Has Role", filters: [["role", "=", "Hos, RnD (Head of Section, RnD)"], ["parenttype", "=", "User"]], fields: ["parent"], limit_page_length: 1 }),
+                    }).then(r => r.json()).catch(() => null);
+                    const hosEmail = roleRes?.message?.[0]?.parent || "";
+                    const targetEmail = hosEmail || "rndadmin@iitg.ac.in";
+                    const detailsRes = await fetch(`/api/method/${directPurchaseAPI.getUserDetails}`, {
+                        method: "POST", credentials: "include",
+                        headers: { "Content-Type": "application/json", Accept: "application/json", "X-Frappe-CSRF-Token": csrf },
+                        body: JSON.stringify({ user_email: targetEmail }),
+                    }).then(r => r.json()).catch(() => null);
+                    const details = detailsRes?.message || {};
+                    signeeName = details.full_name || details.applicant_name || details.name || targetEmail;
+                    signeeDesignation = details.designation_name || details.designation || "";
+                } catch {
+                    // signatory fetch failed — leave blank
+                }
             }
-        }).catch(() => { }).finally(() => setIsLoadingPOData(false));
-    }, [activeTab, docName, poSanctionData]);
+
+            // SS doc is the base; dp_po fields override — mirrors DirectPurchaseDetails.tsx
+            setPoSanctionData({
+                ...ssDoc,
+                ...(dpPoData
+                    ? {
+                        vendor_address: dpPoData.vendor_name_address || ssDoc.ss_name_of_firms || "",
+                        po_number: dpPoData.po_number || ssDoc.name || "",
+                        po_date: dpPoData.po_date || "",
+                        quotation_no: dpPoData.quotation_ref_no || "",
+                        amount_in_words: dpPoData.amount_in_words || "",
+                        terms_and_conditions: dpPoData.terms_and_conditions || "",
+                        _dp_po_items: dpPoData.items || [],
+                    }
+                    : {}),
+                signee_name: signeeName,
+                signee_designation: signeeDesignation,
+                _dp_po_name: dpPoName,
+                dp_indent_value: data?.total_estimate ?? "",
+            });
+        };
+        load().catch(() => { }).finally(() => setIsLoadingPOData(false));
+    }, [activeTab, docName, poSanctionData, data]);
 
     React.useEffect(() => {
         if (activeTab !== 'sanction' || !docName || ssSanctionData) return;
@@ -979,7 +1044,13 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
                             </div>
                         ) :
                         poSanctionData && (isStaffRnD || data?.workflow_state === "POGenerated" || data?.workflow_state === "Sanction Sheet Printed") ? (
-                            <POEditor ssData={poSanctionData} dpId={docName} isStaffRnD={false} isPIReadOnly={true} />
+                            <POEditor
+                                ssData={poSanctionData}
+                                dpId={docName}
+                                isStaffRnD={isStaffRnD}
+                                isPIReadOnly={isPermanentEmployee && !isStaffRnD}
+                                isSaved={!!dpPoName}
+                            />
                         ) : poSanctionData ? (
                             <EmptyState
                                 icon={<ShoppingCartIcon className="h-5 w-5" />}
