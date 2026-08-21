@@ -27,6 +27,13 @@ interface PaymentRecord {
     creation: string;
     modified: string;
     doctype?: string;  // Module/Doctype name
+    // The ledger's /account-head-payments join already computes these per payment
+    // row — used to detect commits that already have a payment against them, so
+    // staff can't re-initiate a second payment on a commit whose status hasn't
+    // caught up yet (see commitPaymentInfo below).
+    transaction_commit_number?: number | null;
+    remaining_amount?: number;
+    commit_status?: string;
 }
 
 // Frappe-styled components
@@ -269,6 +276,9 @@ const Payments: React.FC = () => {
                     creation: p.paymentDate,
                     modified: p.paymentDate,
                     doctype: String(p.moduleId || ''), // store raw moduleId; resolved later via useMemo
+                    transaction_commit_number: p.transactionCommitNumber ?? null,
+                    remaining_amount: p.remainingAmount,
+                    commit_status: p.commitStatus,
                 }));
                 // Sort descending by date
                 loadedPayments.sort((a, b) => {
@@ -283,6 +293,25 @@ const Payments: React.FC = () => {
             setIsLoading(false);
         }
     }, []);
+
+    // Map commit id -> its most recent payment info. The ledger's commit `status`
+    // (COMMITTED/PARTIALLY_PAID/...) frequently doesn't get updated the moment a
+    // payment is created against it — new payments start life as `PENDING` and
+    // the commit can keep showing up as COMMITTED here even after a payment has
+    // already been submitted for it. Without this, "Pay" stays clickable and
+    // staff can (and have) submitted duplicate payments on the same commit.
+    // `payments` is sorted desc by date, so the first entry seen per commit id
+    // is the most recent one.
+    const commitPaymentInfo = React.useMemo(() => {
+        const map = new Map<number, PaymentRecord>();
+        payments.forEach(p => {
+            const commitId = p.transaction_commit_number;
+            if (commitId != null && !map.has(commitId)) {
+                map.set(commitId, p);
+            }
+        });
+        return map;
+    }, [payments]);
 
     // Filter out commits that have module ID '11' or resolved/raw module name 'Recruitment Adhoc Contractual'
     const filteredPendingCommits = React.useMemo(() => {
@@ -707,7 +736,11 @@ const Payments: React.FC = () => {
                                     {searchedPendingCommits.length > 0 ? (
                                         searchedPendingCommits
                                             .slice((commitPage - 1) * commitsPerPage, commitPage * commitsPerPage)
-                                            .map((commit, idx) => (
+                                            .map((commit, idx) => {
+                                                const existingPayment = commit.transactionCommitNumber != null
+                                                    ? commitPaymentInfo.get(commit.transactionCommitNumber)
+                                                    : undefined;
+                                                return (
                                                 <tr key={idx} className="hover:bg-zinc-50 dark:bg-zinc-800/50">
                                                     <td className="p-4 text-sm font-mono font-medium">{commit.projectNumber}</td>
                                                     <td className="p-4 text-sm text-zinc-700 dark:text-zinc-300 font-bold">
@@ -726,15 +759,24 @@ const Payments: React.FC = () => {
                                                         ₹{commit.commitAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                                     </td>
                                                     <td className="p-4">
-                                                        <div className="flex gap-2">
+                                                        <div className="flex gap-2 items-center">
                                                             {isRnDStaff && (
-                                                                <FrappeButton
-                                                                    variant="primary"
-                                                                    className="text-xs py-1 px-3"
-                                                                    onClick={() => initiatePaymentForCommit(commit)}
-                                                                >
-                                                                    Pay
-                                                                </FrappeButton>
+                                                                existingPayment ? (
+                                                                    <span
+                                                                        title={`Payment ${existingPayment.name} (${existingPayment.payment_status}) already exists for this commit. The commit's status here hasn't caught up with the ledger yet — check the History tab before paying again.`}
+                                                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 text-[11px] font-bold whitespace-nowrap"
+                                                                    >
+                                                                        Payment Pending
+                                                                    </span>
+                                                                ) : (
+                                                                    <FrappeButton
+                                                                        variant="primary"
+                                                                        className="text-xs py-1 px-3"
+                                                                        onClick={() => initiatePaymentForCommit(commit)}
+                                                                    >
+                                                                        Pay
+                                                                    </FrappeButton>
+                                                                )
                                                             )}
                                                             <FrappeButton
                                                                 variant="outline"
@@ -767,7 +809,8 @@ const Payments: React.FC = () => {
                                                         </div>
                                                     </td>
                                                 </tr>
-                                            ))
+                                                );
+                                            })
                                     ) : (
                                         <tr>
                                             <td colSpan={9} className="p-8 text-center text-zinc-500 dark:text-zinc-400">
@@ -886,7 +929,11 @@ const Payments: React.FC = () => {
                                     {filteredMiscTabRows.length > 0 ? (
                                         filteredMiscTabRows
                                             .slice((miscPage - 1) * miscPerPage, miscPage * miscPerPage)
-                                            .map((row) => (
+                                            .map((row) => {
+                                                const existingPayment = row.commit.transactionCommitNumber != null
+                                                    ? commitPaymentInfo.get(row.commit.transactionCommitNumber)
+                                                    : undefined;
+                                                return (
                                                 <tr key={row.key} className="hover:bg-zinc-50 dark:bg-zinc-800/50">
                                                     <td className="p-4 text-sm">
                                                         <span className={cn(
@@ -912,17 +959,27 @@ const Payments: React.FC = () => {
                                                     </td>
                                                     <td className="p-4">
                                                         {isRnDStaff && (
-                                                            <FrappeButton
-                                                                variant="primary"
-                                                                className="text-xs py-1 px-3"
-                                                                onClick={() => requestPayConfirmation(row.commit)}
-                                                            >
-                                                                Pay
-                                                            </FrappeButton>
+                                                            existingPayment ? (
+                                                                <span
+                                                                    title={`Payment ${existingPayment.name} (${existingPayment.payment_status}) already exists for this commit. The commit's status here hasn't caught up with the ledger yet — check the History tab before paying again.`}
+                                                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 text-[11px] font-bold whitespace-nowrap"
+                                                                >
+                                                                    Payment Pending
+                                                                </span>
+                                                            ) : (
+                                                                <FrappeButton
+                                                                    variant="primary"
+                                                                    className="text-xs py-1 px-3"
+                                                                    onClick={() => requestPayConfirmation(row.commit)}
+                                                                >
+                                                                    Pay
+                                                                </FrappeButton>
+                                                            )
                                                         )}
                                                     </td>
                                                 </tr>
-                                            ))
+                                                );
+                                            })
                                     ) : (
                                         <tr>
                                             <td colSpan={10} className="p-8 text-center text-zinc-500 dark:text-zinc-400">
