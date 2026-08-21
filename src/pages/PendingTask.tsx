@@ -220,6 +220,9 @@ const PendingTask: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const [currentPage, setCurrentPage] = useState(1);
     const selectedModule = searchParams.get('module') ?? 'all';
+    // Funding Agency only exists on Project Registration — only show the column
+    // when that module is explicitly selected, not for "All" or other modules.
+    const showFundingAgencyColumn = selectedModule === 'Project Registration';
     const searchQuery = searchParams.get('q') ?? '';
     const selectedProjectType = (searchParams.get('type') as ProjectTypeTab) ?? 'Research';
     const searchInputRef = useRef<HTMLInputElement>(null);
@@ -367,9 +370,25 @@ const PendingTask: React.FC = () => {
 
     // Fetch all projects for project_type lookup (single source of truth)
     const { data: allProjectRegistrations } = useFrappeGetDocList("Project Registration", {
-        fields: ["name", "project_no", "project_type"],
+        fields: ["name", "project_no", "project_type", "funding_agen"],
         limit: 1000,
     });
+
+    // Funding Agency id -> display name, same bulk-map pattern used by ProjectsView.tsx's "My Projects" list
+    const { data: allFundingAgencies } = useFrappeGetDocList("fundingagency_", {
+        fields: ["name", "funding_agency_name"],
+        limit: 0,
+    } as any);
+
+    const fundingAgencyNameMap = React.useMemo(() => {
+        const map = new Map<string, string>();
+        (allFundingAgencies ?? []).forEach((agency: any) => {
+            if (agency.name && agency.funding_agency_name) {
+                map.set(agency.name, agency.funding_agency_name);
+            }
+        });
+        return map;
+    }, [allFundingAgencies]);
 
     const allowedProjectNames = React.useMemo(() => {
         if (!isHeadApprover || !headApproverProjects) return null;
@@ -390,17 +409,20 @@ const PendingTask: React.FC = () => {
 
     // prNameToType: PR document name (auto-id) → raw project_type
     // prNoToType:   PR project_no (human-readable) → raw project_type
-    const { prNameToType, prNoToType } = React.useMemo(() => {
+    // prNameToFundingAgen: PR document name → raw funding_agen id (resolved to a display name via fundingAgencyNameMap)
+    const { prNameToType, prNoToType, prNameToFundingAgen } = React.useMemo(() => {
         const prNameToType = new Map<string, string>();
         const prNoToType = new Map<string, string>();
+        const prNameToFundingAgen = new Map<string, string>();
         if (allProjectRegistrations) {
-            allProjectRegistrations.forEach((p: { name: string; project_no?: string; project_type?: string }) => {
+            allProjectRegistrations.forEach((p: { name: string; project_no?: string; project_type?: string; funding_agen?: string }) => {
                 const raw = p.project_type || '';
                 if (p.name) prNameToType.set(p.name, raw);
                 if (p.project_no) prNoToType.set(p.project_no, raw);
+                if (p.name && p.funding_agen) prNameToFundingAgen.set(p.name, p.funding_agen);
             });
         }
-        return { prNameToType, prNoToType };
+        return { prNameToType, prNoToType, prNameToFundingAgen };
     }, [allProjectRegistrations]);
 
     const { data, isLoading, error } = useFrappeGetCall<PendingTaskResponse>(
@@ -966,6 +988,9 @@ const PendingTask: React.FC = () => {
                                     <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
                                     <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Module</th>
                                     <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Title</th>
+                                    {showFundingAgencyColumn && (
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Funding Agency</th>
+                                    )}
                                     <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Project No.</th>
                                     <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
                                     <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Owner</th>
@@ -1005,6 +1030,16 @@ const PendingTask: React.FC = () => {
                                                     <ActivityIcon className="w-3.5 h-3.5 opacity-0 group-hover/title:opacity-100 text-[#D97757] flex-shrink-0 transition-opacity" />
                                                 </button>
                                             </td>
+                                            {showFundingAgencyColumn && (
+                                                <td className="p-3 align-middle text-zinc-600 dark:text-zinc-400">
+                                                    {(() => {
+                                                        if (task.doctype !== "Project Registration") return "-";
+                                                        const fundingAgen = prNameToFundingAgen.get(task.id);
+                                                        if (!fundingAgen) return "-";
+                                                        return fundingAgencyNameMap.get(fundingAgen) || fundingAgen;
+                                                    })()}
+                                                </td>
+                                            )}
                                             <td className="p-3 align-middle font-mono text-zinc-500 dark:text-zinc-400 text-xs">
                                                 {psdProjectNos.get(task.id) || task.projectNo || tufProjectNos.get(task.id) || task["Project Number"]}
                                             </td>
@@ -1050,6 +1085,8 @@ const PendingTask: React.FC = () => {
                                                                 navigate(`/miscellaneous-commit/${task.id}`);
                                                             } else if (task.doctype === "Loan Request") {
                                                                 navigate(`/loan-request/${task.id}`);
+                                                            } else if (task.doctype === "Loan Settlement") {
+                                                                navigate(`/loan-settlement/${task.id}`);
                                                             } else {
                                                                 navigate(`/pending-tasks/${task.doctype}/${task.id}`);
                                                             }
@@ -1075,7 +1112,7 @@ const PendingTask: React.FC = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={7} className="p-12 text-center text-zinc-500 dark:text-zinc-400">
+                                        <td colSpan={showFundingAgencyColumn ? 8 : 7} className="p-12 text-center text-zinc-500 dark:text-zinc-400">
                                             No pending tasks found matching your criteria.
                                         </td>
                                     </tr>
@@ -1287,6 +1324,8 @@ const PendingTask: React.FC = () => {
                                     navigate(`/miscellaneous-commit/${selectedTask.docname}`);
                                 } else if (selectedTask.doctype === "Loan Request") {
                                     navigate(`/loan-request/${selectedTask.docname}`);
+                                } else if (selectedTask.doctype === "Loan Settlement") {
+                                    navigate(`/loan-settlement/${selectedTask.docname}`);
                                 } else {
                                     navigate(`/pending-tasks/${encodeURIComponent(selectedTask.doctype)}/${selectedTask.docname}`);
                                 }

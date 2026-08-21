@@ -1240,6 +1240,8 @@ function getOriginalApplicationRoute(refDoctype: string, refName: string): strin
             return `/travel/${name}`;
         case "Loan Request":
             return `/loan-request/${name}`;
+        case "Loan Settlement":
+            return `/loan-settlement/${name}`;
         case "Miscellaneous Commit":
             return `/miscellaneous-commit/${name}`;
         case "Indent General Form":
@@ -2719,6 +2721,9 @@ const PendingTaskDetails: React.FC = () => {
         }
         if (doctype === "Loan Request" && name) {
             navigate(`/loan-request/${name}`, { replace: true });
+        }
+        if (doctype === "Loan Settlement" && name) {
+            navigate(`/loan-settlement/${name}`, { replace: true });
         }
         if (doctype === "Miscellaneous Commit" && name) {
             navigate(`/miscellaneous-commit/${name}`, { replace: true });
@@ -4810,6 +4815,7 @@ const PendingTaskDetails: React.FC = () => {
                                         billAmount={data?.ta_da_total_claimed ?? data?.total_claimed ?? undefined}
                                         defaultBudgetHead={resolvedTadaAccountHead || undefined}
                                         commitAmountNote="For TA/DA Settlement, the commitment amount is the new total commitment amount (Total Amount Claimed), not the difference from the amount already committed at the time of travel advance."
+                                        includeBillAmount
                                     />
                                 )}
                             {/* Setup for Direct Purchase */}
