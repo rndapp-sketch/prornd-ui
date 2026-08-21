@@ -103,9 +103,11 @@ const calcWorkingDaysForPeriod = (joiningDate: string, termCompletionDate: strin
 const calcProRataBasic = (basic: number, workingDays: number, daysInMonth: number): number =>
     (basic / daysInMonth) * workingDays;
 
+// Assam Professional Tax slabs, effective 15-10-2014
 const calcPTax = (basicSalary: number): number => {
-    if (basicSalary <= 15000) return 0;
-    if (basicSalary <= 25000) return 180;
+    if (basicSalary <= 10000) return 0;
+    if (basicSalary < 15000) return 150;
+    if (basicSalary < 25000) return 180;
     return 208;
 };
 
