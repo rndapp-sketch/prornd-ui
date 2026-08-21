@@ -256,10 +256,7 @@ const FundReceivedWorkflowActions = ({ docname, onActionComplete, onBeforeAction
                 if (result === null) { setModalOpen(false); return; }
                 additionalArgs = result;
             }
-            const actionResult = await performAction({ docname, action: selectedAction, ...additionalArgs });
-            if (comment?.trim()) {
-                try { await addComment({ doctype: "Fund Received", docname, content: `[${selectedAction}] ${comment.trim()}` }); } catch {}
-            }
+            const actionResult = await performAction({ docname, action: selectedAction, comment, ...additionalArgs });
             setModalOpen(false); onActionComplete(actionResult as Record<string, any> | undefined);
         } catch { alert("Failed to perform action. Please try again."); }
     };

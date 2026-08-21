@@ -1165,13 +1165,6 @@ const DirectPurchaseActionButtons = ({
             if (result?.message?.status === "error") {
                 setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(result?.message) });
             } else {
-                if (actionComment.trim()) {
-                    try {
-                        await addComment({ doctype: "Direct Purchase", docname, content: actionComment.trim() });
-                    } catch (e) {
-                        console.warn("Failed to save action comment:", e);
-                    }
-                }
                 alert(result?.message?.message || `Action "${action}" completed.`);
                 if (success) { refreshActions(); onActionComplete(); }
             }
@@ -1367,13 +1360,6 @@ const P11FormActionButtons = ({
             if (result?.message?.status === "error") {
                 setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(result?.message) });
             } else {
-                if (actionComment.trim()) {
-                    try {
-                        await addComment({ doctype: "P_11 Form", docname, content: actionComment.trim() });
-                    } catch (e) {
-                        console.warn("Failed to save action comment:", e);
-                    }
-                }
                 alert(result?.message?.message || `Action "${action}" completed successfully.`);
                 refreshP11Actions();
                 onActionComplete();
@@ -1553,13 +1539,6 @@ const SanctionSheetActionButtons = ({
             if (result?.message?.status === "error") {
                 setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(result?.message) });
             } else {
-                if (actionComment.trim()) {
-                    try {
-                        await addComment({ doctype: "sanction_sheet", docname, content: actionComment.trim() });
-                    } catch (e) {
-                        console.warn("Failed to save action comment:", e);
-                    }
-                }
                 alert(result?.message?.message || `Action "${action}" completed successfully.`);
                 refreshSanctionActions();
                 onActionComplete();
