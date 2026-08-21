@@ -273,6 +273,18 @@ export const loanRequestAPI = {
     performAction: `${API_BASE}.loan_request.loan_request.perform_loan_request_action`,
 };
 
+// Loan Settlement API endpoints (settling a project loan out of an incoming Fund Received)
+export const loanSettlementAPI = {
+    getActiveLoansForProject: `${API_BASE}.loan_settlement.loan_settlement.get_active_loan_for_project`,
+    saveRequests: `${API_BASE}.loan_settlement.loan_settlement.save_loan_settlement_requests`,
+    discardRequests: `${API_BASE}.loan_settlement.loan_settlement.discard_loan_settlement_requests`,
+    getDetails: `${API_BASE}.loan_settlement.loan_settlement.get_loan_settlement_details`,
+    getForFundReceived: `${API_BASE}.loan_settlement.loan_settlement.get_loan_settlements_for_fund_received`,
+    getWorkflowActions: `${API_BASE}.loan_settlement.loan_settlement.get_loan_settlement_workflow_actions`,
+    performAction: `${API_BASE}.loan_settlement.loan_settlement.perform_loan_settlement_action`,
+    retryPublish: `${API_BASE}.loan_settlement.loan_settlement.retry_publish_loan_settlement`,
+};
+
 // Miscellaneous Commit API endpoints
 export const miscellaneousCommitAPI = {
     getFields: `${API_BASE}.miscellaneous_commit.miscellaneous_commit.get_miscellaneous_commit_fields`,
