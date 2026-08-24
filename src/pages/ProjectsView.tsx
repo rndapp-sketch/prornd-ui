@@ -629,20 +629,6 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     isLoading: myProjectsLoading,
     error: myProjectsError,
   } = React.useMemo(() => {
-    if (isHosRnd) {
-      return {
-        myProjects: hosAprovalProjects,
-        isLoading: hosLoading,
-        error: hosError,
-      };
-    }
-    if (isRndStaff) {
-      return {
-        myProjects: rndstaffAprovalProjects,
-        isLoading: rndstaffLoading,
-        error: rndstaffError,
-      };
-    }
     if (isAdministrator) {
       return {
         myProjects: allProjectsForAdmin,
@@ -650,15 +636,22 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
         error: adminError,
       };
     }
-    if (isDoRnd) {
-      return {
-        myProjects: doRndApprovalProjects,
-        isLoading: doRndLoading,
-        error: doRndError,
-      };
-    }
+
+    // HoS RnD / RnD Staff / Dean RnD: show their pending-approval queue, but
+    // ALSO anything they're PI or owner of — an approver can also be the PI
+    // on a project (e.g. dornd@iitg.ac.in), and once that project moves past
+    // their approval stage (e.g. to "Approved") it must not disappear just
+    // because it's no longer in their pending-approval workflow_state.
+    const roleApprovalQueue = isHosRnd
+      ? hosAprovalProjects
+      : isRndStaff
+        ? rndstaffAprovalProjects
+        : isDoRnd
+          ? doRndApprovalProjects
+          : null;
 
     const combined = [
+      ...(roleApprovalQueue ?? []),
       ...(myCreatedProjects ?? []),
       ...(myOwnedProjects ?? []),
     ];
@@ -671,10 +664,13 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
 
     const uniqueProjects = Array.from(uniqueProjectsMap.values());
 
+    const roleQueueLoading = isHosRnd ? hosLoading : isRndStaff ? rndstaffLoading : isDoRnd ? doRndLoading : false;
+    const roleQueueError = isHosRnd ? hosError : isRndStaff ? rndstaffError : isDoRnd ? doRndError : undefined;
+
     return {
       myProjects: uniqueProjects,
-      isLoading: createdLoading || ownedLoading,
-      error: createdError || ownedError,
+      isLoading: createdLoading || ownedLoading || roleQueueLoading,
+      error: createdError || ownedError || roleQueueError,
     };
   }, [
     isAdministrator,
@@ -698,6 +694,10 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     rndstaffAprovalProjects,
     rndstaffLoading,
     rndstaffError,
+    isDoRnd,
+    doRndApprovalProjects,
+    doRndLoading,
+    doRndError,
   ]);
 
   const projectTypeCounts = React.useMemo(() => ({
