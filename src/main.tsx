@@ -87,6 +87,7 @@ import DisbursalOfConsultancyForm from './pages/application/DisbursalOfConsultan
 import DisbursalOfConsultancyDetails from './pages/application/DisbursalOfConsultancyDetails.tsx';
 import LoanRequestForm from './pages/application/LoanRequestForm.tsx';
 import LoanRequestDetails from './pages/application/LoanRequestDetails.tsx';
+import LoanSettlementDetails from './pages/application/LoanSettlementDetails.tsx';
 import MiscellaneousCommit from './pages/application/MiscellaneousCommit.tsx';
 import MiscellaneousCommitForm from './pages/application/MiscellaneousCommitForm.tsx';
 import MiscellaneousCommitDetails from './pages/application/MiscellaneousCommitDetails.tsx';
@@ -651,6 +652,14 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <LoanRequestDetails />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "loan-settlement/:id",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <LoanSettlementDetails />
                         </AuthRouteWrapper>
                     )
                 },
