@@ -215,6 +215,313 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: { isOpen
     );
 };
 
+// ── Overhead/GST <-> Budget Head reconciliation ─────────────────────────────────
+// See DEPOSIT_SLIP_OVERHEAD_GST_BUDGET_HEAD_IMPLEMENTATION.md for the full spec.
+const OVERHEAD_FIELD_BY_TYPE: Record<string, string> = {
+    research_deposit_slip: "overhead_amount",
+    research_consultancy: "overhead_amount",
+    d_consultancy: "total_overhead_amount",
+    e_non_routine: "overhead_amount",
+    t_testing: "overhead_amount",
+    other_event: "overhead_amount",
+};
+const GST_FIELD_BY_TYPE: Record<string, string> = {
+    research_consultancy: "total_gst",
+    d_consultancy: "total_gst",
+    e_non_routine: "total_gst",
+    t_testing: "total_gst",
+    other_event: "gst_final",
+    // research_deposit_slip intentionally absent — no GST concept for that type.
+};
+const OVERHEAD_BUDGET_HEAD_LABEL = "Overhead";
+const GST_BUDGET_HEAD_LABEL = "GST";
+
+// Budget-head reconciliation fields live on the deposit slip doctypes for
+// audit/traceability, but they are NEVER filled in by hand on the deposit
+// slip form — they are populated by the allocation modal + backend transfer.
+// Strip them from the rendered form so staff don't see empty "select a
+// source head" / "add a breakup row" inputs while filling the slip.
+const RECONCILIATION_ONLY_FIELDS = new Set([
+    "budget_head_reconciliation_section",
+    "overhead_source_head",
+    "gst_source_head",
+    "fund_budget_breakup",
+]);
+
+const toNumber = (v: any): number => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
+
+/** Resolve an `account_head` value to its Budget Head label. The field is a
+ * Link to Budget Head but real rows hold one of three forms: the docname
+ * (set via the UI), the numeric Budget Head `id` (historically written by the
+ * Kafka consumer), or the raw label (legacy rows). All three must resolve. */
+const budgetHeadLabelOf = (
+    head: any,
+    budgetHeadOptions: { name: string; budget_head: string; id?: number | string }[],
+): string => {
+    if (head === null || head === undefined || head === "") return "";
+    const headStr = String(head).trim();
+    const byName = budgetHeadOptions.find((b) => b.name === headStr);
+    if (byName) return byName.budget_head;
+    const byId = budgetHeadOptions.find((b) => b.id != null && String(b.id) === headStr);
+    if (byId) return byId.budget_head;
+    return headStr; // already a label, or unresolvable
+};
+
+/** Whether `label` (e.g. "Overhead"/"GST") is already funded on this Fund
+ * Received's budget breakup, and the total currently allocated to it. */
+const resolveBudgetHeadAmount = (
+    breakup: any[] | undefined,
+    budgetHeadOptions: { name: string; budget_head: string; id?: number | string }[],
+    label: string,
+): { funded: boolean; total: number } => {
+    if (!breakup?.length) return { funded: false, total: 0 };
+    const target = label.trim().toLowerCase();
+    let funded = false;
+    let total = 0;
+    breakup.forEach((row: any) => {
+        if (!row.account_head) return;
+        if (budgetHeadLabelOf(row.account_head, budgetHeadOptions).trim().toLowerCase() === target) {
+            funded = true;
+            total += toNumber(row.amount_received);
+        }
+    });
+    return { funded, total };
+};
+
+type BudgetHeadOutcome = "ok" | "blockSilentHead" | "openModal";
+interface BudgetHeadCheckItem { label: string; purpose: "OVERHEAD" | "GST"; outcome: BudgetHeadOutcome; required: number; frTotal: number }
+
+/** Mirrors the 3-outcome table in the implementation doc §3.1. The 4th
+ * combination (both funded and both > 0) is intentionally left to the
+ * server-side amount-match gate — this only decides between "nothing to
+ * do", "block immediately", and "open the transfer modal". */
+const checkBudgetHeadItem = (
+    label: string, purpose: "OVERHEAD" | "GST", required: number, funded: boolean, frTotal: number,
+): BudgetHeadCheckItem => {
+    if (!funded && required <= 0) return { label, purpose, outcome: "ok", required, frTotal };
+    if (funded && required <= 0) return { label, purpose, outcome: "blockSilentHead", required, frTotal };
+    if (!funded && required > 0) return { label, purpose, outcome: "openModal", required, frTotal };
+    return { label, purpose, outcome: "ok", required, frTotal };
+};
+
+interface TransferRow { purpose: "OVERHEAD" | "GST"; label: string; required: number; sourceHead: string }
+
+const BudgetHeadAllocationModal = ({
+    items, breakup, budgetHeadOptions, onCancel, onConfirm, isSubmitting, errorMessage,
+}: {
+    items: BudgetHeadCheckItem[];
+    breakup: any[];
+    budgetHeadOptions: { name: string; budget_head: string }[];
+    onCancel: () => void;
+    onConfirm: (rows: TransferRow[]) => void;
+    isSubmitting: boolean;
+    errorMessage?: string | null;
+}) => {
+    const [stage, setStage] = useState<"notice" | "allocate" | "confirm">("notice");
+    const [rows, setRows] = useState<TransferRow[]>(
+        items.map((it) => ({ purpose: it.purpose, label: it.label, required: it.required, sourceHead: "" })),
+    );
+
+    const headLabel = (headName: any) => budgetHeadLabelOf(headName, budgetHeadOptions);
+
+    const sourceOptions = (breakup || [])
+        .filter((r: any) => r.account_head && toNumber(r.amount_received) > 0)
+        .map((r: any) => ({
+            name: r.account_head as string,
+            label: headLabel(r.account_head),
+            amount: toNumber(r.amount_received),
+        }));
+
+    const namesList = items.map((i) => i.label).join(" or ");
+    const rowSourceAmount = (sourceHead: string) => sourceOptions.find((s) => s.name === sourceHead)?.amount ?? 0;
+    const canContinue = rows.every((r) => r.sourceHead && rowSourceAmount(r.sourceHead) >= r.required);
+
+    const updateRow = (idx: number, sourceHead: string) => {
+        // Switching the source resets nothing else — the required amount is
+        // fixed (not user-editable), only the balance check re-evaluates.
+        setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, sourceHead } : r)));
+    };
+
+    /** The breakup as it WILL look after the transfers are applied — exactly
+     * what gets written to Fund Received, mirrored onto the deposit slip's
+     * fund_budget_breakup, and published to Kafka. Mirrors the backend
+     * debit-source / credit-destination logic in
+     * allocate_deposit_slip_budget_heads so the preview can't drift. */
+    const projectedBreakup = (() => {
+        const projected = (breakup || []).map((r: any) => ({
+            account_head: r.account_head as string,
+            label: headLabel(r.account_head),
+            amount: toNumber(r.amount_received),
+            remarks: r.remarks || "",
+            changed: false,
+            isNew: false,
+        }));
+
+        rows.forEach((row) => {
+            if (!row.sourceHead) return;
+
+            const src = projected.find((p) => p.account_head === row.sourceHead);
+            if (src) { src.amount -= row.required; src.changed = true; }
+
+            // Match the destination row by LABEL, not by account_head — rows
+            // may store a docname, a numeric id, or a raw label (see
+            // budgetHeadLabelOf), so raw-value comparison would miss.
+            const destHeadName = budgetHeadOptions.find(
+                (b) => (b.budget_head || "").trim().toLowerCase() === row.label.trim().toLowerCase(),
+            )?.name;
+            const dest = projected.find(
+                (p) => p.label.trim().toLowerCase() === row.label.trim().toLowerCase(),
+            );
+            if (dest) {
+                dest.amount += row.required;
+                dest.changed = true;
+            } else {
+                projected.push({
+                    account_head: destHeadName || row.label,
+                    label: row.label,
+                    amount: row.required,
+                    remarks: `Allocated from ${headLabel(row.sourceHead)} for ${row.purpose} on Deposit Slip`,
+                    changed: true,
+                    isNew: true,
+                });
+            }
+        });
+
+        return projected;
+    })();
+
+    const projectedTotal = projectedBreakup.reduce((s, r) => s + r.amount, 0);
+
+    const BreakupPreview = () => (
+        <div className="mb-5">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-[#3F3F46] dark:text-[#E4E4E7] mb-2">
+                Resulting Budget Breakup
+            </p>
+            <div className="border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl overflow-hidden">
+                <table className="w-full text-[12px]">
+                    <thead className="bg-[#FAFAF9] dark:bg-[#18181B]">
+                        <tr>
+                            <th className="text-left px-3 py-2 font-bold text-[#71717A] dark:text-[#A1A1AA]">Account Head</th>
+                            <th className="text-right px-3 py-2 font-bold text-[#71717A] dark:text-[#A1A1AA]">Amount (₹)</th>
+                            <th className="text-left px-3 py-2 font-bold text-[#71717A] dark:text-[#A1A1AA]">Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {projectedBreakup.map((r, i) => (
+                            <tr key={`${r.account_head}-${i}`} className={cn("border-t border-[#E4E4E7] dark:border-[#3F3F46]", r.changed && "bg-[#EEF2FF] dark:bg-[#1E293B]")}>
+                                <td className="px-3 py-2 font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                    {r.label}
+                                    {r.isNew && <span className="ml-1.5 text-[10px] font-bold text-[#4A6CF7] uppercase">new</span>}
+                                </td>
+                                <td className="px-3 py-2 text-right font-bold text-[#3F3F46] dark:text-[#E4E4E7]">{r.amount.toLocaleString("en-IN")}</td>
+                                <td className="px-3 py-2 text-[#71717A] dark:text-[#A1A1AA]">{r.remarks || "—"}</td>
+                            </tr>
+                        ))}
+                        <tr className="border-t-2 border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
+                            <td className="px-3 py-2 font-bold text-[#3F3F46] dark:text-[#E4E4E7]">Total</td>
+                            <td className="px-3 py-2 text-right font-bold text-[#3F3F46] dark:text-[#E4E4E7]">{projectedTotal.toLocaleString("en-IN")}</td>
+                            <td className="px-3 py-2 text-[11px] text-[#71717A]">unchanged — money is moved, not added</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-6 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                {stage === "notice" && (
+                    <>
+                        <h3 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-2">Budget Head Allocation Required</h3>
+                        <p className="text-[13px] text-[#71717A] dark:text-[#A1A1AA] mb-5">
+                            No budget head has been allotted money for {namesList}. {items.length > 1 ? "Both must" : "It must"} be allocated to a budget head before this deposit slip can be submitted.
+                        </p>
+                        <div className="flex justify-end gap-2">
+                            <button onClick={onCancel} className="btn-neutral text-sm px-4 py-2 rounded-lg font-semibold">Cancel</button>
+                            <button onClick={() => setStage("allocate")} className="btn-primary-accent text-sm px-4 py-2 rounded-lg font-semibold">Add Fund</button>
+                        </div>
+                    </>
+                )}
+
+                {stage === "allocate" && (
+                    <>
+                        <h3 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-1">Allocate Budget Head{items.length > 1 ? "s" : ""}</h3>
+                        <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] mb-4">Choose an existing budget head to transfer the required amount from. The money moves within Fund Received's existing breakup — nothing new is added.</p>
+                        <div className="space-y-4 mb-5">
+                            {rows.map((row, idx) => {
+                                const available = rowSourceAmount(row.sourceHead);
+                                const insufficient = !!row.sourceHead && available < row.required;
+                                return (
+                                    <div key={row.purpose} className="border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl p-3">
+                                        <p className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-2">
+                                            {row.label} Source Head
+                                        </p>
+                                        <div className="flex gap-2 items-start">
+                                            <div className="flex-1">
+                                                <select
+                                                    value={row.sourceHead}
+                                                    onChange={(e) => updateRow(idx, e.target.value)}
+                                                    className="w-full h-10 px-3 border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] rounded-lg text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7]"
+                                                >
+                                                    <option value="">Select source budget head...</option>
+                                                    {sourceOptions.map((opt) => (
+                                                        <option key={opt.name} value={opt.name}>{opt.label} — ₹{opt.amount.toLocaleString("en-IN")}</option>
+                                                    ))}
+                                                </select>
+                                                <p className="text-[10px] text-[#A1A1AA] mt-1">Amount is debited from this head and credited to {row.label}.</p>
+                                            </div>
+                                            <div className="w-40">
+                                                <input
+                                                    type="text"
+                                                    readOnly
+                                                    value={`₹${row.required.toLocaleString("en-IN")}`}
+                                                    title="Fixed — must match the deposit slip amount"
+                                                    className="w-full h-10 px-3 border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-right cursor-not-allowed"
+                                                />
+                                                <p className="text-[10px] text-[#A1A1AA] mt-1 text-right">from deposit slip</p>
+                                            </div>
+                                        </div>
+                                        {insufficient && (
+                                            <p className="text-[11px] text-red-500 mt-1.5">Only ₹{available.toLocaleString("en-IN")} available; ₹{row.required.toLocaleString("en-IN")} is required — pick a different head.</p>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {rows.some((r) => r.sourceHead) && <BreakupPreview />}
+
+                        <div className="flex justify-end gap-2">
+                            <button onClick={onCancel} className="btn-neutral text-sm px-4 py-2 rounded-lg font-semibold">Cancel</button>
+                            <button onClick={() => setStage("confirm")} disabled={!canContinue} className="btn-primary-accent text-sm px-4 py-2 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed">Continue</button>
+                        </div>
+                    </>
+                )}
+
+                {stage === "confirm" && (
+                    <>
+                        <h3 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-2">Confirm Fund Received Update</h3>
+                        <p className="text-[13px] text-[#71717A] dark:text-[#A1A1AA] mb-4">
+                            This will update the Fund Received budget breakup to the following and republish it to Kafka. If Fund Received is not updated first, this Deposit Slip cannot be consumed on the Accounts side. Continue?
+                        </p>
+                        <BreakupPreview />
+                        {errorMessage && (
+                            <p className="text-[12px] text-red-500 mb-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-lg p-3">{errorMessage}</p>
+                        )}
+                        <div className="flex justify-end gap-2">
+                            <button onClick={onCancel} disabled={isSubmitting} className="btn-neutral text-sm px-4 py-2 rounded-lg font-semibold">Cancel</button>
+                            <button onClick={() => onConfirm(rows)} disabled={isSubmitting} className="btn-primary-accent text-sm px-4 py-2 rounded-lg font-semibold">
+                                {isSubmitting ? "Processing…" : errorMessage ? "Retry" : "Yes, Update & Continue"}
+                            </button>
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+};
+
 // ── depends_on evaluator ───────────────────────────────────────────────────────
 const evaluateDependsOn = (dependsOn: string | null | undefined, formData: FormData): boolean => {
     if (!dependsOn) return true;
@@ -249,24 +556,46 @@ const FundReceivedWorkflowActions = ({ docname, onActionComplete, onBeforeAction
     const { call: addComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedAction, setSelectedAction] = useState("");
+    const [preparing, setPreparing] = useState(false);
+    // Args produced by onBeforeAction (deposit slip payload, chosen source
+    // heads, …). Captured on click, replayed on confirm.
+    const [pendingArgs, setPendingArgs] = useState<{ [key: string]: any }>({});
 
-    const handleActionClick = (action: string) => {
+    // onBeforeAction runs FIRST, on the button click — so any prerequisite it
+    // raises (e.g. the Overhead/GST budget head allocation modal) is resolved
+    // before we ask the user to confirm the action itself. If it aborts
+    // (returns null) the Confirm Action dialog never opens.
+    const handleActionClick = async (action: string) => {
         if (disabledCondition && disabledCondition(action)) return;
-        setSelectedAction(action); setModalOpen(true);
+        setSelectedAction(action);
+
+        if (!onBeforeAction) {
+            setPendingArgs({});
+            setModalOpen(true);
+            return;
+        }
+
+        setPreparing(true);
+        try {
+            const result = await onBeforeAction(action);
+            if (result === null) return; // aborted — no Confirm Action dialog
+            setPendingArgs(result);
+            setModalOpen(true);
+        } catch {
+            alert("Failed to prepare action. Please try again.");
+        } finally {
+            setPreparing(false);
+        }
     };
+
     const handleConfirmAction = async (comment: string) => {
         try {
-            let additionalArgs: { [key: string]: any } = {};
-            if (onBeforeAction) {
-                const result = await onBeforeAction(selectedAction);
-                if (result === null) { setModalOpen(false); return; }
-                additionalArgs = result;
-            }
-            const actionResult = await performAction({ docname, action: selectedAction, ...additionalArgs });
+            const actionResult = await performAction({ docname, action: selectedAction, ...pendingArgs });
             if (comment?.trim()) {
                 try { await addComment({ doctype: "Fund Received", docname, content: `[${selectedAction}] ${comment.trim()}` }); } catch {}
             }
-            setModalOpen(false); onActionComplete(actionResult as Record<string, any> | undefined);
+            setModalOpen(false); setPendingArgs({});
+            onActionComplete(actionResult as Record<string, any> | undefined);
         } catch { alert("Failed to perform action. Please try again."); }
     };
 
@@ -416,6 +745,48 @@ const FundReceivedDetails = () => {
     const [editTransactions, setEditTransactions] = useState<any[]>([]);
     const [isSaving, setIsSaving] = useState(false);
     const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
+
+    // Loan settlements raised from this fund receipt (read-only context).
+    // See docs/loan-settlement-implementation.md.
+    const { data: loanSettlementData } = useFrappeGetCall<{
+        message: { status: string; data: any[] };
+    }>(
+        loanSettlementAPI.getForFundReceived,
+        { fund_received: name },
+        undefined,
+        { revalidateOnFocus: false, isPaused: () => !name },
+    );
+    const loanSettlements = loanSettlementData?.message?.data ?? [];
+
+    // Staff-entered settlement mode / remarks, keyed by Loan Settlement docname.
+    // Collected here (not on a separate page) and sent along with the Forward action,
+    // so the Kafka payload is complete in one publish. See §8 of the design doc.
+    const [loanSettlementInputs, setLoanSettlementInputs] = useState<
+        Record<string, { settlement_mode: string; remarks: string }>
+    >({});
+
+    const updateLoanSettlementInput = useCallback(
+        (settlementName: string, patch: Partial<{ settlement_mode: string; remarks: string }>) => {
+            setLoanSettlementInputs((prev) => ({
+                ...prev,
+                [settlementName]: {
+                    settlement_mode: "",
+                    remarks: "",
+                    ...prev[settlementName],
+                    ...patch,
+                },
+            }));
+        },
+        [],
+    );
+
+    const pendingLoanSettlements = loanSettlements.filter(
+        (s: any) => s.workflow_state === "Pending Staff Processing",
+    );
+
+    // Only the staff role that actually Forwards a Fund Received should be filling
+    // these in — that Forward is what applies and publishes them.
+    const canProcessLoanSettlements = isRndMiscellaneous || isRndStaff;
 
     // Tab state — deposit slip tab appears once a linked slip is found
     const [activeTab, setActiveTab] = useState<"fund" | "deposit_slip">("fund");
@@ -811,7 +1182,7 @@ const FundReceivedDetails = () => {
 
         // Step 2: resolve fields — backend wins, static fallback if backend returned nothing.
         const staticFields = DEPOSIT_SLIP_STATIC_FIELDS[type] || [];
-        const resolvedFields: any[] = Array.isArray(apiFields) && apiFields.length > 0
+        const resolvedFields: any[] = (Array.isArray(apiFields) && apiFields.length > 0
             ? apiFields
             : staticFields;
 
@@ -943,12 +1314,167 @@ const FundReceivedDetails = () => {
         } finally { setIsSubmitting(false); }
     };
 
-    const handleBeforeAction = useCallback(async (action: string): Promise<{ [key: string]: any } | null> => {
-        if ((action === "Forward" || action === "Generate Deposit Slip") && isRndMiscellaneous && !linkedDepositSlip) {
-            return { deposit_slip_data: JSON.stringify(formData), deposit_slip_type: selectedDepositSlipType };
+    const handleConfirmBudgetAllocation = async (rows: TransferRow[]) => {
+        setBudgetModalSubmitting(true);
+        setBudgetModalError(null);
+        try {
+            let json: any;
+            if (budgetModalTransferApplied) {
+                // A prior attempt already updated the breakup but Kafka publish
+                // failed — retry the publish only, don't repeat the transfer
+                // (that would debit the source head a second time).
+                const response = await fetch(
+                    "/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.republish_fund_received_after_allocation",
+                    { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ docname: name }) },
+                );
+                json = await response.json();
+            } else {
+                const transfers = rows.map((r) => ({ source_head: r.sourceHead, amount: r.required, purpose: r.purpose }));
+                const response = await fetch(
+                    "/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.allocate_deposit_slip_budget_heads",
+                    { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ docname: name, transfers: JSON.stringify(transfers) }) },
+                );
+                json = await response.json();
+            }
+
+            if (json.exc) throw new Error(json.exc);
+            const result = json.message;
+            if (!result || result.status !== "success") throw new Error(result?.message || "Allocation failed.");
+
+            if (!result.kafka_published) {
+                setBudgetModalTransferApplied(true);
+                setBudgetModalError(
+                    `Fund Received budget breakup was updated but Kafka publish failed: ${result.error || "unknown error"}. The Deposit Slip cannot be submitted until this succeeds — click Retry.`,
+                );
+                setBudgetModalSubmitting(false);
+                return;
+            }
+
+            // Success — refresh Fund Received data, close the modal, resume the
+            // original action. Hand back the chosen source heads so they get
+            // stored on the deposit slip for audit (overhead_source_head /
+            // gst_source_head).
+            await mutate();
+            const sourceHeads: Record<string, string> = {};
+            rows.forEach((r) => {
+                if (r.purpose === "OVERHEAD") sourceHeads.overhead_source_head = r.sourceHead;
+                if (r.purpose === "GST") sourceHeads.gst_source_head = r.sourceHead;
+            });
+            setBudgetModalItems(null);
+            setBudgetModalSubmitting(false);
+            setBudgetModalError(null);
+            setBudgetModalTransferApplied(false);
+            budgetModalResolverRef.current?.(sourceHeads);
+            budgetModalResolverRef.current = null;
+        } catch (err: any) {
+            setBudgetModalError(err.message || "Failed to allocate budget heads.");
+            setBudgetModalSubmitting(false);
         }
-        return {};
-    }, [isRndMiscellaneous, formData, selectedDepositSlipType, linkedDepositSlip]);
+    };
+
+    const handleCancelBudgetAllocation = () => {
+        setBudgetModalItems(null);
+        setBudgetModalError(null);
+        setBudgetModalSubmitting(false);
+        setBudgetModalTransferApplied(false);
+        budgetModalResolverRef.current?.(null);
+        budgetModalResolverRef.current = null;
+    };
+
+    const handleBeforeAction = useCallback(async (action: string): Promise<{ [key: string]: any } | null> => {
+        // Loan settlements raised from this Fund Received are applied and published on
+        // Forward. Require a settlement mode for each one first — once Forwarded the
+        // event is sent and can't be amended (loanSettlementNumber is an idempotency
+        // key on the Accounts side), so this is the last chance to get it right.
+        const loanSettlementArgs: { [key: string]: any } = {};
+        if (action === "Forward" && pendingLoanSettlements.length > 0) {
+            const missing = pendingLoanSettlements.filter(
+                (s: any) => !loanSettlementInputs[s.name]?.settlement_mode,
+            );
+            if (missing.length > 0) {
+                alert(
+                    `Select a settlement mode for ${missing.length === 1 ? "the loan settlement" : "each loan settlement"} before forwarding:\n` +
+                    missing.map((s: any) => `  • ${s.loan_reference}`).join("\n"),
+                );
+                return null;
+            }
+            loanSettlementArgs.loan_settlements = JSON.stringify(
+                pendingLoanSettlements.map((s: any) => ({
+                    name: s.name,
+                    settlement_mode: loanSettlementInputs[s.name]?.settlement_mode || "",
+                    remarks: loanSettlementInputs[s.name]?.remarks || "",
+                })),
+            );
+        }
+
+        if ((action === "Forward" || action === "Generate Deposit Slip") && isRndMiscellaneous && !linkedDepositSlip) {
+            const payload = { ...loanSettlementArgs, deposit_slip_data: JSON.stringify(formData), deposit_slip_type: selectedDepositSlipType };
+
+            // Overhead/GST <-> Budget Head reconciliation only applies once a
+            // deposit slip type has actually been selected and is being
+            // filled in — not on other Fund Received submissions that happen
+            // to reuse the "Forward"/"Generate Deposit Slip" action label
+            // before the deposit-slip stage is reached. Without this guard,
+            // an existing "Overhead" budget head that's simply part of the
+            // Fund Received's normal multi-category breakup (unrelated to
+            // any deposit slip yet) would incorrectly block the very first
+            // submission, since formData/selectedDepositSlipType are still
+            // empty at that point.
+            if (!selectedDepositSlipType) {
+                return payload;
+            }
+
+            const overheadField = OVERHEAD_FIELD_BY_TYPE[selectedDepositSlipType];
+            const gstField = GST_FIELD_BY_TYPE[selectedDepositSlipType];
+            const overheadRequired = overheadField ? toNumber(formData[overheadField]) : 0;
+            const gstRequired = gstField ? toNumber(formData[gstField]) : 0;
+
+            const breakup = fundData?.received_amt_breakup;
+            const { funded: overheadFunded, total: overheadFrTotal } = resolveBudgetHeadAmount(breakup, budgetHeadOptions, OVERHEAD_BUDGET_HEAD_LABEL);
+            const { funded: gstFunded, total: gstFrTotal } = gstField
+                ? resolveBudgetHeadAmount(breakup, budgetHeadOptions, GST_BUDGET_HEAD_LABEL)
+                : { funded: false, total: 0 };
+
+            const overheadCheck = checkBudgetHeadItem(OVERHEAD_BUDGET_HEAD_LABEL, "OVERHEAD", overheadRequired, overheadFunded, overheadFrTotal);
+            const gstCheck = gstField ? checkBudgetHeadItem(GST_BUDGET_HEAD_LABEL, "GST", gstRequired, gstFunded, gstFrTotal) : null;
+
+            // Rule 2 — Fund Received already has the head funded but this
+            // deposit slip shows nothing: block immediately, no modal.
+            const blocking = [overheadCheck, gstCheck].filter((c): c is BudgetHeadCheckItem => !!c && c.outcome === "blockSilentHead");
+            if (blocking.length > 0) {
+                alert(
+                    blocking
+                        .map((c) => `Fund Received has ₹${c.frTotal.toLocaleString("en-IN")} allocated to '${c.label}', but this deposit slip shows ₹0 ${c.label.toLowerCase()}. Correct the deposit slip before submitting.`)
+                        .join("\n"),
+                );
+                return null;
+            }
+
+            // Rule 3 — money is needed but no head funds it yet: open the transfer modal.
+            const toAllocate = [overheadCheck, gstCheck].filter((c): c is BudgetHeadCheckItem => !!c && c.outcome === "openModal");
+            if (toAllocate.length === 0) {
+                return payload;
+            }
+
+            setBudgetModalItems(toAllocate);
+            setBudgetModalError(null);
+            setBudgetModalTransferApplied(false);
+            const modalResult = await new Promise<{ [key: string]: any } | null>((resolve) => {
+                budgetModalResolverRef.current = (result) => resolve(result ?? null);
+            });
+            if (!modalResult) return null;
+
+            // Carry the chosen source heads onto the deposit slip itself.
+            return {
+                ...payload,
+                deposit_slip_data: JSON.stringify({ ...formData, ...modalResult }),
+            };
+        }
+        return loanSettlementArgs;
+    }, [
+        isRndMiscellaneous, formData, selectedDepositSlipType, linkedDepositSlip,
+        fundData, budgetHeadOptions, pendingLoanSettlements, loanSettlementInputs,
+    ]);
 
     const accountPortalAlertEntry = useAccountPortalAlert(name);
     const [accountPortalAlertDismissed, setAccountPortalAlertDismissed] = useState(false);
@@ -1279,6 +1805,163 @@ const FundReceivedDetails = () => {
                 {!showDepositSlip && (
                     <div className="space-y-4">
 
+                        {/* ── Loan Settlement(s) requested from this fund receipt (read-only) ── */}
+                        {loanSettlements.length > 0 && (
+                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden shadow-sm">
+                                <div className="flex items-center gap-2 px-5 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
+                                    <div className="w-7 h-7 rounded-md bg-[#FFF7ED] flex items-center justify-center text-[#D97757]">
+                                        <IndianRupee className="w-3.5 h-3.5" />
+                                    </div>
+                                    <h3 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                        Loan Settlement{loanSettlements.length > 1 ? "s" : ""} Requested
+                                    </h3>
+                                    <span className="ml-auto text-[11px] font-bold text-[#D97757] bg-[#FFF7ED] dark:bg-[#D97757]/15 px-2.5 py-1 rounded-lg">
+                                        {loanSettlements.length}
+                                    </span>
+                                </div>
+                                <div className="p-5 space-y-3">
+                                    {loanSettlements.map((s: any) => (
+                                        <div
+                                            key={s.name}
+                                            className="flex items-center justify-between gap-4 flex-wrap py-2.5 border-b border-[#F4F4F5] dark:border-[#3F3F46] last:border-0"
+                                        >
+                                            <div className="min-w-0">
+                                                <div className="text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] font-mono">
+                                                    {s.loan_reference}
+                                                </div>
+                                                <div className="mt-0.5 flex items-center gap-2 flex-wrap text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
+                                                    <span>{s.settlement_type} settlement</span>
+                                                    {s.settlement_date && <span>· {s.settlement_date}</span>}
+                                                    {s.settlement_mode && <span>· {s.settlement_mode}</span>}
+                                                    <span className="font-mono">· {s.name}</span>
+                                                </div>
+                                                {s.remarks && (
+                                                    <div className="mt-0.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA] italic">
+                                                        {s.remarks}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="text-right shrink-0">
+                                                <div className="text-[13px] font-extrabold text-[#D97757]">
+                                                    ₹ {Number(s.settlement_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </div>
+                                                <div className="mt-1 flex items-center gap-1.5 justify-end">
+                                                    <span className={cn(
+                                                        "px-1.5 py-0.5 rounded text-[10px] font-bold",
+                                                        s.workflow_state === "Processed"
+                                                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                                                            : s.workflow_state === "Rejected"
+                                                                ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                                                                : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+                                                    )}>
+                                                        {s.workflow_state}
+                                                    </span>
+                                                    {s.publish_status === "Published" && (
+                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                                            Sent
+                                                        </span>
+                                                    )}
+                                                    {s.publish_status === "Failed" && (
+                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                                                            Not sent
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Head-wise return — what the Accounts service is told
+                                                to credit back against each budget head. */}
+                                            {s.budget_breakup?.length > 0 && (
+                                                <div className="w-full mt-1.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] overflow-hidden">
+                                                    <table className="min-w-full text-[11px]">
+                                                        <thead className="bg-[#FAFAF9] dark:bg-[#18181B]">
+                                                            <tr>
+                                                                <th className="px-2.5 py-1.5 text-left font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider text-[10px]">
+                                                                    Returned to Budget Head
+                                                                </th>
+                                                                <th className="px-2.5 py-1.5 text-right font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider text-[10px]">
+                                                                    Amount
+                                                                </th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]">
+                                                            {s.budget_breakup.map((b: any, bi: number) => (
+                                                                <tr key={`${s.name}-${bi}`}>
+                                                                    <td className="px-2.5 py-1.5 text-[#3F3F46] dark:text-[#E4E4E7]">
+                                                                        <BudgetHeadName
+                                                                            value={b.account_head}
+                                                                            options={budgetHeadOptions}
+                                                                        />
+                                                                    </td>
+                                                                    <td className="px-2.5 py-1.5 text-right font-semibold text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
+                                                                        ₹{" "}
+                                                                        {Number(b.return_amount || 0).toLocaleString("en-IN", {
+                                                                            minimumFractionDigits: 2,
+                                                                            maximumFractionDigits: 2,
+                                                                        })}
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+
+                                            {/* Staff input — captured here, applied and published
+                                                when this Fund Received is Forwarded. */}
+                                            {canProcessLoanSettlements &&
+                                                s.workflow_state === "Pending Staff Processing" && (
+                                                <div className="w-full mt-1 pt-3 border-t border-[#F4F4F5] dark:border-[#3F3F46] grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
+                                                            Settlement Mode <span className="text-red-500">*</span>
+                                                        </label>
+                                                        <select
+                                                            value={loanSettlementInputs[s.name]?.settlement_mode ?? ""}
+                                                            onChange={(e) =>
+                                                                updateLoanSettlementInput(s.name, {
+                                                                    settlement_mode: e.target.value,
+                                                                })
+                                                            }
+                                                            className="w-full h-9 px-2.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#18181B] text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:border-[#D97757] focus:ring-[3px] focus:ring-[#D97757]/12"
+                                                        >
+                                                            <option value="">— Select —</option>
+                                                            {["Physical", "PFMS", "Offline", "Online"].map((m) => (
+                                                                <option key={m} value={m}>{m}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
+                                                            Remarks
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            value={loanSettlementInputs[s.name]?.remarks ?? ""}
+                                                            onChange={(e) =>
+                                                                updateLoanSettlementInput(s.name, {
+                                                                    remarks: e.target.value,
+                                                                })
+                                                            }
+                                                            placeholder="Optional note…"
+                                                            className="w-full h-9 px-2.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#18181B] text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] focus:outline-none focus:border-[#D97757] focus:ring-[3px] focus:ring-[#D97757]/12"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+
+                                    {canProcessLoanSettlements && pendingLoanSettlements.length > 0 && (
+                                        <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] leading-relaxed pt-1">
+                                            Select a settlement mode for each loan. These are recorded and sent to
+                                            the Accounts service when you <strong>Forward</strong> this Fund Received.
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
                         {/* ── Budget Breakup ── */}
                         <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden shadow-sm">
                             <div className="flex items-center gap-2 px-5 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
@@ -1482,6 +2165,7 @@ const FundReceivedDetails = () => {
                                 ))}
                             </div>
                         </div>
+
 
                     </div>
                 )}
