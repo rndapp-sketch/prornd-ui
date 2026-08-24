@@ -2125,9 +2125,38 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     ? String(previousIcssCommitment.transactionId)
     : "";
   const poCommitAmount = React.useMemo(
-    () => getIcssPoCommitAmount(poDraftData, formData),
+    // Round off — grand_total sources can carry GST-calc fractions (e.g.
+    // 1539900.1593); the commitment amount should prefill as whole rupees.
+    () => Math.round(getIcssPoCommitAmount(poDraftData, formData)),
     [formData, poDraftData],
   );
+
+  // The PO commitment (below) supersedes the indent-stage commitment shown as
+  // "Previous Commitment" — the backend releases/adjusts that earlier amount
+  // when this one is submitted, rather than the two coexisting. headBalances
+  // still reflects the old commitment as locked, so add it back for the head
+  // it was booked against — otherwise the availability check below wrongly
+  // treats budget as double-booked and blocks a commit that fits once the
+  // old one is released.
+  const poCommitHeadBalances = React.useMemo(() => {
+    if (!previousIcssCommitment?.head || !previousIcssCommitment.committed) {
+      return headBalances;
+    }
+    const head = previousIcssCommitment.head;
+    const existing = headBalances[head];
+    if (!existing) return headBalances;
+    return {
+      ...headBalances,
+      [head]: {
+        ...existing,
+        // Round off — summing ledger figures can leave stray paise/float
+        // artifacts (e.g. ₹1,21,881.841 + ₹15,39,900.159), and Available
+        // should read as a clean whole-rupee figure.
+        commitable: Math.round(existing.commitable + previousIcssCommitment.committed),
+        actual: Math.round(existing.actual + previousIcssCommitment.committed),
+      },
+    };
+  }, [headBalances, previousIcssCommitment]);
   const commitRequired =
     workflowState === "Pending Staff Approval" &&
     isRnDStaff &&
@@ -6276,6 +6305,35 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                             ).toLocaleString("en-IN")}
                           </p>
                         </div>
+                        {!!poCommitAmount && (() => {
+                          const previousAmount = Math.round(previousIcssCommitment.committed || 0);
+                          const diff = poCommitAmount - previousAmount;
+                          const diffLabel =
+                            diff > 0
+                              ? `+₹${diff.toLocaleString("en-IN")} more`
+                              : diff < 0
+                                ? `-₹${Math.abs(diff).toLocaleString("en-IN")} less`
+                                : "No change";
+                          return (
+                            <div className="mt-3 flex items-center justify-between text-xs">
+                              <span className="text-zinc-500 dark:text-zinc-400">
+                                New PO Commitment vs Previous
+                              </span>
+                              <span
+                                className={cn(
+                                  "font-bold",
+                                  diff > 0
+                                    ? "text-amber-600 dark:text-amber-400"
+                                    : diff < 0
+                                      ? "text-emerald-600 dark:text-emerald-400"
+                                      : "text-zinc-500 dark:text-zinc-400",
+                                )}
+                              >
+                                {diffLabel}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </FrappeCard>
                   )}
@@ -6286,7 +6344,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                   frapAppId={currentDocName}
                   projectName={projectCode}
                   budgetHeads={budgetHeads}
-                  headBalances={headBalances}
+                  headBalances={poCommitHeadBalances}
                   defaultBudgetHead={defaultCommitBudgetHead}
                   actualBalance={actualBalance}
                   commitableBalance={commitableBalance}
