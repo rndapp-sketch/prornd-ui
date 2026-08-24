@@ -481,9 +481,11 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     }, [commitHead]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Pre-fill amount from billAmount prop ─────────────────────────────────
+    // Commitment amounts are whole rupees — round off any fractional value
+    // (e.g. a GST-calc source amount like 1539900.1593) before prefilling.
     useEffect(() => {
         if (billAmount != null && billAmount > 0) {
-            setCommitAmount(String(billAmount));
+            setCommitAmount(String(Math.round(billAmount)));
         }
     }, [billAmount]);
 
@@ -712,11 +714,10 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
         }
     };
 
+    // Commitment amounts are whole rupees only — strip decimal input entirely
+    // rather than allowing paise to be typed.
     const handleCommitAmountChange = (value: string) => {
-        const cleaned = value
-            .replace(/,/g, "")
-            .replace(/[^\d.]/g, "")
-            .replace(/(\..*)\./g, "$1");
+        const cleaned = value.replace(/,/g, "").replace(/[^\d]/g, "");
         setCommitAmount(cleaned);
     };
 
@@ -842,12 +843,13 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                     <input
                         type="number"
                         min="0"
+                        step="1"
                         value={commitAmount}
                         onChange={(e) => handleCommitAmountChange(e.target.value)}
                         disabled={disabled}
                         onWheel={(e) => e.currentTarget.blur()}
                         onKeyDown={(e) => {
-                            if (["e", "E", "+", "-"].includes(e.key)) {
+                            if (["e", "E", "+", "-", "."].includes(e.key)) {
                                 e.preventDefault();
                             }
                         }}
