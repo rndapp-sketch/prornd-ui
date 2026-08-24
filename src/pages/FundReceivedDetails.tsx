@@ -37,6 +37,7 @@ import { getFileUrl } from "@/utils/fileUtils";
 import { BudgetHeadName } from "@/components/BudgetHeadName";
 import { ErrorModal } from "../components/ErrorModal";
 import { parseFrappeError } from "../utils/errorUtils";
+import { loanSettlementAPI } from "@/services/apiService";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -607,7 +608,7 @@ const FundReceivedWorkflowActions = ({ docname, onActionComplete, onBeforeAction
         return (
             <>
                 <button onClick={() => handleActionClick(action)}
-                    disabled={actionLoading || isDisabled}
+                    disabled={actionLoading || preparing || isDisabled}
                     className={cn("inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-bold uppercase tracking-wide transition-all",
                         isDisabled ? "opacity-40 cursor-not-allowed bg-[#FAFAF9] dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] text-[#71717A]"
                                    : "bg-[#D97757] hover:bg-[#c66a4e] text-white shadow-sm hover:shadow-md"
@@ -623,7 +624,7 @@ const FundReceivedWorkflowActions = ({ docname, onActionComplete, onBeforeAction
         <>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <button disabled={actionLoading}
+                    <button disabled={actionLoading || preparing}
                         className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-bold uppercase tracking-wide transition-all bg-[#D97757] hover:bg-[#c66a4e] text-white shadow-sm hover:shadow-md disabled:opacity-40 disabled:cursor-not-allowed">
                         Actions
                         <ChevronDown className="h-3.5 w-3.5" />
@@ -792,6 +793,14 @@ const FundReceivedDetails = () => {
     const [activeTab, setActiveTab] = useState<"fund" | "deposit_slip">("fund");
     const [linkedDepositSlip, setLinkedDepositSlip] = useState<{ name: string; doctype: string } | null>(null);
     const [slipRefreshKey, setSlipRefreshKey] = useState(0);
+
+    // Overhead/GST <-> Budget Head reconciliation modal state (see
+    // DEPOSIT_SLIP_OVERHEAD_GST_BUDGET_HEAD_IMPLEMENTATION.md §3.3).
+    const [budgetModalItems, setBudgetModalItems] = useState<BudgetHeadCheckItem[] | null>(null);
+    const [budgetModalSubmitting, setBudgetModalSubmitting] = useState(false);
+    const [budgetModalError, setBudgetModalError] = useState<string | null>(null);
+    const [budgetModalTransferApplied, setBudgetModalTransferApplied] = useState(false);
+    const budgetModalResolverRef = React.useRef<((v: { [key: string]: any } | null) => void) | null>(null);
 
     const { data: docData, isLoading: docLoading, error: docError, mutate: mutateDoc } = useFrappeGetDoc("Fund Received", name || "");
 
@@ -1184,7 +1193,8 @@ const FundReceivedDetails = () => {
         const staticFields = DEPOSIT_SLIP_STATIC_FIELDS[type] || [];
         const resolvedFields: any[] = (Array.isArray(apiFields) && apiFields.length > 0
             ? apiFields
-            : staticFields;
+            : staticFields
+        ).filter((f: any) => !RECONCILIATION_ONLY_FIELDS.has(f?.fieldname));
 
         if (resolvedFields.length > 0) {
             const processedFields = resolvedFields.map((field: any) => {
@@ -2283,6 +2293,19 @@ const FundReceivedDetails = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* ── Overhead/GST Budget Head allocation modal ── */}
+            {budgetModalItems && (
+                <BudgetHeadAllocationModal
+                    items={budgetModalItems}
+                    breakup={fundData?.received_amt_breakup || []}
+                    budgetHeadOptions={budgetHeadOptions}
+                    onCancel={handleCancelBudgetAllocation}
+                    onConfirm={handleConfirmBudgetAllocation}
+                    isSubmitting={budgetModalSubmitting}
+                    errorMessage={budgetModalError}
+                />
             )}
 
             <ErrorModal

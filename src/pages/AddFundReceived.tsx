@@ -9,6 +9,7 @@ import { ArrowLeftIcon, LightbulbIcon, AlertCircleIcon } from "lucide-react";
 import { AutocompleteEmail } from "../components/AutocompleteEmail";
 import { ErrorModal } from "../components/ErrorModal";
 import { parseFrappeError } from "../utils/errorUtils";
+import { loanSettlementAPI } from "@/services/apiService";
 
 // --- TYPE DEFINITIONS ---
 interface Field {
@@ -102,24 +103,9 @@ const MemoizedTransactionsTable = memo(
             Math.abs(totalTransactionAmt - fundReceivedAmt) < 0.01;
         return (
             <div>
-                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-                    <h3 className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2.5 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200">
-                        Transaction Details
-                    </h3>
-                    {hasTarget && (
-                        <span
-                            className={`text-[11px] font-semibold ${balanced
-                                ? "text-green-600 dark:text-green-400"
-                                : "text-blue-600 dark:text-blue-400"}`}
-                        >
-                            {balanced
-                                ? `✓ Total ₹${(total || 0).toLocaleString("en-IN")} matches the Fund Received Amount`
-                                : diff < 0
-                                    ? `₹${Math.abs(diff).toLocaleString("en-IN")} still to be entered — transactions total ₹${(total || 0).toLocaleString("en-IN")} of ₹${target.toLocaleString("en-IN")}`
-                                    : `Transactions exceed the Fund Received Amount by ₹${diff.toLocaleString("en-IN")}`}
-                        </span>
-                    )}
-                </div>
+                <h3 className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2.5 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200 mb-3">
+                    Transaction Details
+                </h3>
                 <div className="overflow-x-auto border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl">
                     <table className="min-w-full divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
                         <thead className="bg-[#EEF2FF] dark:bg-blue-950/20">
@@ -1361,20 +1347,6 @@ const AddFundReceived: React.FC = () => {
         amountsMatch(totalBreakupAmt, fundReceivedAmt) &&
         amountsMatch(totalTransactionAmt, fundReceivedAmt);
 
-    // ── fund_received_amt vs transaction-total validation ──
-    const totalTransactionAmt = (formData.fund_transactions || []).reduce(
-        (sum: number, row: any) =>
-            sum + (row.amount ? parseFloat(row.amount) : 0),
-        0,
-    );
-    const transactionAmtError: { type: "over" | "under"; remaining: number } | null = (() => {
-        if (isNaN(fundReceivedAmt) || fundReceivedAmt === 0) return null;
-        if (totalTransactionAmt > fundReceivedAmt)
-            return { type: "over", remaining: totalTransactionAmt - fundReceivedAmt };
-        if (totalTransactionAmt < fundReceivedAmt)
-            return { type: "under", remaining: fundReceivedAmt - totalTransactionAmt };
-        return null;
-    })();
     // Both amounts must be non-zero and exactly equal before submit is allowed.
     const isTransactionAmtValid =
         !isNaN(fundReceivedAmt) &&
