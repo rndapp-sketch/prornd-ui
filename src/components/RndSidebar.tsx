@@ -517,19 +517,20 @@ export function AppSidebar() {
                 <SidebarHeader className="gap-0 p-0 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#18181B]">
                     <div className="h-[2px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-transparent" />
                     <div className={cn(
-                        "flex items-center h-[3.25rem] transition-all duration-200",
-                        state === "expanded" ? "px-4 gap-3" : "justify-center px-0",
+                        "flex items-center h-[3.5rem] transition-all duration-200",
+                        state === "expanded" ? "px-3 gap-2.5" : "justify-center px-0",
                     )}>
-                        <div className="flex items-center justify-center w-8 h-8 rounded-lg overflow-hidden flex-shrink-0 bg-white border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-0.5">
-                            <img src="/IITG_Large_Logo.gif" alt="IITG Logo" className="w-full h-full object-contain" />
+                        <div className="flex items-center justify-center h-10 w-auto flex-shrink-0">
+                            <img src="/pragati_rnd_logo_light.png" alt="PRAGATI R&D Logo" className="h-full w-auto object-contain dark:hidden" />
+                            <img src="/pragati_rnd_logo_dark.png" alt="PRAGATI R&D Logo" className="hidden h-full w-auto object-contain dark:block" />
                         </div>
                         {state === "expanded" && (
                             <div className="flex flex-col overflow-hidden min-w-0">
-                                <span className="text-[13px] font-extrabold tracking-tight text-[#1E3A8A] dark:text-[#93C5FD] whitespace-nowrap leading-tight">
-                                    R&D Portal
+                                <span className="text-[12px] font-extrabold tracking-tight text-[#0F3C6F] dark:text-[#93C5FD] whitespace-nowrap leading-tight">
+                                    PRAGATI R&D
                                 </span>
-                                <span className="text-[10px] font-medium text-[#71717A] dark:text-[#71717A] whitespace-nowrap leading-tight">
-                                    IIT Guwahati
+                                <span className="text-[10px] font-semibold text-[#D97757] dark:text-[#E88B6A] whitespace-nowrap leading-tight">
+                                    IIT GUWAHATI
                                 </span>
                             </div>
                         )}

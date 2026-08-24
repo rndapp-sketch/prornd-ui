@@ -175,7 +175,7 @@ function AppContent() {
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <SidebarTrigger className="h-8 w-8 flex items-center justify-center text-[#71717A] hover:text-[#D97757] hover:bg-[#D97757]/10 dark:text-[#71717A] dark:hover:text-[#E88B6A] dark:hover:bg-[#D97757]/10 transition-all rounded-lg border border-transparent hover:border-[#D97757]/20" />
                     <div className="hidden md:block h-5 w-px bg-[#E4E4E7] dark:bg-[#3F3F46]" />
-                    {/* Optional: App name chip on small screens */}
+                    {/* App name chip on small screens */}
                     <div className="flex md:hidden items-center gap-1.5">
                       <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#D97757]">
                         ProRnD

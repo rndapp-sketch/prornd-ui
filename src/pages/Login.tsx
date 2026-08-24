@@ -12,7 +12,6 @@ import {
   BookOpen,
   Mail,
   LockKeyhole,
-  Landmark,
   CircleAlert,
   KeyRound
 } from 'lucide-react';
@@ -167,29 +166,32 @@ const Login: React.FC = () => {
           <img
             src="/rnd_login_bg.png"
             alt="IIT Guwahati campus"
-            className="absolute inset-0 h-full w-full object-cover"
+            className="absolute inset-0 h-full w-full object-cover filter brightness-105 contrast-110"
           />
-          <div className="absolute inset-0 bg-[#18181B]/40" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#18181B]/90 via-[#18181B]/28 to-[#1E3A8A]/18" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0B1E38]/85 via-[#0F3C6F]/35 to-transparent" />
+          <div className="absolute inset-0 bg-[#0B1E38]/20" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-blue-400/20 via-transparent to-transparent pointer-events-none" />
 
           <div className="relative z-10 flex h-full flex-col justify-between p-8 xl:p-10">
-            <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-white/20 bg-white/90 shadow-sm">
-                <img src="/IITG_Large_Logo.gif" alt="IITG Logo" className="h-11 w-11 object-contain" />
-              </div>
-              <div>
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-white/72">Indian Institute of Technology Guwahati</p>
-                <p className="mt-1 text-[16px] font-extrabold tracking-normal text-white">Research & Development Cell</p>
-              </div>
+            <div>
+              <p className="text-[14px] sm:text-[16px] font-black uppercase tracking-[0.2em] text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+                Indian Institute of Technology Guwahati
+              </p>
+              <p className="mt-1 text-[26px] sm:text-[32px] font-black tracking-tight text-amber-300 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] leading-tight">
+                Research & Development Cell
+              </p>
             </div>
 
             <div className="max-w-2xl pb-4">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/12 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-white backdrop-blur">
-                <ShieldCheck className="h-3.5 w-3.5" />
+                <ShieldCheck className="h-3.5 w-3.5 text-amber-300" />
                 Secure R&D Operations
               </div>
               <h1 className="max-w-2xl text-[36px] font-extrabold leading-[1.08] tracking-normal text-white xl:text-[44px]">
-                Advancing the Frontiers of Global Research
+                Advancing the Frontiers of <br />
+                <span className="bg-gradient-to-r from-blue-300 via-sky-200 to-amber-300 bg-clip-text text-transparent">
+                  Global Research
+                </span>
               </h1>
               <p className="mt-4 max-w-2xl text-[14px] font-medium leading-7 text-white/78">
                 The heartbeat of innovation. Empowering our scholarly community with seamless management, robust resources, and world-class administrative support.
@@ -202,32 +204,29 @@ const Login: React.FC = () => {
           <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
 
           <div className="w-full max-w-[440px]">
-            <div className="mb-7 flex items-center justify-between gap-4">
+            <div className="mb-7 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
-                  <img src="/IITG_Large_Logo.gif" alt="IITG Logo" className="h-9 w-9 object-contain" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#D97757]">ProRnD</p>
-                  <p className="text-[13px] font-bold text-[#71717A] dark:text-[#A1A1AA]">IIT Guwahati</p>
-                </div>
+                <span className="bg-gradient-to-b from-[#0F3C6F] via-[#092647] to-[#061931] bg-clip-text text-[26px] font-black uppercase tracking-wider text-transparent drop-shadow-[0_1px_1px_rgba(255,255,255,0.4)] [text-shadow:0_1px_0_rgba(255,255,255,0.3)] dark:from-[#93C5FD] dark:via-[#5B9AE0] dark:to-[#3D7BC7]">
+                  PRAGATI R&D
+                </span>
+                <span className="h-5 w-px bg-gradient-to-b from-transparent via-[#0F3C6F]/30 to-transparent dark:via-white/25" />
+                <span className="bg-gradient-to-b from-[#B85436] via-[#96432A] to-[#7A361F] bg-clip-text text-[18px] font-bold tracking-wide text-transparent drop-shadow-[0_1px_1px_rgba(255,255,255,0.4)] dark:from-[#E88B6A] dark:via-[#D97757] dark:to-[#B85436]">
+                  IIT Guwahati
+                </span>
               </div>
-              <div className="hidden h-10 items-center rounded-lg border border-[#E4E4E7] bg-white px-3 text-[11px] font-bold uppercase tracking-[0.12em] text-[#71717A] shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#A1A1AA] sm:flex">
-                <Landmark className="mr-2 h-3.5 w-3.5 text-[#2563EB]" />
-                R&D Cell
-              </div>
+              <img src="/IITG_Large_Logo.gif" alt="IIT Guwahati" className="h-16 w-auto object-contain" />
             </div>
 
             <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
               <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
               <div className="px-6 py-6 sm:px-7">
-                <div className="mb-6">
-                  <div className="mb-5 inline-flex rounded-xl border border-[#E4E4E7] bg-[#FAFAF9] p-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
-                    <img src="/rndops_Logo.svg" alt="R&D Operations Logo" className="h-12 w-auto" />
+                <div className="mb-6 text-center">
+                  <div className="mb-5 flex items-center justify-center">
+                    <img src="/pragati_rnd_logo.png" alt="PRAGATI R&D Logo" className="h-24 sm:h-28 w-auto object-contain drop-shadow-md dark:drop-shadow-[0_0_10px_rgba(255,255,255,0.95)] dark:brightness-125 dark:contrast-110" />
                   </div>
                   <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#71717A] dark:text-[#A1A1AA]">Authorized Access</p>
                   <h2 className="mt-1 text-[20px] font-extrabold leading-tight tracking-normal text-[#3F3F46] dark:text-[#E4E4E7]">
-                    Sign in to R&D Operations
+                    Sign in to PRAGATI R&D Portal
                   </h2>
                 </div>
 
