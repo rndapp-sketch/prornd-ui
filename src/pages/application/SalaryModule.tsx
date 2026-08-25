@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
@@ -299,8 +298,10 @@ const SalaryModule: React.FC = () => {
     const [desigFilter, setDesigFilter] = useState<string>("All");
     const [projectFilter, setProjectFilter] = useState<string>("All");
     const [schemeFilter, setSchemeFilter] = useState<string>("All");
+    const [projectTypeFilter, setProjectTypeFilter] = useState<string>("All");
     const [departmentLabels, setDepartmentLabels] = useState<Record<string, string>>({});
     const [schemeMap, setSchemeMap] = useState<Record<string, string>>({});
+    const [projectTypeMap, setProjectTypeMap] = useState<Record<string, string>>();
     const [schemeNumberMap, setSchemeNumberMap] = useState<Record<string, string>>({});
 
     // Pay slip modal state
@@ -348,7 +349,7 @@ const SalaryModule: React.FC = () => {
     const isPrepared = !!preparedCycles[cycleKey];
 
     // ─── Salary Processing Status ─────────────────────────────────────────
-    const [activeTab, setActiveTab] = useState<"pending" | "processed">("pending");
+    const [activeTab, setActiveTab] = useState<"pending" | "processed" | "termending">("pending");
     const [processedEmployees, setProcessedEmployees] = useState<Set<string>>(new Set());
     const [stagingRecords, setStagingRecords] = useState<any[]>([]);
     const [isCheckingStatus, setIsCheckingStatus] = useState(false);
@@ -945,27 +946,34 @@ const SalaryModule: React.FC = () => {
             // project_no has stray leading/trailing whitespace.
             const res = await getList({
                 doctype: "Project Registration",
-                fields: ["project_no", "funding_agency_schemes", "enter_scheme_number"],
+                fields: ["project_no", "funding_agency_schemes", "enter_scheme_number", "project_type"],
                 limit_page_length: 0,
             });
             const map: Record<string, string> = {};
             const numberMap: Record<string, string> = {};
+            const typeMap: Record<string, string> = {};
             (res?.message || []).forEach((row: any) => {
                 const projectNo = row.project_no ? String(row.project_no).trim() : "";
                 const schemeName = row.funding_agency_schemes ? String(row.funding_agency_schemes).trim() : "";
                 const schemeNo = row.enter_scheme_number ? String(row.enter_scheme_number).trim() : "";
+                const pType = row.project_type ? String(row.project_type).trim() : "";
                 if (projectNo && schemeName) {
                     map[projectNo] = schemeName;
                 }
                 if (projectNo && schemeNo) {
                     numberMap[projectNo] = schemeNo;
                 }
+                if (projectNo && pType) {
+                    typeMap[projectNo] = pType;
+                }
             });
             setSchemeMap(map);
             setSchemeNumberMap(numberMap);
+            setProjectTypeMap(typeMap);
         } catch (err) {
             setSchemeMap({});
             setSchemeNumberMap({});
+            setProjectTypeMap({});
         }
     }, [records, getList]);
 
@@ -1099,6 +1107,13 @@ const SalaryModule: React.FC = () => {
                 return s === schemeFilter;
             });
         }
+        if (projectTypeFilter !== "All" && projectTypeMap) {
+            list = list.filter(r => {
+                const pNo = (r.project_no || "").trim();
+                const t = pNo && projectTypeMap[pNo] ? projectTypeMap[pNo].trim() : "";
+                return t.toLowerCase() === projectTypeFilter.toLowerCase();
+            });
+        }
 
         // Apply Sorting
         return [...list].sort((a, b) => {
@@ -1117,18 +1132,40 @@ const SalaryModule: React.FC = () => {
             }
             return sortDir === "asc" ? cmp : -cmp;
         });
-    }, [records, search, deptFilter, desigFilter, projectFilter, schemeFilter, schemeMap, sortKey, sortDir, selectedMonth, selectedYear, departmentLabels]);
+    }, [records, search, deptFilter, desigFilter, projectFilter, schemeFilter, projectTypeFilter, projectTypeMap, schemeMap, sortKey, sortDir, selectedMonth, selectedYear, departmentLabels]);
 
-    // Split filtered into pending vs processed
+    // Term-ending / expired records — from ALL records (ignore processedEmployees filter)
+    // Includes staff whose term_completion_date is in the selected month/year
+    // OR has already passed before the end of the selected period.
+    const termEndingRecords = useMemo(() => {
+        const periodEnd = new Date(selectedYear, selectedMonth + 1, 0); // last day of selected month
+        return records.filter(r => {
+            if (!r.term_completion_date) return false;
+            try {
+                const tcd = new Date(r.term_completion_date);
+                tcd.setHours(0, 0, 0, 0);
+                return tcd <= periodEnd;
+            } catch { return false; }
+        }).sort((a, b) =>
+            new Date(a.term_completion_date).getTime() - new Date(b.term_completion_date).getTime()
+        );
+    }, [records, selectedYear, selectedMonth]);
+
+    // Set of term-ending employee IDs — excluded from pending tab
+    const termEndingEmpIds = useMemo(() =>
+        new Set(termEndingRecords.map(r => r.employee_id)),
+        [termEndingRecords]);
+
+    // Split filtered into pending vs processed (term-ending staff excluded from pending)
     const pendingRecords = useMemo(() =>
-        filtered.filter(r => !processedEmployees.has(r.employee_id)),
-        [filtered, processedEmployees]);
+        filtered.filter(r => !processedEmployees.has(r.employee_id) && !termEndingEmpIds.has(r.employee_id)),
+        [filtered, processedEmployees, termEndingEmpIds]);
 
     const processedRecords = useMemo(() =>
         filtered.filter(r => processedEmployees.has(r.employee_id)),
         [filtered, processedEmployees]);
 
-    const displayedRecords = activeTab === "pending" ? pendingRecords : processedRecords;
+    const displayedRecords = activeTab === "pending" ? pendingRecords : activeTab === "processed" ? processedRecords : termEndingRecords;
 
     const handleSort = (k: SortKey) => {
         if (sortKey === k) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -1597,8 +1634,42 @@ const SalaryModule: React.FC = () => {
                                             {processedRecords.length}
                                         </span>
                                     </button>
+                                    <button
+                                        onClick={() => setActiveTab("termending")}
+                                        className={cn(
+                                            "relative flex items-center gap-2 px-5 py-3.5 text-[13px] font-bold transition-all border-b-2",
+                                            activeTab === "termending"
+                                                ? "text-amber-600 border-amber-500 bg-white dark:bg-[#27272A] dark:text-amber-400"
+                                                : "text-[#71717A] border-transparent hover:text-[#3F3F46] hover:bg-[#FAFAF9] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] dark:hover:bg-[#3F3F46]/50"
+                                        )}
+                                    >
+                                        <CalendarClock className="h-4 w-4" />
+                                        Term Ending / Expired
+                                        <span className={cn(
+                                            "inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
+                                            activeTab === "termending"
+                                                ? "bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400"
+                                                : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                                        )}>
+                                            {termEndingRecords.length}
+                                        </span>
+                                    </button>
                                 </div>
                                 <div className="flex items-center gap-3 px-4">
+                                    {/* Project Type Filter */}
+                                    <div className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 transition-all border-[#4A6CF7] bg-[#EEF2FF] dark:border-[#4A6CF7]/60 dark:bg-[#4A6CF7]/10 ring-2 ring-[#4A6CF7]/10">
+                                        <Briefcase className="h-3.5 w-3.5 shrink-0 text-[#4A6CF7]" />
+                                        <select
+                                            value={projectTypeFilter}
+                                            onChange={e => setProjectTypeFilter(e.target.value)}
+                                            className="bg-transparent text-[11px] font-bold outline-none pr-1 cursor-pointer text-[#4A6CF7]"
+                                        >
+                                            <option value="All" className="dark:bg-[#27272A]">Select Project Type</option>
+                                            <option value="Research" className="dark:bg-[#27272A]">Research</option>
+                                            <option value="Consultancy" className="dark:bg-[#27272A]">Consultancy</option>
+                                        </select>
+                                    </div>
+
                                     {isCheckingStatus && (
                                         <span className="flex items-center gap-1.5 text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
                                             <Loader2 className="h-3 w-3 animate-spin" />
@@ -1696,11 +1767,11 @@ const SalaryModule: React.FC = () => {
 
                             {/* Clear button with filter count */}
                             {(() => {
-                                const activeCount = [search, deptFilter !== "All", desigFilter !== "All", projectFilter !== "All", schemeFilter !== "All"].filter(Boolean).length;
+                                const activeCount = [search, deptFilter !== "All", desigFilter !== "All", projectFilter !== "All", schemeFilter !== "All", projectTypeFilter !== "All"].filter(Boolean).length;
                                 if (activeCount === 0) return null;
                                 return (
                                     <button
-                                        onClick={() => { setSearch(""); setDeptFilter("All"); setDesigFilter("All"); setProjectFilter("All"); setSchemeFilter("All"); }}
+                                        onClick={() => { setSearch(""); setDeptFilter("All"); setDesigFilter("All"); setProjectFilter("All"); setSchemeFilter("All"); setProjectTypeFilter("All"); }}
                                         className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 text-[12px] font-bold text-red-700 transition-all hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400 dark:hover:bg-red-950/30"
                                     >
                                         <X className="h-3.5 w-3.5" />
