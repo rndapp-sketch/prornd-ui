@@ -22,6 +22,7 @@ import { useSearchParams } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
 
 import FundDetails from "../components/FundDetails";
+import LegacyProjectExcel, { useLegacyFiles } from "../components/LegacyProjectExcel";
 // Disbursal of Honorarium moved to separate page
 import {
     ArrowLeftIcon,
@@ -67,6 +68,7 @@ import {
     LockIcon,
     UnlockIcon,
     CircleDotIcon,
+    ArchiveIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -3012,6 +3014,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
     const [activityViewType, setActivityViewType] = useState<"fund" | "sanction">("sanction");
     const activityStreamRef = useRef<ActivityStreamHandle>(null);
     const { currentUser } = useFrappeAuth();
+    // SWR dedupes this with the identical call inside LegacyProjectExcel.
+    const { data: legacyFilesData } = useLegacyFiles(projectName);
+    const hasLegacyRecord = Boolean(legacyFilesData?.message?.has_mapping);
     const { data, error, isLoading, mutate } = useFrappeGetDoc(
         "Project Registration",
         projectName ?? "",
@@ -4020,6 +4025,16 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             inactiveClass: "border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]",
             iconClass: "text-[#71717A] dark:text-[#A1A1AA]",
         },
+        ...(hasLegacyRecord
+            ? [{
+                id: "legacy-records",
+                label: "Legacy Records",
+                icon: ArchiveIcon,
+                activeClass: "bg-[#B45309] border-[#B45309] text-white shadow-sm",
+                inactiveClass: "border-[#FDE68A] bg-[#FFFBEB]/65 text-[#B45309] hover:bg-[#FFFBEB] dark:border-[#F59E0B]/30 dark:bg-[#F59E0B]/10 dark:text-[#FCD34D]",
+                iconClass: "text-[#B45309] dark:text-[#FCD34D]",
+            }]
+            : []),
         {
             id: "help",
             label: "Operation Guideline",
@@ -6958,6 +6973,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                     doctype="Project Registration"
                                     docname={projectName!}
                                 />
+                            )}
+
+                            {activeTab === "legacy-records" && (
+                                <LegacyProjectExcel docname={projectName!} />
                             )}
 
                             {activeTab === "help" && (() => {
