@@ -66,12 +66,20 @@ import DirectPurchaseHelpGuide from "@/components/DirectPurchaseHelpGuide";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
 
 // --- TYPE DEFINITIONS ---
+/** One selectable project in the Other-PI approval step. */
+interface PiProjectOption {
+    value: string;
+    label: string;
+}
+
 interface DirectPurchaseData {
     name: string;
     owner: string;
     creation: string;
     modified: string;
     workflow_state: string;
+    dp_other_pi?: string;
+    dp_other_pi_id?: string;
     project_name?: string;
     project_no?: string;
     project?: string;
@@ -1109,6 +1117,9 @@ const DirectPurchaseActionButtons = ({
     onActionsLoaded,
     autoTrigger,
     onAutoTriggerConsumed,
+    isOtherPiStep = false,
+    otherPiProject = "",
+    otherPiAccountHead = "",
 }: {
     docname: string;
     onActionComplete: () => void;
@@ -1124,6 +1135,11 @@ const DirectPurchaseActionButtons = ({
     // Used to chain "Mark Print Taken" onto the Sanction Sheet's Print/PDF button.
     autoTrigger?: { action: string; comment?: string } | null;
     onAutoTriggerConsumed?: () => void;
+    // Other-PI approval step: the assigned PI must name which of their own
+    // projects funds this purchase, sent as extra_data with the action.
+    isOtherPiStep?: boolean;
+    otherPiProject?: string;
+    otherPiAccountHead?: string;
 }) => {
     const [actions, setActions] = useState<string[]>([]);
     const [isPerforming, setIsPerforming] = useState(false);
@@ -1163,7 +1179,23 @@ const DirectPurchaseActionButtons = ({
         setShowCommentModal(false);
         setIsPerforming(true);
         try {
-            const result: any = await performAction({ docname, action, comment: actionComment });
+            const payload: Record<string, any> = { docname, action, comment: actionComment };
+            if (isOtherPiStep && /forward|approve/i.test(action)) {
+                if (!otherPiProject) {
+                    setErrorModal({
+                        open: true,
+                        title: "Select a project",
+                        message: "Choose which of your projects this purchase should be charged to before approving.",
+                    });
+                    setIsPerforming(false);
+                    return;
+                }
+                payload.extra_data = JSON.stringify({
+                    project_name: otherPiProject,
+                    account_head: otherPiAccountHead,
+                });
+            }
+            const result: any = await performAction(payload);
             const success = result?.message?.status === "success" || (result?.message && result.message.status !== "error");
             if (result?.message?.status === "error") {
                 setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(result?.message) });
@@ -2626,6 +2658,45 @@ const DirectPurchaseDetails: React.FC = () => {
     const [isLoadingPOData, setIsLoadingPOData] = useState(false);
     const [dpPoDocname, setDpPoDocname] = useState<string | null>(null);
 
+    // --- Other-PI approval step ---------------------------------------------
+    // Only the specifically assigned PI picks which of their own projects funds
+    // this purchase. Mirrors IndentGeneralFormDetails.
+    const [dpPiProjects, setDpPiProjects] = useState<PiProjectOption[]>([]);
+    const [selectedDpPiProject, setSelectedDpPiProject] = useState("");
+    const [dpPiHeads, setDpPiHeads] = useState<PiProjectOption[]>([]);
+    const [selectedDpPiHead, setSelectedDpPiHead] = useState("");
+    const isDpOtherPiStep =
+        data?.workflow_state === "Pending Other PI" &&
+        !!currentUser &&
+        String(data?.dp_other_pi_id || "").toLowerCase() ===
+            String(currentUser).toLowerCase();
+
+    const { call: fetchDpPiProjects } = useFrappePostCall(
+        directPurchaseAPI.getPiProjects,
+    );
+    const { call: fetchDpProjectHeads } = useFrappePostCall(
+        directPurchaseAPI.getProjectAccountHeads,
+    );
+
+    useEffect(() => {
+        if (!isDpOtherPiStep) return;
+        fetchDpPiProjects({})
+            .then((res: { message?: PiProjectOption[] }) => setDpPiProjects(res?.message || []))
+            .catch(() => setDpPiProjects([]));
+    }, [isDpOtherPiStep]);
+
+    // Account heads belong to the chosen project, so reload them whenever it changes.
+    useEffect(() => {
+        setSelectedDpPiHead("");
+        if (!selectedDpPiProject) {
+            setDpPiHeads([]);
+            return;
+        }
+        fetchDpProjectHeads({ project_name: selectedDpPiProject })
+            .then((res: { message?: PiProjectOption[] }) => setDpPiHeads(res?.message || []))
+            .catch(() => setDpPiHeads([]));
+    }, [selectedDpPiProject]);
+
     const { call: addComment } = useFrappePostCall(
         "rndopsapp.rndopsapp.api.add_project_comment",
     );
@@ -3321,10 +3392,65 @@ const DirectPurchaseDetails: React.FC = () => {
                                 onActionsLoaded={setDpActions}
                                 autoTrigger={dpAutoTrigger}
                                 onAutoTriggerConsumed={() => setDpAutoTrigger(null)}
+                                isOtherPiStep={isDpOtherPiStep}
+                                otherPiProject={selectedDpPiProject}
+                                otherPiAccountHead={selectedDpPiHead}
                             />
                         )}
                     </div>
                 </PageHeader>
+
+                {/* Other-PI approval: the assigned PI charges one of their own projects */}
+                {isDpOtherPiStep && (
+                    <div className="mb-4 rounded-xl border border-[#D97757]/30 bg-[#FFF7ED] p-4 shadow-sm dark:bg-[#D97757]/10">
+                        <div className="mb-1 text-sm font-bold text-zinc-800 dark:text-zinc-100">
+                            Approve against one of your projects
+                        </div>
+                        <p className="mb-3 text-xs text-zinc-600 dark:text-zinc-400">
+                            This purchase is charged to your project. Select the project, then use
+                            Actions &rarr; Forward.
+                        </p>
+                        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div className="min-w-0">
+                                <label className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                                    Project
+                                </label>
+                                <select
+                                    value={selectedDpPiProject}
+                                    onChange={(e) => setSelectedDpPiProject(e.target.value)}
+                                    className="w-full min-w-0 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                                >
+                                    <option value="">Select project…</option>
+                                    {dpPiProjects.map((proj) => (
+                                        <option key={proj.value} value={proj.value}>
+                                            {proj.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="min-w-0">
+                                <label className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                                    Account Head
+                                </label>
+                                <select
+                                    value={selectedDpPiHead}
+                                    onChange={(e) => setSelectedDpPiHead(e.target.value)}
+                                    disabled={!selectedDpPiProject}
+                                    className="w-full min-w-0 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                                >
+                                    <option value="">
+                                        {selectedDpPiProject ? "Select account head…" : "Select a project first"}
+                                    </option>
+                                    {dpPiHeads.map((head) => (
+                                        <option key={head.value} value={head.value}>
+                                            {head.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {dpActions.length > 0 && (
                     <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-700/50 dark:bg-amber-950/30">
