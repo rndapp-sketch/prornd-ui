@@ -101,27 +101,16 @@ export const useProjectBudget = (projectCode: string) => {
         const headNames = availableHeads.map((h: any) => h.budget_head);
         setHeads(headNames);
 
-        console.log("[useProjectBudget] Fetching for project:", projectCode);
-        console.log("[useProjectBudget] Available heads:", availableHeads);
 
         // 2. Fetch Ledger Data for EACH head
         // Using Promise.all to fetch concurrently
         const promises = availableHeads.map((head: any) => {
           const apiUrl = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectCode)}&accountHeadId=${head.id}`;
-          console.log(`[useProjectBudget] Fetching: ${apiUrl}`);
 
           return fetch(apiUrl, { credentials: "include" })
             .then((res) => res.json())
             .then((data) => {
-              console.log(
-                `[useProjectBudget] Response for ${head.budget_head}:`,
-                data,
-              );
               if (Array.isArray(data) && data.length > 0) {
-                console.log(
-                  `[useProjectBudget] First item sample for ${head.budget_head}:`,
-                  data[0],
-                );
               }
               return {
                 head: head.budget_head,
@@ -130,10 +119,6 @@ export const useProjectBudget = (projectCode: string) => {
               };
             })
             .catch((err) => {
-              console.error(
-                `Failed to fetch ledger for ${head.budget_head}`,
-                err,
-              );
               return { head: head.budget_head, headId: head.id, data: [] };
             });
         });
@@ -153,11 +138,17 @@ export const useProjectBudget = (projectCode: string) => {
             0,
           );
           const headCommitted = data.reduce(
-            (sum: number, item: any) => sum + (item.commitAmount || 0),
+            (sum: number, item: any) =>
+              item.status === "CANCELLED"
+                ? sum
+                : sum + (item.commitAmount || 0),
             0,
           );
           const headPayment = data.reduce(
-            (sum: number, item: any) => sum + (item.paymentAmount || 0),
+            (sum: number, item: any) =>
+              item.status === "CANCELLED"
+                ? sum
+                : sum + (item.paymentAmount || 0),
             0,
           );
 
@@ -228,16 +219,7 @@ export const useProjectBudget = (projectCode: string) => {
         setCommitableBalance(totalCommitable);
 
         // Debug logging
-        console.log("[useProjectBudget] Project:", projectCode);
-        console.log("[useProjectBudget] Total Actual Balance:", totalActual);
-        console.log(
-          "[useProjectBudget] Total Commitable Balance:",
-          totalCommitable,
-        );
-        console.log("[useProjectBudget] All Entries Count:", allEntries.length);
-        console.log("[useProjectBudget] Head Balances:", balances);
       } catch (err: any) {
-        console.error("Error in useProjectBudget:", err);
         setError(err.message || "Failed to load budget data");
       } finally {
         setIsLoading(false);

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { useFrappePostCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
+import { CharLimitAlert } from "@/components/CharLimitAlert";
+import { FIELD_CHAR_LIMITS } from "@/utils/fieldLimits";
 import {
     ArrowLeft,
     Loader2,
@@ -15,6 +17,8 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { candidateAPI } from "@/services/apiService";
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 
 // --- Types ---
 interface UserInfo {
@@ -178,7 +182,6 @@ const DocumentRow = ({ doc }: { doc: Document }) => {
             window.document.body.removeChild(a);
             URL.revokeObjectURL(url);
         } catch (err) {
-            console.error("Download failed:", err);
             window.open(viewUrl, "_blank");
         } finally {
             setIsDownloading(false);
@@ -245,6 +248,7 @@ const CandidateDetails: React.FC = () => {
     const [selectedStatus, setSelectedStatus] = useState("");
     const [justification, setJustification] = useState("");
     const [isUpdating, setIsUpdating] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     const fetchProfile = useCallback(async () => {
         if (!candidateId) {
@@ -275,7 +279,6 @@ const CandidateDetails: React.FC = () => {
             const matchingApp = result.applications?.find((a) => String(a.id) === applicationId);
             if (matchingApp?.status) setSelectedStatus(matchingApp.status);
         } catch (err: any) {
-            console.error("Error fetching candidate profile:", err);
             setError(err.message || "Failed to load candidate profile.");
         } finally {
             setIsLoading(false);
@@ -312,8 +315,7 @@ const CandidateDetails: React.FC = () => {
             alert("Status updated successfully!");
             fetchProfile();
         } catch (err: any) {
-            console.error("Error updating status:", err);
-            alert(`Failed to update status: ${err.message}`);
+            setErrorModal({ open: true, title: "Status Update Failed", message: parseFrappeError(err) });
         } finally {
             setIsUpdating(false);
         }
@@ -589,9 +591,11 @@ const CandidateDetails: React.FC = () => {
                                             onChange={(e) => setJustification(e.target.value)}
                                             rows={4}
                                             placeholder="Provide detailed justification for your decision..."
+                                            maxLength={FIELD_CHAR_LIMITS.Text}
                                             className="w-full px-4 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] resize-none"
                                             required
                                         />
+                                        <CharLimitAlert value={justification} maxLength={FIELD_CHAR_LIMITS.Text} className="mt-1" />
                                     </div>
                                 )}
                                 <button
@@ -612,6 +616,12 @@ const CandidateDetails: React.FC = () => {
                     </CardContent>
                 </Card>
             </main>
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

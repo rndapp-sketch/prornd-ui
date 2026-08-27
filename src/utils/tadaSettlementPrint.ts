@@ -1,5 +1,10 @@
 import tadaTemplate from "@/pages/printformat/ta_da_settlement_format.html?raw";
 
+// The .html?raw template is static text pulled in at build time, so it can't
+// reference import.meta.env itself; substitute the asset host here instead.
+const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.117.39";
+const ASSET_PORT = import.meta.env.VITE_ASSET_PORT || "8000";
+
 const fmtDate = (val: any): string => {
     if (!val) return "-";
     try {
@@ -209,6 +214,7 @@ export function generateTadaSettlementHtml(
     activityLogHtml = "",
 ): string {
     const html = tadaTemplate
+        .replace(/http:\/\/172\.16\.117\.39:8000/g, `http://${ASSET_HOST}:${ASSET_PORT}`)
         // Function replacer — raw HTML fetched from elsewhere (activity log
         // comments) and may contain "$" characters, which String.replace would
         // otherwise interpret as a pattern token.

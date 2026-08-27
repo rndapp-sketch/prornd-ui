@@ -152,6 +152,7 @@ const getStatusStyle = (status: string) => {
 };
 
 const getTaskRoute = (doctype: string, id: string) => {
+  if (doctype === "Proforma_Invoice") return `/proforma-invoice/${id}`;
   if (doctype === "Fund Received") return `/fund-received/${id}`;
   if (doctype === "Reimbursement") return `/reimbursement/${id}`;
   if (doctype === "Advance Settlement") return `/advance-settlement/${id}`;
@@ -263,7 +264,6 @@ export function AdoRndDashboard() {
   // User permissions with safe defaults - fallback to read-only if API fails
   const permissions: UserPermissions = useMemo(() => {
     if (permissionError) {
-      console.warn("Failed to fetch permissions, using restricted defaults:", permissionError);
       return {
         can_view_financials: false,
         can_approve_projects: false,
@@ -290,7 +290,6 @@ export function AdoRndDashboard() {
   // Dashboard data with safe defaults
   const data: AdoRndDashboardData = useMemo(() => {
     if (dashboardError) {
-      console.warn("Failed to fetch dashboard data:", dashboardError);
     }
     return dashboardData?.message || {
       overview: {

@@ -31,6 +31,8 @@ import {
     type Conversation,
     type Message,
 } from "@/services/messagingService";
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 
 const PRORND_ADMIN_CONTACT = {
     email: "prorndadmin@prornd.local",
@@ -147,6 +149,11 @@ export default function MessagesPage() {
         typeof navigator === "undefined" ? true : navigator.onLine,
     );
     const [isDeletingChat, setIsDeletingChat] = useState(false);
+    const [errorModal, setErrorModal] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({ open: false, title: "Error", message: "" });
     const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
         typeof window !== "undefined" && "Notification" in window
             ? Notification.permission
@@ -258,7 +265,11 @@ export default function MessagesPage() {
             refreshConvos();
             refreshUnreadCounts();
         } catch (error) {
-            alert(error instanceof Error ? error.message : "Unable to delete chat");
+            setErrorModal({
+                open: true,
+                title: "Delete Failed",
+                message: parseFrappeError(error),
+            });
         } finally {
             setIsDeletingChat(false);
         }
@@ -273,7 +284,6 @@ export default function MessagesPage() {
             } catch (error) {
                 const message = error instanceof Error ? error.message : "";
                 if (/unknown attribute:\s*"typing_/i.test(message)) return;
-                console.warn("[messaging] failed to update typing status", error);
             }
         },
         [activeConversation, myEmail, myUserId, refreshConvos],
@@ -304,7 +314,11 @@ export default function MessagesPage() {
             refreshConvos();
             selectConversation(conversation.$id);
         } catch (error) {
-            alert(error instanceof Error ? error.message : "Unable to open admin chat");
+            setErrorModal({
+                open: true,
+                title: "Unable to Open Chat",
+                message: parseFrappeError(error),
+            });
         } finally {
             setIsOpeningAdminChat(false);
         }
@@ -617,6 +631,13 @@ export default function MessagesPage() {
                     }}
                 />
             )}
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 }

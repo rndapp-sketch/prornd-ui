@@ -96,7 +96,6 @@ const ProjectLedgerFull = () => {
                     throw new Error("Empty budget head list from server");
                 }
             } catch (err) {
-                console.warn("[ProjectLedgerFull] Failed to fetch Budget Heads, using fallback:", err);
                 setBudgetHeadList([
                     { name: 'Overhead', id: 1 },
                     { name: 'Manpower', id: 2 },
@@ -149,14 +148,12 @@ const ProjectLedgerFull = () => {
                             }
                         }
                     } catch (err) {
-                        console.error(`Failed to check data for head ${head.name}:`, err);
                     }
                 });
 
                 await Promise.all(promises);
                 setHeadsWithData(headsSet);
             } catch (err) {
-                console.error("Failed to check heads with data:", err);
             } finally {
                 setIsCheckingHeads(false);
             }
@@ -183,7 +180,6 @@ const ProjectLedgerFull = () => {
 
     // Fetch Ledger Data
     useEffect(() => {
-        console.log("ProjectLedgerFull: useEffect triggered", { projectName, activeLedgerHeadId });
         if (projectName && activeLedgerHeadId) {
             fetchLedgerData(activeLedgerHeadId);
         }
@@ -193,14 +189,11 @@ const ProjectLedgerFull = () => {
         setIsLoading(true);
         try {
             const url = `/ledger-api/commit-payment-transactions?projectNumber=${projectName}&accountHeadId=${headId}`;
-            console.log("ProjectLedgerFull: Fetching URL:", url);
             const response = await fetch(url);
-            console.log("ProjectLedgerFull: Response status:", response.status);
 
             if (!response.ok) throw new Error("Failed to fetch ledger data");
 
             const result = await response.json();
-            console.log("ProjectLedgerFull: API Result:", result);
 
             const rawData = Array.isArray(result) ? result : [];
             let runningPaymentBalance = 0;
@@ -222,11 +215,9 @@ const ProjectLedgerFull = () => {
                 };
             });
 
-            console.log("ProjectLedgerFull: Calculated Data:", calculatedData);
             // Store in ascending order; display sort is handled separately
             setLedgerTransactions(calculatedData);
         } catch (error) {
-            console.error("Error fetching ledger:", error);
         } finally {
             setIsLoading(false);
         }

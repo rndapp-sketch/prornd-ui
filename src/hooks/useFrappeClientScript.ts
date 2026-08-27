@@ -93,11 +93,9 @@ export const useFrappeClientScript = (
     // --- EXECUTE SCRIPT ON LOAD ---
     useEffect(() => {
         if (!script) {
-            console.log('No script provided to useFrappeClientScript');
             return;
         }
 
-        console.log('Loading client script...');
 
         // Reset registry for fresh script
         registryRef.current = {};
@@ -113,7 +111,6 @@ export const useFrappeClientScript = (
             ui: {
                 form: {
                     on: (dt: string, events: Record<string, EventHandler>) => {
-                        console.log(`Registering events for ${dt}:`, Object.keys(events));
                         if (!registryRef.current[dt]) registryRef.current[dt] = {};
                         Object.assign(registryRef.current[dt], events);
                     }
@@ -121,7 +118,6 @@ export const useFrappeClientScript = (
             },
             model: {
                 set_value: (cdt: string, cdn: string, field: string, val: any) => {
-                    console.log(`frappe.model.set_value(${cdt}, ${cdn}, ${field}, ${val})`);
 
                     // Logic to update data
                     const applyUpdate = (data: FormData) => {
@@ -141,7 +137,6 @@ export const useFrappeClientScript = (
                                         (window as any).locals[newRow.doctype][newRow.name] = newRow;
                                     }
 
-                                    console.log(`Updated row ${cdn} field ${field} = ${val}`);
                                     break;
                                 }
                             }
@@ -214,11 +209,8 @@ export const useFrappeClientScript = (
             // Execute registration
             func(frappe, flt, cint, $, localsProxy, window);
 
-            console.log('Client Script Registered. Registry:', registryRef.current);
-            console.log('Events registered:', Object.keys(registryRef.current).map(dt => ({ doctype: dt, events: Object.keys(registryRef.current[dt] || {}) })));
             isScriptLoaded.current = true;
         } catch (e) {
-            console.error('Error parsing client script:', e);
         }
 
         // Cleanup globals on unmount/change
@@ -240,7 +232,6 @@ export const useFrappeClientScript = (
                     ? { [fieldOrObj]: value }
                     : { ...fieldOrObj };
 
-                console.log('frm.set_value called with:', updates);
 
                 // Optimistically update ref IMMEDIATELY
                 const newData = { ...currentFormDataRef.current, ...updates };
@@ -271,16 +262,13 @@ export const useFrappeClientScript = (
         }
 
         if (activeHandlers && activeHandlers[event]) {
-            console.log(`Triggering event: ${event} (from ${foundDoctype})`, args);
 
             const frm = createFrm();
             try {
                 activeHandlers[event](frm, ...args);
             } catch (e) {
-                console.error(`Error executing client script event ${event}:`, e);
             }
         } else {
-            console.log(`No handler found for event: ${event}. Registry keys:`, Object.keys(registryRef.current));
         }
     }, [createFrm]);
 
@@ -288,7 +276,6 @@ export const useFrappeClientScript = (
     // --- AUTOMATIC CHANGE DETECTION ---
     useEffect(() => {
         if (!isScriptLoaded.current) {
-            console.log('useFrappeClientScript: Script not loaded yet, skipping change detection');
             return;
         }
 
@@ -302,7 +289,6 @@ export const useFrappeClientScript = (
             const currentVal = current[key];
 
             if (JSON.stringify(prevVal) !== JSON.stringify(currentVal)) {
-                console.log(`useFrappeClientScript: Field '${key}' changed. prev:`, prevVal, 'current:', currentVal);
                 // 1. Trigger generic field change
                 triggerEvent(key);
 
@@ -312,13 +298,11 @@ export const useFrappeClientScript = (
                         || prevVal.find((row) => row?.doctype)?.doctype;
 
                     if (currentVal.length > prevVal.length) {
-                        console.log(`Child table add detected: ${key}`);
                         triggerEvent(`${key}_add`);
                         if (childDoctype) {
                             triggerEvent(`${childDoctype}_add`);
                         }
                     } else if (currentVal.length < prevVal.length) {
-                        console.log(`Child table remove detected: ${key}`);
                         triggerEvent(`${key}_remove`);
                         if (childDoctype) {
                             triggerEvent(`${childDoctype}_remove`);

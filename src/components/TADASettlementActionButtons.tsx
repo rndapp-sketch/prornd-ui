@@ -111,7 +111,6 @@ const TADASettlementActionButtons: React.FC<TADASettlementActionButtonsProps> = 
                         content: `[${selectedAction}] ${comment.trim()}`,
                     });
                 } catch (commentError) {
-                    console.error("Error adding comment:", commentError);
                 }
             }
 
@@ -120,7 +119,6 @@ const TADASettlementActionButtons: React.FC<TADASettlementActionButtonsProps> = 
             fetchActions({ docname: docName });
             onActionComplete?.();
         } catch (error: unknown) {
-            console.error("Action error:", error);
             alert("An error occurred while performing the action.");
         }
     };

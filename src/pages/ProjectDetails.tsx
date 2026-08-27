@@ -80,6 +80,8 @@ import { DepartmentName } from "@/components/DepartmentName";
 import { ProjectNumberGenerationForm } from "@/components/ProjectNumberGenerationForm";
 import { useUserRoles } from "@/components/UserRole";
 import { DeclarationFields } from "@/components/DeclarationFields";
+import { ErrorModal } from "../components/ErrorModal";
+import { parseFrappeError } from "../utils/errorUtils";
 
 // --- Interfaces (Unchanged) ---
 interface ActivityItem {
@@ -101,7 +103,9 @@ interface ProjectDetailsProps {
     backLabel?: string;
 }
 
-const DORND_SIGNATURE_SEAL_URL = "http://172.16.131.206:8000/files/Sign_dornd_stamp_rnd.jpg";
+const APP_BACKEND_HOST = import.meta.env.VITE_APP_BACKEND_HOST || "172.16.131.206";
+const APP_BACKEND_PORT = import.meta.env.VITE_APP_BACKEND_PORT || "8000";
+const DORND_SIGNATURE_SEAL_URL = `http://${APP_BACKEND_HOST}:${APP_BACKEND_PORT}/files/Sign_dornd_stamp_rnd.jpg`;
 
 const waitForDocumentAssets = async (document: Document) => {
     if (document.fonts?.ready) {
@@ -226,7 +230,6 @@ const EndorsementModal = ({
         try {
             await downloadEndorsementDocumentPdf(iframeDocument, "Endorsement_Certificate.pdf");
         } catch (error) {
-            console.error("Endorsement PDF download failed:", error);
             alert("Could not generate PDF. Please use Print and save as PDF.");
         } finally {
             setIsDownloadingPdf(false);
@@ -328,7 +331,7 @@ const toSameOriginFileUrl = (src: string) => {
     try {
         const url = new URL(src, window.location.origin);
         if (
-            url.hostname === "172.16.131.206" ||
+            url.hostname === APP_BACKEND_HOST ||
             url.hostname === window.location.hostname
         ) {
             return `${url.pathname}${url.search}${url.hash}`;
@@ -956,7 +959,6 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
                 setNewComment("");
                 await refetchActivity();
             } catch (err: any) {
-                console.error("Failed to add comment:", err);
                 alert("Error: Could not post comment.");
             } finally {
                 setIsSubmitting(false);
@@ -1068,6 +1070,66 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
     },
 );
 ActivityStream.displayName = "ActivityStream";
+
+// --- "Put Back" alert toast (shown when the most recent activity is a Put Back action) ---
+interface PutBackAlertEntry { content: string; creation?: string; }
+
+function usePutBackAlert(doctype: string, docname?: string) {
+    const [entry, setEntry] = useState<PutBackAlertEntry | null>(null);
+    React.useEffect(() => {
+        if (!docname) return;
+        let cancelled = false;
+        fetch(
+            `/api/method/rndopsapp.rndopsapp.api.get_project_activity?doctype=${encodeURIComponent(doctype)}&docname=${encodeURIComponent(docname)}`,
+            { credentials: "include" },
+        )
+            .then((res) => (res.ok ? res.json() : null))
+            .then((json) => {
+                if (cancelled || !json) return;
+                const items: ActivityItem[] = Array.isArray(json?.message) ? json.message : [];
+                // Only surface the alert while the most recent activity is a "Put Back" —
+                // once the project moves on (a newer action is logged), it goes away.
+                // Sort explicitly rather than trusting array order from the backend.
+                const latest = [...items].sort(
+                    (a, b) => new Date(b.creation).getTime() - new Date(a.creation).getTime(),
+                )[0];
+                if (!latest || !String(latest.content || "").toLowerCase().includes("put back")) {
+                    setEntry(null);
+                    return;
+                }
+                setEntry({ content: latest.content || "", creation: latest.creation });
+            })
+            .catch(() => {});
+        return () => { cancelled = true; };
+    }, [doctype, docname]);
+    return entry;
+}
+
+const PutBackToast = ({ entry, onDismiss, onOpen }: { entry: PutBackAlertEntry; onDismiss: () => void; onOpen: () => void }) => {
+    return (
+        <div className="fixed top-4 right-4 z-[9999] w-full max-w-sm animate-in slide-in-from-right-4 fade-in duration-300">
+            <div onClick={onOpen} role="button" tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onOpen(); }}
+                className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl shadow-2xl overflow-hidden cursor-pointer hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.2)] transition-shadow">
+                <div className="h-1 bg-[#D97757]" />
+                <div className="p-4 flex gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-orange-50 dark:bg-orange-900/30 flex items-center justify-center flex-shrink-0 text-[#D97757]">
+                        <AlertTriangleIcon className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-0.5">Put Back</p>
+                        <div className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] leading-relaxed"
+                            dangerouslySetInnerHTML={{ __html: entry.content }} />
+                    </div>
+                    <button onClick={(e) => { e.stopPropagation(); onDismiss(); }}
+                        className="p-1 rounded-lg hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] text-[#71717A] transition-colors flex-shrink-0">
+                        <X className="h-3.5 w-3.5" />
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 // --- Workflow Actions Component (Unchanged) ---
 const WorkflowActions = ({
@@ -1452,6 +1514,8 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     const location = useLocation();
     const resolvedBackUrl = location.state?.from || backUrl;
     const [activeTab, setActiveTab] = useState("overview");
+    const putBackAlertEntry = usePutBackAlert("Project Registration", projectName);
+    const [putBackAlertDismissed, setPutBackAlertDismissed] = useState(false);
     const activityStreamRef = useRef<ActivityStreamHandle>(null);
     const { currentUser } = useFrappeAuth();
     const { roles, isLoading: isRolesLoading } = useUserRoles(currentUser ?? null);
@@ -1469,6 +1533,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     const [isEditingBudget, setIsEditingBudget] = useState(false);
     const [editBudgetRows, setEditBudgetRows] = useState<BudgetRow[]>([]);
     const [isSavingBudget, setIsSavingBudget] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     const { data, error, isLoading, mutate } = useFrappeGetDoc(
         "Project Registration",
@@ -1519,13 +1584,13 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
             setIsEditingBudget(false);
             setEditBudgetRows([]);
         } catch (err: any) {
-            alert(`Failed to save: ${err?.message || err}`);
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
         } finally {
             setIsSavingBudget(false);
         }
     };
 
-    const MINIO_BASE = "http://172.16.135.118:9000";
+    const MINIO_BASE = `http://${import.meta.env.VITE_MINIO_HOST || "172.16.135.118"}:${import.meta.env.VITE_MINIO_PORT || "9000"}`;
     const attachmentsPath = `${MINIO_BASE}/prod-rnd-files/Project_Registration/${projectName}/attachments`;
 
     const { data: frappeFiles } = useFrappeGetDocList("File", {
@@ -1564,7 +1629,6 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                     );
                 }
             } catch (err) {
-                console.error("Failed to fetch Budget Heads:", err);
             }
         };
         fetchBudgetHeads();
@@ -1709,9 +1773,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                     setModalOpen(false);
                     window.location.reload();
                 })
-                .catch((err: any) =>
-                    console.error(`Error during workflow action:`, err),
-                );
+                .catch(() => {});
         },
         [
             triggerWorkflowAction,
@@ -1994,9 +2056,16 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                 />
                                                 <FieldDisplay
                                                     label="Project Duration"
-                                                    value={`${data?.project_duration_months}m ${data?.project_duration_days ||
-                                                        0
-                                                        }d`}
+                                                    value={(() => {
+                                                        const months = data?.project_duration_months || 0;
+                                                        const days = data?.project_duration_days || 0;
+                                                        if (months && days) {
+                                                            const totalDays = months * 30 + days;
+                                                            return `${months}m and ${days}d = ${totalDays} days total`;
+                                                        }
+                                                        if (months) return `${months}m`;
+                                                        return `${days}d`;
+                                                    })()}
                                                     icon={CalendarIcon}
                                                 />
                                                 <FieldDisplay
@@ -2025,7 +2094,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                             </p>
                                                         </div>
                                                         <a
-                                                            href={`http://172.16.135.118:9000/prod-rnd-files/Project_Registration/${projectName}/attachments/${data.upload_proj_prop.split("/").pop()}`}
+                                                            href={`${MINIO_BASE}/prod-rnd-files/Project_Registration/${projectName}/attachments/${data.upload_proj_prop.split("/").pop()}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="text-sm font-medium text-[#D97757] hover:underline flex items-center gap-1"
@@ -2959,7 +3028,6 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                             try {
                                                                 setEndorsementHtml(await fetchNormalizedEndorsementHtml());
                                                             } catch (e: any) {
-                                                                console.error("Fetch endorsement error:", e);
                                                             }
                                                         }}
                                                         disabled={isFetchingEndorsementHtml}
@@ -2982,7 +3050,6 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                                     `Endorsement_${projectName || "Certificate"}.pdf`,
                                                                 );
                                                             } catch (error) {
-                                                                console.error("Download endorsement certificate error:", error);
                                                                 alert("Could not download endorsement certificate. Please open the preview and use Print.");
                                                             } finally {
                                                                 setIsDownloadingEndorsementCertificate(false);
@@ -3012,7 +3079,6 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                                     `Endorsement_${projectName || "Certificate"}_Unsigned.pdf`,
                                                                 );
                                                             } catch (error) {
-                                                                console.error("Download unsigned endorsement certificate error:", error);
                                                                 alert("Could not download endorsement certificate. Please open the preview and use Print.");
                                                             } finally {
                                                                 setIsDownloadingEndorsementUnsigned(false);
@@ -3374,10 +3440,21 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
+            {putBackAlertEntry && !putBackAlertDismissed && projectName && (
+                <PutBackToast entry={putBackAlertEntry}
+                    onDismiss={() => setPutBackAlertDismissed(true)}
+                    onOpen={() => { setPutBackAlertDismissed(true); setActiveTab("activity"); }} />
+            )}
             {/*<AppSidebar />*/}
             <main className="flex-1 w-full overflow-hidden">
                 {renderContent()}
             </main>
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

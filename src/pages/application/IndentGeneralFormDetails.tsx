@@ -23,6 +23,8 @@ import { BudgetHeadName } from "@/components/BudgetHeadName";
 import { DepartmentName } from "@/components/DepartmentName";
 import { useUserRoles } from "@/components/UserRole";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 import { CommitPayment } from "@/components/CommitPayment";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import { ProjectLedgerModal } from "@/components/ProjectLedgerModal";
@@ -263,6 +265,7 @@ const IndentGeneralFormDetails: React.FC = () => {
     const [directorPdfUrl, setDirectorPdfUrl] = useState("");
     const [printModalOpen, setPrintModalOpen] = useState(false);
     const [printHtml, setPrintHtml] = useState("");
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     const { call: fetchFields } = useFrappePostCall<{ message: any }>(indentGeneralFormAPI.getFields);
     const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>("frappe.client.get_value");
@@ -275,13 +278,20 @@ const IndentGeneralFormDetails: React.FC = () => {
     const { call: performWorkflowAction, loading: isForwarding } = useFrappePostCall(
         indentGeneralFormAPI.performAction,
     );
+    const { call: fetchIgfPiProjects } = useFrappePostCall(
+        indentGeneralFormAPI.getPiProjects,
+    );
+    const [piProjects, setPiProjects] = React.useState<any[]>([]);
+    const [selectedPiProject, setSelectedPiProject] = React.useState("");
     const { data: workflowActionsData } = useFrappeGetCall<{ message: string[] | { actions?: string[] } }>(
         indentGeneralFormAPI.getWorkflowActions,
-        id ? { docname: id } : undefined,
+        { docname: id ?? "" },
+        id ? undefined : null,
     );
     const { data: activityData } = useFrappeGetCall<{ message: { owner: string; creation: string; content: string; comment_type?: string }[] }>(
         "rndopsapp.rndopsapp.api.get_project_activity",
-        id ? { doctype: "Indent General Form", docname: id } : undefined,
+        { doctype: "Indent General Form", docname: id ?? "" },
+        id ? undefined : null,
     );
 
     // igf_project_code is the project number used by the ledger/budget API
@@ -359,7 +369,7 @@ const IndentGeneralFormDetails: React.FC = () => {
             setPaymentAmount("");
             handleRefresh();
         } catch (error: any) {
-            alert(`Payment failed: ${error.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Payment Failed", message: parseFrappeError(error) });
         }
     };
 
@@ -458,7 +468,6 @@ const IndentGeneralFormDetails: React.FC = () => {
                     } catch { /* ignore */ }
                 }
             } catch (e) {
-                console.error("Failed to load IGF details:", e);
             } finally {
                 setLoading(false);
             }
@@ -526,13 +535,53 @@ const IndentGeneralFormDetails: React.FC = () => {
         return al.includes("approve") || al.includes("forward");
     }) ?? null;
 
+    // Other-PI approval step: only the assigned PI selects which of their own
+    // projects to charge this indent to.
+    const isIgfPiStep =
+        workflowState === "Pending Other PI" &&
+        !!currentUser &&
+        String(formData.igf_other_pi_id || "").toLowerCase() === String(currentUser).toLowerCase();
+
+    useEffect(() => {
+        if (!isIgfPiStep) return;
+        fetchIgfPiProjects({})
+            .then((res: any) => setPiProjects(res?.message || []))
+            .catch(() => setPiProjects([]));
+    }, [isIgfPiStep]);
+
     const handleForwardAction = async () => {
         if (!id || !forwardAction) return;
+        if (isIgfPiStep && !selectedPiProject) {
+            alert("Please select a project before approving.");
+            return;
+        }
         try {
-            await performWorkflowAction({ docname: id, action: forwardAction, comment: "" });
+            const payload: Record<string, any> = { docname: id, action: forwardAction, comment: "" };
+            if (isIgfPiStep) {
+                payload.extra_data = JSON.stringify({ project_name: selectedPiProject });
+            }
+            await performWorkflowAction(payload);
             handleRefresh();
         } catch (err: any) {
             alert(err?.message || "Failed to perform action.");
+        }
+    };
+
+    // Other-PI step: run any action (Forward/Reject/Put Back); Forward carries the chosen project.
+    const handlePiAction = async (action: string) => {
+        if (!id) return;
+        const isFwd = action.toLowerCase().includes("forward") || action.toLowerCase().includes("approve");
+        if (isFwd && !selectedPiProject) {
+            alert("Please select a project before approving.");
+            return;
+        }
+        try {
+            const payload: Record<string, any> = { docname: id, action, comment: "" };
+            if (isFwd) payload.extra_data = JSON.stringify({ project_name: selectedPiProject });
+            await performWorkflowAction(payload);
+            handleRefresh();
+        } catch (err: any) {
+            setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(err) });
         }
     };
 
@@ -544,7 +593,7 @@ const IndentGeneralFormDetails: React.FC = () => {
             setFormData((prev: any) => ({ ...prev, send_to_director: 1 }));
             handleRefresh();
         } catch (err: any) {
-            alert(err?.message || "Failed to send for Director approval.");
+            setErrorModal({ open: true, title: "Failed to Send for Director Approval", message: parseFrappeError(err) });
         } finally {
             setIsUpdatingDirectorFlag(false);
         }
@@ -579,7 +628,7 @@ const IndentGeneralFormDetails: React.FC = () => {
             setDirectorPdfUrl(fileUrl);
             handleRefresh();
         } catch (err: any) {
-            alert(err?.message || "Upload failed.");
+            setErrorModal({ open: true, title: "Upload Failed", message: parseFrappeError(err) });
         } finally {
             setIsUploadingPdf(false);
             if (directorPdfInputRef.current) directorPdfInputRef.current.value = "";
@@ -608,7 +657,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                         await performWorkflowAction({ docname: id, action: forwardAction, comment: "" });
                         handleRefresh();
                     } catch (err: any) {
-                        alert(err?.message || "Failed to perform action.");
+                        setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(err) });
                     }
                 }
             } else if (id) {
@@ -618,7 +667,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                     setFormData((prev: any) => ({ ...prev, send_to_director: 1 }));
                     handleRefresh();
                 } catch (err: any) {
-                    alert(err?.message || "Failed to send for Director approval.");
+                    setErrorModal({ open: true, title: "Failed to Send for Director Approval", message: parseFrappeError(err) });
                 } finally {
                     setIsUpdatingDirectorFlag(false);
                 }
@@ -984,6 +1033,37 @@ const IndentGeneralFormDetails: React.FC = () => {
                             </button>
                         </div>
 
+                        {/* Other-PI approval: the assigned PI charges one of their own projects */}
+                        {isIgfPiStep && (
+                            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4 shadow-sm space-y-3">
+                                <h3 className="text-xs font-bold text-[#D97757] uppercase tracking-wider">
+                                    Approve against one of your projects
+                                </h3>
+                                <select
+                                    value={selectedPiProject}
+                                    onChange={(e) => setSelectedPiProject(e.target.value)}
+                                    className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100"
+                                >
+                                    <option value="">Select project…</option>
+                                    {piProjects.map((p) => (
+                                        <option key={p.value} value={p.value}>{p.label}</option>
+                                    ))}
+                                </select>
+                                <div className="flex flex-wrap gap-2">
+                                    {allWorkflowActions.map((action) => (
+                                        <button
+                                            key={action}
+                                            onClick={() => handlePiAction(action)}
+                                            disabled={isForwarding}
+                                            className="px-3 py-2 rounded-lg text-xs font-semibold bg-[#D97757] hover:bg-[#c66a4e] text-white disabled:opacity-50 transition-all"
+                                        >
+                                            {isForwarding ? "Processing…" : action}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Make a Commitment via CommitPayment component */}
                         {isStaffRnD && workflowState === "Pending Staff Approval" && (
                             <CommitPayment
@@ -1203,6 +1283,13 @@ const IndentGeneralFormDetails: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

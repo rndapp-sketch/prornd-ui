@@ -86,12 +86,14 @@ const normalizeProjectType = (raw?: string): ProjectTypeTab => {
   return 'Others';
 };
 
-const DORND_SIGNATURE_SEAL_URL = "http://172.16.131.206:8000/files/Sign_dornd_stamp_rnd.jpg";
+const APP_BACKEND_HOST = import.meta.env.VITE_APP_BACKEND_HOST || "172.16.131.206";
+const APP_BACKEND_PORT = import.meta.env.VITE_APP_BACKEND_PORT || "8000";
+const DORND_SIGNATURE_SEAL_URL = `http://${APP_BACKEND_HOST}:${APP_BACKEND_PORT}/files/Sign_dornd_stamp_rnd.jpg`;
 
 const toSameOriginFileUrl = (src: string) => {
   try {
     const url = new URL(src, window.location.origin);
-    if (url.hostname === "172.16.131.206" || url.hostname === window.location.hostname) {
+    if (url.hostname === APP_BACKEND_HOST || url.hostname === window.location.hostname) {
       return `${url.pathname}${url.search}${url.hash}`;
     }
   } catch {
@@ -596,7 +598,6 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
         project.name,
       );
     } catch (error) {
-      console.error("Download endorsement certificate error:", error);
       alert("Could not download endorsement certificate.");
     } finally {
       setDownloadingEndorsementProject(null);
@@ -636,30 +637,21 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
       };
     }
 
-    // Approver roles (HoS/Staff/Dean) get an approval-queue list, but that queue only
-    // contains projects currently awaiting THEIR approval action — a project owned by
-    // this same user as PI drops out of it the moment it moves past that stage. Merge
-    // in the user's own created/owned projects too so "My Projects" doesn't silently
-    // lose projects the user is personally the PI of.
-    let queueProjects: Project[] = [];
-    let queueLoading = false;
-    let queueError: any = null;
-    if (isHosRnd) {
-      queueProjects = hosAprovalProjects ?? [];
-      queueLoading = hosLoading;
-      queueError = hosError;
-    } else if (isRndStaff) {
-      queueProjects = rndstaffAprovalProjects ?? [];
-      queueLoading = rndstaffLoading;
-      queueError = rndstaffError;
-    } else if (isDoRnd) {
-      queueProjects = doRndApprovalProjects ?? [];
-      queueLoading = doRndLoading;
-      queueError = doRndError;
-    }
+    // HoS RnD / RnD Staff / Dean RnD: show their pending-approval queue, but
+    // ALSO anything they're PI or owner of — an approver can also be the PI
+    // on a project (e.g. dornd@iitg.ac.in), and once that project moves past
+    // their approval stage (e.g. to "Approved") it must not disappear just
+    // because it's no longer in their pending-approval workflow_state.
+    const roleApprovalQueue = isHosRnd
+      ? hosAprovalProjects
+      : isRndStaff
+        ? rndstaffAprovalProjects
+        : isDoRnd
+          ? doRndApprovalProjects
+          : null;
 
     const combined = [
-      ...queueProjects,
+      ...(roleApprovalQueue ?? []),
       ...(myCreatedProjects ?? []),
       ...(myOwnedProjects ?? []),
     ];
@@ -672,10 +664,13 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
 
     const uniqueProjects = Array.from(uniqueProjectsMap.values());
 
+    const roleQueueLoading = isHosRnd ? hosLoading : isRndStaff ? rndstaffLoading : isDoRnd ? doRndLoading : false;
+    const roleQueueError = isHosRnd ? hosError : isRndStaff ? rndstaffError : isDoRnd ? doRndError : undefined;
+
     return {
       myProjects: uniqueProjects,
-      isLoading: queueLoading || createdLoading || ownedLoading,
-      error: queueError || createdError || ownedError,
+      isLoading: createdLoading || ownedLoading || roleQueueLoading,
+      error: createdError || ownedError || roleQueueError,
     };
   }, [
     isAdministrator,
@@ -1079,10 +1074,6 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                                   `/project-proposal-details/${task.id}`,
                                 );
                               } else {
-                                console.log(
-                                  "View clicked for",
-                                  task.id,
-                                );
                               }
                             }}
                           >
@@ -1377,14 +1368,30 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                                 </Button>
                               </>
                             ) : (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0"
-                              >
-                                <ChevronRight className="h-4 w-4" />
-                                <span className="sr-only">View</span>
-                              </Button>
+                              <>
+                                {(p.workflow_state === "Approved" || p.workflow_state === "Proposal Approved") &&
+                                  normalizeProjectType((p as any).project_type) === "Consultancy" && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 px-2 text-xs font-bold border-zinc-300 text-zinc-700 hover:text-[#D97757] hover:border-[#D97757] dark:text-zinc-300 dark:border-zinc-700"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/project-details-overview/${p.name}/proforma-invoice`);
+                                    }}
+                                  >
+                                    Pro Inv
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <ChevronRight className="h-4 w-4" />
+                                  <span className="sr-only">View</span>
+                                </Button>
+                              </>
                             )}
                           </div>
                         </TableCell>

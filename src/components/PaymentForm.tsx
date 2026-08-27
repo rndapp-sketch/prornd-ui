@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FormRender } from './FormRender';
 import type { CommitRecord } from '@/types/ledgerTypes';
+import { ErrorModal } from './ErrorModal';
+import { parseFrappeError } from '../utils/errorUtils';
 
 interface PaymentFormProps {
     docName?: string; // If provided, we are editing an existing payment
@@ -17,6 +19,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
     const [linkOptions, setLinkOptions] = useState<Record<string, any[]>>({});
     const [formData, setFormData] = useState<Record<string, any>>({});
     const [error, setError] = useState<string | null>(null);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     useEffect(() => {
         const fetchFields = async () => {
@@ -79,7 +82,6 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
                                 }
                             }
                         } catch (err) {
-                            console.error("Failed to fetch Project Registration for PaymentForm:", err);
                         }
 
                         setFormData({
@@ -96,11 +98,9 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
 
                     setLinkOptions(mergedLinkOptions);
                 } else {
-                    console.error("API Error Result:", result);
                     throw new Error(result.exc || result.exception || "Invalid response from server");
                 }
             } catch (err: any) {
-                console.error('Failed to load form:', err);
                 setError(err.message || 'Failed to load form configuration');
             } finally {
                 setLoading(false);
@@ -111,13 +111,6 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
     }, [docName, commitData]);
 
     const handleSubmit = async (data: any) => {
-        console.log('=== PAYMENT FORM DATA ===', {
-            submittedData: data,
-            commitData,
-            docName,
-            resolvedBudgetHead,
-            formDataState: formData
-        });
         setSubmitting(true);
         try {
             // Route to the correct payment endpoint based on module
@@ -177,7 +170,6 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
                     moduleName: commitData?.moduleId || undefined,
                 };
 
-            console.log(`Submitting Payment (${isAdvanceSettlement ? 'Advance Settlement' : isSalaryPayment ? 'Salary Staging' : 'Generic'}):`, body);
 
             const response = await fetch(paymentEndpoint, {
                 method: 'POST',
@@ -202,8 +194,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
             alert(successMsg);
             onSuccess();
         } catch (err: any) {
-            console.error('Submission failed:', err);
-            alert('Failed to save payment: ' + (err.message || 'Unknown error'));
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
         } finally {
             setSubmitting(false);
         }
@@ -223,17 +214,25 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
     }
 
     return (
-        <FormRender
-            fields={fieldDefs}
-            linkOptions={linkOptions}
-            initialData={formData}
-            onSubmit={handleSubmit}
-            onCancel={onCancel}
-            submitButtonText={docName ? "Update Payment" : "Create Payment"}
-            title={docName ? `Edit Payment · ${docName}` : commitData ? `Payment · ${commitData.projectNumber}${formData._project_title ? ' · ' + formData._project_title : ''}` : "New Payment"}
-            isSubmitting={submitting}
-            onFormChange={(newData) => setFormData(newData)}
-        />
+        <>
+            <FormRender
+                fields={fieldDefs}
+                linkOptions={linkOptions}
+                initialData={formData}
+                onSubmit={handleSubmit}
+                onCancel={onCancel}
+                submitButtonText={docName ? "Update Payment" : "Create Payment"}
+                title={docName ? `Edit Payment · ${docName}` : commitData ? `Payment · ${commitData.projectNumber}${formData._project_title ? ' · ' + formData._project_title : ''}` : "New Payment"}
+                isSubmitting={submitting}
+                onFormChange={(newData) => setFormData(newData)}
+            />
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
+        </>
     );
 };
 

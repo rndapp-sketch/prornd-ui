@@ -60,7 +60,10 @@ import { ActivityLog, clearActivityLogCache } from "@/components/ActivityLog";
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { CommitPayment } from "@/components/CommitPayment";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 import DirectPurchaseHelpGuide from "@/components/DirectPurchaseHelpGuide";
+import { CharLimitAlert } from "@/components/CharLimitAlert";
 
 // --- TYPE DEFINITIONS ---
 interface DirectPurchaseData {
@@ -599,6 +602,8 @@ const ClaudeButton = ({
     className,
     variant = "outline",
     title,
+    id,
+    "data-action": dataAction,
 }: {
     children: React.ReactNode;
     onClick?: () => void;
@@ -606,8 +611,12 @@ const ClaudeButton = ({
     className?: string;
     variant?: "primary" | "outline" | "ghost" | "action";
     title?: string;
+    id?: string;
+    "data-action"?: string;
 }) => (
     <button
+        id={id}
+        data-action={dataAction}
         onClick={onClick}
         disabled={disabled}
         title={title}
@@ -756,12 +765,14 @@ const HighlightHeading = ({
 );
 
 // --- FIELD TYPE HELPERS ---
+const MINIO_HOST = import.meta.env.VITE_MINIO_HOST || "172.16.135.118";
+const MINIO_ALT_PORT = import.meta.env.VITE_MINIO_ALT_PORT || "8081";
 const isFilePath = (val: any): boolean => {
     if (typeof val !== "string") return false;
     return (
         val.startsWith("/private/files/") ||
         val.startsWith("/files/") ||
-        val.startsWith("http://172.16.135.118:8081/") ||
+        val.startsWith(`http://${MINIO_HOST}:${MINIO_ALT_PORT}/`) ||
         /\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx|zip)$/i.test(val)
     );
 };
@@ -1096,6 +1107,8 @@ const DirectPurchaseActionButtons = ({
     onSanctionMissing,
     highlight = false,
     onActionsLoaded,
+    autoTrigger,
+    onAutoTriggerConsumed,
 }: {
     docname: string;
     onActionComplete: () => void;
@@ -1106,12 +1119,18 @@ const DirectPurchaseActionButtons = ({
     onSanctionMissing?: () => void;
     highlight?: boolean;
     onActionsLoaded?: (actions: string[]) => void;
+    // When set and `autoTrigger.action` is currently available, runs that action
+    // immediately with the given comment — no modal, no manual "Confirm" click.
+    // Used to chain "Mark Print Taken" onto the Sanction Sheet's Print/PDF button.
+    autoTrigger?: { action: string; comment?: string } | null;
+    onAutoTriggerConsumed?: () => void;
 }) => {
     const [actions, setActions] = useState<string[]>([]);
     const [isPerforming, setIsPerforming] = useState(false);
     const [showCommentModal, setShowCommentModal] = useState(false);
     const [selectedAction, setSelectedAction] = useState("");
     const [comment, setComment] = useState("");
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Action Failed", message: "" });
     const { call: fetchActions } = useFrappePostCall<{ message: string[] }>(
         directPurchaseAPI.getWorkflowActions,
     );
@@ -1129,9 +1148,7 @@ const DirectPurchaseActionButtons = ({
                 setActions(loaded);
                 onActionsLoaded?.(loaded);
             })
-            .catch((err) =>
-                console.error("Error fetching workflow actions:", err),
-            );
+            .catch(() => {});
     }, [docname]);
 
     const refreshActions = () => {
@@ -1141,6 +1158,43 @@ const DirectPurchaseActionButtons = ({
             })
             .catch(() => setActions([]));
     };
+
+    const runAction = async (action: string, actionComment: string) => {
+        setShowCommentModal(false);
+        setIsPerforming(true);
+        try {
+            const result: any = await performAction({ docname, action, comment: actionComment });
+            const success = result?.message?.status === "success" || (result?.message && result.message.status !== "error");
+            if (result?.message?.status === "error") {
+                setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(result?.message) });
+            } else {
+                if (actionComment.trim()) {
+                    try {
+                        await addComment({ doctype: "Direct Purchase", docname, content: actionComment.trim() });
+                    } catch (e) {
+                    }
+                }
+                alert(result?.message?.message || `Action "${action}" completed.`);
+                if (success) { refreshActions(); onActionComplete(); }
+            }
+        } catch (err: any) {
+            setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(err) });
+        } finally {
+            setIsPerforming(false);
+            setComment("");
+        }
+    };
+
+    // Fire the auto-trigger the moment its action shows up as available — skips the
+    // comment modal entirely and submits with the given (or empty) comment.
+    const autoTriggerHandled = useRef(false);
+    useEffect(() => {
+        if (!autoTrigger || autoTriggerHandled.current) return;
+        if (!actions.includes(autoTrigger.action)) return;
+        autoTriggerHandled.current = true;
+        runAction(autoTrigger.action, autoTrigger.comment ?? "");
+        onAutoTriggerConsumed?.();
+    }, [autoTrigger, actions]);
 
     const handleActionClick = (action: string) => {
         if (action === "Submit P-11" && !p11DocName) {
@@ -1158,32 +1212,8 @@ const DirectPurchaseActionButtons = ({
         setShowCommentModal(true);
     };
 
-    const handleActionConfirm = async (actionComment: string) => {
-        setShowCommentModal(false);
-        setIsPerforming(true);
-        try {
-            const result: any = await performAction({ docname, action: selectedAction, comment: actionComment });
-            const success = result?.message?.status === "success" || (result?.message && result.message.status !== "error");
-            if (result?.message?.status === "error") {
-                alert(`Error: ${result.message.message}`);
-            } else {
-                if (actionComment.trim()) {
-                    try {
-                        await addComment({ doctype: "Direct Purchase", docname, content: actionComment.trim() });
-                    } catch (e) {
-                        console.warn("Failed to save action comment:", e);
-                    }
-                }
-                alert(result?.message?.message || `Action "${selectedAction}" completed.`);
-                if (success) { refreshActions(); onActionComplete(); }
-            }
-        } catch (err: any) {
-            alert(`Action failed: ${err.message || "Unknown error"}`);
-        } finally {
-            setIsPerforming(false);
-            setComment("");
-        }
-    };
+    const handleActionConfirm = (actionComment: string) =>
+        runAction(selectedAction, actionComment);
 
     if (!actions.length) return null;
 
@@ -1204,6 +1234,7 @@ const DirectPurchaseActionButtons = ({
                     {actions.map((action) => (
                         <ClaudeButton
                             key={action}
+                            data-action={action}
                             variant="action"
                             onClick={() => handleActionClick(action)}
                             disabled={isPerforming || commitRequired || sanctionRequired}
@@ -1240,11 +1271,13 @@ const DirectPurchaseActionButtons = ({
                         <Textarea
                             rows={4}
                             placeholder="Add a comment (optional)..."
+                            maxLength={65535}
                             value={comment}
                             onChange={(e) => setComment(e.target.value)}
                             autoFocus
                             className="w-full text-sm resize-none border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg mb-4"
                         />
+                        <CharLimitAlert value={comment} maxLength={65535} className="-mt-3 mb-3" />
                         <div className="flex justify-end gap-2">
                             <ClaudeButton variant="outline" onClick={() => { setShowCommentModal(false); setComment(""); }}>
                                 Cancel
@@ -1256,6 +1289,12 @@ const DirectPurchaseActionButtons = ({
                     </div>
                 </div>
             )}
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </>
     );
 };
@@ -1273,6 +1312,7 @@ const P11FormActionButtons = ({
     const [showCommentModal, setShowCommentModal] = useState(false);
     const [selectedAction, setSelectedAction] = useState("");
     const [comment, setComment] = useState("");
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Action Failed", message: "" });
 
     const { call: fetchActions } = useFrappePostCall<{ message: string[] }>(
         p11FormAPI.getWorkflowActions,
@@ -1292,9 +1332,7 @@ const P11FormActionButtons = ({
                         );
                     }
                 })
-                .catch((err) =>
-                    console.error("Error fetching P11 workflow actions:", err),
-                );
+                .catch(() => {});
         }
     }, [docname]);
 
@@ -1327,13 +1365,12 @@ const P11FormActionButtons = ({
             });
 
             if (result?.message?.status === "error") {
-                alert(`Error: ${result.message.message}`);
+                setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(result?.message) });
             } else {
                 if (actionComment.trim()) {
                     try {
                         await addComment({ doctype: "P_11 Form", docname, content: actionComment.trim() });
                     } catch (e) {
-                        console.warn("Failed to save action comment:", e);
                     }
                 }
                 alert(result?.message?.message || `Action "${action}" completed successfully.`);
@@ -1341,7 +1378,7 @@ const P11FormActionButtons = ({
                 onActionComplete();
             }
         } catch (err: any) {
-            alert(`Action failed: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(err) });
         } finally {
             setIsPerforming(false);
             setComment("");
@@ -1395,10 +1432,12 @@ const P11FormActionButtons = ({
                         <Textarea
                             rows={4}
                             placeholder="Add a comment (optional)..."
+                            maxLength={65535}
                             value={comment}
                             onChange={(e) => setComment(e.target.value)}
                             className="w-full text-sm resize-none border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg mb-4"
                         />
+                        <CharLimitAlert value={comment} maxLength={65535} className="-mt-3 mb-3" />
                         <div className="flex justify-end gap-2">
                             <ClaudeButton
                                 variant="outline"
@@ -1421,6 +1460,12 @@ const P11FormActionButtons = ({
                     </div>
                 </div>
             )}
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </>
     );
 };
@@ -1430,16 +1475,22 @@ const SanctionSheetActionButtons = ({
     docname,
     onActionComplete,
     hiddenActions = [],
+    onActionsChange,
 }: {
     docname: string;
     onActionComplete: () => void;
     hiddenActions?: string[];
+    // Reports the fetched action list up so callers (e.g. the Print/PDF button, which
+    // needs to know whether "Mark Print Taken" is really in the DOM before clicking it)
+    // read the exact same state instead of running their own separate, possibly-racing fetch.
+    onActionsChange?: (actions: string[]) => void;
 }) => {
     const [actions, setActions] = useState<string[]>([]);
     const [isPerforming, setIsPerforming] = useState(false);
     const [showCommentModal, setShowCommentModal] = useState(false);
     const [selectedAction, setSelectedAction] = useState("");
     const [comment, setComment] = useState("");
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Action Failed", message: "" });
 
     const { call: fetchActions } = useFrappePostCall<{ message: string[] }>(
         sanctionSheetAPI.getWorkflowActions,
@@ -1456,17 +1507,12 @@ const SanctionSheetActionButtons = ({
             fetchActions({ docname })
                 .then((res) => {
                     if (res?.message) {
-                        setActions(
-                            Array.isArray(res.message) ? res.message : [],
-                        );
+                        const list = Array.isArray(res.message) ? res.message : [];
+                        setActions(list);
+                        onActionsChange?.(list);
                     }
                 })
-                .catch((err) =>
-                    console.error(
-                        "Error fetching Sanction Sheet workflow actions:",
-                        err,
-                    ),
-                );
+                .catch(() => {});
         }
     }, [docname]);
 
@@ -1499,13 +1545,12 @@ const SanctionSheetActionButtons = ({
             });
 
             if (result?.message?.status === "error") {
-                alert(`Error: ${result.message.message}`);
+                setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(result?.message) });
             } else {
                 if (actionComment.trim()) {
                     try {
                         await addComment({ doctype: "sanction_sheet", docname, content: actionComment.trim() });
                     } catch (e) {
-                        console.warn("Failed to save action comment:", e);
                     }
                 }
                 alert(result?.message?.message || `Action "${action}" completed successfully.`);
@@ -1513,7 +1558,7 @@ const SanctionSheetActionButtons = ({
                 onActionComplete();
             }
         } catch (err: any) {
-            alert(`Action failed: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(err) });
         } finally {
             setIsPerforming(false);
             setComment("");
@@ -1547,6 +1592,7 @@ const SanctionSheetActionButtons = ({
                     {visibleActions.map((action) => (
                         <ClaudeButton
                             key={action}
+                            data-action={action}
                             variant="action"
                             className={getActionButtonClass(action)}
                             onClick={() => handleActionClick(action)}
@@ -1568,10 +1614,12 @@ const SanctionSheetActionButtons = ({
                         <Textarea
                             rows={4}
                             placeholder="Add a comment (optional)..."
+                            maxLength={65535}
                             value={comment}
                             onChange={(e) => setComment(e.target.value)}
                             className="w-full text-sm resize-none border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg mb-4"
                         />
+                        <CharLimitAlert value={comment} maxLength={65535} className="-mt-3 mb-3" />
                         <div className="flex justify-end gap-2">
                             <ClaudeButton
                                 variant="outline"
@@ -1594,6 +1642,12 @@ const SanctionSheetActionButtons = ({
                     </div>
                 </div>
             )}
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </>
     );
 };
@@ -1608,6 +1662,7 @@ const LinkedDocTab = ({
     emptyDescription,
     onDataReload,
     parentData,
+    onRequestMarkPrintTaken,
 }: {
     doctype: string;
     filterField: string;
@@ -1616,6 +1671,9 @@ const LinkedDocTab = ({
     emptyDescription: string;
     onDataReload?: () => void;
     parentData?: Record<string, any>;
+    // For sanction_sheet only — called when Print/PDF is clicked, to auto-run the
+    // Direct Purchase document's "Mark Print Taken" action (in the page header).
+    onRequestMarkPrintTaken?: () => void;
 }) => {
     const {
         data: listData,
@@ -1640,14 +1698,6 @@ const LinkedDocTab = ({
     } = useFrappeGetDoc<Record<string, any>>(doctype, docName);
 
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
-    const [ssActions, setSsActions] = useState<string[]>([]);
-    const [isMergedPerforming, setIsMergedPerforming] = useState(false);
-    const { call: fetchSSActions } = useFrappePostCall<{ message: string[] }>(
-        sanctionSheetAPI.getWorkflowActions,
-    );
-    const { call: performSSAction } = useFrappePostCall(
-        sanctionSheetAPI.performAction,
-    );
 
     // Reload handler
     const handleReload = () => {
@@ -1656,32 +1706,21 @@ const LinkedDocTab = ({
         if (onDataReload) onDataReload();
     };
 
-    // Fetch SS workflow actions when viewing a sanction_sheet
-    useEffect(() => {
-        if (doctype !== "sanction_sheet" || !docName) return;
-        fetchSSActions({ docname: docName })
-            .then(res => {
-                setSsActions(Array.isArray(res?.message) ? res.message : []);
-            })
-            .catch(() => setSsActions([]));
-    }, [doctype, docName]);
-
-    const hasPrintMarkAction = doctype === "sanction_sheet" && ssActions.includes("Mark Print Taken");
-
-    const handleMergedPrint = async () => {
+    // Clicking "Print / PDF" opens the print preview, then — after a short delay so it
+    // doesn't fight with the print modal's own opening transition — asks the parent to
+    // auto-run "Mark Print Taken". That action belongs to the Direct Purchase document's
+    // own workflow (rendered in the page header, next to "View Project"), not the
+    // sanction_sheet doctype, so this component can't perform it directly.
+    const handleMergedPrint = () => {
         setIsPrintModalOpen(true);
-        if (hasPrintMarkAction && docName) {
-            setIsMergedPerforming(true);
-            try {
-                await performSSAction({ docname: docName, action: "Mark Print Taken", comment: "" });
-                setSsActions(prev => prev.filter(a => a !== "Mark Print Taken"));
-                handleReload();
-            } catch (e) {
-                console.warn("Mark Print Taken failed:", e);
-            } finally {
-                setIsMergedPerforming(false);
-            }
-        }
+        if (doctype !== "sanction_sheet" || !onRequestMarkPrintTaken) return;
+        setTimeout(() => {
+            onRequestMarkPrintTaken();
+        }, 500);
+    };
+
+    const handleSanctionPrintModalClose = () => {
+        setIsPrintModalOpen(false);
     };
 
     if (listLoading || docLoading) {
@@ -1727,11 +1766,9 @@ const LinkedDocTab = ({
                 {doctype === "sanction_sheet" && (
                     <button
                         onClick={handleMergedPrint}
-                        disabled={isMergedPerforming}
-                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[12px] font-bold text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-60"
+                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[12px] font-bold text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
                     >
-                        <Printer className="h-3.5 w-3.5" />
-                        {isMergedPerforming ? "Processing…" : hasPrintMarkAction ? "Print & Mark Taken" : "Print / PDF"}
+                        <Printer className="h-3.5 w-3.5" /> Print / PDF
                     </button>
                 )}
             </div>
@@ -1766,12 +1803,11 @@ const LinkedDocTab = ({
                     <SanctionSheetActionButtons
                         docname={docName}
                         onActionComplete={handleReload}
-                        hiddenActions={hasPrintMarkAction ? ["Mark Print Taken"] : []}
                     />
                     <P11PrintModal
                         title="Indent Cum Sanction Sheet Preview"
                         isOpen={isPrintModalOpen}
-                        onClose={() => setIsPrintModalOpen(false)}
+                        onClose={handleSanctionPrintModalClose}
                         htmlContent={
                             isPrintModalOpen
                                 ? generateSanctionSheetHtml(docData)
@@ -2263,10 +2299,12 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
                         type="text"
                         className={inputCls}
                         placeholder="Description of purchase"
+                        maxLength={140}
                         value={formData.particulars}
                         onChange={(e) => setField("particulars", e.target.value)}
                         disabled={isSaving}
                     />
+                    <CharLimitAlert value={formData.particulars} maxLength={140} className="mt-1" />
                 </div>
 
                 <div>
@@ -2356,12 +2394,14 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
                                                 type="text"
                                                 className={inputCls}
                                                 placeholder="Description…"
+                                                maxLength={140}
                                                 value={row.particulars}
                                                 onChange={(e) =>
                                                     updateRow(i, "particulars", e.target.value)
                                                 }
                                                 disabled={isSaving}
                                             />
+                                            <CharLimitAlert value={row.particulars} maxLength={140} className="mt-1" />
                                         </td>
                                         <td className="px-3 py-2">
                                             <button
@@ -2572,6 +2612,10 @@ const DirectPurchaseDetails: React.FC = () => {
     );
     const highlightAction = searchParams.get("highlight_action") === "1";
     const [dpActions, setDpActions] = useState<string[]>([]);
+    // Set by the Sanction Sheet's Print/PDF button to auto-run the header's
+    // "Mark Print Taken" workflow action (skipping its confirm modal) once it's available.
+    const [dpAutoTrigger, setDpAutoTrigger] = useState<{ action: string; comment?: string } | null>(null);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
     const [isGeneratingPO, setIsGeneratingPO] = useState(false);
     const [isGeneratingP11, setIsGeneratingP11] = useState(false);
     const [isOpeningSanctionSheet, setIsOpeningSanctionSheet] = useState(false);
@@ -2756,7 +2800,6 @@ const DirectPurchaseDetails: React.FC = () => {
                     throw new Error("No data returned or empty array");
                 }
             } catch (err) {
-                console.warn("[DirectPurchaseDetails] Failed to fetch Budget Heads, using fallback:", err);
                 setBudgetHeadList([
                     { name: 'Overhead', id: '1' },
                     { name: 'Manpower', id: '2' },
@@ -2988,7 +3031,6 @@ const DirectPurchaseDetails: React.FC = () => {
                 setDpPoDocname(dpPoName);
                 setPoSanctionData(merged);
             } catch (err) {
-                console.error("Error fetching PO data:", err);
             } finally {
                 setIsLoadingPOData(false);
             }
@@ -3018,8 +3060,7 @@ const DirectPurchaseDetails: React.FC = () => {
             setPaymentAmount("");
             window.location.reload();
         } catch (error: any) {
-            console.error("Payment failed:", error);
-            alert(`Payment failed: ${error.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Payment Failed", message: parseFrappeError(error) });
         }
     };
 
@@ -3088,9 +3129,7 @@ const DirectPurchaseDetails: React.FC = () => {
                 );
             }
         } catch (err: any) {
-            alert(
-                `Error: ${err.message || "Could not generate Purchase Order."}`,
-            );
+            setErrorModal({ open: true, title: "Purchase Order Generation Failed", message: parseFrappeError(err) });
         } finally {
             setIsGeneratingPO(false);
         }
@@ -3143,7 +3182,7 @@ const DirectPurchaseDetails: React.FC = () => {
                 throw new Error("No file URL returned");
             }
         } catch (err: any) {
-            alert(`Error: ${err.message || "Could not download PO."}`);
+            setErrorModal({ open: true, title: "Download Failed", message: parseFrappeError(err) });
         } finally {
             setIsDownloadingPO(false);
         }
@@ -3163,7 +3202,7 @@ const DirectPurchaseDetails: React.FC = () => {
                 );
             }
         } catch (err: any) {
-            alert(`Error: ${err.message || "Could not generate P-11 Form."}`);
+            setErrorModal({ open: true, title: "P-11 Form Generation Failed", message: parseFrappeError(err) });
         } finally {
             setIsGeneratingP11(false);
         }
@@ -3280,6 +3319,8 @@ const DirectPurchaseDetails: React.FC = () => {
                                 onSanctionMissing={() => setActiveTab("sanction")}
                                 highlight={highlightAction}
                                 onActionsLoaded={setDpActions}
+                                autoTrigger={dpAutoTrigger}
+                                onAutoTriggerConsumed={() => setDpAutoTrigger(null)}
                             />
                         )}
                     </div>
@@ -3559,6 +3600,13 @@ const DirectPurchaseDetails: React.FC = () => {
                                         emptyTitle="No Sanction Sheet Generated Yet"
                                         emptyDescription="The Sanction Sheet is created by RnD Staff after the P-11 Form is verified and approved."
                                         onDataReload={loadData}
+                                        onRequestMarkPrintTaken={() =>
+                                            setDpAutoTrigger({
+                                                action: "Mark Print Taken",
+                                                comment:
+                                                    "Auto-confirmed after printing the Sanction Sheet.",
+                                            })
+                                        }
                                     />
                                 )}
                             </>
@@ -3818,6 +3866,12 @@ const DirectPurchaseDetails: React.FC = () => {
                 />
                 <DirectPurchaseHelpGuide />
             </main>
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

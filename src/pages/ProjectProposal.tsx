@@ -5,6 +5,10 @@ import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { FileText, Users, IndianRupee, Shield } from 'lucide-react';
 import { AutocompleteEmail } from '../components/AutocompleteEmail';
+import { CharLimitAlert } from '@/components/CharLimitAlert';
+import { getFieldMaxLength } from '@/utils/fieldLimits';
+import { ErrorModal } from "../components/ErrorModal";
+import { parseFrappeError } from "../utils/errorUtils";
 
 // --- TYPE DEFINITIONS ---
 interface Field {
@@ -31,7 +35,8 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
 // --- MEMOIZED CHILD COMPONENTS ---
 const MemoizedFormField = memo(({ field, value, options, onChange, onFileChange }: { field: Field; value: any; options?: LinkOption[]; onChange: (fieldname: string, value: any, type?: string) => void; onFileChange: (fieldname: string, file: File | null) => void; }) => {
     if (!field || field.hidden || !field.label) return null;
-    const commonProps = { id: field.fieldname, name: field.fieldname, className: inputClasses, readOnly: field.read_only, required: field.mandatory, disabled: field.read_only };
+    const maxLength = getFieldMaxLength(field.fieldtype);
+    const commonProps = { id: field.fieldname, name: field.fieldname, className: inputClasses, readOnly: field.read_only, required: field.mandatory, disabled: field.read_only, maxLength };
     const renderInput = () => {
         switch (field.fieldtype) {
             case "Link":
@@ -60,7 +65,7 @@ const MemoizedFormField = memo(({ field, value, options, onChange, onFileChange 
             {renderInput()}
         </div>
     }
-    return (<div className='space-y-2'><label htmlFor={field.fieldname} className="block font-medium text-zinc-700 dark:text-zinc-300">{field.label}{!!field.mandatory && <span className="text-red-500">*</span>}</label>{renderInput()}{field.description && field.fieldtype !== 'Check' && <p className="text-sm text-zinc-700 dark:text-zinc-300  mt-2">{field.description}</p>}</div>);
+    return (<div className='space-y-2'><label htmlFor={field.fieldname} className="block font-medium text-zinc-700 dark:text-zinc-300">{field.label}{!!field.mandatory && <span className="text-red-500">*</span>}</label>{renderInput()}{!field.read_only && <CharLimitAlert value={value} maxLength={maxLength} />}{field.description && field.fieldtype !== 'Check' && <p className="text-sm text-zinc-700 dark:text-zinc-300  mt-2">{field.description}</p>}</div>);
 });
 
 const MemoizedGenericTable = memo(({ tableName, columns, newRow, tableData, onRowChange, onFileChange, onAddRow, onDeleteRow }: any) => (
@@ -71,7 +76,10 @@ const MemoizedGenericTable = memo(({ tableName, columns, newRow, tableData, onRo
                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
                     {(tableData || []).map((row: any, i: number) => (
                         <tr key={row.id} className="divide-x divide-zinc-200 dark:divide-zinc-800">
-                            {columns.map((col: any) => (<td key={col.key} className="p-2"> {col.type === 'file' ? (<input type="file" className={`${inputClasses} !h-11 !py-2`} onChange={e => onFileChange(tableName, i, col.key, e.target.files?.[0] || null)} />) : (<input type={col.type} className={`${inputClasses} !h-11`} value={row[col.key] || ''} onChange={e => { const value = col.key === 'salary' ? e.target.value.replace(/[^0-9]/g, '') : e.target.value; onRowChange(tableName, i, col.key, value); }} />)} </td>))}
+                            {columns.map((col: any) => (<td key={col.key} className="p-2"> {col.type === 'file' ? (<input type="file" className={`${inputClasses} !h-11 !py-2`} onChange={e => onFileChange(tableName, i, col.key, e.target.files?.[0] || null)} />) : (<>
+                                <input type={col.type} className={`${inputClasses} !h-11`} maxLength={col.type === 'text' ? 140 : undefined} value={row[col.key] || ''} onChange={e => { const value = col.key === 'salary' ? e.target.value.replace(/[^0-9]/g, '') : e.target.value; onRowChange(tableName, i, col.key, value); }} />
+                                {col.type === 'text' && <CharLimitAlert value={row[col.key]} maxLength={140} className="mt-1 text-[10px]" />}
+                            </>)} </td>))}
                             <td className="p-2"><FrappeButton onClick={() => onDeleteRow(tableName, i)} className="bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 w-full text-sm !py-2">Delete</FrappeButton></td>
                         </tr>
                     ))}
@@ -104,7 +112,10 @@ const MemoizedCollaboratorTable = memo(({ tableName, title, tableData, piOptions
                                 </td>
                                 <td className="p-2"><input type="email" readOnly className={`${inputClasses} !h-11 bg-zinc-200 dark:bg-zinc-700`} value={row[`${prefix}_email`] || ''} /></td>
                                 <td className="p-2"><input type="text" readOnly className={`${inputClasses} !h-11 bg-zinc-200 dark:bg-zinc-700`} value={row[`${prefix}_designation`] || ''} /></td>
-                                <td className="p-2"><input type="text" placeholder="Institute/Address" className={`${inputClasses} !h-11`} value={row[`${prefix}_address`] || ''} onChange={e => onRowChange(tableName, i, `${prefix}_address`, e.target.value)} /></td>
+                                <td className="p-2">
+                                    <input type="text" placeholder="Institute/Address" maxLength={140} className={`${inputClasses} !h-11`} value={row[`${prefix}_address`] || ''} onChange={e => onRowChange(tableName, i, `${prefix}_address`, e.target.value)} />
+                                    <CharLimitAlert value={row[`${prefix}_address`]} maxLength={140} className="mt-1 text-[10px]" />
+                                </td>
                                 <td className="p-2"><input type="tel" placeholder="91XXXXXXXXXX" maxLength={12} className={`${inputClasses} !h-11`} value={row[`${prefix}_contact`] || ''} onChange={e => onRowChange(tableName, i, `${prefix}_contact`, e.target.value.replace(/[^0-9]/g, ''))} /></td>
                                 <td className="p-2"><FrappeButton onClick={() => onDeleteRow(tableName, i)} className="bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 w-full text-sm !py-2">Delete</FrappeButton></td>
                             </tr>
@@ -196,6 +207,7 @@ const ProjectProposal: React.FC = () => {
     const [docname, setDocname] = useState<string | null>(null);
     const [budgetYears, setBudgetYears] = useState([1]);
     const [isDraftSaved, setIsDraftSaved] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_proposal.project_proposal.get_project_proposal_fields');
     const { call: submitForm, result: submitResult, error: submitError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_proposal.project_proposal.submit_project_proposal'); // Assumed endpoint
@@ -235,7 +247,6 @@ const ProjectProposal: React.FC = () => {
             }
         }
         if (formDataError) {
-            console.error("❌ Failed to fetch form data:", formDataError);
             alert("Error fetching form data.");
             setLoading(false);
         }
@@ -250,8 +261,8 @@ const ProjectProposal: React.FC = () => {
         }
     }, [agencyDetailsResult]);
 
-    useEffect(() => { if (submitResult) { alert(`Project Proposal registered: ${submitResult.message.docname}`); setDocname(submitResult.message.docname); } if (submitError) alert(`Submission error: ${submitError.message}`); setIsSubmitting(false); }, [submitResult, submitError]);
-    useEffect(() => { if (saveResult) { alert(`Draft saved: ${saveResult.message.docname}`); setDocname(saveResult.message.docname); setIsDraftSaved(true); } if (saveError) alert(`Draft save error: ${saveError.message}`); setIsSavingDraft(false); }, [saveResult, saveError]);
+    useEffect(() => { if (submitResult) { alert(`Project Proposal registered: ${submitResult.message.docname}`); setDocname(submitResult.message.docname); } if (submitError) setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(submitError) }); setIsSubmitting(false); }, [submitResult, submitError]);
+    useEffect(() => { if (saveResult) { alert(`Draft saved: ${saveResult.message.docname}`); setDocname(saveResult.message.docname); setIsDraftSaved(true); } if (saveError) setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(saveError) }); setIsSavingDraft(false); }, [saveResult, saveError]);
 
     // --- STABILIZED EVENT HANDLERS & RENDER FUNCTIONS ---
     const handleChange = useCallback((fieldname: string, value: any, type?: string) => { setFormData(prev => ({ ...prev, [fieldname]: type === 'checkbox' ? (value ? 1 : 0) : value })); }, []);
@@ -279,7 +290,7 @@ const ProjectProposal: React.FC = () => {
                             applicant_department: departmentLinkValue
                         }));
                     }
-                } catch (err) { console.error("Failed to fetch main PI details:", err); }
+                } catch (err) {  }
             } else {
                 setFormData(prev => ({ ...prev, pi_userid: "", pi_employee_id: "", principal_investigator_name: "", designation: "", applicant_department: "" }));
             }
@@ -310,7 +321,7 @@ const ProjectProposal: React.FC = () => {
                     }
                     address = details?.inst_name_address || details?.copi_address || details?.address || details?.department_name || details?.applicant_department || "";
                     contact = details?.mobile_no || details?.copi_contact || details?.contact_number || details?.cell_phone_number || "";
-                } catch (err) { console.error("Failed to fetch collaborator details:", err); }
+                } catch (err) {  }
             }
             setFormData(prev => {
                 const t = [...(prev[tableName] || [])];
@@ -564,6 +575,12 @@ const ProjectProposal: React.FC = () => {
                     </div>
                 </div>
             </main>
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

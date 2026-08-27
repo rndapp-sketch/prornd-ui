@@ -7,6 +7,8 @@ import { AlertCircle, Wallet } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { advanceSettlementAPI, prepareFormDataForApi } from '@/services/apiService';
+import { ErrorModal } from '../../components/ErrorModal';
+import { parseFrappeError } from '../../utils/errorUtils';
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -64,6 +66,7 @@ const AdvanceSettlementForm: React.FC = () => {
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
     const [budgetHeads, setBudgetHeads] = useState<{ label: string; value: string }[]>([]);
     const [savedDocName, setSavedDocName] = useState<string>(editDocName || '');
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     // --- API HOOKS ---
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall<FormDataResponse>(advanceSettlementAPI.getFields);
@@ -138,7 +141,6 @@ const AdvanceSettlementForm: React.FC = () => {
                             initialData = { ...initialData, ...existingDoc.message };
                         }
                     } catch (err) {
-                        console.error('Error fetching existing document:', err);
                         alert('Failed to load document for editing');
                     }
                 }
@@ -170,7 +172,6 @@ const AdvanceSettlementForm: React.FC = () => {
                                 initialData.project_code = adv.project_code || '';
                             }
                         } catch (err) {
-                            console.error('Error fetching temporary advance:', err);
                         }
                     }
                 }
@@ -193,7 +194,6 @@ const AdvanceSettlementForm: React.FC = () => {
             }
             // Only show error if we haven't successfully loaded data yet
             if (formDataError && !formDataResult?.message && !dataLoaded) {
-                console.error("Failed to load form data:", formDataError);
                 alert("Error: Could not load the Advance Settlement form.");
                 setLoading(false);
             }
@@ -219,7 +219,6 @@ const AdvanceSettlementForm: React.FC = () => {
                     }
                 }
             } catch (error) {
-                console.error("Failed to fetch Budget Heads:", error);
             }
         };
 
@@ -284,7 +283,6 @@ const AdvanceSettlementForm: React.FC = () => {
                     }));
                 }
             } catch (err) {
-                console.error('Failed to fetch temporary advance details:', err);
             }
         }
     }, [handleChange, fetchTemporaryAdvance]);
@@ -346,8 +344,7 @@ const AdvanceSettlementForm: React.FC = () => {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
-            console.error(saveError || err);
-            alert(`Save failed: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Save Failed", message: parseFrappeError(saveError, err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -388,7 +385,6 @@ const AdvanceSettlementForm: React.FC = () => {
 
             // Submit the document
             const submitRes = await submitForm({ docname });
-            console.log("Submit response:", submitRes);
 
             if (submitRes && (submitRes.message?.status === 'success' || submitRes.message)) {
                 alert("Advance Settlement submitted successfully!");
@@ -397,8 +393,7 @@ const AdvanceSettlementForm: React.FC = () => {
                 throw new Error(submitRes?.message?.message || "Submission failed (no success response)");
             }
         } catch (err: any) {
-            console.error(submitError || err);
-            alert(`Submission failed: ${err.message || "Please check the console for details."}`);
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(submitError, err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -585,6 +580,12 @@ const AdvanceSettlementForm: React.FC = () => {
                     </div>
                 </form>
             </main>
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

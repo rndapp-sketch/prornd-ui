@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { AppSidebar } from "@/components/RndSidebar";
+
 import { cn } from "@/lib/utils";
 import {
     Plus, ArrowLeftIcon, HelpCircle, X, ArrowRightLeft,
-    CheckCircle2, Clock, IndianRupee, BookOpen,
+    CheckCircle2, Clock, IndianRupee, BookOpen, Search,
+    ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { GlobalLoader } from "@/components/ui/global-loader";
 
@@ -155,6 +156,7 @@ interface MiscellaneousCommitListItem {
     workflow_state: string;
     commit_amount?: number;
     commit_decommit?: string;
+    commit_particular?: string;
     project_number?: string;
     applicant_department?: string;
     applicant_webmail?: string;
@@ -167,19 +169,22 @@ const MiscellaneousCommit: React.FC = () => {
     const [list, setList] = useState<MiscellaneousCommitListItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [helpOpen, setHelpOpen] = useState(false);
+    const [guideExpanded, setGuideExpanded] = useState(true);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const PAGE_SIZE = 10;
 
     const fetchList = useCallback(async () => {
         setLoading(true);
         try {
             const response = await fetch(
-                '/api/resource/Miscellaneous Commit?fields=["name","creation","workflow_state","commit_amount","commit_decommit","project_number","applicant_department","applicant_webmail","owner"]&order_by=creation desc&limit_page_length=0',
+                '/api/resource/Miscellaneous Commit?fields=["name","creation","workflow_state","commit_amount","commit_decommit","commit_particular","project_number","applicant_department","applicant_webmail","owner"]&order_by=creation desc&limit_page_length=0',
             );
             const data = await response.json();
             if (data.data) {
                 setList(data.data);
             }
         } catch (error) {
-            console.error("Error fetching Miscellaneous Commit list:", error);
         } finally {
             setLoading(false);
         }
@@ -199,14 +204,37 @@ const MiscellaneousCommit: React.FC = () => {
         });
     };
 
+    // Searches across every field on each row, not just the visible columns.
+    const filteredList = useMemo(() => {
+        const query = searchQuery.trim().toLowerCase();
+        if (!query) return list;
+        return list.filter((item) =>
+            Object.values(item).some(
+                (value) => value !== null && value !== undefined && String(value).toLowerCase().includes(query),
+            ),
+        );
+    }, [list, searchQuery]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredList.length / PAGE_SIZE));
+    const paginatedList = useMemo(
+        () => filteredList.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+        [filteredList, currentPage],
+    );
+
     if (loading) {
         return <GlobalLoader isLoading={true} />;
     }
 
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-            <AppSidebar />
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+         
+            {/* pb-24: extra clearance so the pagination bar's Next button never
+                sits under the floating "Module Guide" button (fixed bottom-8 right-7). */}
+            <main className="flex-1 p-4 md:p-8 pb-24 w-full overflow-hidden">
                 {/* Header */}
                 <header className="mb-6 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
                     <div className="flex items-center justify-between">
@@ -240,6 +268,18 @@ const MiscellaneousCommit: React.FC = () => {
                     </div>
                 </header>
 
+                {/* Search */}
+                <div className="mb-4 relative max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search any field..."
+                        className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#D97757]/40"
+                    />
+                </div>
+
                 {/* Table */}
                 <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
                     {list.length === 0 ? (
@@ -252,6 +292,18 @@ const MiscellaneousCommit: React.FC = () => {
                             </h4>
                             <p className="text-xs text-zinc-500 dark:text-zinc-400">
                                 Click "Apply New" to create your first application.
+                            </p>
+                        </div>
+                    ) : filteredList.length === 0 ? (
+                        <div className="p-12 text-center">
+                            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+                                <Search className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
+                            </div>
+                            <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-1">
+                                No matching applications
+                            </h4>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                Try a different search term.
                             </p>
                         </div>
                     ) : (
@@ -270,6 +322,9 @@ const MiscellaneousCommit: React.FC = () => {
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
                                         Type
                                     </th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                        Commit Particular
+                                    </th>
                                     <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
                                         Amount
                                     </th>
@@ -282,28 +337,31 @@ const MiscellaneousCommit: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                {list.map((item) => (
+                                {paginatedList.map((item) => (
                                     <tr
                                         key={item.name}
                                         className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer"
                                         onClick={() => navigate(`/miscellaneous-commit/${item.name}`)}
                                     >
-                                        <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 font-medium">
+                                        <td className="px-4 py-3 align-top text-sm text-zinc-900 dark:text-zinc-100 font-medium">
                                             {item.name}
                                         </td>
-                                        <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
+                                        <td className="px-4 py-3 align-top text-sm text-zinc-600 dark:text-zinc-400">
                                             {formatDate(item.creation)}
                                         </td>
-                                        <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
+                                        <td className="px-4 py-3 align-top text-sm text-zinc-600 dark:text-zinc-400">
                                             {item.project_number || "-"}
                                         </td>
-                                        <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
+                                        <td className="px-4 py-3 align-top text-sm text-zinc-600 dark:text-zinc-400">
                                             {item.commit_decommit || "-"}
                                         </td>
-                                        <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 text-right font-medium">
+                                        <td className="px-4 py-3 align-top text-sm text-zinc-600 dark:text-zinc-400 whitespace-normal break-words min-w-[16rem]">
+                                            {item.commit_particular || "-"}
+                                        </td>
+                                        <td className="px-4 py-3 align-top text-sm text-zinc-900 dark:text-zinc-100 text-right font-medium">
                                             ₹{(item.commit_amount || 0).toLocaleString("en-IN")}
                                         </td>
-                                        <td className="px-4 py-3">
+                                        <td className="px-4 py-3 align-top">
                                             <span
                                                 className={cn(
                                                     "inline-flex px-2 py-1 text-xs font-medium rounded-full",
@@ -321,7 +379,7 @@ const MiscellaneousCommit: React.FC = () => {
                                                 {item.workflow_state || "Draft"}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-3">
+                                        <td className="px-4 py-3 align-top">
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
@@ -338,22 +396,72 @@ const MiscellaneousCommit: React.FC = () => {
                         </table>
                     )}
                 </div>
+
+                {/* Pagination */}
+                {filteredList.length > 0 && (
+                    <div className="mt-4 flex items-center justify-between text-sm text-zinc-600 dark:text-zinc-400">
+                        <p>
+                            Showing {(currentPage - 1) * PAGE_SIZE + 1}
+                            –{Math.min(currentPage * PAGE_SIZE, filteredList.length)} of {filteredList.length}
+                        </p>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                                Prev
+                            </button>
+                            <span className="px-2 font-medium text-zinc-900 dark:text-zinc-100">
+                                Page {currentPage} of {totalPages}
+                            </span>
+                            <button
+                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
+                            >
+                                Next
+                                <ChevronRight className="h-4 w-4" />
+                            </button>
+                        </div>
+                    </div>
+                )}
             </main>
 
-            {/* Floating help button */}
-            <button
-                onClick={() => setHelpOpen(true)}
-                className="fixed bottom-8 right-7 z-40 flex h-11 items-center gap-2 rounded-full border border-[#4A6CF7]/30 bg-white/95 px-3.5 text-[#1E3A8A] shadow-lg shadow-[#18181B]/10 backdrop-blur transition-all hover:-translate-y-0.5 hover:border-[#4A6CF7]/50 hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/35 dark:bg-[#27272A]/95 dark:text-[#C7D2FE]"
-                aria-label="Help"
-                title="What is Commit / De-Commit?"
-            >
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#4A6CF7] text-white shadow-sm">
-                    <HelpCircle className="h-4 w-4" />
-                </span>
-                <span className="hidden text-[12px] font-extrabold uppercase tracking-wide md:block">
-                    Module Guide
-                </span>
-            </button>
+            {/* Floating help button — collapsible to just the icon via the
+                chevron, so it takes up less room (e.g. next to pagination). */}
+            <div className="fixed bottom-8 right-7 z-40 flex items-center gap-1.5">
+                <button
+                    onClick={() => setHelpOpen(true)}
+                    className={cn(
+                        "flex h-11 items-center gap-2 rounded-full border border-[#4A6CF7]/30 bg-white/95 text-[#1E3A8A] shadow-lg shadow-[#18181B]/10 backdrop-blur transition-all hover:-translate-y-0.5 hover:border-[#4A6CF7]/50 hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/35 dark:bg-[#27272A]/95 dark:text-[#C7D2FE]",
+                        guideExpanded ? "px-3.5" : "w-11 justify-center px-0",
+                    )}
+                    aria-label="Help"
+                    title="What is Commit / De-Commit?"
+                >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#4A6CF7] text-white shadow-sm">
+                        <HelpCircle className="h-4 w-4" />
+                    </span>
+                    {guideExpanded && (
+                        <span className="hidden text-[12px] font-extrabold uppercase tracking-wide md:block">
+                            Module Guide
+                        </span>
+                    )}
+                </button>
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setGuideExpanded((v) => !v);
+                    }}
+                    className="hidden h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#4A6CF7]/30 bg-white/95 text-[#4A6CF7] shadow-sm backdrop-blur transition-all hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/35 dark:bg-[#27272A]/95 dark:hover:bg-[#27272A] md:flex"
+                    aria-label={guideExpanded ? "Collapse module guide button" : "Expand module guide button"}
+                    title={guideExpanded ? "Collapse" : "Expand"}
+                >
+                    {guideExpanded ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
+                </button>
+            </div>
 
             {helpOpen && <HelpPanel onClose={() => setHelpOpen(false)} />}
         </div>

@@ -40,6 +40,10 @@ import {
 import { commonAPI } from "@/services/apiService";
 import { AutocompleteEmail } from "../components/AutocompleteEmail";
 import { useUserRoles } from "@/components/UserRole";
+import { CharLimitAlert } from "@/components/CharLimitAlert";
+import { getFieldMaxLength } from "@/utils/fieldLimits";
+import { ErrorModal } from "../components/ErrorModal";
+import { parseFrappeError } from "../utils/errorUtils";
 
 // --- TYPE DEFINITIONS ---
 interface Field {
@@ -177,7 +181,6 @@ const evaluateDependsOn = (
         // console.log(`Eval '${expression}' -> ${result} (doc.project_type: ${doc.project_type})`);
         return !!result;
     } catch (e) {
-        console.warn("Error evaluating depends_on:", expression, e);
         return false; // Default to false (hidden) on error to prevent broken UI
     }
 };
@@ -198,6 +201,7 @@ const MemoizedFormField = memo(
         onFileChange: (fieldname: string, file: File | null) => void;
     }) => {
         if (!field || field.hidden || !field.label) return null;
+        const maxLength = getFieldMaxLength(field.fieldtype);
         const commonProps = {
             id: field.fieldname,
             name: field.fieldname,
@@ -205,6 +209,7 @@ const MemoizedFormField = memo(
             readOnly: field.read_only,
             required: field.mandatory,
             disabled: field.read_only,
+            maxLength,
         };
         const renderInput = () => {
             switch (field.fieldtype) {
@@ -385,6 +390,12 @@ const MemoizedFormField = memo(
                     {field.mandatory && <span className="text-red-500 ml-0.5 normal-case">*</span>}
                 </label>
                 {renderInput()}
+                {!field.read_only && (
+                    <CharLimitAlert
+                        value={value}
+                        maxLength={field.fieldname === "funding_agency_schemes" ? 100 : maxLength}
+                    />
+                )}
                 {field.description && field.fieldtype !== "Check" && (
                     <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-1 leading-relaxed">
                         {field.description}
@@ -442,7 +453,7 @@ const MemoizedGenericTable = memo(
                                             {row[col.key] && typeof row[col.key] === "string" && (
                                                 <div className="flex items-center gap-1.5">
                                                     <a
-                                                        href={row[col.key].startsWith("http") ? row[col.key] : `http://172.16.135.118:9000/prod-rnd-files${row[col.key]}`}
+                                                        href={row[col.key].startsWith("http") ? row[col.key] : `http://${import.meta.env.VITE_MINIO_HOST || "172.16.135.118"}:${import.meta.env.VITE_MINIO_PORT || "9000"}/prod-rnd-files${row[col.key]}`}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         className="text-[10px] text-[#D97757] underline truncate max-w-[160px]"
@@ -507,6 +518,7 @@ const MemoizedGenericTable = memo(
                                         <input
                                             type={col.type}
                                             readOnly={!!col.readOnly}
+                                            maxLength={col.type === "text" && !col.readOnly ? 140 : undefined}
                                             className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary focus:!ring-primary/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none${col.readOnly ? " bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500" : ""}`}
                                             value={row[col.key] || ""}
                                             onChange={(e) => {
@@ -535,6 +547,9 @@ const MemoizedGenericTable = memo(
                                             }
                                         />
                                     )}{" "}
+                                    {col.type === "text" && !col.readOnly && (
+                                        <CharLimitAlert value={row[col.key]} maxLength={140} className="mt-1 text-[10px]" />
+                                    )}
                                 </td>
                             ))}
                             <td className="px-4 py-2.5">
@@ -668,6 +683,7 @@ const MemoizedCollaboratorTable = memo(
                                         <input
                                             type="text"
                                             placeholder="Institute/Address"
+                                            maxLength={140}
                                             className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary`}
                                             value={
                                                 row[`${prefix}_address`] || ""
@@ -681,6 +697,7 @@ const MemoizedCollaboratorTable = memo(
                                                 )
                                             }
                                         />
+                                        <CharLimitAlert value={row[`${prefix}_address`]} maxLength={140} className="mt-1 text-[10px]" />
                                     </td>
                                     <td className="px-4 py-2.5">
                                         <input
@@ -831,6 +848,7 @@ const MemoizedBudgetTable = memo(
                                                     type="text"
                                                     inputMode="decimal"
                                                     title="Enter a positive budget amount"
+                                                    maxLength={22}
                                                     className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary`}
                                                     value={String((row.years || [])[yearIndex] ?? "")}
                                                     readOnly={readOnly}
@@ -965,6 +983,11 @@ const ProjectRegistration: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSavingDraft, setIsSavingDraft] = useState(false);
     const [isFetchingPiDetails, setIsFetchingPiDetails] = useState(false);
+    const [errorModal, setErrorModal] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({ open: false, title: "Submission Failed", message: "" });
     const location = useLocation();
     const navigate = useNavigate();
     const { docname: pathDocname, tempId: pathTempId } = useParams<{ docname?: string; tempId?: string }>();
@@ -1221,7 +1244,11 @@ const ProjectRegistration: React.FC = () => {
             setNewAgencyData({ fundingagency_country: "India" });
             mutateFundingAgencies();
         } catch (err: any) {
-            alert("Failed to save: " + (err?.message || "Unknown error"));
+            setErrorModal({
+                open: true,
+                title: "Failed to Save Funding Agency",
+                message: parseFrappeError(err),
+            });
         } finally {
             setIsSavingAgency(false);
         }
@@ -1561,7 +1588,6 @@ const ProjectRegistration: React.FC = () => {
                     };
                 }
             } catch (e) {
-                console.error("Failed to fetch department head", e);
             }
             return {};
         },
@@ -1590,19 +1616,32 @@ const ProjectRegistration: React.FC = () => {
                                 details.department ||
                                 details.applicant_department;
 
-                            if (
-                                deptName &&
-                                linkOptions["applicant_department"]
-                            ) {
-                                const matchedOption = linkOptions[
-                                    "applicant_department"
-                                ].find(
+                            if (deptName) {
+                                const normalize = (s: string) => s.trim().toLowerCase();
+                                const deptOptions = linkOptions["applicant_department"] || [];
+                                const matchedOption = deptOptions.find(
                                     (opt) =>
-                                        opt.label === deptName ||
-                                        opt.value === deptName,
+                                        normalize(opt.label) === normalize(deptName) ||
+                                        normalize(opt.value) === normalize(deptName),
                                 );
-                                departmentLinkValue =
-                                    matchedOption?.value || "";
+                                if (matchedOption) {
+                                    departmentLinkValue = matchedOption.value;
+                                } else {
+                                    // No exact/case-insensitive match in the preloaded options
+                                    // (e.g. PI's department record differs in casing/whitespace
+                                    // from the Department list, or that department wasn't in the
+                                    // initially loaded options) — inject it so the select still
+                                    // shows the PI's actual department instead of silently
+                                    // resetting to blank ("Select...").
+                                    departmentLinkValue = deptName;
+                                    setLinkOptions((prev: any) => ({
+                                        ...prev,
+                                        applicant_department: [
+                                            ...(prev.applicant_department || []),
+                                            { value: deptName, label: deptName },
+                                        ],
+                                    }));
+                                }
                             }
                             updatedData = {
                                 ...updatedData,
@@ -1632,7 +1671,6 @@ const ProjectRegistration: React.FC = () => {
                             };
                         }
                     } catch (err) {
-                        console.error("Failed to fetch main PI details:", err);
                     } finally {
                         setIsFetchingPiDetails(false);
                     }
@@ -1853,12 +1891,21 @@ const ProjectRegistration: React.FC = () => {
                 handleTableRowChange(quickEntryState.tableName, quickEntryState.rowIndex, quickEntryState.columnKey, finalDesignation);
                 setQuickEntryState(null); // Close modal
             } else {
-                alert(`Error: ${result?.message || 'Failed to create custom designation.'}`);
+                setErrorModal({
+                    open: true,
+                    title: "Failed to Create Designation",
+                    message: result?.message
+                        ? parseFrappeError({ message: result.message })
+                        : "Failed to create custom designation.",
+                });
                 setQuickEntryState(prev => prev ? { ...prev, isSubmitting: false } : null);
             }
         } catch (e: any) {
-            console.error("Quick Entry error", e);
-            alert("Failed to create custom designation. Please try again.");
+            setErrorModal({
+                open: true,
+                title: "Failed to Create Designation",
+                message: parseFrappeError(e),
+            });
             setQuickEntryState(prev => prev ? { ...prev, isSubmitting: false } : null);
         }
         // END OF EDIT — MKY | 2026-04-14 15:35 IST
@@ -1996,7 +2043,6 @@ const ProjectRegistration: React.FC = () => {
                         details?.cell_phone_number ||
                         "";
                 } catch (err) {
-                    console.error("Failed to fetch collaborator details:", err);
                 }
             }
             setFormData((prev) => {
@@ -2390,14 +2436,12 @@ const ProjectRegistration: React.FC = () => {
         try {
             const { doc_data, files } = await prepareDataWithFiles();
             await submitForm({ docname, doc: doc_data, files });
-        } catch (err) {
-            const errorMessage =
-                err instanceof Error
-                    ? err.message
-                    : typeof err === "string"
-                        ? err
-                        : "File processing error.";
-            alert(errorMessage);
+        } catch (err: any) {
+            setErrorModal({
+                open: true,
+                title: "Submission Failed",
+                message: parseFrappeError(err),
+            });
             setIsSubmitting(false);
         }
     };
@@ -2424,16 +2468,7 @@ const ProjectRegistration: React.FC = () => {
     };
 
     const handleSaveDraft = async () => {
-        console.log(
-            ">>> handleSaveDraft called! isSavingDraft:",
-            isSavingDraft,
-            "isSubmitting:",
-            isSubmitting,
-        );
         if (isSavingDraft || isSubmitting) {
-            console.log(
-                ">>> Early return due to isSavingDraft or isSubmitting",
-            );
             return;
         }
         const errors = validateMandatoryFields();
@@ -2489,14 +2524,6 @@ const ProjectRegistration: React.FC = () => {
             });
 
             // Debug logging
-            console.log("=== SAVE DRAFT DEBUG ===");
-            console.log("doc_data keys:", Object.keys(doc_data));
-            console.log("files count:", files.length);
-            console.log("html_content length:", endorsementHtml?.length || 0);
-            console.log(
-                "html_content preview:",
-                endorsementHtml?.substring(0, 200),
-            );
 
             const payload = {
                 docname,
@@ -2505,13 +2532,6 @@ const ProjectRegistration: React.FC = () => {
                 html_content: endorsementHtml,
             };
 
-            console.log("API Payload keys:", Object.keys(payload));
-            console.log(
-                "html_content in payload:",
-                payload.html_content
-                    ? `${payload.html_content.length} chars`
-                    : "MISSING!",
-            );
 
             await saveDraft(payload);
 
@@ -2520,15 +2540,12 @@ const ProjectRegistration: React.FC = () => {
                 docname || "new",
                 document.documentElement.outerHTML,
             );
-        } catch (err) {
-            console.error("Save draft error:", err);
-            const errorMessage =
-                err instanceof Error
-                    ? err.message
-                    : typeof err === "string"
-                        ? err
-                        : "File processing error.";
-            alert(errorMessage);
+        } catch (err: any) {
+            setErrorModal({
+                open: true,
+                title: "Draft Save Failed",
+                message: parseFrappeError(err),
+            });
             setIsSavingDraft(false);
         }
     };
@@ -2545,14 +2562,12 @@ const ProjectRegistration: React.FC = () => {
         try {
             const { doc_data, files } = await prepareDataWithFiles();
             await submitForm({ doc: doc_data, files });
-        } catch (err) {
-            const errorMessage =
-                err instanceof Error
-                    ? err.message
-                    : typeof err === "string"
-                        ? err
-                        : "File processing error.";
-            alert(errorMessage);
+        } catch (err: any) {
+            setErrorModal({
+                open: true,
+                title: "Submission Failed",
+                message: parseFrappeError(err),
+            });
             setIsSubmitting(false);
         }
     };
@@ -2640,7 +2655,6 @@ const ProjectRegistration: React.FC = () => {
             }
         }
         if (formDataError) {
-            console.error("❌ Failed to fetch form data:", formDataError);
             alert("Error fetching form data.");
             setLoading(false);
         }
@@ -2875,7 +2889,13 @@ const ProjectRegistration: React.FC = () => {
             setDocname(savedDocname);
             navigate(`/project-details/${savedDocname}`);
         }
-        if (submitError) alert(`Submission error: ${submitError.message}`);
+        if (submitError) {
+            setErrorModal({
+                open: true,
+                title: "Submission Failed",
+                message: parseFrappeError(submitError),
+            });
+        }
         setIsSubmitting(false);
     }, [submitResult, submitError]);
     useEffect(() => {
@@ -2884,7 +2904,13 @@ const ProjectRegistration: React.FC = () => {
             setDocname(savedDocname);
             setShowPreviewModal(true);
         }
-        if (saveError) alert(`Draft save error: ${saveError.message}`);
+        if (saveError) {
+            setErrorModal({
+                open: true,
+                title: "Draft Save Failed",
+                message: parseFrappeError(saveError),
+            });
+        }
         setIsSavingDraft(false);
     }, [saveResult, saveError]);
     useEffect(() => {
@@ -2895,7 +2921,11 @@ Endorsement is optional. You may continue completing Project Registration while 
             navigate("/projects-view");
         }
         if (saveEndorsementError) {
-            alert(`Endorsement save error: ${saveEndorsementError.message}`);
+            setErrorModal({
+                open: true,
+                title: "Endorsement Save Failed",
+                message: parseFrappeError(saveEndorsementError),
+            });
         }
     }, [saveEndorsementResult, saveEndorsementError]);
 
@@ -3829,6 +3859,18 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                     renderField("project_duration_months")
                                                 )}
                                             </div>
+                                            {formData.project_type === "Consultancy" &&
+                                                (Number(formData.project_duration_months) > 0 ||
+                                                    Number(formData.project_duration_days) > 0) && (
+                                                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                                                        {(() => {
+                                                            const months = Number(formData.project_duration_months) || 0;
+                                                            const days = Number(formData.project_duration_days) || 0;
+                                                            const totalDays = months * 30 + days;
+                                                            return `${months}m and ${days}d = ${totalDays} days total`;
+                                                        })()}
+                                                    </p>
+                                                )}
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 {renderField("prj_start_date")}
                                                 {renderField("prj_end_date")}
@@ -3904,11 +3946,11 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                                             "Account details saved successfully.",
                                                                         );
                                                                     } catch (e: any) {
-                                                                        alert(
-                                                                            "Failed to save account details: " +
-                                                                            (e?.message ||
-                                                                                "Unknown error"),
-                                                                        );
+                                                                        setErrorModal({
+                                                                            open: true,
+                                                                            title: "Failed to Save Account Details",
+                                                                            message: parseFrappeError(e),
+                                                                        });
                                                                     } finally {
                                                                         setIsSavingPfms(
                                                                             false,
@@ -3983,7 +4025,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                                     </p>
                                                                     <button
                                                                         type="button"
-                                                                        onClick={() => window.open("http://172.16.131.206:8081/universal-registration", "_blank")}
+                                                                        onClick={() => window.open(`http://${import.meta.env.VITE_APP_BACKEND_HOST || "172.16.131.206"}:${import.meta.env.VITE_APP_BACKEND_REGISTRATION_PORT || "8081"}/universal-registration`, "_blank")}
                                                                         className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm"
                                                                     >
                                                                         <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
@@ -4035,7 +4077,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                                 </p>
                                                                 <button
                                                                     type="button"
-                                                                    onClick={() => window.open("http://172.16.131.206:8081/universal-registration", "_blank")}
+                                                                    onClick={() => window.open(`http://${import.meta.env.VITE_APP_BACKEND_HOST || "172.16.131.206"}:${import.meta.env.VITE_APP_BACKEND_REGISTRATION_PORT || "8081"}/universal-registration`, "_blank")}
                                                                     className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm"
                                                                 >
                                                                     <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
@@ -4694,10 +4736,12 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                     endorsement: 1,
                                                 });
                                                 setShowEndorsementModal(false);
-                                            } catch (err) {
-                                                alert(
-                                                    "Error processing endorsement.",
-                                                );
+                                            } catch (err: any) {
+                                                setErrorModal({
+                                                    open: true,
+                                                    title: "Endorsement Failed",
+                                                    message: parseFrappeError(err),
+                                                });
                                             } finally {
                                                 setIsSubmitting(false);
                                             }
@@ -4785,10 +4829,12 @@ Endorsement is optional. You may continue completing Project Registration while 
                                 type="text"
                                 autoFocus
                                 placeholder="Enter designation name..."
+                                maxLength={140}
                                 value={quickEntryState.pendingValue}
                                 onChange={(e) => setQuickEntryState(prev => prev ? { ...prev, pendingValue: e.target.value } : null)}
                                 className={`${inputClasses} w-full mb-4`}
                             />
+                            <CharLimitAlert value={quickEntryState.pendingValue} maxLength={140} className="-mt-3 mb-3" />
                             <div className="flex justify-end gap-2">
                                 <button
                                     onClick={() => setQuickEntryState(null)}
@@ -4825,6 +4871,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                             <textarea
                                 id="finalSubmitComment"
                                 placeholder="Enter your comment here..."
+                                maxLength={65535}
                                 className="w-full mb-4 min-h-[100px] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] bg-white dark:bg-[#27272A] text-[#18181B] dark:text-[#E4E4E7] focus:outline-none focus:border-[#4A6CF7] focus:ring-[3px] focus:ring-[#4A6CF7]/12 p-3 rounded-lg text-[13px] font-medium resize-none"
                             />
                             <div className="flex justify-end gap-3">
@@ -4849,7 +4896,11 @@ Endorsement is optional. You may continue completing Project Registration while 
                                             setShowPreviewModal(false);
                                             navigate(`/project-details/${docname}`);
                                         } catch (err: any) {
-                                            alert("Submit failed: " + err.message);
+                                            setErrorModal({
+                                                open: true,
+                                                title: "Submission Failed",
+                                                message: parseFrappeError(err),
+                                            });
                                         } finally {
                                             setIsFinalSubmitting(false);
                                         }
@@ -4882,7 +4933,9 @@ Endorsement is optional. You may continue completing Project Registration while 
                                 <div className="flex flex-col gap-1.5">
                                     <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Funding Agency Name <span className="text-red-500">*</span></label>
                                     <input type="text" value={newAgencyData.funding_agency_name || ""} onChange={(e) => handleAgencyFieldChange("funding_agency_name", e.target.value)}
+                                        maxLength={140}
                                         className={`w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors ${hasDupe ? "border-red-400 dark:border-red-500 focus:ring-red-300" : "border-zinc-300 dark:border-zinc-700 focus:ring-primary/30"}`} />
+                                    <CharLimitAlert value={newAgencyData.funding_agency_name} maxLength={140} />
                                     {hasDupe && <p className="text-xs text-red-500 font-medium">Duplicate: "{duplicateAgency!.funding_agency_name}" already exists.</p>}
                                 </div>
                             );
@@ -4897,7 +4950,9 @@ Endorsement is optional. You may continue completing Project Registration while 
                                 <div className="flex flex-col gap-1.5">
                                     <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Initials / Abbreviation</label>
                                     <input type="text" value={newAgencyData.funding_agency_initials || ""} onChange={(e) => handleAgencyFieldChange("funding_agency_initials", e.target.value)}
+                                        maxLength={140}
                                         className={`w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors ${hasDupe ? "border-red-400 dark:border-red-500 focus:ring-red-300" : "border-zinc-300 dark:border-zinc-700 focus:ring-primary/30"}`} />
+                                    <CharLimitAlert value={newAgencyData.funding_agency_initials} maxLength={140} />
                                     {hasDupe && <p className="text-xs text-red-500 font-medium">Duplicate: "{duplicateAgency!.funding_agency_name}" already exists.</p>}
                                 </div>
                             );
@@ -4932,7 +4987,9 @@ Endorsement is optional. You may continue completing Project Registration while 
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Specify Type <span className="text-red-500">*</span></label>
                                 <input type="text" value={newAgencyData.specify_other_funding_agency_type || ""} onChange={(e) => handleAgencyFieldChange("specify_other_funding_agency_type", e.target.value)}
+                                    maxLength={140}
                                     className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                                <CharLimitAlert value={newAgencyData.specify_other_funding_agency_type} maxLength={140} />
                             </div>
                         )}
 
@@ -4957,7 +5014,9 @@ Endorsement is optional. You may continue completing Project Registration while 
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Specify Ministry <span className="text-red-500">*</span></label>
                                 <input type="text" value={newAgencyData.specify_other_ministry || ""} onChange={(e) => handleAgencyFieldChange("specify_other_ministry", e.target.value)}
+                                    maxLength={140}
                                     className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                                <CharLimitAlert value={newAgencyData.specify_other_ministry} maxLength={140} />
                             </div>
                         )}
 
@@ -4966,7 +5025,9 @@ Endorsement is optional. You may continue completing Project Registration while 
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">GSTIN</label>
                                 <input type="text" value={newAgencyData.gstin_of_funding_agency || ""} onChange={(e) => handleAgencyFieldChange("gstin_of_funding_agency", e.target.value)}
+                                    maxLength={140}
                                     className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                                <CharLimitAlert value={newAgencyData.gstin_of_funding_agency} maxLength={140} />
                             </div>
                         )}
 
@@ -4974,7 +5035,9 @@ Endorsement is optional. You may continue completing Project Registration while 
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Address</label>
                             <textarea rows={2} value={newAgencyData.fundingagency_address || ""} onChange={(e) => handleAgencyFieldChange("fundingagency_address", e.target.value)}
+                                maxLength={65535}
                                 className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 resize-none" />
+                            <CharLimitAlert value={newAgencyData.fundingagency_address} maxLength={65535} />
                         </div>
 
                         {/* Country */}
@@ -5001,21 +5064,27 @@ Endorsement is optional. You may continue completing Project Registration while 
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Postal Code</label>
                             <input type="text" value={newAgencyData.fundingagency_postalcode || ""} onChange={(e) => handleAgencyFieldChange("fundingagency_postalcode", e.target.value)}
+                                maxLength={140}
                                 className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                            <CharLimitAlert value={newAgencyData.fundingagency_postalcode} maxLength={140} />
                         </div>
 
                         {/* Email */}
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Email</label>
                             <input type="email" value={newAgencyData.funding_agency_email || ""} onChange={(e) => handleAgencyFieldChange("funding_agency_email", e.target.value)}
+                                maxLength={140}
                                 className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                            <CharLimitAlert value={newAgencyData.funding_agency_email} maxLength={140} />
                         </div>
 
                         {/* Contact */}
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Contact No.</label>
                             <input type="text" value={newAgencyData.funding_agency_contact_no || ""} onChange={(e) => handleAgencyFieldChange("funding_agency_contact_no", e.target.value)}
+                                maxLength={140}
                                 className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                            <CharLimitAlert value={newAgencyData.funding_agency_contact_no} maxLength={140} />
                         </div>
 
                     </div>
@@ -5040,7 +5109,12 @@ Endorsement is optional. You may continue completing Project Registration while 
                 </SheetContent>
             </Sheet>
 
-
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

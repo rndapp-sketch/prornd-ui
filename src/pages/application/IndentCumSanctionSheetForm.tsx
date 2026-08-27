@@ -32,7 +32,6 @@ import {
   X,
   CalendarIcon,
   FileSpreadsheetIcon as LedgerIcon,
-  AlertCircle,
   Upload,
   FileText,
   ExternalLink,
@@ -55,6 +54,8 @@ import { getFileUrl } from "@/utils/fileUtils";
 import { P11PrintModal as PrintModal } from "@/components/P11PrintModal";
 import { ActivityLog } from "@/components/ActivityLog";
 import { commonAPI } from "@/services/apiService";
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 import {
   generatePOHtml,
   getAmcPoGrandTotal,
@@ -987,7 +988,7 @@ const buildDirectorApprovalPrintHtml = ({
     <div class="page">
         <div class="letterhead">
             <div class="brand">
-                <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo" onerror="this.style.display='none'" />
+                <img src="http://${import.meta.env.VITE_ASSET_HOST || '172.16.117.39'}:${import.meta.env.VITE_ASSET_PORT || '8000'}/files/IITG_logo.png" alt="IITG Logo" onerror="this.style.display='none'" />
                 <div>
                     <div class="inst-en">Indian Institute of Technology Guwahati</div>
                     <div class="inst-hi">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
@@ -1881,7 +1882,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [actionComment, setActionComment] = useState("");
   const [isLedgerOpen, setIsLedgerOpen] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState("");
   const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(
     null,
   );
@@ -1934,6 +1934,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
   const [availableActions, setAvailableActions] = useState<string[]>([]);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [docStatus, setDocStatus] = useState<number>(0);
+  const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
   const projectCode =
     formData.project_no ||
     formData.project_code ||
@@ -1974,6 +1975,34 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     icssAPI.getWorkflowActions,
   );
   const { call: performActionCall } = useFrappePostCall(icssAPI.performAction);
+  const { call: fetchIcssPiProjects } = useFrappePostCall(icssAPI.getPiProjects);
+  const { call: fetchIcssProjectHeads } = useFrappePostCall(icssAPI.getProjectAccountHeads);
+  const [icssPiProjects, setIcssPiProjects] = React.useState<any[]>([]);
+  const [icssPiHeads, setIcssPiHeads] = React.useState<any[]>([]);
+  const [icssSelectedProject, setIcssSelectedProject] = React.useState("");
+  const [icssSelectedHead, setIcssSelectedHead] = React.useState("");
+
+  // Other-PI approval step: only the assigned PI charges one of their own projects.
+  const isIcssPiStep =
+    workflowState === "Pending Other PI" &&
+    !!currentUser &&
+    String(formData?.icss_other_pi_id || "").toLowerCase() === String(currentUser).toLowerCase();
+
+  React.useEffect(() => {
+    if (!isIcssPiStep) return;
+    fetchIcssPiProjects({})
+      .then((r: any) => setIcssPiProjects(r?.message || []))
+      .catch(() => setIcssPiProjects([]));
+  }, [isIcssPiStep]);
+
+  React.useEffect(() => {
+    setIcssSelectedHead("");
+    if (!icssSelectedProject) { setIcssPiHeads([]); return; }
+    fetchIcssProjectHeads({ project_name: icssSelectedProject })
+      .then((r: any) => setIcssPiHeads(r?.message || []))
+      .catch(() => setIcssPiHeads([]));
+  }, [icssSelectedProject]);
+
   const { call: updateSendToDirectorCall } = useFrappePostCall(
     icssAPI.updateSendToDirector,
   );
@@ -1981,9 +2010,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     "rndopsapp.rndopsapp.commitPayment.manually_publish_staged_commit",
   );
   const { call: getListCall } = useFrappePostCall("frappe.client.get_list");
-  const { call: submitPayment, loading: isPaying } = useFrappePostCall(
-    "rndopsapp.rndopsapp.commitPayment.submit_payment_data",
-  );
   const { call: addComment } = useFrappePostCall(
     "rndopsapp.rndopsapp.api.add_project_comment",
   );
@@ -2020,6 +2046,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     heads: budgetHeads,
     actualBalance,
     commitableBalance,
+    headBalances,
   } = useProjectBudget(projectCode);
   const balanceApiParams = React.useMemo(
     () => ({ project_number: projectCode }),
@@ -2102,11 +2129,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     formData.icss_other_account_head,
   ]);
 
-  const linkedCommitment = budgetData.find(
-    (entry) =>
-      (entry.ref === currentDocName || entry.frapAppId === currentDocName) &&
-      entry.type === "commitment",
-  );
   const poCommitReferenceName = currentDocName || "";
   const previousIcssCommitment = React.useMemo(() => {
     const entries = budgetData.filter(
@@ -2125,18 +2147,38 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     ? String(previousIcssCommitment.transactionId)
     : "";
   const poCommitAmount = React.useMemo(
-    () => getIcssPoCommitAmount(poDraftData, formData),
+    // Round off — grand_total sources can carry GST-calc fractions (e.g.
+    // 1539900.1593); the commitment amount should prefill as whole rupees.
+    () => Math.round(getIcssPoCommitAmount(poDraftData, formData)),
     [formData, poDraftData],
   );
-  const isCommitted = !!linkedCommitment;
-  const displayCommitment = linkedCommitment
-    ? { head: linkedCommitment.head, committed: linkedCommitment.committed }
-    : null;
-  const showCommitSection =
-    isRnDStaff &&
-    !!currentDocName &&
-    !!workflowState &&
-    !["Draft", "Rejected", "Cancelled"].includes(workflowState);
+
+  // The PO commitment (below) supersedes the indent-stage commitment shown as
+  // "Previous Commitment" — the backend releases/adjusts that earlier amount
+  // when this one is submitted, rather than the two coexisting. headBalances
+  // still reflects the old commitment as locked, so add it back for the head
+  // it was booked against — otherwise the availability check below wrongly
+  // treats budget as double-booked and blocks a commit that fits once the
+  // old one is released.
+  const poCommitHeadBalances = React.useMemo(() => {
+    if (!previousIcssCommitment?.head || !previousIcssCommitment.committed) {
+      return headBalances;
+    }
+    const head = previousIcssCommitment.head;
+    const existing = headBalances[head];
+    if (!existing) return headBalances;
+    return {
+      ...headBalances,
+      [head]: {
+        ...existing,
+        // Round off — summing ledger figures can leave stray paise/float
+        // artifacts (e.g. ₹1,21,881.841 + ₹15,39,900.159), and Available
+        // should read as a clean whole-rupee figure.
+        commitable: Math.round(existing.commitable + previousIcssCommitment.committed),
+        actual: Math.round(existing.actual + previousIcssCommitment.committed),
+      },
+    };
+  }, [headBalances, previousIcssCommitment]);
   const commitRequired =
     workflowState === "Pending Staff Approval" &&
     isRnDStaff &&
@@ -2182,18 +2224,11 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           );
         }
       } catch (error) {
-        console.error("Failed to fetch budget heads for ICSS:", error);
       }
     };
 
     fetchBudgetHeads();
   }, []);
-
-  useEffect(() => {
-    if (linkedCommitment && !paymentAmount) {
-      setPaymentAmount(String(linkedCommitment.committed));
-    }
-  }, [linkedCommitment, paymentAmount]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -2222,7 +2257,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           designation: details.designation_name || details.designation || "",
         });
       } catch (error) {
-        console.error("Failed to fetch checked-by user details:", error);
         if (!isCancelled) {
           setCheckedByUser({ name: currentUser, designation: "" });
         }
@@ -2266,7 +2300,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             "Hos, RnD (Head of Section, RnD)",
         });
       } catch (error) {
-        console.error("Failed to fetch HoS, RnD signatory details:", error);
       }
     };
 
@@ -2282,7 +2315,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           designation: details.designation_name || details.designation || "",
         });
       } catch (error) {
-        console.error("Failed to fetch rndadmin signatory details:", error);
       }
     };
 
@@ -2659,7 +2691,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           designation: userDetails.designation || data.designation,
         };
       } catch (e) {
-        console.error("Failed to fetch ICSS applicant display details", e);
         return data;
       }
     },
@@ -2842,10 +2873,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         compositeResponse?.message?.message || "Composite save failed",
       );
     } catch (compositeError) {
-      console.warn(
-        "ICSS composite save failed, falling back to flat save.",
-        compositeError,
-      );
     }
 
     const flatResponse = await saveCall({ data: preparedData });
@@ -2997,7 +3024,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             newData.total_estimate_in_words = inWords;
         }
       } catch (e) {
-        console.error("Computation engine error:", e);
       }
       return newData;
     },
@@ -3129,10 +3155,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       setIsLoadingFields(true);
       try {
         const currentDocName = docNameOverride || editDocName || savedDocName;
-        console.log(
-          "Fetching ICSS config for:",
-          currentDocName ? `Doc: ${currentDocName}` : "New Document",
-        );
 
         const response = await getFieldsCall({ doc_name: currentDocName });
         if (response && response.message) {
@@ -3141,7 +3163,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             prefill_data,
             link_options,
           } = response.message;
-          console.log("Fetched ICSS Fields:", fetchedFields?.length);
 
           const HIDDEN_FIELDS = [
             "amended_from",
@@ -3180,7 +3201,32 @@ const IndentCumSanctionSheetForm: React.FC = () => {
               }));
             }
           } catch (e) {
-            console.error("Failed to load all principal suppliers:", e);
+          }
+
+          // Load all enabled Users so Other PI Webmail Id (and any other
+          // User-link field) isn't limited to whatever subset the backend
+          // pre-packages in link_options.
+          try {
+            const userRes = await getListCall({
+              doctype: "User",
+              fields: ["name", "full_name"],
+              filters: [["enabled", "=", 1]],
+              limit_page_length: 0,
+            });
+            if (userRes?.message?.length) {
+              const allUsers = userRes.message
+                .filter((u: any) => u.name !== "Administrator" && u.name !== "Guest")
+                .map((u: any) => ({
+                  value: u.name,
+                  label: u.full_name ? `${u.full_name} (${u.name})` : u.name,
+                }));
+              setLinkOptions((prev) => ({
+                ...prev,
+                User: mergeLinkOptionLists(prev.User, allUsers),
+                webmail_id: mergeLinkOptionLists(prev.webmail_id, allUsers),
+              }));
+            }
+          } catch (e) {
           }
 
           if (response.message.computation_rules) {
@@ -3236,7 +3282,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                   initialData.head = headRes.message.piheadmentor_user_id;
                 }
               } catch (e) {
-                console.error("Failed to fetch head (piheadmentor_user_id)", e);
               }
             }
 
@@ -3278,13 +3323,13 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                   }
                 }
               } catch (e) {
-                console.error("Failed to fetch project details:", e);
               }
             }
 
-            // Allow explicit project_ref override from URL param
-            if (projectRefParam && !initialData.project_ref) {
-              initialData.project_ref = projectRefParam;
+            if (searchParams.get("other_pi") === "1") {
+              initialData.icss_other_pi = "Other";
+              initialData.project_ref = "";
+              initialData.project_no = "";
             }
 
             const normalizedData = normalizeIcssFormData(initialData);
@@ -3296,7 +3341,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           }
         }
       } catch (error) {
-        console.error("Error fetching ICSS form details:", error);
         alert("Failed to load form schema");
       } finally {
         setIsLoadingFields(false);
@@ -3354,10 +3398,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             child_docname: childDocname,
           });
         } catch (genericChildError) {
-          console.warn(
-            "Generic ICSS child field API failed, falling back to legacy child API.",
-            genericChildError,
-          );
         }
 
         if (!response?.message) {
@@ -3430,7 +3470,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           }
         }
       } catch (error) {
-        console.error("Error fetching sub-form fields:", error);
       } finally {
         setIsLoadingSubForm(false);
       }
@@ -3550,10 +3589,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         });
       }
     } catch (error) {
-      console.error(
-        "Failed to hydrate Rate Contract P3 display options:",
-        error,
-      );
     }
   }, [
     applyComputations,
@@ -3621,7 +3656,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         }));
       }
     } catch (error) {
-      console.error("Failed to hydrate Rate Contract P4 vendor list:", error);
     }
   }, [
     fetchVendorsByP4ItemType,
@@ -3655,7 +3689,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         );
       }
     } catch (error) {
-      console.error("Failed to hydrate Rate Contract P4 vendor details:", error);
     }
   }, [
     applyComputations,
@@ -3679,7 +3712,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           if (!mounted) return;
         })
         .catch((err) => {
-          console.error("Subform fetch failed", err);
         });
     }
     return () => {
@@ -3696,7 +3728,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           setAvailableActions(response.message);
         }
       } catch (error) {
-        console.error("Failed to fetch workflow actions:", error);
         setAvailableActions([]);
       }
     },
@@ -3795,7 +3826,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
               });
             }
           } catch (e) {
-            console.error("Failed to fetch user details", e);
           }
         }
         return;
@@ -3902,7 +3932,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                     }),
                   );
                 } catch (localErr) {
-                  console.error("Failed to auto-fetch local supplier details:", localErr);
                 }
               }
             } else {
@@ -4047,7 +4076,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             break;
         }
       } catch (e) {
-        console.error(`Rate Contract side effect error for ${fieldname}:`, e);
       }
     },
     [
@@ -4290,17 +4318,18 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             newDocName || editDocName || savedDocName || undefined,
           );
         } else {
-          alert(response.message?.message || "Failed to save draft");
+          setErrorModal({
+            open: true,
+            title: "Save Failed",
+            message: parseFrappeError(response?.message),
+          });
         }
       } catch (error: any) {
-        console.error("Save error:", error);
-        const errMsg =
-          error.exc_type === "ValidationError"
-            ? JSON.parse(error._server_messages || "[]")
-              .map((m: string) => JSON.parse(m).message)
-              .join(", ")
-            : "An error occurred while saving";
-        alert(errMsg);
+        setErrorModal({
+          open: true,
+          title: "Save Failed",
+          message: parseFrappeError(error),
+        });
       } finally {
         setIsSubmitting(false);
       }
@@ -4332,10 +4361,11 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           !persisted?.response?.message ||
           persisted.response.message.status !== "success"
         ) {
-          alert(
-            persisted?.response?.message?.message ||
-            "Please save the document first.",
-          );
+          setErrorModal({
+            open: true,
+            title: "Save Failed",
+            message: parseFrappeError(persisted?.response?.message),
+          });
           return;
         }
         effectiveDocName = persisted.docname || effectiveDocName;
@@ -4349,10 +4379,25 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         return;
       }
 
-      const response = await performActionCall({
+      const isPiForward =
+        isIcssPiStep &&
+        (action.toLowerCase().includes("forward") || action.toLowerCase().includes("approve"));
+      if (isPiForward && (!icssSelectedProject || !icssSelectedHead)) {
+        alert("Please select a project and account head before approving.");
+        return;
+      }
+
+      const actionPayload: Record<string, any> = {
         docname: effectiveDocName,
         action: action,
-      });
+      };
+      if (isPiForward) {
+        actionPayload.extra_data = JSON.stringify({
+          project_name: icssSelectedProject,
+          account_head: icssSelectedHead,
+        });
+      }
+      const response = await performActionCall(actionPayload);
 
       if (
         response &&
@@ -4377,13 +4422,18 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         await fetchFormConfiguration(effectiveDocName);
         fetchWorkflowActions(effectiveDocName);
       } else {
-        alert(
-          response.message?.message || `Failed to perform action ${action}`,
-        );
+        setErrorModal({
+          open: true,
+          title: "Action Failed",
+          message: parseFrappeError(response?.message),
+        });
       }
     } catch (error: any) {
-      console.error(`Workflow Action ${action} Error:`, error);
-      alert(`An error occurred while performing action: ${action}`);
+      setErrorModal({
+        open: true,
+        title: "Action Failed",
+        message: parseFrappeError(error),
+      });
     } finally {
       setIsActionLoading(false);
     }
@@ -4428,39 +4478,9 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         alert("Could not find the linked project for this ICSS.");
       }
     } catch (error) {
-      console.error("Failed to open ICSS project", error);
       alert("Failed to open the linked project.");
     } finally {
       setIsProjectViewLoading(false);
-    }
-  };
-
-  const handlePayment = async () => {
-    if (
-      !displayCommitment?.head ||
-      !paymentAmount ||
-      !currentDocName ||
-      !projectCode
-    ) {
-      alert("Please ensure a commitment exists and enter a payment amount.");
-      return;
-    }
-
-    try {
-      await submitPayment({
-        doctype: "Indent Cum Sanction Sheet",
-        name: currentDocName,
-        project_name: projectCode,
-        payment_amount: parseFloat(paymentAmount),
-        budget_head: displayCommitment.head,
-        bmr: "",
-      });
-      alert("Payment recorded successfully!");
-      setPaymentAmount("");
-      window.location.reload();
-    } catch (error: any) {
-      console.error("ICSS payment failed:", error);
-      alert(`Payment failed: ${error.message || "Unknown error"}`);
     }
   };
 
@@ -4692,9 +4712,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         setSavedPoDraftLoadError(
           `Failed to load saved PO draft: ${listResponse.status} ${listResponse.statusText}`,
         );
-        console.error(
-          `Failed to fetch ICSS_PO list: ${listResponse.status} ${listResponse.statusText}`,
-        );
         return null;
       }
 
@@ -4711,9 +4728,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       if (!detailResponse.ok) {
         setSavedPoDraftLoadError(
           `Failed to load saved PO draft details: ${detailResponse.status} ${detailResponse.statusText}`,
-        );
-        console.error(
-          `Failed to fetch ICSS_PO detail: ${detailResponse.status} ${detailResponse.statusText}`,
         );
         return null;
       }
@@ -4747,7 +4761,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         _icss_po_name: poDocName,
       };
     } catch (error) {
-      console.error("Failed to fetch saved ICSS PO draft:", error);
       setSavedPoDraftLoadError("Failed to load saved PO draft details.");
       return null;
     } finally {
@@ -4789,7 +4802,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         setSignedPoFileUrl("");
       }
     } catch (error) {
-      console.error("Failed to fetch signed PO attachment:", error);
     }
   }, [currentDocName]);
 
@@ -4820,11 +4832,11 @@ const IndentCumSanctionSheetForm: React.FC = () => {
 
         const uploadJson = await uploadResponse.json().catch(() => ({}));
         if (!uploadResponse.ok) {
-          throw new Error(
-            uploadJson?._server_messages ||
-            uploadJson?.exception ||
-            "Failed to upload signed PO.",
+          const uploadError: any = new Error(
+            uploadJson?.exception || "Failed to upload signed PO.",
           );
+          uploadError._server_messages = uploadJson?._server_messages;
+          throw uploadError;
         }
 
         const fileUrl = uploadJson?.message?.file_url || "";
@@ -4838,8 +4850,11 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         );
         alert("Signed PO uploaded successfully.");
       } catch (error: any) {
-        console.error("Signed PO upload failed:", error);
-        alert(error?.message || "Failed to upload signed PO.");
+        setErrorModal({
+          open: true,
+          title: "Upload Failed",
+          message: parseFrappeError(error),
+        });
       } finally {
         setIsUploadingSignedPo(false);
       }
@@ -4941,7 +4956,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           accountHeadLabel =
             accountHeadRes?.message?.budget_head || accountHeadLabel;
         } catch (error) {
-          console.error("Failed to resolve ICSS PO account head label:", error);
         }
       }
 
@@ -5241,10 +5255,11 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       );
       await fetchFormConfiguration(currentDocName);
     } catch (error: any) {
-      console.error("Failed to send ICSS for Director approval:", error);
-      alert(
-        error?.message || "Failed to mark this ICSS for Director approval.",
-      );
+      setErrorModal({
+        open: true,
+        title: "Failed to Send for Director Approval",
+        message: parseFrappeError(error),
+      });
     } finally {
       setIsUpdatingDirectorFlag(false);
     }
@@ -5517,6 +5532,36 @@ const IndentCumSanctionSheetForm: React.FC = () => {
 
     return (
       <>
+        {isIcssPiStep && (
+          <div className="w-full flex flex-col gap-2 p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+            <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+              Approve against one of your projects
+            </span>
+            <div className="flex flex-col sm:flex-row gap-2 min-w-0 w-full">
+              <select
+                value={icssSelectedProject}
+                onChange={(e) => setIcssSelectedProject(e.target.value)}
+                className="min-w-0 w-full flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100"
+              >
+                <option value="">Select project…</option>
+                {icssPiProjects.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
+              <select
+                value={icssSelectedHead}
+                onChange={(e) => setIcssSelectedHead(e.target.value)}
+                disabled={!icssSelectedProject}
+                className="min-w-0 w-full flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+              >
+                <option value="">Select account head…</option>
+                {icssPiHeads.map((h) => (
+                  <option key={h.value} value={h.value}>{h.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
         {commitRequired && (
           <div className="w-full text-xs p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 font-medium">
             A commitment must be submitted before forwarding this application.
@@ -5736,11 +5781,11 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                     type="button"
                     onClick={() => {
                       handleGeneratePo().catch((error) => {
-                        alert(
-                          error instanceof Error
-                            ? error.message
-                            : "Failed to generate PO.",
-                        );
+                        setErrorModal({
+                          open: true,
+                          title: "PO Generation Failed",
+                          message: parseFrappeError(error),
+                        });
                       });
                     }}
                     disabled={
@@ -6065,6 +6110,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                         handleFieldChangeWithSideEffects
                       }
                       readOnly={isReadOnly}
+                      autocompleteFields={["icss_other_pi_id"]}
                     />
                   </div>
                   <div id="icss-activity-log" className="hidden">
@@ -6276,6 +6322,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                 docName={currentDocName}
                 projectName={projectCode}
                 budgetHeads={budgetHeads}
+                headBalances={headBalances}
                 defaultBudgetHead={defaultCommitBudgetHead}
                 actualBalance={actualBalance}
                 commitableBalance={commitableBalance}
@@ -6292,13 +6339,77 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             ) &&
               isRnDStaff &&
               currentDocName && (
-                <CommitPayment
+                <>
+                  {previousIcssCommitment && (
+                    <FrappeCard>
+                      <div className="p-5">
+                        <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
+                          Previous Commitment
+                        </h3>
+                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex flex-col gap-1">
+                          <div className="flex justify-between items-center gap-3">
+                            <p className="text-xs font-medium text-blue-900">
+                              Ref ID: {previousIcssCommitment.transactionId ?? "-"}
+                            </p>
+                            <p className="text-xs text-blue-700">
+                              {previousIcssCommitment.date}
+                            </p>
+                          </div>
+                          <p className="text-sm font-medium text-blue-900">
+                            {previousIcssCommitment.head}
+                          </p>
+                          {previousIcssCommitment.particulars && (
+                            <p className="text-xs text-blue-700">
+                              {previousIcssCommitment.particulars}
+                            </p>
+                          )}
+                          <p className="text-lg font-bold text-blue-700 text-right">
+                            ₹{" "}
+                            {Number(
+                              previousIcssCommitment.committed || 0,
+                            ).toLocaleString("en-IN")}
+                          </p>
+                        </div>
+                        {!!poCommitAmount && (() => {
+                          const previousAmount = Math.round(previousIcssCommitment.committed || 0);
+                          const diff = poCommitAmount - previousAmount;
+                          const diffLabel =
+                            diff > 0
+                              ? `+₹${diff.toLocaleString("en-IN")} more`
+                              : diff < 0
+                                ? `-₹${Math.abs(diff).toLocaleString("en-IN")} less`
+                                : "No change";
+                          return (
+                            <div className="mt-3 flex items-center justify-between text-xs">
+                              <span className="text-zinc-500 dark:text-zinc-400">
+                                New PO Commitment vs Previous
+                              </span>
+                              <span
+                                className={cn(
+                                  "font-bold",
+                                  diff > 0
+                                    ? "text-amber-600 dark:text-amber-400"
+                                    : diff < 0
+                                      ? "text-emerald-600 dark:text-emerald-400"
+                                      : "text-zinc-500 dark:text-zinc-400",
+                                )}
+                              >
+                                {diffLabel}
+                              </span>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </FrappeCard>
+                  )}
+                  <CommitPayment
                   doctype="Indent Cum Sanction Sheet"
                   docName={currentDocName}
                   stagingReferenceName={poCommitReferenceName}
                   frapAppId={currentDocName}
                   projectName={projectCode}
                   budgetHeads={budgetHeads}
+                  headBalances={poCommitHeadBalances}
                   defaultBudgetHead={defaultCommitBudgetHead}
                   actualBalance={actualBalance}
                   commitableBalance={commitableBalance}
@@ -6329,81 +6440,9 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                   onStagingStatusChange={(committed) =>
                     setIsPoCommittedForGate(committed)
                   }
-                />
+                  />
+                </>
               )}
-
-            {showCommitSection && (
-              <FrappeCard>
-                <div className="p-5">
-                  <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-                    Record Payment
-                  </h3>
-                  {isCommitted ? (
-                    <div className="space-y-4">
-                      <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex flex-col gap-1">
-                        <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
-                          Linked Commitment
-                        </p>
-                        <div className="flex justify-between items-end gap-3">
-                          <p className="text-sm font-medium text-blue-900">
-                            {displayCommitment?.head}
-                          </p>
-                          <p className="text-lg font-bold text-blue-700">
-                            ₹{" "}
-                            {Number(
-                              displayCommitment?.committed || 0,
-                            ).toLocaleString("en-IN")}
-                          </p>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                          Payment Amount (₹)
-                        </label>
-                        <input
-                          type="number"
-                          className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25"
-                          placeholder="e.g., 5000"
-                          value={paymentAmount}
-                          onChange={(e) => setPaymentAmount(e.target.value)}
-                          max={displayCommitment?.committed}
-                        />
-                        <p className="text-xs text-zinc-500 mt-1">
-                          Max: ₹{" "}
-                          {Number(
-                            displayCommitment?.committed || 0,
-                          ).toLocaleString("en-IN")}
-                        </p>
-                      </div>
-                      <FrappeButton
-                        className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                        onClick={handlePayment}
-                        disabled={
-                          isPaying ||
-                          !paymentAmount ||
-                          parseFloat(paymentAmount) >
-                          (displayCommitment?.committed || 0)
-                        }
-                      >
-                        {isPaying ? "Processing..." : "Submit Payment"}
-                      </FrappeButton>
-                    </div>
-                  ) : (
-                    <div className="text-center py-6 px-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-dashed border-zinc-200 dark:border-zinc-700">
-                      <div className="mx-auto w-10 h-10 bg-zinc-200 dark:bg-zinc-700 rounded-full flex items-center justify-center mb-3">
-                        <AlertCircle className="w-5 h-5 text-zinc-400" />
-                      </div>
-                      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                        Commitment Required
-                      </p>
-                      <p className="text-xs text-zinc-500 mt-1">
-                        Make a commitment above before recording payment.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </FrappeCard>
-            )}
           </aside>
         </div>
       </main>
@@ -6512,6 +6551,13 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ErrorModal
+        open={errorModal.open}
+        title={errorModal.title}
+        message={errorModal.message}
+        onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+      />
     </div>
   );
 };

@@ -10,6 +10,8 @@ import { DepartmentName } from '@/components/DepartmentName';
 import { evaluateExpression } from '@/utils/evalExpression';
 import { getFileUrl } from '@/utils/fileUtils';
 import { useFrappeGetCall } from 'frappe-react-sdk';
+import { getFieldMaxLength, getWarnableMaxLength, INT_MAX_LENGTH, CURRENCY_MAX_LENGTH } from '@/utils/fieldLimits';
+import { CharLimitAlert } from '@/components/CharLimitAlert';
 
 // --- SELF-FETCHING DEPARTMENT SELECT ---
 const DepartmentSelect = ({ value, onChange, disabled, className }: any) => {
@@ -68,8 +70,14 @@ export interface ChildTableProps {
     // New props for Link field support with auto-fetch
     linkOptions?: Record<string, LinkOption[]>;
     onLinkChange?: (tableName: string, rowIndex: number, fieldname: string, value: string) => void;
+    /** Per-field async search functions — when provided for a fieldname, enables real-time backend search */
+    asyncSearchFns?: Record<string, (query: string) => Promise<LinkOption[]>>;
     /** Pre-filled data for automatically added rows */
     defaultRows?: Record<string, any>[];
+    /** Override the label shown on each row card header */
+    rowLabelOverride?: string;
+    /** Hide the '#1', '#2' trailing index on row card headers */
+    hideRowIndex?: boolean;
 }
 
 // --- STYLES ---
@@ -114,7 +122,10 @@ export const ChildTableComponent = memo(({
     mandatory = false,
     linkOptions = {},
     onLinkChange,
+    asyncSearchFns = {},
     defaultRows = [],
+    rowLabelOverride,
+    hideRowIndex = false,
 }: ChildTableProps) => {
     const canAddRow = !maxRows || tableData.length < maxRows;
     const isOfficialIdentification = label && String(label).includes('Official Identification');
@@ -192,7 +203,10 @@ export const ChildTableComponent = memo(({
         const value = row[col.fieldname];
         const isReadOnly = readOnly || !!col.read_only;
 
-        // Resolve department-linked fields to human-readable names in read-only mode
+        // Resolve department-linked fields to human-readable names.
+        // These fields store a Frappe doc name (e.g. "otg6vdb31q") and are
+        // always auto-filled — never hand-typed — so show the resolved label
+        // in both edit and read-only modes.
         const isDeptField =
             col.fieldname === 'department_section' ||
             col.fieldname === 'department' ||
@@ -201,7 +215,7 @@ export const ChildTableComponent = memo(({
             col.fieldname === 'ps_department' ||
             col.fieldname === 'implementation_department' ||
             col.fieldname === 'applicant_department';
-        if (isReadOnly && isDeptField && value) {
+        if (isDeptField && value) {
             return <DepartmentName name={value} />;
         }
 
@@ -213,6 +227,7 @@ export const ChildTableComponent = memo(({
                         inputMode="numeric"
                         title="Enter a positive whole number"
                         className={inputClasses}
+                        maxLength={INT_MAX_LENGTH}
                         value={String(value ?? '')}
                         onChange={(e) => {
                             const v = e.target.value;
@@ -234,6 +249,7 @@ export const ChildTableComponent = memo(({
                         inputMode="decimal"
                         title="Enter a positive amount"
                         className={inputClasses}
+                        maxLength={CURRENCY_MAX_LENGTH}
                         value={String(value ?? '')}
                         onChange={(e) => {
                             const v = e.target.value;
@@ -333,6 +349,7 @@ export const ChildTableComponent = memo(({
                     <textarea
                         className={cn(inputClasses, "h-auto py-2")}
                         rows={2}
+                        maxLength={getFieldMaxLength(col.fieldtype)}
                         value={value || ''}
                         onChange={(e) => onRowChange(tableName, rowIndex, col.fieldname, e.target.value)}
                         disabled={isReadOnly}
@@ -354,6 +371,8 @@ export const ChildTableComponent = memo(({
                         linkOptions['webmail_id'] ||
                         linkOptions[col.options as string] ||
                         [];
+                    // If an async search function is registered for this field, use it
+                    const asyncFn = asyncSearchFns[col.fieldname];
                     return (
                         <AutocompleteEmail
                             options={userOpts}
@@ -366,9 +385,10 @@ export const ChildTableComponent = memo(({
                                 }
                             }}
                             className={inputClasses}
-                            placeholder={`Enter ${col.label || 'Email'}`}
-                            showAllOnFocus={true}
+                            placeholder={`Search ${col.label || 'User'}...`}
+                            showAllOnFocus={!asyncFn}
                             disabled={isReadOnly}
+                            onAsyncSearch={asyncFn}
                         />
                     );
                 }
@@ -416,6 +436,7 @@ export const ChildTableComponent = memo(({
                     <input
                         type="text"
                         className={inputClasses}
+                        maxLength={getFieldMaxLength(col.fieldtype)}
                         value={value || ''}
                         onChange={(e) => onRowChange(tableName, rowIndex, col.fieldname, e.target.value)}
                         disabled={isReadOnly}
@@ -462,6 +483,7 @@ export const ChildTableComponent = memo(({
                     <input
                         type="text"
                         className={inputClasses}
+                        maxLength={getFieldMaxLength(col.fieldtype)}
                         value={value || ''}
                         onChange={(e) => onRowChange(tableName, rowIndex, col.fieldname, e.target.value)}
                         disabled={isReadOnly}
@@ -510,7 +532,7 @@ export const ChildTableComponent = memo(({
                                 <div className="bg-white dark:bg-[#27272A]">
                                     <div className="flex items-center justify-between px-5 py-3 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
                                         <span className="text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-widest">
-                                            {rowLabel} #{rowIndex + 1}
+                                            {hideRowIndex ? (rowLabelOverride || rowLabel) : `${rowLabelOverride || rowLabel} #${rowIndex + 1}`}
                                         </span>
                                         <div className="flex items-center gap-2">
                                             <FrappeButton
@@ -541,6 +563,13 @@ export const ChildTableComponent = memo(({
                                                 </label>
                                                 <div className="flex-1">
                                                     {renderCellInput(col, row, rowIndex)}
+                                                    {!(readOnly || !!col.read_only) && (
+                                                        <CharLimitAlert
+                                                            value={row[col.fieldname]}
+                                                            maxLength={getWarnableMaxLength(col.fieldtype)}
+                                                            className="mt-1 text-[10px]"
+                                                        />
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}

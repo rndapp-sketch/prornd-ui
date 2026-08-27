@@ -3,6 +3,8 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useDepositSlipCalculations } from "@/hooks/useDepositSlipCalculations";
+import { ErrorModal } from "../components/ErrorModal";
+import { parseFrappeError } from "../utils/errorUtils";
 import {
     ArrowLeftIcon,
     ChevronDown,
@@ -348,6 +350,11 @@ const DepositSlipForm: React.FC = () => {
     >({});
     const [loading, setLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorModal, setErrorModal] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({ open: false, title: "Submission Failed", message: "" });
     const [formValues, setFormValues] = useState<Record<string, any>>({});
     const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
 
@@ -485,24 +492,14 @@ const DepositSlipForm: React.FC = () => {
                         body: JSON.stringify({ doctype: dt, name: projectName }),
                     });
                     if (!resp.ok) {
-                        console.warn(
-                            `[DepositSlip auto-fill] frappe.client.get ${dt}/${projectName} → HTTP ${resp.status}`,
-                        );
                         continue;
                     }
                     const data = await resp.json();
                     const doc = data?.message;
                     if (!doc) {
-                        console.warn(
-                            `[DepositSlip auto-fill] No doc returned for ${dt}/${projectName}`,
-                        );
                         continue;
                     }
 
-                    console.log(
-                        `[DepositSlip auto-fill] Fetched ${dt}/${projectName}; keys:`,
-                        Object.keys(doc),
-                    );
 
                     const fills: Record<string, any> = {};
                     Object.entries(PROJECT_FIELD_MAP).forEach(
@@ -518,23 +515,12 @@ const DepositSlipForm: React.FC = () => {
                     );
 
                     if (Object.keys(fills).length > 0) {
-                        console.log(
-                            "[DepositSlip auto-fill] Filling fields:",
-                            fills,
-                        );
                         setFormValues((prev) => ({ ...prev, ...fills }));
                         setAutoFilledFields(new Set(Object.keys(fills)));
                     } else {
-                        console.warn(
-                            "[DepositSlip auto-fill] No mapped fields found on project doc. Check PROJECT_FIELD_MAP vs doc keys.",
-                        );
                     }
                     return;
                 } catch (e) {
-                    console.error(
-                        `[DepositSlip auto-fill] Failed for ${dt}/${projectName}:`,
-                        e,
-                    );
                 }
             }
         },
@@ -741,13 +727,11 @@ const DepositSlipForm: React.FC = () => {
                         }));
                     }
                 } catch (e) {
-                    console.error(`Failed to fetch options for ${dt}`, e);
                 }
             }
         };
 
         const methodPath = DEPOSIT_SLIP_TYPES[type].getFields;
-        console.log(`[DepositSlip] Calling getFields for type="${type}":`, methodPath);
 
         try {
             const response = await fetch(`/api/method/${methodPath}`, {
@@ -756,18 +740,13 @@ const DepositSlipForm: React.FC = () => {
                 credentials: "include",
                 body: JSON.stringify({ doc_name: fundReceivedName || undefined }),
             });
-            console.log(`[DepositSlip] getFields HTTP status:`, response.status, response.statusText);
 
             const result = await response.json();
-            console.log(`[DepositSlip] getFields raw response:`, result);
 
             const apiFields = result?.message?.fields;
             const link_options = result?.message?.link_options || {};
             const prefill_data = result?.message?.prefill_data || null;
 
-            console.log(`[DepositSlip] apiFields count:`, Array.isArray(apiFields) ? apiFields.length : "not an array", apiFields);
-            console.log(`[DepositSlip] link_options keys:`, Object.keys(link_options));
-            console.log(`[DepositSlip] prefill_data:`, prefill_data);
 
             if (Array.isArray(apiFields) && apiFields.length > 0) {
                 // Backend returned fields — use them
@@ -777,25 +756,15 @@ const DepositSlipForm: React.FC = () => {
                 // Backend not implemented yet — fall back to static field definitions
                 const staticFields = STATIC_FIELDS[type];
                 if (staticFields) {
-                    console.warn(
-                        `[DepositSlip] Backend returned no fields for "${type}" — using static fallback.`,
-                    );
                     applyFields(staticFields, null, null);
                     await fetchMissingLinkOptions({});
                 } else {
-                    console.error(
-                        `[DepositSlip] No fields from backend and no static fallback for type "${type}"`,
-                    );
                 }
             }
         } catch (err) {
-            console.error("[DepositSlip] getFields threw an exception:", err);
             // On network error, still try the static fallback
             const staticFields = STATIC_FIELDS[type];
             if (staticFields) {
-                console.warn(
-                    `[DepositSlip] Backend unreachable for "${type}" — using static fallback.`,
-                );
                 applyFields(staticFields, null, null);
                 await fetchMissingLinkOptions({});
             } else {
@@ -849,9 +818,6 @@ const DepositSlipForm: React.FC = () => {
                 const doctype = matchesDoctype
                     ? optionsDoctype
                     : DEFAULT_PROJECT_DOCTYPE;
-                console.log(
-                    `[DepositSlip auto-fill] Trigger: field="${fieldname}" doctype="${doctype}" value="${value}"`,
-                );
                 fetchAndAutoFillProjectDetails(value, doctype);
             } else {
                 setFormValues((prev) => {
@@ -897,7 +863,6 @@ const DepositSlipForm: React.FC = () => {
                     return doc[key]?.includes(valueToCheck);
                 }
             } catch (e) {
-                console.warn("Failed to parse dependency:", dep, e);
                 return true;
             }
         }
@@ -983,7 +948,6 @@ const DepositSlipForm: React.FC = () => {
                     dpf_amount: row.dpf_amount ? parseFloat(row.dpf_amount) : 0,
                 }));
 
-            console.log("Submitting Deposit Slip:", dataToSubmit);
 
             const response = await fetch(
                 `/api/method/${DEPOSIT_SLIP_TYPES[selectedType].save}`,
@@ -1017,8 +981,11 @@ const DepositSlipForm: React.FC = () => {
             }
             navigate(-1);
         } catch (err: any) {
-            console.error("Submission error:", err);
-            alert(`Submission Failed: ${err.message || "Unknown Error"}`);
+            setErrorModal({
+                open: true,
+                title: "Submission Failed",
+                message: parseFrappeError(err),
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -2309,6 +2276,15 @@ const DepositSlipForm: React.FC = () => {
                     </p>
                 </FrappeCard>
             )}
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() =>
+                    setErrorModal((prev) => ({ ...prev, open: false }))
+                }
+            />
         </div>
     );
 };

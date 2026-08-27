@@ -28,6 +28,8 @@ export interface ActivityLogProps {
     fallbackOwner?: string;
     fallbackCreation?: string;
     fallbackOwnerName?: string;
+    /** Show only comment-type entries, hiding creation/edit activity. */
+    onlyComments?: boolean;
 }
 
 // ─── Module-level cache ───────────────────────────────────────────────────────
@@ -235,6 +237,7 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({
     fallbackOwner,
     fallbackCreation,
     fallbackOwnerName,
+    onlyComments = false,
 }) => {
     const [entries, setEntries] = useState<ActivityLogEntry[]>([]);
     const [loading, setLoading] = useState(false);
@@ -351,7 +354,6 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({
             })
             .catch((err) => {
                 if (err.name === "AbortError") return; // cancelled — do nothing
-                console.warn("[ActivityLog] fetch failed:", err);
                 setError("Unable to load activity");
                 setLoading(false);
             });
@@ -372,6 +374,10 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({
 
     // ── Render ──────────────────────────────────────────────────────────────
 
+    const visibleEntries = onlyComments
+        ? entries.filter((e) => e.type === "comment")
+        : entries;
+
     return (
         <div className={cn("space-y-3", className)}>
             {/* Header */}
@@ -381,9 +387,9 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({
                     <h4 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                         Activity Log
                     </h4>
-                    {!loading && entries.length > 0 && (
+                    {!loading && visibleEntries.length > 0 && (
                         <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
-                            {entries.length}
+                            {visibleEntries.length}
                         </span>
                     )}
                 </div>
@@ -419,11 +425,11 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({
                             Retry
                         </button>
                     </div>
-                ) : entries.length === 0 ? (
+                ) : visibleEntries.length === 0 ? (
                     <div className="flex flex-col items-center py-6 text-center">
                         <ActivityIcon className="w-8 h-8 text-zinc-200 dark:text-zinc-700 mb-2" />
                         <p className="text-xs font-medium text-zinc-400 dark:text-zinc-500">
-                            No activity yet
+                            {onlyComments ? "No comments yet" : "No activity yet"}
                         </p>
                         <p className="text-[11px] text-zinc-300 dark:text-zinc-600 mt-0.5">
                             Activity will appear here once actions are taken.
@@ -431,11 +437,11 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({
                     </div>
                 ) : (
                     <div className="space-y-0">
-                        {entries.map((entry, idx) => (
+                        {visibleEntries.map((entry, idx) => (
                             <LogItem
                                 key={`${entry.timestamp}-${idx}`}
                                 entry={entry}
-                                isLast={idx === entries.length - 1}
+                                isLast={idx === visibleEntries.length - 1}
                             />
                         ))}
                     </div>

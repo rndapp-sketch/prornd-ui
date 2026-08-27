@@ -34,6 +34,10 @@ import { ActivityLog } from "@/components/ActivityLog";
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { P11PrintModal } from "@/components/P11PrintModal";
 import { getFileUrl } from "@/utils/fileUtils";
+import { CharLimitAlert } from "@/components/CharLimitAlert";
+import { FIELD_CHAR_LIMITS } from "@/utils/fieldLimits";
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 
 // --- TYPE DEFINITIONS ---
 interface ReimbursementData {
@@ -167,9 +171,11 @@ const CommentModal = ({
           className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757]"
           rows={4}
           placeholder="Add a comment (optional)..."
+          maxLength={FIELD_CHAR_LIMITS.Text}
           value={comment}
           onChange={(e) => setComment(e.target.value)}
         />
+        <CharLimitAlert value={comment} maxLength={FIELD_CHAR_LIMITS.Text} className="-mt-3 mb-3" />
         <div className="flex justify-end gap-2">
           <FrappeButton variant="outline" onClick={onClose} disabled={isLoading}>Cancel</FrappeButton>
           <FrappeButton variant="primary" onClick={() => onSubmit(comment)} disabled={isLoading}>
@@ -185,29 +191,70 @@ const CommentModal = ({
 const ActionsDropdown = ({
   docname,
   workflowState,
+  reimbursementForId,
   onActionComplete,
   onEdit,
   onSubmit,
   onDownload,
   isSubmitting,
   commitRequired = false,
+  onError,
 }: {
   docname: string;
   workflowState: string;
+  reimbursementForId?: string;
   onActionComplete: () => void;
   onEdit: () => void;
   onSubmit: () => void;
   onDownload: () => void;
   isSubmitting: boolean;
   commitRequired?: boolean;
+  onError: (message: string) => void;
 }) => {
   const { data, isLoading: actionsLoading } = useFrappeGetCall<{ message: string[] }>(
     "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_reimbursement_workflow_actions",
     { docname },
   );
-  const { call: performAction, loading: actionLoading } = useFrappePostCall(
+  const { call: performAction, loading: actionLoading, error: performActionError } = useFrappePostCall(
     "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.perform_reimbursement_action",
   );
+  const { call: fetchPiProjects } = useFrappePostCall(
+    "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_pi_projects",
+  );
+  const { call: fetchProjectHeads } = useFrappePostCall(
+    "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_project_account_heads",
+  );
+  const { currentUser } = useFrappeAuth();
+
+  // Other-PI approval step: only the assigned PI picks which of their own
+  // projects to charge and the matching account head.
+  const isPiStep =
+    workflowState === "Pending PI Approval" &&
+    !!currentUser &&
+    (reimbursementForId || "").toLowerCase() === currentUser.toLowerCase();
+
+  const [piProjects, setPiProjects] = useState<any[]>([]);
+  const [piHeads, setPiHeads] = useState<any[]>([]);
+  const [selectedProject, setSelectedProject] = useState("");
+  const [selectedHead, setSelectedHead] = useState("");
+
+  React.useEffect(() => {
+    if (!isPiStep) return;
+    fetchPiProjects({})
+      .then((res: any) => setPiProjects(res?.message || []))
+      .catch(() => setPiProjects([]));
+  }, [isPiStep, fetchPiProjects]);
+
+  React.useEffect(() => {
+    setSelectedHead("");
+    if (!selectedProject) {
+      setPiHeads([]);
+      return;
+    }
+    fetchProjectHeads({ project_name: selectedProject })
+      .then((res: any) => setPiHeads(res?.message || []))
+      .catch(() => setPiHeads([]));
+  }, [selectedProject, fetchProjectHeads]);
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
@@ -237,6 +284,10 @@ const ActionsDropdown = ({
   };
 
   const handleWorkflowClick = (action: string) => {
+    if (isPiStep && action.toLowerCase() === "approve" && (!selectedProject || !selectedHead)) {
+      alert("Please select a project and account head before approving.");
+      return;
+    }
     setDropdownOpen(false);
     setSelectedAction(action);
     setModalOpen(true);
@@ -244,12 +295,20 @@ const ActionsDropdown = ({
 
   const handleConfirmAction = async (comment: string) => {
     try {
-      await performAction({ docname, action: selectedAction, comment });
+      const payload: Record<string, any> = { docname, action: selectedAction, comment };
+      if (isPiStep && selectedAction.toLowerCase() === "approve") {
+        const proj = piProjects.find((p) => p.value === selectedProject);
+        payload.extra_data = JSON.stringify({
+          project_name: selectedProject,
+          project_number: proj?.project_number || proj?.project_no || "",
+          account_head: selectedHead,
+        });
+      }
+      await performAction(payload);
       setModalOpen(false);
       onActionComplete();
     } catch (error) {
-      console.error("Error performing action:", error);
-      alert("Failed to perform action. Please try again.");
+      onError(parseFrappeError(performActionError, error));
     }
   };
 
@@ -318,6 +377,36 @@ const ActionsDropdown = ({
                 Actions
               </span>
             </div>
+
+            {/* Other-PI approval: PI selects one of their own projects + account head */}
+            {isPiStep && (
+              <div className="px-3 pt-3 pb-1 flex flex-col gap-2 border-b border-zinc-100 dark:border-zinc-700">
+                <span className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-300">
+                  Approve against one of your projects
+                </span>
+                <select
+                  value={selectedProject}
+                  onChange={(e) => setSelectedProject(e.target.value)}
+                  className="w-full min-w-0 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-[12px] text-zinc-900 dark:text-zinc-100"
+                >
+                  <option value="">Select project…</option>
+                  {piProjects.map((p) => (
+                    <option key={p.value} value={p.value}>{p.label}</option>
+                  ))}
+                </select>
+                <select
+                  value={selectedHead}
+                  onChange={(e) => setSelectedHead(e.target.value)}
+                  disabled={!selectedProject}
+                  className="w-full min-w-0 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-[12px] text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+                >
+                  <option value="">Select account head…</option>
+                  {piHeads.map((h) => (
+                    <option key={h.value} value={h.value}>{h.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Commit gate warning */}
             {commitRequired && (
@@ -416,6 +505,11 @@ const ReimbursementDetails: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [resolvedNames, setResolvedNames] = useState<Record<string, string>>({});
   const [projectNo, setProjectNo] = useState<string>("");
+  const [errorModal, setErrorModal] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+  }>({ open: false, title: "Submission Failed", message: "" });
 
   const { call: fetchDoc } = useFrappePostCall<{ message: ReimbursementData }>(
     "frappe.client.get",
@@ -477,7 +571,6 @@ const ReimbursementDetails: React.FC = () => {
           );
         }
       } catch (err) {
-        console.error("Failed to fetch Budget Heads:", err);
       }
     };
     fetchBudgetHeads();
@@ -560,8 +653,11 @@ const ReimbursementDetails: React.FC = () => {
       setPaymentAmount("");
       window.location.reload();
     } catch (error: any) {
-      console.error("Payment failed:", error);
-      alert(`Payment failed: ${error.message || "Unknown error"}`);
+      setErrorModal({
+        open: true,
+        title: "Payment Failed",
+        message: parseFrappeError(error),
+      });
     }
   };
 
@@ -576,8 +672,11 @@ const ReimbursementDetails: React.FC = () => {
       const refreshed = await fetchDoc({ doctype: "Reimbursement", name: data.name });
       if (refreshed?.message) setData(refreshed.message);
     } catch (err: any) {
-      console.error("Error submitting reimbursement:", err);
-      alert(`Failed to submit: ${err.message || "Unknown error"}`);
+      setErrorModal({
+        open: true,
+        title: "Submission Failed",
+        message: parseFrappeError(err),
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -625,7 +724,6 @@ const ReimbursementDetails: React.FC = () => {
           setError("Reimbursement not found");
         }
       } catch (err) {
-        console.error("Error fetching reimbursement:", err);
         setError("Failed to load reimbursement details");
       } finally {
         setLoading(false);
@@ -862,7 +960,7 @@ const ReimbursementDetails: React.FC = () => {
 
     <!-- Header -->
     <div class="header">
-        <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo" class="logo-img" />
+        <img src="http://${import.meta.env.VITE_ASSET_HOST || '172.16.117.39'}:${import.meta.env.VITE_ASSET_PORT || '8000'}/files/IITG_logo.png" alt="IITG Logo" class="logo-img" />
         <div class="header-text">
             <div class="inst-hi">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
             <div class="inst-en">Indian Institute of Technology Guwahati</div>
@@ -1081,6 +1179,41 @@ const ReimbursementDetails: React.FC = () => {
               <PrinterIcon className="w-3.5 h-3.5" />
               Print / PDF
             </button>
+            <div className="text-right text-sm text-[#3F3F46] dark:text-[#E4E4E7] hidden md:block">
+              <div className="flex items-center gap-1 font-medium justify-end">
+                <CalendarIcon className="w-4 h-4" />
+                Created: {formatDate(data.creation)}
+              </div>
+              <div className="flex items-center gap-1 mt-1 font-medium justify-end">
+                <UserIcon className="w-4 h-4" />
+                By: {data.owner}
+              </div>
+            </div>
+            {!cancellationStatus?.message?.has_pending && (
+              <ActionsDropdown
+                docname={data.name}
+                workflowState={data.workflow_state || "Draft"}
+                reimbursementForId={data.reimbursement_for_id}
+                onActionComplete={() => window.location.reload()}
+                onEdit={() => navigate(`/reimbursement?edit=${data.name}`)}
+                onSubmit={handleSubmit}
+                onDownload={handleDownload}
+                isSubmitting={isSubmitting}
+                commitRequired={
+                  isRnDStaff &&
+                  isCommittedForGate === false &&
+                  data.workflow_state === "Pending Staff Approval"
+                }
+                onError={(message) =>
+                  setErrorModal({ open: true, title: "Action Failed", message })
+                }
+              />
+            )}
+            {cancellationStatus?.message?.has_pending && (
+              <FrappeButton variant="outline" onClick={handleDownload}>
+                <DownloadIcon className="w-4 h-4" />
+              </FrappeButton>
+            )}
           </div>
         </PageHeader>
 
@@ -1453,9 +1586,9 @@ const ReimbursementDetails: React.FC = () => {
 
       <div style={{ display: "none" }} ref={activityLogContainerRef}>
         {id && (
-          <ActivityLog 
-            doctype="Reimbursement" 
-            docname={id} 
+          <ActivityLog
+            doctype="Reimbursement"
+            docname={id}
           />
         )}
       </div>
@@ -1466,6 +1599,13 @@ const ReimbursementDetails: React.FC = () => {
         title="Reimbursement Preview"
         htmlContent={isPrintModalOpen ? generateDownloadHTML() : ""}
         docName={data?.name || id || ""}
+      />
+
+      <ErrorModal
+        open={errorModal.open}
+        title={errorModal.title}
+        message={errorModal.message}
+        onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
       />
     </div>
   );

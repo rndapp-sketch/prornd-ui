@@ -35,6 +35,14 @@ import { ActivityLog } from "@/components/ActivityLog";
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { getFileUrl } from "@/utils/fileUtils";
 import { BudgetHeadName } from "@/components/BudgetHeadName";
+import { ErrorModal } from "../components/ErrorModal";
+import { parseFrappeError } from "../utils/errorUtils";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // ── Attachment helper ──────────────────────────────────────────────────────────
 const TransactionAttachment = ({
@@ -263,25 +271,106 @@ const FundReceivedWorkflowActions = ({ docname, onActionComplete, onBeforeAction
     };
 
     if (actionsLoading || !data?.message?.length) return null;
+
+    if (data.message.length === 1) {
+        const action = data.message[0];
+        const isDisabled = disabledCondition ? disabledCondition(action) : false;
+        return (
+            <>
+                <button onClick={() => handleActionClick(action)}
+                    disabled={actionLoading || isDisabled}
+                    className={cn("inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-bold uppercase tracking-wide transition-all",
+                        isDisabled ? "opacity-40 cursor-not-allowed bg-[#FAFAF9] dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] text-[#71717A]"
+                                   : "bg-[#D97757] hover:bg-[#c66a4e] text-white shadow-sm hover:shadow-md"
+                    )}>
+                    {action}
+                </button>
+                <CommentModal isOpen={modalOpen} onClose={() => setModalOpen(false)} onSubmit={handleConfirmAction} action={selectedAction} isLoading={actionLoading} />
+            </>
+        );
+    }
+
     return (
         <>
-            <div className="flex gap-2 flex-wrap">
-                {data.message.map((action) => {
-                    const isDisabled = disabledCondition ? disabledCondition(action) : false;
-                    return (
-                        <button key={action} onClick={() => handleActionClick(action)}
-                            disabled={actionLoading || isDisabled}
-                            className={cn("inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-bold uppercase tracking-wide transition-all",
-                                isDisabled ? "opacity-40 cursor-not-allowed bg-[#FAFAF9] dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] text-[#71717A]"
-                                           : "bg-[#D97757] hover:bg-[#c66a4e] text-white shadow-sm hover:shadow-md"
-                            )}>
-                            {action}
-                        </button>
-                    );
-                })}
-            </div>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <button disabled={actionLoading}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-bold uppercase tracking-wide transition-all bg-[#D97757] hover:bg-[#c66a4e] text-white shadow-sm hover:shadow-md disabled:opacity-40 disabled:cursor-not-allowed">
+                        Actions
+                        <ChevronDown className="h-3.5 w-3.5" />
+                    </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    {data.message.map((action) => {
+                        const isDisabled = disabledCondition ? disabledCondition(action) : false;
+                        return (
+                            <DropdownMenuItem key={action} disabled={isDisabled}
+                                onSelect={() => handleActionClick(action)}>
+                                {action}
+                            </DropdownMenuItem>
+                        );
+                    })}
+                </DropdownMenuContent>
+            </DropdownMenu>
             <CommentModal isOpen={modalOpen} onClose={() => setModalOpen(false)} onSubmit={handleConfirmAction} action={selectedAction} isLoading={actionLoading} />
         </>
+    );
+};
+
+// ── Account Portal alert toast ──────────────────────────────────────────────────
+interface AccountPortalAlertEntry { content: string; timestamp: string; label: string; }
+
+function useAccountPortalAlert(docname?: string) {
+    const [entry, setEntry] = useState<AccountPortalAlertEntry | null>(null);
+    React.useEffect(() => {
+        if (!docname) return;
+        let cancelled = false;
+        fetch(`/api/method/rndopsapp.rndopsapp.api.get_document_activity?doctype=Fund%20Received&docname=${encodeURIComponent(docname)}`,
+            { credentials: "include" })
+            .then((res) => (res.ok ? res.json() : null))
+            .then((json) => {
+                if (cancelled || !json) return;
+                const entries: any[] = Array.isArray(json?.message) ? json.message : [];
+                // Only surface the alert while the most recent comment is the "[Put Back]" one —
+                // once the document moves on (a newer comment/action is logged), it goes away.
+                const latestComment = entries
+                    .filter((e) => e.type === "comment")
+                    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+                if (!latestComment || !String(latestComment.content || "").toLowerCase().includes("[put back]")) {
+                    setEntry(null);
+                    return;
+                }
+                setEntry({ content: latestComment.content || "", timestamp: latestComment.timestamp, label: latestComment.label });
+            })
+            .catch(() => {});
+        return () => { cancelled = true; };
+    }, [docname]);
+    return entry;
+}
+
+const AccountPortalToast = ({ entry, onDismiss, onOpen }: { entry: AccountPortalAlertEntry; onDismiss: () => void; onOpen: () => void }) => {
+    return (
+        <div className="fixed top-4 right-4 z-[9999] w-full max-w-sm animate-in slide-in-from-right-4 fade-in duration-300">
+            <div onClick={onOpen} role="button" tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onOpen(); }}
+                className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl shadow-2xl overflow-hidden cursor-pointer hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.2)] transition-shadow">
+                <div className="h-1 bg-[#D97757]" />
+                <div className="p-4 flex gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-orange-50 dark:bg-orange-900/30 flex items-center justify-center flex-shrink-0 text-[#D97757]">
+                        <AlertTriangle className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-0.5">Put Back</p>
+                        <div className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] leading-relaxed"
+                            dangerouslySetInnerHTML={{ __html: entry.content }} />
+                    </div>
+                    <button onClick={(e) => { e.stopPropagation(); onDismiss(); }}
+                        className="p-1 rounded-lg hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] text-[#71717A] transition-colors flex-shrink-0">
+                        <X className="h-3.5 w-3.5" />
+                    </button>
+                </div>
+            </div>
+        </div>
     );
 };
 
@@ -326,13 +415,14 @@ const FundReceivedDetails = () => {
     const [editBreakup, setEditBreakup] = useState<any[]>([]);
     const [editTransactions, setEditTransactions] = useState<any[]>([]);
     const [isSaving, setIsSaving] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     // Tab state — deposit slip tab appears once a linked slip is found
     const [activeTab, setActiveTab] = useState<"fund" | "deposit_slip">("fund");
     const [linkedDepositSlip, setLinkedDepositSlip] = useState<{ name: string; doctype: string } | null>(null);
     const [slipRefreshKey, setSlipRefreshKey] = useState(0);
 
-    const { data: docData, isLoading: docLoading, error: docError } = useFrappeGetDoc("Fund Received", name || "");
+    const { data: docData, isLoading: docLoading, error: docError, mutate: mutateDoc } = useFrappeGetDoc("Fund Received", name || "");
 
     // Find deposit slip linked to this Fund Received document across all deposit slip doctypes.
     // `fund_received_ref` on the deposit slip doctypes is a plain Data field, and depending on
@@ -399,6 +489,40 @@ const FundReceivedDetails = () => {
                     }
                 } catch {}
             }
+
+            // Trimmed-exact fallback: `fund_received_ref` is a plain Data field that's
+            // sometimes hand-entered, so stray leading/trailing whitespace can make an
+            // exact "in" match miss a real link — retry with each candidate trimmed.
+            // Deliberately NOT a substring/wildcard match: that previously caused false
+            // positives, linking documents whose fund_received_ref merely contained the
+            // candidate as a substring rather than equaling it.
+            const trimmedCandidates = [...new Set(refCandidates.map((c) => String(c).trim()).filter(Boolean))]
+                .filter((c) => !refCandidates.includes(c));
+            if (trimmedCandidates.length > 0) {
+                for (const doctype of doctypes) {
+                    try {
+                        const res = await fetch("/api/method/frappe.client.get_list", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            credentials: "include",
+                            body: JSON.stringify({
+                                doctype,
+                                filters: [["fund_received_ref", "in", trimmedCandidates]],
+                                fields: ["name"],
+                                limit_page_length: 1,
+                                order_by: "creation desc",
+                            }),
+                        });
+                        if (!res.ok) continue;
+                        const json = await res.json();
+                        if (json.message?.length > 0) {
+                            if (!cancelled) setLinkedDepositSlip({ name: json.message[0].name, doctype });
+                            return;
+                        }
+                    } catch {}
+                }
+            }
+
             if (!cancelled) setLinkedDepositSlip(null);
         })();
         return () => { cancelled = true; };
@@ -533,7 +657,7 @@ const FundReceivedDetails = () => {
             await mutate();
             setIsEditMode(false);
         } catch (err: any) {
-            alert(`Save failed: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Save Failed", message: parseFrappeError(err) });
         } finally {
             setIsSaving(false);
         }
@@ -646,7 +770,6 @@ const FundReceivedDetails = () => {
         prevProjectTitleRef.current = "";
         if (!type || !DEPOSIT_SLIP_TYPES[type]) return;
         setDepositFormLoading(true);
-        console.log(`[DepositSlip] type selected: "${type}", getFields: ${DEPOSIT_SLIP_TYPES[type].getFields}`);
 
         // Step 1: try backend — extract what we can, silently ignore failures.
         let apiFields: any[] | undefined;
@@ -657,14 +780,10 @@ const FundReceivedDetails = () => {
 
         try {
             const getFieldsUrl = `/api/method/${DEPOSIT_SLIP_TYPES[type].getFields}`;
-            console.log(`[DepositSlip] fetching fields from: ${getFieldsUrl}`);
             const response = await fetch(getFieldsUrl, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doc_name: name || undefined }) });
-            console.log(`[DepositSlip] response status: ${response.status}`);
             const result = await response.json();
-            console.log(`[DepositSlip] raw result:`, result);
             const messagePayload = result?.message;
             const payload = Array.isArray(messagePayload) ? { fields: messagePayload } : (messagePayload && typeof messagePayload === "object" ? messagePayload : null);
-            console.log(`[DepositSlip] payload:`, payload);
             if (payload) {
                 apiFields = payload.fields;
                 link_options = payload.link_options || {};
@@ -685,12 +804,9 @@ const FundReceivedDetails = () => {
                         },
                     }));
                 }
-                console.log(`[DepositSlip] apiFields from backend: ${apiFields?.length ?? 0} fields`);
             } else {
-                console.log(`[DepositSlip] backend returned no usable payload — will use static fallback`);
             }
         } catch (err) {
-            console.log(`[DepositSlip] backend fetch failed (will use static fallback):`, err);
         }
 
         // Step 2: resolve fields — backend wins, static fallback if backend returned nothing.
@@ -698,15 +814,12 @@ const FundReceivedDetails = () => {
         const resolvedFields: any[] = Array.isArray(apiFields) && apiFields.length > 0
             ? apiFields
             : staticFields;
-        console.log(`[DepositSlip] resolvedFields: ${resolvedFields.length} fields (source: ${Array.isArray(apiFields) && apiFields.length > 0 ? "backend" : "static"})`);
-        console.log(`[DepositSlip] DEPOSIT_SLIP_STATIC_FIELDS["${type}"] length: ${staticFields.length}`);
 
         if (resolvedFields.length > 0) {
             const processedFields = resolvedFields.map((field: any) => {
                 if (field.fieldtype === "Section Break" || field.fieldtype === "SectionBreak") return field;
                 return { ...field, mandatory: !!field.mandatory, hidden: !!field.hidden, read_only: !!field.read_only, ...(prefill_data && prefill_data[field.fieldname] !== undefined ? { default: prefill_data[field.fieldname] } : {}) };
             });
-            console.log(`[DepositSlip] calling setFields with ${processedFields.length} fields`);
             setFields(processedFields);
             const initialData: FormData = {};
             processedFields.forEach((f: Field) => { if (f.default) initialData[f.fieldname] = f.default; });
@@ -730,7 +843,6 @@ const FundReceivedDetails = () => {
             // Also check sanction doc for a direct project registration reference
             const sanctionProjectRef = sanctionDetails?.prjreg_title || sanctionDetails?.project_registration
                 || sanctionDetails?.project || sanctionDetails?.project_name;
-            console.log(`[DepositSlip] prjregHint:`, prjregHint, `sanctionProjectRef:`, sanctionProjectRef);
 
             if (prjregHint || sanctionProjectRef) {
                 const prjFields = ["name", "pi_userid", "project_no", "fund_agen_initials", "funding_agen",
@@ -762,7 +874,6 @@ const FundReceivedDetails = () => {
                         const j3 = await r3.json();
                         if (j3?.message?.length > 0) prjDoc = j3.message[0];
                     }
-                    console.log(`[DepositSlip] prjDoc fetched:`, prjDoc);
                     if (prjDoc) {
                         const pi = prjDoc.principal_investigator || prjDoc.pi_userid;
                         const fa = prjDoc.funding_agency || prjDoc.funding_agen || prjDoc.fund_agen_initials;
@@ -782,7 +893,6 @@ const FundReceivedDetails = () => {
                         if (prjDoc.gstin_of_funding_agency) initialData.gstin_of_funding_agency = prjDoc.gstin_of_funding_agency;
                     }
                 } catch (err) {
-                    console.log(`[DepositSlip] prjDoc fetch failed:`, err);
                 }
             }
             // Always stamp the current Fund Received doc name so all deposit slip
@@ -828,7 +938,9 @@ const FundReceivedDetails = () => {
             const result = await response.json();
             alert(result?.message?.name ? `Deposit Slip saved: ${result.message.name}` : "Deposit Slip saved successfully!");
             mutate();
-        } catch (err: any) { alert(`Submission Failed: ${err.message || "Unknown Error"}`); } finally { setIsSubmitting(false); }
+        } catch (err: any) {
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
+        } finally { setIsSubmitting(false); }
     };
 
     const handleBeforeAction = useCallback(async (action: string): Promise<{ [key: string]: any } | null> => {
@@ -837,6 +949,9 @@ const FundReceivedDetails = () => {
         }
         return {};
     }, [isRndMiscellaneous, formData, selectedDepositSlipType, linkedDepositSlip]);
+
+    const accountPortalAlertEntry = useAccountPortalAlert(name);
+    const [accountPortalAlertDismissed, setAccountPortalAlertDismissed] = useState(false);
 
     if (isLoading) return <GlobalLoader isLoading delay={0} />;
 
@@ -868,12 +983,36 @@ const FundReceivedDetails = () => {
     if (workflow_state === "Approved") {
         return (
             <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
+                {accountPortalAlertEntry && !accountPortalAlertDismissed && name && (
+                    <AccountPortalToast entry={accountPortalAlertEntry}
+                        onDismiss={() => setAccountPortalAlertDismissed(true)}
+                        onOpen={() => { setAccountPortalAlertDismissed(true); setShowActivityLog(true); }} />
+                )}
                 <main className="px-6 md:px-8 pt-7 pb-10">
                     <div className="mb-4 flex items-center gap-3 flex-wrap">
-                        <FundReceivedWorkflowActions docname={name || ""} onActionComplete={(result) => { const s = result?.workflow_state; if (s) setOptimisticWorkflowState(s); globalMutate(() => true); mutate(); setSlipRefreshKey(k => k + 1); setActiveTab("deposit_slip"); }} onBeforeAction={handleBeforeAction} />
+                        <FundReceivedWorkflowActions docname={name || ""} onActionComplete={(result) => { const s = result?.message?.workflow_state ?? result?.workflow_state; if (s) setOptimisticWorkflowState(s); globalMutate(() => true); mutateDoc(); mutate(); setSlipRefreshKey(k => k + 1); setActiveTab("deposit_slip"); }} onBeforeAction={handleBeforeAction} />
                     </div>
                     <HoSApprovalView fundReceivedName={name || ""} />
                 </main>
+
+                {showActivityLog && (
+                    <div className="fixed inset-0 z-50 flex justify-end">
+                        <div className="absolute inset-0 bg-black/25 backdrop-blur-sm" onClick={() => setShowActivityLog(false)} />
+                        <div className="relative w-full max-w-md bg-white dark:bg-[#27272A] h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+                            <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
+                            <div className="flex items-center justify-between px-5 py-4 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-md bg-[#EEF2FF] flex items-center justify-center text-[#4A6CF7]"><MessageSquare className="h-3.5 w-3.5" /></div>
+                                    <h3 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">Activity Log</h3>
+                                </div>
+                                <button onClick={() => setShowActivityLog(false)} className="p-1.5 rounded-lg hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] text-[#71717A] transition-colors"><X className="h-4 w-4" /></button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-5 bg-[#FAFAF9] dark:bg-[#18181B]">
+                                {name && <ActivityLog doctype="Fund Received" docname={name} maxHeight="100%" />}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
@@ -881,6 +1020,11 @@ const FundReceivedDetails = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans text-[#3F3F46] dark:text-[#E4E4E7]">
+            {accountPortalAlertEntry && !accountPortalAlertDismissed && name && (
+                <AccountPortalToast entry={accountPortalAlertEntry}
+                    onDismiss={() => setAccountPortalAlertDismissed(true)}
+                    onOpen={() => { setAccountPortalAlertDismissed(true); setShowActivityLog(true); }} />
+            )}
             <GlobalLoader isLoading={isSubmitting} />
 
             <main className="px-6 md:px-8 pt-7 pb-16">
@@ -938,7 +1082,7 @@ const FundReceivedDetails = () => {
                             <ViewProjectButton doctype="Fund Received" data={fundData} />
                             <FundReceivedWorkflowActions
                                 docname={name || ""}
-                                onActionComplete={(result) => { const s = result?.workflow_state; if (s) setOptimisticWorkflowState(s); globalMutate(() => true); mutate(); setSlipRefreshKey(k => k + 1); setActiveTab("deposit_slip"); }}
+                                onActionComplete={(result) => { const s = result?.message?.workflow_state ?? result?.workflow_state; if (s) setOptimisticWorkflowState(s); globalMutate(() => true); mutateDoc(); mutate(); setSlipRefreshKey(k => k + 1); setActiveTab("deposit_slip"); }}
                                 onBeforeAction={handleBeforeAction}
                                 disabledCondition={(action) => {
                                     if (action === "Put Back") return false;
@@ -1094,14 +1238,18 @@ const FundReceivedDetails = () => {
                                                     let tableConfig: any = null;
                                                     if (meta?.fields) {
                                                         const columns = meta.fields.filter((f: any) => !["Section Break","Column Break","SectionBreak","ColumnBreak"].includes(f.fieldtype)).map((f: any) => {
-                                                            let opts: any[] = [], type = f.fieldtype;
+                                                            let opts: any[] = [], type = f.fieldtype, combineEmailInValue = false;
                                                             if (f.fieldname === "select_copi_id") { opts = linkOptions["select_copi_id"] || linkOptions["principal_investigator"] || linkOptions["User"] || []; type = "UserAutocomplete"; }
+                                                            if (f.fieldname === "label" && meta.doctype === "Deposit Slip Credit Distribution") { opts = linkOptions["label"] || linkOptions["User"] || []; type = "UserAutocomplete"; combineEmailInValue = true; }
                                                             if (["account_head","budget_head","head"].includes(f.fieldname)) { opts = linkOptions["Budget Head"] || linkOptions["budget_head"] || []; if (opts.length > 0) type = "Link"; }
                                                             if (opts.length === 0) { if (f.fieldtype === "Select" && typeof f.options === "string") opts = f.options.split("\n").filter((o: string) => o.trim()).map((o: string) => ({ label: o, value: o })); else if (f.options) opts = linkOptions[f.fieldname] || linkOptions[f.options] || []; }
-                                                            return { key: f.fieldname, label: f.label || f.fieldname, type, options: opts };
+                                                            return { key: f.fieldname, label: f.label || f.fieldname, type, options: opts, combineEmailInValue };
                                                         });
                                                         const newRowTemplate: Record<string, any> = { doctype: meta.doctype, name: `new-${Date.now()}` };
-                                                        meta.fields.forEach((f: any) => { newRowTemplate[f.fieldname] = f.default ?? (["Currency","Float","Int"].includes(f.fieldtype) ? 0 : ""); });
+                                                        meta.fields.forEach((f: any) => {
+                                                            const skipDefault = f.fieldname === "label" && meta.doctype === "Deposit Slip Credit Distribution";
+                                                            newRowTemplate[f.fieldname] = skipDefault ? "" : (f.default ?? (["Currency","Float","Int"].includes(f.fieldtype) ? 0 : ""));
+                                                        });
                                                         tableConfig = { fieldname: field.fieldname, columns, newRowTemplate };
                                                     } else { tableConfig = { fieldname: field.fieldname, columns: [{ key: "name", label: "Name", type: "Data" }], newRowTemplate: {} }; }
                                                     processed.push({ title: field.label, fields: [], type: "table", tableConfig });
@@ -1452,6 +1600,13 @@ const FundReceivedDetails = () => {
                     </div>
                 </div>
             )}
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

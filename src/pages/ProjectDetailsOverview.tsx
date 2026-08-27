@@ -1,4 +1,5 @@
 import { getFileUrl } from "@/utils/fileUtils";
+import { normalizeProjectType } from "@/utils/projectTypeMapping";
 import React, {
     useState,
     useCallback,
@@ -434,10 +435,6 @@ const AdvanceSettlementModal = ({
 }) => {
     useEffect(() => {
         if (isOpen) {
-            console.log(
-                ">>> AdvanceSettlementModal MOUNTED/OPENED with settlements:",
-                settlements,
-            );
         }
     }, [isOpen, settlements]);
 
@@ -836,6 +833,8 @@ const QuickActions = ({
     >(defaultApp || null);
     const [applicationData, setApplicationData] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [applicationsPage, setApplicationsPage] = useState(1);
+    const applicationsPageSize = 10;
 
     // QuickActions doesn't share scope with the outer component — call hooks independently here.
     const { currentUser: quickActionsCurrentUser } = useFrappeAuth();
@@ -856,6 +855,8 @@ const QuickActions = ({
     const [selectedTravelForSettle, setSelectedTravelForSettle] =
         useState<any>(null);
 
+    const [deletingDraftName, setDeletingDraftName] = useState<string | null>(null);
+
     // P-11 Form Modal State
     const [isP11ModalOpen, setIsP11ModalOpen] = useState(false);
     const [existingP11Forms, setExistingP11Forms] = useState<any[]>([]);
@@ -869,12 +870,8 @@ const QuickActions = ({
 
     const handleSettleClick = async (item: any) => {
         setIsLoading(true);
-        console.log(">>> handleSettleClick triggered for:", item.name);
         try {
             // Check for existing settlements
-            console.log(
-                "Fetching ALL Advance Settlements to debug filter (client-side filtering enabled)",
-            );
             const response = await fetchReimbursements({
                 doctype: "Advance Settlement",
                 fields: [
@@ -889,7 +886,6 @@ const QuickActions = ({
                 limit_page_length: 50,
             });
 
-            console.log(">>> ALL Advance Settlements (last 50):", response);
             const allSettlements = (response?.message || []).map((s: any) => ({
                 ...s,
                 workflow_state:
@@ -906,23 +902,18 @@ const QuickActions = ({
                 (s: any) => s.temporary_advance_application === item.name,
             );
 
-            console.log(">>> Match candidate ID:", item.name);
-            console.log(">>> Filtered Settlements (Client-Side):", settlements);
 
             if (settlements.length > 0) {
                 setExistingSettlements(settlements);
                 setSelectedAdvanceForSettle(item);
                 setIsSettleModalOpen(true);
-                console.log(">>> Opening Modal (Client-Side Match)");
             } else {
-                console.log(">>> No settlements found, navigating to new form");
                 // No existing settlements, go straight to new form
                 onNavigate(
                     `/advance-settlement?advance=${item.name}&project=${projectName}`,
                 );
             }
         } catch (error) {
-            console.error("Error checking for settlements:", error);
             // Fallback: just go to new form
             onNavigate(
                 `/advance-settlement?advance=${item.name}&project=${projectName}`,
@@ -933,7 +924,6 @@ const QuickActions = ({
     };
     const handleTravelSettleClick = async (item: any) => {
         setIsLoading(true);
-        console.log(">>> handleTravelSettleClick triggered for:", item.name);
 
         try {
             // Direct fetch to v2 document API for the filtered settlement records
@@ -952,7 +942,6 @@ const QuickActions = ({
             }
 
             const result = await response.json();
-            console.log(">>> TA DA Settlement raw API response:", result);
 
             const fetchedSettlements = result.data || [];
 
@@ -970,24 +959,17 @@ const QuickActions = ({
                 total_amount: s.ta_da_total_claimed || s.ta_da_net_claimed || 0,
             }));
 
-            console.log(">>> Mapped TA DA Settlements:", mappedSettlements);
 
             if (mappedSettlements.length > 0) {
                 setExistingTADASettlements(mappedSettlements);
                 setSelectedTravelForSettle(item);
                 setIsTADASettleModalOpen(true);
-                console.log(">>> Opening Modal with existing settlements");
             } else {
-                console.log(">>> No settlements found, navigating to new form");
                 onNavigate(
                     `/ta-da-settlement?project=${projectNo}&travel_ref=${item.name}`,
                 );
             }
         } catch (error) {
-            console.error(
-                "Error fetching TA DA settlements via v2 API:",
-                error,
-            );
             // Fallback: navigate directly to form
             onNavigate(
                 `/ta-da-settlement?project=${projectNo}&travel_ref=${item.name}`,
@@ -1028,12 +1010,55 @@ const QuickActions = ({
 
             setExistingP11Forms(forms);
         } catch (error) {
-            console.error("Error fetching P_11 forms:", error);
             setExistingP11Forms([]);
         } finally {
             setSelectedDirectPurchaseForP11(item);
             setIsP11ModalOpen(true);
             setIsLoading(false);
+        }
+    };
+
+    const handleDeleteDraftDirectPurchase = async (item: any) => {
+        if (!confirm(`Are you sure you want to delete draft "${item.name}"? This cannot be undone.`)) return;
+        setDeletingDraftName(item.name);
+        try {
+            const res = await fetch(`/api/resource/Direct Purchase/${item.name}`, {
+                method: "DELETE",
+                headers: { Accept: "application/json" },
+                credentials: "include",
+            });
+            if (res.ok) {
+                setApplicationData((prev: any[]) => prev.filter((row) => row.name !== item.name));
+            } else {
+                const data = await res.json().catch(() => ({}));
+                alert(data?.exc_type || "Failed to delete draft.");
+            }
+        } catch (error) {
+            alert("Failed to delete draft.");
+        } finally {
+            setDeletingDraftName(null);
+        }
+    };
+
+    const handleDeleteDraftHonorarium = async (item: any) => {
+        if (!confirm(`Are you sure you want to delete draft "${item.name}"? This cannot be undone.`)) return;
+        setDeletingDraftName(item.name);
+        try {
+            const res = await fetch(`/api/resource/Disbursal of Honorarium/${item.name}`, {
+                method: "DELETE",
+                headers: { Accept: "application/json" },
+                credentials: "include",
+            });
+            if (res.ok) {
+                setApplicationData((prev: any[]) => prev.filter((row) => row.name !== item.name));
+            } else {
+                const data = await res.json().catch(() => ({}));
+                alert(data?.exc_type || "Failed to delete draft.");
+            }
+        } catch (error) {
+            alert("Failed to delete draft.");
+        } finally {
+            setDeletingDraftName(null);
         }
     };
 
@@ -1067,7 +1092,6 @@ const QuickActions = ({
                 );
             }
         } catch (error) {
-            console.error("Error checking for existing SCRs:", error);
             onNavigate(`/selection-committee-report?interview_id=${item.name}`);
         } finally {
             setIsLoading(false);
@@ -1155,17 +1179,8 @@ const QuickActions = ({
 
     // Fetch data when application is selected
     const fetchApplicationData = useCallback(async () => {
-        console.log(
-            ">>> fetchApplicationData triggered. selectedApplication:",
-            selectedApplication,
-            "projectName:",
-            projectName,
-        );
 
         if (!selectedApplication || !projectName) {
-            console.log(
-                ">>> Early return - missing selectedApplication or projectName",
-            );
             setApplicationData([]);
             return;
         }
@@ -1178,8 +1193,6 @@ const QuickActions = ({
             let data: any[] = [];
 
             if (selectedApplication === "Reimbursement") {
-                console.log("=== FETCHING REIMBURSEMENTS ===");
-                console.log("Project Name from URL:", projectName);
 
                 try {
                     // Use direct fetch to Frappe REST API with cache-busting
@@ -1199,25 +1212,11 @@ const QuickActions = ({
                     }
 
                     const result = await fetchResponse.json();
-                    console.log("API Response:", result);
 
                     const allReimbursements = result?.data || [];
-                    console.log(
-                        "All Reimbursements count:",
-                        allReimbursements.length,
-                    );
-                    console.log("All Reimbursements data:", allReimbursements);
 
                     // Log first few items to see field values
                     if (allReimbursements.length > 0) {
-                        console.log(
-                            "Sample reimbursement items:",
-                            allReimbursements.slice(0, 3).map((item: any) => ({
-                                name: item.name,
-                                project_name: item.project_name,
-                                project_number: item.project_number,
-                            })),
-                        );
                     }
 
                     // Filter client-side: match project_name OR project_number (case-insensitive, partial match)
@@ -1241,14 +1240,11 @@ const QuickActions = ({
 
                         return matches;
                     });
-                    console.log("Filtered Reimbursement data:", data);
                 } catch (fetchError) {
-                    console.error("Direct fetch error:", fetchError);
                     data = [];
                 }
             } else if (selectedApplication === "Temporary Advance Apply") {
                 try {
-                    console.log("=== FETCHING TEMPORARY ADVANCE (V2) ===");
                     const timestamp = Date.now();
                     const projectCode = projectNo || projectName;
                     // Filter at API level by project_code
@@ -1257,10 +1253,6 @@ const QuickActions = ({
                         : "";
                     const apiUrl = `/api/v2/document/Temporary Advance?fields=["*"]&limit_page_length=0${filters}&_=${timestamp}`;
 
-                    console.log(
-                        "Fetching with project_code filter:",
-                        projectCode,
-                    );
 
                     const fetchResponse = await fetch(apiUrl, {
                         method: "GET",
@@ -1275,9 +1267,6 @@ const QuickActions = ({
 
                     const result = await fetchResponse.json();
                     data = result?.data || [];
-                    console.log(
-                        `Fetched ${data.length} Temporary Advance items for project_code: ${projectCode}`,
-                    );
 
                     // Map for display consistency
                     data = data.map((item: any) => ({
@@ -1293,11 +1282,7 @@ const QuickActions = ({
                         applicant_webmail: item.applicant_webmail || item.owner,
                     }));
 
-                    console.log(
-                        `Mapped ${data.length} Temporary Advance items`,
-                    );
                 } catch (fetchError) {
-                    console.error("Temporary Advance fetch error:", fetchError);
                     data = [];
                 }
             } else if (selectedApplication === "Project Staff Resignation") {
@@ -1325,6 +1310,32 @@ const QuickActions = ({
                                 : "Draft",
                     applicant_webmail: item.applicant_email_id, // Map for display consistency
                 }));
+            } else if (selectedApplication === "Project Staff Extension") {
+                const response = await fetchReimbursements({
+                    doctype: "Project Staff Extension",
+                    filters: { ex_proj_name: projectName },
+                    fields: [
+                        "name",
+                        "creation",
+                        "docstatus",
+                        "owner",
+                        "ex_name",
+                        "ex_emp_id",
+                    ],
+                    order_by: "creation desc",
+                    limit_page_length: 50,
+                });
+                data = (response?.message || []).map((item: any) => ({
+                    ...item,
+                    workflow_state:
+                        item.docstatus === 1
+                            ? "Submitted"
+                            : item.docstatus === 2
+                                ? "Cancelled"
+                                : "Draft",
+                    applicant_name: item.ex_name,
+                    applicant_webmail: item.ex_emp_id, // Map for display consistency
+                }));
             } else if (selectedApplication === "Rate Contract") {
                 try {
                     const apiUrl = `/api/resource/Rate Contract?fields=["name","creation","workflow_state","owner","project_name","email_id"]&order_by=creation desc&limit_page_length=0`;
@@ -1348,7 +1359,6 @@ const QuickActions = ({
                             applicant_webmail: item.email_id,
                         }));
                 } catch (e) {
-                    console.error(e);
                     data = [];
                 }
             } else if (selectedApplication === "Rate Contract") {
@@ -1374,14 +1384,23 @@ const QuickActions = ({
                             applicant_webmail: item.email_id,
                         }));
                 } catch (e) {
-                    console.error(e);
                     data = [];
                 }
             } else if (selectedApplication === "Travel") {
                 try {
-                    // Use v2 API which works correctly
+                    // Use v2 API which works correctly.
+                    // The v2 endpoint does not treat limit_page_length=0 as "unlimited"
+                    // the way the v1 REST API does (same issue as Disbursal of
+                    // Honorarium below) — it silently caps to the default page size,
+                    // so older Travel docs (beyond the most recent page, system-wide)
+                    // were dropped before the client-side project filter even ran.
+                    // Filter server-side by travel_project_title and pass an explicit
+                    // high ceiling for both limit param names.
+                    const travelFilters = projectName
+                        ? `&filters=${encodeURIComponent(JSON.stringify([["travel_project_title", "=", projectName]]))}`
+                        : "";
                     const travelPromise = fetch(
-                        `/api/v2/document/Travel?fields=["name","creation","workflow_state","owner","travel_project_title","travel_project_number","webmail_id_travel","applicant_name_travel"]&order_by=creation desc&limit_page_length=0`,
+                        `/api/v2/document/Travel?fields=["name","creation","workflow_state","owner","travel_project_title","travel_project_number","webmail_id_travel","applicant_name_travel"]&order_by=creation desc&limit_page_length=100000&limit=100000${travelFilters}`,
                         {
                             method: "GET",
                             headers: { Accept: "application/json" },
@@ -1403,14 +1422,6 @@ const QuickActions = ({
                         settlementPromise,
                     ]);
 
-                    console.log(
-                        "[Travel Fetch] Raw travelRes.data:",
-                        travelRes.data,
-                    );
-                    console.log(
-                        "[Travel Fetch] Filtering by travel_project_title:",
-                        projectName,
-                    );
 
                     // Filter by travel_project_title which contains the project ID
                     const travelItems = (travelRes.data || [])
@@ -1424,11 +1435,6 @@ const QuickActions = ({
                             type: "Travel Apply",
                         }));
 
-                    console.log(
-                        "[Travel Fetch] Filtered travelItems:",
-                        travelItems.length,
-                        "items",
-                    );
 
                     const settlementItems = (settlementRes.data || [])
                         .filter(
@@ -1447,13 +1453,7 @@ const QuickActions = ({
                             new Date(b.creation).getTime() -
                             new Date(a.creation).getTime(),
                     );
-                    console.log(
-                        "[Travel Fetch] Combined data:",
-                        data.length,
-                        "items",
-                    );
                 } catch (fetchError) {
-                    console.error("Travel combined fetch error:", fetchError);
                     data = [];
                 }
             } else if (selectedApplication === "Top Up Fellowship") {
@@ -1484,18 +1484,23 @@ const QuickActions = ({
                                         : "Draft"),
                             applicant_webmail: item.pi_webmail || item.owner,
                         }));
-                    console.log(
-                        `Top Up Fellowship: fetched ${allItems.length} for project_no ${tufProjectNo}`,
-                    );
                 } catch (fetchError) {
-                    console.error("Top Up Fellowship fetch error:", fetchError);
                     data = [];
                 }
             } else if (selectedApplication === "Disbursal of Honorarium") {
                 try {
                     const timestamp = Date.now();
-                    // Use v2 document API to avoid 403 permission issues and include project fields for filtering
-                    const apiUrl = `/api/v2/document/Disbursal of Honorarium?fields=["name","creation","modified","name_of_applicant","webmail_id","owner","workflow_state","total_amount","project_no"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    const honorariumProjectNo = projectNo || projectName || "";
+                    // Filter server-side by project_no so the unfiltered result set
+                    // (which the backend caps by default) never has to include every
+                    // Disbursal of Honorarium record system-wide.
+                    const filters = honorariumProjectNo
+                        ? `&filters=${encodeURIComponent(JSON.stringify([["project_no", "=", honorariumProjectNo]]))}`
+                        : "";
+                    // Use v2 document API to avoid 403 permission issues and include project fields for filtering.
+                    // The v2 endpoint does not treat limit_page_length=0 as "unlimited" the way
+                    // the v1 REST API does, so pass an explicit high ceiling for both param names instead.
+                    const apiUrl = `/api/v2/document/Disbursal of Honorarium?fields=["name","creation","modified","name_of_applicant","webmail_id","owner","workflow_state","total_amount","project_no"]&order_by=creation desc&limit_page_length=100000&limit=100000${filters}&_=${timestamp}`;
                     const fetchResponse = await fetch(apiUrl, {
                         method: "GET",
                         headers: { Accept: "application/json" },
@@ -1510,42 +1515,23 @@ const QuickActions = ({
                     const result = await fetchResponse.json();
                     const allHonorariums = result?.data || [];
 
-                    // Filter by project_no matching either the projectNo or projectName (doc ID fallback)
-                    const projectNoLower = (
-                        projectNo ||
-                        projectName ||
-                        ""
-                    ).toLowerCase();
+                    data = allHonorariums.map((item: any) => ({
+                        ...item,
+                        applicant_webmail:
+                            item.name_of_applicant ||
+                            item.webmail_id ||
+                            item.owner,
+                    }));
 
-                    data = allHonorariums
-                        .filter((item: any) => {
-                            const itemNo = (
-                                item.project_no || ""
-                            ).toLowerCase();
-                            return projectNoLower && itemNo === projectNoLower;
-                        })
-                        .map((item: any) => ({
-                            ...item,
-                            applicant_webmail:
-                                item.name_of_applicant ||
-                                item.webmail_id ||
-                                item.owner,
-                        }));
-
-                    console.log(
-                        `Disbursal of Honorarium: fetched ${allHonorariums.length}, filtered to ${data.length}`,
-                    );
                 } catch (fetchError) {
-                    console.error(
-                        "Disbursal of Honorarium fetch error:",
-                        fetchError,
-                    );
                     data = [];
                 }
             } else if (selectedApplication === "Disbursal of Consultancy") {
                 try {
                     const timestamp = Date.now();
-                    const apiUrl = `/api/resource/Disbursal of Consultancy?fields=["name","creation","workflow_state","owner","total_disbursal_amount","disbursal_project_number","project_title","webmail_id","pi_name"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    // Use v2 document API (not v1 /api/resource/) to avoid 403 permission
+                    // issues for non-System-Manager roles, same fix applied to Disbursal of Honorarium.
+                    const apiUrl = `/api/v2/document/Disbursal of Consultancy?fields=["name","creation","workflow_state","owner","total_disbursal_amount","disbursal_project_number","project_title","webmail_id","pi_name"]&order_by=creation desc&limit_page_length=100000&limit=100000&_=${timestamp}`;
                     const fetchResponse = await fetch(apiUrl, {
                         method: "GET",
                         headers: { Accept: "application/json" },
@@ -1594,10 +1580,6 @@ const QuickActions = ({
                             total_amount: item.total_disbursal_amount,
                         }));
                 } catch (fetchError) {
-                    console.error(
-                        "Disbursal of Consultancy fetch error:",
-                        fetchError,
-                    );
                     data = [];
                 }
             } else if (selectedApplication === "Direct Purchase") {
@@ -1629,7 +1611,6 @@ const QuickActions = ({
                         applicant_webmail: item.applicant_name || item.owner,
                     }));
                 } catch (fetchError) {
-                    console.error("Direct Purchase fetch error:", fetchError);
                     data = [];
                 }
             } else if (selectedApplication === "Adhoc/Contractual") {
@@ -1667,7 +1648,6 @@ const QuickActions = ({
                             applicant_webmail: item.webmail_id || item.owner,
                         }));
                 } catch (fetchError) {
-                    console.error("Adhoc/Contractual fetch error:", fetchError);
                     data = [];
                 }
             } else if (selectedApplication === "Indent General Form") {
@@ -1701,10 +1681,6 @@ const QuickActions = ({
                             item.igf_webmail_user_id || item.owner,
                     }));
                 } catch (fetchError) {
-                    console.error(
-                        "Indent General Form fetch error:",
-                        fetchError,
-                    );
                     data = [];
                 }
             } else if (selectedApplication === "Indent cum Sanction") {
@@ -1819,19 +1795,11 @@ const QuickActions = ({
                                     actual_workflow_state: item.workflow_state,
                                 };
                             } catch (fileError) {
-                                console.error(
-                                    "ICSS signed PO attachment fetch error:",
-                                    fileError,
-                                );
                                 return item;
                             }
                         }),
                     );
                 } catch (fetchError) {
-                    console.error(
-                        "Indent cum Sanction fetch error:",
-                        fetchError,
-                    );
                     data = [];
                 }
             } else if (selectedApplication === "Loan Request") {
@@ -1869,7 +1837,6 @@ const QuickActions = ({
                                         : "Draft"),
                         }));
                 } catch (fetchError) {
-                    console.error("Loan Request fetch error:", fetchError);
                     data = [];
                 }
             } else if (selectedApplication === "Miscellaneous Commit") {
@@ -1897,13 +1864,11 @@ const QuickActions = ({
                             workflow_state: item.workflow_state || "Draft",
                         }));
                 } catch (fetchError) {
-                    console.error("Miscellaneous Commit fetch error:", fetchError);
                     data = [];
                 }
             }
             setApplicationData(data);
         } catch (error) {
-            console.error("Error fetching application data:", error);
             setApplicationData([]);
         } finally {
             setIsLoading(false);
@@ -1913,6 +1878,10 @@ const QuickActions = ({
     useEffect(() => {
         fetchApplicationData();
     }, [fetchApplicationData]);
+
+    useEffect(() => {
+        setApplicationsPage(1);
+    }, [selectedApplication]);
 
     const ActionButton = ({
         children,
@@ -2038,6 +2007,11 @@ const QuickActions = ({
             case "Project Staff Resignation":
                 onNavigate(
                     `/project-staff-resignation?project=${projectParam}`,
+                );
+                break;
+            case "Project Staff Extension":
+                onNavigate(
+                    `/project-staff-extension?project=${projectParam}`,
                 );
                 break;
             case "Miscellaneous Commit":
@@ -2201,7 +2175,12 @@ const QuickActions = ({
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                {applicationData.map(
+                                {applicationData
+                                    .slice(
+                                        (applicationsPage - 1) * applicationsPageSize,
+                                        applicationsPage * applicationsPageSize,
+                                    )
+                                    .map(
                                     (item: any, index: number) => (
                                         <tr
                                             key={item.name || index}
@@ -2328,6 +2307,11 @@ const QuickActions = ({
                                                                         `/project-staff-resignation?edit=${item.name}`,
                                                                     );
                                                                     break;
+                                                                case "Project Staff Extension":
+                                                                    onNavigate(
+                                                                        `/project-staff-extension?edit=${item.name}`,
+                                                                    );
+                                                                    break;
                                                                 case "Temporary Advance Apply":
                                                                     // Navigate to the new details page
                                                                     onNavigate(
@@ -2372,7 +2356,15 @@ const QuickActions = ({
                                                                     break;
                                                                 case "Direct Purchase":
                                                                     onNavigate(
-                                                                        `/direct-purchase/${item.name}`,
+                                                                        [
+                                                                            "Sanction Sheet Generated",
+                                                                            "Sanction Sheet Printed",
+                                                                            "Sanction Approved",
+                                                                        ].includes(
+                                                                            item.workflow_state,
+                                                                        )
+                                                                            ? `/direct-purchase/${item.name}?tab=sanction`
+                                                                            : `/direct-purchase/${item.name}`,
                                                                     );
                                                                     break;
                                                                 case "Adhoc/Contractual":
@@ -2519,6 +2511,50 @@ const QuickActions = ({
                                                             </button>
                                                         )}
                                                     {selectedApplication ===
+                                                        "Direct Purchase" &&
+                                                        item.workflow_state ===
+                                                        "Draft" && (
+                                                            <button
+                                                                onClick={() =>
+                                                                    handleDeleteDraftDirectPurchase(
+                                                                        item,
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    deletingDraftName ===
+                                                                    item.name
+                                                                }
+                                                                className="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 hover:underline whitespace-nowrap disabled:opacity-50"
+                                                            >
+                                                                {deletingDraftName ===
+                                                                    item.name
+                                                                    ? "Deleting..."
+                                                                    : "Delete"}
+                                                            </button>
+                                                        )}
+                                                    {selectedApplication ===
+                                                        "Disbursal of Honorarium" &&
+                                                        item.workflow_state ===
+                                                        "Draft" && (
+                                                            <button
+                                                                onClick={() =>
+                                                                    handleDeleteDraftHonorarium(
+                                                                        item,
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    deletingDraftName ===
+                                                                    item.name
+                                                                }
+                                                                className="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 hover:underline whitespace-nowrap disabled:opacity-50"
+                                                            >
+                                                                {deletingDraftName ===
+                                                                    item.name
+                                                                    ? "Deleting..."
+                                                                    : "Delete"}
+                                                            </button>
+                                                        )}
+                                                    {selectedApplication ===
                                                         "Temporary Advance Apply" && (
                                                             <button
                                                                 onClick={() =>
@@ -2579,6 +2615,64 @@ const QuickActions = ({
                                 <Plus className="w-4 h-4" />
                                 Apply New
                             </button>
+                        </div>
+                    )}
+                    {applicationData.length > applicationsPageSize && (
+                        <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-200 dark:border-zinc-800">
+                            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                                Showing{" "}
+                                {(applicationsPage - 1) * applicationsPageSize + 1}
+                                {"–"}
+                                {Math.min(
+                                    applicationsPage * applicationsPageSize,
+                                    applicationData.length,
+                                )}{" "}
+                                of {applicationData.length}
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() =>
+                                        setApplicationsPage((p) => Math.max(1, p - 1))
+                                    }
+                                    disabled={applicationsPage === 1}
+                                    className="px-3 py-1.5 text-sm font-medium rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                                >
+                                    Previous
+                                </button>
+                                <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                                    Page {applicationsPage} of{" "}
+                                    {Math.max(
+                                        1,
+                                        Math.ceil(
+                                            applicationData.length /
+                                                applicationsPageSize,
+                                        ),
+                                    )}
+                                </span>
+                                <button
+                                    onClick={() =>
+                                        setApplicationsPage((p) =>
+                                            Math.min(
+                                                Math.ceil(
+                                                    applicationData.length /
+                                                        applicationsPageSize,
+                                                ),
+                                                p + 1,
+                                            ),
+                                        )
+                                    }
+                                    disabled={
+                                        applicationsPage >=
+                                        Math.ceil(
+                                            applicationData.length /
+                                                applicationsPageSize,
+                                        )
+                                    }
+                                    className="px-3 py-1.5 text-sm font-medium rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                                >
+                                    Next
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -2734,10 +2828,11 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
         const { data: activityData, mutate: refetchActivity } =
             useFrappeGetCall<{
                 message: ActivityItem[];
-            }>("rndopsapp.rndopsapp.api.get_project_activity", {
-                doctype,
-                docname,
-            });
+            }>(
+                "rndopsapp.rndopsapp.api.get_project_activity",
+                { doctype, docname },
+                doctype && docname ? undefined : null,
+            );
         const { call: addComment } = useFrappePostCall(
             "rndopsapp.rndopsapp.api.add_project_comment",
         );
@@ -2760,7 +2855,6 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
                 setNewComment("");
                 refetchActivity();
             } catch (error) {
-                console.error("Failed to add comment:", error);
             } finally {
                 setIsSubmitting(false);
             }
@@ -3043,10 +3137,11 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
 
     const { data: activityData } = useFrappeGetCall<{
         message: ActivityItem[];
-    }>("rndopsapp.rndopsapp.api.get_project_activity", {
-        doctype: "Project Registration",
-        docname: projectName,
-    });
+    }>(
+        "rndopsapp.rndopsapp.api.get_project_activity",
+        { doctype: "Project Registration", docname: projectName },
+        projectName ? undefined : null,
+    );
 
     // --- Budget State ---
     const [isLedgerOpen, setIsLedgerOpen] = useState(false);
@@ -3069,9 +3164,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         message: ActivityItem[];
     }>(
         "rndopsapp.rndopsapp.api.get_project_activity",
-        sanctionActivityDocname
-            ? { doctype: "Fund Sanction", docname: sanctionActivityDocname }
-            : undefined,
+        { doctype: "Fund Sanction", docname: sanctionActivityDocname },
+        sanctionActivityDocname ? undefined : null,
     );
 
     const fundReceivedActivityDocname = (() => {
@@ -3083,9 +3177,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         message: ActivityItem[];
     }>(
         "rndopsapp.rndopsapp.api.get_project_activity",
-        fundReceivedActivityDocname
-            ? { doctype: "Fund Received", docname: fundReceivedActivityDocname }
-            : undefined,
+        { doctype: "Fund Received", docname: fundReceivedActivityDocname },
+        fundReceivedActivityDocname ? undefined : null,
     );
 
     // --- Modal State for Sanction Submit ---
@@ -3183,8 +3276,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                     throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
                 }
                 const result = await response.json();
-                console.log("[PDO] Budget Head API raw result:", result);
-                console.log("[PDO] Budget Heads fetched:", result?.data?.length ?? 0);
                 if (result?.data && Array.isArray(result.data) && result.data.length > 0) {
                     setBudgetHeadList(
                         result.data.map((item: any) => ({
@@ -3196,7 +3287,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                     throw new Error("No data returned or empty array");
                 }
             } catch (err) {
-                console.warn("[PDO] Failed to fetch Budget Heads, using fallback:", err);
                 setBudgetHeadList([
                     { name: 'Overhead', id: 1 },
                     { name: 'Manpower', id: 2 },
@@ -3234,7 +3324,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             if (!projectName || budgetHeadList.length === 0) return;
 
             const effectiveProjectNo = data?.project_no || projectName;
-            console.log(`[PDO] checkHeadsWithData — project: "${effectiveProjectNo}", heads: ${budgetHeadList.length}, data?.project_no: "${data?.project_no}"`);
 
             setIsCheckingHeads(true);
             const headsSet = new Set<number>();
@@ -3248,23 +3337,18 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                         if (response.ok) {
                             const txns = await response.json();
                             const hasData = Array.isArray(txns) && txns.length > 0;
-                            console.log(`[PDO] Head "${head.name}" (id=${head.id}): ${txns?.length ?? "err"} txns → ${hasData ? "HAS DATA" : "empty"}`);
                             if (hasData) {
                                 headsSet.add(head.id);
                             }
                         } else {
-                            console.warn(`[PDO] Head "${head.name}" (id=${head.id}): HTTP ${response.status}`);
                         }
                     } catch (err) {
-                        console.error(`[PDO] Head "${head.name}" (id=${head.id}): fetch error`, err);
                     }
                 });
 
                 await Promise.all(promises);
                 setHeadsWithData(headsSet);
-                console.log("[PDO] headsWithData ids:", [...headsSet]);
             } catch (err) {
-                console.error("[PDO] checkHeadsWithData failed:", err);
             } finally {
                 setIsCheckingHeads(false);
             }
@@ -3295,14 +3379,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
 
     // Fetch Ledger Data when tab/head changes
     useEffect(() => {
-        console.log(
-            "Ledger useEffect - activeTab:",
-            activeTab,
-            "activeLedgerHeadId:",
-            activeLedgerHeadId,
-            "project_no:",
-            data?.project_no,
-        );
         if (activeTab === "ledger" && activeLedgerHeadId) {
             fetchLedgerData(activeLedgerHeadId);
         }
@@ -3320,18 +3396,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         setIsLedgerLoading(true);
         setLedgerError(null);
         try {
-            // Use proxy to avoid CORS - /ledger-api proxies to the Go service
+            // Use proxy to avoid CORS - /ledger-api proxies to the ledger backend (see proxyOptions.ts, VITE_LEDGER_HOST)
             const response = await fetch(
                 `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(data?.project_no || projectName || "")}&accountHeadId=${encodeURIComponent(String(headId))}`,
                 { credentials: "include" }
-            );
-            console.log(
-                "Ledger API response status:",
-                response.status,
-                "for projectNumber:",
-                data?.project_no || projectName,
-                "headId:",
-                headId,
             );
             if (!response.ok) {
                 const errorText = await response.text();
@@ -3339,14 +3407,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             }
 
             const result = await response.json();
-            console.log(
-                "Ledger API response data:",
-                result,
-                "for projectNumber:",
-                projectName,
-                "headId:",
-                headId,
-            );
 
             const rawData = Array.isArray(result) ? result : [];
             let runningPaymentBalance = 0;
@@ -3603,7 +3663,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                 // setActiveTab("activity");
             }
         } catch (error) {
-            console.error("Failed to add comment:", error);
             alert("Failed to submit comment. Please try again.");
         }
     };
@@ -3627,7 +3686,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                             content: `[Submit] ${comment.trim()} `,
                         });
                     } catch (commentError) {
-                        console.error("Error adding comment:", commentError);
                         // Don't fail the whole operation if comment fails
                     }
                 }
@@ -3635,7 +3693,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                 setSanctionModalOpen(false);
                 refetchSanctions();
             } catch (error: any) {
-                console.error("Error submitting sanction:", error);
                 alert("Failed to submit sanction. Please try again.");
             }
         },
@@ -3683,7 +3740,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                 }
                 setPaymentModalOpen(true);
             } catch (err) {
-                console.error("Failed to fetch payment fields:", err);
                 alert("Failed to load payment form. Please try again.");
             }
         },
@@ -3732,7 +3788,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             }
             alert("Payment submitted successfully!");
         } catch (err: any) {
-            console.error("Payment submission failed:", err);
             alert(
                 "Failed to submit payment: " + (err.message || "Unknown error"),
             );
@@ -3761,9 +3816,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                     mutate();
                     activityStreamRef.current?.refetch();
                 })
-                .catch((err: any) =>
-                    console.error(`Error during workflow action: `, err),
-                );
+                .catch(() => {});
         },
         [triggerWorkflowAction, submitProjectRegistration, mutate, projectName],
     );
@@ -3824,7 +3877,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             setIsEditingBudget(false);
             setEditBudgetRows([]);
         } catch (err) {
-            console.error("Failed to update budget breakup:", err);
         } finally {
             setIsSavingBudget(false);
         }
@@ -3846,10 +3898,17 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         SanctionBudgetRow[]
     >([]);
     const [isSavingSanctionBudget, setIsSavingSanctionBudget] = useState(false);
+    // Header fields edited alongside the budget breakup while a draft sanction is in edit mode
+    const [editSanctionLetterNo, setEditSanctionLetterNo] = useState("");
+    const [editSanctionLetterDate, setEditSanctionLetterDate] = useState("");
+    const [sanctionSaveError, setSanctionSaveError] = useState<string | null>(null);
 
     const { call: updateSanctionBudget } = useFrappePostCall(
         "rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.update_sanctioned_budget_breakup",
     );
+    // Standard Frappe whitelisted method (same pattern as DelegateUser.tsx / Profile.tsx) —
+    // used to persist the plain header fields since there's no bespoke Fund Sanction method for them.
+    const { call: setSanctionFieldValue } = useFrappePostCall("frappe.client.set_value");
 
     const startEditSanctionBudget = (sanction: any) => {
         setEditSanctionBudgetRows(
@@ -3862,17 +3921,36 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                 fifth_year_budget: parseFloat(r.fifth_year_budget) || 0,
             })),
         );
+        setEditSanctionLetterNo(sanction.sanctioned_letter_no ?? "");
+        setEditSanctionLetterDate(sanction.sanctioned_letter_date ?? "");
+        setSanctionSaveError(null);
         setEditingSanctionBudgetName(sanction.name);
     };
 
     const cancelEditSanctionBudget = () => {
         setEditingSanctionBudgetName(null);
         setEditSanctionBudgetRows([]);
+        setEditSanctionLetterNo("");
+        setEditSanctionLetterDate("");
+        setSanctionSaveError(null);
     };
 
     const saveSanctionBudget = async (sanctionName: string) => {
+        if (!editSanctionLetterNo.trim()) {
+            setSanctionSaveError("Sanction Letter No is required before saving.");
+            return;
+        }
+        setSanctionSaveError(null);
         setIsSavingSanctionBudget(true);
         try {
+            await setSanctionFieldValue({
+                doctype: "Fund Sanction",
+                name: sanctionName,
+                fieldname: {
+                    sanctioned_letter_no: editSanctionLetterNo.trim(),
+                    sanctioned_letter_date: editSanctionLetterDate,
+                },
+            });
             await updateSanctionBudget({
                 docname: sanctionName,
                 rows: editSanctionBudgetRows.map((r) => ({
@@ -3887,8 +3965,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             await refetchSanctions();
             setEditingSanctionBudgetName(null);
             setEditSanctionBudgetRows([]);
+            setEditSanctionLetterNo("");
+            setEditSanctionLetterDate("");
         } catch (err) {
-            console.error("Failed to update sanctioned budget breakup:", err);
+            setSanctionSaveError("Failed to save changes. Please try again.");
         } finally {
             setIsSavingSanctionBudget(false);
         }
@@ -4076,7 +4156,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             );
         }
 
-        console.log("data:", data);
 
         return (
             <>
@@ -4090,6 +4169,11 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                         onClick={() => {
                                             if (location.state && location.state.returnTo) {
                                                 navigate(location.state.returnTo, { state: location.state });
+                                                return;
+                                            }
+                                            const historyIdx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+                                            if (historyIdx > 0) {
+                                                navigate(-1);
                                             } else {
                                                 navigate(isCoProjectView ? "/co-projects" : "/projects-view");
                                             }
@@ -4117,6 +4201,17 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                             </div>
                             {!hideActions && (
                                 <div className="flex items-center gap-2 flex-wrap">
+                                    {(data?.workflow_state === "Approved" || data?.workflow_state === "Proposal Approved") &&
+                                        normalizeProjectType(data?.project_type) === "Consultancy" && (
+                                        <FrappeButton
+                                            onClick={() => navigate(`/project-details-overview/${projectName}/proforma-invoice`)}
+                                            variant="outline"
+                                            aria-label="Proforma Invoice"
+                                            className="h-8 px-3 text-[12px] flex items-center gap-1.5"
+                                        >
+                                            <FileTextIcon className="h-3.5 w-3.5" /> Pro Inv
+                                        </FrappeButton>
+                                    )}
                                     <WorkflowActions
                                         docname={projectName!}
                                         onAction={handleWorkflowAction}
@@ -4467,7 +4562,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                         </p>
                                                     </div>
                                                     <a
-                                                        href={`http://172.16.135.118:9000/prod-rnd-files/Project_Registration/${projectName}/attachments/${data.upload_proj_prop.split("/").pop()}`}
+                                                        href={`http://${import.meta.env.VITE_MINIO_HOST || "172.16.135.118"}:${import.meta.env.VITE_MINIO_PORT || "9000"}/prod-rnd-files/Project_Registration/${projectName}/attachments/${data.upload_proj_prop.split("/").pop()}`}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         className="text-sm font-medium text-[#D97757] hover:underline flex items-center gap-1"
@@ -4524,7 +4619,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                 filePath;
                                                                             const fileUrl =
                                                                                 filePath
-                                                                                    ? `http://172.16.135.118:9000/prod-rnd-files/Project_Registration/${projectName}/attachments/${filePath.split("/").pop()}`
+                                                                                    ? `http://${import.meta.env.VITE_MINIO_HOST || "172.16.135.118"}:${import.meta.env.VITE_MINIO_PORT || "9000"}/prod-rnd-files/Project_Registration/${projectName}/attachments/${filePath.split("/").pop()}`
                                                                                     : null;
                                                                             return (
                                                                                 <tr
@@ -5916,6 +6011,15 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                         const isDraft =
                                                             sanction.sanction_workflow_status?.toLowerCase() ===
                                                             "draft";
+                                                        const isSanctionOwner =
+                                                            !!currentUser &&
+                                                            sanction.owner ===
+                                                            currentUser;
+                                                        const isEditingSB =
+                                                            editingSanctionBudgetName ===
+                                                            sanction.name;
+                                                        const canSubmitSanction =
+                                                            !!sanction.sanctioned_letter_no?.trim();
 
                                                         return (
                                                             <FrappeCard className="space-y-5">
@@ -5943,23 +6047,53 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                             "DRAFT"}
                                                                                     </span>
                                                                                 </span>
-                                                                                <span>
-                                                                                    Letter
-                                                                                    No:{" "}
-                                                                                    <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                                                                                        {
-                                                                                            sanction.sanctioned_letter_no
-                                                                                        }
+                                                                                {isEditingSB ? (
+                                                                                    <span className="inline-flex items-center gap-1.5">
+                                                                                        Letter No:{" "}
+                                                                                        <input
+                                                                                            type="text"
+                                                                                            value={editSanctionLetterNo}
+                                                                                            onChange={(e) => setEditSanctionLetterNo(e.target.value)}
+                                                                                            placeholder="Required"
+                                                                                            className={cn(
+                                                                                                "px-2 py-1 rounded border text-xs w-36 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100",
+                                                                                                !editSanctionLetterNo.trim()
+                                                                                                    ? "border-red-400 focus:ring-1 focus:ring-red-400"
+                                                                                                    : "border-zinc-300 dark:border-zinc-700",
+                                                                                            )}
+                                                                                        />
                                                                                     </span>
-                                                                                </span>
-                                                                                <span>
-                                                                                    Date:{" "}
-                                                                                    <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                                                                                        {
-                                                                                            sanction.sanctioned_letter_date
-                                                                                        }
+                                                                                ) : (
+                                                                                    <span>
+                                                                                        Letter
+                                                                                        No:{" "}
+                                                                                        <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                                                                                            {
+                                                                                                sanction.sanctioned_letter_no
+                                                                                            }
+                                                                                        </span>
                                                                                     </span>
-                                                                                </span>
+                                                                                )}
+                                                                                {isEditingSB ? (
+                                                                                    <span className="inline-flex items-center gap-1.5">
+                                                                                        Date:{" "}
+                                                                                        <input
+                                                                                            type="date"
+                                                                                            value={editSanctionLetterDate || ""}
+                                                                                            onChange={(e) => setEditSanctionLetterDate(e.target.value)}
+                                                                                            className="px-2 py-1 rounded border border-zinc-300 dark:border-zinc-700 text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                                                                                        />
+                                                                                    </span>
+                                                                                ) : (
+                                                                                    <span>
+                                                                                        Date:{" "}
+                                                                                        <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                                                                                            {
+                                                                                                sanction.sanctioned_letter_date
+                                                                                            }
+                                                                                        </span>
+                                                                                    </span>
+                                                                                )}
                                                                                 <span>
                                                                                     Amount:{" "}
                                                                                     <span className="font-semibold text-[#D97757]">
@@ -5979,27 +6113,53 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                             </div>
                                                                         </div>
 
-                                                                        {isDraft && (
-                                                                            <div className="flex-shrink-0">
-                                                                                <FrappeButton
-                                                                                    onClick={() =>
-                                                                                        handleSanctionSubmitClick(
-                                                                                            sanction.name,
-                                                                                        )
-                                                                                    }
-                                                                                    disabled={
-                                                                                        isSubmittingSanction
-                                                                                    }
-                                                                                    aria-label="Submit sanction"
-                                                                                >
-                                                                                    <CheckCircleIcon className="h-4 w-4" />
-                                                                                    {isSubmittingSanction
-                                                                                        ? "Submitting..."
-                                                                                        : "Submit"}
-                                                                                </FrappeButton>
+                                                                        {(isDraft || isSanctionOwner) && (
+                                                                            <div className="flex-shrink-0 flex items-center gap-2">
+                                                                                {isSanctionOwner && !isEditingSB && (
+                                                                                    <Button
+                                                                                        size="sm"
+                                                                                        variant="outline"
+                                                                                        className="h-8 px-3 text-xs gap-1.5"
+                                                                                        onClick={() =>
+                                                                                            startEditSanctionBudget(sanction)
+                                                                                        }
+                                                                                    >
+                                                                                        <Pencil className="h-3.5 w-3.5" />
+                                                                                        Edit
+                                                                                    </Button>
+                                                                                )}
+                                                                                {isDraft && !isEditingSB && (
+                                                                                    <FrappeButton
+                                                                                        onClick={() =>
+                                                                                            handleSanctionSubmitClick(
+                                                                                                sanction.name,
+                                                                                            )
+                                                                                        }
+                                                                                        disabled={
+                                                                                            isSubmittingSanction ||
+                                                                                            !canSubmitSanction
+                                                                                        }
+                                                                                        aria-label="Submit sanction"
+                                                                                        title={
+                                                                                            !canSubmitSanction
+                                                                                                ? "Sanction Letter No is required before submitting"
+                                                                                                : undefined
+                                                                                        }
+                                                                                    >
+                                                                                        <CheckCircleIcon className="h-4 w-4" />
+                                                                                        {isSubmittingSanction
+                                                                                            ? "Submitting..."
+                                                                                            : "Submit"}
+                                                                                    </FrappeButton>
+                                                                                )}
                                                                             </div>
                                                                         )}
                                                                     </div>
+                                                                    {isDraft && !canSubmitSanction && !isEditingSB && (
+                                                                        <p className="text-xs text-red-600 dark:text-red-400 mb-2">
+                                                                            Sanction Letter No is missing — edit the sanction and fill it in before it can be submitted.
+                                                                        </p>
+                                                                    )}
                                                                     {isDraft && (
                                                                         <div className="flex items-start gap-3 p-4 border border-yellow-400 rounded-lg bg-[#FFFDF5] dark:bg-yellow-900/20 shadow-sm">
                                                                             <AlertCircleIcon className="h-6 w-6 text-yellow-600 flex-shrink-0 mt-0.5 drop-shadow-sm" />
@@ -6087,22 +6247,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                     Budget
                                                                                     Breakup
                                                                                 </h4>
-                                                                                {isSanctionOwner &&
-                                                                                    !isEditingSB && (
-                                                                                        <Button
-                                                                                            size="sm"
-                                                                                            variant="outline"
-                                                                                            className="h-6 px-2 text-xs gap-1"
-                                                                                            onClick={() =>
-                                                                                                startEditSanctionBudget(
-                                                                                                    sanction,
-                                                                                                )
-                                                                                            }
-                                                                                        >
-                                                                                            <Pencil className="h-3 w-3" />
-                                                                                            Edit
-                                                                                        </Button>
-                                                                                    )}
                                                                                 {isEditingSB && (
                                                                                     <div className="flex items-center gap-1">
                                                                                         <Button
@@ -6128,7 +6272,13 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                                 )
                                                                                             }
                                                                                             disabled={
-                                                                                                isSavingSanctionBudget
+                                                                                                isSavingSanctionBudget ||
+                                                                                                !editSanctionLetterNo.trim()
+                                                                                            }
+                                                                                            title={
+                                                                                                !editSanctionLetterNo.trim()
+                                                                                                    ? "Sanction Letter No is required before saving"
+                                                                                                    : undefined
                                                                                             }
                                                                                         >
                                                                                             <Save className="h-3 w-3" />
@@ -6139,6 +6289,12 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                     </div>
                                                                                 )}
                                                                             </div>
+
+                                                                            {isEditingSB && sanctionSaveError && (
+                                                                                <p className="text-xs text-red-600 dark:text-red-400 mb-2">
+                                                                                    {sanctionSaveError}
+                                                                                </p>
+                                                                            )}
 
                                                                             {isEditingSB ? (
                                                                                 <div className="space-y-3">

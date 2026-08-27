@@ -3,6 +3,8 @@ import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
 import { loanRequestAPI } from "@/services/apiService";
 import { ChevronRight, RotateCcw, CheckCircle2, XCircle } from "lucide-react";
+import { ErrorModal } from "./ErrorModal";
+import { parseFrappeError } from "../utils/errorUtils";
 
 interface LoanRequestActionButtonsProps {
     docname: string;
@@ -110,6 +112,7 @@ const LoanRequestActionButtons = ({
 
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedAction, setSelectedAction] = useState("");
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Action Failed", message: "" });
 
     const handleActionClick = (action: string) => {
         setSelectedAction(action);
@@ -131,7 +134,7 @@ const LoanRequestActionButtons = ({
             const res: any = await performAction({ docname, action: selectedAction, ...extraArgs });
             if (res?.message?.status === "error") {
                 setModalOpen(false);
-                alert(res.message.message || "Action failed");
+                setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(res?.message) });
                 return;
             }
             // Log comment as activity if provided
@@ -143,14 +146,13 @@ const LoanRequestActionButtons = ({
                         content: `[${selectedAction}] ${comment.trim()}`,
                     });
                 } catch (commentError) {
-                    console.error("Error adding comment:", commentError);
                 }
             }
             setModalOpen(false);
             onActionComplete();
         } catch (error: any) {
-            console.error("Error performing action:", error);
-            alert(`Action failed: ${error.message || "Unknown error"}`);
+            setModalOpen(false);
+            setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(error) });
         }
     };
 
@@ -185,6 +187,12 @@ const LoanRequestActionButtons = ({
                 onSubmit={handleConfirmAction}
                 action={selectedAction}
                 isLoading={!!actionLoading}
+            />
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
             />
         </>
     );

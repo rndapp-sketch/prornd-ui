@@ -1,8 +1,9 @@
-
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
+import { CharLimitAlert } from "@/components/CharLimitAlert";
+import { FIELD_CHAR_LIMITS } from "@/utils/fieldLimits";
 import {
     ArrowLeft, Loader2, Search, Download, RefreshCw,
     User, IndianRupee, AlertCircle, ChevronUp, ChevronDown,
@@ -13,6 +14,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { DepartmentName } from "@/components/DepartmentName";
+import { useUserRoles } from "@/components/UserRole";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -51,6 +53,7 @@ interface EditableInputs {
     otherDeduction: number;
     arrear: number;
     medicalDeduction: number;
+    hraDeduction: number;
     idCardCharge: number;
     electricityBill: number;
     comment: string;
@@ -152,9 +155,11 @@ const calcProRataBasic = (basic: number, workingDays: number, daysInMonth: numbe
  *  ₹15,001 – ₹25,000   → ₹180
  *  Above ₹25,000       → ₹208
  */
+// Assam Professional Tax slabs, effective 15-10-2014
 const calcPTax = (basicSalary: number): number => {
-    if (basicSalary <= 15000) return 0;
-    if (basicSalary <= 25000) return 180;
+    if (basicSalary <= 10000) return 0;
+    if (basicSalary < 15000) return 150;
+    if (basicSalary < 25000) return 180;
     return 208;
 };
 
@@ -260,7 +265,7 @@ const mapRow = (row: any): StaffRecord => {
         medical_allowance: maAmount,
         hostel: hostelAmount,
         workflow_state: row.workflow_state || "Approved",
-        project_no: row.project_no || "—",
+        project_no: (row.project_no ? String(row.project_no).trim() : "") || "—",
         bank_account_number: row.bank_account_number || "—",
         ps_hostel: row.ps_hostel !== undefined ? row.ps_hostel : "",
     };
@@ -273,6 +278,8 @@ type SortKey = keyof StaffRecord;
 const SalaryModule: React.FC = () => {
     const navigate = useNavigate();
     const { currentUser } = useFrappeAuth();
+    const { roles } = useUserRoles(currentUser || null);
+    const canViewAllStaff = roles?.includes("staff, RnD") ?? false;
 
     const [records, setRecords] = useState<StaffRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -291,8 +298,10 @@ const SalaryModule: React.FC = () => {
     const [desigFilter, setDesigFilter] = useState<string>("All");
     const [projectFilter, setProjectFilter] = useState<string>("All");
     const [schemeFilter, setSchemeFilter] = useState<string>("All");
+    const [projectTypeFilter, setProjectTypeFilter] = useState<string>("All");
     const [departmentLabels, setDepartmentLabels] = useState<Record<string, string>>({});
     const [schemeMap, setSchemeMap] = useState<Record<string, string>>({});
+    const [projectTypeMap, setProjectTypeMap] = useState<Record<string, string>>();
     const [schemeNumberMap, setSchemeNumberMap] = useState<Record<string, string>>({});
 
     // Pay slip modal state
@@ -340,13 +349,15 @@ const SalaryModule: React.FC = () => {
     const isPrepared = !!preparedCycles[cycleKey];
 
     // ─── Salary Processing Status ─────────────────────────────────────────
-    const [activeTab, setActiveTab] = useState<"pending" | "processed">("pending");
+    const [activeTab, setActiveTab] = useState<"pending" | "processed" | "termending">("pending");
     const [processedEmployees, setProcessedEmployees] = useState<Set<string>>(new Set());
+    const [stagingRecords, setStagingRecords] = useState<any[]>([]);
     const [isCheckingStatus, setIsCheckingStatus] = useState(false);
 
     // Reset tab when period changes
     useEffect(() => {
         setProcessedEmployees(new Set());
+        setStagingRecords([]);
         setActiveTab("pending");
         setSelectedEmpIds(new Set());
     }, [selectedYear, selectedMonth]);
@@ -377,11 +388,13 @@ const SalaryModule: React.FC = () => {
         const wd = calcWorkingDaysForPeriod(record.joining_date, record.term_completion_date, selectedYear, selectedMonth);
         const defaultMedical = Math.round((record.medical_allowance / dim) * wd);
         const rowOverrides = overrides[r.docName] || {};
+        const defaultHRADed = getHRADeduction(r, Math.round((r.hra / dim) * wd));
         const inputs: EditableInputs = {
             ta: rowOverrides.ta ?? 0,
             otherDeduction: rowOverrides.otherDeduction ?? 0,
             arrear: rowOverrides.arrear ?? 0,
             medicalDeduction: rowOverrides.medicalDeduction ?? defaultMedical,
+            hraDeduction: rowOverrides.hraDeduction ?? defaultHRADed,
             idCardCharge: rowOverrides.idCardCharge ?? 0,
             electricityBill: rowOverrides.electricityBill ?? 0,
             comment: rowOverrides.comment ?? "",
@@ -394,7 +407,7 @@ const SalaryModule: React.FC = () => {
         const proRataMedical = Math.round((r.medical_allowance / daysInMonthVal) * workingDays);
         const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
         const pTax = calcPTax(r.basic_salary);
-        const hraDed = getHRADeduction(r, proRataHRA);
+        const hraDed = inputs.hraDeduction;
         const totalDed = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
 
         const salary_user_details = {
@@ -448,10 +461,8 @@ const SalaryModule: React.FC = () => {
         let commitFromApi: any = null;
         try {
             const apiUrl = `/api/method/rndopsapp.rndopsapp.commitPayment.salary_payment_data?ps_emp_id=${r.employee_id}&yyyy_month=${salary_year_month}`;
-            console.log(`[SalaryModule][buildCommitData] Fetching commit for ${r.employee_id}:`, apiUrl);
             const response = await fetch(apiUrl, { credentials: "include" });
             const json = await response.json();
-            console.log(`[SalaryModule][buildCommitData] Raw API response for ${r.employee_id}:`, JSON.stringify(json, null, 2));
             if (!response.ok) {
                 return { ok: false, reason: `salary_payment_data request failed (HTTP ${response.status})` };
             }
@@ -467,12 +478,9 @@ const SalaryModule: React.FC = () => {
                     return { ok: false, reason: first.message || `Backend error: ${first.status}` };
                 }
                 commitFromApi = first;
-                console.log(`[SalaryModule][buildCommitData] commitFromApi for ${r.employee_id}:`, commitFromApi);
             } else {
-                console.warn(`[SalaryModule][buildCommitData] No commit record found for ${r.employee_id} (${salary_year_month}). message:`, json?.message);
             }
         } catch (err) {
-            console.error(`[SalaryModule][buildCommitData] Fetch failed for ${r.employee_id}:`, err);
             return { ok: false, reason: `Failed to fetch salary payment data: ${err instanceof Error ? err.message : String(err)}` };
         }
 
@@ -487,7 +495,6 @@ const SalaryModule: React.FC = () => {
             if (!commitFromApi.transactionCommitNumber) missingFields.push("transactionCommitNumber");
 
             if (missingFields.length > 0) {
-                console.warn(`[SalaryModule] Incomplete commit data for ${r.employee_id} — missing: [${missingFields.join(", ")}]`, commitFromApi);
                 return { ok: false, reason: `Incomplete commit data — missing: ${missingFields.join(", ")}` };
             }
             return {
@@ -514,14 +521,11 @@ const SalaryModule: React.FC = () => {
         }
 
         // No commit data found — try ledger fallback
-        console.warn(`[SalaryModule] No salary_payment_data found for ${r.employee_id} (${salary_year_month}) — trying ledger fallback`);
         try {
             const ledgerFallbackUrl = `/ledger-api/account-head-commit/by-status/COMMITTED`;
-            console.log(`[SalaryModule][buildCommitData] Ledger fallback for ${r.employee_id}:`, ledgerFallbackUrl);
             const ledgerRes = await fetch(ledgerFallbackUrl);
             if (ledgerRes.ok) {
                 const commits = await ledgerRes.json();
-                console.log(`[SalaryModule][buildCommitData] Ledger returned ${commits?.length ?? 0} commits. Searching for employee ${r.employee_id} on project ${r.project_no}...`);
 
                 // Must match this employee's own project — matching on moduleId alone
                 // (or against department, which isn't a project number) previously let
@@ -540,12 +544,7 @@ const SalaryModule: React.FC = () => {
                     : undefined;
 
                 if (!match) {
-                    console.warn(
-                        `[SalaryModule][buildCommitData] No project match for ${r.employee_id} (project_no="${r.project_no}"). Available COMMITTED moduleId=11 project numbers:`,
-                        commits.filter((c: any) => String(c.moduleId) === '11').map((c: any) => c.projectNumber)
-                    );
                 }
-                console.log(`[SalaryModule][buildCommitData] Ledger fallback match for ${r.employee_id}:`, match || "NO MATCH");
                 if (match) {
                     return {
                         ok: true,
@@ -566,24 +565,24 @@ const SalaryModule: React.FC = () => {
                 return { ok: false, reason: `No committed budget-head entry found for project ${r.project_no || "(unknown)"}` };
             }
         } catch (ledgerErr) {
-            console.error(`[SalaryModule][buildCommitData] Ledger fallback failed for ${r.employee_id}:`, ledgerErr);
             return { ok: false, reason: `Ledger fallback failed: ${ledgerErr instanceof Error ? ledgerErr.message : String(ledgerErr)}` };
         }
 
         // No commit data found — skip this employee
-        console.warn(`[SalaryModule] No salary payment data found for ${r.employee_id} (${salary_year_month}) — skipping`);
         return { ok: false, reason: "No salary commit data found for this employee/month" };
     }, [selectedYear, selectedMonth, overrides]);
 
     // ── Open BMR modal: build all commit payloads for selected pending staff ──
     const handlePaySelected = useCallback(async (selectedRecords: StaffRecord[]) => {
-        console.log("[SalaryModule][handlePaySelected] Called with", selectedRecords.length, "records");
         if (selectedRecords.length === 0) return;
 
         // All selected must share the same scheme number (not project_no —
         // multiple project_nos can map to the same scheme e.g. 4211)
         const schemeNumbers = new Set(
-            selectedRecords.map(r => schemeNumberMap[r.project_no || ""] || r.project_no || "")
+            selectedRecords.map(r => {
+                const pNo = (r.project_no || "").trim();
+                return (pNo && schemeNumberMap[pNo] ? schemeNumberMap[pNo].trim() : "") || pNo || "";
+            })
         );
         if (schemeNumbers.size > 1) {
             alert("Please select staff from only one scheme at a time. The selected staff belong to different schemes.");
@@ -596,17 +595,18 @@ const SalaryModule: React.FC = () => {
         try {
             const commits: Record<string, any> = {};
             const failures: PaymentOutcome[] = [];
-            console.log("[SalaryModule][handlePaySelected] Building commits for", selectedRecords.length, "records");
             for (const r of selectedRecords) {
                 const dim = getDaysInMonth(selectedYear, selectedMonth);
                 const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
                 const defaultMedical = Math.round((r.medical_allowance / dim) * wd);
                 const rowOverrides = overrides[r.docName] || {};
+                const defaultHRADed = getHRADeduction(r, Math.round((r.hra / dim) * wd));
                 const inputs: EditableInputs = {
                     ta: rowOverrides.ta ?? 0,
                     otherDeduction: rowOverrides.otherDeduction ?? 0,
                     arrear: rowOverrides.arrear ?? 0,
                     medicalDeduction: rowOverrides.medicalDeduction ?? defaultMedical,
+                    hraDeduction: rowOverrides.hraDeduction ?? defaultHRADed,
                     idCardCharge: rowOverrides.idCardCharge ?? 0,
                     electricityBill: rowOverrides.electricityBill ?? 0,
                     comment: rowOverrides.comment ?? "",
@@ -616,11 +616,10 @@ const SalaryModule: React.FC = () => {
                 const proRataHRA = Math.round((r.hra / dim) * wd);
                 const proRataMedical = Math.round((r.medical_allowance / dim) * wd);
                 const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
-                const hraDed = getHRADeduction(r, proRataHRA);
+                const hraDed = inputs.hraDeduction;
                 const totalDed = hraDed + inputs.medicalDeduction + calcPTax(r.basic_salary) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
                 const netPay = Math.round(grossPay - totalDed);
                 const result = await buildCommitData(r, netPay);
-                console.log(`[SalaryModule][handlePaySelected] buildCommitData result for ${r.employee_id}:`, result);
                 if (result.ok) {
                     commits[r.employee_id] = result.commit;
                 } else {
@@ -628,7 +627,6 @@ const SalaryModule: React.FC = () => {
                     failures.push({ employeeId: r.employee_id, name: r.first_name, status: isSkip ? "skipped" : "error", message: result.reason });
                 }
             }
-            console.log("[SalaryModule][handlePaySelected] Final commits object:", commits, "build failures:", failures);
             setBuildFailures(failures);
 
             if (Object.keys(commits).length === 0) {
@@ -654,6 +652,7 @@ const SalaryModule: React.FC = () => {
         const daysInMonth = getDaysInMonth(selectedYear, selectedMonth);
         const workingDays = record ? calcWorkingDaysForPeriod(record.joining_date, record.term_completion_date, selectedYear, selectedMonth) : daysInMonth;
         const defaultMedical = record ? Math.round((record.medical_allowance / daysInMonth) * workingDays) : 0;
+        const defaultHRADed = record ? getHRADeduction(record, Math.round((record.hra / daysInMonth) * workingDays)) : 0;
 
         const rowOverrides = overrides[docName] || {};
 
@@ -662,6 +661,7 @@ const SalaryModule: React.FC = () => {
             otherDeduction: rowOverrides.otherDeduction ?? 0,
             arrear: rowOverrides.arrear ?? 0,
             medicalDeduction: rowOverrides.medicalDeduction ?? defaultMedical,
+            hraDeduction: rowOverrides.hraDeduction ?? defaultHRADed,
             idCardCharge: rowOverrides.idCardCharge ?? 0,
             electricityBill: rowOverrides.electricityBill ?? 0,
             comment: rowOverrides.comment ?? "",
@@ -673,6 +673,7 @@ const SalaryModule: React.FC = () => {
             otherDeduction: rowOverrides.otherDeduction !== undefined,
             arrear: rowOverrides.arrear !== undefined,
             medicalDeduction: rowOverrides.medicalDeduction !== undefined,
+            hraDeduction: rowOverrides.hraDeduction !== undefined,
             idCardCharge: rowOverrides.idCardCharge !== undefined,
             electricityBill: rowOverrides.electricityBill !== undefined,
             comment: rowOverrides.comment !== undefined,
@@ -702,6 +703,14 @@ const SalaryModule: React.FC = () => {
                 const workingDays = record ? calcWorkingDaysForPeriod(record.joining_date, record.term_completion_date, selectedYear, selectedMonth) : daysInMonth;
                 const defaultMedical = record ? Math.round((record.medical_allowance / daysInMonth) * workingDays) : 0;
                 if (Math.round(Number(value)) === defaultMedical) {
+                    shouldStoreOverride = false;
+                }
+            } else if (field === "hraDeduction") {
+                const record = records.find(r => r.docName === docName);
+                const daysInMonth = getDaysInMonth(selectedYear, selectedMonth);
+                const workingDays = record ? calcWorkingDaysForPeriod(record.joining_date, record.term_completion_date, selectedYear, selectedMonth) : daysInMonth;
+                const defaultHRADed = record ? getHRADeduction(record, Math.round((record.hra / daysInMonth) * workingDays)) : 0;
+                if (Math.round(Number(value)) === defaultHRADed) {
                     shouldStoreOverride = false;
                 }
             }
@@ -739,50 +748,18 @@ const SalaryModule: React.FC = () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             let rows: any[] = [];
 
-            // Try: filter by owner + Approved
-            try {
-                const res = await getList({
-                    doctype: "Project Staff Details",
-                    filters: [["owner", "=", currentUser], ["workflow_state", "=", "Approved"]],
-                    fields: ["*"],
-                    limit_page_length: 500,
-                });
-                rows = res?.message ?? [];
-            } catch { /* try next */ }
-
-            // Try: other PI fields + Approved
-            if (rows.length === 0) {
-                for (const f of ["webmail_id", "pi_webmail", "pi_email", "principal_investigator"]) {
-                    try {
-                        const res = await getList({
-                            doctype: "Project Staff Details",
-                            filters: [[f, "=", currentUser], ["workflow_state", "=", "Approved"]],
-                            fields: ["*"],
-                            limit_page_length: 1000000,
-                        });
-                        rows = res?.message ?? [];
-                        if (rows.length > 0) break;
-                    } catch { /* skip */ }
-                }
-            }
-
-            // Fallback: all Approved, filter client-side
-            if (rows.length === 0) {
-                try {
-                    const res = await getList({
-                        doctype: "Project Staff Details",
-                        filters: [["workflow_state", "=", "Approved"]],
-                        fields: ["*"],
-                        limit_page_length: 500,
-                    });
-                    const all = res?.message ?? [];
-                    rows = all.filter((r: any) =>
-                        r.owner === currentUser || r.webmail_id === currentUser
-                        || r.pi_webmail === currentUser || r.pi_email === currentUser
-                    );
-                    if (rows.length === 0) rows = all;
-                } catch { /* ignore */ }
-            }
+            // "staff, RnD" processes payroll org-wide and must see every Approved record.
+            // Everyone else (PIs) is scoped strictly to records they own — no fallback to
+            // "show everyone" when the owner filter comes up empty; empty means empty.
+            const res = await getList({
+                doctype: "Project Staff Details",
+                filters: canViewAllStaff
+                    ? [["workflow_state", "=", "Approved"]]
+                    : [["owner", "=", currentUser], ["workflow_state", "=", "Approved"]],
+                fields: ["*"],
+                limit_page_length: canViewAllStaff ? 100000 : 500,
+            });
+            rows = res?.message ?? [];
 
             // Safety net: client-side Approved filter
             rows = rows.filter((r: any) =>
@@ -795,17 +772,15 @@ const SalaryModule: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [getList, currentUser]);
+    }, [getList, currentUser, canViewAllStaff]);
 
     // ── Submit all pending commits with the entered BMR number ──
     const handleBmrSubmit = useCallback(async () => {
         const bmr = bmrInput.trim();
-        console.log("[SalaryModule][handleBmrSubmit] Called with BMR:", bmr, "pendingBulkCommits:", pendingBulkCommits);
         if (!bmr) { setBmrError("Please enter a BMR number before submitting."); return; }
         setBmrSubmitting(true);
         setBmrError(null);
         const paymentEndpoint = "/api/method/rndopsapp.rndopsapp.commitPayment.submit_payment_data";
-        console.log("[SalaryModule][handleBmrSubmit] Starting payment submission for", Object.keys(pendingBulkCommits).length, "employees");
         const outcomes: PaymentOutcome[] = [];
         // Cache Project Registration doc-name lookups by project_no — the backend
         // needs project_name to be the actual Project Registration document name
@@ -826,7 +801,6 @@ const SalaryModule: React.FC = () => {
                     }
                 }
             } catch (err) {
-                console.error(`[SalaryModule][handleBmrSubmit] Failed to resolve Project Registration for ${projectNo}:`, err);
             }
             return projectNo;
         };
@@ -855,7 +829,6 @@ const SalaryModule: React.FC = () => {
                     salary_user_details: commitData.salary_user_details,
                     salary_backend_details: commitData.salary_backend_details,
                 };
-                console.log(`[SalaryModule][handleBmrSubmit] Sending payment for ${empId} to ${paymentEndpoint}`, body);
                 const res = await fetch(paymentEndpoint, {
                     method: "POST",
                     headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -863,7 +836,6 @@ const SalaryModule: React.FC = () => {
                     body: JSON.stringify(body),
                 });
                 const result = await res.json();
-                console.log(`[SalaryModule][handleBmrSubmit] Response for ${empId}:`, result);
                 const msg = result?.message;
                 if (!res.ok) throw new Error(msg?.message || `Request failed (HTTP ${res.status})`);
                 if (msg?.status === "error") throw new Error(msg?.message || "Salary staging failed");
@@ -872,7 +844,6 @@ const SalaryModule: React.FC = () => {
                 // absence of an error shape — an HTTP 200 with no `name` means the backend
                 // didn't actually stage the payment even though nothing "failed" explicitly.
                 if (!msg?.name) throw new Error(msg?.message || "Backend did not confirm the payment was staged");
-                console.log(`[SalaryModule][handleBmrSubmit] Payment processed successfully for ${empId}: ${msg.name}`);
                 markAsProcessed(empId);
                 outcomes.push({
                     employeeId: empId,
@@ -881,7 +852,6 @@ const SalaryModule: React.FC = () => {
                     message: `Staged as ${msg.name}`,
                 });
             } catch (err: any) {
-                console.error(`Payment failed for ${empId}:`, err);
                 outcomes.push({
                     employeeId: empId,
                     name: commitData.salary_user_details?.first_name || empId,
@@ -920,11 +890,11 @@ const SalaryModule: React.FC = () => {
             );
 
             const processedEmpIds = new Set<string>();
+            let salaryRecords: any[] = [];
 
             if (response.ok) {
                 const json = await response.json();
                 // salary_record is a JSON string array of payment records
-                let salaryRecords: any[] = [];
                 try {
                     const raw = json?.data?.salary_record ?? json?.message?.salary_record ?? "[]";
                     salaryRecords = typeof raw === "string" ? JSON.parse(raw) : raw;
@@ -944,9 +914,9 @@ const SalaryModule: React.FC = () => {
             const currentSYM = `${selectedYear}_${MONTHS[selectedMonth].label.toLowerCase()}`;
             if (salary_year_month === currentSYM) {
                 setProcessedEmployees(new Set(processedEmpIds));
+                setStagingRecords(salaryRecords);
             }
         } catch (err) {
-            console.error("Salary Staging fetch failed:", err);
         } finally {
             setIsCheckingStatus(false);
         }
@@ -963,35 +933,47 @@ const SalaryModule: React.FC = () => {
     // Fetch Scheme mapping from Project Registration doctype
     const fetchSchemeMap = useCallback(async () => {
         const projectNos = Array.from(new Set(
-            records.map(r => r.project_no).filter(p => p && p !== "—")
+            records.map(r => (r.project_no || "").trim()).filter(p => p && p !== "—")
         )) as string[];
         if (projectNos.length === 0) {
             setSchemeMap({});
+            setSchemeNumberMap({});
             return;
         }
         try {
+            // Fetch unfiltered and match client-side (trimmed) — the DB "in" filter
+            // is an exact string match and silently drops rows whose stored
+            // project_no has stray leading/trailing whitespace.
             const res = await getList({
                 doctype: "Project Registration",
-                filters: [["project_no", "in", projectNos]],
-                fields: ["project_no", "funding_agency_schemes", "enter_scheme_number"],
-                limit_page_length: projectNos.length,
+                fields: ["project_no", "funding_agency_schemes", "enter_scheme_number", "project_type"],
+                limit_page_length: 0,
             });
             const map: Record<string, string> = {};
             const numberMap: Record<string, string> = {};
+            const typeMap: Record<string, string> = {};
             (res?.message || []).forEach((row: any) => {
-                if (row.project_no && row.funding_agency_schemes) {
-                    map[row.project_no] = row.funding_agency_schemes;
+                const projectNo = row.project_no ? String(row.project_no).trim() : "";
+                const schemeName = row.funding_agency_schemes ? String(row.funding_agency_schemes).trim() : "";
+                const schemeNo = row.enter_scheme_number ? String(row.enter_scheme_number).trim() : "";
+                const pType = row.project_type ? String(row.project_type).trim() : "";
+                if (projectNo && schemeName) {
+                    map[projectNo] = schemeName;
                 }
-                if (row.project_no && row.enter_scheme_number) {
-                    numberMap[row.project_no] = row.enter_scheme_number;
+                if (projectNo && schemeNo) {
+                    numberMap[projectNo] = schemeNo;
+                }
+                if (projectNo && pType) {
+                    typeMap[projectNo] = pType;
                 }
             });
             setSchemeMap(map);
             setSchemeNumberMap(numberMap);
+            setProjectTypeMap(typeMap);
         } catch (err) {
-            console.error("Failed to fetch scheme mapping:", err);
             setSchemeMap({});
             setSchemeNumberMap({});
+            setProjectTypeMap({});
         }
     }, [records, getList]);
 
@@ -1072,9 +1054,19 @@ const SalaryModule: React.FC = () => {
 
     const schemesList = useMemo(() => {
         const set = new Set<string>();
-        Object.values(schemeNumberMap).forEach(s => { if (s) set.add(s); });
-        return ["All", ...Array.from(set)].sort();
-    }, [schemeNumberMap]);
+        records.forEach(r => {
+            const pNo = (r.project_no || "").trim();
+            const s = pNo && schemeNumberMap[pNo] ? schemeNumberMap[pNo].trim() : "";
+            if (s && s !== "—") set.add(s);
+        });
+        return ["All", ...Array.from(set)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    }, [records, schemeNumberMap]);
+
+    useEffect(() => {
+        if (schemeFilter !== "All" && !schemesList.includes(schemeFilter)) {
+            setSchemeFilter("All");
+        }
+    }, [schemesList, schemeFilter]);
 
     // Sort & filter
     const filtered = useMemo(() => {
@@ -1109,7 +1101,18 @@ const SalaryModule: React.FC = () => {
             list = list.filter(r => r.project_no === projectFilter);
         }
         if (schemeFilter !== "All") {
-            list = list.filter(r => schemeNumberMap[r.project_no || ""] === schemeFilter);
+            list = list.filter(r => {
+                const pNo = (r.project_no || "").trim();
+                const s = pNo && schemeNumberMap[pNo] ? schemeNumberMap[pNo].trim() : "";
+                return s === schemeFilter;
+            });
+        }
+        if (projectTypeFilter !== "All" && projectTypeMap) {
+            list = list.filter(r => {
+                const pNo = (r.project_no || "").trim();
+                const t = pNo && projectTypeMap[pNo] ? projectTypeMap[pNo].trim() : "";
+                return t.toLowerCase() === projectTypeFilter.toLowerCase();
+            });
         }
 
         // Apply Sorting
@@ -1129,18 +1132,40 @@ const SalaryModule: React.FC = () => {
             }
             return sortDir === "asc" ? cmp : -cmp;
         });
-    }, [records, search, deptFilter, desigFilter, projectFilter, schemeFilter, schemeMap, sortKey, sortDir, selectedMonth, selectedYear, departmentLabels]);
+    }, [records, search, deptFilter, desigFilter, projectFilter, schemeFilter, projectTypeFilter, projectTypeMap, schemeMap, sortKey, sortDir, selectedMonth, selectedYear, departmentLabels]);
 
-    // Split filtered into pending vs processed
+    // Term-ending / expired records — from ALL records (ignore processedEmployees filter)
+    // Includes staff whose term_completion_date is in the selected month/year
+    // OR has already passed before the end of the selected period.
+    const termEndingRecords = useMemo(() => {
+        const periodEnd = new Date(selectedYear, selectedMonth + 1, 0); // last day of selected month
+        return records.filter(r => {
+            if (!r.term_completion_date) return false;
+            try {
+                const tcd = new Date(r.term_completion_date);
+                tcd.setHours(0, 0, 0, 0);
+                return tcd <= periodEnd;
+            } catch { return false; }
+        }).sort((a, b) =>
+            new Date(a.term_completion_date).getTime() - new Date(b.term_completion_date).getTime()
+        );
+    }, [records, selectedYear, selectedMonth]);
+
+    // Set of term-ending employee IDs — excluded from pending tab
+    const termEndingEmpIds = useMemo(() =>
+        new Set(termEndingRecords.map(r => r.employee_id)),
+        [termEndingRecords]);
+
+    // Split filtered into pending vs processed (term-ending staff excluded from pending)
     const pendingRecords = useMemo(() =>
-        filtered.filter(r => !processedEmployees.has(r.employee_id)),
-        [filtered, processedEmployees]);
+        filtered.filter(r => !processedEmployees.has(r.employee_id) && !termEndingEmpIds.has(r.employee_id)),
+        [filtered, processedEmployees, termEndingEmpIds]);
 
     const processedRecords = useMemo(() =>
         filtered.filter(r => processedEmployees.has(r.employee_id)),
         [filtered, processedEmployees]);
 
-    const displayedRecords = activeTab === "pending" ? pendingRecords : processedRecords;
+    const displayedRecords = activeTab === "pending" ? pendingRecords : activeTab === "processed" ? processedRecords : termEndingRecords;
 
     const handleSort = (k: SortKey) => {
         if (sortKey === k) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -1189,21 +1214,18 @@ const SalaryModule: React.FC = () => {
 
     const totalHRADed = useMemo(() => {
         return filtered.reduce((s, r) => {
-            const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
-            const proRataHRA = Math.round((r.hra / daysInMonth) * wd);
-            return s + getHRADeduction(r, proRataHRA);
+            const { inputs } = getRowInputs(r.docName);
+            return s + inputs.hraDeduction;
         }, 0);
-    }, [filtered, selectedMonth, selectedYear, daysInMonth]);
+    }, [filtered, getRowInputs]);
 
     const totalDeductions = useMemo(() => {
         return filtered.reduce((s, r) => {
             const { inputs } = getRowInputs(r.docName);
-            const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
-            const proRataHRA = Math.round((r.hra / daysInMonth) * wd);
-            const hraDed = getHRADeduction(r, proRataHRA);
+            const hraDed = inputs.hraDeduction;
             return s + (hraDed + inputs.medicalDeduction + calcPTax(r.basic_salary) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction);
         }, 0);
-    }, [filtered, getRowInputs, selectedMonth, selectedYear, daysInMonth]);
+    }, [filtered, getRowInputs]);
 
     const totalNetPay = useMemo(() => {
         return filtered.reduce((s, r) => {
@@ -1213,11 +1235,24 @@ const SalaryModule: React.FC = () => {
             const proRataHRA = Math.round((r.hra / daysInMonth) * wd);
             const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * wd);
             const grossPay = prb + proRataHRA + proRataMedical + inputs.arrear;
-            const hraDed = getHRADeduction(r, proRataHRA);
+            const hraDed = inputs.hraDeduction;
             const deductions = hraDed + inputs.medicalDeduction + calcPTax(r.basic_salary) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
             return s + (grossPay - deductions);
         }, 0);
     }, [filtered, getRowInputs, selectedMonth, selectedYear, daysInMonth]);
+
+    // CSV export dropdown state
+    const [showExportDropdown, setShowExportDropdown] = useState(false);
+    const exportBtnRef = useRef<HTMLDivElement>(null);
+    const [exportDropdownPos, setExportDropdownPos] = useState({ top: 0, right: 0 });
+
+    const openExportDropdown = () => {
+        if (exportBtnRef.current) {
+            const rect = exportBtnRef.current.getBoundingClientRect();
+            setExportDropdownPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+        }
+        setShowExportDropdown(true);
+    };
 
     // CSV export
     const exportCSV = () => {
@@ -1230,7 +1265,7 @@ const SalaryModule: React.FC = () => {
             "HRA Ded", "Medical Ded.", "P-Tax", "TA", "ID Card Charge", "Electricity Bill", "Other Deduction",
             "Total Deduction", "Net Pay", "Comment", "Remarks"
         ];
-        const rows = filtered.map((r, i) => {
+        const rows = pendingRecords.map((r, i) => {
             const { inputs } = getRowInputs(r.docName);
             const workingDays = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
             const proRataBasic = calcProRataBasic(r.basic_salary, workingDays, daysInMonth);
@@ -1238,7 +1273,7 @@ const SalaryModule: React.FC = () => {
             const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * workingDays);
             const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
             const pTax = calcPTax(r.basic_salary);
-            const hraDed = getHRADeduction(r, proRataHRA);
+            const hraDed = inputs.hraDeduction;
             const deductions = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
             const netPay = grossPay - deductions;
             const hostelStatus = (() => {
@@ -1248,7 +1283,7 @@ const SalaryModule: React.FC = () => {
             })();
             return [
                 i + 1, r.employee_id, r.first_name, r.email_id, r.department,
-                r.designation, r.project_no || "—", schemeNumberMap[r.project_no || ""] || "—", r.bank_account_number || "—", hostelStatus, r.joining_date, r.term_completion_date,
+                r.designation, r.project_no || "—", (r.project_no && schemeNumberMap[r.project_no.trim()] ? schemeNumberMap[r.project_no.trim()].trim() : "") || "—", r.bank_account_number || "—", hostelStatus, r.joining_date, r.term_completion_date,
                 r.basic_salary, r.hra, `${r.hra_percent}%`, workingDays, proRataBasic,
                 proRataHRA, proRataMedical, inputs.arrear, grossPay,
                 hraDed, inputs.medicalDeduction, pTax, inputs.ta, inputs.idCardCharge, inputs.electricityBill, inputs.otherDeduction,
@@ -1260,7 +1295,42 @@ const SalaryModule: React.FC = () => {
         ).join("\n");
         const a = document.createElement("a");
         a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-        a.download = `Staff_Salary_Statement_${monthLabel}_${selectedYear}.csv`;
+        a.download = `Staff_Salary_Unprocessed_${monthLabel}_${selectedYear}.csv`;
+        a.click();
+    };
+
+    const exportStagingCSV = () => {
+        const monthLabel = MONTHS.find(m => m.value === selectedMonth)?.label || "Month";
+        const headers = [
+            "Sl.No", "Employee ID", "Name", "Email ID", "Department", "Designation",
+            "Joining Date", "Project No", "Period",
+            "Basic Salary", "HRA", "Working Days", "Pro Rata Basic", "Pro Rata HRA", "Arrear", "Gross Pay",
+            "HRA Deduction", "Medical Deduction", "P-Tax", "Total Deduction", "Net Pay",
+            "Commit Amount", "Payment Amount", "Payment Particular", "Payment Date",
+            "BMR", "Frap App ID", "Comment", "Remarks"
+        ];
+        const rows = stagingRecords.map((rec, i) => {
+            const ud = rec?.salary_user_details ?? {};
+            const totalDed = (ud.hra_deduction ?? 0) + (ud.medical_deduction ?? 0) + (ud.p_tax ?? 0);
+            return [
+                i + 1,
+                ud.employee_id ?? "", ud.first_name ?? "", ud.email_id ?? "",
+                ud.department ?? "", ud.designation ?? "", ud.joining_date ?? "",
+                rec?.project_no || rec?.projectNumber || "", rec?.salary_year_month ?? "",
+                ud.basic_salary ?? 0, ud.hra ?? 0, ud.working_days ?? 0,
+                ud.pro_rata_basic ?? 0, ud.pro_rata_hra ?? 0, ud.arrear ?? 0, ud.gross_pay ?? 0,
+                ud.hra_deduction ?? 0, ud.medical_deduction ?? 0, ud.p_tax ?? 0, totalDed, ud.net_pay ?? 0,
+                rec?.commitAmount ?? 0, rec?.payment_amount ?? 0,
+                rec?.payment_particular ?? "", rec?.payment_date ?? "",
+                rec?.bmr ?? "", rec?.frapAppId ?? "", ud.comment ?? "", ud.remarks ?? ""
+            ];
+        });
+        const csv = [headers, ...rows].map(row =>
+            row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")
+        ).join("\n");
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+        a.download = `Salary_Processed_${monthLabel}_${selectedYear}.csv`;
         a.click();
     };
 
@@ -1384,10 +1454,63 @@ const SalaryModule: React.FC = () => {
                                 <RefreshCw className={cn("h-3.5 w-3.5 text-[#71717A]", isLoading && "animate-spin")} /> Refresh
                             </button>
 
-                            <button onClick={exportCSV} disabled={filtered.length === 0 || isLoading || !isPrepared}
-                                className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#D97757] px-3 text-[12px] font-bold text-white shadow-sm transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[#F4F4F5] disabled:text-[#A1A1AA] dark:disabled:bg-[#3F3F46] dark:disabled:text-[#71717A]">
-                                <Download className="h-3.5 w-3.5" /> Export CSV
-                            </button>
+                            <div ref={exportBtnRef} className="relative">
+                                <div className="inline-flex h-10 rounded-lg shadow-sm overflow-hidden border border-[#D97757]">
+                                    <button
+                                        onClick={() => { exportCSV(); setShowExportDropdown(false); }}
+                                        disabled={filtered.length === 0 || isLoading || !isPrepared}
+                                        className="inline-flex items-center gap-2 bg-[#D97757] px-3 text-[12px] font-bold text-white transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[#F4F4F5] disabled:text-[#A1A1AA] dark:disabled:bg-[#3F3F46] dark:disabled:text-[#71717A]"
+                                    >
+                                        <Download className="h-3.5 w-3.5" /> Export CSV
+                                    </button>
+                                    <button
+                                        onClick={showExportDropdown ? () => setShowExportDropdown(false) : openExportDropdown}
+                                        disabled={isLoading || !isPrepared}
+                                        className="inline-flex items-center px-2 bg-[#C4673F] text-white hover:bg-[#B85A35] transition-colors disabled:cursor-not-allowed disabled:bg-[#E4E4E7] disabled:text-[#A1A1AA] dark:disabled:bg-[#3F3F46] dark:disabled:text-[#71717A] border-l border-[#B85A35]"
+                                    >
+                                        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showExportDropdown && "rotate-180")} />
+                                    </button>
+                                </div>
+                            </div>
+                            {showExportDropdown && (
+                                <>
+                                    <div className="fixed inset-0 z-[60]" onClick={() => setShowExportDropdown(false)} />
+                                    <div
+                                        className="fixed z-[61] w-64 rounded-xl border border-[#E4E4E7] bg-white shadow-2xl dark:border-[#3F3F46] dark:bg-[#27272A] overflow-hidden"
+                                        style={{ top: exportDropdownPos.top, right: exportDropdownPos.right }}
+                                    >
+                                        <div className="px-3 py-2 text-[10px] font-extrabold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                                            Select data to export
+                                        </div>
+                                        <button
+                                            onClick={() => { exportCSV(); setShowExportDropdown(false); }}
+                                            disabled={pendingRecords.length === 0 || !isPrepared}
+                                            className="flex w-full items-center gap-3 px-4 py-3 text-left text-[13px] font-medium text-[#3F3F46] hover:bg-[#FAFAF9] dark:text-[#E4E4E7] dark:hover:bg-[#3F3F46] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-orange-50 dark:bg-orange-950/20">
+                                                <Download className="h-3.5 w-3.5 text-[#D97757]" />
+                                            </div>
+                                            <div>
+                                                <p className="font-bold">Unprocessed Records</p>
+                                                <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA]">{pendingRecords.length} pending staff records</p>
+                                            </div>
+                                        </button>
+                                        <button
+                                            onClick={() => { exportStagingCSV(); setShowExportDropdown(false); }}
+                                            disabled={stagingRecords.length === 0}
+                                            className="flex w-full items-center gap-3 px-4 py-3 text-left text-[13px] font-medium text-[#3F3F46] hover:bg-[#FAFAF9] dark:text-[#E4E4E7] dark:hover:bg-[#3F3F46] disabled:opacity-40 disabled:cursor-not-allowed transition-colors border-t border-[#E4E4E7] dark:border-[#3F3F46]"
+                                        >
+                                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-50 dark:bg-emerald-950/20">
+                                                <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                                            </div>
+                                            <div>
+                                                <p className="font-bold">Processed Records</p>
+                                                <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA]">{stagingRecords.length} records from Salary Staging</p>
+                                            </div>
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 </header>
@@ -1511,8 +1634,42 @@ const SalaryModule: React.FC = () => {
                                             {processedRecords.length}
                                         </span>
                                     </button>
+                                    <button
+                                        onClick={() => setActiveTab("termending")}
+                                        className={cn(
+                                            "relative flex items-center gap-2 px-5 py-3.5 text-[13px] font-bold transition-all border-b-2",
+                                            activeTab === "termending"
+                                                ? "text-amber-600 border-amber-500 bg-white dark:bg-[#27272A] dark:text-amber-400"
+                                                : "text-[#71717A] border-transparent hover:text-[#3F3F46] hover:bg-[#FAFAF9] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] dark:hover:bg-[#3F3F46]/50"
+                                        )}
+                                    >
+                                        <CalendarClock className="h-4 w-4" />
+                                        Term Ending / Expired
+                                        <span className={cn(
+                                            "inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold",
+                                            activeTab === "termending"
+                                                ? "bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400"
+                                                : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                                        )}>
+                                            {termEndingRecords.length}
+                                        </span>
+                                    </button>
                                 </div>
                                 <div className="flex items-center gap-3 px-4">
+                                    {/* Project Type Filter */}
+                                    <div className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 transition-all border-[#4A6CF7] bg-[#EEF2FF] dark:border-[#4A6CF7]/60 dark:bg-[#4A6CF7]/10 ring-2 ring-[#4A6CF7]/10">
+                                        <Briefcase className="h-3.5 w-3.5 shrink-0 text-[#4A6CF7]" />
+                                        <select
+                                            value={projectTypeFilter}
+                                            onChange={e => setProjectTypeFilter(e.target.value)}
+                                            className="bg-transparent text-[11px] font-bold outline-none pr-1 cursor-pointer text-[#4A6CF7]"
+                                        >
+                                            <option value="All" className="dark:bg-[#27272A]">Select Project Type</option>
+                                            <option value="Research" className="dark:bg-[#27272A]">Research</option>
+                                            <option value="Consultancy" className="dark:bg-[#27272A]">Consultancy</option>
+                                        </select>
+                                    </div>
+
                                     {isCheckingStatus && (
                                         <span className="flex items-center gap-1.5 text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
                                             <Loader2 className="h-3 w-3 animate-spin" />
@@ -1610,11 +1767,11 @@ const SalaryModule: React.FC = () => {
 
                             {/* Clear button with filter count */}
                             {(() => {
-                                const activeCount = [search, deptFilter !== "All", desigFilter !== "All", projectFilter !== "All", schemeFilter !== "All"].filter(Boolean).length;
+                                const activeCount = [search, deptFilter !== "All", desigFilter !== "All", projectFilter !== "All", schemeFilter !== "All", projectTypeFilter !== "All"].filter(Boolean).length;
                                 if (activeCount === 0) return null;
                                 return (
                                     <button
-                                        onClick={() => { setSearch(""); setDeptFilter("All"); setDesigFilter("All"); setProjectFilter("All"); setSchemeFilter("All"); }}
+                                        onClick={() => { setSearch(""); setDeptFilter("All"); setDesigFilter("All"); setProjectFilter("All"); setSchemeFilter("All"); setProjectTypeFilter("All"); }}
                                         className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 text-[12px] font-bold text-red-700 transition-all hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400 dark:hover:bg-red-950/30"
                                     >
                                         <X className="h-3.5 w-3.5" />
@@ -1634,7 +1791,7 @@ const SalaryModule: React.FC = () => {
                                     </div>
                                     Salary Register
                                     <span className="ml-1 inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/30 px-2.5 py-0.5 text-[11px] font-bold text-blue-700 dark:text-blue-300">
-                                        {displayedRecords.length} {displayedRecords.length === 1 ? 'record' : 'records'}
+                                        {activeTab === "processed" ? stagingRecords.length : displayedRecords.length} {(activeTab === "processed" ? stagingRecords.length : displayedRecords.length) === 1 ? 'record' : 'records'}
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -1665,17 +1822,166 @@ const SalaryModule: React.FC = () => {
                                         <p className="text-xs text-red-400 max-w-md mx-auto break-all bg-red-50 dark:bg-red-950/20 p-3 rounded-lg border border-red-200 dark:border-red-900/30">{error}</p>
                                         <button onClick={fetchData} className="mt-5 text-sm text-[#D97757] hover:underline font-bold">Try again</button>
                                     </div>
-                                ) : displayedRecords.length === 0 ? (
+                                ) : activeTab === "processed" ? (
+                                    stagingRecords.length === 0 ? (
+                                        <div className="py-24 text-center">
+                                            <CheckCircle2 className="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
+                                            <p className="text-base font-bold text-zinc-900 dark:text-white mb-1">No processed salaries yet</p>
+                                            <p className="text-sm text-zinc-400 dark:text-zinc-500 max-w-md mx-auto">
+                                                No salary payments have been processed for this period. Switch to the &ldquo;Salary To Be Processed&rdquo; tab to process payments.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="overflow-x-auto max-h-[calc(100vh-280px)] overflow-y-auto scroll-smooth">
+                                            <table className="min-w-[3800px] table-auto border-collapse divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
+                                                <thead className="sticky top-0 z-20 bg-emerald-50 text-[10px] font-extrabold uppercase tracking-wider text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
+                                                    <tr className="border-b border-emerald-200 dark:border-emerald-900/40">
+                                                        {/* Fixed identity columns */}
+                                                        <th rowSpan={2} className="w-[48px] min-w-[48px] sticky left-0 z-30 bg-emerald-50 dark:bg-emerald-950/30 border-r border-emerald-200 dark:border-emerald-900/40 px-3 py-3 text-left">#</th>
+                                                        <th rowSpan={2} className="w-[120px] min-w-[120px] sticky left-[48px] z-30 bg-emerald-50 dark:bg-emerald-950/30 border-r border-emerald-200 dark:border-emerald-900/40 px-3 py-3 text-left">Emp ID</th>
+                                                        <th rowSpan={2} className="w-[190px] min-w-[190px] sticky left-[168px] z-30 bg-emerald-50 dark:bg-emerald-950/30 border-r border-emerald-200 dark:border-emerald-900/40 px-3 py-3 text-left shadow-[4px_0_8px_-3px_rgba(0,0,0,0.1)]">Name</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[200px] border-r border-emerald-200 dark:border-emerald-900/40">Email ID</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[160px] border-r border-emerald-200 dark:border-emerald-900/40">Department</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[160px] border-r border-emerald-200 dark:border-emerald-900/40">Designation</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[100px] border-r border-emerald-200 dark:border-emerald-900/40">Joining Date</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[110px] border-r border-emerald-200 dark:border-emerald-900/40">Project No</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[80px] border-r border-emerald-200 dark:border-emerald-900/40">Period</th>
+                                                        {/* Earnings group */}
+                                                        <th colSpan={7} className="px-3 py-2 text-center bg-emerald-100/60 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-400 border-b border-emerald-200 dark:border-emerald-900/40">Earnings (₹)</th>
+                                                        {/* Deductions group */}
+                                                        <th colSpan={4} className="px-3 py-2 text-center bg-rose-50/60 dark:bg-rose-950/20 text-rose-800 dark:text-rose-400 border-b border-emerald-200 dark:border-emerald-900/40">Deductions (₹)</th>
+                                                        {/* Net */}
+                                                        <th rowSpan={2} className="px-3 py-3 text-right min-w-[110px] bg-amber-50/50 dark:bg-amber-900/10 text-amber-900 dark:text-amber-300 border-l border-r border-emerald-200 dark:border-emerald-900/40 font-bold">Net Pay (₹)</th>
+                                                        {/* Payment info */}
+                                                        <th rowSpan={2} className="px-3 py-3 text-right min-w-[120px] border-r border-emerald-200 dark:border-emerald-900/40">Commit Amt (₹)</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-right min-w-[120px] border-r border-emerald-200 dark:border-emerald-900/40">Pay Amt (₹)</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[160px] border-r border-emerald-200 dark:border-emerald-900/40">Payment Particular</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[110px] border-r border-emerald-200 dark:border-emerald-900/40">Payment Date</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-center min-w-[120px] border-r border-emerald-200 dark:border-emerald-900/40">Payment Status</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-center min-w-[100px] border-r border-emerald-200 dark:border-emerald-900/40">Status</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[110px] border-r border-emerald-200 dark:border-emerald-900/40">BMR</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[130px] border-r border-emerald-200 dark:border-emerald-900/40">Frap App ID</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[180px] border-r border-emerald-200 dark:border-emerald-900/40">Comment</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[180px] border-r border-emerald-200 dark:border-emerald-900/40">Remarks</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-center min-w-[90px]">Payslip</th>
+                                                    </tr>
+                                                    <tr className="bg-emerald-50 dark:bg-emerald-950/30">
+                                                        {/* Earnings sub-headers */}
+                                                        <th className="px-3 py-2 text-right min-w-[100px] bg-emerald-100/40 dark:bg-emerald-900/15 text-emerald-700 dark:text-emerald-400">Basic</th>
+                                                        <th className="px-3 py-2 text-right min-w-[90px] bg-emerald-100/40 dark:bg-emerald-900/15 text-emerald-700 dark:text-emerald-400">HRA</th>
+                                                        <th className="px-3 py-2 text-center min-w-[70px] bg-emerald-100/40 dark:bg-emerald-900/15 text-emerald-600 dark:text-emerald-500">Days</th>
+                                                        <th className="px-3 py-2 text-right min-w-[100px] bg-emerald-100/40 dark:bg-emerald-900/15 text-emerald-700 dark:text-emerald-400">Pro Rata Basic</th>
+                                                        <th className="px-3 py-2 text-right min-w-[100px] bg-emerald-100/40 dark:bg-emerald-900/15 text-emerald-700 dark:text-emerald-400">Pro Rata HRA</th>
+                                                        <th className="px-3 py-2 text-right min-w-[90px] bg-emerald-100/60 dark:bg-emerald-900/20 text-orange-600 dark:text-orange-400">Arrear</th>
+                                                        <th className="px-3 py-2 text-right min-w-[100px] bg-emerald-100/80 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 font-bold border-r border-emerald-200 dark:border-emerald-900/40">Gross</th>
+                                                        {/* Deductions sub-headers */}
+                                                        <th className="px-3 py-2 text-right min-w-[90px] bg-rose-50/40 dark:bg-rose-950/15 text-rose-600 dark:text-rose-400">HRA Ded</th>
+                                                        <th className="px-3 py-2 text-right min-w-[90px] bg-rose-50/40 dark:bg-rose-950/15 text-rose-600 dark:text-rose-400">Medical</th>
+                                                        <th className="px-3 py-2 text-right min-w-[80px] bg-rose-50/40 dark:bg-rose-950/15 text-rose-600 dark:text-rose-400">P-Tax</th>
+                                                        <th className="px-3 py-2 text-right min-w-[90px] bg-rose-50/60 dark:bg-rose-950/20 text-rose-800 dark:text-rose-300 font-bold border-r border-emerald-200 dark:border-emerald-900/40">Total Ded</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/80 text-[12px]">
+                                                    {stagingRecords.map((rec, i) => {
+                                                        const ud = rec?.salary_user_details ?? {};
+                                                        const isPaid = (rec?.payment_status ?? "").toLowerCase() === "paid";
+                                                        const totalDed = (ud.hra_deduction ?? 0) + (ud.medical_deduction ?? 0) + (ud.p_tax ?? 0);
+                                                        const rowBg = i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50/80 dark:bg-zinc-900/60";
+                                                        return (
+                                                            <tr key={i} className={cn("transition-colors hover:bg-emerald-50/30 dark:hover:bg-emerald-950/10", rowBg)}>
+                                                                <td className={cn("sticky left-0 z-10 px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-xs text-zinc-400 tabular-nums w-[48px] min-w-[48px]", rowBg)}>{i + 1}</td>
+                                                                <td className={cn("sticky left-[48px] z-10 px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 font-mono text-xs text-[#4A6CF7] dark:text-[#A5B4FC] w-[120px] min-w-[120px] whitespace-nowrap", rowBg)}>{ud.employee_id ?? "—"}</td>
+                                                                <td className={cn("sticky left-[168px] z-10 px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 font-semibold text-zinc-900 dark:text-white w-[190px] min-w-[190px] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.05)] whitespace-nowrap", rowBg)}>{ud.first_name ?? "—"}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{ud.email_id ?? "—"}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{ud.department ?? "—"}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{ud.designation ?? "—"}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{ud.joining_date ?? "—"}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 font-mono text-xs text-[#4A6CF7] dark:text-[#A5B4FC] whitespace-nowrap">{rec?.project_no || rec?.projectNumber || "—"}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{(rec?.salary_year_month ?? "").replace("_", " ")}</td>
+                                                                {/* Earnings */}
+                                                                <td className="px-3 py-2.5 text-right tabular-nums text-emerald-800 dark:text-emerald-300 bg-emerald-50/10 dark:bg-emerald-950/10 whitespace-nowrap">{fmt(ud.basic_salary ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 dark:bg-emerald-950/10 whitespace-nowrap">{fmt(ud.hra ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 text-center tabular-nums text-zinc-600 dark:text-zinc-400 bg-emerald-50/10 dark:bg-emerald-950/10">{ud.working_days ?? "—"}</td>
+                                                                <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 dark:bg-emerald-950/10 whitespace-nowrap">{fmt(ud.pro_rata_basic ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 dark:bg-emerald-950/10 whitespace-nowrap">{fmt(ud.pro_rata_hra ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 text-right tabular-nums text-orange-600 dark:text-orange-400 bg-emerald-50/15 dark:bg-emerald-950/15 whitespace-nowrap">{fmt(ud.arrear ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 text-right tabular-nums font-bold text-emerald-900 dark:text-emerald-300 bg-emerald-100/40 dark:bg-emerald-900/20 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(ud.gross_pay ?? 0)}</td>
+                                                                {/* Deductions */}
+                                                                <td className="px-3 py-2.5 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 dark:bg-rose-950/10 whitespace-nowrap">{fmt(ud.hra_deduction ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 dark:bg-rose-950/10 whitespace-nowrap">{fmt(ud.medical_deduction ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 dark:bg-rose-950/10 whitespace-nowrap">{fmt(ud.p_tax ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 text-right tabular-nums font-bold text-rose-900 dark:text-rose-300 bg-rose-100/30 dark:bg-rose-900/15 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(totalDed)}</td>
+                                                                {/* Net */}
+                                                                <td className="px-3 py-2.5 text-right tabular-nums font-bold text-amber-900 dark:text-amber-300 bg-amber-50/30 dark:bg-amber-950/15 border-l border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(ud.net_pay ?? 0)}</td>
+                                                                {/* Payment */}
+                                                                <td className="px-3 py-2.5 text-right tabular-nums text-zinc-700 dark:text-zinc-300 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(rec?.commitAmount ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 text-right tabular-nums text-zinc-700 dark:text-zinc-300 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(rec?.payment_amount ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">{rec?.payment_particular ?? "—"}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{rec?.payment_date ?? "—"}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-center">
+                                                                    <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold", isPaid ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400")}>
+                                                                        {isPaid && <CheckCircle2 className="w-3 h-3" />}
+                                                                        {rec?.payment_status ?? "—"}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-center">
+                                                                    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{rec?.status ?? "—"}</span>
+                                                                </td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400">{rec?.bmr ?? "—"}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 font-mono text-xs text-zinc-500 dark:text-zinc-400">{rec?.frapAppId ?? "—"}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400">{ud.comment ?? "—"}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400">{ud.remarks ?? "—"}</td>
+                                                                {/* Payslip */}
+                                                                <td className="px-3 py-2.5 text-center">
+                                                                    {(() => {
+                                                                        const matched = records.find(sr => sr.employee_id === ud.employee_id);
+                                                                        return (
+                                                                            <button
+                                                                                onClick={() => matched && setSelectedSlipRecord(matched)}
+                                                                                disabled={!matched}
+                                                                                title={matched ? "Generate Pay Slip" : "Staff record not found for this month"}
+                                                                                className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-orange-200 dark:border-orange-900/50 bg-orange-50/40 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 hover:bg-[#D97757] hover:text-white dark:hover:bg-[#D97757] dark:hover:text-white transition-all shadow-sm active:scale-95 text-[10px] font-bold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-orange-50/40 disabled:hover:text-orange-600"
+                                                                            >
+                                                                                <Eye className="w-3 h-3" />
+                                                                                Slip
+                                                                            </button>
+                                                                        );
+                                                                    })()}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                                <tfoot className="sticky bottom-0 z-20 bg-zinc-50 dark:bg-zinc-950 border-t-2 border-zinc-200 dark:border-zinc-700 text-[11px] font-bold uppercase tracking-wide">
+                                                    <tr>
+                                                        <td colSpan={9} className="px-3 py-3 sticky left-0 bg-zinc-50 dark:bg-zinc-950 text-zinc-500 dark:text-zinc-400">{stagingRecords.length} payments</td>
+                                                        {/* Earnings totals */}
+                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-800 dark:text-emerald-300 bg-emerald-50/10 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.basic_salary ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.hra ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 bg-emerald-50/10"></td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.pro_rata_basic ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.pro_rata_hra ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-orange-600 dark:text-orange-400 bg-emerald-50/15 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.arrear ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-900 dark:text-emerald-300 bg-emerald-100/40 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.gross_pay ?? 0), 0))}</td>
+                                                        {/* Deductions totals */}
+                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.hra_deduction ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.medical_deduction ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.p_tax ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-900 dark:text-rose-300 bg-rose-100/30 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + ((r?.salary_user_details?.hra_deduction ?? 0) + (r?.salary_user_details?.medical_deduction ?? 0) + (r?.salary_user_details?.p_tax ?? 0)), 0))}</td>
+                                                        {/* Net total */}
+                                                        <td className="px-3 py-3 text-right tabular-nums text-amber-900 dark:text-amber-300 bg-amber-50/30 border-l border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.net_pay ?? 0), 0))}</td>
+                                                        {/* Payment totals */}
+                                                        <td className="px-3 py-3 text-right tabular-nums text-zinc-700 dark:text-zinc-300 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.commitAmount ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-zinc-700 dark:text-zinc-300 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.payment_amount ?? 0), 0))}</td>
+                                                        <td colSpan={8} className="px-3 py-3 bg-zinc-50 dark:bg-zinc-950"></td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    )
+                                ) : pendingRecords.length === 0 ? (
                                     <div className="py-24 text-center">
-                                        {activeTab === "processed" ? (
-                                            <>
-                                                <CheckCircle2 className="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
-                                                <p className="text-base font-bold text-zinc-900 dark:text-white mb-1">No processed salaries yet</p>
-                                                <p className="text-sm text-zinc-400 dark:text-zinc-500 max-w-md mx-auto">
-                                                    No salary payments have been processed for this period. Switch to the &ldquo;Salary To Be Processed&rdquo; tab to process payments.
-                                                </p>
-                                            </>
-                                        ) : pendingRecords.length === 0 && processedRecords.length > 0 ? (
+                                        {processedRecords.length > 0 ? (
                                             <>
                                                 <CheckCircle2 className="w-12 h-12 text-emerald-400 dark:text-emerald-500 mx-auto mb-3" />
                                                 <p className="text-base font-bold text-emerald-700 dark:text-emerald-400 mb-1">All salaries processed!</p>
@@ -1789,7 +2095,7 @@ const SalaryModule: React.FC = () => {
                                                     const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * workingDays);
                                                     const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
                                                     const pTax = calcPTax(r.basic_salary);
-                                                    const hraDed = getHRADeduction(r, proRataHRA);
+                                                    const hraDed = inputs.hraDeduction;
                                                     const totalDed = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
                                                     const netPay = grossPay - totalDed;
 
@@ -1853,13 +2159,17 @@ const SalaryModule: React.FC = () => {
                                                             <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.term_completion_date ? fmtDate(r.term_completion_date) : "—"}</td>
                                                             <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.project_no || "—"}</td>
                                                             <td className="px-3 py-3 text-xs whitespace-nowrap">
-                                                                {schemeNumberMap[r.project_no || ""] ? (
-                                                                    <span className="text-[10px] font-semibold bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 border border-violet-100 dark:border-violet-900/50 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                                                        {schemeNumberMap[r.project_no || ""]}
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="text-zinc-400">—</span>
-                                                                )}
+                                                                {(() => {
+                                                                    const pNo = (r.project_no || "").trim();
+                                                                    const schemeNo = pNo && schemeNumberMap[pNo] ? schemeNumberMap[pNo].trim() : "";
+                                                                    return schemeNo ? (
+                                                                        <span className="text-[10px] font-semibold bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 border border-violet-100 dark:border-violet-900/50 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                                                            {schemeNo}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="text-zinc-400">—</span>
+                                                                    );
+                                                                })()}
                                                             </td>
                                                             <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.bank_account_number || "—"}</td>
                                                             <td className="px-3 py-3 text-center whitespace-nowrap">
@@ -1925,7 +2235,23 @@ const SalaryModule: React.FC = () => {
                                                             </td>
 
                                                             {/* Deductions */}
-                                                            <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap bg-red-50/5 dark:bg-red-950/5">{fmt(hraDed)}</td>
+                                                            {/* HRA Deduction Input */}
+                                                            <td className="px-2 py-1.5 bg-red-50/10 dark:bg-red-950/10">
+                                                                <input
+                                                                    type="number"
+                                                                    value={inputs.hraDeduction || ""}
+                                                                    onChange={e => handleInputChange(r.docName, "hraDeduction", parseInt(e.target.value, 10) || 0)}
+                                                                    className={cn(
+                                                                        "w-24 px-2.5 py-1.5 text-xs text-right bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all tabular-nums",
+                                                                        isEdited.hraDeduction
+                                                                            ? "border-amber-400 dark:border-amber-600 bg-amber-50/20 dark:bg-amber-900/10 text-amber-900 dark:text-amber-200 font-bold"
+                                                                            : "border-zinc-200 dark:border-zinc-700"
+                                                                    )}
+                                                                    placeholder="0"
+                                                                    min="0"
+                                                                    step="1"
+                                                                />
+                                                            </td>
 
                                                             {/* Medical Deduction Input */}
                                                             <td className="px-2 py-1.5 bg-red-50/10 dark:bg-red-950/10">
@@ -2034,24 +2360,28 @@ const SalaryModule: React.FC = () => {
                                                                     type="text"
                                                                     value={inputs.comment}
                                                                     onChange={e => handleInputChange(r.docName, "comment", e.target.value)}
+                                                                    maxLength={120}
                                                                     className={cn(
                                                                         "w-32 px-2.5 py-1.5 text-xs bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all",
                                                                         isEdited.comment ? "border-amber-400 bg-amber-50/10" : "border-zinc-200 dark:border-zinc-700"
                                                                     )}
                                                                     placeholder="Note..."
                                                                 />
+                                                                <CharLimitAlert value={inputs.comment} maxLength={120} className="mt-1 text-[10px]" />
                                                             </td>
                                                             <td className="px-2 py-1.5 border-r border-zinc-100 dark:border-zinc-800">
                                                                 <input
                                                                     type="text"
                                                                     value={inputs.remarks}
                                                                     onChange={e => handleInputChange(r.docName, "remarks", e.target.value)}
+                                                                    maxLength={120}
                                                                     className={cn(
                                                                         "w-32 px-2.5 py-1.5 text-xs bg-white dark:bg-zinc-800 border rounded-md focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] focus:outline-none transition-all",
                                                                         isEdited.remarks ? "border-amber-400 bg-amber-50/10" : "border-zinc-200 dark:border-zinc-700"
                                                                     )}
                                                                     placeholder="Remarks..."
                                                                 />
+                                                                <CharLimitAlert value={inputs.remarks} maxLength={120} className="mt-1 text-[10px]" />
                                                             </td>
 
                                                             {/* Payslip Action Button */}
@@ -2313,7 +2643,12 @@ const SalaryModule: React.FC = () => {
                                 </div>
                                 <div className="flex justify-between border-b border-zinc-100 py-1">
                                     <span className="text-zinc-500 font-medium">Scheme:</span>
-                                    <span className="font-semibold text-violet-700">{schemeMap[selectedSlipRecord.project_no || ""] || "—"}</span>
+                                    <span className="font-semibold text-violet-700">
+                                        {(() => {
+                                            const pNo = (selectedSlipRecord.project_no || "").trim();
+                                            return pNo && schemeMap[pNo] ? schemeMap[pNo].trim() : "—";
+                                        })()}
+                                    </span>
                                 </div>
                                 <div className="flex justify-between border-b border-zinc-100 py-1">
                                     <span className="text-zinc-500 font-medium">Bank Account Number:</span>
@@ -2330,7 +2665,7 @@ const SalaryModule: React.FC = () => {
                                 const proRataMedical = Math.round((selectedSlipRecord.medical_allowance / daysInMonth) * workingDays);
                                 const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
                                 const pTax = calcPTax(selectedSlipRecord.basic_salary);
-                                const hraDed = getHRADeduction(selectedSlipRecord, proRataHRA);
+                                const hraDed = inputs.hraDeduction;
                                 const totalDed = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
                                 const netPay = grossPay - totalDed;
 
@@ -2454,7 +2789,8 @@ const SalaryModule: React.FC = () => {
                 const schemeName = (() => {
                     if (selectedBulkRecords.length === 0) return "—";
                     const firstRecord = selectedBulkRecords[0];
-                    return schemeNumberMap[firstRecord.project_no || ""] || firstRecord.project_no || "—";
+                    const pNo = (firstRecord.project_no || "").trim();
+                    return (pNo && schemeNumberMap[pNo] ? schemeNumberMap[pNo].trim() : "") || pNo || "—";
                 })();
                 const staffList = selectedBulkRecords;
                 return (
@@ -2499,7 +2835,7 @@ const SalaryModule: React.FC = () => {
                                     const proRataHRA = Math.round((r.hra / dim) * wd);
                                     const proRataMedical = Math.round((r.medical_allowance / dim) * wd);
                                     const grossPay = prb + proRataHRA + proRataMedical + inputs.arrear;
-                                    const hraDed = getHRADeduction(r, proRataHRA);
+                                    const hraDed = inputs.hraDeduction;
                                     const totalDed = hraDed + inputs.medicalDeduction + calcPTax(r.basic_salary) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
                                     const netPay = grossPay - totalDed;
                                     return (
@@ -2529,7 +2865,7 @@ const SalaryModule: React.FC = () => {
                                     const proRataHRA = Math.round((r.hra / dim) * wd);
                                     const proRataMedical = Math.round((r.medical_allowance / dim) * wd);
                                     const grossPay = prb + proRataHRA + proRataMedical + inputs.arrear;
-                                    const hraDed = getHRADeduction(r, proRataHRA);
+                                    const hraDed = inputs.hraDeduction;
                                     const totalDed = hraDed + inputs.medicalDeduction + calcPTax(r.basic_salary) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
                                     return sum + (grossPay - totalDed);
                                 }, 0);
@@ -2555,8 +2891,10 @@ const SalaryModule: React.FC = () => {
                                     onKeyDown={e => { if (e.key === "Enter" && !bmrSubmitting) handleBmrSubmit(); }}
                                     placeholder="Enter BMR number for this scheme..."
                                     autoFocus
+                                    maxLength={FIELD_CHAR_LIMITS.Data}
                                     className="w-full rounded-lg border-2 border-[#E4E4E7] bg-white px-4 py-2.5 text-[13px] font-semibold text-[#3F3F46] outline-none placeholder:text-[#A1A1AA] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15 transition-all dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#E4E4E7] dark:placeholder:text-[#71717A] dark:focus:border-emerald-500"
                                 />
+                                <CharLimitAlert value={bmrInput} maxLength={FIELD_CHAR_LIMITS.Data} className="mt-1.5" />
                                 {bmrError && (
                                     <p className="mt-1.5 flex items-center gap-1 text-[11px] font-semibold text-red-600 dark:text-red-400">
                                         <AlertCircle className="h-3 w-3" /> {bmrError}

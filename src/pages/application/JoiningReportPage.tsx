@@ -351,7 +351,6 @@ const JoiningReportPage: React.FC = () => {
           }
         }
       } catch (e) {
-        console.error("JoiningReport load error:", e);
       } finally {
         setLoading(false);
       }
@@ -505,7 +504,7 @@ const JoiningReportPage: React.FC = () => {
             }}
           >
             <img
-              src="http://172.16.131.206:8000/files/IITG_logo.png"
+              src={`http://${import.meta.env.VITE_APP_BACKEND_HOST || '172.16.131.206'}:${import.meta.env.VITE_APP_BACKEND_PORT || '8000'}/files/IITG_logo.png`}
               alt="IITG"
               style={{ width: "55px", height: "auto", flexShrink: 0 }}
               onError={(e) => {
@@ -575,9 +574,15 @@ const JoiningReportPage: React.FC = () => {
                 value={issueNumber}
                 onChange={(e) => setIssueNumber(e.target.value)}
                 placeholder="Issue Num"
+                maxLength={140}
                 className="ao-input"
                 style={{ width: "100px" }}
               />
+              {issueNumber.length >= 140 && (
+                <span style={{ color: "#dc2626", fontSize: "10px", fontWeight: 700, marginLeft: "4px" }}>
+                  (limit 140 reached)
+                </span>
+              )}
             </span>
             <span>
               <strong style={{ color: "#b00" }}>Date:</strong> {today}

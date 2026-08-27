@@ -13,12 +13,35 @@ interface PendingApplicationRecord {
     username?: string;
     pi?: string;
     leave_type?: string;
+    doctype?: string;
     workflow_state: string;
     modified: string;
     owner: string;
     docstatus: number;
     creation: string;
 }
+
+const getAppDoctype = (app: PendingApplicationRecord) => app.doctype || "Leave Module";
+
+const getAppRoute = (app: PendingApplicationRecord) => {
+    switch (getAppDoctype(app)) {
+        case "Project Staff Extension":
+            return `/project-staff-extension?edit=${encodeURIComponent(app.name)}`;
+        // Other-PI forms: open the module's own detail page, where the PI
+        // selects their project/account head and forwards.
+        case "Travel":
+            return `/travel/${app.name}`;
+        case "Indent General Form":
+            return `/indent-general-form-details/${app.name}`;
+        case "Indent Cum Sanction Sheet":
+            return `/indent-cum-sanction-sheet/${app.name}`;
+        case "Reimbursement":
+            return `/reimbursement/${app.name}`;
+        case "Leave Module":
+        default:
+            return `/leave-module/${app.name}`;
+    }
+};
 
 interface PendingApplicationResponse {
     message: {
@@ -81,6 +104,7 @@ const PendingApplication: React.FC = () => {
                 app.name?.toLowerCase().includes(q) ||
                 app.username?.toLowerCase().includes(q) ||
                 app.leave_type?.toLowerCase().includes(q) ||
+                getAppDoctype(app).toLowerCase().includes(q) ||
                 app.owner?.toLowerCase().includes(q) ||
                 ownerUsername.includes(q)
             );
@@ -139,8 +163,13 @@ const PendingApplication: React.FC = () => {
     };
 
     const navigateToApplication = (app: PendingApplicationRecord) => {
-        navigate(`/leave-module/${app.name}`);
+        navigate(getAppRoute(app));
     };
+
+    const selectedAppRecord = React.useMemo(
+        () => allApplications.find((app) => app.name === selectedApp) ?? null,
+        [allApplications, selectedApp],
+    );
 
     if (error) {
         return (
@@ -182,7 +211,7 @@ const PendingApplication: React.FC = () => {
                         <div className="min-w-0">
                             <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">PI Inbox</span>
                             <h1 className="mt-1 font-sans text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Pending Applications</h1>
-                            <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">Leave applications awaiting your approval as Principal Investigator.</p>
+                            <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">Leave and Project Staff Extension applications awaiting your approval as Principal Investigator.</p>
                         </div>
                     </div>
                 </div>
@@ -250,7 +279,7 @@ const PendingApplication: React.FC = () => {
                                 ref={searchInputRef}
                                 type="text"
                                 id="application-search"
-                                placeholder="Search by employee, leave type…"
+                                placeholder="Search by employee, type…"
                                 value={searchQuery}
                                 onChange={handleSearchChange}
                                 className="h-10 pl-9 pr-9 w-56 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-200 shadow-sm transition-all"
@@ -291,7 +320,7 @@ const PendingApplication: React.FC = () => {
                             <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
                                 <tr>
                                     <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
-                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Leave Type</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Type</th>
                                     <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Application</th>
                                     <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
                                     <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Employee</th>
@@ -308,7 +337,12 @@ const PendingApplication: React.FC = () => {
                                                 </span>
                                             </td>
                                             <td className="p-3 align-middle text-zinc-600 dark:text-zinc-400 font-medium">
-                                                {app.leave_type || "-"}
+                                                <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-300 dark:border-indigo-800">
+                                                    {getAppDoctype(app)}
+                                                </span>
+                                                {app.leave_type && (
+                                                    <div className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">{app.leave_type}</div>
+                                                )}
                                             </td>
                                             <td className="p-3 align-middle font-medium text-zinc-900 dark:text-zinc-200">
                                                 <button
@@ -406,7 +440,11 @@ const PendingApplication: React.FC = () => {
 
         {/* Floating Activity Log — appears once an application row is selected */}
         {selectedApp && (
-            <FloatingActivityLogButton key={selectedApp} doctype="Leave Module" docname={selectedApp} />
+            <FloatingActivityLogButton
+                key={selectedApp}
+                doctype={selectedAppRecord ? getAppDoctype(selectedAppRecord) : "Leave Module"}
+                docname={selectedApp}
+            />
         )}
         </>
     );

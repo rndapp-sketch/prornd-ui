@@ -4,6 +4,16 @@ import { useFrappePostCall } from 'frappe-react-sdk';
 import { selectionCommitteeReportAPI, selectionCandidateDetailsAPI } from '@/services/apiService';
 import { Loader2, Printer, ArrowLeft } from 'lucide-react';
 
+// Inline (non-block) limit warning — this page is a printable letter template
+// laid out with inline spans/paragraphs, so the shared block-level
+// CharLimitAlert would break the document flow.
+const InlineCharLimitWarn = ({ value, maxLength }: { value: string; maxLength: number }) =>
+    value.length >= maxLength ? (
+        <span style={{ color: '#dc2626', fontSize: '10px', fontWeight: 700, marginLeft: '4px' }}>
+            (limit {maxLength} reached)
+        </span>
+    ) : null;
+
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = `
 /* Editable input — red dashed underline on screen */
@@ -217,7 +227,6 @@ const AppointmentOrderPage: React.FC = () => {
                     }
                 }
             } catch (e) {
-                console.error('AppointmentOrder load error:', e);
             } finally {
                 setLoading(false);
             }
@@ -342,7 +351,7 @@ const AppointmentOrderPage: React.FC = () => {
                                 <td style={{ width: '64%', verticalAlign: 'top', padding: '6px 10px 10px 0', borderBottom: '2px solid black' }}>
                                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
                                         <img
-                                            src="http://172.16.131.206:8000/files/IITG_logo.png"
+                                            src={`http://${import.meta.env.VITE_APP_BACKEND_HOST || '172.16.131.206'}:${import.meta.env.VITE_APP_BACKEND_PORT || '8000'}/files/IITG_logo.png`}
                                             alt="IITG"
                                             style={{ width: '55px', height: 'auto', flexShrink: 0 }}
                                             onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -397,9 +406,11 @@ const AppointmentOrderPage: React.FC = () => {
                                 value={issueNumber}
                                 onChange={e => setIssueNumber(e.target.value)}
                                 placeholder="Issue No."
+                                maxLength={140}
                                 className="ao-input"
                                 style={{ width: '100px' }}
                             />
+                            <InlineCharLimitWarn value={issueNumber} maxLength={140} />
                         </span>
                         <span><strong style={{ color: '#b00' }}>Date:</strong>{today}</span>
                     </div>
@@ -413,9 +424,11 @@ const AppointmentOrderPage: React.FC = () => {
                             onChange={e => setAddress(e.target.value)}
                             placeholder="Enter full address…"
                             rows={3}
+                            maxLength={65535}
                             className="ao-input"
                             style={{ marginTop: '4px' }}
                         />
+                        <InlineCharLimitWarn value={address} maxLength={65535} />
                         <div style={{ marginTop: '6px', display: 'flex', alignItems: 'baseline', gap: '4px' }}>
                             <span>(E-mail id:</span>
                             <input
@@ -423,9 +436,11 @@ const AppointmentOrderPage: React.FC = () => {
                                 value={candidateEmail}
                                 onChange={e => setCandidateEmail(e.target.value)}
                                 placeholder="candidate@email.com"
+                                maxLength={140}
                                 className="ao-input"
                                 style={{ width: '230px' }}
                             />
+                            <InlineCharLimitWarn value={candidateEmail} maxLength={140} />
                             <span>)</span>
                         </div>
                     </div>
@@ -441,9 +456,11 @@ const AppointmentOrderPage: React.FC = () => {
                             value={piDept}
                             onChange={e => setPiDept(e.target.value)}
                             placeholder="Dept. Name"
+                            maxLength={140}
                             className="ao-input"
                             style={{ width: '180px' }}
-                        />{' '}
+                        />
+                        <InlineCharLimitWarn value={piDept} maxLength={140} />{' '}
                         under Dr. <strong>{piName}</strong>.
                     </div>
 
@@ -575,9 +592,11 @@ const AppointmentOrderPage: React.FC = () => {
                                 value={piDept}
                                 onChange={e => setPiDept(e.target.value)}
                                 placeholder="Dept. Name"
+                                maxLength={140}
                                 className="ao-input"
                                 style={{ width: '160px' }}
                             />
+                            <InlineCharLimitWarn value={piDept} maxLength={140} />
                         </p>
                         <p style={{ margin: '3px 0 0 1.5em' }}>
                             Dr. {piName}; Principal Investigator; Dept. of {piDept || '___________'}

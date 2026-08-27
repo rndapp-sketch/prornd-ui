@@ -481,9 +481,11 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     }, [commitHead]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Pre-fill amount from billAmount prop ─────────────────────────────────
+    // Commitment amounts are whole rupees — round off any fractional value
+    // (e.g. a GST-calc source amount like 1539900.1593) before prefilling.
     useEffect(() => {
         if (billAmount != null && billAmount > 0) {
-            setCommitAmount(String(billAmount));
+            setCommitAmount(String(Math.round(billAmount)));
         }
     }, [billAmount]);
 
@@ -562,7 +564,21 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
         const amount = parseFloat(commitAmount);
         if (!commitHead) { setSubmitError("Please select a budget head."); return; }
         if (isNaN(amount) || amount <= 0) { setSubmitError("Please enter a valid positive amount."); return; }
-        if (!commitReferenceName || !payloadFrapAppId || !projectName) { setSubmitError("Missing document or project information."); return; }
+        if (!commitReferenceName || !payloadFrapAppId || !projectName) {
+            // Name the missing piece — "project" is almost always the culprit on
+            // an Other-PI form whose page was loaded before the PI assigned their
+            // project (SWR auto-revalidation is disabled app-wide, so the stale
+            // value persists until a full reload).
+            const missing = [
+                !commitReferenceName && "document reference",
+                !payloadFrapAppId && "application id",
+                !projectName && "project number",
+            ].filter(Boolean).join(", ");
+            setSubmitError(
+                `Missing ${missing}. If this application was just approved by the other PI, reload the page to pick up the assigned project.`
+            );
+            return;
+        }
         if (disabled) { setSubmitError(disabledReason || "Commitment cannot be submitted yet."); return; }
         if (headBalances && commitHead && headBalances[commitHead] != null) {
             const headCommitable = headBalances[commitHead].commitable;
@@ -616,7 +632,6 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                         }
                     }
                 } catch (ledgerErr) {
-                    console.error("Failed to fetch parent TID from ledger:", ledgerErr);
                 }
 
                 if (!refDetails) {
@@ -699,11 +714,10 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
         }
     };
 
+    // Commitment amounts are whole rupees only — strip decimal input entirely
+    // rather than allowing paise to be typed.
     const handleCommitAmountChange = (value: string) => {
-        const cleaned = value
-            .replace(/,/g, "")
-            .replace(/[^\d.]/g, "")
-            .replace(/(\..*)\./g, "$1");
+        const cleaned = value.replace(/,/g, "").replace(/[^\d]/g, "");
         setCommitAmount(cleaned);
     };
 
@@ -829,12 +843,13 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                     <input
                         type="number"
                         min="0"
+                        step="1"
                         value={commitAmount}
                         onChange={(e) => handleCommitAmountChange(e.target.value)}
                         disabled={disabled}
                         onWheel={(e) => e.currentTarget.blur()}
                         onKeyDown={(e) => {
-                            if (["e", "E", "+", "-"].includes(e.key)) {
+                            if (["e", "E", "+", "-", "."].includes(e.key)) {
                                 e.preventDefault();
                             }
                         }}

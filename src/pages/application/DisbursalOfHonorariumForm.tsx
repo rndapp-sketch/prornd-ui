@@ -14,6 +14,8 @@ import { ActivityLog } from "@/components/ActivityLog";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import { generateDisbursalOfHonorariumHtml, resolveHonorariumPrintData } from '@/utils/disbursalOfHonorariumPrint';
 import { getFileUrl } from '@/utils/fileUtils';
+import { ErrorModal } from '../../components/ErrorModal';
+import { parseFrappeError } from '../../utils/errorUtils';
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -55,7 +57,89 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
     </button>
 );
 
+// --- FILE UPLOAD HELPER ---
+const uploadFileToFrappe = async (file: File): Promise<string> => {
+    const fd = new FormData();
+    fd.append("file", file, file.name);
+    fd.append("is_private", "0");
+    const response = await fetch("/api/method/upload_file", {
+        method: "POST",
+        body: fd,
+        headers: {
+            "X-Frappe-CSRF-Token": (window as any).csrf_token || "",
+        },
+        credentials: "include",
+    });
+    const text = await response.text();
+    if (!response.ok) {
+        throw new Error(`File upload failed (${response.status}): ${text.slice(0, 200)}`);
+    }
+    const json = JSON.parse(text);
+    const fileUrl = json?.message?.file_url;
+    if (!fileUrl) {
+        throw new Error("File upload did not return a valid file_url");
+    }
+    return fileUrl;
+};
 
+/**
+ * Sends a POST to save_disbursal_of_honorarium_data(data).
+ *
+ * Any File object is uploaded to Frappe's /api/method/upload_file first,
+ * and the resulting file URL (/files/...) is placed into `data` for MinIO migration.
+ */
+const callSaveApi = async (endpoint: string, formData: Record<string, any>): Promise<any> => {
+    const data: Record<string, any> = {};
+
+    for (const key in formData) {
+        const value = formData[key];
+
+        if (value instanceof File) {
+            const fileUrl = await uploadFileToFrappe(value);
+            data[key] = fileUrl;
+        } else if (Array.isArray(value)) {
+            data[key] = await Promise.all(
+                value.map(async (row: any) => {
+                    const cleanRow: Record<string, any> = {};
+                    for (const rowKey in row) {
+                        const rowVal = row[rowKey];
+                        if (rowVal instanceof File) {
+                            cleanRow[rowKey] = await uploadFileToFrappe(rowVal);
+                        } else {
+                            cleanRow[rowKey] = rowVal;
+                        }
+                    }
+                    return cleanRow;
+                })
+            );
+        } else {
+            data[key] = value;
+        }
+    }
+
+    const fd = new globalThis.FormData();
+    fd.append('data', JSON.stringify(data));
+
+    const response = await fetch(`/api/method/${endpoint}`, {
+        method: 'POST',
+        body: fd,
+        headers: {
+            'X-Frappe-CSRF-Token': (window as any).csrf_token || '',
+        },
+        credentials: 'include',
+    });
+
+    const text = await response.text();
+    if (!response.ok) {
+        throw new Error(`Save failed (${response.status}): ${text.slice(0, 200)}`);
+    }
+
+    try {
+        return JSON.parse(text);
+    } catch {
+        throw new Error(`Unexpected response: ${text.slice(0, 200)}`);
+    }
+};
 
 // --- MAIN DISBURSAL OF HONORARIUM FORM COMPONENT ---
 const DisbursalOfHonorariumForm: React.FC = () => {
@@ -70,6 +154,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
     const [isSaved, setIsSaved] = useState(false);
     const [savedDocName, setSavedDocName] = useState<string | null>(null);
     const [dataLoaded, setDataLoaded] = useState(false);
@@ -94,8 +179,8 @@ const DisbursalOfHonorariumForm: React.FC = () => {
     );
     // Fetch current user data for auto-fill
     const { data: currentUserData } = useFrappeGetDoc("User", "");
-    // Hook to fetch user details by email for auto-fill in honorarium table
-    const { call: fetchUserDetails } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
+    // Hook to fetch combined User + Universal Registration profile for honorarium row auto-fill
+    const { call: fetchUserProfile } = useFrappePostCall<{ message: any }>(commonAPI.getUserRegistrationProfile);
     // Hook to fetch users list for dropdown
     const { call: fetchUsersList } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
     
@@ -176,7 +261,6 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                         }));
                     }
                 } catch (err) {
-                    console.error('Error fetching account heads:', err);
                 }
 
                 // Fetch Departments for human-readable print mapping
@@ -198,24 +282,25 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                     }
                 } catch (_) { }
 
-                // Fetch Users list for the honorarium table dropdown (username field is Link to User)
+                // Fetch System Users for the initial static dropdown options.
+                // UNIREG-only individuals (no User account) are surfaced on-demand
+                // via the async search function below — no bulk pre-fetch needed.
                 try {
                     const usersRes = await fetchUsersList({
                         doctype: 'User',
-                        fields: ['name', 'full_name', 'email'],
+                        fields: ['name', 'full_name'],
                         filters: [['enabled', '=', 1]],
                         limit_page_length: 0
                     });
                     if (usersRes?.message) {
-                        baseLinkOptions['web_mail_id'] = usersRes.message.map((user: any) => ({
+                        const userOpts = usersRes.message.map((user: any) => ({
                             value: user.name,
                             label: user.full_name ? `${user.full_name} (${user.name})` : user.name
                         }));
-                        // Also add as 'User' key for generic Link field support
-                        baseLinkOptions['User'] = baseLinkOptions['web_mail_id'];
+                        baseLinkOptions['web_mail_id'] = userOpts;
+                        baseLinkOptions['User'] = userOpts;
                     }
                 } catch (err) {
-                    console.error('Error fetching users list:', err);
                 }
 
                 setLinkOptions(baseLinkOptions);
@@ -235,7 +320,6 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                             setIsSaved(true); // Existing doc is already saved, enable submit
                         }
                     } catch (err) {
-                        console.error('Error fetching existing document:', err);
                         alert('Failed to load document for editing');
                     }
                 }
@@ -293,7 +377,6 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                             }
                         }
                     } catch (e) {
-                        console.error('Failed to fetch project details:', e);
                     }
                 }
 
@@ -317,7 +400,6 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                 setLoading(false);
             }
             if (formDataError) {
-                console.error("Failed to load form data:", formDataError);
                 alert("Error: Could not load the form.");
                 setLoading(false);
             }
@@ -367,41 +449,83 @@ const DisbursalOfHonorariumForm: React.FC = () => {
 
     // --- Handler for Link field selection in child tables (for auto-fetch functionality) ---
     const handleTableLinkChange = useCallback(async (tableName: string, rowIndex: number, fieldname: string, value: string) => {
-        // Handle username field selection in the honorarium table (table_weoy)
+        // Handle username/webmail selection in the honorarium table (table_weoy)
         if (tableName === 'table_weoy' && fieldname === 'web_mail_id' && value) {
             try {
-                // Fetch user details by email
-                const result = await fetchUserDetails({ user_email: value });
-                const details = result?.message;
-                
+                // Use the combined User + Universal Registration profile endpoint.
+                // `search` mode returns a list; we pick the first matching profile.
+                const result = await fetchUserProfile({ search: value });
+                let details: any = null;
+
+                if (Array.isArray(result?.message) && result.message.length > 0) {
+                    // search mode → list of profiles; use the first result
+                    details = result.message[0];
+                } else if (result?.message && !Array.isArray(result.message)) {
+                    // single-profile mode (fallback)
+                    details = result.message;
+                }
+
                 if (details) {
-                    // Update the row with fetched user details
+                    // Normalise field names: prefer User fields, fall back to
+                    // Universal Registration__ suffixed variants (_u_r).
+                    const fullName      = details.full_name       || details.full_name_u_r       || '';
+                    const employeeId    = details.employee_id     || '';
+                    const designation   = details.designation_name|| details.designation         || '';
+                    const department    = details.department_name || '';
+
                     setFormData(prev => {
                         const table = [...(prev[tableName] || [])];
                         table[rowIndex] = {
                             ...table[rowIndex],
-                            web_mail_id: value,
-                            name1: details.full_name || '',
-                            emp_id: details.employee_id || '',
-                            designation: details.designation_name || details.designation || '',
-                            department_section: details.department_name || ''
+                            web_mail_id:        value,
+                            name1:              fullName,
+                            emp_id:             employeeId,
+                            designation:        designation,
+                            department_section: department,
                         };
                         return { ...prev, [tableName]: table };
                     });
                     return;
                 }
             } catch (err) {
-                console.error('Failed to fetch user details:', err);
             }
         }
-        
+
         // Default behavior: just update the field value
         setFormData(prev => {
             const table = [...(prev[tableName] || [])];
             table[rowIndex] = { ...table[rowIndex], [fieldname]: value };
             return { ...prev, [tableName]: table };
         });
-    }, [fetchUserDetails]);
+    }, [fetchUserProfile]);
+
+    // --- Async search function map passed to the honorarium child table ---
+    // When the user types in the web_mail_id autocomplete, this fires a live
+    // search against get_user_registration_profile (covers both User accounts
+    // and UNIREG-only individuals like sbco2012@gmail.com).
+    const tableAsyncSearch = useMemo(() => ({
+        web_mail_id: async (query: string) => {
+            if (!query || query.length < 2) return [];
+            try {
+                const result = await fetchUserProfile({ search: query });
+                const list: any[] = Array.isArray(result?.message)
+                    ? result.message
+                    : result?.message ? [result.message] : [];
+
+                return list.map((p: any) => {
+                    // Prefer User fields; fall back to Universal Registration__ variants
+                    const email = p.email || p.email_address_u_r || p.name || '';
+                    const name  = p.full_name || p.full_name_u_r || '';
+                    return {
+                        value: email,
+                        label: name ? `${name} (${email})` : email,
+                    };
+                }).filter((o: any) => o.value);
+            } catch {
+                return [];
+            }
+        },
+    }), [fetchUserProfile]);
 
     // --- Computed: Total Amount from table_weoy (amount column) ---
     const totalAmount = useMemo(() => {
@@ -446,8 +570,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
-            console.error(err);
-            alert(`Save failed: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Save Failed", message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -483,8 +606,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                 throw new Error(submitRes?.message?.message || "Submission failed");
             }
         } catch (err: any) {
-            console.error(err);
-            alert(`Submission failed: ${err.message || "Please check the console for details."}`);
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -532,6 +654,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                             onDeleteTableRow={deleteTableRow}
                             onTableLinkChange={handleTableLinkChange}
                             readOnly={formData.docstatus === 1}
+                            asyncSearchFnsForTables={tableAsyncSearch}
                         />
                     </FrappeCard>
 
@@ -565,14 +688,14 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                     )}
                 </form>
             </main>
-            
+
             {effectiveDocName && <FloatingActivityLogButton doctype="Disbursal of Honorarium" docname={effectiveDocName} />}
-            
+
             <div style={{ display: "none" }} ref={activityLogContainerRef}>
                 {effectiveDocName && (
-                    <ActivityLog 
-                        doctype="Disbursal of Honorarium" 
-                        docname={effectiveDocName} 
+                    <ActivityLog
+                        doctype="Disbursal of Honorarium"
+                        docname={effectiveDocName}
                         fallbackOwner={formData.owner}
                         fallbackCreation={formData.creation}
                         fallbackOwnerName={fetchedOwnerName || formData.owner}
@@ -602,6 +725,12 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                     ...(formData.attached_approvals ? [{ label: "Merged Approvals", url: getFileUrl(formData.attached_approvals) }] : []),
                     ...(formData.additional_documents ? [{ label: "Additional Documents", url: getFileUrl(formData.additional_documents) }] : [])
                 ]}
+            />
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
             />
         </div>
     );

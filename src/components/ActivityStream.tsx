@@ -50,7 +50,6 @@ export const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamPro
                 setNewComment("");
                 refetchActivity();
             } catch (error) {
-                console.error("Failed to add comment:", error);
             } finally {
                 setIsSubmitting(false);
             }

@@ -15,6 +15,8 @@ import { generateSanctionSheetHtml } from "@/utils/sanctionSheetPrint";
 import { P11PrintModal } from "@/components/P11PrintModal";
 import ProjectDetailsOverview from "@/pages/ProjectDetailsOverview";
 import ViewProjectButton from "@/components/ViewProjectButton";
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 
 // --- ASYNC SEARCH HELPERS ---
 async function frappeSearch(
@@ -129,6 +131,11 @@ const SanctionSheetForm: React.FC = () => {
     const [savedDocName, setSavedDocName] = useState<string | null>(
         editDocName || null,
     );
+    const [errorModal, setErrorModal] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({ open: false, title: "Submission Failed", message: "" });
 
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
@@ -215,10 +222,6 @@ const SanctionSheetForm: React.FC = () => {
                             setWorkflowActions(actionsRes.message);
                         }
                     } catch (err) {
-                        console.error(
-                            "Error fetching existing document or workflow actions:",
-                            err,
-                        );
                     }
                 }
 
@@ -335,7 +338,6 @@ const SanctionSheetForm: React.FC = () => {
                             }));
                         }
                     } catch (err) {
-                        console.error("Error fetching prefill data:", err);
                     }
 
                     // Mark project_no and app_id read-only, hide p11_no
@@ -384,7 +386,6 @@ const SanctionSheetForm: React.FC = () => {
                 setLoading(false);
             }
             if (formDataError) {
-                console.error("Failed to load form data:", formDataError);
                 alert("Error: Could not load the Sanction Sheet.");
                 setLoading(false);
             }
@@ -512,8 +513,11 @@ const SanctionSheetForm: React.FC = () => {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
-            console.error(saveError || err);
-            alert(`Save failed: ${err.message || "Unknown error"}`);
+            setErrorModal({
+                open: true,
+                title: "Submission Failed",
+                message: parseFrappeError(saveError, err),
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -562,8 +566,11 @@ const SanctionSheetForm: React.FC = () => {
                 );
             }
         } catch (err: any) {
-            console.error(err);
-            alert(`Action failed: ${err.message || "Unknown error"}`);
+            setErrorModal({
+                open: true,
+                title: "Submission Failed",
+                message: parseFrappeError(saveError, err),
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -752,6 +759,13 @@ const SanctionSheetForm: React.FC = () => {
                 onClose={() => setIsPrintModalOpen(false)}
                 htmlContent={isPrintModalOpen ? generateSanctionSheetHtml(formData) : ''}
                 docName={editDocName || formData.name || ''}
+            />
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
             />
 
         </div>

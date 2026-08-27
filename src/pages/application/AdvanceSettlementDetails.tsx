@@ -26,6 +26,8 @@ import { ActivityLog } from "@/components/ActivityLog";
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { P11PrintModal } from "@/components/P11PrintModal";
 import { generateAdvanceSettlementHtml } from "@/utils/advanceSettlementPrint";
+import { CharLimitAlert } from "@/components/CharLimitAlert";
+import { FIELD_CHAR_LIMITS } from "@/utils/fieldLimits";
 
 // --- TYPE DEFINITIONS ---
 interface AdvanceSettlementData {
@@ -142,9 +144,11 @@ const CommentModal = ({
           className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#3F3F46] dark:text-[#E4E4E7] p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757] font-sans leading-relaxed"
           rows={4}
           placeholder="Add a comment (optional)..."
+          maxLength={FIELD_CHAR_LIMITS.Text}
           value={comment}
           onChange={(e) => setComment(e.target.value)}
         />
+        <CharLimitAlert value={comment} maxLength={FIELD_CHAR_LIMITS.Text} className="-mt-3 mb-3" />
         <div className="flex justify-end gap-3">
           <button
             onClick={onClose}
@@ -192,12 +196,10 @@ const AdvanceSettlementWorkflowActions = ({
     const loadActions = async () => {
       try {
         const res = await fetchActions({ docname });
-        console.log("Workflow actions response:", res);
         if (res?.message) {
           setActions(Array.isArray(res.message) ? res.message : []);
         }
       } catch (err) {
-        console.error("Failed to fetch workflow actions:", err);
       } finally {
         setActionsLoading(false);
       }
@@ -216,7 +218,6 @@ const AdvanceSettlementWorkflowActions = ({
       setModalOpen(false);
       onActionComplete();
     } catch (error) {
-      console.error("Error performing action:", error);
       alert("Failed to perform action. Please try again.");
     }
   };
@@ -336,7 +337,6 @@ const AdvanceSettlementDetails: React.FC = () => {
           );
         }
       } catch (err) {
-        console.error("Failed to fetch Budget Heads:", err);
       }
     };
     fetchBudgetHeads();
@@ -400,7 +400,7 @@ const AdvanceSettlementDetails: React.FC = () => {
                 doctype: "Budget Head",
                 name: doc.account_head,
               });
-              console.log(">>> Budget Head Response:", bhResponse); // Debug log
+               // Debug log
 
               if (bhResponse?.message) {
                 const bh = bhResponse.message;
@@ -413,14 +413,12 @@ const AdvanceSettlementDetails: React.FC = () => {
                 if (name) setBudgetHeadName(name);
               }
             } catch (e) {
-              console.warn("Could not fetch budget head details", e);
             }
           }
         } else {
           setError("Settlement not found");
         }
       } catch (err) {
-        console.error("Error fetching settlement:", err);
         setError("Failed to load settlement details");
       } finally {
         setLoading(false);
@@ -490,7 +488,6 @@ const AdvanceSettlementDetails: React.FC = () => {
       // Refresh data
       window.location.reload();
     } catch (err) {
-      console.error("Error submitting settlement:", err);
       alert("Failed to submit settlement. Please try again.");
     } finally {
       setIsSubmitting(false);
@@ -508,7 +505,8 @@ const AdvanceSettlementDetails: React.FC = () => {
     });
   };
 
-  // Generate HTML for download/print removed, handled externally
+  // Generate HTML for download/print removed, handled externally by
+  // generateAdvanceSettlementHtml() via the shared P11PrintModal (see below).
 
   const handleDownload = () => {
     setIsPrintModalOpen(true);

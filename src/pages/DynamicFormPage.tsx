@@ -122,7 +122,6 @@ const DynamicFormPage: React.FC<DynamicFormPageProps> = ({
       setLoading(false);
     }
     if (formDataError) {
-      console.error('Error fetching form data:', formDataError);
       setLoading(false);
     }
   }, [formDataResult, formDataError]);
@@ -134,13 +133,11 @@ const DynamicFormPage: React.FC<DynamicFormPageProps> = ({
         await onSubmit(data);
         alert('Form submitted successfully!');
       } catch (error) {
-        console.error('Submission error:', error);
         alert('Failed to submit form');
       } finally {
         setIsSubmitting(false);
       }
     } else {
-      console.log('Form data (no-op):', data);
       alert('Form submitted (check console for data)');
     }
   };

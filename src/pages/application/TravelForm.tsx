@@ -9,6 +9,8 @@ import { PageHeader } from '@/components/common/PageHeader';
 import TravelApplicantSummary from '@/components/TravelApplicantSummary';
 import { DynamicFormRenderer, type FieldMessage, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { travelAPI, prepareFormDataForApi, commonAPI } from '@/services/apiService';
+import { ErrorModal } from '../../components/ErrorModal';
+import { parseFrappeError } from '../../utils/errorUtils';
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -32,7 +34,7 @@ const READ_ONLY_TRAVEL_FIELDS = new Set([
     'travel_project_number',
 ]);
 
-const TRAVEL_AUTOCOMPLETE_FIELDS = ['traveler_webmail_id', 'other_traveler'];
+const TRAVEL_AUTOCOMPLETE_FIELDS = ['traveler_webmail_id', 'other_traveler', 'travel_other_pi_id'];
 const OTHER_TRAVELER_FIELDS = ['traveler_webmail_id', 'other_traveler', 'other_traveler_address'];
 
 const moveFieldsAfterAnchor = (
@@ -210,6 +212,7 @@ const TravelForm: React.FC = () => {
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
     const [dataLoaded, setDataLoaded] = useState(false);
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
     const [savedDocName, setSavedDocName] = useState<string | null>(editDocName || null); // Track if draft is saved
@@ -368,7 +371,6 @@ const TravelForm: React.FC = () => {
                         }));
                     }
                 } catch (err) {
-                    console.error('Error fetching account heads:', err);
                 }
 
                 try {
@@ -410,7 +412,6 @@ const TravelForm: React.FC = () => {
                         );
                     }
                 } catch (err) {
-                    console.error('Error fetching users list:', err);
                 }
 
                 let initialData = { ...prefill_data };
@@ -427,7 +428,6 @@ const TravelForm: React.FC = () => {
                             initialData = { ...initialData, ...existingDoc.message };
                         }
                     } catch (err) {
-                        console.error('Error fetching existing document:', err);
                         alert('Failed to load document for editing');
                     }
                 }
@@ -465,7 +465,6 @@ const TravelForm: React.FC = () => {
                             initialData.travel_project_number = projectName;
                         }
                     } catch (err) {
-                        console.error('Error resolving Travel project details:', err);
                         if (projectName && !initialData.travel_project_number) {
                             initialData.travel_project_number = projectName;
                         }
@@ -474,12 +473,12 @@ const TravelForm: React.FC = () => {
                     initialData.travel_project_number = projectName;
                 }
 
-                // Set defaults for any missing fields
-                (apiFields || []).forEach((field: FormField) => {
-                    if (initialData[field.fieldname] === undefined && field.default !== undefined) {
-                        initialData[field.fieldname] = field.default;
-                    }
-                });
+                // If launched from Other PI tab, default travel_other_pi to "Other" and clear applicant project
+                if (searchParams.get("other_pi") === "1" || searchParams.get("travel_other_pi") === "Other") {
+                    initialData.travel_other_pi = "Other";
+                    initialData.travel_project_title = "";
+                    initialData.travel_project_number = "";
+                }
 
                 setFormData(initialData);
                 setLinkOptions(baseLinkOptions);
@@ -487,7 +486,6 @@ const TravelForm: React.FC = () => {
                 setLoading(false);
             }
             if (formDataError) {
-                console.error("Failed to load form data:", formDataError);
                 alert("Error: Could not load the Travel form.");
                 setLoading(false);
             }
@@ -532,7 +530,6 @@ const TravelForm: React.FC = () => {
                     message: payload.message,
                 });
             } catch (err) {
-                console.error("Failed to fetch SCL balance:", err);
                 if (!cancelled) {
                     setSclBalance({
                         available: null,
@@ -641,7 +638,6 @@ const TravelForm: React.FC = () => {
                     }));
                 }
             } catch (err) {
-                console.error('Failed to fetch user details:', err);
             }
         }
 
@@ -695,7 +691,6 @@ const TravelForm: React.FC = () => {
                     }));
                 }
             } catch (err) {
-                console.error('Failed to fetch traveler details:', err);
             }
         }
     }, [handleChange, fetchUserDetailsByEmail]);
@@ -751,8 +746,11 @@ const TravelForm: React.FC = () => {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
-            console.error(saveError || err);
-            alert(`Save failed: ${err.message || "Unknown error"}`);
+            setErrorModal({
+                open: true,
+                title: "Submission Failed",
+                message: parseFrappeError(saveError, err),
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -790,8 +788,11 @@ const TravelForm: React.FC = () => {
                 throw new Error(submitRes?.message?.message || "Submission failed");
             }
         } catch (err: any) {
-            console.error(submitError || err);
-            alert(`Submission failed: ${err.message || "Please check the console for details."}`);
+            setErrorModal({
+                open: true,
+                title: "Submission Failed",
+                message: parseFrappeError(submitError, err),
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -977,6 +978,12 @@ const TravelForm: React.FC = () => {
                     </div>
                 </form>
             </main>
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

@@ -6,6 +6,8 @@ import { useFrappePostCall, useFrappeGetCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
 import { ArrowLeftIcon, LightbulbIcon } from "lucide-react";
 import { AutocompleteEmail } from "../components/AutocompleteEmail";
+import { ErrorModal } from "../components/ErrorModal";
+import { parseFrappeError } from "../utils/errorUtils";
 
 // --- TYPE DEFINITIONS ---
 interface Field {
@@ -84,7 +86,19 @@ const NeoSection = ({ title, children }: any) => (
 
 // --- MEMOIZED TABLE COMPONENTS ---
 const MemoizedTransactionsTable = memo(
-    ({ tableData, onRowChange, onFileChange, onAddRow, onDeleteRow }: any) => {
+    ({ tableData, onRowChange, onFileChange, onAddRow, onDeleteRow, fundReceivedAmt }: any) => {
+        const totalTransactionAmt = (tableData || []).reduce(
+            (sum: number, row: any) =>
+                sum + (row.amount ? parseFloat(row.amount) : 0),
+            0,
+        );
+        const hasFundReceivedAmt =
+            typeof fundReceivedAmt === "number" &&
+            !isNaN(fundReceivedAmt) &&
+            fundReceivedAmt > 0;
+        const isMatch =
+            hasFundReceivedAmt &&
+            Math.abs(totalTransactionAmt - fundReceivedAmt) < 0.01;
         return (
             <div>
                 <h3 className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2.5 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200 mb-3">
@@ -182,7 +196,7 @@ const MemoizedTransactionsTable = memo(
                                         )}
                                     </td>
                                     <td className="px-2 py-1.5 text-center">
-                                        <button
+                                        <button type="button"
                                             onClick={() => onDeleteRow(i)}
                                             className="h-6 px-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wide text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors"
                                         >
@@ -194,7 +208,7 @@ const MemoizedTransactionsTable = memo(
                         </tbody>
                     </table>
                 </div>
-                <button
+                <button type="button"
                     onClick={() =>
                         onAddRow({
                             transaction_number: "",
@@ -207,6 +221,44 @@ const MemoizedTransactionsTable = memo(
                 >
                     + Add Transaction
                 </button>
+                {(tableData || []).length > 0 && (
+                    <div className="mt-3 flex items-center justify-between px-3 py-2 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
+                        <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                            Transaction Total
+                        </span>
+                        <span
+                            className={`text-sm font-bold ${
+                                hasFundReceivedAmt
+                                    ? isMatch
+                                        ? "text-green-600"
+                                        : totalTransactionAmt > fundReceivedAmt
+                                            ? "text-red-600"
+                                            : "text-blue-600"
+                                    : "text-zinc-800 dark:text-zinc-200"
+                            }`}
+                        >
+                            ₹{totalTransactionAmt.toLocaleString("en-IN")}
+                            {hasFundReceivedAmt && (
+                                <span className="text-zinc-400 dark:text-zinc-500 font-medium">
+                                    {" "}
+                                    / ₹{fundReceivedAmt.toLocaleString("en-IN")}
+                                </span>
+                            )}
+                        </span>
+                    </div>
+                )}
+                {hasFundReceivedAmt && !isMatch && (
+                    <p className="text-xs font-medium mt-1.5 text-blue-600 dark:text-blue-400">
+                        {totalTransactionAmt < fundReceivedAmt
+                            ? `₹${(fundReceivedAmt - totalTransactionAmt).toLocaleString("en-IN")} still unaccounted — add it as a transaction.`
+                            : `Transaction total exceeds the Fund Received Amount by ₹${(totalTransactionAmt - fundReceivedAmt).toLocaleString("en-IN")} — reduce one of the entries.`}
+                    </p>
+                )}
+                {hasFundReceivedAmt && isMatch && (
+                    <p className="text-xs font-medium mt-1.5 text-green-600">
+                        ✓ Transaction total matches Fund Received Amount.
+                    </p>
+                )}
             </div>
         );
     },
@@ -421,7 +473,7 @@ const MemoizedBudgetBreakupTable = memo(
                                             />
                                         </td>
                                         <td className="px-2 py-1.5 text-center">
-                                            <button
+                                            <button type="button"
                                                 onClick={() => onDeleteRow(i)}
                                                 className="h-6 px-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wide text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors"
                                             >
@@ -434,7 +486,7 @@ const MemoizedBudgetBreakupTable = memo(
                         </tbody>
                     </table>
                 </div>
-                <button
+                <button type="button"
                     onClick={() =>
                         onAddRow({
                             account_head: "",
@@ -478,7 +530,7 @@ const HelpFloating: React.FC = () => {
     const [open, setOpen] = useState(false);
     return (
         <>
-            <button
+            <button type="button"
                 onClick={() => setOpen((v) => !v)}
                 className="fixed bottom-6 right-6 z-50 h-9 px-4 rounded-full bg-[#4A6CF7] text-white shadow-lg hover:bg-[#3b5ce4] transition-colors flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide"
                 title="Help"
@@ -490,7 +542,7 @@ const HelpFloating: React.FC = () => {
                 <div className="fixed bottom-20 right-6 z-50 w-80 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-xl overflow-hidden">
                     <div className="flex items-center justify-between px-4 py-3 border-b border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20">
                         <span className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200">How to Add Fund Received</span>
-                        <button onClick={() => setOpen(false)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 text-lg leading-none">×</button>
+                        <button type="button" onClick={() => setOpen(false)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 text-lg leading-none">×</button>
                     </div>
                     <div className="p-4 space-y-4 max-h-96 overflow-y-auto text-[12px] text-zinc-700 dark:text-zinc-300">
                         <div className="space-y-2">
@@ -566,6 +618,11 @@ const AddFundReceived: React.FC = () => {
     >({});
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorModal, setErrorModal] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({ open: false, title: "Submission Failed", message: "" });
     const [validationState, setValidationState] = useState<ValidationState>({
         totalValidation: {
             isValid: true,
@@ -601,6 +658,26 @@ const AddFundReceived: React.FC = () => {
         fundReceivedAmt > 0 &&
         Math.abs(totalBreakupAmt - fundReceivedAmt) < 0.01;
 
+    // ── fund_received_amt vs transaction-total validation ──
+    const totalTransactionAmt = (formData.fund_transactions || []).reduce(
+        (sum: number, row: any) =>
+            sum + (row.amount ? parseFloat(row.amount) : 0),
+        0,
+    );
+    const transactionAmtError: { type: "over" | "under"; remaining: number } | null = (() => {
+        if (isNaN(fundReceivedAmt) || fundReceivedAmt === 0) return null;
+        if (totalTransactionAmt > fundReceivedAmt)
+            return { type: "over", remaining: totalTransactionAmt - fundReceivedAmt };
+        if (totalTransactionAmt < fundReceivedAmt)
+            return { type: "under", remaining: fundReceivedAmt - totalTransactionAmt };
+        return null;
+    })();
+    // Both amounts must be non-zero and exactly equal before submit is allowed.
+    const isTransactionAmtValid =
+        !isNaN(fundReceivedAmt) &&
+        fundReceivedAmt > 0 &&
+        Math.abs(totalTransactionAmt - fundReceivedAmt) < 0.01;
+
     const breakupRows: any[] = formData.received_amt_breakup || [];
     const usedAccountHeads = breakupRows
         .map((r: any) => r.account_head)
@@ -632,6 +709,7 @@ const AddFundReceived: React.FC = () => {
     const { data: sanctionData, isLoading: sanctionLoading } = useFrappeGetCall(
         "rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_sanctions_for_project",
         { project_name: projectName },
+        undefined,
         { revalidateOnFocus: false },
     );
 
@@ -639,6 +717,7 @@ const AddFundReceived: React.FC = () => {
     const { data: previousFundsData } = useFrappeGetCall(
         "rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg",
         { prjreg_title: projectNoFromUrl || projectName, limit: 1000 },
+        undefined,
         {
             revalidateOnFocus: false,
             isPaused: () => !(projectNoFromUrl || projectName),
@@ -671,7 +750,6 @@ const AddFundReceived: React.FC = () => {
                 if (response.ok) {
                     const json = await response.json();
                     const doc = json.data;
-                    console.log("Loaded existing doc for edit:", doc);
 
                     if (doc) {
                         setFormData((prev) => ({
@@ -701,7 +779,6 @@ const AddFundReceived: React.FC = () => {
                     }
                 }
             } catch (err) {
-                console.error("Failed to load existing document", err);
                 alert("Failed to load document for editing");
             }
         };
@@ -773,7 +850,6 @@ const AddFundReceived: React.FC = () => {
             setLoading(false);
         }
         if (error) {
-            console.error("Failed to load form data:", error);
             alert("Failed to load form data.");
             setLoading(false);
         }
@@ -1069,6 +1145,25 @@ const AddFundReceived: React.FC = () => {
 
         // --- ENHANCED VALIDATION LOGIC WITH DETAILED MESSAGES ---
         try {
+            // ── Validate fund_received_amt vs transaction total ──
+            if (!isTransactionAmtValid) {
+                const diff = totalTransactionAmt - fundReceivedAmt;
+                const isOver = diff > 0;
+                const diffLine = isOver
+                    ? `Exceeded By: ₹${diff.toLocaleString("en-IN")}`
+                    : `Shortfall: ₹${Math.abs(diff).toLocaleString("en-IN")}`;
+                const hint = isOver
+                    ? `The total of all transaction entries must not exceed the Fund Received Amount.`
+                    : `The total of all transaction entries must equal the Fund Received Amount.`;
+                throw new Error(
+                    `❌ TOTAL FUND VALIDATION FAILED\n\n` +
+                    `Transaction Total: ₹${totalTransactionAmt.toLocaleString("en-IN")}\n` +
+                    `Fund Received Amount: ₹${fundReceivedAmt.toLocaleString("en-IN")}\n` +
+                    `${diffLine}\n\n` +
+                    hint,
+                );
+            }
+
             // ── Validate fund_received_amt vs breakup total ──
             if (!isFundAmtBreakupValid) {
                 const diff = totalBreakupAmt - fundReceivedAmt;
@@ -1151,13 +1246,13 @@ const AddFundReceived: React.FC = () => {
             }
 
             // Validation passed - log success
-            console.log("✅ All validations passed:", {
-                total: validationState.totalValidation,
-                heads: validationState.headValidations,
-            });
         } catch (validationError: any) {
             if (validationError.message !== "CANCELLED") {
-                alert(validationError.message);
+                setErrorModal({
+                    open: true,
+                    title: "Validation Failed",
+                    message: validationError.message,
+                });
             }
             setIsSubmitting(false);
             return;
@@ -1208,7 +1303,6 @@ const AddFundReceived: React.FC = () => {
                             );
                             attachmentUrl = uploadedFile.file_url;
                         } catch (fileError) {
-                            console.error("Error uploading file:", fileError);
                             alert(
                                 `Failed to upload attachment for transaction ${row.transaction_number || "partial"}. Proceeding without file.`,
                             );
@@ -1272,7 +1366,6 @@ const AddFundReceived: React.FC = () => {
                 })
                 .filter((r: any) => r !== null);
 
-            console.log("Submitting data:", dataToSubmit);
 
             await submitForm({
                 doc_data: JSON.stringify(dataToSubmit),
@@ -1288,14 +1381,11 @@ const AddFundReceived: React.FC = () => {
 
             navigate(-1);
         } catch (err: any) {
-            console.error("Submission error:", submitError || err);
-            const serverMsg = (submitError as any)?._server_messages
-                ? JSON.parse((submitError as any)._server_messages).join("\n")
-                : null;
-
-            alert(
-                `Submission Failed: ${serverMsg || (submitError as any)?.message || err.message || "Unknown Error"}`,
-            );
+            setErrorModal({
+                open: true,
+                title: "Submission Failed",
+                message: parseFrappeError(submitError, err),
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -1541,7 +1631,7 @@ const AddFundReceived: React.FC = () => {
                 <header className="mb-6 overflow-hidden bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm">
                     <div className="h-1.5 bg-[linear-gradient(to_right,#4A6CF7,#2563EB,#D97757)]" />
                     <div className="p-5 flex items-center gap-3">
-                        <button
+                        <button type="button"
                             onClick={() => navigate(-1)}
                             className="h-10 w-10 flex items-center justify-center bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl hover:text-[#D97757] transition-colors"
                         >
@@ -1627,6 +1717,9 @@ const AddFundReceived: React.FC = () => {
                                                     onDeleteRow={
                                                         deleteTransactionRow
                                                     }
+                                                    fundReceivedAmt={
+                                                        fundReceivedAmt
+                                                    }
                                                 />
                                                 <MemoizedBudgetBreakupTable
                                                     tableData={
@@ -1667,7 +1760,7 @@ const AddFundReceived: React.FC = () => {
                                 </FrappeButton>
                                 <FrappeButton
                                     type="submit"
-                                    disabled={isSubmitting || !isFundAmtBreakupValid || hasEmptyAccountHead}
+                                    disabled={isSubmitting || !isFundAmtBreakupValid || !isTransactionAmtValid || hasEmptyAccountHead}
                                     className="bg-[#D97757] text-white border-[#D97757] hover:bg-[#c5684a] disabled:bg-zinc-300"
                                 >
                                     {isSubmitting
@@ -1991,6 +2084,66 @@ const AddFundReceived: React.FC = () => {
                                     Real-time Validation
                                 </h3>
 
+                                {/* Fund Received Amt vs Transaction Total */}
+                                {!isNaN(fundReceivedAmt) &&
+                                    fundReceivedAmt > 0 && (
+                                        <div className="space-y-2 mb-4 pb-4 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
+                                                Fund Received Amount vs Transactions
+                                            </p>
+                                            <ProgressBar
+                                                current={totalTransactionAmt}
+                                                total={fundReceivedAmt}
+                                                label="Transactions vs Received"
+                                                showWarning={true}
+                                            />
+                                            <div className="grid grid-cols-2 gap-2 text-[11px] mt-1">
+                                                <div className="bg-[#FAFAF9] dark:bg-[#18181B] p-2 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46]">
+                                                    <p className="text-zinc-500 dark:text-zinc-400">
+                                                        Fund Received Amt
+                                                    </p>
+                                                    <p className="font-bold text-xs text-zinc-800 dark:text-zinc-200">
+                                                        ₹
+                                                        {fundReceivedAmt.toLocaleString(
+                                                            "en-IN",
+                                                        )}
+                                                    </p>
+                                                </div>
+                                                <div className="bg-[#FAFAF9] dark:bg-[#18181B] p-2 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46]">
+                                                    <p className="text-zinc-500 dark:text-zinc-400">
+                                                        Transaction Total
+                                                    </p>
+                                                    <p
+                                                        className={`text-xs font-bold ${totalTransactionAmt >
+                                                            fundReceivedAmt
+                                                            ? "text-red-600"
+                                                            : totalTransactionAmt ===
+                                                                fundReceivedAmt
+                                                                ? "text-green-600"
+                                                                : "text-blue-600"
+                                                            }`}
+                                                    >
+                                                        ₹
+                                                        {totalTransactionAmt.toLocaleString(
+                                                            "en-IN",
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            {transactionAmtError ? (
+                                                <p className="text-[11px] font-medium mt-1 text-blue-600 dark:text-blue-400">
+                                                    {transactionAmtError.type === "under"
+                                                        ? `₹${transactionAmtError.remaining.toLocaleString("en-IN")} still unaccounted`
+                                                        : `Exceeds by ₹${transactionAmtError.remaining.toLocaleString("en-IN")}`}
+                                                </p>
+                                            ) : (
+                                                <p className="text-[11px] font-semibold text-green-600 mt-1">
+                                                    ✓ Transaction total matches Fund Received Amount
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+
                                 {/* Fund Received Amt vs Breakup Total */}
                                 {!isNaN(fundReceivedAmt) &&
                                     fundReceivedAmt > 0 && (
@@ -2159,6 +2312,7 @@ const AddFundReceived: React.FC = () => {
                                 <div className="mt-4 pt-4 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
                                     {validationState.totalValidation.isValid &&
                                         isFundAmtBreakupValid &&
+                                        isTransactionAmtValid &&
                                         Object.values(
                                             validationState.headValidations,
                                         ).every((v) => v.isValid) ? (
@@ -2182,7 +2336,9 @@ const AddFundReceived: React.FC = () => {
                                                 ℹ Cannot Submit
                                             </p>
                                             <p className="text-[11px] text-blue-600 dark:text-blue-400 mt-1">
-                                                {!isFundAmtBreakupValid
+                                                {!isTransactionAmtValid
+                                                    ? "Transaction total must equal the Fund Received Amount"
+                                                    : !isFundAmtBreakupValid
                                                     ? "Budget breakup total must equal the Fund Received Amount"
                                                     : !validationState.totalValidation.isValid
                                                         ? "Total funds exceed sanctioned amount"
@@ -2202,6 +2358,15 @@ const AddFundReceived: React.FC = () => {
 
             {/* Floating Help Button */}
             <HelpFloating />
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() =>
+                    setErrorModal((prev) => ({ ...prev, open: false }))
+                }
+            />
         </div>
     );
 };

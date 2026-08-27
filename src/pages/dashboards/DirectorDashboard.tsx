@@ -2479,14 +2479,6 @@ export function DirectorDashboard() {
 
         const result = Object.values(piMap).sort((a, b) => b.project_count - a.project_count);
 
-        if (process.env.NODE_ENV !== "production") {
-            console.group(`[FundFilter] PIs for "${piFundingFilter}"`);
-            console.log("Total projects in allProjectsList:", (allProjectsList || []).length);
-            console.log(`Found ${result.length} PIs with projects under "${piFundingFilter}"`);
-            console.log("Sample PI results:", result.slice(0, 5));
-            console.groupEnd();
-        }
-
         return result;
     }, [allProjectsList, piFundingFilter, getProjectAgency, emailToNameMap]);
 

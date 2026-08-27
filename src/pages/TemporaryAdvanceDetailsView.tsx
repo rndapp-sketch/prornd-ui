@@ -47,6 +47,8 @@ import { Button } from "@/components/ui/button";
 import TemporaryAdvanceActionButtons from "@/components/TemporaryAdvanceActionButtons";
 import { DynamicFormRenderer, type FormField, type LinkOption } from "@/components/forms/DynamicFormRenderer";
 import { temporaryAdvanceAPI } from "@/services/apiService";
+import { ErrorModal } from "../components/ErrorModal";
+import { parseFrappeError } from "../utils/errorUtils";
 
 // --- Interfaces ---
 interface ActivityItem {
@@ -92,6 +94,11 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
     ({ doctype, docname }, ref) => {
         const [newComment, setNewComment] = useState("");
         const [isSubmitting, setIsSubmitting] = useState(false);
+        const [errorModal, setErrorModal] = useState<{
+            open: boolean;
+            title: string;
+            message: string;
+        }>({ open: false, title: "Submission Failed", message: "" });
         const {
             data: activityData,
             mutate: refetchActivity,
@@ -117,8 +124,11 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
                 setNewComment("");
                 await refetchActivity();
             } catch (err: any) {
-                console.error("Failed to add comment:", err);
-                alert("Error: Could not post comment.");
+                setErrorModal({
+                    open: true,
+                    title: "Submission Failed",
+                    message: parseFrappeError(err),
+                });
             } finally {
                 setIsSubmitting(false);
             }
@@ -214,6 +224,14 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
                             </div>
                         )}
                 </div>
+                <ErrorModal
+                    open={errorModal.open}
+                    title={errorModal.title}
+                    message={errorModal.message}
+                    onClose={() =>
+                        setErrorModal((prev) => ({ ...prev, open: false }))
+                    }
+                />
             </div>
         );
     }
@@ -278,8 +296,14 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
     const [budgetHeadList, setBudgetHeadList] = useState<{ name: string; id: string }[]>([]);
 
     // --- Commit/Payment API Hooks ---
-    const { call: submitCommit, loading: isCommitting } = useFrappePostCall("rndopsapp.rndopsapp.commitPayment.submit_commit_data");
-    const { call: submitPayment, loading: isPaying } = useFrappePostCall("rndopsapp.rndopsapp.commitPayment.submit_payment_data");
+    const { call: submitCommit, loading: isCommitting, error: commitError } = useFrappePostCall("rndopsapp.rndopsapp.commitPayment.submit_commit_data");
+    const { call: submitPayment, loading: isPaying, error: paymentError } = useFrappePostCall("rndopsapp.rndopsapp.commitPayment.submit_payment_data");
+
+    const [errorModal, setErrorModal] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({ open: false, title: "Submission Failed", message: "" });
 
     // --- Fetch Budget Heads for Ledger ---
     useEffect(() => {
@@ -294,7 +318,6 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
                     })));
                 }
             } catch (err) {
-                console.error("Failed to fetch Budget Heads:", err);
             }
         };
         fetchBudgetHeads();
@@ -345,8 +368,11 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
             setCommitAmount("");
             window.location.reload();
         } catch (error: any) {
-            console.error("Commit failed:", error);
-            alert(`Commitment failed: ${error.message || "Unknown error"}`);
+            setErrorModal({
+                open: true,
+                title: "Commitment Failed",
+                message: parseFrappeError(commitError, error),
+            });
         }
     };
 
@@ -371,8 +397,11 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
             setPaymentAmount("");
             window.location.reload();
         } catch (error: any) {
-            console.error("Payment failed:", error);
-            alert(`Payment failed: ${error.message || "Unknown error"}`);
+            setErrorModal({
+                open: true,
+                title: "Payment Failed",
+                message: parseFrappeError(paymentError, error),
+            });
         }
     };
 
@@ -390,7 +419,6 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
             });
             return true;
         } catch (error) {
-            console.error("Error adding comment:", error);
             return false;
         }
     };
@@ -405,7 +433,7 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
                     setTaLinkOptions(res.message.link_options || {});
                 }
             })
-            .catch(console.error)
+            .catch(() => {})
             .finally(() => setIsFieldsLoading(false));
     }, [docName]);
 
@@ -417,7 +445,7 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
             .then(res => {
                 if (res.data) setResolvedProjectTitle(res.data.project_title || res.data.name);
             })
-            .catch(err => console.error("Failed to resolve project", err));
+            .catch(() => {});
     }, [data]);
 
 
@@ -788,6 +816,15 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
                     onClose={() => setIsLedgerOpen(false)}
                     projectName={data.project_code || ''}
                     budgetHeadList={budgetHeadList}
+                />
+
+                <ErrorModal
+                    open={errorModal.open}
+                    title={errorModal.title}
+                    message={errorModal.message}
+                    onClose={() =>
+                        setErrorModal((prev) => ({ ...prev, open: false }))
+                    }
                 />
             </div>
         </div>

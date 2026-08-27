@@ -140,14 +140,12 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
                         content: `[Submit] ${comment.trim()}`
                     });
                 } catch (commentError) {
-                    console.error("Error adding comment:", commentError);
                 }
             }
 
             setModalOpen(false);
             window.location.reload();
         } catch (error) {
-            console.error("Error submitting fund:", error);
             alert("Failed to submit fund received entry.");
         }
     };
@@ -160,11 +158,9 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
             // Refresh data
             window.location.reload();
         } catch (error) {
-            console.error("Error deleting fund:", error);
             alert("Failed to delete fund received entry.");
         }
     };
-    console.log("sdkResponse", sdkResponse);
     useEffect(() => {
         if (!useSdk) {
             const controller = new AbortController();

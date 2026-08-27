@@ -9,6 +9,7 @@ interface Props {
   docname: string;
   onActionComplete: () => void;
   commitRequired?: boolean;
+  directorPdfBlocked?: boolean;
   onPrint?: () => void;
 }
 
@@ -65,6 +66,7 @@ const DisbursalOfHonorariumActionButtons = ({
   docname,
   onActionComplete,
   commitRequired = false,
+  directorPdfBlocked = false,
   onPrint,
 }: Props) => {
   const { data, isLoading: actionsLoading } = useFrappeGetCall<{ message: string[] }>(
@@ -117,7 +119,6 @@ const DisbursalOfHonorariumActionButtons = ({
       setModalOpen(false);
       onActionComplete();
     } catch (error) {
-      console.error("Error performing action:", error);
     }
   };
 
@@ -207,13 +208,20 @@ const DisbursalOfHonorariumActionButtons = ({
               </div>
             )}
 
+            {directorPdfBlocked && (
+              <div className="mx-3 mt-3 mb-1 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+                The Director-signed PDF has not been uploaded by Staff yet.
+              </div>
+            )}
+
             {[forwardActions, neutralActions, rejectActions]
               .filter((g) => g.length > 0)
               .map((group, gi) => (
                 <React.Fragment key={gi}>
                   {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
                   {group.map((action) => {
-                    const blocked = commitRequired;
+                    const blockedByPdf = directorPdfBlocked && categorise(action) === "forward";
+                    const blocked = commitRequired || blockedByPdf;
                     const { icon, cls, iconCls } = itemStyle(action);
                     return (
                       <button

@@ -13,6 +13,8 @@ import {
 } from "@/components/forms/DynamicFormRenderer";
 import { isFieldVisible } from "@/utils/evalExpression";
 import { indentGeneralFormAPI, commonAPI, prepareFormDataForApi } from "@/services/apiService";
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 
 // ---------------------------------------------------------------------------
 // Submit-confirmation modal shown after a successful save
@@ -133,6 +135,7 @@ const IndentGeneralForm: React.FC = () => {
     const [isActionLoading, setIsActionLoading] = useState(false);
     const [docStatus, setDocStatus] = useState<number>(0);
     const [showSubmitModal, setShowSubmitModal] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     const { call: fetchFields } = useFrappePostCall<{ message: any }>(indentGeneralFormAPI.getFields);
     const { call: saveForm } = useFrappePostCall<{ message: any }>(indentGeneralFormAPI.save);
@@ -206,7 +209,6 @@ const IndentGeneralForm: React.FC = () => {
             const msg = res?.message;
             setAvailableActions(Array.isArray(msg?.actions) ? msg.actions : []);
         } catch (e) {
-            console.error("Error fetching workflow actions:", e);
         }
     }, [getActionsCall]);
 
@@ -260,9 +262,15 @@ const IndentGeneralForm: React.FC = () => {
                 }));
 
                 // User options for committee member webmail autocomplete
+                // Include the email in the label: distinct accounts can share the
+                // same full name (personal vs role account), and an ambiguous
+                // label lets the applicant pick the wrong person.
                 const userOptions: LinkOption[] = (userRes?.data || [])
                     .filter((u: any) => u.name !== "Administrator" && u.name !== "Guest")
-                    .map((u: any) => ({ value: u.name, label: u.full_name || u.name }));
+                    .map((u: any) => ({
+                        value: u.name,
+                        label: u.full_name ? `${u.full_name} (${u.name})` : u.name,
+                    }));
 
                 const { fields: apiFields, link_options, prefill_data } = res.message;
 
@@ -357,16 +365,16 @@ const IndentGeneralForm: React.FC = () => {
                             }
                         } catch { /* ignore */ }
                     }
-                    if (projectNoParam) {
-                        // Data field stores the project number/code
-                        prefill.igf_project_code = projectNoParam;
+                    if (searchParams.get("other_pi") === "1") {
+                        prefill.igf_other_pi = "Other";
+                        prefill.igf_project_title = "";
+                        prefill.igf_project_code = "";
                     }
 
                     setLinkOptions(mergedLinkOptions);
                     setFormData(applyClientScript(prefill));
                 }
             } catch (e) {
-                console.error("Failed to load Indent General Form:", e);
             } finally {
                 setLoading(false);
             }
@@ -483,17 +491,10 @@ const IndentGeneralForm: React.FC = () => {
         }
 
         if (isSavingRef.current) {
-            console.warn("[SAVE] BLOCKED — save already in progress");
             return;
         }
 
         const saveId = Date.now();
-        console.log(`[SAVE #${saveId}] handleSave ENTERED`, {
-            savedDocNameRef: savedDocNameRef.current,
-            editDocName,
-            savedDocName,
-            isSavingRef: isSavingRef.current,
-        });
 
         isSavingRef.current = true;
         setIsSaving(true);
@@ -502,7 +503,6 @@ const IndentGeneralForm: React.FC = () => {
 
             // Log raw formData file fields before conversion
             const rawFileFields = Object.entries(formData).filter(([, v]) => v instanceof File);
-            console.log(`[SAVE #${saveId}] Raw File fields in formData:`, rawFileFields.map(([k, v]) => ({ field: k, name: (v as File).name, size: (v as File).size, type: (v as File).type })));
 
             // Use prepareFormDataForApi — converts all File objects (including table rows) to base64 in-place
             const cleanData = await prepareFormDataForApi({ ...formData });
@@ -522,24 +522,19 @@ const IndentGeneralForm: React.FC = () => {
                     typeof (val as any).file_data === "string"
                 ) {
                     const fileVal = val as { file_name: string; file_data: string };
-                    console.log(`[SAVE #${saveId}] Extracted file from field "${key}":`, { file_name: fileVal.file_name, file_data_length: fileVal.file_data.length, file_data_prefix: fileVal.file_data.slice(0, 50) });
                     filesArray.push(fileVal);
                     delete cleanData[key];
                 }
             }
 
-            console.log(`[SAVE #${saveId}] filesArray built:`, filesArray.map((f) => ({ file_name: f.file_name, file_data_length: f.file_data.length })));
-            console.log(`[SAVE #${saveId}] cleanData keys:`, Object.keys(cleanData));
 
             const callArgs: Record<string, string> = { data: JSON.stringify(cleanData) };
             if (filesArray.length > 0) {
                 callArgs.files = JSON.stringify(filesArray);
             }
 
-            console.log(`[SAVE #${saveId}] Calling saveForm with args:`, { data_length: callArgs.data.length, files: callArgs.files ? `${filesArray.length} file(s)` : "none" });
 
             const res = await saveForm(callArgs);
-            console.log(`[SAVE #${saveId}] saveForm response:`, res);
 
             if (res?.message?.status === "success") {
                 const docname = res.message.docname || currentDocName;
@@ -558,10 +553,7 @@ const IndentGeneralForm: React.FC = () => {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
-            const errMsg = err.exc_type === "ValidationError"
-                ? JSON.parse(err._server_messages || "[]").map((m: string) => JSON.parse(m).message).join(", ")
-                : err.message || "Unknown error";
-            alert(`Save failed: ${errMsg}`);
+            setErrorModal({ open: true, title: "Save Failed", message: parseFrappeError(err) });
         } finally {
             isSavingRef.current = false;
             setIsSaving(false);
@@ -581,7 +573,7 @@ const IndentGeneralForm: React.FC = () => {
             await performActionCall({ docname, action });
             navigate(`/indent-general-form-details/${docname}`);
         } catch (err: any) {
-            alert(`Action failed: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(err) });
         } finally {
             setIsActionLoading(false);
         }
@@ -601,6 +593,7 @@ const IndentGeneralForm: React.FC = () => {
         onDeleteTableRow: handleDeleteTableRow,
         hideSectionHeaders: true,
         hideTableLabels: true,
+        autocompleteFields: ["igf_other_pi_id"],
     };
 
     if (loading) return <GlobalLoader isLoading={true} />;
@@ -672,6 +665,8 @@ const IndentGeneralForm: React.FC = () => {
                                     "igf_employee_code",
                                     "section_break_nvnk",
                                     "igf_project_details",
+                                    "igf_other_pi",
+                                    "igf_other_pi_id",
                                     "igf_project_title",
                                     "igf_project_code",
                                     "igf_account_head",
@@ -821,6 +816,13 @@ const IndentGeneralForm: React.FC = () => {
                     </div>
                 )}
             </main>
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

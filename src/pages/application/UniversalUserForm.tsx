@@ -49,7 +49,6 @@ export default function UniversalUserForm() {
                 setFormData(initialData);
             }
         } catch (error) {
-            console.error("Error fetching form configuration:", error);
             alert("Failed to load form configuration.");
         } finally {
             setIsLoadingFields(false);
@@ -162,7 +161,6 @@ export default function UniversalUserForm() {
                 throw new Error("Invalid response received from the server.");
             }
         } catch (error: any) {
-            console.error("Error saving form:", error);
             const errorMsg = error.exc ? JSON.parse(error.exc)[0] : error.message || "An unexpected error occurred while saving.";
             alert(`Error Saving Form: ${errorMsg}`);
         } finally {

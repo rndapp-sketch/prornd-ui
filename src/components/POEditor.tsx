@@ -19,8 +19,11 @@ import {
 } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { ToWords } from "to-words";
 import { generatePOHtml, DEFAULT_TERMS, getFormattedTerms } from "@/utils/DpPoPrint";
 import { generatePOHtml as generateIcssPOHtml } from "@/utils/IcssPoPrint";
+
+const toWords = new ToWords({ localeCode: "en-IN", converterOptions: { ignoreDecimal: true } });
 
 // ── Terms Editor Modal ──────────────────────────────────────────────────────
 const icons = {
@@ -421,7 +424,6 @@ const PreviewModal = ({
             }
             pdf.save(`PO-${docName || "form"}.pdf`);
         } catch (err) {
-            console.error("PDF generation failed:", err);
         } finally {
             setIsGeneratingPdf(false);
         }
@@ -494,6 +496,11 @@ export const POEditor: React.FC<POEditorProps> = ({
     const [isUploading, setIsUploading] = useState(false);
     const [uploadedFile, setUploadedFile] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    // Upload requires both a saved PO and an actual upload handler from the
+    // parent — some views (e.g. Task Registry) render this editor read-only
+    // without wiring onUploadSignedPO, and the button must stay disabled there
+    // even once hasSaved is true and Preview & Print unlocks.
+    const canUpload = hasSaved && !!onUploadSignedPO;
     // Track which doc we've already initialized so onChange-driven ssData updates don't reset user input
     const lastInitKeyRef = useRef<string>("");
 
@@ -530,7 +537,13 @@ export const POEditor: React.FC<POEditorProps> = ({
             quotation_no: ssData.quotation_no || "",
             signee_name: ssData.signee_name || "",
             signee_designation: ssData.signee_designation || "",
-            amount_in_words: ssData.amount_in_words || "",
+            // amount_in_words on the sanction sheet reflects its own total (e.g. basic
+            // value), not the PO grand total — recompute from ss_grand_total so the PO
+            // print shows the correct amount in words. Only fall back to the sanction
+            // sheet's field when no grand total is available at all.
+            amount_in_words: ssData.ss_grand_total
+                ? toWords.convert(Number(ssData.ss_grand_total))
+                : ssData.amount_in_words || "",
             terms_and_conditions:
                 ssData.terms_and_conditions || getFormattedTerms(DEFAULT_TERMS, ssData),
         });
@@ -554,7 +567,6 @@ export const POEditor: React.FC<POEditorProps> = ({
             setHasSaved(true);
             setTimeout(() => setSaveSuccess(false), 3000);
         } catch (err) {
-            console.error("Save failed:", err);
         } finally {
             setIsSaving(false);
         }
@@ -586,7 +598,6 @@ export const POEditor: React.FC<POEditorProps> = ({
             await onUploadSignedPO(file);
             setUploadedFile(file.name);
         } catch (err) {
-            console.error("Upload failed:", err);
         } finally {
             setIsUploading(false);
             e.target.value = "";
@@ -705,10 +716,10 @@ export const POEditor: React.FC<POEditorProps> = ({
                                 className="hidden"
                             />
                             <button
-                                onClick={hasSaved ? handleUploadClick : undefined}
-                                disabled={isUploading || !hasSaved}
-                                title={!hasSaved ? "Save the PO first to enable upload" : undefined}
-                                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-bold ${hasSaved ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-emerald-200 dark:bg-emerald-900/30 text-emerald-400 dark:text-emerald-600 cursor-not-allowed"} disabled:opacity-60`}
+                                onClick={canUpload ? handleUploadClick : undefined}
+                                disabled={isUploading || !canUpload}
+                                title={!onUploadSignedPO ? "Uploading the signed PO isn't available here" : !hasSaved ? "Save the PO first to enable upload" : undefined}
+                                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-bold ${canUpload ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-emerald-200 dark:bg-emerald-900/30 text-emerald-400 dark:text-emerald-600 cursor-not-allowed"} disabled:opacity-60`}
                             >
                                 {isUploading ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />

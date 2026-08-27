@@ -31,6 +31,8 @@ import {
     AlertTriangleIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ErrorModal } from "../components/ErrorModal";
+import { parseFrappeError } from "../utils/errorUtils";
 import { AppSidebar } from '@/components/RndSidebar';
 import { PageHeader } from "@/components/common/PageHeader";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
@@ -158,9 +160,15 @@ const CommentModal = ({
 const ReimbursementWorkflowActions = ({
     docname,
     onActionComplete,
+    workflowState,
+    reimbursementForId,
 }: {
     docname: string;
     onActionComplete: () => void;
+    /** Current workflow state — used to detect the Other-PI approval step */
+    workflowState?: string;
+    /** The PI the claim is charged to; only they act at "Pending PI Approval" */
+    reimbursementForId?: string;
 }) => {
     const { data, isLoading: actionsLoading } = useFrappeGetCall<{
         message: string[];
@@ -173,25 +181,71 @@ const ReimbursementWorkflowActions = ({
         "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.perform_reimbursement_action",
     );
     const { call: addComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
+    const { call: fetchPiProjects } = useFrappePostCall(
+        "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_pi_projects",
+    );
+    const { call: fetchProjectHeads } = useFrappePostCall(
+        "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_project_account_heads",
+    );
+    const { currentUser } = useFrappeAuth();
 
     const [modalOpen, setModalOpen] = React.useState(false);
     const [selectedAction, setSelectedAction] = React.useState("");
 
+    // The Other-PI approval step: only the assigned PI selects which of their
+    // own projects to charge and the corresponding account head.
+    const isPiStep =
+        workflowState === "Pending PI Approval" &&
+        !!currentUser &&
+        (reimbursementForId || "").toLowerCase() === currentUser.toLowerCase();
+
+    const [projects, setProjects] = React.useState<any[]>([]);
+    const [heads, setHeads] = React.useState<any[]>([]);
+    const [selectedProject, setSelectedProject] = React.useState("");
+    const [selectedHead, setSelectedHead] = React.useState("");
+
+    React.useEffect(() => {
+        if (!isPiStep) return;
+        fetchPiProjects({})
+            .then((res: any) => setProjects(res?.message || []))
+            .catch(() => setProjects([]));
+    }, [isPiStep]);
+
+    React.useEffect(() => {
+        setSelectedHead("");
+        if (!selectedProject) { setHeads([]); return; }
+        fetchProjectHeads({ project_name: selectedProject })
+            .then((res: any) => setHeads(res?.message || []))
+            .catch(() => setHeads([]));
+    }, [selectedProject]);
+
     const handleActionClick = (action: string) => {
+        if (isPiStep && action === "Approve" && (!selectedProject || !selectedHead)) {
+            alert("Please select a project and account head before approving.");
+            return;
+        }
         setSelectedAction(action);
         setModalOpen(true);
     };
 
     const handleConfirmAction = async (comment: string) => {
         try {
-            await performAction({ docname, action: selectedAction, comment });
+            const payload: Record<string, any> = { docname, action: selectedAction, comment };
+            if (isPiStep && selectedAction === "Approve") {
+                const proj = projects.find((p) => p.value === selectedProject);
+                payload.extra_data = JSON.stringify({
+                    project_name: selectedProject,
+                    project_number: proj?.project_number || proj?.project_no || "",
+                    account_head: selectedHead,
+                });
+            }
+            await performAction(payload);
             if (comment.trim()) {
                 addComment({ doctype: "Reimbursement", docname, content: comment.trim() }).catch(() => {});
             }
             setModalOpen(false);
             onActionComplete();
         } catch (error) {
-            console.error("Error performing action:", error);
         }
     };
 
@@ -199,6 +253,36 @@ const ReimbursementWorkflowActions = ({
 
     return (
         <>
+            {isPiStep && (
+                <div className="flex flex-col gap-2 mb-2 p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+                    <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+                        Approve against one of your projects
+                    </span>
+                    <div className="flex flex-col sm:flex-row gap-2 min-w-0 w-full">
+                        <select
+                            value={selectedProject}
+                            onChange={(e) => setSelectedProject(e.target.value)}
+                            className="min-w-0 w-full flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100"
+                        >
+                            <option value="">Select project…</option>
+                            {projects.map((p) => (
+                                <option key={p.value} value={p.value}>{p.label}</option>
+                            ))}
+                        </select>
+                        <select
+                            value={selectedHead}
+                            onChange={(e) => setSelectedHead(e.target.value)}
+                            disabled={!selectedProject}
+                            className="min-w-0 w-full flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+                        >
+                            <option value="">Select account head…</option>
+                            {heads.map((h) => (
+                                <option key={h.value} value={h.value}>{h.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+            )}
             <div className="flex gap-2">
                 {data.message.map((action) => (
                     <FrappeButton
@@ -242,6 +326,11 @@ const CancellationRequestWorkflowActions = ({
 
     const [modalOpen, setModalOpen] = React.useState(false);
     const [selectedAction, setSelectedAction] = React.useState("");
+    const [errorModal, setErrorModal] = React.useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({ open: false, title: "Action Failed", message: "" });
 
     const handleActionClick = (action: string) => {
         setSelectedAction(action);
@@ -259,7 +348,11 @@ const CancellationRequestWorkflowActions = ({
             setModalOpen(false);
             onActionComplete();
         } catch (err: any) {
-            alert(err.message || "Failed to perform action");
+            setErrorModal({
+                open: true,
+                title: "Action Failed",
+                message: parseFrappeError(err),
+            });
         }
     };
 
@@ -287,6 +380,12 @@ const CancellationRequestWorkflowActions = ({
                 onSubmit={handleConfirmAction}
                 action={selectedAction}
                 isLoading={actionLoading}
+            />
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
             />
         </>
     );
@@ -347,7 +446,6 @@ const FundSanctionWorkflowActions = ({
             setModalOpen(false);
             onActionComplete();
         } catch (error) {
-            console.error("Error performing action:", error);
         }
     };
 
@@ -452,7 +550,7 @@ const FundSanctionWorkflowActions = ({
                                             {blocked && (
                                                 <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/item:block z-[9999]">
                                                     <div className="bg-zinc-900 text-white text-[11px] rounded-lg px-3 py-1.5 shadow-lg whitespace-nowrap">
-                                                        Account details must be filled before forwarding.
+                                                        Account details and Sanctioned Letter No. must be filled before forwarding.
                                                     </div>
                                                 </div>
                                             )}
@@ -514,7 +612,6 @@ const TravelWorkflowActions = ({
             setModalOpen(false);
             onActionComplete();
         } catch (error) {
-            console.error("Error performing action:", error);
         }
     };
 
@@ -574,20 +671,11 @@ const DirectPurchaseWorkflowActions = ({
         try {
             const response = await fetchActions({ docname });
             if (!isMountedRef.current) return;
-            console.log("[DirectPurchaseWorkflowActions] fetched actions", {
-                docname,
-                endpoint: directPurchaseAPI.getWorkflowActions,
-                actions: response?.message,
-            });
             setActions(
                 Array.isArray(response?.message) ? response.message : [],
             );
         } catch (error) {
             if (isMountedRef.current) {
-                console.error(
-                    "Error fetching direct purchase workflow actions:",
-                    error,
-                );
                 setActions([]);
             }
         } finally {
@@ -607,45 +695,22 @@ const DirectPurchaseWorkflowActions = ({
     }, [loadActions]);
 
     const handleActionClick = (action: string) => {
-        console.log("[DirectPurchaseWorkflowActions] action clicked", {
-            docname,
-            action,
-            endpoint: directPurchaseAPI.performAction,
-        });
         setSelectedAction(action);
         setModalOpen(true);
     };
 
     const handleConfirmAction = async (comment: string) => {
         try {
-            console.log("[DirectPurchaseWorkflowActions] submitting action", {
-                docname,
-                action: selectedAction,
-                comment,
-                endpoint: directPurchaseAPI.performAction,
-            });
             const response = await performAction({
                 docname,
                 action: selectedAction,
                 comment,
-            });
-            console.log("[DirectPurchaseWorkflowActions] action response", {
-                docname,
-                action: selectedAction,
-                endpoint: directPurchaseAPI.performAction,
-                response,
             });
             await loadActions();
             setModalOpen(false);
             onActionComplete();
             onAfterAction?.(selectedAction);
         } catch (error) {
-            console.error("[DirectPurchaseWorkflowActions] action failed", {
-                docname,
-                action: selectedAction,
-                endpoint: directPurchaseAPI.performAction,
-                error,
-            });
         }
     };
 
@@ -723,6 +788,11 @@ const TopUpFellowshipWorkflowActions = ({
     const [selectedTufAction, setSelectedTufAction] = React.useState("");
     const [backModalOpen, setBackModalOpen] = React.useState(false);
     const [pendingBack, setPendingBack] = React.useState<{ target: string; label: string } | null>(null);
+    const [errorModal, setErrorModal] = React.useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({ open: false, title: "Action Failed", message: "" });
 
     const handlePutBack = (target: string, label: string) => {
         setPendingBack({ target, label });
@@ -734,7 +804,11 @@ const TopUpFellowshipWorkflowActions = ({
         try {
             const res: any = await putBack({ docname, target: pendingBack.target, comment: comment || undefined });
             if (res?.message?.status === "error") {
-                alert(res.message.message || `${pendingBack.label} failed.`);
+                setErrorModal({
+                    open: true,
+                    title: "Action Failed",
+                    message: parseFrappeError({ message: res.message.message || `${pendingBack.label} failed.` }, res?.message),
+                });
                 return;
             }
             setBackModalOpen(false);
@@ -742,8 +816,11 @@ const TopUpFellowshipWorkflowActions = ({
             refreshBackActions();
             onActionComplete();
         } catch (err: any) {
-            console.error("put_back failed:", err);
-            alert(err?.message || `${pendingBack.label} failed.`);
+            setErrorModal({
+                open: true,
+                title: "Action Failed",
+                message: parseFrappeError(err),
+            });
         }
     };
 
@@ -777,14 +854,21 @@ const TopUpFellowshipWorkflowActions = ({
         try {
             const res: any = await markSendToFa({ docname });
             if (res?.message?.status === "error") {
-                alert(res.message.message || "Could not mark as sent.");
+                setErrorModal({
+                    open: true,
+                    title: "Could Not Mark As Sent",
+                    message: parseFrappeError({ message: res.message.message || "Could not mark as sent." }, res?.message),
+                });
                 return;
             }
             downloadGeneratedPdf();
             onActionComplete();
         } catch (err: any) {
-            console.error("Send-to-Faculty-Admission failed:", err);
-            alert(err?.message || "Could not mark as sent.");
+            setErrorModal({
+                open: true,
+                title: "Could Not Mark As Sent",
+                message: parseFrappeError(err),
+            });
         }
     };
 
@@ -797,7 +881,11 @@ const TopUpFellowshipWorkflowActions = ({
         try {
             const res: any = await performAction({ docname, action: selectedTufAction, comment: comment || undefined });
             if (res?.message?.status === "error") {
-                alert(res.message.message || `Action "${selectedTufAction}" failed.`);
+                setErrorModal({
+                    open: true,
+                    title: "Action Failed",
+                    message: parseFrappeError({ message: res.message.message || `Action "${selectedTufAction}" failed.` }, res?.message),
+                });
                 return;
             }
             if (comment?.trim()) {
@@ -806,8 +894,11 @@ const TopUpFellowshipWorkflowActions = ({
             setActionModalOpen(false);
             onActionComplete();
         } catch (err: any) {
-            console.error("Top Up Fellowship action failed:", err);
-            alert(err?.message || `Action "${selectedTufAction}" failed.`);
+            setErrorModal({
+                open: true,
+                title: "Action Failed",
+                message: parseFrappeError(err),
+            });
         }
     };
 
@@ -829,6 +920,12 @@ const TopUpFellowshipWorkflowActions = ({
                 onSubmit={handleConfirmPutBack}
                 action={pendingBack?.label || "Put Back"}
                 isLoading={putBackLoading}
+            />
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
             />
         </>
     );
@@ -1084,7 +1181,6 @@ const RecruitmentAdhocContractualWorkflowActions = ({
             setModalOpen(false);
             onActionComplete();
         } catch (error) {
-            console.error("Error performing action:", error);
         }
     };
 
@@ -1416,7 +1512,6 @@ const OriginalCommitmentSidebar = ({ refName, refDoctype }: { refName?: string; 
                     }
                 }
             } catch (err) {
-                console.error("Error fetching original commitment:", err);
             } finally {
                 setLoading(false);
             }
@@ -1571,12 +1666,14 @@ const ProjectPreviewModal = ({
 );
 
 // Helper to check if a value is a file path
+const MINIO_HOST = import.meta.env.VITE_MINIO_HOST || "172.16.135.118";
+const MINIO_ALT_PORT = import.meta.env.VITE_MINIO_ALT_PORT || "8081";
 const isFilePath = (value: string) => {
     if (typeof value !== "string") return false;
     return (
         value.startsWith("/private/files/") ||
         value.startsWith("/files/") ||
-        value.startsWith("http://172.16.135.118:8081/") ||
+        value.startsWith(`http://${MINIO_HOST}:${MINIO_ALT_PORT}/`) ||
         value.match(/\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx)$/i)
     );
 };
@@ -2058,7 +2155,6 @@ const DirectPurchaseTabView = ({
                     }
                 }
             } catch (err) {
-                console.error("Error fetching sanction sheet for PO:", err);
             } finally {
                 setIsLoadingPOData(false);
             }
@@ -2286,10 +2382,22 @@ const PendingTaskDetails: React.FC = () => {
         return <Navigate to={`/top-up-fellowship/${name}`} replace />;
     }
 
+    // Proforma Invoice renders as the invoice document (review + approve), never
+    // as raw doctype fields.
+    if (doctype === "Proforma_Invoice" && name) {
+        return <Navigate to={`/proforma-invoice/${name}`} replace />;
+    }
+
     const { data, isLoading, error, mutate } = useFrappeGetDoc(
         doctype || "",
         name || "",
     );
+
+    const [errorModal, setErrorModal] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({ open: false, title: "Submission Failed", message: "" });
 
     const { data: cancellationStatus } = useFrappeGetCall<{
         message: {
@@ -2441,7 +2549,11 @@ const PendingTaskDetails: React.FC = () => {
             refreshAll();
             alert("Office Use details saved successfully.");
         } catch (e: any) {
-            alert("Failed to save Office Use details: " + (e?.message || "Unknown error"));
+            setErrorModal({
+                open: true,
+                title: "Save Failed",
+                message: parseFrappeError(e),
+            });
         } finally {
             setIsSavingTadaOfficeUse(false);
         }
@@ -2612,7 +2724,11 @@ const PendingTaskDetails: React.FC = () => {
             );
             alert('Account details saved successfully.');
         } catch (e: any) {
-            alert('Failed to save account details: ' + (e?.message || 'Unknown error'));
+            setErrorModal({
+                open: true,
+                title: "Save Failed",
+                message: parseFrappeError(e),
+            });
         } finally {
             setIsSavingAcctDetails(false);
         }
@@ -2819,7 +2935,7 @@ const PendingTaskDetails: React.FC = () => {
                     return next;
                 });
             })
-            .catch((err: any) => console.error("Failed to resolve dept_centre names:", err));
+            .catch(() => {});
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [doctype, (data as any)?.students]);
 
@@ -2951,7 +3067,7 @@ const PendingTaskDetails: React.FC = () => {
                     .then(res => {
                         if (res.data) setResolvedAccountHead(res.data.budget_head || res.data.name);
                     })
-                    .catch(err => console.error("Failed to resolve budget head", err));
+                    .catch(() => {});
             }
 
             // Department — resolve raw ID to human-readable name for print
@@ -3009,7 +3125,6 @@ const PendingTaskDetails: React.FC = () => {
                             setResolvedProjectTitle(data.project_name);
                         }
                     } catch (err) {
-                        console.error("Failed to resolve project", err);
                         if (data.project_name) setResolvedProjectTitle(data.project_name);
                     }
                 };
@@ -3100,10 +3215,6 @@ const PendingTaskDetails: React.FC = () => {
                         updates[field.fieldname] = readable;
                     }
                 } catch (e) {
-                    console.warn(
-                        `Failed to resolve link for ${field.fieldname}`,
-                        e,
-                    );
                 }
             }),
         );
@@ -3148,9 +3259,7 @@ const PendingTaskDetails: React.FC = () => {
                         setTravelLinkOptions(res.message.link_options || {});
                     }
                 })
-                .catch((err) =>
-                    console.error("Error fetching travel fields", err),
-                )
+                .catch(() => {})
                 .finally(() => setIsTravelLoading(false));
         }
     }, [doctype, name, fetchTravelFields]);
@@ -3194,12 +3303,7 @@ const PendingTaskDetails: React.FC = () => {
                         );
                     }
                 })
-                .catch((err) =>
-                    console.error(
-                        "Error fetching advance settlement fields",
-                        err,
-                    ),
-                )
+                .catch(() => {})
                 .finally(() => setIsAdvanceSettlementLoading(false));
         }
     }, [doctype, name, fetchAdvanceSettlementFields]);
@@ -3217,12 +3321,7 @@ const PendingTaskDetails: React.FC = () => {
                         );
                     }
                 })
-                .catch((err) =>
-                    console.error(
-                        "Error fetching temporary advance fields",
-                        err,
-                    ),
-                )
+                .catch(() => {})
                 .finally(() => setIsTemporaryAdvanceLoading(false));
         }
     }, [doctype, name, fetchTemporaryAdvanceFields]);
@@ -3263,12 +3362,7 @@ const PendingTaskDetails: React.FC = () => {
                         setTadaLinkOptions(res.message.link_options || {});
                     }
                 })
-                .catch((err) =>
-                    console.error(
-                        "Error fetching TA DA Settlement fields",
-                        err,
-                    ),
-                )
+                .catch(() => {})
                 .finally(() => setIsTadaLoading(false));
         }
     }, [doctype, name, fetchTadaFields]);
@@ -3311,12 +3405,7 @@ const PendingTaskDetails: React.FC = () => {
                         );
                     }
                 })
-                .catch((err) =>
-                    console.error(
-                        "Error fetching Recruitment Adhoc Contractual fields",
-                        err,
-                    ),
-                )
+                .catch(() => {})
                 .finally(() => setIsRecruitmentLoading(false));
         }
     }, [doctype, name, fetchRecruitmentFields]);
@@ -3718,6 +3807,8 @@ const PendingTaskDetails: React.FC = () => {
                         <ReimbursementWorkflowActions
                             docname={name}
                             onActionComplete={() => window.location.reload()}
+                            workflowState={data?.workflow_state}
+                            reimbursementForId={data?.reimbursement_for_id}
                         />
                     )}
                     {doctype === "Cancellation Request" && name && (
@@ -3730,7 +3821,7 @@ const PendingTaskDetails: React.FC = () => {
                         <FundSanctionWorkflowActions
                             docname={name}
                             onActionComplete={() => window.location.reload()}
-                            blockForward={isRnDStaff && !(data?.is_the_account_type_pfms || fsProjectRegData?.is_the_account_type_pfms)}
+                            blockForward={isRnDStaff && (!(data?.is_the_account_type_pfms || fsProjectRegData?.is_the_account_type_pfms) || !data?.sanctioned_letter_no)}
                         />
                     )}
                     {doctype === "Travel" && name && !cancellationStatus?.message?.has_pending && (
@@ -4048,10 +4139,18 @@ const PendingTaskDetails: React.FC = () => {
                                                                         }));
                                                                         setChairpersonEditMode(false);
                                                                     } else {
-                                                                        alert(res?.message?.message || "Failed to update chairperson fields.");
+                                                                        setErrorModal({
+                                                                            open: true,
+                                                                            title: "Update Failed",
+                                                                            message: parseFrappeError({ message: res?.message?.message || "Failed to update chairperson fields." }, res?.message),
+                                                                        });
                                                                     }
                                                                 } catch (err: any) {
-                                                                    alert(err?.message || "An error occurred.");
+                                                                    setErrorModal({
+                                                                        open: true,
+                                                                        title: "Update Failed",
+                                                                        message: parseFrappeError(err),
+                                                                    });
                                                                 } finally {
                                                                     setIsSavingChairperson(false);
                                                                 }
@@ -4872,7 +4971,7 @@ const PendingTaskDetails: React.FC = () => {
                     onClose={() => setPrPreviewName(null)}
                 />
             )}
-            
+
             <P11PrintModal
                 isOpen={isTaPrintOpen}
                 onClose={() => setIsTaPrintOpen(false)}
@@ -4890,12 +4989,19 @@ const PendingTaskDetails: React.FC = () => {
                 }
                 docName={data?.name || name || ""}
             />
-            
+
             <div style={{ display: "none" }} ref={activityLogContainerRef}>
                 {doctype === 'Temporary Advance' && name && (
                     <ActivityLog doctype={doctype} docname={name} />
                 )}
             </div>
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

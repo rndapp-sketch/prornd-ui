@@ -1,10 +1,22 @@
-import { ArrowLeft, FileText, Building2, Printer } from "lucide-react";
+import { ArrowLeft, FileText, Building2, Printer, Pencil, Save, X, Calculator } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { GlobalLoader } from "@/components/ui/global-loader";
 // import { AppSidebar } from "@/components/RndSidebar";
-import { DepositSlipDocument } from "@/components/DepositSlipDocument";
+import { DepositSlipDocument, computeENonRoutine, computeDConsultancy } from "@/components/DepositSlipDocument";
+import { useUserRoleChecks } from "@/components/UserRoleCheck";
+import { BudgetHeadName } from "@/components/BudgetHeadName";
+
+// Server-side method that persists field edits for each deposit slip doctype
+const UPDATE_METHOD_BY_DOCTYPE: Record<string, string> = {
+    "Research Deposit Slip": "rndopsapp.rndopsapp.doctype.research_deposit_slip.research_deposit_slip.update_research_deposit_slip_fields",
+    "T Testing Deposit Slip": "rndopsapp.rndopsapp.doctype.t_testing_deposit_slip.t_testing_deposit_slip.update_t_testing_deposit_slip_fields",
+    "D Consultancy Deposit Slip": "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.update_d_consultancy_deposit_slip_fields",
+    "Other Event Deposit Slip": "rndopsapp.rndopsapp.doctype.other_event_deposit_slip.other_event_deposit_slip.update_other_event_deposit_slip_fields",
+    "E Non Routine Deposit Slip": "rndopsapp.rndopsapp.doctype.e_non_routine_deposit_slip.e_non_routine_deposit_slip.update_e_non_routine_deposit_slip_fields",
+    "Research Consultancy Deposit Slip": "rndopsapp.rndopsapp.doctype.research_consultancy_deposit_slip.research_consultancy_deposit_slip.update_research_consultancy_deposit_slip_fields",
+};
 
 const FrappeCard = ({
     title,
@@ -36,6 +48,55 @@ const FrappeCard = ({
         )}
         <div className="p-6">{children}</div>
     </div>
+);
+
+type FormulaStepKind = "input" | "derived";
+interface FormulaStepData {
+    ref?: string;
+    title: string;
+    formula?: string;
+    note?: string;
+    kind: FormulaStepKind;
+}
+
+const FormulaStep = ({ index, step }: { index: number; step: FormulaStepData }) => (
+    <li className="flex gap-3">
+        <div
+            className={cn(
+                "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
+                step.kind === "input"
+                    ? "bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300"
+                    : "bg-[#D97757]/15 text-[#D97757]",
+            )}
+        >
+            {step.ref ?? index}
+        </div>
+        <div className="flex-1 min-w-0 pb-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0 last:pb-0">
+            <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    {step.title}
+                </span>
+                <span
+                    className={cn(
+                        "px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide",
+                        step.kind === "input"
+                            ? "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                            : "bg-[#D97757]/10 text-[#D97757]",
+                    )}
+                >
+                    {step.kind === "input" ? "Input" : "Formula"}
+                </span>
+            </div>
+            {step.formula && (
+                <code className="mt-1 block text-xs font-mono text-zinc-600 dark:text-zinc-400 break-words">
+                    {step.formula}
+                </code>
+            )}
+            {step.note && !step.formula && (
+                <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{step.note}</p>
+            )}
+        </div>
+    </li>
 );
 
 const DetailRow = ({
@@ -82,11 +143,6 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
         window.print();
     };
 
-    // State for resolved budget head names
-    const [resolvedHeadNames, setResolvedHeadNames] = useState<
-        Record<string, string>
-    >({});
-
     // State for deposit slip
     const [depositSlip, setDepositSlip] = useState<any>(null);
     const [depositSlipDoctype, setDepositSlipDoctype] = useState<string>("");
@@ -108,6 +164,161 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
     const [fundError, setFundError] = useState<any>(null);
     const [prjregProjectNo, setPrjregProjectNo] = useState<string>("");
 
+    const { isRndStaff } = useUserRoleChecks();
+
+    // Edit mode for the deposit slip print format
+    const [isEditingSlip, setIsEditingSlip] = useState(false);
+    const [editedFields, setEditedFields] = useState<Record<string, string>>({});
+    const [saveError, setSaveError] = useState<string | null>(null);
+    const [savingSlip, setSavingSlip] = useState(false);
+
+    const handleFieldChange = (field: string, value: string) => {
+        setEditedFields((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const handleCancelEdit = () => {
+        setEditedFields({});
+        setSaveError(null);
+        setIsEditingSlip(false);
+    };
+
+    // Note: intentionally a raw fetch (not useFrappePostCall) — that hook memoizes its
+    // `call` fn with an empty dep array, so it freezes whichever method URL was passed on
+    // the FIRST render. Here the method must vary with depositSlipDoctype, which is only
+    // known after the async doctype-detection effect resolves, so the SDK hook would keep
+    // posting to a stale/wrong method forever.
+    // Fields that feed the E Non Routine GST/overhead formula (see computeENonRoutine) —
+    // if any of these were edited, the derived fields must be recomputed and saved alongside
+    // them, otherwise the persisted doc drifts from what the print view just showed.
+    const ENR_DRIVER_FIELDS = ["amount_inclusive_of_gst", "income_tax_tds", "gst_tds_2", "cgst_9", "sgst_9", "igst_18", "overhead_multiplier"];
+
+    // Fields that feed the D Consultancy GST/overhead formula (see computeDConsultancy) — if any
+    // of these were edited, the derived fields must be recomputed and saved alongside them.
+    // cgst_9/sgst_9/igst_18_on_consultancy must be included: editing IGST alone (e.g. reverting
+    // it back to 0) previously skipped this whole block, so total_gst/total_amount never got
+    // included in that save's payload and were left stale in the doc.
+    const DC_DRIVER_FIELDS = ["amount_inclusive_of_gst", "consultancy_charge_y", "operational_charge_z", "idf_percentage", "cgst_9", "sgst_9", "igst_18_on_consultancy"];
+
+    const handleSaveSlip = async () => {
+        const updateMethod = UPDATE_METHOD_BY_DOCTYPE[depositSlipDoctype];
+        if (!depositSlip?.name || !updateMethod) return;
+        if (Object.keys(editedFields).length === 0) {
+            setIsEditingSlip(false);
+            return;
+        }
+        setSaveError(null);
+        setSavingSlip(true);
+        try {
+            const changes: Record<string, unknown> = { ...editedFields };
+            const childTableChanges: Array<{ fieldname: string; updated: { name: string; changes: Record<string, unknown> }[] }> = [];
+
+            if (
+                depositSlipDoctype === "E Non Routine Deposit Slip" &&
+                ENR_DRIVER_FIELDS.some((f) => f in editedFields)
+            ) {
+                const merged = { ...depositSlip, ...editedFields };
+                const enr = computeENonRoutine(merged);
+                changes.consultancy_fee_x = enr.consultancyFeeX;
+                changes.overhead_amount = enr.overheadAmount;
+                changes.balance_in_project = enr.balanceInProject;
+
+                const rows: any[] = Array.isArray(merged.credit_distribution) ? merged.credit_distribution : [];
+                if (rows.length > 0) {
+                    const creditSum = rows.reduce(
+                        (s: number, r: any) => s + enr.overheadAmount * ((r.percentage_of_overhead || r.percentage || 0) / 100),
+                        0,
+                    );
+                    changes.total_budget = creditSum + enr.gstComponent + enr.balanceInProject;
+                    childTableChanges.push({
+                        fieldname: "credit_distribution",
+                        updated: rows
+                            .filter((r) => r.name)
+                            .map((r) => ({
+                                name: r.name,
+                                changes: { amount: enr.overheadAmount * ((r.percentage_of_overhead || r.percentage || 0) / 100) },
+                            })),
+                    });
+                }
+            }
+
+            if (
+                depositSlipDoctype === "D Consultancy Deposit Slip" &&
+                DC_DRIVER_FIELDS.some((f) => f in editedFields)
+            ) {
+                const merged = { ...depositSlip, ...editedFields };
+                const dc = computeDConsultancy(merged);
+                // dc.igstAmount is the untouched 18% formula (drives Total Cost X); the row can be
+                // overridden independently (e.g. set to 0), so persist dc.igstDisplay — what the
+                // print view actually shows — not the formula value, or a manual override gets
+                // silently clobbered back on the very next save.
+                changes.igst_18_on_consultancy = dc.igstDisplay;
+                changes.amount_after_gst_tds = dc.amountAfterTds;
+                changes.total_cost_x = dc.totalCostX;
+                changes.consultancy_charge_y = dc.chargeY;
+                changes.operational_charge_z = dc.chargeZ;
+                changes.overhead_from_y_amount = dc.overheadFromY;
+                changes.overhead_from_z_amount = dc.overheadFromZ;
+                changes.total_overhead_amount = dc.totalOverhead;
+                changes.institute_share_amount = dc.instituteShare;
+                changes.total_overhead_institute_share = dc.totalOverheadAndShare;
+                changes.idf_percentage = dc.idfPercentage;
+                changes.idf_amount = dc.idfAmount;
+                changes.staff_welfare_amount = dc.staffWelfareAmount;
+                changes.student_welfare_amount = dc.studentWelfareAmount;
+                changes.balance_consultancy_fee = dc.balanceConsultancyFee;
+                changes.balance_operation_charge = dc.balanceOperationCharge;
+                changes.total_gst = dc.totalGst;
+                changes.total_amount = dc.totalAmount;
+
+                const dpfRows: any[] = Array.isArray(merged.dpf_credit_distributions) ? merged.dpf_credit_distributions : [];
+                if (dpfRows.length > 0) {
+                    const dpfSumPct = dpfRows.reduce((s: number, r: any) => s + (parseFloat(r.dpf_percentage) || parseFloat(r.percentage) || 0), 0);
+                    childTableChanges.push({
+                        fieldname: "dpf_credit_distributions",
+                        updated: dpfRows
+                            .filter((r) => r.name)
+                            .map((r) => {
+                                const pct = parseFloat(r.dpf_percentage) || parseFloat(r.percentage) || 0;
+                                const amount = dpfSumPct > 0 ? dc.dpfAmount * (pct / dpfSumPct) : dc.dpfAmount / dpfRows.length;
+                                return { name: r.name, changes: { dpf_amount: amount } };
+                            }),
+                    });
+                }
+            }
+
+            const csrfToken = (window as any).csrf_token || "";
+            const res = await fetch(`/api/method/${updateMethod}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Frappe-CSRF-Token": csrfToken,
+                },
+                credentials: "include",
+                body: JSON.stringify({
+                    docname: depositSlip.name,
+                    changes,
+                    child_table_changes: childTableChanges,
+                }),
+            });
+            const json = await res.json();
+            if (!res.ok) {
+                setSaveError(json?.message?.message || json?.exception || `Failed to save (${res.status})`);
+                return;
+            }
+            if (json?.message?.status === "error") {
+                setSaveError(json.message.message || "Failed to save changes");
+                return;
+            }
+            setDepositSlip((prev: any) => ({ ...prev, ...changes }));
+            setEditedFields({});
+            setIsEditingSlip(false);
+        } catch (err: any) {
+            setSaveError(err?.message || "Failed to save changes");
+        } finally {
+            setSavingSlip(false);
+        }
+    };
+
     // Replace useFrappeGetDoc with manual fetch for better control and debugging
     useEffect(() => {
         const fetchFundReceived = async () => {
@@ -127,24 +338,17 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                 }
 
                 const result = await response.json();
-                console.log("[HoSApprovalView] Fetched fund data:", result.data);
 
                 if (result.data) {
                     setFundReceived(result.data);
 
                     // Log breakup specifically
                     if (result.data.received_amt_breakup) {
-                        console.log(
-                            "[HoSApprovalView] Breakup rows:",
-                            result.data.received_amt_breakup,
-                        );
                         result.data.received_amt_breakup.forEach((row: any, i: number) => {
-                            console.log(`[HoSApprovalView] Row ${i} remarks:`, row.remarks);
                         });
                     }
                 }
             } catch (err: any) {
-                console.error("Error fetching fund received:", err);
                 setFundError(err);
             } finally {
                 setFundLoading(false);
@@ -184,9 +388,10 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
             const csrfToken = (window as any).csrf_token || "";
             const refCandidates = [...new Set([fundReceivedName, fundReceived?.fund_received_ref_number].filter(Boolean))];
 
-            for (const doctype of depositSlipDoctypes) {
+            // Tries one filter against one doctype; on a hit, fetches the full doc,
+            // sets state, and returns true so the caller can stop searching.
+            const tryMatch = async (doctype: string, filters: any[]) => {
                 try {
-                    // POST to frappe.client.get_list — same approach used in FundReceivedDetails (staff view)
                     const res = await fetch("/api/method/frappe.client.get_list", {
                         method: "POST",
                         headers: {
@@ -196,7 +401,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                         credentials: "include",
                         body: JSON.stringify({
                             doctype,
-                            filters: [["fund_received_ref", "in", refCandidates]],
+                            filters,
                             fields: ["name"],
                             limit_page_length: 1,
                             order_by: "creation desc",
@@ -204,8 +409,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                     });
 
                     if (!res.ok) {
-                        console.log(`Skipping ${doctype}: ${res.status}`);
-                        continue;
+                        return false;
                     }
 
                     const json = await res.json();
@@ -228,11 +432,31 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                                 setDepositSlipDoctype(doctype);
                                 setSlipLoading(false);
                             }
-                            return;
+                            return true;
                         }
                     }
                 } catch (err) {
-                    console.log(`Skipping ${doctype} due to error:`, err);
+                }
+                return false;
+            };
+
+            // Pass 1: exact match against both candidates (Fund Received docname and
+            // fund_received_ref_number).
+            for (const doctype of depositSlipDoctypes) {
+                if (await tryMatch(doctype, [["fund_received_ref", "in", refCandidates]])) return;
+            }
+
+            // Pass 2: trimmed-exact fallback. `fund_received_ref` is a plain Data field
+            // that's sometimes hand-entered, so stray leading/trailing whitespace can
+            // make an exact match miss a real link — retry with each candidate trimmed.
+            // Deliberately NOT a substring/wildcard match: that previously caused false
+            // positives, linking documents whose fund_received_ref merely contained the
+            // candidate as a substring rather than equaling it.
+            const trimmedCandidates = [...new Set(refCandidates.map((c) => String(c).trim()).filter(Boolean))]
+                .filter((c) => !refCandidates.includes(c));
+            if (trimmedCandidates.length > 0) {
+                for (const doctype of depositSlipDoctypes) {
+                    if (await tryMatch(doctype, [["fund_received_ref", "in", trimmedCandidates]])) return;
                 }
             }
 
@@ -247,42 +471,9 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
         return () => { cancelled = true; };
     }, [fundReceivedName, fundReceived?.fund_received_ref_number]);
 
-    // Resolve budget head names from account_head IDs (numeric id field)
-    useEffect(() => {
-        const resolveBudgetHeadNames = async () => {
-            if (!fundReceived?.received_amt_breakup) return;
-            try {
-                const response = await fetch(
-                    '/api/resource/Budget%20Head?fields=["budget_head","id"]&limit_page_length=0',
-                    { credentials: "include" },
-                );
-                if (!response.ok) return;
-                const json = await response.json();
-                const nameMap: Record<string, string> = {};
-                for (const bh of json.data || []) {
-                    if (bh.id != null) nameMap[String(bh.id)] = bh.budget_head;
-                    if (bh.name) nameMap[bh.name] = bh.budget_head;
-                }
-                setResolvedHeadNames(nameMap);
-            } catch (err) {
-                console.error("Failed to resolve budget head names", err);
-            }
-        };
-        resolveBudgetHeadNames();
-    }, [fundReceived]);
-
     // Debug: Log the received data to check if remarks field exists
     useEffect(() => {
         if (fundReceived?.received_amt_breakup) {
-            console.log("[HoSApprovalView] fundReceived data:", fundReceived);
-            console.log(
-                "[HoSApprovalView] received_amt_breakup:",
-                fundReceived.received_amt_breakup,
-            );
-            console.log(
-                "[HoSApprovalView] First row remarks:",
-                fundReceived.received_amt_breakup[0]?.remarks,
-            );
         }
     }, [fundReceived]);
 
@@ -343,6 +534,32 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
             </div>
         );
     }
+
+    // Detect deposit type from the actual doctype that was found
+    const depositType = (() => {
+        switch (depositSlipDoctype) {
+            case "D Consultancy Deposit Slip":
+                return "consultancy_d";
+            case "E Non Routine Deposit Slip":
+                return "consultancy_e";
+            case "T Testing Deposit Slip":
+                return "consultancy_t";
+            case "Other Event Deposit Slip":
+                return "other_event";
+            case "Research Consultancy Deposit Slip":
+                return "consultancy_research";
+            case "Research Deposit Slip":
+                return "research_rnd";
+            default:
+                return "research_rnd";
+        }
+    })();
+
+    const mergedDepositSlip = {
+        ...depositSlip,
+        ...editedFields,
+        project_no: depositSlip.project_no || prjregProjectNo || depositSlip.project_registration,
+    };
 
     return (
         <div className="space-y-6">
@@ -458,44 +675,66 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                         <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
                             {depositSlip.name}
                         </span>
-                        <button
-                            type="button"
-                            onClick={handlePrintDepositSlip}
-                            className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#D97757] px-3 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm transition-all hover:opacity-90"
-                        >
-                            <Printer className="h-3.5 w-3.5" />
-                            Print
-                        </button>
+                        <div className="ml-auto flex items-center gap-2">
+                            {isEditingSlip ? (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={handleCancelEdit}
+                                        disabled={savingSlip}
+                                        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 text-[11px] font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-300 shadow-sm transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50"
+                                    >
+                                        <X className="h-3.5 w-3.5" />
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleSaveSlip}
+                                        disabled={savingSlip}
+                                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#D97757] px-3 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm transition-all hover:opacity-90 disabled:opacity-50"
+                                    >
+                                        <Save className="h-3.5 w-3.5" />
+                                        {savingSlip ? "Saving..." : "Save"}
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    {isRndStaff && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsEditingSlip(true)}
+                                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 text-[11px] font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-300 shadow-sm transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                                        >
+                                            <Pencil className="h-3.5 w-3.5" />
+                                            Edit
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={handlePrintDepositSlip}
+                                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#D97757] px-3 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm transition-all hover:opacity-90"
+                                    >
+                                        <Printer className="h-3.5 w-3.5" />
+                                        Print
+                                    </button>
+                                </>
+                            )}
+                        </div>
                     </div>
+
+                    {saveError && (
+                        <div className="deposit-slip-print-hidden px-6 py-2 text-xs font-semibold text-red-600 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-900">
+                            {saveError}
+                        </div>
+                    )}
 
                     {/* Deposit Slip Document */}
                     <div className="deposit-slip-print-area">
                         <DepositSlipDocument
-                            depositSlip={{
-                                ...depositSlip,
-                                project_no: depositSlip.project_no
-                                    || prjregProjectNo
-                                    || depositSlip.project_registration,
-                            }}
-                            type={(() => {
-                                // Detect deposit type from the actual doctype that was found
-                                switch (depositSlipDoctype) {
-                                    case "D Consultancy Deposit Slip":
-                                        return "consultancy_d";
-                                    case "E Non Routine Deposit Slip":
-                                        return "consultancy_e";
-                                    case "T Testing Deposit Slip":
-                                        return "consultancy_t";
-                                    case "Other Event Deposit Slip":
-                                        return "other_event";
-                                    case "Research Consultancy Deposit Slip":
-                                        return "consultancy_research";
-                                    case "Research Deposit Slip":
-                                        return "research_rnd";
-                                    default:
-                                        return "research_rnd";
-                                }
-                            })()}
+                            editable={isEditingSlip}
+                            onFieldChange={handleFieldChange}
+                            depositSlip={mergedDepositSlip}
+                            type={depositType}
                         />
                     </div>
                 </div>
@@ -563,9 +802,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                                                     (row: any, i: number) => (
                                                         <tr key={i}>
                                                             <td className="border p-2">
-                                                                {resolvedHeadNames[row.account_head] ||
-                                                                    row.budget_head ||
-                                                                    row.account_head}
+                                                                <BudgetHeadName value={row.account_head || row.budget_head} />
                                                             </td>
                                                             <td className="border p-2 text-right">
                                                                 {(row.amount_received || 0).toLocaleString(
@@ -623,6 +860,54 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                                     </div>
                                 )}
                         </div>
+                    </FrappeCard>
+
+                    {/* Formula Reference — explains how the derived rows above are computed, not a live recalculation */}
+                    <FrappeCard
+                        title="How These Numbers Are Calculated"
+                        icon={<Calculator className="h-4 w-4 text-[#D97757]" />}
+                    >
+                        {(() => {
+                            const steps: FormulaStepData[] = [];
+
+                            if (depositType === "consultancy_e") {
+                                steps.push(
+                                    { ref: "09", title: "Amount Inclusive of GST towards Capital Component", note: "Entered directly — base amount received", kind: "input" },
+                                    { ref: "10", title: "Income Tax TDS", note: "Entered directly — deducted at source", kind: "input" },
+                                    { ref: "11", title: "GST TDS", note: "Entered directly — deducted at source", kind: "input" },
+                                    { title: "Amount Actually Received", formula: "(09) Amount Incl. GST − (10) Income Tax TDS − (11) GST TDS", kind: "derived" },
+                                    { title: "Consultancy Fee X", formula: "Amount Actually Received − IGST (or − CGST − SGST if no IGST)", kind: "derived" },
+                                    { title: "Overhead Amount", formula: "Overhead Multiplier × Consultancy Fee X", kind: "derived" },
+                                    { title: "Balance In Project", formula: "Consultancy Fee X − Overhead Amount", kind: "derived" },
+                                    { title: "Total", formula: "Σ(Credit Distribution) + GST (IGST or CGST+SGST) + Balance In Project", kind: "derived" },
+                                );
+                            } else if (depositType === "consultancy_d") {
+                                steps.push(
+                                    { title: "Total Cost X", formula: "Amount Incl. GST − GST deducted", kind: "derived" },
+                                    { title: "Total Overhead", formula: "0.1 × Consultancy Charge (Y) + 0.1 × Operational Charge (Z)", kind: "derived" },
+                                    { title: "Institute Share", formula: "0.2 × Consultancy Charge (Y)", kind: "derived" },
+                                    { title: "Overhead + Institute Share", formula: "Total Overhead + Institute Share", kind: "derived" },
+                                );
+                            } else if (depositType === "consultancy_t") {
+                                steps.push(
+                                    { title: "Overhead Amount", formula: "Overhead Multiplier (0.7) × Consultancy Fee X", kind: "derived" },
+                                );
+                            } else if (depositType === "research_rnd" || depositType === "consultancy_research") {
+                                steps.push(
+                                    { title: "Overhead Amount", formula: "15% of Amount Inclusive of GST", kind: "derived" },
+                                );
+                            }
+
+                            steps.push({ title: "Each Credit Distribution row", formula: "row % share × Overhead Amount", kind: "derived" });
+
+                            return (
+                                <ol className="space-y-3">
+                                    {steps.map((step, i) => (
+                                        <FormulaStep key={i} index={i + 1} step={step} />
+                                    ))}
+                                </ol>
+                            );
+                        })()}
                     </FrappeCard>
                 </div>
             </div>

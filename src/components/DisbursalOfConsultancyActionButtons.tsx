@@ -85,7 +85,6 @@ const DisbursalOfConsultancyActionButtons = ({
       setModalOpen(false);
       onActionComplete();
     } catch (error) {
-      console.error("Error performing action:", error);
     }
   };
 

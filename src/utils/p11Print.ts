@@ -2,6 +2,11 @@
 
 import p11Template from "@/pages/printformat/p_11_format.html?raw";
 
+// The .html?raw template is static text pulled in at build time, so it can't
+// reference import.meta.env itself; substitute the asset host here instead.
+const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.117.39";
+const ASSET_PORT = import.meta.env.VITE_ASSET_PORT || "8000";
+
 const fmtNum = (val: any) => {
   const n = Number(val) || 0;
   return n.toLocaleString("en-IN", {
@@ -12,16 +17,10 @@ const fmtNum = (val: any) => {
 
 export function generateP11Html(formData: Record<string, any>): string {
   // ── DEBUG: log all array-valued keys so we can find the right child table name ──
-  console.group("[p11Print] formData array keys:");
   for (const key in formData) {
     if (Array.isArray(formData[key])) {
-      console.log(
-        `  ${key} (${formData[key].length} rows):`,
-        formData[key][0] ?? "(empty)",
-      );
     }
   }
-  console.groupEnd();
 
   // ── Item rows (table_hsrb) ────────────────────────────────────────────────
   const rows: any[] = Array.isArray(formData.table_hsrb)
@@ -44,17 +43,12 @@ export function generateP11Html(formData: Record<string, any>): string {
       if (Array.isArray(val) && val.length > 0) {
         const first = val[0];
         if ("pc_name" in first || "webmail_id" in first) {
-          console.log(`[p11Print] Found PC members in field: "${key}"`, val);
           pcMembers = val;
           break;
         }
       }
     }
     if (pcMembers.length === 0) {
-      console.warn(
-        "[p11Print] table_teqd not found. Keys available:",
-        Object.keys(formData),
-      );
     }
   }
 
@@ -193,6 +187,7 @@ export function generateP11Html(formData: Record<string, any>): string {
 
   // ── Assemble final HTML ───────────────────────────────────────────────────
   return p11Template
+    .replace(/http:\/\/172\.16\.117\.39:8000/g, `http://${ASSET_HOST}:${ASSET_PORT}`)
     .replace("{{DOC_REF}}", formData.name || "")
     .replace("{{WORKFLOW_STATE}}", formData.workflow_state || "Draft")
     .replace("{{DIRECT_PURCHASE_REF}}", formData.app_id || "")

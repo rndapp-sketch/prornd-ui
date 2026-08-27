@@ -19,6 +19,8 @@ import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButto
 import { ActivityLog } from '@/components/ActivityLog';
 import { P11PrintModal } from '@/components/P11PrintModal';
 import { generateLoanRequestHtml } from '@/utils/loanRequestPrint';
+import { ErrorModal } from '../../components/ErrorModal';
+import { parseFrappeError } from '../../utils/errorUtils';
 
 // --- FIELD GROUP DEFINITIONS (same as form) ---
 const GROUP_A_FIELDS = new Set([
@@ -224,6 +226,7 @@ const LoanRequestDetails: React.FC = () => {
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
     const [printHtml, setPrintHtml] = useState('');
     const [bmrValues, setBmrValues] = useState({ bmr: '', bmr_date: '' });
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser || null);
@@ -281,12 +284,10 @@ const LoanRequestDetails: React.FC = () => {
                     const doc = await fetchDocument({ doctype: 'Loan Request', name: id });
                     if (doc?.message) setFormData(doc.message);
                 } catch (err) {
-                    console.error('Error fetching document:', err);
                 }
                 setLoading(false);
             }
             if (formDataError) {
-                console.error('Failed to load form data:', formDataError);
                 setLoading(false);
             }
         };
@@ -352,7 +353,7 @@ const LoanRequestDetails: React.FC = () => {
                 throw new Error(submitRes?.message?.message || 'Submission failed');
             }
         } catch (err: any) {
-            alert(`Submission failed: ${err.message || 'Unknown error'}`);
+            setErrorModal({ open: true, title: 'Submission Failed', message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -629,6 +630,13 @@ const LoanRequestDetails: React.FC = () => {
                 htmlContent={printHtml}
                 docName={id || ''}
                 title="Loan Request Print Preview"
+            />
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
             />
         </div>
     );

@@ -6,6 +6,8 @@ import {
     useFrappeAuth,
 } from "frappe-react-sdk";
 import { AppSidebar } from "../components/RndSidebar";
+import { ErrorModal } from "../components/ErrorModal";
+import { parseFrappeError } from "../utils/errorUtils";
 import {
     ArrowLeftIcon,
     FileTextIcon,
@@ -193,6 +195,11 @@ const ProjectProposalDetails: React.FC = () => {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState("overview");
     const { currentUser } = useFrappeAuth();
+    const [errorModal, setErrorModal] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+    }>({ open: false, title: "Submission Failed", message: "" });
 
     const {
         data,
@@ -204,6 +211,7 @@ const ProjectProposalDetails: React.FC = () => {
     const {
         call: submitForm,
         loading: isSubmitting,
+        error: submitError,
     } = useFrappePostCall(
         "rndopsapp.rndopsapp.doctype.project_proposal.project_proposal.submit_project_proposal"
     );
@@ -218,10 +226,13 @@ const ProjectProposalDetails: React.FC = () => {
             mutate(); // Refresh data to reflect new status
             alert("Project Proposal Submitted Successfully!");
         } catch (err: any) {
-            console.error("Submission error:", err);
-            alert(`Submission failed: ${err.message}`);
+            setErrorModal({
+                open: true,
+                title: "Submission Failed",
+                message: parseFrappeError(submitError, err),
+            });
         }
-    }, [data, submitForm, mutate]);
+    }, [data, submitForm, mutate, submitError]);
 
     const tabs = [
         { id: "overview", label: "Overview", icon: FileTextIcon },
@@ -677,6 +688,15 @@ const ProjectProposalDetails: React.FC = () => {
                     </div>
                 </div>
             </main>
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() =>
+                    setErrorModal((prev) => ({ ...prev, open: false }))
+                }
+            />
         </div>
     );
 };

@@ -12,6 +12,8 @@ import { BudgetHeadName } from "@/components/BudgetHeadName";
 import { AutocompleteEmail } from "@/components/AutocompleteEmail";
 import { getFileUrl } from "@/utils/fileUtils";
 import { CountrySelect } from "@/components/CountrySelect";
+import { getFieldMaxLength, getWarnableMaxLength, INT_MAX_LENGTH, CURRENCY_MAX_LENGTH } from "@/utils/fieldLimits";
+import { CharLimitAlert } from "@/components/CharLimitAlert";
 
 // --- TYPE DEFINITIONS ---
 export interface FormField {
@@ -76,6 +78,8 @@ export interface DynamicFormRendererProps {
   autocompleteFields?: string[];
   /** Per-field async search functions — when provided for a field, enables real-time backend search */
   asyncSearchFields?: Record<string, (query: string) => Promise<LinkOption[]>>;
+  /** Per-field async search functions for child table columns — keyed by fieldname */
+  asyncSearchFnsForTables?: Record<string, (query: string) => Promise<LinkOption[]>>;
   /** Field-level validation messages to display below specific fields */
   fieldMessages?: Record<string, FieldMessage>;
   /** Hide section-break headers when this renderer is embedded inside an already titled card */
@@ -164,6 +168,7 @@ const MemoizedFormField = memo(
   ({
     field,
     value,
+    formData,
     options,
     isMandatory,
     isReadOnly,
@@ -175,6 +180,7 @@ const MemoizedFormField = memo(
   }: {
     field: FormField;
     value: any;
+    formData?: Record<string, any>;
     options?: LinkOption[];
     isMandatory: boolean;
     isReadOnly: boolean;
@@ -208,6 +214,10 @@ const MemoizedFormField = memo(
       readOnly: isReadOnly,
       required: isMandatory,
       disabled: isReadOnly,
+      // Enforces the underlying Frappe column's character limit on manual
+      // (non-prefilled) typing only — read-only fields render as plain text
+      // elsewhere and never reach this input.
+      maxLength: getFieldMaxLength(field.fieldtype),
       // Use ?? so numeric 0 is preserved (0 || "" would wrongly render as empty)
       value: value ?? "",
       onChange: (
@@ -235,7 +245,7 @@ const MemoizedFormField = memo(
                   field.fieldname === "implementation_department" ||
                   field.fieldname === "applicant_department" ||
                   field.fieldname === "igf_department_centre_section") &&
-                value ? (
+                  value ? (
                   <DepartmentName name={value} />
                 ) : (field.fieldname === "account_head" || field.fieldname === "igf_account_head") && value ? (
                   <BudgetHeadName id={value} />
@@ -356,7 +366,7 @@ const MemoizedFormField = memo(
                   field.fieldname === "ps_department" ||
                   field.fieldname === "implementation_department" ||
                   field.fieldname === "applicant_department") &&
-                value ? (
+                  value ? (
                   <>
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-sm text-zinc-900 dark:text-zinc-100 truncate max-w-[calc(100%-2.5rem)] pointer-events-none z-20">
                       <DepartmentName name={value} />
@@ -428,6 +438,7 @@ const MemoizedFormField = memo(
               inputMode="numeric"
               title="Enter a positive whole number"
               {...commonProps}
+              maxLength={INT_MAX_LENGTH}
               value={String(value ?? "")}
               onChange={(e) => {
                 const val = e.target.value;
@@ -470,6 +481,7 @@ const MemoizedFormField = memo(
               inputMode="decimal"
               title="Enter a positive amount in ₹"
               {...commonProps}
+              maxLength={CURRENCY_MAX_LENGTH}
               value={String(value ?? "")}
               onChange={(e) => {
                 const val = e.target.value;
@@ -704,8 +716,8 @@ const MemoizedFormField = memo(
                   </label>
                 );
               })}
-          </div>
-        );
+            </div>
+          );
 
         case "Data":
         default:
@@ -845,10 +857,50 @@ const MemoizedFormField = memo(
       return <div className="col-span-full">{renderInput()}</div>;
     }
 
+    if (field.fieldname === "whatsapp_number_u_r") {
+      const isSameAsMobile = formData?.same_as_mobile_number_u_r === 1 || formData?.same_as_mobile_number_u_r === true;
+      return (
+        <div className="min-w-0 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <FieldLabel field={field} isMandatory={isMandatory} />
+            {!isReadOnly && (
+              <label className="inline-flex items-center gap-1.5 cursor-pointer select-none text-[11px] font-semibold text-[#4A6CF7] hover:text-[#2563EB] dark:text-[#60A5FA] bg-[#4A6CF7]/5 dark:bg-[#4A6CF7]/10 px-2 py-0.5 rounded border border-[#4A6CF7]/20">
+                <input
+                  type="checkbox"
+                  checked={isSameAsMobile}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    onChange("same_as_mobile_number_u_r", checked ? 1 : 0);
+                    if (checked) {
+                      onChange("whatsapp_number_u_r", formData?.mobile_number_u_r || "");
+                    }
+                  }}
+                  className="h-3.5 w-3.5 rounded border-[#D4D4D8] text-[#4A6CF7] focus:ring-[#4A6CF7]"
+                />
+                <span>Same as Mobile Number</span>
+              </label>
+            )}
+          </div>
+          {renderInput()}
+          {!isReadOnly && (
+            <CharLimitAlert value={value} maxLength={getWarnableMaxLength(field.fieldtype)} />
+          )}
+          {field.description && (
+            <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-1 leading-relaxed">
+              {field.description}
+            </p>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className="min-w-0 space-y-2">
         <FieldLabel field={field} isMandatory={isMandatory} />
         {renderInput()}
+        {!isReadOnly && (
+          <CharLimitAlert value={value} maxLength={getWarnableMaxLength(field.fieldtype)} />
+        )}
         {field.description && (
           <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-1 leading-relaxed">
             {field.description}
@@ -911,6 +963,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   readOnly = false,
   autocompleteFields,
   asyncSearchFields,
+  asyncSearchFnsForTables,
   fieldMessages,
   hideSectionHeaders = false,
   hideTableLabels = false,
@@ -1024,6 +1077,12 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
 
     // Handle Table fields
     if (field.fieldtype === "Table" && field.child_fields) {
+      // Forward optional child-table configuration props that may have been
+      // set on the field object by form-specific setup code (e.g.
+      // UniversalRegistrationForm). All of these are optional and default to
+      // falsy in ChildTableComponent, so forms that don't set them are
+      // completely unaffected.
+      const tableField = field as any;
       return (
         <div key={field.fieldname} className="col-span-full">
           <ChildTableComponent
@@ -1038,6 +1097,14 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
             readOnly={fieldIsReadOnly}
             linkOptions={linkOptions}
             onLinkChange={onTableLinkChange}
+            asyncSearchFns={asyncSearchFnsForTables}
+            maxRows={tableField.maxRows}
+            autoAddFirstRow={tableField.autoAddFirstRow}
+            disableDelete={tableField.disableDelete}
+            hideRowIndex={tableField.hideRowIndex}
+            rowLabelOverride={tableField.rowLabelOverride}
+            defaultRows={tableField.defaultRows}
+            mandatory={!!field.mandatory}
           />
         </div>
       );
@@ -1053,6 +1120,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         <MemoizedFormField
           field={field}
           value={formData[field.fieldname]}
+          formData={formData}
           options={(() => {
             const byDoctype = linkOptions[field.options as string] || [];
             const byFieldname = linkOptions[field.fieldname] || [];

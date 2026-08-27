@@ -15,6 +15,8 @@ import { generateDisbursalOfConsultancyHtml } from '@/utils/disbursalOfConsultan
 import { ActivityLog } from '@/components/ActivityLog';
 import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButton';
 import { getFileUrl } from '@/utils/fileUtils';
+import { ErrorModal } from '../../components/ErrorModal';
+import { parseFrappeError } from '../../utils/errorUtils';
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -56,7 +58,89 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
     </button>
 );
 
+// --- FILE UPLOAD HELPER ---
+const uploadFileToFrappe = async (file: File): Promise<string> => {
+    const fd = new FormData();
+    fd.append("file", file, file.name);
+    fd.append("is_private", "0");
+    const response = await fetch("/api/method/upload_file", {
+        method: "POST",
+        body: fd,
+        headers: {
+            "X-Frappe-CSRF-Token": (window as any).csrf_token || "",
+        },
+        credentials: "include",
+    });
+    const text = await response.text();
+    if (!response.ok) {
+        throw new Error(`File upload failed (${response.status}): ${text.slice(0, 200)}`);
+    }
+    const json = JSON.parse(text);
+    const fileUrl = json?.message?.file_url;
+    if (!fileUrl) {
+        throw new Error("File upload did not return a valid file_url");
+    }
+    return fileUrl;
+};
 
+/**
+ * Sends a POST to save_disbursal_of_consultancy_data(data).
+ *
+ * Any File object is uploaded to Frappe's /api/method/upload_file first,
+ * and the resulting file URL (/files/...) is placed into `data` for MinIO migration.
+ */
+const callSaveApi = async (endpoint: string, formData: Record<string, any>): Promise<any> => {
+    const data: Record<string, any> = {};
+
+    for (const key in formData) {
+        const value = formData[key];
+
+        if (value instanceof File) {
+            const fileUrl = await uploadFileToFrappe(value);
+            data[key] = fileUrl;
+        } else if (Array.isArray(value)) {
+            data[key] = await Promise.all(
+                value.map(async (row: any) => {
+                    const cleanRow: Record<string, any> = {};
+                    for (const rowKey in row) {
+                        const rowVal = row[rowKey];
+                        if (rowVal instanceof File) {
+                            cleanRow[rowKey] = await uploadFileToFrappe(rowVal);
+                        } else {
+                            cleanRow[rowKey] = rowVal;
+                        }
+                    }
+                    return cleanRow;
+                })
+            );
+        } else {
+            data[key] = value;
+        }
+    }
+
+    const fd = new globalThis.FormData();
+    fd.append('data', JSON.stringify(data));
+
+    const response = await fetch(`/api/method/${endpoint}`, {
+        method: 'POST',
+        body: fd,
+        headers: {
+            'X-Frappe-CSRF-Token': (window as any).csrf_token || '',
+        },
+        credentials: 'include',
+    });
+
+    const text = await response.text();
+    if (!response.ok) {
+        throw new Error(`Save failed (${response.status}): ${text.slice(0, 200)}`);
+    }
+
+    try {
+        return JSON.parse(text);
+    } catch {
+        throw new Error(`Unexpected response: ${text.slice(0, 200)}`);
+    }
+};
 
 // --- MAIN DISBURSAL OF CONSULTANCY FORM COMPONENT ---
 const DisbursalOfConsultancyForm: React.FC = () => {
@@ -71,6 +155,7 @@ const DisbursalOfConsultancyForm: React.FC = () => {
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
     const [savedDocName, setSavedDocName] = useState<string | null>(null);
     const [dataLoaded, setDataLoaded] = useState(false);
     const [clientScript, setClientScript] = useState<string>("");
@@ -152,7 +237,6 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                         }));
                     }
                 } catch (err) {
-                    console.error('Error fetching account heads:', err);
                 }
 
                 // Fetch Users list for the consultancy table dropdown (web_mail_id is Link to User)
@@ -172,7 +256,6 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                         baseLinkOptions['User'] = baseLinkOptions['web_mail_id'];
                     }
                 } catch (err) {
-                    console.error('Error fetching users list:', err);
                 }
 
                 setLinkOptions(baseLinkOptions);
@@ -191,7 +274,6 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                             initialData = { ...initialData, ...existingDoc.message };
                         }
                     } catch (err) {
-                        console.error('Error fetching existing document:', err);
                         alert('Failed to load document for editing');
                     }
                 }
@@ -201,6 +283,20 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                 // ?project_name= → project title (passed directly, avoids extra backend call)
                 if (projectFromUrl && !id) {
                     initialData.disbursal_project_number = projectFromUrl;
+
+                    // Seed the dropdown with the raw URL value immediately so it shows as
+                    // selected right away, in case the lookup below is slow or fails to resolve.
+                    setLinkOptions(prev => {
+                        const existing = prev['disbursal_project_number'] || [];
+                        if (existing.some(opt => opt.value === projectFromUrl)) return prev;
+                        return {
+                            ...prev,
+                            disbursal_project_number: [
+                                ...existing,
+                                { value: projectFromUrl, label: projectNameFromUrl || projectFromUrl },
+                            ],
+                        };
+                    });
 
                     if (projectNameFromUrl) {
                         initialData.project_title = projectNameFromUrl;
@@ -232,7 +328,24 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                         }
 
                         if (pData) {
-                            initialData.disbursal_project_number = pData.project_no || projectFromUrl;
+                            // disbursal_project_number is a Link field to Project Registration,
+                            // so its value must be the doc name — not the project_no display value —
+                            // otherwise the dropdown has no matching option and renders blank.
+                            initialData.disbursal_project_number = pData.name || projectFromUrl;
+
+                            const projectOptionLabel = pData.project_no || pData.project_title || pData.name || projectFromUrl;
+                            setLinkOptions(prev => {
+                                const existing = prev['disbursal_project_number'] || [];
+                                const withoutDup = existing.filter(opt => opt.value !== initialData.disbursal_project_number);
+                                return {
+                                    ...prev,
+                                    disbursal_project_number: [
+                                        ...withoutDup,
+                                        { value: initialData.disbursal_project_number, label: projectOptionLabel },
+                                    ],
+                                };
+                            });
+
                             // Only override project_title if not already set from URL param
                             if (!projectNameFromUrl) {
                                 initialData.project_title = pData.project_title || pData.name || projectFromUrl;
@@ -242,7 +355,6 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                             }
                         }
                     } catch (e) {
-                        console.error('Failed to fetch project details:', e);
                     }
                 }
 
@@ -266,7 +378,6 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                 setLoading(false);
             }
             if (formDataError) {
-                console.error("Failed to load form data:", formDataError);
                 alert("Error: Could not load the form.");
                 setLoading(false);
             }
@@ -369,7 +480,6 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                     return;
                 }
             } catch (err) {
-                console.error('Failed to fetch user details:', err);
             }
         }
 
@@ -458,8 +568,7 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
-            console.error(err);
-            alert(`Save failed: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Save Failed", message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -498,7 +607,6 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                         budget_head: "Consultancy",
                     });
                 } catch (commitErr) {
-                    console.warn("Commit staging failed (non-fatal):", commitErr);
                 }
                 alert("Disbursal of Consultancy submitted successfully!");
                 navigate(`/disbursal-of-consultancy/${docname}`);
@@ -506,8 +614,7 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                 throw new Error(msg?.message || "Submission failed");
             }
         } catch (err: any) {
-            console.error(err);
-            alert(`Submission failed: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -573,7 +680,7 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                             </FrappeButton>
                             <FrappeButton
                                 type="submit"
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || !effectiveDocName}
                                 className="bg-[#D97757] text-white hover:bg-[#D97757]"
                             >
                                 {isSubmitting ? 'Saving...' : (
@@ -589,12 +696,12 @@ const DisbursalOfConsultancyForm: React.FC = () => {
             </main>
 
             {effectiveDocName && <FloatingActivityLogButton doctype="Disbursal of Consultancy" docname={effectiveDocName} />}
-            
+
             <div style={{ display: "none" }} ref={activityLogContainerRef}>
                 {effectiveDocName && (
-                    <ActivityLog 
-                        doctype="Disbursal of Consultancy" 
-                        docname={effectiveDocName} 
+                    <ActivityLog
+                        doctype="Disbursal of Consultancy"
+                        docname={effectiveDocName}
                         fallbackOwner={formData.owner}
                         fallbackCreation={formData.creation}
                         fallbackOwnerName={formData.pi_name || formData.applicant_name || formData.owner}
@@ -612,9 +719,9 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                               {
                                   ...formData,
                                   pi_name: formData.pi_name || formData.applicant_name || formData.owner
-                              }, 
-                              [], 
-                              [], 
+                              },
+                              [],
+                              [],
                               activityLogContainerRef.current
                           )
                         : ""
@@ -624,6 +731,13 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                     ...(formData.please_attach_a_copy_of_completion_report ? [{ label: "Completion Report", url: getFileUrl(formData.please_attach_a_copy_of_completion_report) }] : []),
                     ...(formData.disbursal_additional_documents ? [{ label: "Additional Documents", url: getFileUrl(formData.disbursal_additional_documents) }] : [])
                 ]}
+            />
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
             />
         </div>
     );

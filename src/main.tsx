@@ -4,8 +4,23 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { FrappeProvider } from 'frappe-react-sdk';
+import { decodeCredit } from '@/lib/credit';
+import { getGitLeaderboard } from '@/lib/leaderboard';
 
 import './index.css';
+
+if (typeof window !== 'undefined') {
+    const board = getGitLeaderboard();
+    const contributorsLine = board.contributors.length
+        ? '\n' + board.contributors.map((c) => `${c.name} (${c.percentage}%)`).join(', ')
+        : '';
+    // eslint-disable-next-line no-console
+    console.log(
+        '%cProRnD',
+        'font-size:18px;font-weight:bold;color:#D97757;',
+        `\nDeveloped by ${decodeCredit()}${contributorsLine}`,
+    );
+}
 
 // Import Components and Pages
 import App from './App.tsx';
@@ -23,6 +38,7 @@ import AddFundSanction from './pages/AddFundSanction.tsx';
 // import { UserCreation } from './pages/UserCreation.tsx'; // This one was correct as named
 // import UserList from './pages/UserList.tsx';
 import ProjectsView from './pages/ProjectsView.tsx';
+import { OtherPIView } from './pages/OtherPIView.tsx';
 import ProjectDetails from './pages/ProjectDetails.tsx'; // Import ProjectDetails
 import ProjectDetailsOverview from './pages/ProjectDetailsOverview.tsx';
 import ProjectLedgerFull from './pages/ProjectLedgerFull.tsx';
@@ -55,10 +71,13 @@ import TravelForm from './pages/application/TravelForm.tsx';
 import TravelDetails from './pages/application/TravelDetails.tsx';
 import TADASettlementForm from './pages/application/TADASettlementForm.tsx';
 import ProjectStaffResignationForm from './pages/application/ProjectStaffResignationForm.tsx';
+import ProjectStaffExtensionForm from './pages/application/ProjectStaffExtensionForm.tsx';
+import ProInvForm from './pages/application/ProInvForm.tsx';
 import TaskRegistry from './pages/TaskRegistry.tsx';
 import TaskRegistryDetails from './pages/TaskRegistryDetails.tsx';
 import TemporaryAdvanceDetails from './pages/application/TemporaryAdvanceDetails.tsx';
 import Payments from './pages/Payments.tsx';
+import TrackApplication from './pages/TrackApplication.tsx';
 import AdvanceSettlementForm from './pages/application/AdvanceSettlementForm.tsx';
 import AdvanceSettlementDetails from './pages/application/AdvanceSettlementDetails.tsx';
 import DisbursalOfHonorarium from './pages/application/DisbursalOfHonorarium.tsx';
@@ -84,6 +103,7 @@ import CandidateDetails from './pages/application/CandidateDetails.tsx';
 import IndentCumSanctionSheetForm from './pages/application/IndentCumSanctionSheetForm.tsx';
 import IndentGeneralForm from './pages/application/IndentGeneralForm.tsx';
 import IndentGeneralFormDetails from './pages/application/IndentGeneralFormDetails.tsx';
+import RateContractForm from './pages/application/RateContractForm.tsx';
 import UniversalRegistrationForm from './pages/application/UniversalRegistrationForm.tsx';
 import UniversalUserForm from './pages/application/UniversalUserForm.tsx';
 import SelectionCommitteeReportForm from './pages/application/SelectionCommitteeReportForm.tsx';
@@ -102,12 +122,14 @@ import TopUpFellowshipFacultyAdmission from './pages/application/TopUpFellowship
 import SalaryModule from './pages/application/SalaryModule';
 import SalaryRegisterFull from './pages/application/SalaryRegisterFull';
 import DelegateUser from './pages/DelegateUser.tsx';
+import DelegatedToMe from './pages/DelegatedToMe.tsx';
 import CoProjectView from './pages/CoProjectView.tsx';
 import LeaveModule from './pages/LeaveModule.tsx';
 import LeaveModuleForm from './pages/LeaveModuleForm.tsx';
 import LeaveModuleDetails from './pages/LeaveModuleDetails.tsx';
 import FormApplication from './pages/FormApplication.tsx';
 import { ProjectSearch } from './pages/ProjectSearch.tsx';
+import NotFound from './pages/NotFound.tsx';
 
 const router = createBrowserRouter(
     [
@@ -242,7 +264,7 @@ const router = createBrowserRouter(
                 {
                     path: "add-fund-received/:projectName/",
                     element: (
-                        <AuthRouteWrapper allowedRole="Permanent Employee"> {/* Adjust role as needed */}
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <AddFundReceived />
                         </AuthRouteWrapper>
                     ),
@@ -280,6 +302,14 @@ const router = createBrowserRouter(
                     ),
                 },
                 {
+                    path: "other-pi",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <OtherPIView />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
                     // This is the parent route for the APPROVED project view
                     path: "project-details-overview/:projectName",
                     element: (
@@ -300,6 +330,26 @@ const router = createBrowserRouter(
                     ),
                 },
                 // --- END OF CHANGE ---
+
+                {
+                    path: "project-details-overview/:projectName/proforma-invoice",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <ProInvForm />
+                        </AuthRouteWrapper>
+                    ),
+                },
+
+                {
+                    // HoS review route — opened from the dashboard pending-task list,
+                    // keyed by the Proforma Invoice's own name.
+                    path: "proforma-invoice/:docname",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <ProInvForm />
+                        </AuthRouteWrapper>
+                    ),
+                },
 
                 {
                     path: "project-ledger-full/:projectName",
@@ -536,6 +586,14 @@ const router = createBrowserRouter(
                     )
                 },
                 {
+                    path: "project-staff-extension",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <ProjectStaffExtensionForm />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
                     path: "disbursal-of-honorarium",
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
@@ -689,6 +747,21 @@ const router = createBrowserRouter(
                     )
                 },
                 {
+                    path: "track-application",
+                    element: (
+                        <AuthRouteWrapper allowedRole={[
+                            'staff, RnD',
+                            'Permanent Employee',
+                            'head_approver_1',
+                            'Hos, RnD (Head of Section, RnD)',
+                            'Dean, RnD',
+                            'Ado_RnD',
+                        ]}>
+                            <TrackApplication />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
                     path: "advance-settlement",
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
@@ -825,6 +898,14 @@ const router = createBrowserRouter(
                     )
                 },
                 {
+                    path: "rate-contract",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <RateContractForm />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
                     path: "universal-registration/:id?",
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User" blockedRole="project staff">
@@ -859,8 +940,16 @@ const router = createBrowserRouter(
                 {
                     path: "delegate-user",
                     element: (
-                        <AuthRouteWrapper allowedRole="Permanent Employee">
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <DelegateUser />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "delegated-to-me",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <DelegatedToMe />
                         </AuthRouteWrapper>
                     ),
                 },
@@ -948,6 +1037,12 @@ const router = createBrowserRouter(
                 },
             ],
         },
+        {
+            // Catch-all for unmatched paths — rendered outside the App shell
+            // so it doesn't depend on auth/layout state.
+            path: "*",
+            element: <NotFound />,
+        },
     ],
     {
         basename: import.meta.env.VITE_BASE_PATH || '',
@@ -956,8 +1051,49 @@ const router = createBrowserRouter(
 
 createRoot(document.getElementById('root') as HTMLElement).render(
     <StrictMode>
-        <FrappeProvider url={import.meta.env.VITE_FRAPPE_URL || 'http://localhost:8000'}>
+        {/*
+          enableSocket={false}: this outer provider mounts its own socket.io
+          client independently of any nested <FrappeProvider> (App.tsx wraps
+          its own subtree in one with enableSocket={false} already) — React
+          context nesting doesn't stop a provider component from running its
+          own effects. Without this, it opens a socket.io connection with no
+          explicit socketPort, which resolves to the page's own origin with
+          no port and fails outright (ERR_CONNECTION_REFUSED to
+          http://<host>/socket.io/...), retrying forever. Nothing in this
+          app currently relies on real-time socket updates.
+        */}
+        <FrappeProvider url={import.meta.env.VITE_FRAPPE_URL || 'http://localhost:8000'} enableSocket={false}>
             <RouterProvider router={router} />
         </FrappeProvider>
     </StrictMode>
 );
+
+// Hidden, route-independent credit markers — decoded and inserted only at
+// runtime, so the plaintext exists solely in the live page, never in a
+// source file. Present on every route (including the 404 page) since these
+// run once at module load, outside any route component.
+if (typeof document !== 'undefined') {
+    const credit = decodeCredit();
+
+    const marker = document.createElement('meta');
+    marker.setAttribute('name', 'developer');
+    marker.setAttribute('content', credit);
+    document.head.appendChild(marker);
+
+    // Also visible via "Inspect Element" as an HTML comment, mirroring what
+    // a static index.html comment would show — but only after JS runs, so
+    // "View Page Source" (which shows the raw, un-decoded HTML) reveals
+    // nothing.
+    document.documentElement.prepend(document.createComment(` Developed by ${credit} `));
+
+    const board = getGitLeaderboard();
+    if (board.contributors.length > 0) {
+        const leaderboardMarker = document.createElement('meta');
+        leaderboardMarker.setAttribute('name', 'contributors');
+        leaderboardMarker.setAttribute(
+            'content',
+            board.contributors.map((c) => `${c.name} (${c.percentage}%)`).join(', '),
+        );
+        document.head.appendChild(leaderboardMarker);
+    }
+}

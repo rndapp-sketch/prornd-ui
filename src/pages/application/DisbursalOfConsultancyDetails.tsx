@@ -34,6 +34,8 @@ import { P11PrintModal } from "@/components/P11PrintModal";
 import { getFileUrl } from "@/utils/fileUtils";
 import { generateDisbursalOfConsultancyHtml } from "@/utils/disbursalOfConsultancyPrint";
 import type { ActivityItem } from "@/utils/disbursalOfHonorariumPrint";
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -161,6 +163,7 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
     const [fetchedOwnerName, setFetchedOwnerName] = useState<string>("");
     const activityLogContainerRef = useRef<HTMLDivElement>(null);
@@ -195,7 +198,8 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
     );
     const { data: activityData } = useFrappeGetCall<{ message: ActivityItem[] }>(
         "rndopsapp.rndopsapp.api.get_project_activity",
-        id ? { doctype: "Disbursal of Consultancy", docname: id } : undefined,
+        { doctype: "Disbursal of Consultancy", docname: id },
+        id ? undefined : null,
     );
     const { call: submitDocument } = useFrappePostCall<{ message: any }>(disbursalOfConsultancyAPI.submit);
     const { call: stageCommit } = useFrappePostCall("rndopsapp.rndopsapp.commitPayment.submit_commit_data");
@@ -233,7 +237,6 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                     );
                 }
             } catch (err) {
-                console.error("Failed to fetch Budget Heads:", err);
             }
         };
         fetchBudgetHeads();
@@ -408,13 +411,11 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                         setFormData(doc.message);
                     }
                 } catch (err) {
-                    console.error("Error fetching document:", err);
                 }
 
                 setLoading(false);
             }
             if (formDataError) {
-                console.error("Failed to load form data:", formDataError);
                 setLoading(false);
             }
         };
@@ -459,7 +460,6 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                         budget_head: "Consultancy",
                     });
                 } catch (commitErr) {
-                    console.warn("Commit staging failed (non-fatal):", commitErr);
                 }
                 alert("Disbursal of Consultancy submitted successfully!");
                 handleRefresh();
@@ -467,7 +467,7 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                 throw new Error(msg?.message || "Submission failed");
             }
         } catch (err: any) {
-            alert(`Submission failed: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -494,7 +494,7 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
             setPaymentAmount("");
             window.location.reload();
         } catch (error: any) {
-            alert(`Payment failed: ${error.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Payment Failed", message: parseFrappeError(error) });
         }
     };
 
@@ -847,6 +847,12 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                     ...(formData.please_attach_a_copy_of_completion_report ? [{ label: "Completion Report", url: getFileUrl(formData.please_attach_a_copy_of_completion_report) }] : []),
                     ...(formData.disbursal_additional_documents ? [{ label: "Additional Documents", url: getFileUrl(formData.disbursal_additional_documents) }] : [])
                 ]}
+            />
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
             />
         </div>
     );

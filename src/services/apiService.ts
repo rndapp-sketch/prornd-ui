@@ -19,6 +19,8 @@ export const rateContractAPI = {
     getVendorDetails: `${API_BASE}.rate_contract.rate_contract.get_vendor_details`,
     getFormTypeConfig: `${API_BASE}.rate_contract.rate_contract.get_form_type_config`,
     getVendorsByP4ItemType: `${API_BASE}.rate_contract.rate_contract.get_vendors_by_p4_item_type`,
+    getPiProjects: `${API_BASE}.rate_contract.rate_contract.get_rate_contract_pi_projects`,
+    getProjectAccountHeads: `${API_BASE}.rate_contract.rate_contract.get_rate_contract_project_account_heads`,
 };
 
 export const annualMaintenanceContractAPI = {
@@ -37,6 +39,10 @@ export const travelAPI = {
     performAction: `${API_BASE}.travel.travel.perform_travel_action`,
     getSclBalance: `${API_BASE}.travel.travel.get_special_leave_balance_for_travel`,
     attachDirectorPdf: `${API_BASE}.travel.travel.attach_director_pdf_travel`,
+    getPendingDirectorUploads: `${API_BASE}.travel.travel.get_pending_director_uploads_travel`,
+    // Other-PI flow: the assigned PI picks one of their own projects + account head
+    getPiProjects: `${API_BASE}.travel.travel.get_travel_pi_projects`,
+    getProjectAccountHeads: `${API_BASE}.travel.travel.get_travel_project_account_heads`,
 };
 
 // TA DA Settlement API endpoints
@@ -57,6 +63,16 @@ export const resignationAPI = {
     getList: `${API_BASE}.project_staff_resignation.project_staff_resignation.get_project_staff_resignation_list`,
     getWorkflowActions: `${API_BASE}.project_staff_resignation.project_staff_resignation.get_project_staff_resignation_workflow_actions`,
     performAction: `${API_BASE}.project_staff_resignation.project_staff_resignation.perform_project_staff_resignation_action`,
+};
+
+// Project Staff Extension API endpoints
+export const extensionAPI = {
+    getFields: `${API_BASE}.project_staff_extension.project_staff_extension.get_project_staff_extension_fields`,
+    save: `${API_BASE}.project_staff_extension.project_staff_extension.save_project_staff_extension`,
+    submit: `${API_BASE}.project_staff_extension.project_staff_extension.submit_project_staff_extension`,
+    getList: `${API_BASE}.project_staff_extension.project_staff_extension.get_project_staff_extension_list`,
+    getWorkflowActions: `${API_BASE}.project_staff_extension.project_staff_extension.get_project_staff_extension_workflow_actions`,
+    performAction: `${API_BASE}.project_staff_extension.project_staff_extension.perform_project_staff_extension_action`,
 };
 
 // Temporary Advance API endpoints
@@ -181,6 +197,8 @@ export const icssAPI = {
     updateSendToDirector: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.update_send_to_director_icss`,
     attachDirectorPdf: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.attach_director_pdf_icss`,
     getPendingDirectorUploads: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_pending_director_uploads_icss`,
+    getPiProjects: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_icss_pi_projects`,
+    getProjectAccountHeads: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_icss_project_account_heads`,
 };
 
 export const proprietaryPurchaseAPI = {
@@ -232,6 +250,9 @@ export const disbursalOfHonorariumAPI = {
     performAction: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.perform_disbursal_of_honorarium_action`,
     getByProject: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.get_disbursal_of_honorarium_by_project`,
     getByWebmail: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.get_disbursal_of_honorarium_by_webmail`,
+    updateSendToDirector: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.update_send_to_director_honorarium`,
+    attachDirectorPdf: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.attach_director_pdf_honorarium`,
+    getPendingDirectorUploads: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.get_pending_director_uploads_honorarium`,
 };
 
 // Universal User API endpoints
@@ -251,6 +272,7 @@ export const indentGeneralFormAPI = {
     getPendingDirectorUploads: `${API_BASE}.indent_general_form.indent_general_form.get_pending_director_uploads_igf`,
     getAvailableBackActions: `${API_BASE}.indent_general_form.indent_general_form.get_available_back_actions`,
     putBack: `${API_BASE}.indent_general_form.indent_general_form.put_back`,
+    getPiProjects: `${API_BASE}.indent_general_form.indent_general_form.get_igf_pi_projects`,
 };
 
 // Loan Request API endpoints
@@ -271,10 +293,21 @@ export const miscellaneousCommitAPI = {
     performAction: `${API_BASE}.miscellaneous_commit.miscellaneous_commit.perform_miscellaneous_commit_action`,
 };
 
+// Proforma Invoice API endpoints (HoS endorsement workflow)
+export const proformaInvoiceAPI = {
+    get: `${API_BASE}.proforma_invoice.proforma_invoice.get_proforma_invoice`,
+    getByName: `${API_BASE}.proforma_invoice.proforma_invoice.get_proforma_invoice_by_name`,
+    save: `${API_BASE}.proforma_invoice.proforma_invoice.save_proforma_invoice`,
+    submit: `${API_BASE}.proforma_invoice.proforma_invoice.submit_proforma_for_approval`,
+    processAction: `${API_BASE}.proforma_invoice.proforma_invoice.process_proforma_action`,
+};
+
 // Common utility to get user details
 export const commonAPI = {
     getUserDetails: `${API_BASE}.project_registration.project_registration.get_user_details_for_pi`,
     getUserDetailsByEmail: `rndopsapp.rndopsapp.api.get_user_details`,
+    /** Combined User + Universal Registration profile lookup (supports `search` param for list, or `user`/`email` for single) */
+    getUserRegistrationProfile: `rndopsapp.rndopsapp.api.get_user_registration_profile`,
     addComment: `rndopsapp.rndopsapp.api.add_project_comment`,
 };
 
@@ -286,6 +319,15 @@ export const delegateUserAPI = {
     delegate: `rndopsapp.rndopsapp.api.delegate_user`,
     undelegate: `rndopsapp.rndopsapp.api.undelegate_user`,
     removeItem: `rndopsapp.rndopsapp.api.remove_delegated_item`,
+    createOnBehalf: `rndopsapp.rndopsapp.api.create_application_on_behalf`,
+};
+
+// Reimbursement API endpoints
+export const reimbursementAPI = {
+    getFields: `${API_BASE}.reimbursement.reimbursement.get_reimbursement_fields`,
+    getWorkflowActions: `${API_BASE}.reimbursement.reimbursement.get_reimbursement_workflow_actions`,
+    performAction: `${API_BASE}.reimbursement.reimbursement.perform_reimbursement_action`,
+    submit: `${API_BASE}.reimbursement.reimbursement.submit_reimbursement`,
 };
 
 // Helper to convert file to base64.

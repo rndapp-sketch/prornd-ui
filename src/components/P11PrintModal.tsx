@@ -230,6 +230,7 @@ export const P11PrintModal = ({
     docName,
     title = "P-11 Form Preview",
     attachments = [],
+    onPrintAction,
 }: {
     isOpen: boolean;
     onClose: () => void;
@@ -237,6 +238,10 @@ export const P11PrintModal = ({
     docName: string;
     title?: string;
     attachments?: { label: string; url: string }[];
+    // Fired the moment the user triggers Print/Save-as-PDF (not on modal close) — used
+    // to run side effects like "Mark Print Taken" that shouldn't wait for the user to
+    // close the modal, since the native print dialog doesn't report back when it's done.
+    onPrintAction?: () => void;
 }) => {
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -255,14 +260,16 @@ export const P11PrintModal = ({
 
     const handlePrint = () => {
         iframeRef.current?.contentWindow?.print();
+        onPrintAction?.();
     };
 
     const handleDownloadPdf = async () => {
         // html2canvas fundamentally cannot respect CSS page breaks, repeating table headers,
         // or fixed footers because it takes a static screenshot and slices it indiscriminately.
-        // The most robust way to get a perfect PDF that matches the "Print" layout exactly 
+        // The most robust way to get a perfect PDF that matches the "Print" layout exactly
         // is to trigger the native browser print and let the user select "Save as PDF".
         iframeRef.current?.contentWindow?.print();
+        onPrintAction?.();
     };
 
     if (!isOpen) return null;

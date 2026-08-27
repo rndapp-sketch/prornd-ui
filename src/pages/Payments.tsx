@@ -3,7 +3,7 @@ import { FaExclamationCircle, FaArrowLeft, FaSearch } from 'react-icons/fa';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-import { AppSidebar } from '@/components/RndSidebar';
+// import { AppSidebar } from '@/components/RndSidebar';
 import { useNavigate } from 'react-router-dom';
 import { GlobalLoader } from '@/components/ui/global-loader';
 
@@ -11,7 +11,7 @@ import { ledgerService } from '@/services/ledgerService';
 import type { CommitRecord } from '@/types/ledgerTypes';
 import { PaymentForm } from '@/components/PaymentForm';
 import { useUserRoles } from '@/components/UserRole';
-import { useFrappeAuth } from 'frappe-react-sdk';
+import { useFrappeAuth, useFrappePostCall } from 'frappe-react-sdk';
 
 // Define interfaces for payments
 interface PaymentRecord {
@@ -27,6 +27,13 @@ interface PaymentRecord {
     creation: string;
     modified: string;
     doctype?: string;  // Module/Doctype name
+    // The ledger's /account-head-payments join already computes these per payment
+    // row — used to detect commits that already have a payment against them, so
+    // staff can't re-initiate a second payment on a commit whose status hasn't
+    // caught up yet (see commitPaymentInfo below).
+    transaction_commit_number?: number | null;
+    remaining_amount?: number;
+    commit_status?: string;
 }
 
 // Frappe-styled components
@@ -61,6 +68,12 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost
     </button>
 );
 
+// Module IDs surfaced on the Miscellaneous Commit tab instead of Pending Commits.
+const MISC_TAB_MODULE_IDS: Record<string, 'Miscellaneous Commit' | 'Recruitment Adhoc Contractual'> = {
+    '25': 'Miscellaneous Commit',
+    '11': 'Recruitment Adhoc Contractual',
+};
+
 const Payments: React.FC = () => {
     const navigate = useNavigate();
     const { currentUser } = useFrappeAuth();
@@ -83,7 +96,7 @@ const Payments: React.FC = () => {
 
     // New State for Commits and Tabs
     const [pendingCommits, setPendingCommits] = useState<CommitRecord[]>([]);
-    const [activeTab, setActiveTab] = useState<'history' | 'commits'>('commits'); // Default to commits context
+    const [activeTab, setActiveTab] = useState<'history' | 'commits' | 'misc'>('commits'); // Default to commits context
     const [commitPage, setCommitPage] = useState(1);
     const commitsPerPage = 50;
     const itemsPerPage = 10;
@@ -101,10 +114,36 @@ const Payments: React.FC = () => {
         return () => clearTimeout(timer);
     }, [commitSearchQuery]);
 
+    // --- Miscellaneous Commit tab state ---
+    // Sourced entirely from the ledger (pendingCommits) — Miscellaneous Commit (module 25)
+    // and Recruitment Adhoc Contractual (module 11) commits are both filtered out of the
+    // Pending Commits tab above; this tab surfaces them instead of dropping them.
+    const [miscSearchQuery, setMiscSearchQuery] = useState('');
+    const [debouncedMiscSearch, setDebouncedMiscSearch] = useState('');
+    const [selectedMiscType, setSelectedMiscType] = useState<string>('');
+    const [miscPage, setMiscPage] = useState(1);
+    const miscPerPage = 50;
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedMiscSearch(miscSearchQuery);
+            setMiscPage(1);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [miscSearchQuery]);
+
     // Payment Modal State
     const [paymentModalOpen, setPaymentModalOpen] = useState(false);
     const [selectedPaymentName, setSelectedPaymentName] = useState<string | null>(null);
     const [selectedCommit, setSelectedCommit] = useState<CommitRecord | null>(null); // For new payments
+
+    // Pay confirmation (with mandatory comment) — used on the Miscellaneous Commit tab
+    // before opening the Payment Form, mirroring the workflow-action comment pattern.
+    const [payConfirm, setPayConfirm] = useState<{ open: boolean; commit: CommitRecord | null }>({ open: false, commit: null });
+    const [payConfirmComment, setPayConfirmComment] = useState('');
+    const [isSubmittingPayConfirm, setIsSubmittingPayConfirm] = useState(false);
+    const [payConfirmError, setPayConfirmError] = useState<string | null>(null);
+    const { call: addPayConfirmComment } = useFrappePostCall('rndopsapp.rndopsapp.api.add_project_comment');
 
     // Debounce search input
     useEffect(() => {
@@ -132,10 +171,8 @@ const Payments: React.FC = () => {
                 const dateB = b.commitDate ? new Date(b.commitDate).getTime() : 0;
                 return dateB - dateA;
             });
-            console.log("allCommits:", allCommits);
             setPendingCommits(allCommits);
         } catch (err) {
-            console.error('Failed to fetch pending commits', err);
         }
     }, []);
 
@@ -161,13 +198,12 @@ const Payments: React.FC = () => {
                 setBudgetHeadMap(map);
             }
         } catch (err) {
-            console.error('Failed to fetch budget heads:', err);
         }
     }, []);
 
     // Fetch Module Registry to map moduleId (idx) -> doctype_name
     const fetchModuleRegistry = useCallback(async () => {
-        // Fallback map in case API fails (covers well-known modules 1–8)
+        // Fallback map in case API fails or is missing rows (covers all known modules 1–25)
         const fallbackMap: Record<string, string> = {
             '1': 'Project Registration',
             '2': 'Project Proposal',
@@ -177,6 +213,23 @@ const Payments: React.FC = () => {
             '6': 'Travel',
             '7': 'Temporary Advance',
             '8': 'Advance Settlement',
+            '9': 'Direct Purchase',
+            '10': 'Disbursal of Honorarium',
+            '11': 'Recruitment Adhoc Contractual',
+            '12': 'Disbursal of Consultancy',
+            '13': 'TA DA Settlement',
+            '14': 'ICSS_PO',
+            '15': 'Loan Request',
+            '16': 'Indent General Form',
+            '17': 'Indent Cum Sanction Sheet',
+            '18': 'sanction_sheet',
+            '19': 'Selection Committee Report',
+            '20': 'P_11 Form',
+            '21': 'Leave Module',
+            '22': 'Top Up Fellowship',
+            '23': 'Project Staff Details',
+            '24': 'Cancellation Request',
+            '25': 'Miscellaneous Commit',
         };
         try {
             // Use GET to avoid CSRF requirements in dev/proxy environments
@@ -186,19 +239,16 @@ const Payments: React.FC = () => {
             );
             const data = await response.json();
             const rows = data?.message?.doctype_name;
-            if (Array.isArray(rows) && rows.length > 0) {
-                const map: Record<string, string> = {};
+            const map: Record<string, string> = { ...fallbackMap };
+            if (Array.isArray(rows)) {
                 rows.forEach((item: any) => {
                     if (item.idx != null && item.doctype_name) {
                         map[String(item.idx)] = item.doctype_name;
                     }
                 });
-                setModuleNameMap(map);
-            } else {
-                setModuleNameMap(fallbackMap);
             }
+            setModuleNameMap(map);
         } catch (err) {
-            console.error('Failed to fetch module registry, using fallback:', err);
             setModuleNameMap(fallbackMap);
         }
     }, []);
@@ -226,6 +276,9 @@ const Payments: React.FC = () => {
                     creation: p.paymentDate,
                     modified: p.paymentDate,
                     doctype: String(p.moduleId || ''), // store raw moduleId; resolved later via useMemo
+                    transaction_commit_number: p.transactionCommitNumber ?? null,
+                    remaining_amount: p.remainingAmount,
+                    commit_status: p.commitStatus,
                 }));
                 // Sort descending by date
                 loadedPayments.sort((a, b) => {
@@ -236,11 +289,29 @@ const Payments: React.FC = () => {
                 setPayments(loadedPayments);
             }
         } catch (err) {
-            console.error('Failed to fetch payments:', err);
         } finally {
             setIsLoading(false);
         }
     }, []);
+
+    // Map commit id -> its most recent payment info. The ledger's commit `status`
+    // (COMMITTED/PARTIALLY_PAID/...) frequently doesn't get updated the moment a
+    // payment is created against it — new payments start life as `PENDING` and
+    // the commit can keep showing up as COMMITTED here even after a payment has
+    // already been submitted for it. Without this, "Pay" stays clickable and
+    // staff can (and have) submitted duplicate payments on the same commit.
+    // `payments` is sorted desc by date, so the first entry seen per commit id
+    // is the most recent one.
+    const commitPaymentInfo = React.useMemo(() => {
+        const map = new Map<number, PaymentRecord>();
+        payments.forEach(p => {
+            const commitId = p.transaction_commit_number;
+            if (commitId != null && !map.has(commitId)) {
+                map.set(commitId, p);
+            }
+        });
+        return map;
+    }, [payments]);
 
     // Filter out commits that have module ID '11' or resolved/raw module name 'Recruitment Adhoc Contractual'
     const filteredPendingCommits = React.useMemo(() => {
@@ -284,10 +355,10 @@ const Payments: React.FC = () => {
                 const budgetHeadName = budgetHeadMap[String(c.accountHeadId)] || String(c.accountHeadId || '');
                 const moduleName = c.moduleId ? (moduleNameMap[String(c.moduleId)] || String(c.moduleId)) : '';
                 return (
-                    c.projectNumber?.toLowerCase().includes(q) ||
-                    c.frapAppId?.toLowerCase().includes(q) ||
-                    c.commitParticular?.toLowerCase().includes(q) ||
-                    c.refDetails?.toLowerCase().includes(q) ||
+                    String(c.projectNumber ?? '').toLowerCase().includes(q) ||
+                    String(c.frapAppId ?? '').toLowerCase().includes(q) ||
+                    String(c.commitParticular ?? '').toLowerCase().includes(q) ||
+                    String(c.refDetails ?? '').toLowerCase().includes(q) ||
                     budgetHeadName.toLowerCase().includes(q) ||
                     moduleName.toLowerCase().includes(q)
                 );
@@ -320,6 +391,52 @@ const Payments: React.FC = () => {
         fetchModuleRegistry();
         fetchPayments();
     }, [fetchPendingCommits, fetchBudgetHeads, fetchModuleRegistry, fetchPayments]);
+
+    // Miscellaneous Commit (module 25) and Recruitment Adhoc Contractual (module 11)
+    // commits ARE staged in the ledger, but both are excluded from the Pending Commits
+    // tab above — surface them here instead of dropping them entirely.
+    const combinedMiscTabRows = React.useMemo(() => {
+        return pendingCommits
+            .filter(c => {
+                const rawMod = String(c.moduleId || '');
+                const resolvedName = moduleNameMap[rawMod];
+                return MISC_TAB_MODULE_IDS[rawMod] || resolvedName === 'Miscellaneous Commit' || resolvedName === 'Recruitment Adhoc Contractual';
+            })
+            .map(c => {
+                const rawMod = String(c.moduleId || '');
+                const type = MISC_TAB_MODULE_IDS[rawMod] || (moduleNameMap[rawMod] as 'Miscellaneous Commit' | 'Recruitment Adhoc Contractual');
+                return {
+                    key: `ledger-${c.frapAppId || c.transactionCommitNumber}`,
+                    type,
+                    projectNumber: c.projectNumber,
+                    budgetHead: budgetHeadMap[String(c.accountHeadId)] || String(c.accountHeadId),
+                    appId: c.frapAppId || '-',
+                    date: c.commitDate,
+                    particulars: c.commitParticular,
+                    refDetails: c.refDetails,
+                    amount: c.commitAmount,
+                    status: c.status,
+                    commit: c,
+                };
+            });
+    }, [pendingCommits, moduleNameMap, budgetHeadMap]);
+
+    const filteredMiscTabRows = React.useMemo(() => {
+        let result = combinedMiscTabRows;
+        if (selectedMiscType) {
+            result = result.filter(r => r.type === selectedMiscType);
+        }
+        if (debouncedMiscSearch) {
+            const q = debouncedMiscSearch.toLowerCase();
+            result = result.filter(r =>
+                r.projectNumber?.toLowerCase().includes(q) ||
+                r.appId?.toLowerCase().includes(q) ||
+                r.particulars?.toLowerCase().includes(q) ||
+                r.budgetHead?.toLowerCase().includes(q)
+            );
+        }
+        return result;
+    }, [combinedMiscTabRows, selectedMiscType, debouncedMiscSearch]);
 
     // Client-side filtering
     const filteredPayments = React.useMemo(() => {
@@ -420,6 +537,52 @@ const Payments: React.FC = () => {
         setPaymentModalOpen(true);
     }, []);
 
+    // Open the "confirm with comment" dialog before paying a Miscellaneous Commit / Recruitment tab row.
+    // The comment itself always gets saved against the Miscellaneous Commit doctype (see confirmPayWithComment).
+    const requestPayConfirmation = useCallback((commit: CommitRecord) => {
+        setPayConfirmComment('');
+        setPayConfirmError(null);
+        setPayConfirm({ open: true, commit });
+    }, []);
+
+    const cancelPayConfirmation = useCallback(() => {
+        if (isSubmittingPayConfirm) return;
+        setPayConfirm({ open: false, commit: null });
+        setPayConfirmComment('');
+        setPayConfirmError(null);
+    }, [isSubmittingPayConfirm]);
+
+    const confirmPayWithComment = useCallback(async () => {
+        const commit = payConfirm.commit;
+        if (!commit) return;
+        const trimmedComment = payConfirmComment.trim();
+        if (!trimmedComment) {
+            setPayConfirmError('A comment is required before proceeding.');
+            return;
+        }
+        setIsSubmittingPayConfirm(true);
+        setPayConfirmError(null);
+        try {
+            // This confirm-with-comment dialog is only ever opened for Miscellaneous Commit
+            // rows (requestPayConfirmation routes Recruitment Adhoc Contractual rows straight
+            // to payment instead), so the comment always targets that doctype.
+            if (commit.frapAppId) {
+                await addPayConfirmComment({
+                    doctype: 'Miscellaneous Commit',
+                    docname: commit.frapAppId,
+                    content: trimmedComment,
+                });
+            }
+            setPayConfirm({ open: false, commit: null });
+            setPayConfirmComment('');
+            initiatePaymentForCommit(commit);
+        } catch (err: any) {
+            setPayConfirmError(err?.message || 'Failed to save comment. Please try again.');
+        } finally {
+            setIsSubmittingPayConfirm(false);
+        }
+    }, [payConfirm.commit, payConfirmComment, addPayConfirmComment, initiatePaymentForCommit]);
+
 
     if (error) {
         return (
@@ -444,7 +607,7 @@ const Payments: React.FC = () => {
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
             <GlobalLoader isLoading={isLoading} />
-            <AppSidebar />
+            {/* <AppSidebar /> */}
 
             <main className="flex-1 px-6 md:px-8 pt-7 pb-10 w-full overflow-hidden">
                 {/* Header */}
@@ -478,6 +641,17 @@ const Payments: React.FC = () => {
                         )}
                     >
                         Pending Commits
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('misc')}
+                        className={cn(
+                            "h-9 flex-shrink-0 rounded-lg border px-3 text-[11px] font-extrabold uppercase tracking-wide transition-colors",
+                            activeTab === 'misc'
+                                ? "bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A]"
+                                : "border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF]"
+                        )}
+                    >
+                        Miscellaneous Commit
                     </button>
                     {/* Payment History tab hidden temporarily */}
                 </div>
@@ -562,7 +736,11 @@ const Payments: React.FC = () => {
                                     {searchedPendingCommits.length > 0 ? (
                                         searchedPendingCommits
                                             .slice((commitPage - 1) * commitsPerPage, commitPage * commitsPerPage)
-                                            .map((commit, idx) => (
+                                            .map((commit, idx) => {
+                                                const existingPayment = commit.transactionCommitNumber != null
+                                                    ? commitPaymentInfo.get(commit.transactionCommitNumber)
+                                                    : undefined;
+                                                return (
                                                 <tr key={idx} className="hover:bg-zinc-50 dark:bg-zinc-800/50">
                                                     <td className="p-4 text-sm font-mono font-medium">{commit.projectNumber}</td>
                                                     <td className="p-4 text-sm text-zinc-700 dark:text-zinc-300 font-bold">
@@ -581,15 +759,24 @@ const Payments: React.FC = () => {
                                                         ₹{commit.commitAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                                     </td>
                                                     <td className="p-4">
-                                                        <div className="flex gap-2">
+                                                        <div className="flex gap-2 items-center">
                                                             {isRnDStaff && (
-                                                                <FrappeButton
-                                                                    variant="primary"
-                                                                    className="text-xs py-1 px-3"
-                                                                    onClick={() => initiatePaymentForCommit(commit)}
-                                                                >
-                                                                    Pay
-                                                                </FrappeButton>
+                                                                existingPayment ? (
+                                                                    <span
+                                                                        title={`Payment ${existingPayment.name} (${existingPayment.payment_status}) already exists for this commit. The commit's status here hasn't caught up with the ledger yet — check the History tab before paying again.`}
+                                                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 text-[11px] font-bold whitespace-nowrap"
+                                                                    >
+                                                                        Payment Pending
+                                                                    </span>
+                                                                ) : (
+                                                                    <FrappeButton
+                                                                        variant="primary"
+                                                                        className="text-xs py-1 px-3"
+                                                                        onClick={() => initiatePaymentForCommit(commit)}
+                                                                    >
+                                                                        Pay
+                                                                    </FrappeButton>
+                                                                )
                                                             )}
                                                             <FrappeButton
                                                                 variant="outline"
@@ -622,7 +809,8 @@ const Payments: React.FC = () => {
                                                         </div>
                                                     </td>
                                                 </tr>
-                                            ))
+                                                );
+                                            })
                                     ) : (
                                         <tr>
                                             <td colSpan={9} className="p-8 text-center text-zinc-500 dark:text-zinc-400">
@@ -651,6 +839,174 @@ const Payments: React.FC = () => {
                                     <FrappeButton
                                         onClick={() => setCommitPage(p => p + 1)}
                                         disabled={commitPage * commitsPerPage >= searchedPendingCommits.length}
+                                        variant="outline"
+                                    >
+                                        Next
+                                    </FrappeButton>
+                                </div>
+                            </div>
+                        )}
+                    </FrappeCard>
+                )}
+
+                {activeTab === 'misc' && (
+                    <FrappeCard className="overflow-hidden p-0">
+                        <div className="bg-[#FAFAF9] dark:bg-[#27272A] p-4 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                            <p className="text-[12px] uppercase tracking-[0.12em] text-[#1E3A8A] dark:text-[#C7D2FE] font-extrabold">
+                                Miscellaneous &amp; Recruitment Commits
+                            </p>
+                            <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
+                                Miscellaneous Commit records (not staged to the ledger) and Recruitment Adhoc Contractual commits (excluded from Pending Commits above).
+                            </p>
+                        </div>
+
+                        {/* Search + Type Filter */}
+                        <div className="p-3 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                                <div className="flex flex-1 items-center gap-4 w-full flex-wrap">
+                                    <div className="relative w-full md:w-64">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <FaSearch className="text-zinc-400 dark:text-zinc-500" />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="Search documents..."
+                                            value={miscSearchQuery}
+                                            onChange={(e) => setMiscSearchQuery(e.target.value)}
+                                            className="h-9 w-full pl-10 pr-4 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] focus:outline-none focus:border-[#4A6CF7] focus:ring-[3px] focus:ring-[#4A6CF7]/12 transition-colors"
+                                        />
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <label htmlFor="misc-type-filter" className="font-bold text-zinc-900 dark:text-zinc-100 uppercase text-sm whitespace-nowrap hidden md:block">
+                                            Type:
+                                        </label>
+                                        <select
+                                            id="misc-type-filter"
+                                            value={selectedMiscType}
+                                            onChange={(e) => { setSelectedMiscType(e.target.value); setMiscPage(1); }}
+                                            className="h-9 px-3 bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg font-bold text-[12px] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7]"
+                                        >
+                                            <option value="">All Types</option>
+                                            <option value="Miscellaneous Commit">Miscellaneous Commit</option>
+                                            <option value="Recruitment Adhoc Contractual">Recruitment Adhoc Contractual</option>
+                                        </select>
+                                    </div>
+
+                                    {(miscSearchQuery || selectedMiscType) && (
+                                        <FrappeButton
+                                            onClick={() => { setMiscSearchQuery(''); setSelectedMiscType(''); setMiscPage(1); }}
+                                            className="text-red-600 hover:bg-red-50 border border-red-200"
+                                        >
+                                            Clear Filters
+                                        </FrappeButton>
+                                    )}
+                                </div>
+
+                                <div className="text-sm text-zinc-900 dark:text-zinc-100 font-bold whitespace-nowrap">
+                                    Total: {filteredMiscTabRows.length} records
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto p-3">
+                            <table className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg overflow-hidden">
+                                <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Type</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Project No.</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Budget Head</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">App ID</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Particulars</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Ref / Linked App</th>
+                                        <th className="px-4 py-3 text-right text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Amount</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                                    {filteredMiscTabRows.length > 0 ? (
+                                        filteredMiscTabRows
+                                            .slice((miscPage - 1) * miscPerPage, miscPage * miscPerPage)
+                                            .map((row) => {
+                                                const existingPayment = row.commit.transactionCommitNumber != null
+                                                    ? commitPaymentInfo.get(row.commit.transactionCommitNumber)
+                                                    : undefined;
+                                                return (
+                                                <tr key={row.key} className="hover:bg-zinc-50 dark:bg-zinc-800/50">
+                                                    <td className="p-4 text-sm">
+                                                        <span className={cn(
+                                                            "px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                                                            row.type === 'Miscellaneous Commit'
+                                                                ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-300 dark:border-indigo-800"
+                                                                : "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800",
+                                                        )}>
+                                                            {row.type}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4 text-sm font-mono font-medium">{row.projectNumber}</td>
+                                                    <td className="p-4 text-sm text-zinc-700 dark:text-zinc-300 font-bold">{row.budgetHead}</td>
+                                                    <td className="p-4 text-sm font-mono text-zinc-600 dark:text-zinc-400">{row.appId}</td>
+                                                    <td className="p-4 text-sm">{row.date}</td>
+                                                    <td className="p-4 text-sm">{row.particulars}</td>
+                                                    <td className="p-4 text-sm text-zinc-600 dark:text-zinc-400">{row.refDetails}</td>
+                                                    <td className="p-4 text-right font-bold text-zinc-900 dark:text-zinc-100 text-sm">
+                                                        ₹{row.amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <span className={getStatusBadge(row.status)}>{row.status}</span>
+                                                    </td>
+                                                    <td className="p-4">
+                                                        {isRnDStaff && (
+                                                            existingPayment ? (
+                                                                <span
+                                                                    title={`Payment ${existingPayment.name} (${existingPayment.payment_status}) already exists for this commit. The commit's status here hasn't caught up with the ledger yet — check the History tab before paying again.`}
+                                                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 text-[11px] font-bold whitespace-nowrap"
+                                                                >
+                                                                    Payment Pending
+                                                                </span>
+                                                            ) : (
+                                                                <FrappeButton
+                                                                    variant="primary"
+                                                                    className="text-xs py-1 px-3"
+                                                                    onClick={() => requestPayConfirmation(row.commit)}
+                                                                >
+                                                                    Pay
+                                                                </FrappeButton>
+                                                            )
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                                );
+                                            })
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={10} className="p-8 text-center text-zinc-500 dark:text-zinc-400">
+                                                No miscellaneous or recruitment commit records found.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {filteredMiscTabRows.length > miscPerPage && (
+                            <div className="p-4 border-t border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex justify-between items-center">
+                                <div className="text-sm text-zinc-900 dark:text-zinc-100 font-medium">
+                                    Showing {(miscPage - 1) * miscPerPage + 1} to {Math.min(miscPage * miscPerPage, filteredMiscTabRows.length)} of {filteredMiscTabRows.length} records
+                                </div>
+                                <div className="flex gap-1">
+                                    <FrappeButton
+                                        onClick={() => setMiscPage(p => Math.max(1, p - 1))}
+                                        disabled={miscPage === 1}
+                                        variant="outline"
+                                    >
+                                        Previous
+                                    </FrappeButton>
+                                    <FrappeButton
+                                        onClick={() => setMiscPage(p => p + 1)}
+                                        disabled={miscPage * miscPerPage >= filteredMiscTabRows.length}
                                         variant="outline"
                                     >
                                         Next
@@ -865,6 +1221,62 @@ const Payments: React.FC = () => {
                     </>
                 )}
             </main>
+
+            {payConfirm.open && payConfirm.commit && (
+                <div
+                    className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4"
+                    onClick={cancelPayConfirmation}
+                >
+                    <div
+                        className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-700 w-full max-w-md"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-700">
+                            <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Confirm Payment</h2>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                                You're about to pay{' '}
+                                <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                                    ₹{payConfirm.commit.commitAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </span>{' '}
+                                for <span className="font-mono">{payConfirm.commit.frapAppId || payConfirm.commit.projectNumber}</span>.
+                                A comment is required before proceeding.
+                            </p>
+                        </div>
+                        <div className="px-5 py-4 space-y-2">
+                            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                                Comment <span className="text-red-500">*</span>
+                            </label>
+                            <textarea
+                                rows={3}
+                                value={payConfirmComment}
+                                onChange={(e) => { setPayConfirmComment(e.target.value); if (payConfirmError) setPayConfirmError(null); }}
+                                placeholder="Add a comment before confirming this payment..."
+                                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] resize-none"
+                                autoFocus
+                            />
+                            {payConfirmError && (
+                                <p className="text-xs font-medium text-red-600 dark:text-red-400">{payConfirmError}</p>
+                            )}
+                        </div>
+                        <div className="flex justify-end gap-2 px-5 py-4 border-t border-zinc-200 dark:border-zinc-700">
+                            <button
+                                onClick={cancelPayConfirmation}
+                                disabled={isSubmittingPayConfirm}
+                                className="px-4 py-2 rounded-lg text-sm font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmPayWithComment}
+                                disabled={isSubmittingPayConfirm || !payConfirmComment.trim()}
+                                className="px-4 py-2 rounded-lg text-sm font-semibold bg-[#D97757] hover:bg-[#c66a4e] text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isSubmittingPayConfirm ? 'Confirming...' : 'Confirm & Pay'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {paymentModalOpen && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setPaymentModalOpen(false)}>

@@ -5,12 +5,15 @@ import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { AlertCircle, Printer, CheckCircle2 } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
+import ViewProjectButton from '@/components/ViewProjectButton';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { p11FormAPI, prepareFormDataForApi } from '@/services/apiService';
 import { useFrappeClientScript } from '@/hooks/useFrappeClientScript';
 import { generateP11Html } from '@/utils/p11Print';
 import { P11PrintModal } from '@/components/P11PrintModal';
 import { CommentModal } from '@/components/CommentModal';
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -107,6 +110,7 @@ const P11Form: React.FC = () => {
     const [workflowActions, setWorkflowActions] = useState<string[]>([]);
     const [commentModalOpen, setCommentModalOpen] = useState(false);
     const [pendingWorkflowAction, setPendingWorkflowAction] = useState<string>('');
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     const { triggerEvent } = useFrappeClientScript(clientScript, formData, setFormData);
 
@@ -116,6 +120,31 @@ const P11Form: React.FC = () => {
     const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>('frappe.client.get');
 
     const { call: performAction } = useFrappePostCall(p11FormAPI.performAction);
+    const { call: fetchWorkflowActions } = useFrappePostCall<{ message: string[] }>(p11FormAPI.getWorkflowActions);
+    const { call: addActionComment } = useFrappePostCall(
+        "rndopsapp.rndopsapp.api.add_project_comment",
+    );
+
+    const refreshWorkflowActions = () => {
+        if (!savedDocName) {
+            return;
+        }
+        fetchWorkflowActions({ docname: savedDocName })
+            .then((res) => {
+                const list = Array.isArray(res?.message) ? res.message : [];
+                setWorkflowActions(list);
+            })
+            .catch((err) => {
+                setWorkflowActions([]);
+            });
+    };
+
+    // Fetch available workflow actions for the current document/user whenever we're
+    // looking at an existing (already-saved) P-11 Form, in view mode or otherwise.
+    useEffect(() => {
+        refreshWorkflowActions();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [savedDocName]);
 
     // --- DATA FETCHING ---
     useEffect(() => {
@@ -150,7 +179,6 @@ const P11Form: React.FC = () => {
                             initialData = { ...initialData, ...existingDoc.message };
                         }
                     } catch (err) {
-                        console.error('Error fetching existing document:', err);
                     }
                 }
 
@@ -176,7 +204,6 @@ const P11Form: React.FC = () => {
                             item_gst: 0,
                         }));
                     } catch (err) {
-                        console.error('Error fetching Direct Purchase for P-11 prefill:', err);
                     }
                 }
 
@@ -204,7 +231,6 @@ const P11Form: React.FC = () => {
                 setLoading(false);
             }
             if (formDataError) {
-                console.error("Failed to load form data:", formDataError);
                 alert("Error: Could not load the P_11 Form.");
                 setLoading(false);
             }
@@ -376,8 +402,7 @@ const P11Form: React.FC = () => {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
-            console.error(saveError || err);
-            alert(`Save failed: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Save Failed", message: parseFrappeError(saveError, err) });
         } finally {
             setIsSubmitting(false);
         }
@@ -392,16 +417,20 @@ const P11Form: React.FC = () => {
     const handleConfirmWorkflowAction = async (comment: string) => {
         setCommentModalOpen(false);
         const action = pendingWorkflowAction;
-        if (!action) return;
+        if (!action || !savedDocName) return;
 
         setIsSubmitting(true);
         try {
-            // Force a save first to ensure latest data is processed
-            const data = await prepareFormDataForApi(formData);
-            const saveRes = await saveForm({ data: JSON.stringify(data) });
+            // Only force a save first when the form is actually editable — in view mode
+            // (e.g. a reviewer performing Verify/Approve) there's nothing new to persist,
+            // and doing so risks a permission error since the viewer may not own the doc.
+            if (!viewOnly) {
+                const data = await prepareFormDataForApi(formData);
+                const saveRes = await saveForm({ data: JSON.stringify(data) });
 
-            if (saveRes?.message?.status !== 'success') {
-                throw new Error("Failed to save draft before processing action.");
+                if (saveRes?.message?.status !== 'success') {
+                    throw new Error("Failed to save draft before processing action.");
+                }
             }
 
             const res = await performAction({
@@ -411,14 +440,19 @@ const P11Form: React.FC = () => {
             });
 
             if (res?.message?.status === 'success') {
+                if (comment.trim()) {
+                    try {
+                        await addActionComment({ doctype: 'P_11 Form', docname: savedDocName, content: comment.trim() });
+                    } catch (e) {
+                    }
+                }
                 alert(`Action '${action}' completed successfully!`);
-                navigate(-1);
+                refreshWorkflowActions();
             } else {
                 throw new Error(res?.message?.message || `Failed to perform action '${action}'.`);
             }
         } catch (err: any) {
-            console.error(err);
-            alert(`Action failed: ${err.message || "Unknown error"}`);
+            setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(err) });
         } finally {
             setIsSubmitting(false);
             setPendingWorkflowAction('');
@@ -482,20 +516,33 @@ const P11Form: React.FC = () => {
                 </div>
             )}
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-                <div className="flex items-center justify-between mb-2">
-                    <PageHeader
-                        title={editDocName ? `P-11 Form: ${editDocName}` : 'P-11 Form'}
-                        projectName={projectName}
-                    />
-                    {(viewOnly || editDocName) && (
-                        <button
-                            onClick={() => setIsPrintModalOpen(true)}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 shrink-0"
-                        >
-                            <Printer className="w-4 h-4" /> Print / PDF
-                        </button>
-                    )}
-                </div>
+                <PageHeader
+                    title={editDocName ? `P-11 Form: ${editDocName}` : 'P-11 Form'}
+                    projectName={projectName}
+                    status={formData.workflow_status}
+                >
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {editDocName && (
+                            <ViewProjectButton doctype="P_11 Form" data={formData} />
+                        )}
+                        {viewOnly && editDocName && formData.docstatus !== 1 && (
+                            <button
+                                onClick={() => navigate(`/p11-form?edit=${editDocName}`)}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 shrink-0"
+                            >
+                                Edit
+                            </button>
+                        )}
+                        {(viewOnly || editDocName) && (
+                            <button
+                                onClick={() => setIsPrintModalOpen(true)}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 shrink-0"
+                            >
+                                <Printer className="w-4 h-4" /> Print / PDF
+                            </button>
+                        )}
+                    </div>
+                </PageHeader>
 
                 {validationErrors.length > 0 && (
                     <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
@@ -530,7 +577,7 @@ const P11Form: React.FC = () => {
                         </FrappeCard>
 
                         <div className="mt-8 flex flex-wrap justify-end gap-4">
-                            {!viewOnly && !editDocName && (
+                            {!viewOnly && formData.docstatus !== 1 && (
                                 <FrappeButton
                                     onClick={handleSave}
                                     disabled={isSubmitting}
@@ -540,45 +587,47 @@ const P11Form: React.FC = () => {
                                 </FrappeButton>
                             )}
 
-                            {/* Workflow Action Buttons */}
-                            {!viewOnly && editDocName && workflowActions.length > 0 ? (
-                                workflowActions.map((action, idx) => {
-                                    const isRejectAction = action.toLowerCase().includes('reject');
-                                    const isPutBackAction = action.toLowerCase().includes('put back');
-
-                                    let buttonClass = "bg-[#D97757] text-white hover:bg-[#c66a4e]"; // Default to orange
-
-                                    if (isRejectAction) {
-                                        buttonClass = "bg-red-600 text-white hover:bg-red-700";
-                                    } else if (isPutBackAction) {
-                                        buttonClass = "bg-amber-600 text-white hover:bg-amber-700";
-                                    } else if (action.toLowerCase().includes('approve')) {
-                                        buttonClass = "bg-emerald-600 text-white hover:bg-emerald-700";
-                                    }
-
-                                    return (
-                                        <FrappeButton
-                                            key={idx}
-                                            onClick={() => handleWorkflowAction(action)}
-                                            disabled={isSubmitting}
-                                            className={buttonClass}
-                                        >
-                                            {action}
-                                        </FrappeButton>
-                                    );
-                                })
-                            ) : (
-                                // For initial submission if required, though usually handled via saving a draft then workflow
-                                !viewOnly && editDocName && workflowActions.length === 0 && (
-                                    <FrappeButton
-                                        onClick={handleSave}
-                                        disabled={isSubmitting}
-                                        className="bg-[#D97757] text-white hover:bg-[#c66a4e]"
-                                    >
-                                        Update Details
-                                    </FrappeButton>
-                                )
+                            {/* "Submit" gets a dedicated, prominent button — filtered out of the
+                                generic workflow action list below to avoid showing it twice. */}
+                            {!viewOnly && editDocName && workflowActions.includes('Submit') && (
+                                <FrappeButton
+                                    onClick={() => handleWorkflowAction('Submit')}
+                                    disabled={isSubmitting}
+                                    className="bg-[#D97757] text-white hover:bg-[#c66a4e]"
+                                >
+                                    {isSubmitting ? 'Submitting...' : 'Submit'}
+                                </FrappeButton>
                             )}
+
+                            {/* Workflow Action Buttons */}
+                            {editDocName &&
+                                workflowActions
+                                    .filter((action) => action !== 'Submit')
+                                    .map((action, idx) => {
+                                        const isRejectAction = action.toLowerCase().includes('reject');
+                                        const isPutBackAction = action.toLowerCase().includes('put back');
+
+                                        let buttonClass = "bg-[#D97757] text-white hover:bg-[#c66a4e]"; // Default to orange
+
+                                        if (isRejectAction) {
+                                            buttonClass = "bg-red-600 text-white hover:bg-red-700";
+                                        } else if (isPutBackAction) {
+                                            buttonClass = "bg-amber-600 text-white hover:bg-amber-700";
+                                        } else if (action.toLowerCase().includes('approve')) {
+                                            buttonClass = "bg-emerald-600 text-white hover:bg-emerald-700";
+                                        }
+
+                                        return (
+                                            <FrappeButton
+                                                key={idx}
+                                                onClick={() => handleWorkflowAction(action)}
+                                                disabled={isSubmitting}
+                                                className={buttonClass}
+                                            >
+                                                {action}
+                                            </FrappeButton>
+                                        );
+                                    })}
                         </div>
                     </div>
                 </div>
@@ -596,6 +645,12 @@ const P11Form: React.FC = () => {
                 onSubmit={handleConfirmWorkflowAction}
                 action={pendingWorkflowAction}
                 isLoading={isSubmitting}
+            />
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
             />
         </div>
     );

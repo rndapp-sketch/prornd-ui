@@ -37,7 +37,6 @@ const DisbursalOfHonorarium: React.FC = () => {
         setDisbursalList(data.data);
       }
     } catch (error) {
-      console.error("Error fetching disbursal list:", error);
     } finally {
       setLoading(false);
     }

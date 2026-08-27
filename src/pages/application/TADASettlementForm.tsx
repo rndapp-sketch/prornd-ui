@@ -21,6 +21,8 @@ import { useUserRoles } from "@/components/UserRole";
 import { generateTadaSettlementHtml } from "@/utils/tadaSettlementPrint";
 import { resolveBudgetHeadLabel } from "@/utils/resolveBudgetHeadLabel";
 import { fetchActivityLogHtml } from "@/utils/fetchActivityLogHtml";
+import { ErrorModal } from "../../components/ErrorModal";
+import { parseFrappeError } from "../../utils/errorUtils";
 
 // "Upload Supporting Docs / Additional Docs" table — same constraints as
 // Project Registration's "Upload Supporting Docs" table.
@@ -252,6 +254,11 @@ const TADASettlementForm: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [errorModal, setErrorModal] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+  }>({ open: false, title: "Submission Failed", message: "" });
   // Tracks the docname created/returned by a Save Draft action so Submit can reuse it
   const [savedDocName, setSavedDocName] = useState<string>("");
 
@@ -356,7 +363,6 @@ const TADASettlementForm: React.FC = () => {
           } catch { /* try next head */ }
         }
       } catch (err) {
-        console.error("[AdvanceTaken] Error:", err);
       }
       return null;
     },
@@ -389,7 +395,6 @@ const TADASettlementForm: React.FC = () => {
         return deptResult.message.dept_name;
       }
     } catch (e) {
-      console.error("Failed to fetch department name for ID:", deptId, e);
     }
     return deptId; // fallback to the ID if resolution fails
   };
@@ -426,7 +431,6 @@ const TADASettlementForm: React.FC = () => {
         };
       }
     } catch (err) {
-      console.error("Failed to fetch user details:", err);
     }
     return currentData;
   };
@@ -476,7 +480,6 @@ const TADASettlementForm: React.FC = () => {
             };
           }
         } catch (err) {
-          console.error("Error fetching TA DA budget heads:", err);
         }
         setLinkOptions(baseLinkOptions);
 
@@ -494,7 +497,6 @@ const TADASettlementForm: React.FC = () => {
               initialData = { ...initialData, ...existingDoc.message };
             }
           } catch (err) {
-            console.error("Error fetching existing document:", err);
             alert("Failed to load document for editing");
           }
         }
@@ -590,10 +592,6 @@ const TADASettlementForm: React.FC = () => {
               }
             }
           } catch (err) {
-            console.error(
-              "Failed to automatically prefill from Travel details:",
-              err,
-            );
           }
         }
 
@@ -626,7 +624,6 @@ const TADASettlementForm: React.FC = () => {
         setLoading(false);
       }
       if (formDataError) {
-        console.error("Failed to load form data:", formDataError);
         alert("Error: Could not load the TA DA Settlement form.");
         setLoading(false);
       }
@@ -856,7 +853,6 @@ const TADASettlementForm: React.FC = () => {
             }
           }
         } catch (err) {
-          console.error("Failed to fetch travel details:", err);
         }
       }
     },
@@ -955,8 +951,11 @@ const TADASettlementForm: React.FC = () => {
         throw new Error(res?.message?.message || "Save failed");
       }
     } catch (err: any) {
-      console.error(saveError || err);
-      alert(`Save failed: ${err.message || "Unknown error"}`);
+      setErrorModal({
+        open: true,
+        title: "Save Failed",
+        message: parseFrappeError(saveError, err),
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -992,10 +991,11 @@ const TADASettlementForm: React.FC = () => {
         throw new Error(submitRes?.message?.message || "Submission failed");
       }
     } catch (err: any) {
-      console.error(submitError || err);
-      alert(
-        `Submission failed: ${err.message || "Please check the console for details."}`,
-      );
+      setErrorModal({
+        open: true,
+        title: "Submission Failed",
+        message: parseFrappeError(submitError, err),
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -1134,6 +1134,12 @@ const TADASettlementForm: React.FC = () => {
           )}
         </form>
       </main>
+      <ErrorModal
+        open={errorModal.open}
+        title={errorModal.title}
+        message={errorModal.message}
+        onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+      />
     </div>
   );
 };

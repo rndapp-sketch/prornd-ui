@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetDocList } from "frappe-react-sdk";
-import { AppSidebar } from "@/components/RndSidebar";
+
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import {
@@ -106,7 +106,7 @@ export default function DepartmentProjects() {
 
     return (
         <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] font-sans">
-            <AppSidebar />
+        
             <div className="flex-1 p-4 md:p-8">
                 <div className="w-full max-w-7xl mx-auto">
 

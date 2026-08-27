@@ -7,6 +7,8 @@ import { AppSidebar } from '@/components/RndSidebar';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { leaveModuleAPI, prepareFormDataForApi } from '@/services/apiService';
+import { ErrorModal } from '../components/ErrorModal';
+import { parseFrappeError } from '../utils/errorUtils';
 
 // -----------------------------------------------------------------------
 // HOW THIS FORM PAGE WORKS (for learning):
@@ -153,6 +155,7 @@ const LeaveModuleForm = () => {
     const [dataLoaded, setDataLoaded] = useState(false);
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
     const [savedDocName, setSavedDocName] = useState<string | null>(editDocName);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     // --- API HOOKS ---
     // Each useFrappePostCall gives us a `call` function and result/error tracking
@@ -160,9 +163,9 @@ const LeaveModuleForm = () => {
         useFrappePostCall<FormDataResponse>(leaveModuleAPI.getFields);
     const { call: fetchDocument } =
         useFrappePostCall<{ message: Record<string, any> }>('frappe.client.get');
-    const { call: saveForm } =
+    const { call: saveForm, error: saveError } =
         useFrappePostCall(leaveModuleAPI.save);
-    const { call: submitForm } =
+    const { call: submitForm, error: submitError } =
         useFrappePostCall(leaveModuleAPI.submit);
 
     // --- FETCH FORM METADATA ON MOUNT ---
@@ -177,7 +180,6 @@ const LeaveModuleForm = () => {
     useEffect(() => {
         if (!formDataResult?.message || dataLoaded) {
             if (formDataError) {
-                console.error("Failed to load form data:", formDataError);
                 alert("Error: Could not load the Leave form.");
                 setLoading(false);
             }
@@ -195,7 +197,6 @@ const LeaveModuleForm = () => {
                     if (res?.message) setFormData(res.message);
                 })
                 .catch((err) => {
-                    console.error("Failed to load existing leave application:", err);
                     alert("Error: Could not load the existing leave application.");
                 })
                 .finally(() => {
@@ -339,8 +340,11 @@ const LeaveModuleForm = () => {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
-            console.error("Save error:", err);
-            alert(`Save failed: ${err.message || "Unknown error"}`);
+            setErrorModal({
+                open: true,
+                title: "Save Failed",
+                message: parseFrappeError(saveError, err),
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -376,8 +380,11 @@ const LeaveModuleForm = () => {
                 throw new Error(submitRes?.message?.message || "Submission failed");
             }
         } catch (err: any) {
-            console.error("Submit error:", err);
-            alert(`Submission failed: ${err.message || "Please check the console for details."}`);
+            setErrorModal({
+                open: true,
+                title: "Submission Failed",
+                message: parseFrappeError(submitError, err),
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -500,6 +507,13 @@ const LeaveModuleForm = () => {
                     </div>
                 </form>
             </main>
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };
