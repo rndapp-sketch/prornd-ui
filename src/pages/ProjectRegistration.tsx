@@ -1630,17 +1630,32 @@ const ProjectRegistration: React.FC = () => {
                                     // No exact/case-insensitive match in the preloaded options
                                     // (e.g. PI's department record differs in casing/whitespace
                                     // from the Department list, or that department wasn't in the
-                                    // initially loaded options) — inject it so the select still
-                                    // shows the PI's actual department instead of silently
-                                    // resetting to blank ("Select...").
-                                    departmentLinkValue = deptName;
-                                    setLinkOptions((prev: any) => ({
-                                        ...prev,
-                                        applicant_department: [
-                                            ...(prev.applicant_department || []),
-                                            { value: deptName, label: deptName },
-                                        ],
-                                    }));
+                                    // initially loaded options). `deptName` is a display label,
+                                    // not necessarily the Department_prornd record's `name`
+                                    // (its actual Link value) — using it as-is fails backend
+                                    // Link validation on save, so resolve the real record name
+                                    // first and only fall back to leaving the field blank.
+                                    try {
+                                        const deptLookup = await fetchDeptHead({
+                                            doctype: "Department_prornd",
+                                            fieldname: "name",
+                                            filters: { dept_name: ["like", deptName] },
+                                        });
+                                        const resolvedName = deptLookup?.message?.name;
+                                        if (resolvedName) {
+                                            departmentLinkValue = resolvedName;
+                                            setLinkOptions((prev: any) => ({
+                                                ...prev,
+                                                applicant_department: [
+                                                    ...(prev.applicant_department || []),
+                                                    { value: resolvedName, label: deptName },
+                                                ],
+                                            }));
+                                        }
+                                    } catch (e) {
+                                        // Department truly doesn't exist on record — leave blank
+                                        // rather than submit an invalid Link value.
+                                    }
                                 }
                             }
                             updatedData = {
