@@ -184,6 +184,24 @@ const SectionWrapper = ({
     </Card>
 );
 
+// Adapts to whatever span the project actually has (e.g. "6 Years", "8 Months",
+// "6 Years 3 Months 10 Days") instead of always showing raw "72m 0d".
+const formatProjectDuration = (months: any, days: any): string | null => {
+    const totalMonths = Number(months) || 0;
+    const remDays = Number(days) || 0;
+    if (totalMonths <= 0 && remDays <= 0) return null;
+
+    const years = Math.floor(totalMonths / 12);
+    const remMonths = totalMonths % 12;
+
+    const parts: string[] = [];
+    if (years > 0) parts.push(`${years} Year${years > 1 ? "s" : ""}`);
+    if (remMonths > 0) parts.push(`${remMonths} Month${remMonths > 1 ? "s" : ""}`);
+    if (remDays > 0) parts.push(`${remDays} Day${remDays > 1 ? "s" : ""}`);
+
+    return parts.length > 0 ? parts.join(" ") : null;
+};
+
 const FieldDisplay = ({
     label,
     value,
@@ -4420,7 +4438,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                             />
                                             <FieldDisplay
                                                 label="Project Duration"
-                                                value={`${data?.project_duration_months}m ${data?.project_duration_days || 0}d`}
+                                                value={formatProjectDuration(data?.project_duration_months, data?.project_duration_days)}
                                                 icon={CalendarIcon}
                                             />
                                             <FieldDisplay

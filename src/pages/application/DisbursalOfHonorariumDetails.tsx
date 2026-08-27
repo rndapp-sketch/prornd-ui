@@ -7,6 +7,7 @@ import {
     useFrappeAuth,
 } from "frappe-react-sdk";
 import { disbursalOfHonorariumAPI } from "@/services/apiService";
+import { getFileUrl } from "@/utils/fileUtils";
 
 // --- FILE SAVE HELPER (mirrors DisbursalOfHonorariumForm) ---
 const callSaveApi = async (endpoint: string, formData: Record<string, any>): Promise<any> => {
@@ -50,6 +51,7 @@ import {
     FileSpreadsheetIcon as LedgerIcon,
     EditIcon,
     Send,
+    Printer,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlobalLoader } from "@/components/ui/global-loader";
@@ -557,6 +559,14 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                     projectNumber={formData.project_no}
                 >
                     <div className="flex items-center gap-2">
+                        {/* Print button — always visible */}
+                        <button
+                            onClick={() => setIsPrintModalOpen(true)}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
+                        >
+                            <Printer className="w-4 h-4" />
+                            Print
+                        </button>
                         {(formData.workflow_state === "Draft" || !formData.workflow_state) && id && (
                             <>
                                 <button
@@ -580,7 +590,6 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                             <DisbursalOfHonorariumActionButtons
                                 docname={id}
                                 onActionComplete={handleRefresh}
-                                onPrint={() => setIsPrintModalOpen(true)}
                                 commitRequired={
                                     isRnDStaff &&
                                     formData.workflow_state === "Pending Staff Approval" &&
@@ -771,6 +780,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                 />
             )}
             <P11PrintModal
+                title="Disbursal of Honorarium Preview"
                 isOpen={isPrintModalOpen}
                 onClose={() => setIsPrintModalOpen(false)}
                 htmlContent={
@@ -787,6 +797,10 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                         : ""
                 }
                 docName={formData.name || id || ""}
+                attachments={[
+                    ...(formData.attached_approvals ? [{ label: "Merged Approvals", url: getFileUrl(formData.attached_approvals) }] : []),
+                    ...(formData.additional_documents ? [{ label: "Additional Documents", url: getFileUrl(formData.additional_documents) }] : [])
+                ]}
             />
             {id && (
                 <FloatingActivityLogButton

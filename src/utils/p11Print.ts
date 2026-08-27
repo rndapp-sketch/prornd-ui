@@ -194,6 +194,7 @@ export function generateP11Html(formData: Record<string, any>): string {
   // ── Assemble final HTML ───────────────────────────────────────────────────
   return p11Template
     .replace("{{DOC_REF}}", formData.name || "")
+    .replace("{{WORKFLOW_STATE}}", formData.workflow_state || "Draft")
     .replace("{{DIRECT_PURCHASE_REF}}", formData.app_id || "")
     .replace("{{CURRENT_TIME}}", currentTime)
     .replace("{{DATE}}", creation)

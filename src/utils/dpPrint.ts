@@ -20,7 +20,7 @@ const fmtDate = (val: string | undefined): string => {
 
 // Fields to skip entirely (system fields, child tables, etc.)
 const SKIP_FIELDS = new Set([
-    "name", "creation", "modified", "modified_by", "owner", "docstatus",
+    "name", "creation", "modified", "modified_by", "docstatus",
     "idx", "doctype", "parent", "parenttype", "parentfield",
     "_user_tags", "_comments", "_assign", "_liked_by", "_seen",
     "table_gdxp", "table_teqd",                      // shown separately
@@ -35,6 +35,7 @@ const SKIP_FIELDS = new Set([
 
 // Human-readable labels for known field names
 const FIELD_LABELS: Record<string, string> = {
+    owner:                 "Applicant Webmail",
     applicant_name:        "Applicant Name",
     applicant_designation: "Applicant Designation",
     applicant_department:  "Applicant Department",
@@ -76,7 +77,7 @@ const isFilePath = (val: any): boolean => {
 
 // Preferred display order for info rows
 const ORDERED_FIELDS = [
-    "applicant_name", "applicant_designation", "applicant_department",
+    "applicant_name", "applicant_designation", "applicant_department", "owner",
     "register_for", "applying_for_name",
     "account_head", "total_estimate", "is_foreign", "is_sanctioned",
     "comments_if_any", "workflow_state",
@@ -233,7 +234,7 @@ export function generateDpHtml(
         .join("");
 
     const declarationsHtml =
-        `<div style="margin-top:8px;">
+        `<div class="declaration" style="margin-top:8px; page-break-inside: avoid; break-inside: avoid;">
             <div style="font-size:9pt;font-weight:bold;background:#c8c8c8;padding:3px 6px;
                         border:1px solid #999;margin-bottom:4px;">Declaration</div>
             <div style="border:1px solid #ddd;border-radius:3px;padding:6px 10px;background:#fafafa;">
@@ -242,7 +243,7 @@ export function generateDpHtml(
          </div>`;
 
     // ── ACTIVITY LOG (read from live DOM) ─────────────────────────────────────
-    let activityRows = "<p style='color:#888;font-style:italic;'>No activity recorded.</p>";
+    let activityRows = "<tr><td colspan='3' style='text-align:center;color:#888;font-style:italic;'>No activity recorded.</td></tr>";
     let countBadgeHtml = `<div class="section-heading" style="margin-top:8px;">Activity Log</div>`;
 
     if (activityEl) {
@@ -256,6 +257,9 @@ export function generateDpHtml(
                     const nameEl   = item.querySelector(".text-xs.font-semibold");
                     const name     = nameEl?.textContent?.trim() || "Unknown";
                     
+                    const desigEl  = item.querySelector(".designation-text");
+                    const designation = desigEl?.textContent?.trim() || "";
+
                     const actionEls = item.querySelectorAll<HTMLElement>(".text-xs.text-zinc-500, .text-xs.text-zinc-400");
                     let action = "";
                     actionEls.forEach((el) => {
@@ -268,60 +272,24 @@ export function generateDpHtml(
                     const timeEl   = item.querySelector<HTMLElement>("p[title], p.text-\\[11px\\], .text-xs.text-zinc-400");
                     const titleTime = timeEl?.getAttribute("title") || "";
                     const relativeTime = timeEl?.textContent?.trim() || "";
-                    const time = titleTime ? `${titleTime} <span style="color:#888;">(${relativeTime})</span>` : relativeTime;
+                    const time = titleTime || relativeTime;
                     
-                    const badgeEl  = item.querySelector<HTMLElement>(".ml-auto, .rounded-full.border");
-                    // Exclude avatar letters from badge
-                    let badge = badgeEl?.textContent?.trim() || "";
-                    if (badge.length === 1) badge = ""; // Avatar fallback check
-
                     const commentEl = item.querySelector<HTMLElement>(".prose");
-                    const comment = commentEl?.innerHTML || commentEl?.textContent?.trim() || "";
+                    const comment = commentEl?.textContent?.trim() || "";
 
-                    const avatarLetter = name.charAt(0).toUpperCase();
+                    const label = action === "created this" ? "Submitted" : action;
+                    const finalComment = comment || label || "-";
 
-                    let badgeBg = "#f5f5f5";
-                    let badgeColor = "#555";
-                    let badgeBorder = "#ccc";
-                    let avatarBg = "#555";
-
-                    const lowerBadge = badge.toLowerCase();
-                    if (lowerBadge.includes("creation") || lowerBadge.includes("approved")) {
-                        badgeBg = "#ecfdf5";
-                        badgeColor = "#047857";
-                        badgeBorder = "#a7f3d0";
-                        avatarBg = "#10b981";
-                    } else if (lowerBadge.includes("comment") || lowerBadge.includes("reject") || lowerBadge.includes("pending")) {
-                        badgeBg = "#fff7ed";
-                        badgeColor = "#c2410c";
-                        badgeBorder = "#fed7aa";
-                        avatarBg = "#f97316";
-                    } else if (lowerBadge.includes("workflow") || lowerBadge.includes("edit") || lowerBadge.includes("update")) {
-                        badgeBg = "#f4f4f5";
-                        badgeColor = "#52525b";
-                        badgeBorder = "#e4e4e7";
-                        avatarBg = "#a1a1aa";
-                    }
-
-                    let commentHtml = "";
-                    if (comment) {
-                        commentHtml = `<div style="margin-top:6px; padding:8px 10px; background-color:#f8f9fa; border:1px solid #e9ecef; border-radius:6px; font-size:8pt; color:#495057; line-height:1.5;">${comment}</div>`;
-                    }
+                    const nameCell = designation
+                        ? `${name}<span class="designation">${designation}</span>`
+                        : name;
 
                     return `
-                    <div class="activity-row">
-                        <div class="activity-avatar" style="background:${avatarBg};">${avatarLetter}</div>
-                        <div class="activity-text">
-                            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                                <div>
-                                    <strong>${name}</strong> <span style="color:#555;">${action}</span>
-                                </div>
-                                ${badge ? `<span style="padding:1px 6px; border:1px solid ${badgeBorder}; border-radius:4px; font-size:7pt; background:${badgeBg}; color:${badgeColor}; text-transform:uppercase; margin-left:8px; white-space:nowrap; font-weight:bold;">${badge}</span>` : ""}
-                            </div>
-                            <div class="activity-time">${time}</div>
-                            ${commentHtml}
-                        </div>
-                    </div>`;
+                    <tr>
+                        <td>${nameCell}</td>
+                        <td>${finalComment}</td>
+                        <td style="white-space:nowrap;">${time}</td>
+                    </tr>`;
                 })
                 .join("");
                 

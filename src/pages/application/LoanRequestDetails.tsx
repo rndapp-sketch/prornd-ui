@@ -1,21 +1,24 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppSidebar } from '@/components/RndSidebar';
-import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeAuth, useFrappeGetDoc } from 'frappe-react-sdk';
 import { useUserRoles } from '@/components/UserRole';
 import { cn } from '@/lib/utils';
 import {
     CalendarIcon, EditIcon, Send, ChevronRight,
     CheckCircle2, XCircle, Clock, UserIcon, IndianRupeeIcon,
-    TableIcon, FileTextIcon, AlertCircle,
+    TableIcon, FileTextIcon, AlertCircle, Printer,
 } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
-import { loanRequestAPI, prepareFormDataForApi } from '@/services/apiService';
+import { loanRequestAPI, prepareFormDataForApi, commonAPI } from '@/services/apiService';
 import { DepartmentName } from '@/components/DepartmentName';
 import LoanRequestActionButtons from '@/components/LoanRequestActionButtons';
 import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButton';
+import { ActivityLog } from '@/components/ActivityLog';
+import { P11PrintModal } from '@/components/P11PrintModal';
+import { generateLoanRequestHtml } from '@/utils/loanRequestPrint';
 
 // --- FIELD GROUP DEFINITIONS (same as form) ---
 const GROUP_A_FIELDS = new Set([
@@ -218,6 +221,8 @@ const LoanRequestDetails: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+    const [printHtml, setPrintHtml] = useState('');
     const [bmrValues, setBmrValues] = useState({ bmr: '', bmr_date: '' });
 
     const { currentUser } = useFrappeAuth();
@@ -229,6 +234,30 @@ const LoanRequestDetails: React.FC = () => {
     const { call: fetchDocument } = useFrappePostCall<{ message: any }>('frappe.client.get');
     const { call: saveForm } = useFrappePostCall<{ message: any }>(loanRequestAPI.save);
     const { call: submitDocument } = useFrappePostCall<{ message: any }>(loanRequestAPI.submit);
+    const { call: fetchUserDetails } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
+
+    const [fetchedApplicantName, setFetchedApplicantName] = useState<string>('');
+    const [fetchedDeptName, setFetchedDeptName] = useState<string>('');
+    const [fetchedDesignation, setFetchedDesignation] = useState<string>('');
+
+    const { data: projectDoc } = useFrappeGetDoc('Project Registration', formData?.project_name, {
+        enabled: !!formData?.project_name,
+    });
+    const fetchedProjectTitle = projectDoc?.project_title || '';
+
+    useEffect(() => {
+        if (formData?.applicant_webmail || formData?.owner) {
+            fetchUserDetails({ user_email: formData.applicant_webmail || formData.owner })
+                .then(res => {
+                    if (res?.message) {
+                        if (res.message.full_name) setFetchedApplicantName(res.message.full_name);
+                        if (res.message.department_name) setFetchedDeptName(res.message.department_name);
+                        if (res.message.designation_name) setFetchedDesignation(res.message.designation_name);
+                    }
+                })
+                .catch(err => console.warn("Could not fetch user details", err));
+        }
+    }, [formData?.applicant_webmail, formData?.owner]);
 
     useEffect(() => {
         if (id) fetchFormData({ doc_name: id });
@@ -268,6 +297,40 @@ const LoanRequestDetails: React.FC = () => {
         setLoading(true);
         setRefreshKey(k => k + 1);
     }, []);
+
+    const handlePrint = useCallback(() => {
+        const findLabel = (fieldName: string, value: any): string | undefined => {
+            if (!value) return undefined;
+            const options = linkOptions[fieldName] || [];
+            const found = options.find((opt: any) => opt.value === value || String(opt.value) === String(value));
+            return found?.label;
+        };
+
+        // Resolve fund breakup rows from child table in formData
+        const fundBreakupRows: any[] = (formData.account_head_fund_breakup || []).map((row: any) => {
+            const rawHead = row.account_head || row.budget_head || row.head || row.account_head_name || row.account_name;
+            const resolvedHead = findLabel('account_head', rawHead) || findLabel('budget_head', rawHead) || rawHead || "-";
+            
+            return {
+                account_head: resolvedHead,
+                account_head_label: row.account_head_label || row.budget_head_label || resolvedHead,
+                amount: row.account_head_amount || row.amount || row.sanctioned_amount || row.budget_amount || 0,
+            };
+        });
+
+        const activityEl = document.getElementById('floating-activity-log-container');
+        const html = generateLoanRequestHtml(
+            formData,
+            fetchedApplicantName || formData.applicant_name || formData.owner || '',
+            fetchedDeptName,
+            fetchedDesignation,
+            fetchedProjectTitle,
+            fundBreakupRows,
+            activityEl,
+        );
+        setPrintHtml(html);
+        setIsPrintModalOpen(true);
+    }, [formData, fetchedApplicantName, fetchedDeptName, fetchedDesignation, fetchedProjectTitle, linkOptions]);
 
     const handleSubmitDraft = async () => {
         if (!id || isSubmitting) return;
@@ -329,6 +392,13 @@ const LoanRequestDetails: React.FC = () => {
                     projectName={formData.project_title}
                     projectNumber={formData.project_no}
                 >
+                    <button
+                        onClick={handlePrint}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
+                    >
+                        <Printer className="w-4 h-4" />
+                        Print
+                    </button>
                     {isDraft && id && (
                         <>
                             <button
@@ -547,7 +617,19 @@ const LoanRequestDetails: React.FC = () => {
                     </aside>
                 </div>
             </main>
+            {id && (
+                <div id="floating-activity-log-container" style={{ display: 'none' }}>
+                    <ActivityLog doctype="Loan Request" docname={id} />
+                </div>
+            )}
             {id && <FloatingActivityLogButton doctype="Loan Request" docname={id} />}
+            <P11PrintModal
+                isOpen={isPrintModalOpen}
+                onClose={() => setIsPrintModalOpen(false)}
+                htmlContent={printHtml}
+                docName={id || ''}
+                title="Loan Request Print Preview"
+            />
         </div>
     );
 };

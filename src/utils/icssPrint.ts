@@ -30,6 +30,9 @@ const SKIP_FIELDS = new Set([
     "dec_1", "dec_2", "dec_3", "dec_4",              // declarations
     "sp_dec_1", "sp_dec_2", "sp_dec_3", "sp_dec_4",
     "dp_dec_1", "dp_dec_2", "dp_dec_3", "dp_dec_4",
+    "pp_dec_1", "pp_dec_2", "pp_dec_3", "pp_dec_4",
+    "rr_dec_1", "rr_dec_2", "rr_dec_3", "rr_dec_4",
+    "amc_dec_1", "amc_dec_2", "amc_dec_3", "amc_dec_4",
     "workflow_state", "send_to_director", "director_approval_required", "child_document",
     "sub_doctype_reference", "child_doctype",
     "sp_applicant_name", "sp_webmail_id", "sp_department", "sp_designation",
@@ -38,6 +41,9 @@ const SKIP_FIELDS = new Set([
     "dp_applicant_name", "dp_webmail_id", "dp_department", "dp_designation",
     "dp_applying_for", "dp_indent_type", "dp_account_head", 
     "dp_indent_cum_sanction_sheet_id", "dp_self_other",
+    "pp_applicant_name", "pp_webmail_id", "pp_department", "pp_designation",
+    "pp_applying_for", "pp_indent_type", "pp_account_head", 
+    "pp_indent_cum_sanction_sheet_id", "pp_self_other",
     "indent_cum_sanction_sheet_id", "self_other", "department", "applicant_name", "webmail_id", "applying_for", "indent_type", "account_head", "designation",
 ]);
 
@@ -53,6 +59,15 @@ const FIELD_LABELS: Record<string, string> = {
     total_estimate: "Total Estimate (₹)",
     principal_supplier: "Principal Supplier",
     icss_principal_supplier: "Principal Supplier",
+    pp_estimated_basic_value: "Total Estimated Basic Value",
+    pp_grand_total: "Grand Total",
+    pp_mode_of_payment: "Mode Of Payment",
+    pp_delivery_period: "Delivery Period",
+    pp_warranty: "Warranty",
+    pp_supplier_details: "Supplier Name & Address",
+    pp_supplier_email: "Supplier Email Id",
+    pp_indenter_contact_number: "Indenter Contact Number",
+    pp_sanctioned_by_funding_agency: "Were The Above Items Sanctioned By The Funding Agency?",
 };
 
 const BOOL_FIELDS = new Set([
@@ -79,7 +94,7 @@ const ORDERED_FIELDS = [
 
 const fmtLabel = (key: string): string =>
     FIELD_LABELS[key] ||
-    key.replace(/^(sp_|icss_|dp_)/, "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    key.replace(/^(sp_|icss_|dp_|pp_|rr_|amc_|rate_contract_)/, "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
 const fmtValue = (key: string, val: any, data: Record<string, any> = {}, domMap: Record<string, string> = {}, linkOpts: Record<string, any[]> = {}): string => {
     if (BOOL_FIELDS.has(key)) return yesNo(val);
@@ -165,7 +180,7 @@ export function generateIcssHtml(
             if (SKIP_FIELDS.has(k)) return false;
             if (k.startsWith("_")) return false;
             if (k.endsWith("_name") && data[k.slice(0, -5)] !== undefined) return false;
-            if (k.includes("declaration") || k.includes("checkbox") || k.includes("accept") || k.startsWith("certify_") || k === "rate_contract_packing") return false;
+            if (k.includes("declaration") || k.includes("checkbox") || k.includes("accept") || k.startsWith("certify_") || k === "rate_contract_packing" || /dec_\d$/.test(k)) return false;
             const v = data[k];
             if (Array.isArray(v) || typeof v === "object" || v === null || v === undefined || v === "") return false;
             return true;
@@ -238,7 +253,19 @@ export function generateIcssHtml(
         )
         .join("");
 
-    const totalEstimate = Number(data.total_estimated_amount_in_rs || data.total_estimate || data.rate_contract_total || data.rate_contract_grand_total) || 0;
+    const totalEstimate = Number(
+        data.pp_grand_total ||
+        data.sp_grand_total ||
+        data.rr_grand_total ||
+        data.amc_grand_total ||
+        data.icss_amc_grand_total ||
+        data.rate_contract_grand_total ||
+        data.grand_total ||
+        data.total_estimate ||
+        data.total_estimated_amount_in_rs ||
+        data.rate_contract_total ||
+        0
+    );
 
     let declarationsHtml = "";
     const declWrappers = [detailsEl, subDetailsEl].filter(Boolean) as HTMLElement[];
@@ -262,7 +289,7 @@ export function generateIcssHtml(
             }).join("");
 
             declarationsHtml = `
-            <div style="margin-top:8px;">
+            <div class="declaration" style="margin-top:8px; page-break-inside: avoid; break-inside: avoid;">
                 <div style="font-size:9pt;font-weight:bold;background:#c8c8c8;padding:3px 6px; border:1px solid #999;margin-bottom:4px;">Declaration</div>
                 <div style="border:1px solid #ddd;border-radius:3px;padding:6px 10px;background:#fafafa;">
                     ${declItems}
@@ -271,41 +298,7 @@ export function generateIcssHtml(
         }
     }
 
-    let workflowHtml = "";
-    if (workflowEl) {
-        const stageEls = Array.from(workflowEl.querySelectorAll(".flex-col.items-center"));
-        if (stageEls.length > 0) {
-            const stagesHtml = stageEls.map((el, idx) => {
-                const label = el.querySelector("p")?.textContent?.trim() || "";
-                const isCompleted = el.querySelector(".bg-emerald-500") !== null;
-                const isPendingHere = el.querySelector(".bg-\\[\\#D97757\\]") !== null;
-                const isRejected = el.querySelector(".bg-red-500") !== null;
-                
-                let color = "#999";
-                let icon = "&#9675;"; // open circle
-                if (isCompleted) { color = "#10b981"; icon = "&#9679;"; } // filled circle
-                else if (isPendingHere) { color = "#D97757"; icon = "&#9673;"; } // bullseye
-                else if (isRejected) { color = "#ef4444"; icon = "&#10006;"; } // cross
-                
-                const arrow = idx < stageEls.length - 1 ? `<div style="display:inline-block; vertical-align:top; margin:10px 4px 0 4px; color:#ccc; font-size:12pt;">&rarr;</div>` : "";
-                
-                return `<div style="display:inline-block; text-align:center; width:75px; vertical-align:top;">
-                    <div style="font-size:16pt; color:${color}; margin-bottom:2px;">${icon}</div>
-                    <div style="font-size:7pt; color:#555; line-height:1.2;">${label}</div>
-                </div>${arrow}`;
-            }).join("");
-            
-            workflowHtml = `
-            <div style="margin-top:8px;">
-                <div class="section-heading" style="margin-top:0;">Workflow Progress</div>
-                <div style="padding:10px 4px; border:1px solid #ddd; border-radius:3px; background:#fafafa; text-align:center;">
-                    ${stagesHtml}
-                </div>
-            </div>`;
-        }
-    }
-
-    let activityRows = "<p style='color:#888;font-style:italic;'>No activity recorded.</p>";
+    let activityRows = "<tr><td colspan='3' style='text-align:center;color:#888;font-style:italic;'>No activity recorded.</td></tr>";
     let countBadgeHtml = `<div class="section-heading" style="margin-top:8px;">Activity Log</div>`;
 
     if (activityEl) {
@@ -318,6 +311,9 @@ export function generateIcssHtml(
                     const nameEl   = item.querySelector(".text-xs.font-semibold");
                     const name     = nameEl?.textContent?.trim() || "Unknown";
                     
+                    const desigEl  = item.querySelector(".designation-text");
+                    const designation = desigEl?.textContent?.trim() || "";
+
                     const actionEls = item.querySelectorAll<HTMLElement>(".text-xs.text-zinc-500, .text-xs.text-zinc-400");
                     let action = "";
                     actionEls.forEach((el) => {
@@ -330,67 +326,26 @@ export function generateIcssHtml(
                     const timeEl   = item.querySelector<HTMLElement>("p[title], p.text-\\[11px\\], .text-xs.text-zinc-400");
                     const titleTime = timeEl?.getAttribute("title") || "";
                     const relativeTime = timeEl?.textContent?.trim() || "";
-                    const time = titleTime ? `${titleTime} <span style="color:#888;">(${relativeTime})</span>` : relativeTime;
-                    
-                    const badgeEl  = item.querySelector<HTMLElement>(".ml-auto, .rounded-full.border");
-                    let badge = badgeEl?.textContent?.trim() || "";
-                    if (badge.length === 1) badge = "";
+                    const time = titleTime || relativeTime;
 
                     const commentEl = item.querySelector<HTMLElement>(".prose");
-                    const comment = commentEl?.innerHTML || commentEl?.textContent?.trim() || "";
+                    const comment = commentEl?.textContent?.trim() || "";
 
-                    const avatarLetter = name.charAt(0).toUpperCase();
+                    const label = action === "created this" ? "Submitted" : action;
+                    const finalComment = comment || label || "-";
 
-                    let badgeBg = "#f5f5f5";
-                    let badgeColor = "#555";
-                    let badgeBorder = "#ccc";
-                    let avatarBg = "#555";
-
-                    const lowerBadge = badge.toLowerCase();
-                    if (lowerBadge.includes("creation") || lowerBadge.includes("approved")) {
-                        badgeBg = "#ecfdf5";
-                        badgeColor = "#047857";
-                        badgeBorder = "#a7f3d0";
-                        avatarBg = "#10b981";
-                    } else if (lowerBadge.includes("comment") || lowerBadge.includes("reject") || lowerBadge.includes("pending")) {
-                        badgeBg = "#fff7ed";
-                        badgeColor = "#c2410c";
-                        badgeBorder = "#fed7aa";
-                        avatarBg = "#f97316";
-                    } else if (lowerBadge.includes("workflow") || lowerBadge.includes("edit") || lowerBadge.includes("update")) {
-                        badgeBg = "#f4f4f5";
-                        badgeColor = "#52525b";
-                        badgeBorder = "#e4e4e7";
-                        avatarBg = "#a1a1aa";
-                    }
-
-                    let commentHtml = "";
-                    if (comment) {
-                        commentHtml = `<div style="margin-top:6px; padding:8px 10px; background-color:#f8f9fa; border:1px solid #e9ecef; border-radius:6px; font-size:8pt; color:#495057; line-height:1.5;">${comment}</div>`;
-                    }
-
-                    const badgeHtml = badge 
-                        ? `<span style="padding:1px 6px; border:1px solid ${badgeBorder}; border-radius:4px; font-size:7pt; background:${badgeBg}; color:${badgeColor}; text-transform:uppercase; margin-left:8px; white-space:nowrap; font-weight:bold;">${badge}</span>` 
-                        : "";
+                    const nameCell = designation
+                        ? `${name}<span class="designation">${designation}</span>`
+                        : name;
 
                     return `
-                    <div class="activity-row">
-                        <div class="activity-avatar" style="background:${avatarBg};">${avatarLetter}</div>
-                        <div class="activity-text">
-                            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                                <div>
-                                    <strong>${name}</strong> <span style="color:#555;">${action}</span>
-                                </div>
-                                ${badgeHtml}
-                            </div>
-                            <div class="activity-time">${time}</div>
-                            ${commentHtml}
-                        </div>
-                    </div>`;
+                    <tr>
+                        <td>${nameCell}</td>
+                        <td>${finalComment}</td>
+                        <td style="white-space:nowrap;">${time}</td>
+                    </tr>`;
                 })
                 .join("");
-                
-            countBadgeHtml = `<div class="section-heading" style="margin-top:8px; display:flex; align-items:center;">Activity Log <span style="background:#f4f4f5; color:#52525b; padding:2px 8px; border-radius:12px; font-size:8pt; font-weight:bold; margin-left:8px; line-height:1;">${items.length}</span></div>`;
         }
     }
 
@@ -459,7 +414,7 @@ export function generateIcssHtml(
         .replace("{{INFO_ROWS}}",         infoRows)
         .replace("{{ITEM_ROWS}}",         itemRows)
         .replace("{{TOTAL_ESTIMATE}}",    fmtNum(totalEstimate))
-        .replace("{{DECLARATIONS}}",      declarationsHtml + workflowHtml)
+        .replace("{{DECLARATIONS}}",      declarationsHtml)
         .replace("{{ACTIVITY_ROWS}}",     activityRows)
         .replace("{{ATTACHMENTS}}",       attachmentsHtml);
 }

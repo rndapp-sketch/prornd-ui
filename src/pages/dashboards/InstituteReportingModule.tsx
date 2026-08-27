@@ -1,26 +1,113 @@
 import * as React from "react";
 import {
-    FileDown,
     Printer,
     FileSpreadsheet,
     FileText,
-    Calendar,
-    Building2,
     Users,
-    Search,
     Filter,
     BarChart3,
-    PieChart,
     ChevronDown,
     FileCheck2,
     Activity,
     Award
 } from "lucide-react";
-import { useFrappeGetDocList } from "frappe-react-sdk";
 import { generateInstituteReportHtml } from "@/utils/instituteReportPrint";
 import { format } from "date-fns";
+import { useFrappeGetCall, useFrappeGetDocList } from "frappe-react-sdk";
 
-export default function InstituteReportingModule({ 
+// Live-corrects the sanctioned amount + start date for a single Ongoing row when the bulk
+// Fund Sanction fetch didn't surface a matching amount (e.g. some migrated projects' Fund
+// Sanction record isn't returned by the bulk list query for this user, even though the
+// whitelisted per-project lookup finds it). Only fires for Ongoing rows whose bulk amount
+// is 0 — not for every row — so this doesn't reintroduce a per-project fetch loop.
+const SanctionOverride: React.FC<{
+    projectName: string;
+    isOngoing: boolean;
+    bulkAmount: number;
+    bulkDate: string | undefined;
+    children: (amount: number, date: string | undefined) => React.ReactNode;
+}> = ({ projectName, isOngoing, bulkAmount, bulkDate, children }) => {
+    const shouldFetch = isOngoing && bulkAmount <= 0 && !!projectName;
+    const { data } = useFrappeGetCall<{ message: any }>(
+        "rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_sanctions_for_project",
+        { project_name: projectName },
+        shouldFetch ? undefined : null,
+        { revalidateOnFocus: false },
+    );
+
+    let amount = bulkAmount;
+    let date = bulkDate;
+    if (shouldFetch && data) {
+        const raw = data as any;
+        let records: any[] = [];
+        if (Array.isArray(raw?.message?.message)) records = raw.message.message;
+        else if (Array.isArray(raw?.message)) records = raw.message;
+        else if (Array.isArray(raw)) records = raw;
+        else if (Array.isArray(raw?.data)) records = raw.data;
+        else if (Array.isArray(raw?.message?.data)) records = raw.message.data;
+
+        const approved = records.find((r: any) => (r.sanction_workflow_status || r.workflow_state || "").toLowerCase().includes("sanction approved")) || records[0];
+        if (approved) {
+            const amt = Number(approved.total_sanctioned_amount) || 0;
+            if (amt > 0) amount = amt;
+            if (approved.sanctioned_letter_date) date = approved.sanctioned_letter_date;
+        }
+    }
+
+    return <>{children(amount, date)}</>;
+};
+
+// Same classification the "Project Category" filter uses — kept as one function so the
+// Type column (table/Excel/print) can never drift out of sync with what the filter matches.
+const getProjectCategory = (p: any): "Research" | "Consultancy" | "Others" => {
+    const type = (p.project_type || "").toLowerCase();
+    if (type.includes("research") || type === "r&d project") return "Research";
+    if (type.includes("consult") || type === "testing") return "Consultancy";
+    return "Others";
+};
+
+// Exact Year/Month/Day breakdown between two dates — adapts to whatever span the
+// project actually has instead of always rounding to whole years (a 3-month project
+// was previously showing as "0 Years").
+const formatDuration = (startStr?: string, endStr?: string, fallbackMonths?: number): string => {
+    const start = startStr ? new Date(startStr) : null;
+    const end = endStr ? new Date(endStr) : null;
+    const hasValidDates = start && end && !isNaN(start.getTime()) && !isNaN(end.getTime()) && end > start;
+
+    if (hasValidDates) {
+        let years = end.getFullYear() - start.getFullYear();
+        let months = end.getMonth() - start.getMonth();
+        let days = end.getDate() - start.getDate();
+
+        if (days < 0) {
+            months -= 1;
+            const prevMonthEnd = new Date(end.getFullYear(), end.getMonth(), 0);
+            days += prevMonthEnd.getDate();
+        }
+        if (months < 0) {
+            years -= 1;
+            months += 12;
+        }
+
+        const parts: string[] = [];
+        if (years > 0) parts.push(`${years} Year${years > 1 ? "s" : ""}`);
+        if (months > 0) parts.push(`${months} Month${months > 1 ? "s" : ""}`);
+        if (days > 0) parts.push(`${days} Day${days > 1 ? "s" : ""}`);
+
+        return parts.length > 0 ? parts.join(" ") : "0 Days";
+    }
+
+    // No usable start/end date pair — fall back to the stored duration-in-months field
+    // (no day-level precision available from that field, but still year/month adaptive).
+    const months = Number(fallbackMonths) || 0;
+    if (months <= 0) return "—";
+    if (months < 12) return `${months} Month${months > 1 ? "s" : ""}`;
+    const years = Math.floor(months / 12);
+    const rem = months % 12;
+    return rem > 0 ? `${years} Year${years > 1 ? "s" : ""} ${rem} Month${rem > 1 ? "s" : ""}` : `${years} Year${years > 1 ? "s" : ""}`;
+};
+
+export default function InstituteReportingModule({
     projects = [], 
     getDeptName,
     getPiName,
@@ -47,19 +134,25 @@ export default function InstituteReportingModule({
     const [projectStatus, setProjectStatus] = React.useState("All Statuses");
     const [projectCategory, setProjectCategory] = React.useState("All Projects");
     const [selectedPI, setSelectedPI] = React.useState("All Investigators");
-    const [selectedFundingAgency, setSelectedFundingAgency] = React.useState("All Agencies");
+    const [selectedFundingAgencies, setSelectedFundingAgencies] = React.useState<string[]>([]);
+    const [isAllAgenciesSelected, setIsAllAgenciesSelected] = React.useState(true);
+    const [isAgencyDropdownOpen, setIsAgencyDropdownOpen] = React.useState(false);
+    const agencyDropdownRef = React.useRef<HTMLDivElement>(null);
     const [selectedSchemes, setSelectedSchemes] = React.useState<string[]>([]);
+    const [isAllSchemesSelected, setIsAllSchemesSelected] = React.useState(true);
     const [isSchemeDropdownOpen, setIsSchemeDropdownOpen] = React.useState(false);
     const schemeDropdownRef = React.useRef<HTMLDivElement>(null);
     const [dataValidation, setDataValidation] = React.useState("All Records");
-
-    const [sanctionDateMap, setSanctionDateMap] = React.useState<Map<string, string>>(new Map());
-    const [isSyncingDates, setIsSyncingDates] = React.useState(false);
+    const [reportListPage, setReportListPage] = React.useState(1);
+    const REPORT_LIST_PAGE_SIZE = 50;
 
     React.useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (schemeDropdownRef.current && !schemeDropdownRef.current.contains(event.target as Node)) {
                 setIsSchemeDropdownOpen(false);
+            }
+            if (agencyDropdownRef.current && !agencyDropdownRef.current.contains(event.target as Node)) {
+                setIsAgencyDropdownOpen(false);
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
@@ -112,6 +205,101 @@ export default function InstituteReportingModule({
         return agency.trim();
     }, []);
 
+    // ── Sanction Dates / Amounts ──────────────────────────────────────────────
+    // Fund Sanction supports bulk List-View access (confirmed working elsewhere in
+    // this app), so this is a single request instead of the old per-project chunked
+    // loop — it resolves once and stays resolved, instead of visibly "re-syncing"
+    // every time this component re-renders or remounts.
+    const { data: allFundSanctionList, isLoading: isSyncingDates } = useFrappeGetDocList(
+        "Fund Sanction",
+        {
+            fields: ["refnum_prj_num", "sanctioned_letter_date", "total_sanctioned_amount", "workflow_state"],
+            limit: 20000,
+        }
+    );
+
+    const { sanctionDateMap, sanctionAmountMap } = React.useMemo(() => {
+        // A project can have more than one Fund Sanction record (drafts, superseded
+        // revisions, stray records from legacy-system migrations). Without an explicit
+        // orderBy, an unordered query's row order isn't guaranteed stable across different
+        // LIMIT values, so "first record wins" alone can non-deterministically pick a
+        // stale record. Prefer the record whose workflow_state shows it's actually
+        // approved; only fall back to an unapproved one if no approved record exists.
+        const dateMap = new Map<string, string>();
+        const amountMap = new Map<string, number>();
+        const approvedDate = new Map<string, string>();
+        const approvedAmount = new Map<string, number>();
+        (allFundSanctionList || []).forEach((rec: any) => {
+            if (!rec.refnum_prj_num) return;
+            const isApproved = (rec.workflow_state || "").toLowerCase().includes("sanction approved");
+            if (rec.sanctioned_letter_date) {
+                if (!dateMap.has(rec.refnum_prj_num)) dateMap.set(rec.refnum_prj_num, rec.sanctioned_letter_date);
+                if (isApproved && !approvedDate.has(rec.refnum_prj_num)) approvedDate.set(rec.refnum_prj_num, rec.sanctioned_letter_date);
+            }
+            const amt = Number(rec.total_sanctioned_amount) || 0;
+            if (amt > 0) {
+                if (!amountMap.has(rec.refnum_prj_num)) amountMap.set(rec.refnum_prj_num, amt);
+                if (isApproved && !approvedAmount.has(rec.refnum_prj_num)) approvedAmount.set(rec.refnum_prj_num, amt);
+            }
+        });
+        approvedDate.forEach((v, k) => dateMap.set(k, v));
+        approvedAmount.forEach((v, k) => amountMap.set(k, v));
+        return { sanctionDateMap: dateMap, sanctionAmountMap: amountMap };
+    }, [allFundSanctionList]);
+
+    // Falls back to the Fund Sanction record's amount when the Project Registration
+    // doc's own budget fields are 0 — some legacy projects only carry the real
+    // sanctioned amount on the sanction record.
+    const getSanctionedAmount = React.useCallback((p: any) => {
+        const own = Number(p.total_budget_amount || p.grand_total_proposal) || 0;
+        if (own > 0) return own;
+        return sanctionAmountMap.get(p.name) || sanctionAmountMap.get(p.project_no) || 0;
+    }, [sanctionAmountMap]);
+
+    // Fallback for projects with no sanction/start date on file: derive a date from the
+    // "Dean approval" comment on the project's timeline. Bulk-fetched (single request,
+    // Comment is a standard doctype) rather than per-project, to avoid re-introducing the
+    // slow per-project sync loop. Best-effort match on comment text containing "dean".
+    const { data: deanCommentList } = useFrappeGetDocList(
+        "Comment",
+        {
+            fields: ["reference_name", "content", "creation"],
+            filters: [
+                ["reference_doctype", "=", "Project Registration"],
+                ["content", "like", "%dean%"],
+            ],
+            orderBy: { field: "creation", order: "asc" },
+            limit: 20000,
+        }
+    );
+
+    const deanApprovalDateMap = React.useMemo(() => {
+        const fallback = new Map<string, string>();
+        const approved = new Map<string, string>();
+        (deanCommentList || []).forEach((c: any) => {
+            if (!c.reference_name || !c.creation) return;
+            const text = (c.content || "").toLowerCase();
+            if (!text.includes("dean")) return;
+            // Prefer comments that read like an actual approval action over a mere mention
+            if (/approv/.test(text)) {
+                if (!approved.has(c.reference_name)) approved.set(c.reference_name, c.creation);
+            } else if (!fallback.has(c.reference_name)) {
+                fallback.set(c.reference_name, c.creation);
+            }
+        });
+        approved.forEach((v, k) => fallback.set(k, v));
+        return fallback;
+    }, [deanCommentList]);
+
+    // Single source of truth for a project's "effective" start date, walking the full
+    // fallback chain: real sanction date → recorded start date → Dean approval comment → creation.
+    const getEffectiveStartDate = React.useCallback((p: any) => {
+        return sanctionDateMap.get(p.name) || sanctionDateMap.get(p.project_no)
+            || p.sanctioned_letter_date || p.prj_start_date
+            || deanApprovalDateMap.get(p.name) || deanApprovalDateMap.get(p.project_no)
+            || p.creation;
+    }, [sanctionDateMap, deanApprovalDateMap]);
+
     const availableAgencies = React.useMemo(() => {
         const agencies = new Set<string>();
         projects.forEach(p => {
@@ -125,7 +313,7 @@ export default function InstituteReportingModule({
         const schemes = new Set<string>();
         projects.forEach(p => {
             const agency = getAgency(p);
-            if (selectedFundingAgency !== "All Agencies" && agency !== selectedFundingAgency) {
+            if (!isAllAgenciesSelected && !selectedFundingAgencies.includes(agency)) {
                 return;
             }
             const scheme = p.funding_agency_schemes || p.scheme_name || "";
@@ -134,7 +322,7 @@ export default function InstituteReportingModule({
             }
         });
         return Array.from(schemes).sort();
-    }, [projects, selectedFundingAgency, normalizeSchemeName]);
+    }, [projects, selectedFundingAgencies, isAllAgenciesSelected, normalizeSchemeName]);
 
     const availableDepartments = React.useMemo(() => {
         const depts = new Set<string>();
@@ -168,22 +356,33 @@ export default function InstituteReportingModule({
     // we must fetch `Fund Received` dynamically via the allowed Python backend.
     // To prevent dev server freeze, we do this incrementally in the background.
     const [fundStatusMap, setFundStatusMap] = React.useState<Map<string, boolean>>(new Map());
-    const [sanctionStateMap, setSanctionStateMap] = React.useState<Map<string, string>>(new Map());
     const [isSyncingFunds, setIsSyncingFunds] = React.useState(false);
+    // Whatever the paginated table currently shows (current page + the next one, so
+    // paging forward already has a head start) — kept live via a ref rather than a
+    // useEffect dependency so updating it (e.g. as the user changes page) doesn't
+    // restart the sync loop below. Read once at the start of each sync pass.
+    const visibleProjectNamesRef = React.useRef<Set<string>>(new Set());
 
     React.useEffect(() => {
         let isCancelled = false;
-        
+
         const syncFunds = async () => {
             setIsSyncingFunds(true);
-            
+
             const map = new Map<string, boolean>();
-            // Only query projects that are ongoing or approved and have a sanctioned amount
-            const projectsToFetch = projects.filter(p => {
-                const isOngoingOrApproved = (ongoingIds && (ongoingIds.has(p.name) || ongoingIds.has(p.project_no))) || 
-                                            (p.workflow_state || "").toLowerCase() === "approved" ||
-                                            (p.workflow_state || "").toLowerCase().includes("sanction");
-                return isOngoingOrApproved && (p.total_budget_amount > 0 || p.grand_total_proposal > 0);
+            // ongoingIds (from get_director_dashboard_data) is authoritative: only those
+            // projects have a submitted Fund Sanction and can possibly have a fund received.
+            const unordered = projects.filter(p =>
+                ongoingIds && (ongoingIds.has(p.name) || ongoingIds.has(p.project_no))
+            );
+            // Sync whatever's currently on screen first, so the visible page's Active/
+            // Pending badges resolve before the rest of the (possibly much longer) list
+            // finishes in the background — instead of syncing in arbitrary list order.
+            const visible = visibleProjectNamesRef.current;
+            const projectsToFetch = [...unordered].sort((a, b) => {
+                const aVis = visible.has(a.name) ? 0 : 1;
+                const bVis = visible.has(b.name) ? 0 : 1;
+                return aVis - bVis;
             });
 
             // Fetch safely in tiny chunks of 3 to prevent Werkzeug single-thread lockup
@@ -223,104 +422,24 @@ export default function InstituteReportingModule({
         return () => { isCancelled = true; };
     }, [ongoingIds, projects]);
 
-    // ── Sanction Date Sync ──
-    React.useEffect(() => {
-        if (!projects || projects.length === 0) return;
-        
-        let isCancelled = false;
-        
-        const syncDates = async () => {
-            setIsSyncingDates(true);
-            const headers = { "Content-Type": "application/json" };
-            const map = new Map<string, string>();
-            const stateMap = new Map<string, string>();
-            
-            const projectsToFetch = projects.filter(p => {
-                if (!ongoingIds) return true;
-                if (ongoingIds.has(p.name) || ongoingIds.has(p.project_no)) return true;
-                const s = (p.workflow_state || "").toLowerCase();
-                return s === "approved" || s.includes("sanction");
-            });
-            
-            const chunkSize = 3;
-            for (let i = 0; i < projectsToFetch.length; i += chunkSize) {
-                if (isCancelled) break;
-                const chunk = projectsToFetch.slice(i, i + chunkSize);
-                
-                await Promise.all(chunk.map(async (p) => {
-                    try {
-                        const res = await fetch(`/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_sanctions_for_project?project_name=${encodeURIComponent(p.name)}`, { headers }).then(r => r.json()).catch(() => null);
-                        const raw = res;
-                        let sanctionRecords: any[] = [];
-                        if (raw) {
-                            if (raw.message && raw.message.message && Array.isArray(raw.message.message)) sanctionRecords = raw.message.message;
-                            else if (raw.message && Array.isArray(raw.message)) sanctionRecords = raw.message;
-                            else if (Array.isArray(raw)) sanctionRecords = raw;
-                            else if (raw.data && Array.isArray(raw.data)) sanctionRecords = raw.data;
-                            else if (raw.message && raw.message.data && Array.isArray(raw.message.data)) sanctionRecords = raw.message.data;
-                        }
-                        const validSanctions = sanctionRecords;
-                        if (validSanctions.length > 0) {
-                            const rec = validSanctions[0];
-                            if (rec.sanctioned_letter_date) {
-                                map.set(p.name, rec.sanctioned_letter_date);
-                                if (p.project_no) map.set(p.project_no, rec.sanctioned_letter_date);
-                            }
-                            const st = rec.sanction_workflow_status || rec.workflow_state;
-                            if (st) {
-                                stateMap.set(p.name, st);
-                                if (p.project_no) stateMap.set(p.project_no, st);
-                            }
-                        }
-                    } catch (e) {
-                        // pass
-                    }
-                }));
-
-                // Progressively update UI
-                if (!isCancelled) {
-                    setSanctionDateMap(new Map(map));
-                    setSanctionStateMap(new Map(stateMap));
-                }
-            }
-            if (!isCancelled) setIsSyncingDates(false);
-        };
-
-        syncDates();
-        return () => { isCancelled = true; };
-    }, [ongoingIds, projects]);
-
-
 
     const getProjectStatusLabel = React.useCallback((p: any) => {
-        const isOngoingOrApproved = (ongoingIds && (ongoingIds.has(p.name) || ongoingIds.has(p.project_no))) || 
-                                    (p.workflow_state || "").toLowerCase() === "approved" ||
-                                    (p.workflow_state || "").toLowerCase().includes("sanction");
+        // ongoingIds/submittedIds (from rndopsapp.dashboard.get_director_dashboard_data)
+        // are the backend's authoritative classification: Ongoing = has a submitted
+        // Fund Sanction record. No need to re-derive it from budget amount or
+        // workflow_state text — see DASHBOARD_API_DOCUMENTATION.md.
+        const isOngoing = ongoingIds && (ongoingIds.has(p.name) || ongoingIds.has(p.project_no));
 
-        if (isOngoingOrApproved) {
-            const fund = p.total_budget_amount || p.grand_total_proposal || 0;
-            const hasSanctionAmt = fund > 0;
+        if (isOngoing) {
             const hasStartDate = !!(sanctionDateMap.get(p.name) || sanctionDateMap.get(p.project_no) || p.sanctioned_letter_date);
-            const sanctionState = sanctionStateMap.get(p.name) || sanctionStateMap.get(p.project_no) || "";
-            const hasSanctionApproved = sanctionState.toLowerCase().includes("sanction approved");
-            
-            if (!hasSanctionAmt) return "Pending Sanction";
-            
-            // If the background sync has completed checking this project:
-            if (fundStatusMap.has(p.name)) {
-                const hasFundReceived = fundStatusMap.get(p.name);
-                if (hasSanctionApproved && hasFundReceived) return "● Active";
-                if (hasSanctionApproved) return "Pending Fund Received";
-                return "Pending Sanction";
-            }
-            
-            // Fallback while syncing: rely on heuristic
-            if (hasSanctionApproved) return "Pending Fund Received";
-            return "Pending Sanction";
+            const hasFundReceived = fundStatusMap.get(p.name) === true;
+            if (hasFundReceived) return "● Active";
+            if (hasStartDate) return "Pending Fund Received";
+            return "Approved Sanction";
         }
 
         if (submittedIds && (submittedIds.has(p.name) || submittedIds.has(p.project_no))) return "Pending Sanction";
-        
+
         const s = (p.workflow_state || "").toLowerCase();
         if (s.includes("draft")) return "Draft";
         if (s.includes("complet")) return "Completed";
@@ -328,24 +447,24 @@ export default function InstituteReportingModule({
         if (p.workflow_state) return p.workflow_state;
         return "New Registered";
     }, [ongoingIds, submittedIds, sanctionDateMap, fundStatusMap]);
+    
 
     const filteredProjects = React.useMemo(() => {
         let list = projects;
         if (financialYear && financialYear !== "All Time") {
             list = list.filter((p) => {
-                const pDate = sanctionDateMap.get(p.name) || sanctionDateMap.get(p.project_no) || p.sanctioned_letter_date;
-                if (!pDate) return true; // If no date, let it pass or fail by other filters
+                // Same fallback chain as the Director Dashboard's year chart — falling
+                // back to prj_start_date/creation means almost every project has some
+                // date. A project with genuinely no date at all is excluded from a
+                // specific-year filter (not included in every year, which previously
+                // let undated "Ongoing" projects show up regardless of the year picked).
+                const pDate = getEffectiveStartDate(p);
+                if (!pDate) return false;
                 const d = new Date(pDate);
-                if (isNaN(d.getTime())) return true;
-                
-                if (financialYear === "2025-2026") {
-                    return d >= new Date("2025-04-01") && d <= new Date("2026-03-31T23:59:59");
-                }
-                if (financialYear === "2024-2025") {
-                    return d >= new Date("2024-04-01") && d <= new Date("2025-03-31T23:59:59");
-                }
-                if (financialYear === "2023-2024") {
-                    return d >= new Date("2023-04-01") && d <= new Date("2024-03-31T23:59:59");
+                if (isNaN(d.getTime())) return false;
+
+                if (/^\d{4}$/.test(financialYear)) {
+                    return d.getFullYear().toString() === financialYear;
                 }
                 if (financialYear === "Custom Date Range") {
                     if (customStartDate) {
@@ -372,28 +491,41 @@ export default function InstituteReportingModule({
             list = list.filter((p) => {
                 const computed = getProjectStatusLabel(p).toLowerCase();
                 const filterStatus = projectStatus.toLowerCase();
-                if (filterStatus === "active") return computed.includes("active");
-                if (filterStatus === "pending fund received") return computed === "pending fund received";
+
+                // Exact stage matches — each option shows only that one stage, no overlap.
+                if (filterStatus === "draft") return computed === "draft";
                 if (filterStatus === "pending sanction") return computed === "pending sanction";
+                // "Approved Sanction" means the sanction has been approved — covers the
+                // narrow in-between stage plus Pending Fund Received and Active, since
+                // fund-received status doesn't change whether the sanction is approved.
+                if (filterStatus === "approved sanction") {
+                    return computed === "approved sanction" || computed === "pending fund received" || computed.includes("active");
+                }
+                if (filterStatus === "pending fund received") return computed === "pending fund received";
+                if (filterStatus === "approved fund received") return computed.includes("active");
                 if (filterStatus === "completed") return computed.includes("complet");
                 if (filterStatus === "closed") return computed.includes("clos");
                 if (filterStatus === "cancelled") return computed.includes("cancel");
-                
-                // These check our calculated computed badge
-                if (filterStatus === "approved fund received") return computed.includes("active");
-                if (filterStatus === "approved sanction") return computed.includes("active") || computed === "pending fund received";
-                
+
+                // Broad buckets: "Ongoing" = sanction is approved, regardless of fund
+                // status; "Submitted" = the backend's authoritative submittedIds set
+                // (docstatus=1, not yet sanction-approved) — same definition
+                // DirectorDashboard's year chart uses. NOT a negative match against the
+                // computed label string: intermediate pre-approval workflow states (e.g.
+                // "Pending HoS Approval", "Pending Dean Approval") aren't in submittedIds
+                // yet (still effectively draft-like on the backend), so a negative match
+                // was wrongly counting them as Submitted and inflating the total.
+                if (filterStatus === "ongoing") {
+                    return computed === "approved sanction" || computed === "pending fund received" || computed.includes("active");
+                }
+                if (filterStatus === "submitted") {
+                    return computed === "pending sanction";
+                }
                 return computed.includes(filterStatus);
             });
         }
         if (projectCategory && projectCategory !== "All Projects") {
-            list = list.filter((p) => {
-                const type = (p.project_type || "").toLowerCase();
-                if (projectCategory === "Research") return type.includes("research") || type === "r&d project";
-                if (projectCategory === "Consultancy") return type.includes("consult") || type === "testing";
-                if (projectCategory === "Others") return !type.includes("research") && type !== "r&d project" && !type.includes("consult") && type !== "testing";
-                return true;
-            });
+            list = list.filter((p) => getProjectCategory(p) === projectCategory);
         }
         if (selectedPI && selectedPI !== "All Investigators") {
             list = list.filter((p) => {
@@ -401,13 +533,13 @@ export default function InstituteReportingModule({
                 return rawEmail.toLowerCase() === selectedPI.toLowerCase();
             });
         }
-        if (selectedFundingAgency && selectedFundingAgency !== "All Agencies") {
+        if (!isAllAgenciesSelected) {
             list = list.filter((p) => {
                 const agency = getAgency(p);
-                return agency === selectedFundingAgency;
+                return selectedFundingAgencies.includes(agency);
             });
         }
-        if (selectedSchemes && selectedSchemes.length > 0) {
+        if (!isAllSchemesSelected) {
             list = list.filter((p) => {
                 const scheme = p.funding_agency_schemes || p.scheme_name || "";
                 return selectedSchemes.includes(normalizeSchemeName(scheme));
@@ -416,7 +548,7 @@ export default function InstituteReportingModule({
         if (dataValidation && dataValidation !== "All Records") {
             list = list.filter((p) => {
                 const hasProjectNo = !!(p.project_no && p.project_no !== "—" && p.project_no.trim() !== "");
-                const sanctioned = Number(p.total_budget_amount || p.grand_total_proposal) || 0;
+                const sanctioned = getSanctionedAmount(p);
                 const hasSanctioned = sanctioned > 0;
                 
                 const rawAgency = getAgency(p);
@@ -439,7 +571,29 @@ export default function InstituteReportingModule({
             });
         }
         return list;
-    }, [projects, selectedDepartment, getDeptName, projectStatus, getProjectStatusLabel, projectCategory, selectedPI, selectedFundingAgency, selectedSchemes, normalizeSchemeName, dataValidation, financialYear, customStartDate, customEndDate]);
+    }, [projects, selectedDepartment, getDeptName, projectStatus, getProjectStatusLabel, projectCategory, selectedPI, selectedFundingAgencies, isAllAgenciesSelected, selectedSchemes, isAllSchemesSelected, normalizeSchemeName, dataValidation, financialYear, customStartDate, customEndDate, getSanctionedAmount, getEffectiveStartDate]);
+
+    // Jump back to page 1 whenever the filtered set changes underneath the pager,
+    // so the user isn't stranded on a now-empty/out-of-range page.
+    React.useEffect(() => {
+        setReportListPage(1);
+    }, [selectedDepartment, projectStatus, projectCategory, selectedPI, selectedFundingAgencies, isAllAgenciesSelected, selectedSchemes, isAllSchemesSelected, dataValidation, financialYear, customStartDate, customEndDate]);
+
+    const totalReportListPages = Math.max(1, Math.ceil(filteredProjects.length / REPORT_LIST_PAGE_SIZE));
+    const safeReportListPage = Math.min(reportListPage, totalReportListPages);
+    const pagedProjects = filteredProjects.slice(
+        (safeReportListPage - 1) * REPORT_LIST_PAGE_SIZE,
+        safeReportListPage * REPORT_LIST_PAGE_SIZE
+    );
+
+    // Keep the fund-sync priority ref (declared above, near isSyncingFunds) pointed at
+    // whatever's on screen now — current page plus the next one, so paging forward
+    // already has a head start once the user gets there.
+    React.useEffect(() => {
+        const start = (safeReportListPage - 1) * REPORT_LIST_PAGE_SIZE;
+        const end = start + REPORT_LIST_PAGE_SIZE * 2;
+        visibleProjectNamesRef.current = new Set(filteredProjects.slice(start, end).map((p: any) => p.name));
+    }, [filteredProjects, safeReportListPage, REPORT_LIST_PAGE_SIZE]);
 
     const getStatusHtml = (status: string) => {
         if (status === "● Active" || status === "Active") {
@@ -464,7 +618,10 @@ export default function InstituteReportingModule({
         const enrichedProjects = filteredProjects.map(p => ({
             ...p,
             _printStatusHtml: getStatusHtml(getProjectStatusLabel(p)),
-            _overrideStartDate: sanctionDateMap.get(p.name) || sanctionDateMap.get(p.project_no) || p.sanctioned_letter_date,
+            _overrideStartDate: getEffectiveStartDate(p),
+            _overrideSanctionedAmount: getSanctionedAmount(p),
+            _overrideDuration: formatDuration(getEffectiveStartDate(p), p.prj_end_date, p.project_duration_months),
+            _projectCategory: getProjectCategory(p),
             _normalizedScheme: normalizeSchemeName(p.funding_agency_schemes || p.scheme_name || "")
         }));
         const htmlContent = generateInstituteReportHtml(enrichedProjects, reportType, getDeptName, getPiName, getAgency, printedBy);
@@ -499,18 +656,7 @@ export default function InstituteReportingModule({
                 if (!dateStr) return "-";
                 return format(new Date(dateStr), "MMM dd, yyyy");
             };
-            const calculateDuration = (start: string, end: string) => {
-                if (!start || !end) return "";
-                const d1 = new Date(start);
-                const d2 = new Date(end);
-                const months = (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
-                if (months <= 0) return "";
-                if (months < 12) return `${months} Months`;
-                const years = Math.floor(months / 12);
-                const rem = months % 12;
-                return rem > 0 ? `${years}y ${rem}m` : `${years} Years`;
-            };
-            const headers = ["Sl.", "Project No.", "PI Name", "PI Email", "Department", "Project Title", "Funding Agency", "Scheme", "Sanctioned (INR)", "Start Date", "Creation Date", "Duration", "Status"];
+            const headers = ["Sl.", "Project No.", "PI Name", "PI Email", "Department", "Type", "Project Title", "Funding Agency", "Scheme", "Sanctioned (INR)", "Start Date", "Creation Date", "Duration", "Status"];
             const rows = filteredProjects.map((p, index) => {
                 const deptId = p.implementation_department || p.department;
                 const deptName = getDeptName && deptId ? getDeptName(deptId) : (deptId || "");
@@ -524,13 +670,14 @@ export default function InstituteReportingModule({
                     `"${resolvedName}"`,
                     `"${rawEmail}"`,
                     `"${deptName}"`,
+                    `"${getProjectCategory(p)}"`,
                     `"${String(p.project_title || "").replace(/"/g, '""')}"`,
                     `"${String(agency).replace(/"/g, '""')}"`,
                     `"${String(scheme).replace(/"/g, '""')}"`,
-                    p.total_budget_amount || p.grand_total_proposal || 0,
-                    `"${formatDate(sanctionDateMap.get(p.name) || sanctionDateMap.get(p.project_no) || p.sanctioned_letter_date)}"`,
+                    getSanctionedAmount(p),
+                    `"${formatDate(getEffectiveStartDate(p))}"`,
                     `"${formatDate(p.creation)}"`,
-                    `"${calculateDuration(sanctionDateMap.get(p.name) || sanctionDateMap.get(p.project_no) || p.sanctioned_letter_date, p.prj_end_date)}"`,
+                    `"${formatDuration(getEffectiveStartDate(p), p.prj_end_date, p.project_duration_months)}"`,
                     `"${getProjectStatusLabel(p)}"`
                 ].join(",");
             });
@@ -539,7 +686,10 @@ export default function InstituteReportingModule({
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
             link.setAttribute("href", url);
-            link.setAttribute("download", `${reportType.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
+            // Report Type is now free text — strip characters that aren't safe in a filename
+            // before using it, instead of just collapsing whitespace.
+            const safeReportName = (reportType || "Report").trim().replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "Report";
+            link.setAttribute("download", `${safeReportName}_${new Date().toISOString().split('T')[0]}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -602,19 +752,13 @@ export default function InstituteReportingModule({
                         <div className="space-y-1.5">
                             <label className="text-[11px] font-bold text-[#71717A] uppercase tracking-wider">Report Type</label>
                             <div className="relative">
-                                <select 
+                                <input
+                                    type="text"
                                     value={reportType}
                                     onChange={(e) => setReportType(e.target.value)}
-                                    className="w-full appearance-none pl-3 pr-10 py-2.5 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none transition-all focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb]"
-                                >
-                                    <option>Annual Report</option>
-                                    <option>Director's Report</option>
-                                    <option>Board Report</option>
-                                    <option>Accreditation Report (NAAC/NBA)</option>
-                                    <option>Ranking Report (NIRF)</option>
-                                    <option>Department-wise Analytics</option>
-                                </select>
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A1A1AA] pointer-events-none" size={14} />
+                                    placeholder="e.g. Annual Report"
+                                    className="w-full pl-3 pr-3 py-2.5 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none transition-all focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb]"
+                                />
                             </div>
                         </div>
 
@@ -658,7 +802,7 @@ export default function InstituteReportingModule({
                         <div className="space-y-1.5">
                             <div className="flex items-center justify-between">
                                 <label className="text-[11px] font-bold text-[#71717A] uppercase tracking-wider">
-                                    {financialYear === "Custom Date Range" ? "Date Range" : "Financial Year"}
+                                    {financialYear === "Custom Date Range" ? "Date Range" : "Year"}
                                 </label>
                                 {financialYear === "Custom Date Range" && (
                                     <button onClick={() => { setFinancialYear("All Time"); setCustomStartDate(""); setCustomEndDate(""); }} className="text-[10px] text-blue-600 hover:underline">Reset</button>
@@ -689,9 +833,14 @@ export default function InstituteReportingModule({
                                         className="w-full appearance-none pl-3 pr-10 py-2.5 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none transition-all focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb]"
                                     >
                                         <option value="All Time">All Time</option>
-                                        <option value="2025-2026">2025-2026</option>
-                                        <option value="2024-2025">2024-2025</option>
-                                        <option value="2023-2024">2023-2024</option>
+                                        <option value="2026">2026</option>
+                                        <option value="2025">2025</option>
+                                        <option value="2024">2024</option>
+                                        <option value="2023">2023</option>
+                                        <option value="2022">2022</option>
+                                        <option value="2021">2021</option>
+                                        <option value="2020">2020</option>
+                                        <option value="2019">2019</option>
                                         <option value="Custom Date Range">Custom Date Range...</option>
                                     </select>
                                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A1A1AA] pointer-events-none" size={14} />
@@ -708,36 +857,82 @@ export default function InstituteReportingModule({
                                     className="w-full appearance-none pl-3 pr-10 py-2.5 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none transition-all focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb]"
                                 >
                                     <option>All Statuses</option>
-                                    <option>Active</option>
-                                    <option>Pending Fund Received</option>
+                                    <option>Draft</option>
+                                    <option>Submitted</option>
                                     <option>Pending Sanction</option>
+                                    <option>Approved Sanction</option>
+                                    <option>Pending Fund Received</option>
+                                    <option>Approved Fund Received</option>
+                                    <option>Ongoing</option>
                                     <option>Completed</option>
                                     <option>Closed</option>
                                     <option>Cancelled</option>
-                                    <option>Approved Sanction</option>
-                                    <option>Approved Fund Received</option>
                                 </select>
                                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A1A1AA] pointer-events-none" size={14} />
                             </div>
                         </div>
 
-                        <div className="space-y-1.5">
-                            <label className="text-[11px] font-bold text-[#71717A] uppercase tracking-wider">Funding Agency</label>
+                        <div className="space-y-1.5" ref={agencyDropdownRef}>
+                            <label className="text-[11px] font-bold text-[#71717A] uppercase tracking-wider">Funding Agency (Multiple)</label>
                             <div className="relative">
-                                <select 
-                                    value={selectedFundingAgency}
-                                    onChange={(e) => {
-                                        setSelectedFundingAgency(e.target.value);
-                                        setSelectedSchemes([]);
-                                    }}
-                                    className="w-full appearance-none pl-3 pr-10 py-2.5 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none transition-all focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb]"
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAgencyDropdownOpen(!isAgencyDropdownOpen)}
+                                    className="w-full appearance-none pl-3 pr-10 py-2.5 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none transition-all focus:border-[#2563eb] text-left truncate"
                                 >
-                                    <option value="All Agencies">All Agencies</option>
-                                    {availableAgencies.map((agency) => (
-                                        <option key={agency} value={agency}>{agency}</option>
-                                    ))}
-                                </select>
+                                    {isAllAgenciesSelected
+                                        ? "All Agencies"
+                                        : selectedFundingAgencies.length === 0
+                                            ? "No Agencies Selected"
+                                            : selectedFundingAgencies.length === 1
+                                                ? selectedFundingAgencies[0]
+                                                : `${selectedFundingAgencies.length} agencies selected`}
+                                </button>
                                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A1A1AA] pointer-events-none" size={14} />
+
+                                {isAgencyDropdownOpen && (
+                                    <div className="absolute z-50 min-w-[400px] max-w-[90vw] mt-1 bg-white dark:bg-[#27272A] border border-gray-300 dark:border-[#3F3F46] rounded shadow-md max-h-[450px] overflow-y-auto py-1">
+                                        <label className="flex items-center px-2 py-1.5 hover:bg-[#e5e5e5] dark:hover:bg-[#3F3F46] cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={isAllAgenciesSelected}
+                                                onChange={(e) => {
+                                                    setIsAllAgenciesSelected(e.target.checked);
+                                                    setSelectedFundingAgencies([]);
+                                                    setIsAllSchemesSelected(true);
+                                                    setSelectedSchemes([]);
+                                                }}
+                                                className="w-3.5 h-3.5 rounded-sm border-gray-300 text-[#2563eb] focus:ring-0 accent-[#2563eb] cursor-pointer"
+                                            />
+                                            <span className="ml-2.5 text-[13px] text-gray-800 dark:text-[#E4E4E7] font-normal">All Agencies</span>
+                                        </label>
+
+                                        {availableAgencies.map((agency) => (
+                                            <label key={agency} className="flex items-start px-2 py-1.5 hover:bg-[#e5e5e5] dark:hover:bg-[#3F3F46] cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isAllAgenciesSelected || selectedFundingAgencies.includes(agency)}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            if (!isAllAgenciesSelected) {
+                                                                setSelectedFundingAgencies([...selectedFundingAgencies, agency]);
+                                                            }
+                                                        } else if (isAllAgenciesSelected) {
+                                                            setIsAllAgenciesSelected(false);
+                                                            setSelectedFundingAgencies(availableAgencies.filter(a => a !== agency));
+                                                        } else {
+                                                            setSelectedFundingAgencies(selectedFundingAgencies.filter(a => a !== agency));
+                                                        }
+                                                        setIsAllSchemesSelected(true);
+                                                        setSelectedSchemes([]);
+                                                    }}
+                                                    className="w-3.5 h-3.5 mt-0.5 rounded-sm border-gray-300 text-[#2563eb] focus:ring-0 accent-[#2563eb] cursor-pointer shrink-0"
+                                                />
+                                                <span className="ml-2.5 text-[13px] text-gray-800 dark:text-[#E4E4E7] font-normal leading-tight">{agency}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -766,34 +961,44 @@ export default function InstituteReportingModule({
                                     onClick={() => setIsSchemeDropdownOpen(!isSchemeDropdownOpen)}
                                     className="w-full appearance-none pl-3 pr-10 py-2.5 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none transition-all focus:border-[#2563eb] text-left truncate"
                                 >
-                                    {selectedSchemes.length === 0 
-                                        ? "All Schemes" 
-                                        : selectedSchemes.length === 1 
-                                            ? selectedSchemes[0] 
-                                            : `${selectedSchemes.length} schemes selected`}
+                                    {isAllSchemesSelected
+                                        ? "All Schemes"
+                                        : selectedSchemes.length === 0
+                                            ? "No Schemes Selected"
+                                            : selectedSchemes.length === 1
+                                                ? selectedSchemes[0]
+                                                : `${selectedSchemes.length} schemes selected`}
                                 </button>
                                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A1A1AA] pointer-events-none" size={14} />
 
                                 {isSchemeDropdownOpen && (
                                     <div className="absolute z-50 min-w-[400px] max-w-[90vw] mt-1 bg-white dark:bg-[#27272A] border border-gray-300 dark:border-[#3F3F46] rounded shadow-md max-h-[450px] overflow-y-auto py-1">
                                         <label className="flex items-center px-2 py-1.5 hover:bg-[#e5e5e5] dark:hover:bg-[#3F3F46] cursor-pointer">
-                                            <input 
+                                            <input
                                                 type="checkbox"
-                                                checked={selectedSchemes.length === 0}
-                                                onChange={() => setSelectedSchemes([])}
+                                                checked={isAllSchemesSelected}
+                                                onChange={(e) => {
+                                                    setIsAllSchemesSelected(e.target.checked);
+                                                    setSelectedSchemes([]);
+                                                }}
                                                 className="w-3.5 h-3.5 rounded-sm border-gray-300 text-[#2563eb] focus:ring-0 accent-[#2563eb] cursor-pointer"
                                             />
                                             <span className="ml-2.5 text-[13px] text-gray-800 dark:text-[#E4E4E7] font-normal">All Schemes</span>
                                         </label>
-                                        
+
                                         {availableSchemes.map((scheme) => (
                                             <label key={scheme} className="flex items-start px-2 py-1.5 hover:bg-[#e5e5e5] dark:hover:bg-[#3F3F46] cursor-pointer">
-                                                <input 
+                                                <input
                                                     type="checkbox"
-                                                    checked={selectedSchemes.includes(scheme)}
+                                                    checked={isAllSchemesSelected || selectedSchemes.includes(scheme)}
                                                     onChange={(e) => {
                                                         if (e.target.checked) {
-                                                            setSelectedSchemes([...selectedSchemes, scheme]);
+                                                            if (!isAllSchemesSelected) {
+                                                                setSelectedSchemes([...selectedSchemes, scheme]);
+                                                            }
+                                                        } else if (isAllSchemesSelected) {
+                                                            setIsAllSchemesSelected(false);
+                                                            setSelectedSchemes(availableSchemes.filter(s => s !== scheme));
                                                         } else {
                                                             setSelectedSchemes(selectedSchemes.filter(s => s !== scheme));
                                                         }
@@ -849,7 +1054,7 @@ export default function InstituteReportingModule({
             </div>
 
             {hasGenerated && (() => {
-                const totalSanctioned = filteredProjects.reduce((sum, p) => sum + (Number(p.total_budget_amount || p.grand_total_proposal) || 0), 0);
+                const totalSanctioned = filteredProjects.reduce((sum, p) => sum + getSanctionedAmount(p), 0);
                 const formatLakhsCr = (amt: number) => {
                     if (amt >= 10000000) return `₹${(amt / 10000000).toFixed(2)} Cr`;
                     if (amt >= 100000) return `₹${(amt / 100000).toFixed(2)} L`;
@@ -971,6 +1176,7 @@ export default function InstituteReportingModule({
                                         <th className="px-4 py-3.5">Project No.</th>
                                         <th className="px-4 py-3.5">PI Name</th>
                                         <th className="px-4 py-3.5">Department</th>
+                                        <th className="px-4 py-3.5">Type</th>
                                         <th className="px-4 py-3.5">Project Title</th>
                                         <th className="px-4 py-3.5">Funding Agency</th>
                                         <th className="px-4 py-3.5 text-right">Sanctioned</th>
@@ -983,19 +1189,19 @@ export default function InstituteReportingModule({
                                 <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
                                     {filteredProjects.length === 0 ? (
                                         <tr>
-                                            <td colSpan={9} className="px-6 py-16 text-center text-[#71717A] dark:text-[#A1A1AA] text-[13px]">
+                                            <td colSpan={11} className="px-6 py-16 text-center text-[#71717A] dark:text-[#A1A1AA] text-[13px]">
                                                 No projects found matching the selected criteria.
                                             </td>
                                         </tr>
                                     ) : (
-                                        filteredProjects.map((p, index) => {
+                                        pagedProjects.map((p, pageIndex) => {
+                                            const index = (safeReportListPage - 1) * REPORT_LIST_PAGE_SIZE + pageIndex;
                                             const deptId = p.implementation_department || p.department;
                                             const deptName = getDeptName && deptId ? getDeptName(deptId) : (deptId || "—");
                                             const rawEmail = p.pi_webmail || p.pi_name || "";
                                             const resolvedName = getPiName && rawEmail ? getPiName(rawEmail) : "—";
-                                            const agency = p.select_funding_agency || p.funding_agency_name || p.funding_agency || p.origin_of_funding_agency || p.funding_agency_other || "—";
                                             const status = getProjectStatusLabel(p);
-                                            const sanctioned = Number(p.total_budget_amount || p.grand_total_proposal) || 0;
+                                            const sanctioned = getSanctionedAmount(p);
                                             const scheme = normalizeSchemeName(p.funding_agency_schemes || p.scheme_name || "");
 
                                             return (
@@ -1011,6 +1217,15 @@ export default function InstituteReportingModule({
                                                         )}
                                                     </td>
                                                     <td className="px-4 py-3 text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA] max-w-[140px]">{deptName}</td>
+                                                    <td className="px-4 py-3">
+                                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide ${
+                                                            getProjectCategory(p) === "Research" ? "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400" :
+                                                            getProjectCategory(p) === "Consultancy" ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400" :
+                                                            "bg-slate-100 dark:bg-slate-800 text-[#71717A] dark:text-[#A1A1AA]"
+                                                        }`}>
+                                                            {getProjectCategory(p)}
+                                                        </span>
+                                                    </td>
                                                     <td className="px-4 py-3 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] max-w-[320px] leading-snug line-clamp-2" title={p.project_title || ""}>{p.project_title || "—"}</td>
                                                     <td className="px-4 py-3">
                                                         <div className="text-[11px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight line-clamp-2 max-w-[120px]" title={getAgency(p) || "—"}>{getAgency(p) || "—"}</div>
@@ -1018,17 +1233,26 @@ export default function InstituteReportingModule({
                                                             <div className="text-[10px] font-bold text-[#2563eb] mt-0.5 max-w-[120px] truncate" title={scheme}>{scheme}</div>
                                                         )}
                                                     </td>
-                                                    <td className="px-4 py-3 text-[12px] font-extrabold text-emerald-600 dark:text-emerald-400 text-right whitespace-nowrap">{formatLakhsCr(sanctioned)}</td>
-                                                    <td className="px-4 py-3 text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA] text-center whitespace-nowrap">
-                                                        {formatDate(sanctionDateMap.get(p.name) || sanctionDateMap.get(p.project_no) || p.sanctioned_letter_date)}
-                                                    </td>
+                                                    <SanctionOverride
+                                                        projectName={p.name}
+                                                        isOngoing={!!(ongoingIds && (ongoingIds.has(p.name) || ongoingIds.has(p.project_no)))}
+                                                        bulkAmount={sanctioned}
+                                                        bulkDate={getEffectiveStartDate(p)}
+                                                    >
+                                                        {(amount, date) => (
+                                                            <>
+                                                                <td className="px-4 py-3 text-[12px] font-extrabold text-emerald-600 dark:text-emerald-400 text-right whitespace-nowrap">{formatLakhsCr(amount)}</td>
+                                                                <td className="px-4 py-3 text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA] text-center whitespace-nowrap">
+                                                                    {formatDate(date || "")}
+                                                                </td>
+                                                            </>
+                                                        )}
+                                                    </SanctionOverride>
                                                     <td className="px-4 py-3 text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA] text-center whitespace-nowrap">
                                                         {formatDate(p.creation)}
                                                     </td>
                                                     <td className="px-4 py-3 text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA] text-center whitespace-nowrap">
-                                                        {p.project_duration_months
-                                                            ? `${Math.round(Number(p.project_duration_months) / 12)} Years`
-                                                            : "—"}
+                                                        {formatDuration(getEffectiveStartDate(p), p.prj_end_date, p.project_duration_months)}
                                                     </td>
                                                     <td className="px-4 py-3 text-center">{getStatusBadge(status)}</td>
                                                 </tr>
@@ -1039,6 +1263,45 @@ export default function InstituteReportingModule({
                             </table>
                             )}
                         </div>
+                        {filteredProjects.length > REPORT_LIST_PAGE_SIZE && (
+                            <div className="flex items-center justify-between px-4 py-3 border-t border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
+                                <span className="text-[11px] text-[#71717A] font-semibold">
+                                    Showing {(safeReportListPage - 1) * REPORT_LIST_PAGE_SIZE + 1}–{Math.min(safeReportListPage * REPORT_LIST_PAGE_SIZE, filteredProjects.length)} of {filteredProjects.length} projects
+                                </span>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={() => setReportListPage((p) => Math.max(1, p - 1))}
+                                        disabled={safeReportListPage === 1}
+                                        className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] disabled:opacity-40 hover:bg-[#E4E4E7] dark:hover:bg-[#3F3F46] transition-colors"
+                                    >
+                                        ‹ Prev
+                                    </button>
+                                    {Array.from({ length: Math.min(5, totalReportListPages) }, (_, i) => {
+                                        const start = Math.max(1, Math.min(safeReportListPage - 2, totalReportListPages - 4));
+                                        const page = start + i;
+                                        return (
+                                            <button
+                                                key={page}
+                                                onClick={() => setReportListPage(page)}
+                                                className={`w-7 h-7 rounded-lg text-[11px] font-bold transition-colors ${page === safeReportListPage
+                                                    ? "bg-[#2563eb] text-white"
+                                                    : "border border-[#E4E4E7] dark:border-[#3F3F46] text-[#71717A] hover:bg-[#E4E4E7] dark:hover:bg-[#3F3F46]"
+                                                    }`}
+                                            >
+                                                {page}
+                                            </button>
+                                        );
+                                    })}
+                                    <button
+                                        onClick={() => setReportListPage((p) => Math.min(totalReportListPages, p + 1))}
+                                        disabled={safeReportListPage === totalReportListPages}
+                                        className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] disabled:opacity-40 hover:bg-[#E4E4E7] dark:hover:bg-[#3F3F46] transition-colors"
+                                    >
+                                        Next ›
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
                 );

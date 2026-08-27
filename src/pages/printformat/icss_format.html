@@ -166,6 +166,11 @@
             border: 1px solid #999;
         }
 
+        .declaration {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
         /* ── DATA TABLE ── */
         .content table.data-table {
             width: 100%;
@@ -195,63 +200,49 @@
         .b { font-weight: bold; }
 
         .summary-lbl {
-            text-align: right;
-            padding-right: 8px;
+            text-align: left;
+            padding-left: 8px;
             font-size: 9pt;
         }
 
         /* ── ACTIVITY LOG ── */
-        .activity-section {
-            margin-top: 10px;
+        .activity-table {
+            width: 100%;
+            border-collapse: collapse;
             font-size: 9pt;
+            margin-top: 4px;
+            margin-bottom: 6px;
         }
 
-        .activity-row {
-            display: flex;
-            gap: 8px;
-            align-items: flex-start;
-            padding: 5px 0;
-            border-bottom: 1px solid #eee;
-            font-size: 9pt;
+        .activity-table th,
+        .activity-table td {
+            border: 1px solid #ccc;
+            padding: 4px 8px;
+            text-align: left;
+            vertical-align: top;
         }
 
-        .activity-avatar {
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            background: #555;
-            color: #fff;
-            font-size: 9pt;
+        .activity-table th {
+            background-color: #f0f0f0;
             font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            text-align: center;
-            line-height: 22px;
+            font-size: 8.5pt;
         }
 
-        .activity-text { flex: 1; }
-        .activity-time { font-size: 8pt; color: #777; margin-top: 1px; }
+        .activity-table th:nth-child(1) { width: 30%; }
+        .activity-table th:nth-child(2) { width: 50%; }
+        .activity-table th:nth-child(3) { width: 20%; }
+
+        .activity-table .designation {
+            display: block;
+            font-size: 8pt;
+            color: #555;
+            font-weight: normal;
+        }
 
         /* ── PROJECT LINE (below form type) ── */
         .project-line {
             font-size: 9pt;
             margin: 1px 0 5px 0;
-        }
-
-        .print-footer {
-            position: absolute;
-            bottom: 8mm;
-            right: 14mm;
-            left: 14mm;
-            font-size: 8pt;
-            color: #888;
-            text-align: right;
-            border-top: 1px solid #ddd;
-            padding-top: 4px;
-            background-color: white;
-            z-index: 100;
         }
 
         .pdf-embed {
@@ -264,10 +255,31 @@
 
         @page {
             size: A4;
-            margin: 0mm;
+            margin: 0;
         }
 
         @media print {
+            table.layout-table > tbody > tr,
+            table.layout-table > tbody > tr > td {
+                page-break-inside: auto !important;
+                break-inside: auto !important;
+                .print-footer {
+                display: flex !important;
+                justify-content: space-between;
+                align-items: center;
+                position: fixed;
+                bottom: 8mm;
+                right: 14mm;
+                left: 14mm;
+                font-size: 8pt;
+                color: #888;
+                border-top: 1px solid #ddd;
+                padding-top: 4px;
+                z-index: 100;
+            }
+        }
+
+            tr { page-break-inside: avoid; }
             body, .page {
                 margin: 0;
                 box-shadow: none;
@@ -284,7 +296,7 @@
             .print-hide { display: none !important; }
             .print-only { display: block !important; }
 
-            .content { padding: 0 14mm 20mm 14mm; }
+            .content { padding: 0 14mm; }
 
             .content table.data-table { page-break-inside: auto; break-before: avoid; page-break-before: avoid; }
             .content table.data-table thead { display: table-header-group; break-after: avoid; page-break-after: avoid; }
@@ -300,11 +312,9 @@
                 break-after: avoid;
             }
 
-            .print-footer {
-                position: fixed;
-                bottom: 8mm;
-                right: 14mm;
-                left: 14mm;
+            .declaration {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
             }
 
             .watermark {
@@ -315,14 +325,17 @@
                 z-index: 0;
             }
         }
+    
+        .print-footer {
+            display: none;
+        }
     </style>
+
 </head>
 <body>
 <div class="page">
 
-    <div class="watermark">
-        <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="" onerror="this.style.display='none'">
-    </div>
+    
 
     <div class="content">
         <table class="layout-table">
@@ -347,22 +360,23 @@
                             </div>
                         </div>
 
-                        <!-- DOC REF -->
-                        <div class="doc-ref-right">
-                            <span class="doc-ref-label">Doc Ref: </span><span>{{DOC_REF}}</span>
-                            &nbsp;&nbsp;
-                            <span class="doc-ref-label">Status: </span><span>{{WORKFLOW_STATE}}</span>
+                        <!-- DOC META & FORM TYPE -->
+                        <div style="display: flex; justify-content: space-between; align-items: baseline; margin: 4px 0 2px 0;">
+                            <div class="form-type">Form Type: Indent Cum Sanction Sheet</div>
+                            <div class="doc-ref-right" style="margin: 0;">
+                                <span class="doc-ref-label">Doc Ref: </span><span>{{DOC_REF}}</span>
+                                &nbsp;&nbsp;
+                                <span class="doc-ref-label">Status: </span><span>{{WORKFLOW_STATE}}</span>
+                            </div>
                         </div>
-
-                        <!-- FORM LINE -->
-                        <div class="form-line">
-                            <span class="form-type">Form Type: Indent Cum Sanction Sheet</span>
-                            <span><strong>Date:</strong> {{DATE}}</span>
-                        </div>
-
-                        <!-- PROJECT NUMBER -->
-                        <div class="project-line">
-                            <strong>Project No:</strong> {{PROJECT_NUMBER}}
+                        <!-- PROJECT LINE & DATE -->
+                        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; font-size: 9.5pt;">
+                            <div>
+                                <strong>Project No:</strong> {{PROJECT_NUMBER}}
+                            </div>
+                            <div style="text-align: right;">
+                                <strong>Date:</strong> {{DATE}}
+                            </div>
                         </div>
 
                         <!-- TITLE -->
@@ -413,9 +427,18 @@
 
                         <!-- ACTIVITY LOG -->
                         <div class="section-heading" style="margin-top:8px;">Activity Log</div>
-                        <div class="activity-section">
-                            {{ACTIVITY_ROWS}}
-                        </div>
+                        <table class="activity-table">
+                            <thead>
+                                <tr>
+                                    <th>Approver (Name &amp; Designation)</th>
+                                    <th>Comment</th>
+                                    <th>Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {{ACTIVITY_ROWS}}
+                            </tbody>
+                        </table>
 
                         <!-- ATTACHMENTS (Images/PDFs) -->
                         {{ATTACHMENTS}}
@@ -432,10 +455,14 @@
     </div>
 
     <!-- FIXED FOOTER -->
-    <div class="print-footer">
-        Printed on: {{CURRENT_TIME}} &nbsp;|&nbsp; IIT Guwahati — R&amp;D Section &nbsp;|&nbsp; Indent Cum Sanction Sheet
-    </div>
+    
 
+</div>
+<div class="watermark">
+        <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="" onerror="this.style.display='none'">
+    </div>
+<div class="print-footer">
+    Printed on: {{CURRENT_TIME}} &nbsp;|&nbsp; IIT Guwahati — R&amp;D Section &nbsp;|&nbsp; Indent Cum Sanction Sheet
 </div>
 </body>
 </html>

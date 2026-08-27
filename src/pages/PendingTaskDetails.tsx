@@ -1,3 +1,4 @@
+import { P11PrintModal } from "@/components/P11PrintModal";
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useSWRConfig } from "swr";
@@ -2871,6 +2872,8 @@ const PendingTaskDetails: React.FC = () => {
     );
     // State for display data (to handle ID resolution)
     const [displayData, setDisplayData] = useState<Record<string, any>>({});
+    const [isTaPrintOpen, setIsTaPrintOpen] = useState(false);
+    const activityLogContainerRef = useRef<HTMLDivElement>(null);
 
     // Update displayData when data changes
     useEffect(() => {
@@ -3016,16 +3019,7 @@ const PendingTaskDetails: React.FC = () => {
     }, [data, doctype, temporaryAdvanceLinkOptions]);
 
     const handlePrintTemporaryAdvance = () => {
-        if (!data) return;
-        const html = generateTemporaryAdvanceHtml(displayData, resolvedProjectTitle, resolvedAccountHead, resolvedApplicantName);
-        const printWindow = window.open("", "_blank");
-        if (printWindow) {
-            printWindow.document.write(html);
-            printWindow.document.close();
-            setTimeout(() => {
-                printWindow.print();
-            }, 500);
-        }
+        setIsTaPrintOpen(true);
     };
 
     // Helper to resolve Linked fields to readable names
@@ -4878,6 +4872,30 @@ const PendingTaskDetails: React.FC = () => {
                     onClose={() => setPrPreviewName(null)}
                 />
             )}
+            
+            <P11PrintModal
+                isOpen={isTaPrintOpen}
+                onClose={() => setIsTaPrintOpen(false)}
+                title={`${doctype} Preview`}
+                htmlContent={
+                    isTaPrintOpen && data
+                        ? generateTemporaryAdvanceHtml(
+                              displayData,
+                              resolvedProjectTitle,
+                              resolvedAccountHead,
+                              resolvedApplicantName,
+                              activityLogContainerRef.current
+                          )
+                        : ""
+                }
+                docName={data?.name || name || ""}
+            />
+            
+            <div style={{ display: "none" }} ref={activityLogContainerRef}>
+                {doctype === 'Temporary Advance' && name && (
+                    <ActivityLog doctype={doctype} docname={name} />
+                )}
+            </div>
         </div>
     );
 };

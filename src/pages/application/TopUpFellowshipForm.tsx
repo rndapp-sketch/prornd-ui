@@ -1,14 +1,21 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeAuth, useFrappeGetDoc } from 'frappe-react-sdk';
+import { commonAPI } from '@/services/apiService';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { isFieldVisible } from '@/utils/evalExpression';
 import { prepareFormDataForApi } from '@/services/apiService';
+import { P11PrintModal } from '@/components/P11PrintModal';
+import { ActivityLog } from "@/components/ActivityLog";
+import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
+import { resolveTopUpFellowshipPrintData, generateTopUpFellowshipHtml } from '@/utils/topUpFellowshipPrint';
 import {
     HelpCircle, X, BookOpen, IndianRupee, Clock, CheckCircle2,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Printer } from 'lucide-react';
 
 // --- HELP PANEL ---
 const HelpPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => (
@@ -184,17 +191,21 @@ const TopUpFellowshipForm: React.FC = () => {
     const projectFromUrl = searchParams.get('project');
     const projectTitleFromUrl = searchParams.get('projectTitle');
     const { currentUser } = useFrappeAuth();
+    const { data: currentUserData } = useFrappeGetDoc<any>('User', currentUser ?? "");
 
     const [fields, setFields] = useState<FormField[]>([]);
     const [formData, setFormData] = useState<Record<string, any>>({});
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isPrintOpen, setIsPrintOpen] = useState(false);
+    const [fetchedOwnerName, setFetchedOwnerName] = useState<string>("");
     const [isSaved, setIsSaved] = useState(false);
     const [savedDocName, setSavedDocName] = useState<string | null>(null);
     const [dataLoaded, setDataLoaded] = useState(false);
     const [projectTitle, setProjectTitle] = useState<string>(projectTitleFromUrl || '');
     const [helpOpen, setHelpOpen] = useState(false);
+    const activityLogContainerRef = useRef<HTMLDivElement>(null);
 
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall<FormDataResponse>(
         'rndopsapp.rndopsapp.doctype.top_up_fellowship.top_up_fellowship.get_top_up_fellowship_fields'
@@ -202,6 +213,8 @@ const TopUpFellowshipForm: React.FC = () => {
     const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>('frappe.client.get');
     const { call: fetchProjectDetails } = useFrappePostCall<{ message: any }>('frappe.client.get');
     const { call: fetchDepartments } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
+    const { call: fetchUsersList } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
+    const { call: fetchUserDetails } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
     const { call: saveForm, error: saveError } = useFrappePostCall(
         'rndopsapp.rndopsapp.doctype.top_up_fellowship.top_up_fellowship.save_top_up_fellowship_data'
     );
@@ -324,6 +337,24 @@ const TopUpFellowshipForm: React.FC = () => {
                 } catch (err) {
                     console.warn('Could not fetch departments:', err);
                 }
+
+                try {
+                    const usersRes = await fetchUsersList({
+                        doctype: 'User',
+                        fields: JSON.stringify(['name', 'full_name']),
+                        filters: JSON.stringify([['enabled', '=', 1]]),
+                        limit_page_length: 0
+                    });
+                    if (Array.isArray(usersRes?.message)) {
+                        mergedLinkOptions['User'] = usersRes.message.map((u: any) => ({
+                            value: u.name,
+                            label: u.full_name || u.name,
+                        }));
+                    }
+                } catch (err) {
+                    console.warn('Could not fetch users list:', err);
+                }
+
                 setLinkOptions(mergedLinkOptions);
 
                 let initialData: Record<string, any> = { ...prefill_data };
@@ -335,6 +366,14 @@ const TopUpFellowshipForm: React.FC = () => {
                             name: editDocName,
                         });
                         if (existingDoc?.message) {
+                            if (Array.isArray(existingDoc.message.students)) {
+                                existingDoc.message.students = existingDoc.message.students.map((student: any) => ({
+                                    ...student,
+                                    email_of_student: (student.email_of_student && !student.email_of_student.includes('@'))
+                                        ? `${student.email_of_student}@iitg.ac.in`
+                                        : student.email_of_student
+                                }));
+                            }
                             initialData = { ...initialData, ...existingDoc.message };
                         }
                     } catch (err) {
@@ -397,7 +436,20 @@ const TopUpFellowshipForm: React.FC = () => {
         };
 
         loadFormAndDocument();
-    }, [formDataResult, formDataError, editDocName, fetchExistingDoc, fetchDepartments, dataLoaded, currentUser]);
+    }, [formDataResult, formDataError, editDocName, fetchExistingDoc, fetchDepartments, fetchUsersList, dataLoaded, currentUser]);
+
+    // Fetch the actual owner's full name directly using the whitelisted API
+    useEffect(() => {
+        if (formData.owner) {
+            fetchUserDetails({ user_email: formData.owner })
+                .then(res => {
+                    if (res?.message?.full_name) {
+                        setFetchedOwnerName(res.message.full_name);
+                    }
+                })
+                .catch(err => console.warn("Could not fetch owner details", err));
+        }
+    }, [formData.owner, fetchUserDetails]);
 
     const handleChange = useCallback((fieldname: string, value: any) => {
         setFormData(prev => ({ ...prev, [fieldname]: value }));
@@ -521,8 +573,12 @@ const TopUpFellowshipForm: React.FC = () => {
             return;
         }
 
+        const formattedEmail = (value && !value.includes('@')) ? `${value}@iitg.ac.in` : value;
+
         try {
-            const res = await fetchStudentDetails({ email: value });
+            // Use the username part for backend lookup if needed
+            const apiUsername = formattedEmail.split('@')[0];
+            const res = await fetchStudentDetails({ email: apiUsername });
             const details = res?.message || {};
 
             // dept_centre is a Link to Department_prornd (value = doc name, label = dept_name),
@@ -541,7 +597,7 @@ const TopUpFellowshipForm: React.FC = () => {
                 periodFrom = table[rowIndex]?.period_from || '';
                 table[rowIndex] = {
                     ...table[rowIndex],
-                    email_of_student: value,
+                    email_of_student: formattedEmail,
                     roll_number: details.roll_number || table[rowIndex]?.roll_number || '',
                     dept_centre: resolvedDept || table[rowIndex]?.dept_centre || '',
                     name_of_the_student: details.full_name || table[rowIndex]?.name_of_the_student || '',
@@ -549,7 +605,7 @@ const TopUpFellowshipForm: React.FC = () => {
                 return { ...prev, [tableName]: table };
             });
             // Fetch monthly status for this newly-selected student
-            refreshMonthlyStatus(value, periodFrom);
+            refreshMonthlyStatus(formattedEmail, periodFrom);
         } catch (err) {
             console.warn('Could not fetch student details:', err);
         }
@@ -672,7 +728,20 @@ const TopUpFellowshipForm: React.FC = () => {
                     projectNumber={formData.project_code || ''}
                     status={editDocName ? 'Editing' : 'New'}
                     showBack={true}
-                />
+                >
+                    {editDocName && (
+                        <button
+                            type="button"
+                            onClick={() => setIsPrintOpen(true)}
+                            disabled={!!formData.owner && !fetchedOwnerName}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Print this document"
+                        >
+                            <Printer className="w-4 h-4" />
+                            Print
+                        </button>
+                    )}
+                </PageHeader>
 
                 <form onSubmit={handleSubmit}>
                     <FrappeCard className="space-y-12">
@@ -815,6 +884,38 @@ const TopUpFellowshipForm: React.FC = () => {
             </button>
 
             {helpOpen && <HelpPanel onClose={() => setHelpOpen(false)} />}
+            
+            {effectiveDocName && <FloatingActivityLogButton doctype="Top Up Fellowship" docname={effectiveDocName} />}
+            
+            <div style={{ display: "none" }} ref={activityLogContainerRef}>
+                {effectiveDocName && (
+                    <ActivityLog 
+                        doctype="Top Up Fellowship" 
+                        docname={effectiveDocName} 
+                        fallbackOwner={formData.owner}
+                        fallbackCreation={formData.creation}
+                        fallbackOwnerName={fetchedOwnerName || formData.owner}
+                    />
+                )}
+            </div>
+
+            <P11PrintModal
+                title="Top Up Fellowship Preview"
+                isOpen={isPrintOpen}
+                onClose={() => setIsPrintOpen(false)}
+                docName={effectiveDocName || "Draft"}
+                htmlContent={
+                    isPrintOpen ? generateTopUpFellowshipHtml(
+                        {
+                            ...resolveTopUpFellowshipPrintData(formData, linkOptions),
+                            resolved_owner_name: fetchedOwnerName || formData.owner
+                        },
+                        [],
+                        [],
+                        activityLogContainerRef.current
+                    ) : ""
+                }
+            />
         </div>
     );
 };

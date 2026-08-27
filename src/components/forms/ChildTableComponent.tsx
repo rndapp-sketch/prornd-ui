@@ -9,6 +9,25 @@ import { AutocompleteEmail } from '@/components/AutocompleteEmail';
 import { DepartmentName } from '@/components/DepartmentName';
 import { evaluateExpression } from '@/utils/evalExpression';
 import { getFileUrl } from '@/utils/fileUtils';
+import { useFrappeGetCall } from 'frappe-react-sdk';
+
+// --- SELF-FETCHING DEPARTMENT SELECT ---
+const DepartmentSelect = ({ value, onChange, disabled, className }: any) => {
+    const { data } = useFrappeGetCall<{ message: any[] }>(
+        "frappe.client.get_list",
+        { doctype: "Department_prornd", fields: ["name", "dept_name"], limit_page_length: 0 },
+        undefined,
+        { revalidateOnFocus: false }
+    );
+    const options = data?.message?.map(d => ({ value: d.name, label: d.dept_name || d.name })) || [];
+
+    return (
+        <select className={className} value={value || ''} onChange={e => onChange(e.target.value)} disabled={disabled}>
+            <option value="">Select...</option>
+            {options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+        </select>
+    );
+};
 
 // --- TYPE DEFINITIONS ---
 export interface ChildField {
@@ -377,6 +396,22 @@ export const ChildTableComponent = memo(({
                         </select>
                     );
                 }
+
+                // Foolproof fallback: if parent form failed to provide linkOptions for Department_prornd, fetch it locally
+                if (col.fieldname === 'department_section' || col.options === 'Department_prornd') {
+                    return (
+                        <DepartmentSelect
+                            className={inputClasses}
+                            value={value}
+                            onChange={(val: string) => {
+                                if (onLinkChange) onLinkChange(tableName, rowIndex, col.fieldname, val);
+                                else onRowChange(tableName, rowIndex, col.fieldname, val);
+                            }}
+                            disabled={isReadOnly}
+                        />
+                    );
+                }
+
                 return (
                     <input
                         type="text"
@@ -389,6 +424,21 @@ export const ChildTableComponent = memo(({
             }
 
             default: { // Data, etc.
+                // Foolproof fallback: if the backend misconfigured this as "Data", force it to be a Link dropdown
+                if (col.fieldname === 'department_section' || col.options === 'Department_prornd') {
+                    return (
+                        <DepartmentSelect
+                            className={inputClasses}
+                            value={value}
+                            onChange={(val: string) => {
+                                if (onLinkChange) onLinkChange(tableName, rowIndex, col.fieldname, val);
+                                else onRowChange(tableName, rowIndex, col.fieldname, val);
+                            }}
+                            disabled={isReadOnly}
+                        />
+                    );
+                }
+
                 const isEmailField =
                     col.fieldname.includes('webmail') ||
                     col.fieldname.includes('email') ||

@@ -51,50 +51,61 @@
         .header-row {
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 15px;
-            margin-bottom: 15px;
+            justify-content: space-between;
+            margin-bottom: 3px;
             border-bottom: 2px solid #000;
-            padding-bottom: 12px;
+            padding-bottom: 6px;
         }
 
-        .logo-container img {
-            height: 65px;
+        .logo-left img {
+            height: 85px;
             width: auto;
+            display: block;
         }
 
-        .header-text {
+        .header-center {
             text-align: center;
+            flex: 1;
+            padding: 0 10px;
         }
 
-        .header {
-            font-size: 20px;
+        .header-hindi {
+            font-size: 11pt;
+            font-weight: bold;
+            line-height: 1.3;
+        }
+
+        .header-english {
+            font-size: 12pt;
             font-weight: bold;
             text-transform: uppercase;
-            margin-bottom: 2px;
+            line-height: 1.3;
         }
 
-        .sub-header {
-            font-size: 16px;
-            font-weight: bold;
+        .header-sub {
+            font-size: 9.5pt;
+            line-height: 1.3;
         }
 
-        .title {
-            text-align: center;
-            font-weight: bold;
-            text-decoration: underline;
-            margin: 15px 0 20px 0;
-            font-size: 18px;
-            text-transform: uppercase;
+        /* ── DOC META ── */
+        .doc-ref-right {
+            text-align: right;
+            font-size: 8.5pt;
+            line-height: 1.5;
+            margin: 3px 0 2px 0;
         }
 
-        .top-info {
+        .doc-ref-right .doc-ref-label { font-weight: bold; }
+
+        .form-line {
             display: flex;
             justify-content: space-between;
-            font-size: 14px;
-            margin-bottom: 15px;
-            line-height: 1.4;
+            align-items: baseline;
+            margin: 4px 0 3px 0;
+            font-size: 9.5pt;
         }
+
+        .form-type { font-weight: bold; font-size: 10pt; }
 
         .info-table {
             width: 100%;
@@ -121,7 +132,6 @@
             border-collapse: collapse;
             font-size: 11.5px;
             margin-bottom: 12px;
-            table-layout: fixed;
         }
 
         table.item-table th,
@@ -145,9 +155,10 @@
 
         .right {
             text-align: right;
+            white-space: nowrap;
         }
 
-        .section-title {
+        .section-heading {
             font-size: 14px;
             font-weight: bold;
             text-decoration: underline;
@@ -155,40 +166,77 @@
             text-transform: uppercase;
         }
 
-        .activity-log {
-            border: 1px solid #ccc;
-            border-radius: 2px;
-            padding: 2px 10px;
-            font-size: 12.5px;
-            margin-bottom: 15px;
-        }
-
-        .activity-entry {
-            border-bottom: 1px dotted #ddd;
-            padding: 7px 0;
-        }
-
-        .activity-entry:last-child {
-            border-bottom: none;
-        }
-
-        .activity-meta {
+        .activity-table {
+            width: 100%;
+            border-collapse: collapse;
             font-size: 11px;
-            color: #555;
-            margin-bottom: 3px;
+            margin-top: 4px;
+            margin-bottom: 6px;
         }
 
-        .activity-content {
-            line-height: 1.5;
-            white-space: pre-wrap;
+        .activity-table th,
+        .activity-table td {
+            border: 1px solid #ccc;
+            padding: 4px 8px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .activity-table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+            font-size: 11px;
+        }
+
+        .activity-table th:nth-child(1) { width: 30%; }
+        .activity-table th:nth-child(2) { width: 50%; }
+        .activity-table th:nth-child(3) { width: 20%; }
+
+        .activity-table .designation {
+            display: block;
+            font-size: 10px;
+            color: #555;
+            font-weight: normal;
         }
 
         @page {
             size: A4;
-            margin: 0;
+            margin: 10mm 12mm;
         }
 
         @media print {
+            .print-hide {
+                display: none !important;
+            }
+            .watermark {
+                position: fixed !important;
+                top: 50% !important;
+                left: 50% !important;
+                transform: translate(-50%, -50%) !important;
+                z-index: 0 !important;
+            }
+            .print-footer {
+                display: flex !important;
+                justify-content: space-between;
+                align-items: center;
+                position: fixed;
+                bottom: 8mm;
+                right: 14mm;
+                left: 14mm;
+                font-size: 8pt;
+                color: #888;
+                border-top: 1px solid #ddd;
+                padding-top: 4px;
+                z-index: 100;
+            }
+
+            table.layout-table > tbody > tr,
+            table.layout-table > tbody > tr > td {
+                page-break-inside: auto !important;
+                break-inside: auto !important;
+            }
+
+            tr { page-break-inside: avoid; }
             body {
                 margin: 0;
                 background: none;
@@ -203,56 +251,61 @@
                 page-break-inside: auto;
             }
 
-            .content {
-                padding: 10mm 10mm;
-            }
+            .content { padding: 0 14mm; }
 
-            .activity-log {
+            .activity-table {
                 page-break-inside: avoid;
             }
+
+            .print-hide {
+                display: none !important;
+            }
+        }
+    
+        .print-footer {
+            display: none;
         }
     </style>
 </head>
 
 <body>
     <div class="page">
-        <div class="watermark">
-            <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
-                onerror="this.style.display = 'none'" />
-        </div>
+        
 
         <div class="content">
             <!-- HEADER -->
             <div class="header-row">
-                <div class="logo-container">
-                    <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
-                        onerror="this.style.display = 'none'" />
+                <div class="logo-left">
+                    <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG" onerror="this.style.display='none'">
                 </div>
-                <div class="header-text">
-                    <div class="header">
-                        Indian Institute of Technology Guwahati
-                    </div>
-                    <div class="sub-header">
-                        Research &amp; Development Section
-                    </div>
+                <div class="header-center">
+                    <div class="header-hindi">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
+                    <div class="header-english">Indian Institute of Technology Guwahati</div>
+                    <div class="header-sub">Research and Development Section</div>
                 </div>
             </div>
 
-            <!-- TOP INFO -->
-            <div class="top-info">
-                <div>
-                    <strong>Doc ID:</strong> {{DOC_REF}}
+            <!-- DOC META & FORM TYPE -->
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin: 4px 0 2px 0;">
+                <div class="form-type">Form Type: Disbursal of Honorarium</div>
+                <div class="doc-ref-right" style="margin: 0;">
+                    <span class="doc-ref-label">Doc Ref: </span><span>{{DOC_REF}}</span>
+                    &nbsp;&nbsp;
+                    <span class="doc-ref-label">Status: </span><span>{{WORKFLOW_STATE}}</span>
                 </div>
-                <div style="text-align: right">
+            </div>
+            <!-- PROJECT LINE & DATE -->
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; font-size: 9.5pt;">
+                <div>
+                    <strong>Project No:</strong> {{PROJECT_NO}}
+                </div>
+                <div style="text-align: right;">
                     <strong>Date:</strong> {{DATE}}
                 </div>
             </div>
 
-            <!-- TITLE -->
-            <div class="title">Disbursal of Honorarium</div>
-
             <!-- APPLICANT DETAILS -->
-            <div class="section-title">Applicant Details</div>
+            <div class="section-heading">Applicant Details</div>
             <table class="info-table">
                 <tr>
                     <td class="label">Applicant Name</td>
@@ -263,14 +316,14 @@
                 <tr>
                     <td class="label">Department</td>
                     <td>{{APPLICANT_DEPARTMENT}}</td>
-                    <td class="label">Applying For</td>
-                    <td>{{APPLYING_FOR}}</td>
+                    <td class="label">Applicant Email</td>
+                    <td>{{APPLICANT_EMAIL}}</td>
                 </tr>
                 <tr>
-                    <td class="label">Project No.</td>
-                    <td>{{PROJECT_NO}}</td>
                     <td class="label">Account Head</td>
                     <td>{{ACCOUNT_HEAD}}</td>
+                    <td class="label">Applying For</td>
+                    <td>{{APPLYING_FOR}}</td>
                 </tr>
                 <tr>
                     <td class="label">Project Name</td>
@@ -282,17 +335,17 @@
             {{BENEFICIARY_SECTION}}
 
             <!-- HONORARIUM DETAILS -->
-            <div class="section-title">Details of Honorarium</div>
+            <div class="section-heading">Details of Honorarium</div>
             <table class="item-table">
                 <colgroup>
                     <col style="width: 4%" />
-                    <col style="width: 15%" />
-                    <col style="width: 11%" />
-                    <col style="width: 11%" />
-                    <col style="width: 8%" />
                     <col style="width: 13%" />
-                    <col style="width: 8%" />
-                    <col style="width: 8%" />
+                    <col style="width: 11%" />
+                    <col style="width: 11%" />
+                    <col style="width: 7%" />
+                    <col style="width: 18%" />
+                    <col style="width: 7%" />
+                    <col style="width: 7%" />
                     <col style="width: 12%" />
                     <col style="width: 10%" />
                 </colgroup>
@@ -301,12 +354,12 @@
                         <th>Sl.</th>
                         <th>Name</th>
                         <th>Designation</th>
-                        <th>Department / Section</th>
+                        <th>Department / Section<br/>/<br/>Institute Name</th>
                         <th>Emp. ID</th>
                         <th>Nature of Work</th>
                         <th>From</th>
                         <th>To</th>
-                        <th>Bank A/c No. / IFSC</th>
+                        <th>Bank A/c No.<br/>/<br/>IFSC</th>
                         <th>Amount (Rs.)</th>
                     </tr>
                 </thead>
@@ -326,10 +379,15 @@
             </table>
 
             <!-- ACTIVITY LOG -->
-            <div class="section-title">Activity Log</div>
             {{ACTIVITY_LOG_SECTION}}
+
+            {{ATTACHMENTS_SECTION}}
         </div>
     </div>
+<div class="watermark">
+            <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
+                onerror="this.style.display = 'none'" />
+        </div>
 </body>
 
 </html>

@@ -29,6 +29,7 @@ import { ProjectLedgerModal } from "@/components/ProjectLedgerModal";
 import IndentGeneralFormActionButtons from "@/components/IndentGeneralFormActionButtons";
 import ProjectDetailsOverview from "@/pages/ProjectDetailsOverview";
 import { generateIgfPrintHtml } from "@/utils/igfPrint";
+import { P11PrintModal } from "@/components/P11PrintModal";
 
 // ---------------------------------------------------------------------------
 // Workflow pipeline
@@ -260,6 +261,8 @@ const IndentGeneralFormDetails: React.FC = () => {
     const [isUploadingPdf, setIsUploadingPdf] = useState(false);
     const [hasPrinted, setHasPrinted] = useState(false);
     const [directorPdfUrl, setDirectorPdfUrl] = useState("");
+    const [printModalOpen, setPrintModalOpen] = useState(false);
+    const [printHtml, setPrintHtml] = useState("");
 
     const { call: fetchFields } = useFrappePostCall<{ message: any }>(indentGeneralFormAPI.getFields);
     const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>("frappe.client.get_value");
@@ -592,8 +595,8 @@ const IndentGeneralFormDetails: React.FC = () => {
             projectTitle,
             activityData?.message || [],
         );
-        const win = window.open("", "_blank");
-        if (win) { win.document.write(html); win.document.close(); setTimeout(() => win.print(), 400); }
+        setPrintHtml(html);
+        setPrintModalOpen(true);
         setHasPrinted(true);
 
         // Dean printing at Pending Dean Approval auto-forwards the form —
@@ -640,6 +643,13 @@ const IndentGeneralFormDetails: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-[#FAFAF9] font-sans dark:bg-[#18181B]">
+            <P11PrintModal
+                isOpen={printModalOpen}
+                onClose={() => setPrintModalOpen(false)}
+                htmlContent={printHtml}
+                docName={id || ""}
+                title="Indent General Form Preview"
+            />
             {/* <AppSidebar /> */}
             <main className="w-full overflow-hidden px-5 py-6 md:px-8 md:py-7">
                 <PageHeader

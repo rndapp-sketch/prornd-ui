@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AppSidebar } from "../../components/RndSidebar";
@@ -19,6 +19,7 @@ import {
     Pencil as PencilIcon,
     AlertTriangle,
     FileSpreadsheetIcon as LedgerIcon,
+    Printer
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlobalLoader } from "@/components/ui/global-loader";
@@ -27,10 +28,14 @@ import { useUserRoles } from "../../components/UserRole";
 import { ProjectLedgerModal } from "../../components/ProjectLedgerModal";
 import { CommitPayment } from "@/components/CommitPayment";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
+import { ActivityLog } from "@/components/ActivityLog";
+import { P11PrintModal } from "@/components/P11PrintModal";
+import { generateTemporaryAdvanceHtml } from "@/utils/temporaryAdvancePrint";
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { ToWords } from "to-words";
 import { DynamicFormRenderer, type FormField, type LinkOption } from "@/components/forms/DynamicFormRenderer";
 import { temporaryAdvanceAPI } from "@/services/apiService";
+import { resolveDepartmentLabel } from "@/utils/resolveDepartmentLabel";
 
 const toWords = new ToWords({ localeCode: "en-IN", converterOptions: { ignoreDecimal: false } });
 
@@ -405,8 +410,12 @@ const TemporaryAdvanceDetails: React.FC = () => {
     const [projectTitle, setProjectTitle] = useState<string>("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLedgerOpen, setIsLedgerOpen] = useState(false);
+    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+    const activityLogContainerRef = useRef<HTMLDivElement>(null);
     const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
     const [budgetHeadList, setBudgetHeadList] = useState<{ name: string; id: string }[]>([]);
+    const [resolvedApplicantDept, setResolvedApplicantDept] = useState<string>("");
+    const [resolvedAdvanceForDept, setResolvedAdvanceForDept] = useState<string>("");
 
     const [taFields, setTaFields] = useState<FormField[]>([]);
     const [taLinkOptions, setTaLinkOptions] = useState<Record<string, LinkOption[]>>({});
@@ -445,6 +454,16 @@ const TemporaryAdvanceDetails: React.FC = () => {
         };
         fetchBudgetHeads();
     }, []);
+
+    useEffect(() => {
+        if (!data) return;
+        if (data.applicant_department) {
+            resolveDepartmentLabel(data.applicant_department).then(setResolvedApplicantDept);
+        }
+        if (data.advance_for_department) {
+            resolveDepartmentLabel(data.advance_for_department).then(setResolvedAdvanceForDept);
+        }
+    }, [data?.applicant_department, data?.advance_for_department]);
 
     const loadData = async () => {
         if (!id) return;
@@ -631,6 +650,16 @@ const TemporaryAdvanceDetails: React.FC = () => {
                                 }
                             />
                         )}
+                        {data && (
+                            <button
+                                onClick={() => setIsPrintModalOpen(true)}
+                                className="inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 shadow-sm transition-colors"
+                                title="Print / PDF"
+                            >
+                                <Printer className="w-3.5 h-3.5" />
+                                Print / PDF
+                            </button>
+                        )}
                     </div>
                 </PageHeader>
 
@@ -761,7 +790,39 @@ const TemporaryAdvanceDetails: React.FC = () => {
                     budgetHeadList={budgetHeadList}
                 />
             )}
+
+            <P11PrintModal
+                isOpen={isPrintModalOpen}
+                onClose={() => setIsPrintModalOpen(false)}
+                title="Temporary Advance Preview"
+                htmlContent={
+                    isPrintModalOpen && data
+                        ? generateTemporaryAdvanceHtml(
+                              {
+                                  ...data,
+                                  applicant_department: resolvedApplicantDept || data.applicant_department,
+                                  advance_for_department: resolvedAdvanceForDept || data.advance_for_department,
+                              },
+                              projectTitle,
+                              resolvedAccountHead,
+                              data.applicant_name || data.owner,
+                              activityLogContainerRef.current
+                          )
+                        : ""
+                }
+                docName={data?.name || id || ""}
+            />
+
             {id && <FloatingActivityLogButton doctype="Temporary Advance" docname={id} />}
+
+            <div style={{ display: "none" }} ref={activityLogContainerRef}>
+                {id && (
+                    <ActivityLog 
+                        doctype="Temporary Advance" 
+                        docname={id} 
+                    />
+                )}
+            </div>
         </div>
     );
 };

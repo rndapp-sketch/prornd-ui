@@ -747,6 +747,7 @@ const SanctionSheetForm: React.FC = () => {
             </main>
 
             <P11PrintModal
+                title="Sanction Sheet Preview"
                 isOpen={isPrintModalOpen}
                 onClose={() => setIsPrintModalOpen(false)}
                 htmlContent={isPrintModalOpen ? generateSanctionSheetHtml(formData) : ''}

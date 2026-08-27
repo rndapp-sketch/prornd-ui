@@ -81,8 +81,8 @@ const PROJECT_TYPE_TABS: ProjectTypeTab[] = ['Research', 'Consultancy', 'Others'
 const normalizeProjectType = (raw?: string): ProjectTypeTab => {
   if (!raw) return 'Others';
   const lower = raw.toLowerCase();
-  if (lower.includes('research')) return 'Research';
-  if (lower.includes('consult')) return 'Consultancy';
+  if (lower.includes('research') || lower === 'r&d project') return 'Research';
+  if (lower.includes('consult') || lower === 'testing') return 'Consultancy';
   return 'Others';
 };
 
@@ -628,20 +628,6 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     isLoading: myProjectsLoading,
     error: myProjectsError,
   } = React.useMemo(() => {
-    if (isHosRnd) {
-      return {
-        myProjects: hosAprovalProjects,
-        isLoading: hosLoading,
-        error: hosError,
-      };
-    }
-    if (isRndStaff) {
-      return {
-        myProjects: rndstaffAprovalProjects,
-        isLoading: rndstaffLoading,
-        error: rndstaffError,
-      };
-    }
     if (isAdministrator) {
       return {
         myProjects: allProjectsForAdmin,
@@ -649,15 +635,31 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
         error: adminError,
       };
     }
-    if (isDoRnd) {
-      return {
-        myProjects: doRndApprovalProjects,
-        isLoading: doRndLoading,
-        error: doRndError,
-      };
+
+    // Approver roles (HoS/Staff/Dean) get an approval-queue list, but that queue only
+    // contains projects currently awaiting THEIR approval action — a project owned by
+    // this same user as PI drops out of it the moment it moves past that stage. Merge
+    // in the user's own created/owned projects too so "My Projects" doesn't silently
+    // lose projects the user is personally the PI of.
+    let queueProjects: Project[] = [];
+    let queueLoading = false;
+    let queueError: any = null;
+    if (isHosRnd) {
+      queueProjects = hosAprovalProjects ?? [];
+      queueLoading = hosLoading;
+      queueError = hosError;
+    } else if (isRndStaff) {
+      queueProjects = rndstaffAprovalProjects ?? [];
+      queueLoading = rndstaffLoading;
+      queueError = rndstaffError;
+    } else if (isDoRnd) {
+      queueProjects = doRndApprovalProjects ?? [];
+      queueLoading = doRndLoading;
+      queueError = doRndError;
     }
 
     const combined = [
+      ...queueProjects,
       ...(myCreatedProjects ?? []),
       ...(myOwnedProjects ?? []),
     ];
@@ -672,8 +674,8 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
 
     return {
       myProjects: uniqueProjects,
-      isLoading: createdLoading || ownedLoading,
-      error: createdError || ownedError,
+      isLoading: queueLoading || createdLoading || ownedLoading,
+      error: queueError || createdError || ownedError,
     };
   }, [
     isAdministrator,
@@ -697,6 +699,10 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     rndstaffAprovalProjects,
     rndstaffLoading,
     rndstaffError,
+    isDoRnd,
+    doRndApprovalProjects,
+    doRndLoading,
+    doRndError,
   ]);
 
   const projectTypeCounts = React.useMemo(() => ({
@@ -808,12 +814,21 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
   }, [allSanctions]);
 
   const sanctionDateMap = React.useMemo(() => {
+    // A project can have more than one Fund Sanction record (drafts, superseded
+    // revisions, stray records from legacy-system migrations). Without an explicit
+    // orderBy, an unordered query's row order isn't guaranteed stable, so "first record
+    // wins" alone can non-deterministically pick a stale record. Prefer the record whose
+    // workflow_state shows it's actually approved (matches sanctionedProjectsSet above);
+    // only fall back to an unapproved one if no approved record exists.
     const map = new Map<string, string>();
+    const approved = new Map<string, string>();
     (allSanctions ?? []).forEach((doc: any) => {
-      if (doc.refnum_prj_num && doc.sanctioned_letter_date) {
-        map.set(doc.refnum_prj_num, doc.sanctioned_letter_date);
-      }
+      if (!doc.refnum_prj_num || !doc.sanctioned_letter_date) return;
+      if (!map.has(doc.refnum_prj_num)) map.set(doc.refnum_prj_num, doc.sanctioned_letter_date);
+      const isApproved = (doc.workflow_state || "").toLowerCase().includes("sanction approved");
+      if (isApproved && !approved.has(doc.refnum_prj_num)) approved.set(doc.refnum_prj_num, doc.sanctioned_letter_date);
     });
+    approved.forEach((v, k) => map.set(k, v));
     return map;
   }, [allSanctions]);
 
@@ -825,14 +840,12 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
   // --- Fetch Project Proposals ---
   const { data: projectProposals, isLoading: proposalsLoading } =
     useFrappeGetDocList("Project Registration", {
-      fields: [
-        "name",
-        "project_title",
-        "workflow_state",
-        "creation",
-        "modified",
-        "pi_webmail",
-      ],
+      // "*" — matches every other Project Registration fetch in this file. The previous
+      // narrow field list (name/title/workflow_state/creation/modified/pi_webmail only)
+      // silently starved the table's Funding Agency, Start Date, and Department columns
+      // for every project sourced from this list, since none of those fields were ever
+      // fetched in the first place.
+      fields: ["*"],
       filters: currentUser
         ? [["pi_webmail", "=", currentUser]]
         : [["name", "=", "NON_EXISTENT_DOC"]],
@@ -854,6 +867,35 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     });
     return map;
   }, [allFundingAgencies]);
+
+  // Some (mostly migrated) projects have no agency-name field populated at all, only a
+  // scheme name (e.g. "ANRF") — infer the agency from the scheme in that case. Matches
+  // the same fallback used in DirectorDashboard/InstituteReportingModule's getAgency().
+  const getAgency = React.useCallback((p: any) => {
+    let agency = fundingAgencyNameMap.get(p.funding_agen) || p.funding_agency_name || p.select_funding_agency || p.funding_agency || p.funding_agency_other || p.funding_agen || "";
+    if (!agency && (p.origin_of_funding_agency === "National" || p.origin_of_funding_agency === "International")) {
+      agency = "";
+    } else if (!agency) {
+      agency = p.origin_of_funding_agency || "";
+    }
+
+    if (!agency || agency.trim() === "" || agency === "—") {
+      const scheme = (p.funding_agency_schemes || p.scheme_name || "").toUpperCase();
+      if (scheme.includes("ANRF")) {
+        agency = "ANRF - (Anusandhan National Research Foundation)";
+      } else if (scheme.includes("SERB")) {
+        agency = "SERB";
+      } else if (scheme.includes("DST")) {
+        agency = "Department Of Science and Technology";
+      } else if (scheme.includes("DBT")) {
+        agency = "DBT - Department of Biotechnology";
+      }
+    } else if (agency.trim().toUpperCase() === "ANRF") {
+      agency = "ANRF - (Anusandhan National Research Foundation)";
+    }
+
+    return agency.trim();
+  }, [fundingAgencyNameMap]);
 
   const allPendingTasks: Record<string, Task[]> = React.useMemo(() => {
     const proposals: Task[] = (projectProposals || []).map((p: any) => ({
@@ -1257,7 +1299,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                           </div>
                         </TableCell>
                         <TableCell className="px-4 py-3 text-[#52525B] dark:text-[#A1A1AA] text-xs whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
-                          {fundingAgencyNameMap.get(p.funding_agen) || p.funding_agen || "-"}
+                          {getAgency(p) || "-"}
                         </TableCell>
                         <TableCell className="px-4 py-3 text-[#71717A] text-xs whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
                           {(() => {

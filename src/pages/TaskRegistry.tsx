@@ -558,12 +558,18 @@ const TaskRegistry: React.FC = () => {
                                                         navigate(`/miscellaneous-commit/${task.id}`);
                                                     } else if (task.doctype === "Loan Request") {
                                                         navigate(`/loan-request/${task.id}`);
+                                                    } else if (task.doctype === "Disbursal of Honorarium") {
+                                                        navigate(`/disbursal-of-honorarium/${task.id}`);
+                                                    } else if (task.doctype === "Temporary Advance") {
+                                                        navigate(`/temporary-advance/${task.id}`);
+                                                    } else if (task.doctype === "Direct Purchase") {
+                                                        navigate(`/direct-purchase/${task.id}`);
+                                                    } else if (task.doctype === "Top Up Fellowship") {
+                                                        navigate(`/top-up-fellowship/${task.id}`);
+                                                    } else if (task.doctype === "TA DA Settlement") {
+                                                        navigate(`/ta-da-settlement/${task.id}`);
                                                     } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
                                                         navigate(`/project-details-overview/${task.id}`, { state: { fromTaskRegistry: true } });
-                                                    } else if (task.doctype === "Miscellaneous Commit") {
-                                                        navigate(`/miscellaneous-commit/${task.id}`);
-                                                    } else if (task.doctype === "Loan Request") {
-                                                        navigate(`/loan-request/${task.id}`);
                                                     } else {
                                                         navigate(`/task-registry/${task.doctype}/${task.id}`);
                                                     }
@@ -620,12 +626,18 @@ const TaskRegistry: React.FC = () => {
                                                                 navigate(`/miscellaneous-commit/${task.id}`);
                                                             } else if (task.doctype === "Loan Request") {
                                                                 navigate(`/loan-request/${task.id}`);
+                                                            } else if (task.doctype === "Disbursal of Honorarium") {
+                                                                navigate(`/disbursal-of-honorarium/${task.id}`);
+                                                            } else if (task.doctype === "Temporary Advance") {
+                                                                navigate(`/temporary-advance/${task.id}`);
+                                                            } else if (task.doctype === "Direct Purchase") {
+                                                                navigate(`/direct-purchase/${task.id}`);
+                                                            } else if (task.doctype === "Top Up Fellowship") {
+                                                                navigate(`/top-up-fellowship/${task.id}`);
+                                                            } else if (task.doctype === "TA DA Settlement") {
+                                                                navigate(`/ta-da-settlement/${task.id}`);
                                                             } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
                                                                 navigate(`/project-details-overview/${task.id}`, { state: { fromTaskRegistry: true } });
-                                                            } else if (task.doctype === "Miscellaneous Commit") {
-                                                                navigate(`/miscellaneous-commit/${task.id}`);
-                                                            } else if (task.doctype === "Loan Request") {
-                                                                navigate(`/loan-request/${task.id}`);
                                                             } else {
                                                                 navigate(`/task-registry/${task.doctype}/${task.id}`);
                                                             }
@@ -743,6 +755,11 @@ const TaskRegistry: React.FC = () => {
                                     else if (t.doctype === 'Travel') navigate(`/travel/${t.docname}`);
                                     else if (t.doctype === 'Miscellaneous Commit') navigate(`/miscellaneous-commit/${t.docname}`);
                                     else if (t.doctype === 'Loan Request') navigate(`/loan-request/${t.docname}`);
+                                    else if (t.doctype === 'Disbursal of Honorarium') navigate(`/disbursal-of-honorarium/${t.docname}`);
+                                    else if (t.doctype === 'Temporary Advance') navigate(`/temporary-advance/${t.docname}`);
+                                    else if (t.doctype === 'Direct Purchase') navigate(`/direct-purchase/${t.docname}`);
+                                    else if (t.doctype === 'Top Up Fellowship') navigate(`/top-up-fellowship/${t.docname}`);
+                                    else if (t.doctype === 'TA DA Settlement') navigate(`/ta-da-settlement/${t.docname}`);
                                     else navigate(`/task-registry/${t.doctype}/${t.docname}`);
                                 }}
                                 className="w-full py-2.5 px-4 bg-[#D97757] text-white text-sm font-bold rounded-lg hover:bg-[#c66a4e] transition-colors"

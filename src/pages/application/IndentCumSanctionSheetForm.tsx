@@ -54,6 +54,7 @@ import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButto
 import { getFileUrl } from "@/utils/fileUtils";
 import { P11PrintModal as PrintModal } from "@/components/P11PrintModal";
 import { ActivityLog } from "@/components/ActivityLog";
+import { commonAPI } from "@/services/apiService";
 import {
   generatePOHtml,
   getAmcPoGrandTotal,
@@ -1759,6 +1760,22 @@ const IndentCumSanctionSheetForm: React.FC = () => {
   const [computationRules, setComputationRules] = useState<any>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [linkOptions, setLinkOptions] = useState<Record<string, any[]>>({});
+  
+  const { call: fetchUserDetails } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
+  const [fetchedOwnerName, setFetchedOwnerName] = useState<string>("");
+
+  useEffect(() => {
+    if (formData?.owner) {
+      fetchUserDetails({ user_email: formData.owner })
+        .then(res => {
+          if (res?.message?.full_name) {
+            setFetchedOwnerName(res.message.full_name);
+          }
+        })
+        .catch(err => console.warn("Could not fetch owner details for ICSS print log", err));
+    }
+  }, [formData?.owner, fetchUserDetails]);
+
   const displayLinkOptions = React.useMemo(() => {
     const baseUserOptions =
       linkOptions.User ||
@@ -6025,7 +6042,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                     {id && (
                       <button 
                         onClick={() => setIsIcssPrintModalOpen(true)}
-                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[12px] font-bold text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                        disabled={!!formData.owner && !fetchedOwnerName}
+                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[12px] font-bold text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Printer className="h-3.5 w-3.5" aria-hidden="true" /> 
                         Print / PDF
@@ -6050,10 +6068,18 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                     />
                   </div>
                   <div id="icss-activity-log" className="hidden">
-                    {id && <ActivityLog doctype="Indent Cum Sanction Sheet" docname={id} />}
+                    {id && (
+                      <ActivityLog 
+                        doctype="Indent Cum Sanction Sheet" 
+                        docname={id}
+                        fallbackOwner={formData.owner}
+                        fallbackCreation={formData.creation}
+                        fallbackOwnerName={fetchedOwnerName || formData.owner}
+                      />
+                    )}
                   </div>
                   <PrintModal
-                    title="Indent Cum Sanction Sheet"
+                    title="Indent Cum Sanction Sheet Preview"
                     isOpen={isIcssPrintModalOpen}
                     onClose={() => setIsIcssPrintModalOpen(false)}
                     htmlContent={

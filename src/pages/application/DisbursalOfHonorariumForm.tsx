@@ -1,14 +1,19 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AppSidebar } from '@/components/RndSidebar';
 import { useFrappePostCall, useFrappeGetDoc } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { Save, Send } from 'lucide-react';
+import { Save, Send, Printer } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
-import { commonAPI, disbursalOfHonorariumAPI } from '@/services/apiService';
+import { commonAPI, disbursalOfHonorariumAPI, prepareFormDataForApi } from '@/services/apiService';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { useFrappeClientScript } from '@/hooks/useFrappeClientScript';
+import { P11PrintModal } from '@/components/P11PrintModal';
+import { ActivityLog } from "@/components/ActivityLog";
+import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
+import { generateDisbursalOfHonorariumHtml, resolveHonorariumPrintData } from '@/utils/disbursalOfHonorariumPrint';
+import { getFileUrl } from '@/utils/fileUtils';
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -50,63 +55,7 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
     </button>
 );
 
-// --- FILE UPLOAD HELPER ---
-/**
- * Sends a multipart POST to save_disbursal_of_honorarium_data(data, files=None).
- *
- * - Non-file fields (including child table rows) are JSON-stringified into the `data` field.
- * - File objects are stripped from `data` and appended as real file parts so Frappe
- *   collects them in the `files` parameter (keyed as "fieldname" or "tablename__rowIdx__fieldname").
- */
-const callSaveApi = async (endpoint: string, formData: Record<string, any>): Promise<any> => {
-    const fd = new globalThis.FormData();
-    const data: Record<string, any> = {};
 
-    for (const key in formData) {
-        const value = formData[key];
-
-        if (value instanceof File) {
-            fd.append(key, value, value.name);
-        } else if (Array.isArray(value)) {
-            data[key] = value.map((row: any, rowIdx: number) => {
-                const cleanRow: Record<string, any> = {};
-                for (const rowKey in row) {
-                    if (row[rowKey] instanceof File) {
-                        fd.append(`${key}__${rowIdx}__${rowKey}`, row[rowKey], row[rowKey].name);
-                        cleanRow[rowKey] = null;
-                    } else {
-                        cleanRow[rowKey] = row[rowKey];
-                    }
-                }
-                return cleanRow;
-            });
-        } else {
-            data[key] = value;
-        }
-    }
-
-    fd.append('data', JSON.stringify(data));
-
-    const response = await fetch(`/api/method/${endpoint}`, {
-        method: 'POST',
-        body: fd,
-        headers: {
-            'X-Frappe-CSRF-Token': (window as any).csrf_token || '',
-        },
-        credentials: 'include',
-    });
-
-    const text = await response.text();
-    if (!response.ok) {
-        throw new Error(`Save failed (${response.status}): ${text.slice(0, 200)}`);
-    }
-
-    try {
-        return JSON.parse(text);
-    } catch {
-        throw new Error(`Unexpected response: ${text.slice(0, 200)}`);
-    }
-};
 
 // --- MAIN DISBURSAL OF HONORARIUM FORM COMPONENT ---
 const DisbursalOfHonorariumForm: React.FC = () => {
@@ -125,6 +74,9 @@ const DisbursalOfHonorariumForm: React.FC = () => {
     const [savedDocName, setSavedDocName] = useState<string | null>(null);
     const [dataLoaded, setDataLoaded] = useState(false);
     const [clientScript, setClientScript] = useState<string>("");
+    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+    const activityLogContainerRef = useRef<HTMLDivElement>(null);
+    const [fetchedOwnerName, setFetchedOwnerName] = useState<string>("");
 
     // Initialize client script engine
     useFrappeClientScript(clientScript, formData, setFormData);
@@ -135,6 +87,8 @@ const DisbursalOfHonorariumForm: React.FC = () => {
     );
     const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>('frappe.client.get');
     const { call: fetchAccountHeads } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
+    const { call: fetchDeptList } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
+    const { call: saveForm } = useFrappePostCall<{ message: any }>(disbursalOfHonorariumAPI.save);
     const { call: submitForm } = useFrappePostCall(
         disbursalOfHonorariumAPI.submit
     );
@@ -144,8 +98,27 @@ const DisbursalOfHonorariumForm: React.FC = () => {
     const { call: fetchUserDetails } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
     // Hook to fetch users list for dropdown
     const { call: fetchUsersList } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
+    
+    const { call: getOwnerDetails } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
 
     // --- DATA FETCHING ---
+    useEffect(() => {
+        if (formData.owner && !fetchedOwnerName) {
+            getOwnerDetails({ user_email: formData.owner })
+                .then(res => {
+                    if (res?.message?.full_name) {
+                        setFetchedOwnerName(res.message.full_name);
+                    } else {
+                        setFetchedOwnerName(formData.owner);
+                    }
+                })
+                .catch(err => {
+                    console.error("Failed to fetch owner details:", err);
+                    setFetchedOwnerName(formData.owner);
+                });
+        }
+    }, [formData.owner, fetchedOwnerName, getOwnerDetails]);
+
     useEffect(() => {
         if (!dataLoaded) {
             fetchFormData({});
@@ -168,10 +141,14 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                 // Merge child_fields into the Table fields
                 const enhancedFields = (apiFields || []).map((field: FormField) => {
                     if (field.fieldtype === 'Table' && child_table_fields && child_table_fields[field.fieldname]) {
-                        // Force web_mail_id to be a Link field so the Auto-fill dropdown works
+                        // Force web_mail_id to be a Link field so the Auto-fill dropdown works,
+                        // and force department_section to be a Link so it shows human-readable names instead of IDs.
                         const processedChildFields = child_table_fields[field.fieldname].map((childField: any) => {
                             if (childField.fieldname === 'web_mail_id') {
                                 return { ...childField, fieldtype: 'Link', options: 'User' };
+                            }
+                            if (childField.fieldname === 'department_section') {
+                                return { ...childField, fieldtype: 'Link', options: 'Department_prornd' };
                             }
                             return childField;
                         });
@@ -182,8 +159,8 @@ const DisbursalOfHonorariumForm: React.FC = () => {
 
                 setFields(enhancedFields);
 
-                // Initialize link options from backend
-                let baseLinkOptions = link_options || {};
+                // Initialize link options from backend (create a new object to ensure React detects the state change)
+                let baseLinkOptions = link_options ? { ...link_options } : {};
 
                 // Fetch Account Heads from 'Budget Head' doctype (fields.md source of truth)
                 try {
@@ -201,6 +178,25 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                 } catch (err) {
                     console.error('Error fetching account heads:', err);
                 }
+
+                // Fetch Departments for human-readable print mapping
+                try {
+                    const deptRes = await fetchDeptList({
+                        doctype: "Department_prornd",
+                        fields: ["name", "dept_name"],
+                        limit_page_length: 0,
+                    });
+                    if (deptRes?.message) {
+                        const deptOptions = deptRes.message.map((d: any) => ({
+                            value: d.name,
+                            label: d.dept_name || d.name,
+                        }));
+                        baseLinkOptions["applicant_department"] = deptOptions;
+                        baseLinkOptions["department_for"] = deptOptions;
+                        baseLinkOptions["department"] = deptOptions;
+                        baseLinkOptions["Department_prornd"] = deptOptions;
+                    }
+                } catch (_) { }
 
                 // Fetch Users list for the honorarium table dropdown (username field is Link to User)
                 try {
@@ -433,7 +429,8 @@ const DisbursalOfHonorariumForm: React.FC = () => {
             const payload: Record<string, any> = { ...formData };
             if (effectiveDocName) payload.name = effectiveDocName;
 
-            const res = await callSaveApi(disbursalOfHonorariumAPI.save, payload);
+            const data = await prepareFormDataForApi(payload);
+            const res = await saveForm({ data: JSON.stringify(data) });
 
             if (res?.message?.status === 'success') {
                 setIsSaved(true);
@@ -464,7 +461,8 @@ const DisbursalOfHonorariumForm: React.FC = () => {
             const payload: Record<string, any> = { ...formData };
             if (effectiveDocName) payload.name = effectiveDocName;
 
-            const saveRes = await callSaveApi(disbursalOfHonorariumAPI.save, payload);
+            const data = await prepareFormDataForApi(payload);
+            const saveRes = await saveForm({ data: JSON.stringify(data) });
 
             if (saveRes?.message?.status !== 'success') {
                 throw new Error(saveRes?.message?.message || "Save failed during submission");
@@ -505,7 +503,20 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                     title={id ? `Edit Disbursal: ${id}` : 'New Disbursal of Honorarium'}
                     projectName={formData.project_title}
                     projectNumber={formData.project_number}
-                />
+                >
+                    {id && (
+                        <button
+                            type="button"
+                            onClick={() => setIsPrintModalOpen(true)}
+                            disabled={!!formData.owner && !fetchedOwnerName}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Print this document"
+                        >
+                            <Printer className="w-4 h-4" />
+                            Print
+                        </button>
+                    )}
+                </PageHeader>
 
                 <form onSubmit={handleSubmit}>
                     <FrappeCard className="space-y-12">
@@ -554,6 +565,44 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                     )}
                 </form>
             </main>
+            
+            {effectiveDocName && <FloatingActivityLogButton doctype="Disbursal of Honorarium" docname={effectiveDocName} />}
+            
+            <div style={{ display: "none" }} ref={activityLogContainerRef}>
+                {effectiveDocName && (
+                    <ActivityLog 
+                        doctype="Disbursal of Honorarium" 
+                        docname={effectiveDocName} 
+                        fallbackOwner={formData.owner}
+                        fallbackCreation={formData.creation}
+                        fallbackOwnerName={fetchedOwnerName || formData.owner}
+                    />
+                )}
+            </div>
+
+            <P11PrintModal
+                title="Disbursal of Honorarium Preview"
+                isOpen={isPrintModalOpen}
+                onClose={() => setIsPrintModalOpen(false)}
+                htmlContent={
+                    isPrintModalOpen
+                        ? generateDisbursalOfHonorariumHtml(
+                            {
+                                ...resolveHonorariumPrintData(formData, linkOptions),
+                                resolved_owner_name: fetchedOwnerName || formData.owner
+                            },
+                            [],
+                            [],
+                            activityLogContainerRef.current
+                        )
+                        : ""
+                }
+                docName={formData.name || id || ""}
+                attachments={[
+                    ...(formData.attached_approvals ? [{ label: "Merged Approvals", url: getFileUrl(formData.attached_approvals) }] : []),
+                    ...(formData.additional_documents ? [{ label: "Additional Documents", url: getFileUrl(formData.additional_documents) }] : [])
+                ]}
+            />
         </div>
     );
 };

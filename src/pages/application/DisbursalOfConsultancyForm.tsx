@@ -6,9 +6,15 @@ import { cn } from '@/lib/utils';
 import { Save, Send } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
-import { commonAPI, disbursalOfConsultancyAPI } from '@/services/apiService';
+import { commonAPI, disbursalOfConsultancyAPI, prepareFormDataForApi } from '@/services/apiService';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { useFrappeClientScript } from '@/hooks/useFrappeClientScript';
+import { Printer } from 'lucide-react';
+import { P11PrintModal } from '@/components/P11PrintModal';
+import { generateDisbursalOfConsultancyHtml } from '@/utils/disbursalOfConsultancyPrint';
+import { ActivityLog } from '@/components/ActivityLog';
+import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButton';
+import { getFileUrl } from '@/utils/fileUtils';
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -50,63 +56,7 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
     </button>
 );
 
-// --- FILE UPLOAD HELPER ---
-/**
- * Sends a multipart POST to save_disbursal_of_consultancy_data(data, files=None).
- *
- * - Non-file fields (including child table rows) are JSON-stringified into the `data` field.
- * - File objects are stripped from `data` and appended as real file parts so Frappe
- *   collects them in the `files` parameter (keyed as "fieldname" or "tablename__rowIdx__fieldname").
- */
-const callSaveApi = async (endpoint: string, formData: Record<string, any>): Promise<any> => {
-    const fd = new globalThis.FormData();
-    const data: Record<string, any> = {};
 
-    for (const key in formData) {
-        const value = formData[key];
-
-        if (value instanceof File) {
-            fd.append(key, value, value.name);
-        } else if (Array.isArray(value)) {
-            data[key] = value.map((row: any, rowIdx: number) => {
-                const cleanRow: Record<string, any> = {};
-                for (const rowKey in row) {
-                    if (row[rowKey] instanceof File) {
-                        fd.append(`${key}__${rowIdx}__${rowKey}`, row[rowKey], row[rowKey].name);
-                        cleanRow[rowKey] = null;
-                    } else {
-                        cleanRow[rowKey] = row[rowKey];
-                    }
-                }
-                return cleanRow;
-            });
-        } else {
-            data[key] = value;
-        }
-    }
-
-    fd.append('data', JSON.stringify(data));
-
-    const response = await fetch(`/api/method/${endpoint}`, {
-        method: 'POST',
-        body: fd,
-        headers: {
-            'X-Frappe-CSRF-Token': (window as any).csrf_token || '',
-        },
-        credentials: 'include',
-    });
-
-    const text = await response.text();
-    if (!response.ok) {
-        throw new Error(`Save failed (${response.status}): ${text.slice(0, 200)}`);
-    }
-
-    try {
-        return JSON.parse(text);
-    } catch {
-        throw new Error(`Unexpected response: ${text.slice(0, 200)}`);
-    }
-};
 
 // --- MAIN DISBURSAL OF CONSULTANCY FORM COMPONENT ---
 const DisbursalOfConsultancyForm: React.FC = () => {
@@ -124,8 +74,8 @@ const DisbursalOfConsultancyForm: React.FC = () => {
     const [savedDocName, setSavedDocName] = useState<string | null>(null);
     const [dataLoaded, setDataLoaded] = useState(false);
     const [clientScript, setClientScript] = useState<string>("");
-
-
+    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+    const activityLogContainerRef = useRef<HTMLDivElement>(null);
     // Ref so handleTableRowChange can read the latest fields without stale closure
     const fieldsRef = useRef<FormField[]>([]);
     useEffect(() => { fieldsRef.current = fields; }, [fields]);
@@ -139,6 +89,7 @@ const DisbursalOfConsultancyForm: React.FC = () => {
     );
     const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>('frappe.client.get');
     const { call: fetchAccountHeads } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
+    const { call: saveForm } = useFrappePostCall<{ message: any }>(disbursalOfConsultancyAPI.save);
     const { call: submitDocument } = useFrappePostCall<{ message: any }>(disbursalOfConsultancyAPI.submit);
     const { call: stageCommit } = useFrappePostCall('rndopsapp.rndopsapp.commitPayment.submit_commit_data');
     // Fetch current user data for auto-fill
@@ -491,7 +442,8 @@ const DisbursalOfConsultancyForm: React.FC = () => {
             const payload: Record<string, any> = { ...formData };
             if (effectiveDocName) payload.name = effectiveDocName;
 
-            const res = await callSaveApi(disbursalOfConsultancyAPI.save, payload);
+            const data = await prepareFormDataForApi(payload);
+            const res = await saveForm({ data: JSON.stringify(data) });
 
             if (res?.message?.status === 'success') {
                 const newDocName = res.message.docname || effectiveDocName;
@@ -521,7 +473,8 @@ const DisbursalOfConsultancyForm: React.FC = () => {
             const payload: Record<string, any> = { ...formData };
             if (effectiveDocName) payload.name = effectiveDocName;
 
-            const saveRes = await callSaveApi(disbursalOfConsultancyAPI.save, payload);
+            const data = await prepareFormDataForApi(payload);
+            const saveRes = await saveForm({ data: JSON.stringify(data) });
             if (saveRes?.message?.status !== 'success') {
                 throw new Error(saveRes?.message?.message || "Save failed");
             }
@@ -573,7 +526,19 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                     title={id ? `Edit Disbursal: ${id}` : 'New Disbursal of Consultancy'}
                     projectName={formData.project_title}
                     projectNumber={formData.disbursal_project_number}
-                />
+                >
+                    {id && (
+                        <button
+                            type="button"
+                            onClick={() => setIsPrintModalOpen(true)}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Print this document"
+                        >
+                            <Printer className="w-4 h-4" />
+                            Print
+                        </button>
+                    )}
+                </PageHeader>
 
                 <form onSubmit={handleSubmit}>
                     <FrappeCard className="space-y-12">
@@ -623,6 +588,43 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                 </form>
             </main>
 
+            {effectiveDocName && <FloatingActivityLogButton doctype="Disbursal of Consultancy" docname={effectiveDocName} />}
+            
+            <div style={{ display: "none" }} ref={activityLogContainerRef}>
+                {effectiveDocName && (
+                    <ActivityLog 
+                        doctype="Disbursal of Consultancy" 
+                        docname={effectiveDocName} 
+                        fallbackOwner={formData.owner}
+                        fallbackCreation={formData.creation}
+                        fallbackOwnerName={formData.pi_name || formData.applicant_name || formData.owner}
+                    />
+                )}
+            </div>
+
+            <P11PrintModal
+                title="Disbursal of Consultancy Preview"
+                isOpen={isPrintModalOpen}
+                onClose={() => setIsPrintModalOpen(false)}
+                htmlContent={
+                    isPrintModalOpen
+                        ? generateDisbursalOfConsultancyHtml(
+                              {
+                                  ...formData,
+                                  pi_name: formData.pi_name || formData.applicant_name || formData.owner
+                              }, 
+                              [], 
+                              [], 
+                              activityLogContainerRef.current
+                          )
+                        : ""
+                }
+                docName={formData.name || id || ""}
+                attachments={[
+                    ...(formData.please_attach_a_copy_of_completion_report ? [{ label: "Completion Report", url: getFileUrl(formData.please_attach_a_copy_of_completion_report) }] : []),
+                    ...(formData.disbursal_additional_documents ? [{ label: "Additional Documents", url: getFileUrl(formData.disbursal_additional_documents) }] : [])
+                ]}
+            />
         </div>
     );
 };

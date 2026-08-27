@@ -3410,22 +3410,33 @@ const SelectionCommitteeReportForm: React.FC = () => {
             @media print {
                 @page { size: A4; margin: 0; }
 
-                /* === Step 1: Hide app shell (navbar/sidebar) via visibility === */
-                body { visibility: hidden !important; background: #fff !important; margin: 0; }
+                /* === Step 1: Hide app shell components directly instead of using visibility === */
+                body { background: #fff !important; margin: 0; }
+                header.enterprise-navbar { display: none !important; }
+                [data-sidebar="sidebar"] { display: none !important; }
+                
+                /* === Step 2: Neutralize flex, heights, paddings, and animations on ancestors === */
+                /* Flexbox and min-h-screen break Chrome's print pagination */
+                .App, .SidebarProvider, .SidebarInset, main, .mx-auto, #scr-print-root {
+                    display: block !important;
+                    min-height: 0 !important;
+                    height: auto !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                }
+                
+                /* Transforms create new containing blocks which can clip print content */
+                .animate-in, .slide-in-from-bottom-2 { 
+                    animation: none !important; 
+                    transform: none !important; 
+                }
 
-                /* === Step 2: Collapse wrapper height so min-h-screen doesn't create a blank page === */
-                #scr-print-root { min-height: 0 !important; }
-                #scr-print-root > main { padding: 0 !important; min-height: 0 !important; }
-
-                /* === Step 3: Remove interactive form from document FLOW (fixes blank pages) === */
-                /* display:none removes them from layout entirely — no extra page height */
+                /* === Step 3: Remove interactive form from document FLOW === */
                 .scr-page-header  { display: none !important; }
                 .scr-form-content { display: none !important; }
                 .scr-action-bar   { display: none !important; }
 
-                /* === Step 3: Show only the print layout in normal flow === */
-                .scr-print-layout,
-                .scr-print-layout * { visibility: visible !important; }
+                /* === Step 4: Show only the print layout in normal flow === */
                 .scr-print-layout {
                     position: static !important;   /* stays in flow → natural pagination */
                     display: block !important;

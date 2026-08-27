@@ -11,6 +11,10 @@ import { useUserRoles } from "../../components/UserRole";
 import {
     BarChart,
     Bar,
+    AreaChart,
+    Area,
+    ComposedChart,
+    Line,
     XAxis,
     YAxis,
     CartesianGrid,
@@ -38,6 +42,9 @@ import {
     FileText,
     Loader2,
     CheckCircle,
+    TrendingUp,
+    TrendingDown,
+    Minus,
 } from "lucide-react";
 import { generateDirectorReportHtml } from "@/utils/directorReportHtml";
 
@@ -209,68 +216,68 @@ function KpiCard({
     );
 }
 
-const AsyncTableStatusBadge: React.FC<{ proj: any }> = ({ proj }) => {
-    const hasSanction = Number(proj.total_budget_amount || proj.grand_total_proposal || 0) > 0;
-    
-    const { data: fundResp, isLoading: fundLoading } = useFrappeGetCall<{ message: any }>(
-        "rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg",
-        { prjreg_title: proj.name || "", limit: 1, start: 0 },
-        hasSanction ? undefined : null,
-        { revalidateOnFocus: false }
-    );
+// Badge now driven purely by proj._status (computed from sync maps in the table's allProjs.map())
+const AsyncTableStatusBadge: React.FC<{ proj: any; fundReceived?: boolean }> = ({ proj }) => {
+    return <StatusBadge status={proj._status} />;
+};
 
-    if (!hasSanction) {
-        return <StatusBadge status={proj._status} />;
-    }
-
-    if (fundLoading) {
-        return (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 whitespace-nowrap animate-pulse">
-                <span className="w-[5px] h-[5px] rounded-full bg-zinc-400 shrink-0" />
-                Loading...
-            </span>
-        );
-    }
-
-    const fundRecords: any[] = normalizeFundResp(fundResp);
-    const hasFundReceived = fundRecords.some(r => {
-        const s = (r.workflow_state || r.status || "").toLowerCase();
-        return s === "approved" || s.includes("fund received");
+// Mirrors a table's current-page (+ next page) project names into a ref the fund-sync
+// loop reads, so it can prioritize whatever's actually on screen. Renders nothing —
+// `active` lets the caller suppress this when a different view (e.g. the KPI modal) is
+// what the user is actually looking at, so the two trackers don't stomp each other.
+const VisiblePageTracker: React.FC<{
+    pageSlice: any[];
+    nextPageSlice: any[];
+    targetRef: React.MutableRefObject<Set<string>>;
+    active: boolean;
+}> = ({ pageSlice, nextPageSlice, targetRef, active }) => {
+    React.useEffect(() => {
+        if (!active) return;
+        targetRef.current = new Set([...pageSlice, ...nextPageSlice].map((p: any) => p.name));
     });
-
-    if (hasFundReceived) {
-        return (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 whitespace-nowrap">
-                <span className="w-[5px] h-[5px] rounded-full bg-emerald-500 shrink-0" />
-                Ongoing (Sanction Approved)
-            </span>
-        );
-    } else {
-        return (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400 whitespace-nowrap">
-                <span className="w-[5px] h-[5px] rounded-full bg-blue-500 shrink-0" />
-                Fund Received Pending
-            </span>
-        );
-    }
+    return null;
 };
 
 function StatusBadge({ status }: { status?: string }) {
     if (!status) return <span className="text-[#A1A1AA] text-[9px]">—</span>;
 
-    // Handle exact computed _status keys from the table filter
+    // Fund-received status not fetched for this project yet — show this instead of a
+    // guess that could silently flip (Pending → Active) once the background fetch lands.
+    if (status === "loading")
+        return (
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 whitespace-nowrap animate-pulse">
+                <span className="w-[5px] h-[5px] rounded-full bg-zinc-400 shrink-0" />
+                Loading…
+            </span>
+        );
+
+    // Granular computed statuses from sync maps
     if (status === "ongoing")
         return (
             <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 whitespace-nowrap">
                 <span className="w-[5px] h-[5px] rounded-full bg-emerald-500 shrink-0" />
-                Ongoing (Sanctioned)
+                Active
             </span>
         );
-    if (status === "submitted")
+    if (status === "pending_fund")
         return (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400 whitespace-nowrap">
-                <span className="w-[5px] h-[5px] rounded-full bg-blue-500 shrink-0" />
-                Submitted (Pending Sanction)
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-400 whitespace-nowrap">
+                <span className="w-[5px] h-[5px] rounded-full bg-sky-500 shrink-0" />
+                Fund Pending
+            </span>
+        );
+    if (status === "approved_sanction")
+        return (
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400 whitespace-nowrap">
+                <span className="w-[5px] h-[5px] rounded-full bg-purple-500 shrink-0" />
+                Sanction Approved
+            </span>
+        );
+    if (status === "pending_sanction" || status === "submitted")
+        return (
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 whitespace-nowrap">
+                <span className="w-[5px] h-[5px] rounded-full bg-amber-400 shrink-0" />
+                Pending Sanction
             </span>
         );
     if (status === "draft")
@@ -432,7 +439,7 @@ function usePIFundReceivedTotal(projects: any[]) {
                         })
                         .catch(() => 0);
                 }
-                
+
                 return fundReceivedPromiseCache[docname].finally(() => {
                     if (!cancelled) {
                         done += 1;
@@ -557,6 +564,45 @@ const ProjectFundStatusBadge: React.FC<{ projectName: string | undefined }> = ({
     return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${className}`}>{label}</span>;
 };
 
+// getSanctionedAmount's bulk Fund Sanction map still comes back 0 for some projects
+// (permission-scoped records, refnum_prj_num format mismatches, etc.) even though the
+// project genuinely has an approved sanction — ProjectFundStatusBadge's own live lookup
+// above proves the record exists. This live-corrects just those zero rows via the same
+// per-project API, without adding an extra call for rows the bulk map already answered.
+const ProjectSanctionAmountLive: React.FC<{ proj: any; bulkAmount: number }> = ({ proj, bulkAmount }) => {
+    const needsLiveLookup = bulkAmount <= 0;
+    const { data: sanctionResp, isLoading } = useFrappeGetCall<{ message: any }>(
+        "rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_sanctions_for_project",
+        { project_name: proj.name || "" },
+        needsLiveLookup && proj.name ? undefined : null,
+        { revalidateOnFocus: false },
+    );
+
+    const fmt = (v: number) => v >= 10000000
+        ? `₹${(v / 10000000).toFixed(2)} Cr`
+        : v >= 100000
+            ? `₹${(v / 100000).toFixed(2)} L`
+            : `₹${v.toLocaleString("en-IN")}`;
+
+    if (!needsLiveLookup) return <>{fmt(bulkAmount)}</>;
+    if (isLoading) return <span className="text-[#A1A1AA] animate-pulse">Loading…</span>;
+
+    const raw = sanctionResp as any;
+    let records: any[] = [];
+    if (raw) {
+        if (raw.message && raw.message.message && Array.isArray(raw.message.message)) records = raw.message.message;
+        else if (raw.message && Array.isArray(raw.message)) records = raw.message;
+        else if (Array.isArray(raw)) records = raw;
+        else if (raw.data && Array.isArray(raw.data)) records = raw.data;
+        else if (raw.message && raw.message.data && Array.isArray(raw.message.data)) records = raw.message.data;
+    }
+    const approved = records.find(r => (r.sanction_workflow_status || r.workflow_state || "").toLowerCase().includes("sanction approved") && Number(r.total_sanctioned_amount) > 0);
+    const anyWithAmount = records.find(r => Number(r.total_sanctioned_amount) > 0);
+    const liveAmount = Number((approved || anyWithAmount)?.total_sanctioned_amount) || 0;
+
+    return <>{liveAmount > 0 ? fmt(liveAmount) : "—"}</>;
+};
+
 export const ProjectDateBadge: React.FC<{ proj: any }> = ({ proj }) => {
     const { data: sanctionResp, isLoading } = useFrappeGetCall<{ message: any }>(
         "rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_sanctions_for_project",
@@ -608,12 +654,47 @@ export const ProjectDateBadge: React.FC<{ proj: any }> = ({ proj }) => {
     );
 };
 
+// Live-corrects the sanctioned amount for a single Ongoing row when the bulk Fund
+// Sanction fetch didn't surface a matching amount (e.g. some migrated projects' Fund
+// Sanction record isn't returned by the bulk list query for this user, even though the
+// whitelisted per-project lookup — the same one ProjectDateBadge already uses — finds
+// it). Only fires for Ongoing rows whose bulk amount is 0, not every row, so this
+// doesn't reintroduce a per-project fetch loop.
+const SanctionAmountOverride: React.FC<{ projectName: string; isOngoing: boolean; bulkAmount: number }> = ({ projectName, isOngoing, bulkAmount }) => {
+    const shouldFetch = isOngoing && bulkAmount <= 0 && !!projectName;
+    const { data } = useFrappeGetCall<{ message: any }>(
+        "rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_sanctions_for_project",
+        { project_name: projectName },
+        shouldFetch ? undefined : null,
+        { revalidateOnFocus: false },
+    );
+
+    let amount = bulkAmount;
+    if (shouldFetch && data) {
+        const raw = data as any;
+        let records: any[] = [];
+        if (Array.isArray(raw?.message?.message)) records = raw.message.message;
+        else if (Array.isArray(raw?.message)) records = raw.message;
+        else if (Array.isArray(raw)) records = raw;
+        else if (Array.isArray(raw?.data)) records = raw.data;
+        else if (Array.isArray(raw?.message?.data)) records = raw.message.data;
+
+        const approved = records.find((r: any) => (r.sanction_workflow_status || r.workflow_state || "").toLowerCase().includes("sanction approved")) || records[0];
+        if (approved) {
+            const amt = Number(approved.total_sanctioned_amount) || 0;
+            if (amt > 0) amount = amt;
+        }
+    }
+
+    return <>{formatCurrency(amount)}</>;
+};
+
 // ── Dynamic Budget Cell (Fetches real utilized per row lazily) ───────────────
 const ProjectDynamicBudgetCell: React.FC<{ proj: any; type: "sanctioned" | "utilized" | "remaining" | "proposed" }> = ({ proj, type }) => {
     const needsUtilized = type === "utilized" || type === "remaining";
     const memoizedProj = React.useMemo(() => [proj], [proj]);
     const { total, loading } = usePIFundReceivedTotal(needsUtilized ? memoizedProj : []);
-    
+
     if (type === "sanctioned" || type === "proposed") {
         return (
             <div className="text-[12px] font-extrabold text-[#059669] whitespace-nowrap">
@@ -623,13 +704,13 @@ const ProjectDynamicBudgetCell: React.FC<{ proj: any; type: "sanctioned" | "util
             </div>
         );
     }
-    
+
     if (loading) {
         return <div className="text-[12px] font-extrabold text-[#71717A] opacity-50 whitespace-nowrap animate-pulse">Loading…</div>;
     }
-    
+
     const utilizedAmount = total || 0;
-    
+
     if (type === "utilized") {
         return (
             <div className="text-[12px] font-extrabold text-[#059669] whitespace-nowrap">
@@ -637,7 +718,7 @@ const ProjectDynamicBudgetCell: React.FC<{ proj: any; type: "sanctioned" | "util
             </div>
         );
     }
-    
+
     if (type === "remaining") {
         const sanctionedAmount = proj.total_budget_amount || proj.grand_total_proposal || 0;
         const remainingAmount = Math.max(0, sanctionedAmount - utilizedAmount);
@@ -647,14 +728,14 @@ const ProjectDynamicBudgetCell: React.FC<{ proj: any; type: "sanctioned" | "util
             </div>
         );
     }
-    
+
     return <div>—</div>;
 };
 
 // ── PI Stat Cards (extracted to satisfy Rules of Hooks) ──────────────────────
-const PIStatCards: React.FC<{ piDetails: any; projects: any[] }> = ({ piDetails, projects }) => {
+const PIStatCards: React.FC<{ piDetails: any; projects: any[]; getSanctionedAmount: (p: any) => number }> = ({ piDetails, projects, getSanctionedAmount }) => {
     const totalSanctioned = projects.reduce((sum: number, proj: any) =>
-        sum + (proj.total_budget_amount || proj.grand_total_proposal || 0), 0);
+        sum + getSanctionedAmount(proj), 0);
 
     const { total: liveFundTotal, loading: fundTotalLoading } = usePIFundReceivedTotal(projects);
 
@@ -682,7 +763,7 @@ const PIStatCards: React.FC<{ piDetails: any; projects: any[] }> = ({ piDetails,
             </div>
             <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
                 <div className="text-[18px] sm:text-[20px] font-extrabold text-[#d97706] leading-tight">
-                    {fundTotalLoading ? <span className="text-[14px] text-[#A1A1AA] animate-pulse">…</span> : formattedLiveFund ?? "—"}
+                    {fundTotalLoading ? <span className="text-[12px] font-bold text-[#A1A1AA] animate-pulse">Loading…</span> : formattedLiveFund ?? "—"}
                 </div>
                 <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Fund Rcvd</div>
             </div>
@@ -788,6 +869,171 @@ export function DirectorDashboard() {
         message: any;
     }>("rndopsapp.dashboard.get_director_dashboard_data");
 
+    // ── System Activity (forms processed, all doctypes) — purely additive widget,
+    // doesn't touch or depend on anything above. See note.txt for the endpoint's response
+    // shape and how each part is meant to be used.
+    const { data: processCountsResp, isLoading: isProcessCountsLoading } = useFrappeGetCall<{
+        message: {
+            totals: { today: number; this_week: number; this_month: number; total: number };
+            doctype_counts: Array<{
+                doctype: string;
+                module: string;
+                today: number;
+                this_week: number;
+                this_month: number;
+                total: number;
+                children: Array<{ doctype: string; fieldname: string; today: number; this_week: number; this_month: number; total: number }>;
+            }>;
+            daily_trend: Array<{ date: string; count: number }>;
+            weekly_trend: Array<{ week_start: string; count: number }>;
+            monthly_trend: Array<{ month: string; count: number }>;
+        };
+    }>("rndopsapp.dashboard.get_module_process_counts");
+
+    const processCounts = processCountsResp?.message;
+    const [expandedActivityDoctypes, setExpandedActivityDoctypes] = React.useState<Set<string>>(new Set());
+    const toggleActivityDoctype = React.useCallback((doctype: string) => {
+        setExpandedActivityDoctypes(prev => {
+            const next = new Set(prev);
+            if (next.has(doctype)) next.delete(doctype);
+            else next.add(doctype);
+            return next;
+        });
+    }, []);
+
+    const sortedDoctypeCounts = React.useMemo(() => {
+        return [...(processCounts?.doctype_counts || [])].sort((a, b) => b.total - a.total);
+    }, [processCounts]);
+
+    const ACTIVITY_TOP_N = 10;
+    const [showAllActivityApps, setShowAllActivityApps] = React.useState(false);
+    const visibleDoctypeCounts = showAllActivityApps ? sortedDoctypeCounts : sortedDoctypeCounts.slice(0, ACTIVITY_TOP_N);
+    const maxDoctypeTotal = React.useMemo(
+        () => Math.max(1, ...sortedDoctypeCounts.map(r => r.total)),
+        [sortedDoctypeCounts]
+    );
+
+    // Bucketed by hundreds (0-100, 101-200, 201-300, ...) so rows are colour-coded by
+    // volume tier instead of every bar looking identical — cool/muted for low activity,
+    // warm/vibrant for high activity.
+    const VOLUME_BUCKET_COLORS = [
+        { from: "#94a3b8", to: "#64748b", text: "text-slate-600 dark:text-slate-400" },
+        { from: "#38bdf8", to: "#0284c7", text: "text-sky-600 dark:text-sky-400" },
+        { from: "#22d3ee", to: "#0891b2", text: "text-cyan-600 dark:text-cyan-400" },
+        { from: "#2dd4bf", to: "#0d9488", text: "text-teal-600 dark:text-teal-400" },
+        { from: "#34d399", to: "#059669", text: "text-emerald-600 dark:text-emerald-400" },
+        { from: "#4ade80", to: "#16a34a", text: "text-green-600 dark:text-green-400" },
+        { from: "#a3e635", to: "#65a30d", text: "text-lime-600 dark:text-lime-400" },
+        { from: "#facc15", to: "#ca8a04", text: "text-yellow-600 dark:text-yellow-400" },
+        { from: "#fb923c", to: "#ea580c", text: "text-orange-600 dark:text-orange-400" },
+        { from: "#f87171", to: "#dc2626", text: "text-red-600 dark:text-red-400" },
+    ];
+    const getVolumeBucketColor = (total: number) => {
+        const idx = Math.min(Math.floor(total / 100), VOLUME_BUCKET_COLORS.length - 1);
+        return VOLUME_BUCKET_COLORS[idx];
+    };
+    const presentVolumeTiers = React.useMemo(() => {
+        const idxSet = new Set(sortedDoctypeCounts.map(r => Math.min(Math.floor(r.total / 100), VOLUME_BUCKET_COLORS.length - 1)));
+        return Array.from(idxSet).sort((a, b) => a - b).map(idx => {
+            const isTop = idx === VOLUME_BUCKET_COLORS.length - 1 && maxDoctypeTotal >= idx * 100 + 100;
+            return {
+                color: VOLUME_BUCKET_COLORS[idx],
+                label: isTop ? `${idx * 100 + 1}+` : `${idx * 100 + 1}-${idx * 100 + 100}`,
+            };
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sortedDoctypeCounts, maxDoctypeTotal]);
+
+    const USAGE_TIER_METRICS = {
+        total: { label: "Total (All Time)", getValue: (r: { today: number; this_week: number; this_month: number; total: number }) => r.total },
+        daily: { label: "Daily", getValue: (r: { today: number; this_week: number; this_month: number; total: number }) => r.today },
+        weekly_avg: { label: "Weekly Avg/Day", getValue: (r: { today: number; this_week: number; this_month: number; total: number }) => Math.round((r.this_week / 7) * 10) / 10 },
+        monthly_avg: { label: "Monthly Avg/Day", getValue: (r: { today: number; this_week: number; this_month: number; total: number }) => Math.round((r.this_month / 30) * 10) / 10 },
+    } as const;
+    const [usageTierMetric, setUsageTierMetric] = React.useState<keyof typeof USAGE_TIER_METRICS>("total");
+    const [expandedUsageTier, setExpandedUsageTier] = React.useState<string | null>(null);
+    const usageTierGetValue = USAGE_TIER_METRICS[usageTierMetric].getValue;
+
+    // Splits applications into 3 equal-sized tiers by rank (not by fixed thresholds) so the
+    // pie always has 3 meaningful groups regardless of how the selected metric is distributed.
+    const usageTierBreakdown = React.useMemo(() => {
+        const n = sortedDoctypeCounts.length;
+        if (n === 0) return [];
+        const unused = sortedDoctypeCounts.filter(r => usageTierGetValue(r) <= 0);
+        const used = sortedDoctypeCounts
+            .filter(r => usageTierGetValue(r) > 0)
+            .sort((a, b) => usageTierGetValue(b) - usageTierGetValue(a));
+        const third = Math.ceil(used.length / 3);
+        const tiers = [
+            { name: "Most Used", rows: used.slice(0, third), color: "#16a34a" },
+            { name: "Moderately Used", rows: used.slice(third, third * 2), color: "#f59e0b" },
+            { name: "Least Used", rows: used.slice(third * 2), color: "#3b82f6" },
+            { name: "No Use", rows: unused, color: "#dc2626" },
+        ];
+        return tiers
+            .filter(t => t.rows.length > 0)
+            .map(t => ({
+                name: t.name,
+                color: t.color,
+                appCount: t.rows.length,
+                rows: t.rows,
+                value: t.rows.reduce((s, r) => s + usageTierGetValue(r), 0),
+            }));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sortedDoctypeCounts, usageTierMetric]);
+    const usageTierTotal = usageTierBreakdown.reduce((s, t) => s + t.value, 0);
+    // "No Use" always sums to 0 and would render an invisible slice — give zero-value tiers
+    // a small nominal sliver purely for the pie's geometry while every label/tooltip still
+    // reads the real value off usageTierBreakdown.
+    const usageTierPieData = usageTierBreakdown.map(t => ({
+        ...t,
+        pieValue: t.value > 0 ? t.value : Math.max(1, Math.round(usageTierTotal * 0.03)),
+    }));
+
+    const TREND_SERIES_STYLE = {
+        daily: { key: "daily", stroke: "#2563eb", gradientId: "formsActivityGradientDaily", label: "Daily", chipBg: "bg-blue-50 dark:bg-blue-950/30", textColor: "text-blue-600 dark:text-blue-400" },
+        weeklyAvg: { key: "weeklyAvg", stroke: "#7c3aed", gradientId: "formsActivityGradientWeekly", label: "Weekly Avg/Day", chipBg: "bg-violet-50 dark:bg-violet-950/30", textColor: "text-violet-600 dark:text-violet-400" },
+        monthlyAvg: { key: "monthlyAvg", stroke: "#059669", gradientId: "formsActivityGradientMonthly", label: "Monthly Avg/Day", chipBg: "bg-emerald-50 dark:bg-emerald-950/30", textColor: "text-emerald-600 dark:text-emerald-400" },
+    } as const;
+
+    const combinedTrendData = React.useMemo(() => {
+        if (!processCounts) return [];
+        // Daily has ~150 points across the dataset — trim to the most recent 30 so the
+        // chart stays readable. Weekly/monthly totals are normalized to a "per day" rate
+        // (their bucket's total / days in that bucket) so all three series share one scale
+        // and can be overlaid on the same 30-day axis instead of forcing a tab switch.
+        const days = processCounts.daily_trend.slice(-30);
+        const weeklySorted = [...processCounts.weekly_trend].sort((a, b) => a.week_start.localeCompare(b.week_start));
+        const monthlyByMonth = new Map(processCounts.monthly_trend.map(m => [m.month, m.count]));
+
+        return days.map(d => {
+            let weeklyTotal = 0;
+            for (let i = weeklySorted.length - 1; i >= 0; i--) {
+                if (weeklySorted[i].week_start <= d.date) { weeklyTotal = weeklySorted[i].count; break; }
+            }
+            const month = d.date.slice(0, 7);
+            const monthlyTotal = monthlyByMonth.get(month) ?? 0;
+            return {
+                label: d.date.slice(5),
+                daily: d.count,
+                weeklyAvg: Math.round((weeklyTotal / 7) * 10) / 10,
+                monthlyAvg: Math.round((monthlyTotal / 30) * 10) / 10,
+            };
+        });
+    }, [processCounts]);
+
+    const combinedTrendStats = React.useMemo(() => {
+        if (!combinedTrendData.length) {
+            return { dailyAvg: 0, weeklyAvg: 0, monthlyAvg: 0, trendPct: 0, trendDirection: "flat" as "up" | "down" | "flat" };
+        }
+        const last = combinedTrendData[combinedTrendData.length - 1];
+        const prevDaily = combinedTrendData.length > 1 ? combinedTrendData[combinedTrendData.length - 2].daily : 0;
+        const dailyAvg = Math.round((combinedTrendData.reduce((s, d) => s + d.daily, 0) / combinedTrendData.length) * 10) / 10;
+        const trendPct = prevDaily > 0 ? Math.round(((last.daily - prevDaily) / prevDaily) * 100) : (last.daily > 0 ? 100 : 0);
+        const trendDirection: "up" | "down" | "flat" = trendPct > 0 ? "up" : trendPct < 0 ? "down" : "flat";
+        return { dailyAvg, weeklyAvg: last.weeklyAvg, monthlyAvg: last.monthlyAvg, trendPct, trendDirection };
+    }, [combinedTrendData]);
+
     const data = dashboardData?.message || {};
 
     // isDirectorOnly = has Director role but NOT any of the other privileged roles
@@ -811,7 +1057,7 @@ export function DirectorDashboard() {
     const getDeptName = React.useCallback(
         (idOrName: string) => {
             if (!idOrName) return "—";
-            
+
             if (deptList) {
                 const found = deptList.find(
                     (d: any) => d.name === idOrName || d.dept_name === idOrName
@@ -830,7 +1076,7 @@ export function DirectorDashboard() {
             if (idOrName === "hgdri9hvfq") {
                 return "Jyoti and Bhupat Mehta School of Health Sciences and Technology";
             }
-            
+
             return idOrName;
         },
         [deptList, standardDeptList]
@@ -916,21 +1162,6 @@ export function DirectorDashboard() {
         }
     );
 
-    const globalTypeCounts = React.useMemo(() => {
-        const subIds = new Set<string>(dashboardData?.message?.project_overview?.submitted_project_nos || []);
-        const ongIds = new Set<string>(dashboardData?.message?.project_overview?.ongoing_project_nos || []);
-        let r = 0, c = 0, o = 0;
-        (allProjectsList ?? []).forEach((p: any) => {
-            const isOngoing = ongIds.has(p.name);
-            const isSubmitted = subIds.has(p.name);
-            if (!isOngoing && !isSubmitted) return;
-            const type = (p.project_type || "").toLowerCase();
-            if (type.includes("research") || type === "r&d project") r++;
-            else if (type.includes("consult") || type === "testing") c++;
-            else o++;
-        });
-        return { r, c, o, all: r + c + o };
-    }, [allProjectsList, dashboardData]);
 
     // Fetch the master list of funding agencies using the project proposal fields API.
     // This API returns `link_options` which maps the IDs to human-readable labels and typically bypasses strict doc-level read restrictions.
@@ -985,14 +1216,11 @@ export function DirectorDashboard() {
 
     // ── Status counts — from backend (single source of truth) ───────────────
     const ongoingIds = React.useMemo(() => {
+        // Backend-provided (rndopsapp.dashboard.get_director_dashboard_data): Ongoing =
+        // has at least one submitted (docstatus=1) Fund Sanction record. This is the
+        // single source of truth — do not "correct" it with total_budget_amount, which
+        // is a project's proposed budget and has no bearing on whether it's sanctioned.
         const ids = new Set<string>(overview.ongoing_project_nos || []);
-        
-        // Frontend correction: Projects with a sanctioned budget > 0 are ongoing
-        (allProjectsList ?? []).forEach((p: any) => {
-            if (Number(p.total_budget_amount) > 0) {
-                ids.add(p.name);
-            }
-        });
 
         if (dashboardProjectTypeFilter === "all") return ids;
         const newIds = new Set<string>();
@@ -1008,14 +1236,8 @@ export function DirectorDashboard() {
     }, [overview, dashboardProjectTypeFilter, allProjectsList]);
 
     const submittedIds = React.useMemo(() => {
+        // Same backend-provided source of truth as ongoingIds above — no budget-based override.
         const ids = new Set<string>(overview.submitted_project_nos || []);
-        
-        // Frontend correction: Remove projects that are actually ongoing
-        (allProjectsList ?? []).forEach((p: any) => {
-            if (Number(p.total_budget_amount) > 0) {
-                ids.delete(p.name);
-            }
-        });
 
         if (dashboardProjectTypeFilter === "all") return ids;
         const newIds = new Set<string>();
@@ -1030,45 +1252,366 @@ export function DirectorDashboard() {
         return newIds;
     }, [overview, dashboardProjectTypeFilter, allProjectsList]);
 
-    const projectStatusCounts = {
-        ongoing: ongoingIds.size,
-        submitted: submittedIds.size,
-    };
+    const globalTypeCounts = React.useMemo(() => {
+        let r = 0, c = 0, o = 0;
+        (allProjectsList ?? []).forEach((p: any) => {
+            if (!ongoingIds.has(p.name) && !submittedIds.has(p.name)) return;
+            const type = (p.project_type || "").toLowerCase();
+            if (type.includes("research") || type === "r&d project") r++;
+            else if (type.includes("consult") || type === "testing") c++;
+            else o++;
+        });
+        return { r, c, o, all: r + c + o };
+    }, [allProjectsList, ongoingIds, submittedIds]);
 
-    // ── Project status by year — strict frontend count to guarantee 83 match ───
+    // Fund Sanction supports bulk List-View access (confirmed working elsewhere in
+    // this app), so fetch it in one request. Submitted vs Ongoing classification
+    // comes from the backend's authoritative ongoingIds/submittedIds (see
+    // get_director_dashboard_data), not from this list — this is used only for the
+    // sanction letter date (year-bucketing) and, as a display-only fallback, the
+    // sanctioned amount for projects whose Project Registration budget field is 0.
+    const { data: allFundSanctionList } = useFrappeGetDocList(
+        "Fund Sanction",
+        {
+            fields: ["refnum_prj_num", "sanctioned_letter_date", "total_sanctioned_amount", "workflow_state"],
+            limit: 20000,
+        }
+    );
+
+    const { sanctionDateMap, sanctionAmountMap } = React.useMemo(() => {
+        // A project can have more than one Fund Sanction record (drafts, superseded
+        // revisions, stray records from legacy-system migrations). Without an explicit
+        // orderBy, an unordered query's row order isn't guaranteed stable across different
+        // LIMIT values, so "first record wins" alone can non-deterministically pick a
+        // stale record. Prefer the record whose workflow_state shows it's actually
+        // approved; only fall back to an unapproved one if no approved record exists.
+        const dateMap = new Map<string, string>();
+        const amountMap = new Map<string, number>();
+        const approvedDate = new Map<string, string>();
+        const approvedAmount = new Map<string, number>();
+        (allFundSanctionList || []).forEach((rec: any) => {
+            if (!rec.refnum_prj_num) return;
+            const isApproved = (rec.workflow_state || "").toLowerCase().includes("sanction approved");
+            if (rec.sanctioned_letter_date) {
+                if (!dateMap.has(rec.refnum_prj_num)) dateMap.set(rec.refnum_prj_num, rec.sanctioned_letter_date);
+                if (isApproved && !approvedDate.has(rec.refnum_prj_num)) approvedDate.set(rec.refnum_prj_num, rec.sanctioned_letter_date);
+            }
+            const amt = Number(rec.total_sanctioned_amount) || 0;
+            if (amt > 0) {
+                if (!amountMap.has(rec.refnum_prj_num)) amountMap.set(rec.refnum_prj_num, amt);
+                if (isApproved && !approvedAmount.has(rec.refnum_prj_num)) approvedAmount.set(rec.refnum_prj_num, amt);
+            }
+        });
+        approvedDate.forEach((v, k) => dateMap.set(k, v));
+        approvedAmount.forEach((v, k) => amountMap.set(k, v));
+        return { sanctionDateMap: dateMap, sanctionAmountMap: amountMap };
+    }, [allFundSanctionList]);
+
+    // Display-only fallback for the sanctioned amount — some legacy projects only
+    // carry the real sanctioned amount on the Fund Sanction record, not on their
+    // own total_budget_amount/grand_total_proposal field. Not used for status.
+    const getSanctionedAmount = React.useCallback((p: any) => {
+        const own = Number(p.total_budget_amount || p.grand_total_proposal) || 0;
+        if (own > 0) return own;
+        return sanctionAmountMap.get(p.name) || sanctionAmountMap.get(p.project_no) || 0;
+    }, [sanctionAmountMap]);
+
+    // Synchronous funding-agency resolution for CSV/print exports, which can't await the
+    // live per-project lookup FundingAgencyNameDisplay does on screen. Mirrors that same
+    // priority order (funding_agen resolved via fundingAgencyMap, then direct text fields,
+    // then scheme-based inference) so exported data matches what the table displays.
+    const resolveAgencyName = React.useCallback((p: any) => {
+        let agency = fundingAgencyMap[p.funding_agen] || p.select_funding_agency || p["funding_agen.funding_agency_name"]
+            || p.funding_agency_name || p.funding_agency || p.funding_agency_other || "";
+        if (!agency && (p.origin_of_funding_agency === "National" || p.origin_of_funding_agency === "International")) {
+            agency = "";
+        } else if (!agency) {
+            agency = p.origin_of_funding_agency || "";
+        }
+
+        if (!agency || agency.trim() === "" || agency === "—") {
+            const scheme = (p.funding_agency_schemes || p.scheme_name || "").toUpperCase();
+            if (scheme.includes("ANRF")) agency = "ANRF - (Anusandhan National Research Foundation)";
+            else if (scheme.includes("SERB")) agency = "SERB";
+            else if (scheme.includes("DST")) agency = "Department Of Science and Technology";
+            else if (scheme.includes("DBT")) agency = "DBT - Department of Biotechnology";
+        } else if (agency.trim().toUpperCase() === "ANRF") {
+            agency = "ANRF - (Anusandhan National Research Foundation)";
+        }
+
+        return agency.trim();
+    }, [fundingAgencyMap]);
+
+    // Fallback for projects with no sanction/start date on file: derive a date from the
+    // "Dean approval" comment on the project's timeline. Bulk-fetched (single request,
+    // Comment is a standard doctype) rather than per-project, to avoid re-introducing the
+    // slow per-project sync loop. Best-effort match on comment text containing "dean".
+    const { data: deanCommentList } = useFrappeGetDocList(
+        "Comment",
+        {
+            fields: ["reference_name", "content", "creation"],
+            filters: [
+                ["reference_doctype", "=", "Project Registration"],
+                ["content", "like", "%dean%"],
+            ],
+            orderBy: { field: "creation", order: "asc" },
+            limit: 20000,
+        }
+    );
+
+    const deanApprovalDateMap = React.useMemo(() => {
+        const fallback = new Map<string, string>();
+        const approved = new Map<string, string>();
+        (deanCommentList || []).forEach((c: any) => {
+            if (!c.reference_name || !c.creation) return;
+            const text = (c.content || "").toLowerCase();
+            if (!text.includes("dean")) return;
+            // Prefer comments that read like an actual approval action over a mere mention
+            if (/approv/.test(text)) {
+                if (!approved.has(c.reference_name)) approved.set(c.reference_name, c.creation);
+            } else if (!fallback.has(c.reference_name)) {
+                fallback.set(c.reference_name, c.creation);
+            }
+        });
+        approved.forEach((v, k) => fallback.set(k, v));
+        return fallback;
+    }, [deanCommentList]);
+
+    // Single source of truth for a project's "effective" start date, walking the full
+    // fallback chain: real sanction date → recorded start date → Dean approval comment → creation.
+    const getEffectiveStartDate = React.useCallback((p: any) => {
+        return sanctionDateMap.get(p.name) || sanctionDateMap.get(p.project_no)
+            || p.sanctioned_letter_date || p.prj_start_date
+            || deanApprovalDateMap.get(p.name) || deanApprovalDateMap.get(p.project_no)
+            || p.creation;
+    }, [sanctionDateMap, deanApprovalDateMap]);
+
+    // Fund Received doesn't support bulk List-View access on this Frappe instance,
+    // so it's still fetched per-project via the whitelisted method, in the
+    // background. This only refines the Active / Pending-Fund-Received distinction
+    // in more detailed views (KPI modal, per-row badges) — it no longer blocks the
+    // main chart above.
+    const [fundStatusMap, setFundStatusMap] = React.useState<Map<string, boolean>>(new Map());
+    // Surfaces the background sync below so the UI can show a "still syncing" indicator
+    // instead of silently flipping Status badges (Fund Pending → Active) as data trickles
+    // in, and so Export/Print can wait for it instead of capturing a transient snapshot.
+    const [isSyncingFunds, setIsSyncingFunds] = React.useState(false);
+    // Whatever's currently on screen (current page + the next one, so paging forward
+    // already has a head start) — kept live via a ref rather than a useEffect dependency
+    // so updating it doesn't restart the sync loop below. Read once at the start of each
+    // sync pass, so fund status resolves for visible rows before the rest of the list.
+    const visibleProjectNamesRef = React.useRef<Set<string>>(new Set());
+
+    React.useEffect(() => {
+        let isCancelled = false;
+        if (!allProjectsList || allProjectsList.length === 0) return;
+
+        const syncFunds = async () => {
+            if (!isCancelled) setIsSyncingFunds(true);
+            const map = new Map<string, boolean>();
+            // ongoingIds is authoritative (submitted Fund Sanction exists) — only those
+            // projects can possibly have a fund received against them.
+            const unordered = allProjectsList.filter((p: any) => ongoingIds && ongoingIds.has(p.name));
+            // Sync whatever's currently on screen first, so its Active/Fund Pending badges
+            // resolve before the rest of the (possibly much longer) list finishes in the
+            // background — instead of syncing in arbitrary list order.
+            const visible = visibleProjectNamesRef.current;
+            const projectsToFetch = [...unordered].sort((a: any, b: any) => {
+                const aVis = visible.has(a.name) ? 0 : 1;
+                const bVis = visible.has(b.name) ? 0 : 1;
+                return aVis - bVis;
+            });
+            const total = projectsToFetch.length;
+
+            const chunkSize = 20;
+            for (let i = 0; i < total; i += chunkSize) {
+                if (isCancelled) break;
+                const chunk = projectsToFetch.slice(i, i + chunkSize);
+
+                await Promise.all(chunk.map(async (p: any) => {
+                    try {
+                        const csrf = (window as any).csrf_token || "";
+                        const headers = { "X-Frappe-CSRF-Token": csrf, "Content-Type": "application/json" };
+                        const res = await fetch(`/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg?prjreg_title=${encodeURIComponent(p.name)}&limit=10&start=0`, { headers }).then(r => r.json()).catch(() => null);
+
+                        const fundsRaw = res?.message || res?.data || [];
+                        const funds = Array.isArray(fundsRaw) ? fundsRaw : (fundsRaw.message || []);
+
+                        const hasFund = funds.some((r: any) => {
+                            const s = (r.workflow_state || r.status || "").toLowerCase();
+                            return s === "approved" || s.includes("fund received");
+                        });
+                        map.set(p.name, hasFund);
+                    } catch (e) {
+                        map.set(p.name, false);
+                    }
+                }));
+
+                if (!isCancelled) {
+                    setFundStatusMap(new Map(map));
+                }
+            }
+            if (!isCancelled) setIsSyncingFunds(false);
+        };
+
+        syncFunds();
+        return () => { isCancelled = true; };
+    }, [ongoingIds, allProjectsList]);
+
+    const getProjectStatusLabel = React.useCallback((p: any) => {
+        // ongoingIds is the backend's authoritative signal (submitted Fund Sanction
+        // exists) — no need to re-derive it from budget amount or workflow_state text.
+        const isOngoing = ongoingIds && (ongoingIds.has(p.name) || ongoingIds.has(p.project_no));
+
+        if (isOngoing) {
+            const hasStartDate = !!(sanctionDateMap.get(p.name) || sanctionDateMap.get(p.project_no) || p.sanctioned_letter_date);
+            const hasFundReceived = fundStatusMap.get(p.name) === true;
+            if (hasFundReceived) return "● Active";
+            if (hasStartDate) return "Pending Fund Received";
+            return "Approved Sanction";
+        }
+
+        if (submittedIds && (submittedIds.has(p.name) || submittedIds.has(p.project_no))) return "Pending Sanction";
+
+        const s = (p.workflow_state || "").toLowerCase();
+        if (s.includes("draft")) return "Draft";
+        if (s.includes("complet")) return "Completed";
+        if (s.includes("cancel") || s.includes("reject")) return "Cancelled";
+        if (p.workflow_state) return p.workflow_state;
+        return "New Registered";
+    }, [ongoingIds, submittedIds, sanctionDateMap, fundStatusMap]);
+
+    // ── projectStatusCounts ──────────────────────────────────────────────────
+    // ongoingIds/submittedIds are already the backend's authoritative classification
+    // (Fund Sanction docstatus=1 = Ongoing) — no per-project re-verification or sync
+    // wait needed, unlike before.
+    const projectStatusCounts = React.useMemo(() => {
+        let ongoing = 0, submitted = 0;
+        (allProjectsList || []).forEach((proj: any) => {
+            if (ongoingIds.has(proj.name)) ongoing++;
+            else if (submittedIds.has(proj.name)) submitted++;
+        });
+        return { ongoing, submitted };
+    }, [allProjectsList, ongoingIds, submittedIds]);
+
+    // ── Project status by year ─────────────────────────────────────────────
+    // ongoingIds/submittedIds are authoritative — bucket directly by year, no
+    // further per-project sanction-approval re-check needed.
     const projectStatusByYearData = React.useMemo(() => {
         const yearMap: Record<string, { year: string; ongoing: number; submitted: number }> = {};
 
         (allProjectsList || []).forEach((proj: any) => {
             const isOngoing = ongoingIds.has(proj.name);
-            const isSubmitted = submittedIds.has(proj.name);
-            if (!isOngoing && !isSubmitted) return;
+            const isSubmitted2 = !isOngoing && submittedIds.has(proj.name);
+            if (!isOngoing && !isSubmitted2) return;
 
-            let yearLabel = "Unknown";
-            if (proj.prj_start_date) {
-                yearLabel = String(new Date(proj.prj_start_date).getFullYear());
-            } else {
-                // Fallback if missing start date
-                yearLabel = "2024";
-            }
+            const dateStr = getEffectiveStartDate(proj);
+            if (!dateStr) return;
 
-            if (!yearMap[yearLabel]) {
-                yearMap[yearLabel] = { year: yearLabel, ongoing: 0, submitted: 0 };
-            }
+            const yr = new Date(dateStr).getFullYear();
+            if (isNaN(yr) || yr < 2019 || yr >= 2100) return;
 
-            if (isOngoing) {
-                yearMap[yearLabel].ongoing += 1;
-            } else if (isSubmitted) {
-                yearMap[yearLabel].submitted += 1;
-            }
+            const yearLabel = String(yr);
+            if (!yearMap[yearLabel]) yearMap[yearLabel] = { year: yearLabel, ongoing: 0, submitted: 0 };
+
+            if (isOngoing) yearMap[yearLabel].ongoing += 1;
+            else if (isSubmitted2) yearMap[yearLabel].submitted += 1;
         });
 
         return Object.values(yearMap).map(d => ({
             year: d.year,
             ongoing: d.ongoing === 0 ? null : d.ongoing,
-            submitted: d.submitted === 0 ? null : d.submitted
+            submitted: d.submitted === 0 ? null : d.submitted,
         })).sort((a, b) => a.year.localeCompare(b.year));
-    }, [allProjectsList, ongoingIds, submittedIds]);
+    }, [allProjectsList, ongoingIds, submittedIds, getEffectiveStartDate]);
+
+    // ── Chart year/type filters ──
+    const [chartYearFilter, setChartYearFilter] = React.useState<string>("All Time");
+    const [chartProjectTypeFilter, setChartProjectTypeFilter] = React.useState<string>("all");
+
+    // Recomputed from allProjectsList directly (rather than filtering
+    // projectStatusByYearData, which has no type dimension) so the Type dropdown can
+    // narrow the bars. projectStatusByYearData itself stays untouched — it also feeds the
+    // separate annual-report generator, which should always use the unfiltered totals.
+    const chartDisplayData = React.useMemo(() => {
+        const yearMap: Record<string, { year: string; ongoing: number; submitted: number }> = {};
+        (allProjectsList || []).forEach((proj: any) => {
+            const isOngoing = ongoingIds.has(proj.name);
+            const isSubmitted2 = !isOngoing && submittedIds.has(proj.name);
+            if (!isOngoing && !isSubmitted2) return;
+
+            if (chartProjectTypeFilter !== "all") {
+                const type = (proj.project_type || "").toLowerCase();
+                if (chartProjectTypeFilter === "research" && !(type.includes("research") || type === "r&d project")) return;
+                if (chartProjectTypeFilter === "consultancy" && !(type.includes("consult") || type === "testing")) return;
+                if (chartProjectTypeFilter === "others" && (type.includes("research") || type === "r&d project" || type.includes("consult") || type === "testing")) return;
+            }
+
+            const dateStr = getEffectiveStartDate(proj);
+            if (!dateStr) return;
+
+            const yr = new Date(dateStr).getFullYear();
+            if (isNaN(yr) || yr < 2019 || yr >= 2100) return;
+
+            const yearLabel = String(yr);
+            if (!yearMap[yearLabel]) yearMap[yearLabel] = { year: yearLabel, ongoing: 0, submitted: 0 };
+
+            if (isOngoing) yearMap[yearLabel].ongoing += 1;
+            else if (isSubmitted2) yearMap[yearLabel].submitted += 1;
+        });
+
+        let list = Object.values(yearMap).map(d => ({
+            year: d.year,
+            ongoing: d.ongoing === 0 ? null : d.ongoing,
+            submitted: d.submitted === 0 ? null : d.submitted,
+        })).sort((a, b) => a.year.localeCompare(b.year));
+
+        if (chartYearFilter !== "All Time") list = list.filter(d => d.year === chartYearFilter);
+        return list;
+    }, [allProjectsList, ongoingIds, submittedIds, getEffectiveStartDate, chartProjectTypeFilter, chartYearFilter]);
+
+    // Research/Consultancy/Others split for the panel's legend area — respects the Year
+    // filter (for "at a glance" context matching what's charted) but always shows all
+    // three types regardless of the Type dropdown, so it stays a comparison reference.
+    const chartTypeBreakdown = React.useMemo(() => {
+        let ro = 0, rs = 0, co = 0, cs = 0, oo = 0, os = 0;
+        (allProjectsList ?? []).forEach((p: any) => {
+            const isOngoing = ongoingIds.has(p.name);
+            const isSubmitted = !isOngoing && submittedIds.has(p.name);
+            if (!isOngoing && !isSubmitted) return;
+
+            if (chartYearFilter !== "All Time") {
+                const dateStr = getEffectiveStartDate(p);
+                const yr = dateStr ? new Date(dateStr).getFullYear() : null;
+                if (String(yr) !== chartYearFilter) return;
+            }
+
+            const type = (p.project_type || "").toLowerCase();
+            if (type.includes("research") || type === "r&d project") {
+                if (isOngoing) ro++; else rs++;
+            } else if (type.includes("consult") || type === "testing") {
+                if (isOngoing) co++; else cs++;
+            } else {
+                if (isOngoing) oo++; else os++;
+            }
+        });
+        return { researchOngoing: ro, researchSubmitted: rs, consultancyOngoing: co, consultancySubmitted: cs, othersOngoing: oo, othersSubmitted: os };
+    }, [allProjectsList, ongoingIds, submittedIds, getEffectiveStartDate, chartYearFilter]);
+
+    const chartYearSubmittedTotal = React.useMemo(() => {
+        return chartDisplayData.reduce((s, d) => s + (Number(d.submitted) || 0), 0);
+    }, [chartDisplayData]);
+
+    const chartYearOngoingTotal = React.useMemo(() => {
+        return chartDisplayData.reduce((s, d) => s + (Number(d.ongoing) || 0), 0);
+    }, [chartDisplayData]);
+
+    const chartAvailableYears = React.useMemo(() => {
+        const currentYear = new Date().getFullYear();
+        const years: string[] = [];
+        for (let y = currentYear; y >= 2019; y--) years.push(String(y));
+        return years;
+    }, []);
 
     const fundingTypeData = data.funding_sources || [];
 
@@ -1088,7 +1631,7 @@ export function DirectorDashboard() {
                 label: "Submitted",
                 originalState: "submitted",
                 count: projectStatusCounts.submitted,
-                title: "Registration but pending sanction",
+                title: "Pending Sanction / Approved Sanction / Pending Fund Received",
                 dotColor: "bg-amber-400",
                 bgClass: "bg-amber-50 dark:bg-amber-950/30",
                 textClass: "text-amber-700 dark:text-amber-400",
@@ -1133,154 +1676,196 @@ export function DirectorDashboard() {
         const projects: any[] = allProjectsList ?? [];
         if (!kpiModal) return [];
 
+        const kpiGetStatus = (p: any): string => {
+            // ongoingIds is authoritative (submitted Fund Sanction exists) — no
+            // further budget/workflow-state re-derivation needed.
+            if (!ongoingIds.has(p.name)) {
+                if (submittedIds.has(p.name)) return "pending_sanction";
+                // Neither ongoing nor submitted — derive an actual label from
+                // workflow_state (same fallback as getProjectStatusLabel) instead of the
+                // meaningless placeholder "other", which used to leak straight into the
+                // Status column via StatusBadge's fallback case.
+                const s = (p.workflow_state || "").toLowerCase();
+                if (s.includes("draft")) return "draft";
+                if (s.includes("complet")) return "completed";
+                if (s.includes("cancel") || s.includes("reject")) return "cancelled";
+                return p.workflow_state || "draft";
+            }
+            // fund-received status is fetched per-project in the background (no bulk API
+            // for that doctype) — show a Loading badge instead of a guess that could
+            // silently flip from Pending to Active once the fetch resolves.
+            if (!fundStatusMap.has(p.name)) return "loading";
+            const hasStartDate = !!(sanctionDateMap.get(p.name) || p.prj_start_date || p.sanctioned_letter_date);
+            const hasFundReceived = fundStatusMap.get(p.name) === true;
+            if (hasFundReceived) return "ongoing";
+            if (hasStartDate) return "pending_fund";
+            return "approved_sanction";
+        };
+
         const getBaseRows = () => {
             if (kpiModal.type === "total" || kpiModal.type === "ongoing" || kpiModal.type === "allocation") {
                 let filtered = projects;
 
-            // Apply year filter if present (checks prj_start_date year)
-            if (kpiModal.year) {
-                filtered = filtered.filter(p => {
-                    const y = p.prj_start_date ? String(new Date(p.prj_start_date).getFullYear()) : "2024";
-                    return y === kpiModal.year;
-                });
-            }
-
-            // Apply strict projectType filter if present
-            if (kpiModal.projectType) {
-                if (kpiModal.projectType === "research") {
-                    filtered = filtered.filter(p => p.project_type?.toLowerCase() === "research" || p.project_type?.toLowerCase() === "r&d project");
-                } else if (kpiModal.projectType === "consultancy") {
-                    filtered = filtered.filter(p => p.project_type?.toLowerCase() === "consultancy" || p.project_type?.toLowerCase() === "testing");
-                } else if (kpiModal.projectType === "others") {
+                // Apply year filter — use same date priority as the year chart
+                if (kpiModal.year) {
                     filtered = filtered.filter(p => {
-                        const pt = p.project_type?.toLowerCase() || "";
-                        return pt !== "research" && pt !== "r&d project" && pt !== "consultancy" && pt !== "testing";
+                        const dateStr = getEffectiveStartDate(p);
+                        if (!dateStr) return false;
+                        const yr = new Date(dateStr).getFullYear();
+                        return !isNaN(yr) && String(yr) === kpiModal.year;
                     });
                 }
-            }
 
-            // Apply funding filter if present
-            if (kpiModal.fundingAgency) {
-                if (kpiModal.fundingAgency === "Missing Funding Agency Name") {
-                    filtered = filtered.filter(p => !p.funding_agency && !p.funding_agency_name && !p.funding_agency_schemes && !p.scheme_name);
-                } else if (kpiModal.fundingAgency === "Others" && kpiModal.excludedFundingAgencies) {
+                // Apply strict projectType filter if present
+                if (kpiModal.projectType) {
+                    if (kpiModal.projectType === "research") {
+                        filtered = filtered.filter(p => p.project_type?.toLowerCase() === "research" || p.project_type?.toLowerCase() === "r&d project");
+                    } else if (kpiModal.projectType === "consultancy") {
+                        filtered = filtered.filter(p => p.project_type?.toLowerCase() === "consultancy" || p.project_type?.toLowerCase() === "testing");
+                    } else if (kpiModal.projectType === "others") {
+                        filtered = filtered.filter(p => {
+                            const pt = p.project_type?.toLowerCase() || "";
+                            return pt !== "research" && pt !== "r&d project" && pt !== "consultancy" && pt !== "testing";
+                        });
+                    }
+                }
+
+                // Apply funding filter if present
+                if (kpiModal.fundingAgency) {
+                    if (kpiModal.fundingAgency === "Missing Funding Agency Name") {
+                        filtered = filtered.filter(p => !p.funding_agency && !p.funding_agency_name && !p.funding_agency_schemes && !p.scheme_name);
+                    } else if (kpiModal.fundingAgency === "Others" && kpiModal.excludedFundingAgencies) {
+                        filtered = filtered.filter(p => {
+                            const agency = p.funding_agency || p.funding_agency_name || p.funding_agency_schemes || p.scheme_name;
+                            return agency && !kpiModal.excludedFundingAgencies!.includes(agency);
+                        });
+                    } else {
+                        filtered = filtered.filter(p => (p.funding_agency || p.funding_agency_name || p.funding_agency_schemes || p.scheme_name) === kpiModal.fundingAgency);
+                    }
+                }
+
+                // Apply department filter if present
+                if (kpiModal.allowedDepts) {
                     filtered = filtered.filter(p => {
-                        const agency = p.funding_agency || p.funding_agency_name || p.funding_agency_schemes || p.scheme_name;
-                        return agency && !kpiModal.excludedFundingAgencies!.includes(agency);
+                        const d = p.implementation_department || p.user_department || p.dept_name;
+                        return d && kpiModal.allowedDepts!.includes(d);
                     });
-                } else {
-                    filtered = filtered.filter(p => (p.funding_agency || p.funding_agency_name || p.funding_agency_schemes || p.scheme_name) === kpiModal.fundingAgency);
                 }
-            }
 
-            // Apply department filter if present
-            if (kpiModal.allowedDepts) {
-                filtered = filtered.filter(p => {
-                    const d = p.implementation_department || p.user_department || p.dept_name;
-                    return d && kpiModal.allowedDepts!.includes(d);
-                });
-            }
-
-            const isProjectComplete = (p: any) => {
-                const hasBudget = Number(p.total_budget_amount || p.grand_total_proposal || 0) > 0;
-                const hasProjectNo = !!(p.project_no && p.project_no.trim());
-                const agencyRaw = p.funding_agency_name || p.funding_agency || p.funding_agency_other || p.origin_of_funding_agency || p.funding_agency_schemes || p.scheme_name || "";
-                const hasAgency = !!agencyRaw.trim();
-                return hasBudget && hasProjectNo && hasAgency;
-            };
-
-            // Status filtering (bypassed if tab is "draft" or "pending")
-            if (kpiTab !== "draft" && kpiTab !== "pending") {
-                if (kpiModal.type === "ongoing" || kpiStatusFilter === "ongoing") {
-                    filtered = filtered.filter((p) => ongoingIds.has(p.name));
-                } else if (kpiStatusFilter === "submitted") {
-                    filtered = filtered.filter((p) => submittedIds.has(p.name));
-                } else {
-                    filtered = filtered.filter((p) => ongoingIds.has(p.name) || submittedIds.has(p.name));
-                }
-            } else {
-                // For draft/pending tabs, we explicitly want projects NOT in ongoing or submitted
-                filtered = filtered.filter((p) => !ongoingIds.has(p.name) && !submittedIds.has(p.name));
-            }
-
-            // Tab filtering
-            if (kpiTab === "all") {
-                // No additional filter for 'All Projects'
-            } else if (kpiTab === "valid") {
-                filtered = filtered.filter(isProjectComplete);
-            } else if (kpiTab === "research") {
-                filtered = filtered.filter(p => isProjectComplete(p) && (p.project_type || "").toLowerCase().includes("research"));
-            } else if (kpiTab === "consultancy") {
-                filtered = filtered.filter(p => isProjectComplete(p) && (p.project_type || "").toLowerCase().includes("consult"));
-            } else if (kpiTab === "others") {
-                filtered = filtered.filter(p => {
-                    const t = (p.project_type || "").toLowerCase();
-                    return isProjectComplete(p) && !t.includes("research") && !t.includes("consult");
-                });
-            } else if (kpiTab === "missing_budget") {
-                filtered = filtered.filter(p => Number(p.total_budget_amount || p.grand_total_proposal || 0) <= 0);
-            } else if (kpiTab === "missing_no") {
-                filtered = filtered.filter(p => !(p.project_no?.trim()));
-            } else if (kpiTab === "missing_agency") {
-                filtered = filtered.filter(p => {
+                const isProjectComplete = (p: any) => {
+                    const hasBudget = Number(p.total_budget_amount || p.grand_total_proposal || 0) > 0;
+                    const hasProjectNo = !!(p.project_no && p.project_no.trim());
                     const agencyRaw = p.funding_agency_name || p.funding_agency || p.funding_agency_other || p.origin_of_funding_agency || p.funding_agency_schemes || p.scheme_name || "";
-                    return !agencyRaw.trim();
-                });
-            } else if (kpiTab === "draft") {
-                filtered = filtered.filter(p => (p.workflow_state || "").toLowerCase().includes("draft") || p.docstatus === 0);
-            } else if (kpiTab === "pending") {
-                filtered = filtered.filter(p => !((p.workflow_state || "").toLowerCase().includes("draft") || p.docstatus === 0));
-            }
+                    const hasAgency = !!agencyRaw.trim();
+                    return hasBudget && hasProjectNo && hasAgency;
+                };
+
+                if (kpiTab !== "draft" && kpiTab !== "pending") {
+                    if (kpiModal.type === "ongoing" || kpiStatusFilter === "ongoing") {
+                        // Ongoing = sanction approved, regardless of fund-received status:
+                        // covers Approved Sanction, Fund Received Pending, and Active alike.
+                        filtered = filtered.filter((p) => {
+                            const s = kpiGetStatus(p);
+                            return s === "ongoing" || s === "pending_fund" || s === "approved_sanction";
+                        });
+                    } else if (kpiStatusFilter === "submitted") {
+                        // Submitted = not yet sanction-approved.
+                        filtered = filtered.filter((p) => kpiGetStatus(p) === "pending_sanction");
+                    } else if (kpiStatusFilter === "pending_fund") {
+                        filtered = filtered.filter((p) => kpiGetStatus(p) === "pending_fund");
+                    } else if (kpiStatusFilter === "approved_sanction") {
+                        filtered = filtered.filter((p) => kpiGetStatus(p) === "approved_sanction");
+                    } else if (kpiStatusFilter === "pending_sanction") {
+                        filtered = filtered.filter((p) => kpiGetStatus(p) === "pending_sanction");
+                    } else {
+                        filtered = filtered.filter((p) => ongoingIds.has(p.name) || submittedIds.has(p.name));
+                    }
+                } else {
+                    // For draft/pending tabs, we explicitly want projects NOT in ongoing or submitted
+                    filtered = filtered.filter((p) => !ongoingIds.has(p.name) && !submittedIds.has(p.name));
+                }
+
+                // Tab filtering
+                if (kpiTab === "all") {
+                    // No additional filter for 'All Projects'
+                } else if (kpiTab === "valid") {
+                    filtered = filtered.filter(isProjectComplete);
+                } else if (kpiTab === "research") {
+                    // No isProjectComplete gate here — Research/Consultancy/Others must add up to
+                    // the full status-filtered total (e.g. all of Ongoing), not just the "Valid
+                    // Projects" subset. That completeness check is what the "Valid Projects" tab is for.
+                    filtered = filtered.filter(p => (p.project_type || "").toLowerCase().includes("research"));
+                } else if (kpiTab === "consultancy") {
+                    filtered = filtered.filter(p => (p.project_type || "").toLowerCase().includes("consult"));
+                } else if (kpiTab === "others") {
+                    filtered = filtered.filter(p => {
+                        const t = (p.project_type || "").toLowerCase();
+                        return !t.includes("research") && !t.includes("consult");
+                    });
+                } else if (kpiTab === "missing_budget") {
+                    filtered = filtered.filter(p => Number(p.total_budget_amount || p.grand_total_proposal || 0) <= 0);
+                } else if (kpiTab === "missing_no") {
+                    filtered = filtered.filter(p => !(p.project_no?.trim()));
+                } else if (kpiTab === "missing_agency") {
+                    filtered = filtered.filter(p => {
+                        const agencyRaw = p.funding_agency_name || p.funding_agency || p.funding_agency_other || p.origin_of_funding_agency || p.funding_agency_schemes || p.scheme_name || "";
+                        return !agencyRaw.trim();
+                    });
+                } else if (kpiTab === "draft") {
+                    filtered = filtered.filter(p => (p.workflow_state || "").toLowerCase().includes("draft") || p.docstatus === 0);
+                } else if (kpiTab === "pending") {
+                    filtered = filtered.filter(p => !((p.workflow_state || "").toLowerCase().includes("draft") || p.docstatus === 0));
+                }
 
 
-            if (kpiAgeFilter === "old") {
-                filtered = filtered.filter(p => {
-                    if (p.is_old_project === 1 || p.is_old_project === true) return true;
-                    if (p.prj_start_date) return new Date(p.prj_start_date).getFullYear() < 2026;
-                    return false;
-                });
-            } else if (kpiAgeFilter === "new") {
-                filtered = filtered.filter(p => {
-                    if (p.is_old_project === 1 || p.is_old_project === true) return false;
-                    if (p.prj_start_date) return new Date(p.prj_start_date).getFullYear() >= 2026;
-                    return true;
-                });
-            }
+                if (kpiAgeFilter === "old") {
+                    filtered = filtered.filter(p => {
+                        if (p.is_old_project === 1 || p.is_old_project === true) return true;
+                        if (p.prj_start_date) return new Date(p.prj_start_date).getFullYear() < 2026;
+                        return false;
+                    });
+                } else if (kpiAgeFilter === "new") {
+                    filtered = filtered.filter(p => {
+                        if (p.is_old_project === 1 || p.is_old_project === true) return false;
+                        if (p.prj_start_date) return new Date(p.prj_start_date).getFullYear() >= 2026;
+                        return true;
+                    });
+                }
 
-            if (kpiSchemeFilter.length > 0) {
-                filtered = filtered.filter(p => kpiSchemeFilter.includes(normalizeSchemeName(p.funding_agency_schemes || p.scheme_name || "")));
-            }
+                if (kpiSchemeFilter.length > 0) {
+                    filtered = filtered.filter(p => kpiSchemeFilter.includes(normalizeSchemeName(p.funding_agency_schemes || p.scheme_name || "")));
+                }
 
-            if (kpiModal.title === "Projects: Utilized") {
-                filtered = filtered.filter(p => (fundReceivedValueCache[p.name] || 0) > 0);
-            } else if (kpiModal.title === "Projects: Remaining Balance") {
-                filtered = filtered.filter(p => {
-                    const utilized = fundReceivedValueCache[p.name] || 0;
-                    const sanctioned = Number(p.total_budget_amount || p.grand_total_proposal || 0);
-                    return Math.max(0, sanctioned - utilized) > 0;
-                });
-            } else if (kpiModal.title === "Projects: Total Sanctioned") {
-                filtered = filtered.filter(p => Number(p.total_budget_amount || p.grand_total_proposal || 0) > 0);
-            } else if (kpiModal.title === "Projects: Proposed Budget") {
-                filtered = filtered.filter(p => Number(p.grand_total_proposal || p.total_budget_amount || 0) > 0);
-            } else if (kpiModal.title === "Projects: Research Projects") {
-                filtered = filtered.filter(p => (p.project_type || "").toLowerCase().includes("research"));
-            } else if (kpiModal.title === "Projects: Consultancy Projects") {
-                filtered = filtered.filter(p => (p.project_type || "").toLowerCase().includes("consult"));
-            } else if (kpiModal.title === "Projects: Others Projects") {
-                filtered = filtered.filter(p => {
-                    const pt = (p.project_type || "").toLowerCase();
-                    return !pt.includes("research") && !pt.includes("consult");
-                });
-            }
+                if (kpiModal.title === "Projects: Utilized") {
+                    filtered = filtered.filter(p => (fundReceivedValueCache[p.name] || 0) > 0);
+                } else if (kpiModal.title === "Projects: Remaining Balance") {
+                    filtered = filtered.filter(p => {
+                        const utilized = fundReceivedValueCache[p.name] || 0;
+                        const sanctioned = Number(p.total_budget_amount || p.grand_total_proposal || 0);
+                        return Math.max(0, sanctioned - utilized) > 0;
+                    });
+                } else if (kpiModal.title === "Projects: Total Sanctioned") {
+                    filtered = filtered.filter(p => Number(p.total_budget_amount || p.grand_total_proposal || 0) > 0);
+                } else if (kpiModal.title === "Projects: Proposed Budget") {
+                    filtered = filtered.filter(p => Number(p.grand_total_proposal || p.total_budget_amount || 0) > 0);
+                } else if (kpiModal.title === "Projects: Research Projects") {
+                    filtered = filtered.filter(p => (p.project_type || "").toLowerCase().includes("research"));
+                } else if (kpiModal.title === "Projects: Consultancy Projects") {
+                    filtered = filtered.filter(p => (p.project_type || "").toLowerCase().includes("consult"));
+                } else if (kpiModal.title === "Projects: Others Projects") {
+                    filtered = filtered.filter(p => {
+                        const pt = (p.project_type || "").toLowerCase();
+                        return !pt.includes("research") && !pt.includes("consult");
+                    });
+                }
 
-            if (kpiModal.type === "allocation") {
-                filtered = [...filtered].sort(
-                    (a, b) =>
-                        (b.total_budget_amount || b.grand_total_proposal || 0) -
-                        (a.total_budget_amount || a.grand_total_proposal || 0)
-                );
-            }
+                if (kpiModal.type === "allocation") {
+                    filtered = [...filtered].sort(
+                        (a, b) =>
+                            (b.total_budget_amount || b.grand_total_proposal || 0) -
+                            (a.total_budget_amount || a.grand_total_proposal || 0)
+                    );
+                }
 
                 return filtered;
             }
@@ -1312,8 +1897,9 @@ export function DirectorDashboard() {
             });
         }
 
-        return result;
-    }, [allProjectsList, ongoingIds, submittedIds, kpiModal, kpiTab, kpiAllocTab, kpiStatusFilter, kpiAgeFilter, kpiSchemeFilter, kpiSearchText]);
+        // Attach _status to every row so badges render correctly in the modal table
+        return result.map(p => ({ ...p, _status: kpiGetStatus(p) }));
+    }, [allProjectsList, ongoingIds, submittedIds, fundStatusMap, sanctionDateMap, getEffectiveStartDate, kpiModal, kpiTab, kpiAllocTab, kpiStatusFilter, kpiAgeFilter, kpiSchemeFilter, kpiSearchText]);
 
     const kpiTotalPages = Math.max(
         1,
@@ -1323,6 +1909,17 @@ export function DirectorDashboard() {
         (kpiPage - 1) * KPI_PAGE_SIZE,
         kpiPage * KPI_PAGE_SIZE
     );
+
+    // Keep the fund-sync priority ref pointed at whatever's on screen — current page plus
+    // the next one, so paging forward already has a head start. When the KPI modal is open
+    // it's what the user is actually looking at, so it takes priority over the (hidden
+    // behind it) main dashboard table below.
+    React.useEffect(() => {
+        if (!kpiModal) return;
+        const start = (kpiPage - 1) * KPI_PAGE_SIZE;
+        const end = start + KPI_PAGE_SIZE * 2;
+        visibleProjectNamesRef.current = new Set(kpiModalRows.slice(start, end).map((p: any) => p.name));
+    }, [kpiModal, kpiModalRows, kpiPage]);
 
     // ── FIX: openKpiModal now initialises kpiAllocTab to "ongoing" (not raw workflow state) ──
     const openKpiModal = (type: string, title: string) => {
@@ -1427,48 +2024,67 @@ export function DirectorDashboard() {
         })).sort((a, b) => a.year.localeCompare(b.year));
     }, [allProjectsList]);
 
-    // ── Derived display values ────────────────────────────────────────────────
-    const totalProjects = dashboardProjectTypeFilter === "all" ? (overview.total_projects || 0) : (ongoingIds.size + submittedIds.size);
-    const ongoingProjects = ongoingIds.size;
+    // ── Derived display values — use backend ID sets (not async getProjectStatusLabel) ─
+    const totalProjects = React.useMemo(() =>
+        (allProjectsList ?? []).filter((p: any) => ongoingIds.has(p.name) || submittedIds.has(p.name)).length,
+        [allProjectsList, ongoingIds, submittedIds]
+    );
+    const ongoingProjects = React.useMemo(() =>
+        (allProjectsList ?? []).filter((p: any) => ongoingIds.has(p.name)).length,
+        [allProjectsList, ongoingIds]
+    );
+    const submittedProjectsCount = React.useMemo(() =>
+        (allProjectsList ?? []).filter((p: any) => submittedIds.has(p.name)).length,
+        [allProjectsList, submittedIds]
+    );
     const totalStaffCount = overview.total_staff_count || 0;
+    // ── Pre-process PI and User Names ──
 
     const availableYears = React.useMemo(() => {
         const years = new Set<string>();
         (allProjectsList ?? []).forEach((p: any) => {
-            if (p.prj_start_date) {
-                years.add(new Date(p.prj_start_date).getFullYear().toString());
+            const dateStr = getEffectiveStartDate(p);
+            if (dateStr) {
+                const yr = new Date(dateStr).getFullYear();
+                if (yr >= 2000 && yr <= 2100) years.add(yr.toString());
             }
         });
         return Array.from(years).sort((a, b) => b.localeCompare(a));
-    }, [allProjectsList]);
+    }, [allProjectsList, getEffectiveStartDate]);
 
+    // "Total Sanctioned" must be scoped to ongoing (actually-sanctioned) projects only —
+    // it used to also include submittedIds (proposed-but-not-yet-sanctioned) projects,
+    // which inflated this number relative to fundUtilized/fundRemaining below (those are
+    // computed over ongoingProjectsListForFunds, ongoing-only), producing a mismatched
+    // Sanctioned-minus-Utilized subtraction. Proposed-but-unsanctioned budget already has
+    // its own separate metric: computedProposedBudget.
     const fundAlloc = React.useMemo(() => {
-        if (dashboardProjectTypeFilter === "all" && financialYearFilter === "all" && financialProjectTypeFilter === "all") return funds.total_allocation || 0;
         let sum = 0;
         (allProjectsList ?? []).forEach((p: any) => {
-            if (ongoingIds.has(p.name)) {
-                if (financialYearFilter !== "all") {
-                    const year = p.prj_start_date ? new Date(p.prj_start_date).getFullYear().toString() : null;
-                    if (year !== financialYearFilter) return;
-                }
-                if (financialProjectTypeFilter !== "all") {
-                    const type = (p.project_type || "").toLowerCase();
-                    if (financialProjectTypeFilter === "research" && !(type.includes("research") || type === "r&d project")) return;
-                    if (financialProjectTypeFilter === "consultancy" && !(type.includes("consult") || type === "testing")) return;
-                    if (financialProjectTypeFilter === "others" && (type.includes("research") || type === "r&d project" || type.includes("consult") || type === "testing")) return;
-                }
-                sum += (p.total_budget_amount || p.grand_total_proposal || 0);
+            if (!ongoingIds.has(p.name)) return;
+            if (financialYearFilter !== "all") {
+                const d = getEffectiveStartDate(p);
+                const year = d ? new Date(d).getFullYear().toString() : null;
+                if (year !== financialYearFilter) return;
             }
+            if (financialProjectTypeFilter !== "all") {
+                const type = (p.project_type || "").toLowerCase();
+                if (financialProjectTypeFilter === "research" && !(type.includes("research") || type === "r&d project")) return;
+                if (financialProjectTypeFilter === "consultancy" && !(type.includes("consult") || type === "testing")) return;
+                if (financialProjectTypeFilter === "others" && (type.includes("research") || type === "r&d project" || type.includes("consult") || type === "testing")) return;
+            }
+            sum += (p.total_budget_amount || p.grand_total_proposal || 0);
         });
         return sum;
-    }, [dashboardProjectTypeFilter, funds.total_allocation, allProjectsList, ongoingIds, financialYearFilter, financialProjectTypeFilter]);
+    }, [allProjectsList, ongoingIds, financialYearFilter, financialProjectTypeFilter, getEffectiveStartDate]);
 
     const computedProposedBudget = React.useMemo(() => {
         let sum = 0;
         (allProjectsList ?? []).forEach((p: any) => {
             if (submittedIds.has(p.name)) {
                 if (financialYearFilter !== "all") {
-                    const year = p.prj_start_date ? new Date(p.prj_start_date).getFullYear().toString() : null;
+                    const d = getEffectiveStartDate(p);
+                    const year = d ? new Date(d).getFullYear().toString() : null;
                     if (year !== financialYearFilter) return;
                 }
                 if (financialProjectTypeFilter !== "all") {
@@ -1481,13 +2097,14 @@ export function DirectorDashboard() {
             }
         });
         return sum;
-    }, [allProjectsList, submittedIds, financialYearFilter, financialProjectTypeFilter]);
+    }, [allProjectsList, submittedIds, financialYearFilter, financialProjectTypeFilter, getEffectiveStartDate]);
 
     const ongoingProjectsListForFunds = React.useMemo(() => {
         return (allProjectsList ?? []).filter((p: any) => {
             if (!ongoingIds.has(p.name)) return false;
             if (financialYearFilter !== "all") {
-                const year = p.prj_start_date ? new Date(p.prj_start_date).getFullYear().toString() : null;
+                const d = getEffectiveStartDate(p);
+                const year = d ? new Date(d).getFullYear().toString() : null;
                 if (year !== financialYearFilter) return false;
             }
             if (financialProjectTypeFilter !== "all") {
@@ -1498,7 +2115,7 @@ export function DirectorDashboard() {
             }
             return true;
         });
-    }, [allProjectsList, ongoingIds, financialYearFilter, financialProjectTypeFilter]);
+    }, [allProjectsList, ongoingIds, financialYearFilter, financialProjectTypeFilter, getEffectiveStartDate]);
 
     const { total: liveGlobalUtilized, loading: globalUtilizedLoading, progress: globalUtilizedProgress } = usePIFundReceivedTotal(ongoingProjectsListForFunds);
 
@@ -1814,16 +2431,16 @@ export function DirectorDashboard() {
         (email: string) => {
             if (!email) return "—";
             const lcEmail = email.toLowerCase().trim();
-            
+
             let rawName = emailToNameMap[lcEmail];
             if (!rawName) {
                 // Fallback: capitalize the part before @
                 const username = lcEmail.split("@")[0];
                 rawName = username.charAt(0).toUpperCase() + username.slice(1);
             }
-            
+
             // Deduplicate consecutive identical words (e.g., "Laishram Laishram Boeing" -> "Laishram Boeing")
-            return rawName.split(/\s+/).filter((word, pos, arr) => 
+            return rawName.split(/\s+/).filter((word, pos, arr) =>
                 pos === 0 || word.toLowerCase() !== arr[pos - 1].toLowerCase()
             ).join(" ");
         },
@@ -1909,127 +2526,127 @@ export function DirectorDashboard() {
     const generateReportHTMLString = () => {
         try {
             const deptNameMap: Record<string, string> = {};
-                (deptList ?? []).forEach((d: any) => {
-                    if (d.name && d.dept_name) deptNameMap[d.name] = d.dept_name;
-                });
-                const researchStats = {
-                    ongoing: researchOngoing,
-                    submitted: researchSubmitted,
-                    total: researchProjects,
-                };
-                const consultancyStats = {
-                    ongoing: consultancyOngoing,
-                    submitted: consultancySubmitted,
-                    total: consultancyProjects,
-                };
+            (deptList ?? []).forEach((d: any) => {
+                if (d.name && d.dept_name) deptNameMap[d.name] = d.dept_name;
+            });
+            const researchStats = {
+                ongoing: researchOngoing,
+                submitted: researchSubmitted,
+                total: researchProjects,
+            };
+            const consultancyStats = {
+                ongoing: consultancyOngoing,
+                submitted: consultancySubmitted,
+                total: consultancyProjects,
+            };
 
-                const totalStaffCount = overview?.total_staff_count || 1651;
+            const totalStaffCount = overview?.total_staff_count || 1651;
 
-                const filteredOverview = {
-                    ...overview,
-                    total_projects: totalProjects,
-                    ongoing_projects: ongoingProjects,
-                    submitted_projects: projectStatusCounts.submitted,
-                    total_staff_count: totalStaffCount,
-                };
+            const filteredOverview = {
+                ...overview,
+                total_projects: totalProjects,
+                ongoing_projects: ongoingProjects,
+                submitted_projects: projectStatusCounts.submitted,
+                total_staff_count: totalStaffCount,
+            };
 
-                const computedUtilized = liveGlobalUtilized && liveGlobalUtilized > 0
-                    ? liveGlobalUtilized
-                    : fundUtilized;
-                const computedRemaining = Math.max(0, fundAlloc - computedUtilized);
+            const computedUtilized = liveGlobalUtilized && liveGlobalUtilized > 0
+                ? liveGlobalUtilized
+                : fundUtilized;
+            const computedRemaining = Math.max(0, fundAlloc - computedUtilized);
 
-                const filteredFunds = {
-                    ...funds,
-                    total_allocation: fundAlloc,
-                    utilized: computedUtilized,
-                    remaining: computedRemaining,
-                    proposed: computedProposedBudget,
-                };
+            const filteredFunds = {
+                ...funds,
+                total_allocation: fundAlloc,
+                utilized: computedUtilized,
+                remaining: computedRemaining,
+                proposed: computedProposedBudget,
+            };
 
-                const filteredTopProjects = dashboardProjectTypeFilter === "all" ? topProjects : topProjects.filter((p: any) => ongoingIds.has(p.project_id) || submittedIds.has(p.project_id));
-                const filteredRecentProjects = dashboardProjectTypeFilter === "all" ? recentProjects : recentProjects.filter((p: any) => ongoingIds.has(p.project_id) || submittedIds.has(p.project_id));
-                
-                const filteredFundingTypeData = dashboardProjectTypeFilter === "all" ? fundingTypeData : pieChartFundingData.map((d: any) => ({ name: d.name, value: d.value, funding_agency: d.name }));
+            const filteredTopProjects = dashboardProjectTypeFilter === "all" ? topProjects : topProjects.filter((p: any) => ongoingIds.has(p.project_id) || submittedIds.has(p.project_id));
+            const filteredRecentProjects = dashboardProjectTypeFilter === "all" ? recentProjects : recentProjects.filter((p: any) => ongoingIds.has(p.project_id) || submittedIds.has(p.project_id));
 
-                const filteredStartEndSanctionData = dashboardProjectTypeFilter === "all" ? startEndSanctionData : (() => {
-                    const yearMap: Record<string, { year: string; startAmount: number; endAmount: number }> = {};
-                    (allProjectsList ?? []).forEach((proj: any) => {
-                        if (!ongoingIds.has(proj.name) && !submittedIds.has(proj.name)) return;
-                        const startYear = proj.prj_start_date ? new Date(proj.prj_start_date).getFullYear().toString() : null;
-                        const endYear = proj.prj_end_date ? new Date(proj.prj_end_date).getFullYear().toString() : null;
-                        const amount = proj.total_budget_amount || proj.grand_total_proposal || 0;
+            const filteredFundingTypeData = dashboardProjectTypeFilter === "all" ? fundingTypeData : pieChartFundingData.map((d: any) => ({ name: d.name, value: d.value, funding_agency: d.name }));
 
-                        if (startYear) {
-                            if (!yearMap[startYear]) yearMap[startYear] = { year: startYear, startAmount: 0, endAmount: 0 };
-                            yearMap[startYear].startAmount += amount;
-                        }
-                        if (endYear) {
-                            if (!yearMap[endYear]) yearMap[endYear] = { year: endYear, startAmount: 0, endAmount: 0 };
-                            yearMap[endYear].endAmount += amount;
-                        }
-                    });
-                    return Object.values(yearMap).map(d => ({
-                        year: d.year,
-                        startAmount: d.startAmount,
-                        endAmount: d.endAmount
-                    })).sort((a, b) => a.year.localeCompare(b.year));
-                })();
-
-                const sanitizedProjectStatusByYearData = projectStatusByYearData.map((d: any) => ({
-                    year: d.year,
-                    submitted: d.submitted === null ? 0 : d.submitted,
-                    ongoing: d.ongoing === null ? 0 : d.ongoing
-                }));
-
-                const piBudgetMap: Record<string, number> = {};
+            const filteredStartEndSanctionData = dashboardProjectTypeFilter === "all" ? startEndSanctionData : (() => {
+                const yearMap: Record<string, { year: string; startAmount: number; endAmount: number }> = {};
                 (allProjectsList ?? []).forEach((proj: any) => {
-                    const email = (proj.pi_webmail || "").toLowerCase().trim();
-                    if (email) {
-                        piBudgetMap[email] = (piBudgetMap[email] || 0) + (proj.total_budget_amount || proj.grand_total_proposal || 0);
+                    if (!ongoingIds.has(proj.name) && !submittedIds.has(proj.name)) return;
+                    const startYear = proj.prj_start_date ? new Date(proj.prj_start_date).getFullYear().toString() : null;
+                    const endYear = proj.prj_end_date ? new Date(proj.prj_end_date).getFullYear().toString() : null;
+                    const amount = proj.total_budget_amount || proj.grand_total_proposal || 0;
+
+                    if (startYear) {
+                        if (!yearMap[startYear]) yearMap[startYear] = { year: startYear, startAmount: 0, endAmount: 0 };
+                        yearMap[startYear].startAmount += amount;
+                    }
+                    if (endYear) {
+                        if (!yearMap[endYear]) yearMap[endYear] = { year: endYear, startAmount: 0, endAmount: 0 };
+                        yearMap[endYear].endAmount += amount;
                     }
                 });
-                const enrichedPIs = filteredPIs.slice(0, 8).map((pi: any) => ({
-                    ...pi,
-                    total_budget: piBudgetMap[(pi.user_email || "").toLowerCase().trim()] || 0,
-                }));
+                return Object.values(yearMap).map(d => ({
+                    year: d.year,
+                    startAmount: d.startAmount,
+                    endAmount: d.endAmount
+                })).sort((a, b) => a.year.localeCompare(b.year));
+            })();
 
-                const resolvedPieChartDeptData = pieChartDeptData.map((d: any) => ({
-                    ...d,
-                    dept_name: getDeptName(d.dept_name),
-                }));
+            const sanitizedProjectStatusByYearData = projectStatusByYearData.map((d: any) => ({
+                year: d.year,
+                submitted: d.submitted === null ? 0 : d.submitted,
+                ongoing: d.ongoing === null ? 0 : d.ongoing
+            }));
 
-                const resolvedFundingTypeData = pieChartFundingData.map((f: any) => ({
-                    name: f.funding_agency || f.name,
-                    value: f.value,
-                }));
+            const piBudgetMap: Record<string, number> = {};
+            (allProjectsList ?? []).forEach((proj: any) => {
+                const email = (proj.pi_webmail || "").toLowerCase().trim();
+                if (email) {
+                    piBudgetMap[email] = (piBudgetMap[email] || 0) + (proj.total_budget_amount || proj.grand_total_proposal || 0);
+                }
+            });
+            const enrichedPIs = filteredPIs.slice(0, 8).map((pi: any) => ({
+                ...pi,
+                total_budget: piBudgetMap[(pi.user_email || "").toLowerCase().trim()] || 0,
+            }));
 
-                const html = generateDirectorReportHtml({
-                    overview: filteredOverview,
-                    funds: filteredFunds,
-                    intl,
-                    proposals,
-                    ipr,
-                    topProjects: filteredTopProjects,
-                    recentProjects: filteredRecentProjects,
-                    projectStatusByYearData: sanitizedProjectStatusByYearData,
-                    fundingTypeData: resolvedFundingTypeData,
-                    topInvestigators: enrichedPIs,
-                    pieChartDeptData: resolvedPieChartDeptData,
-                    fullName,
-                    deptNameMap,
-                    researchStats,
-                    consultancyStats,
-                    startEndSanctionData: filteredStartEndSanctionData.map((d: any) => ({
-                        year: d.year,
-                        startAmount: d.startAmount === null ? 0 : d.startAmount,
-                        endAmount: d.endAmount === null ? 0 : d.endAmount
-                    })),
-                });
-                return html;
-            } catch (err) {
-                console.error("Failed to generate report:", err);
-                return null;
-            }
+            const resolvedPieChartDeptData = pieChartDeptData.map((d: any) => ({
+                ...d,
+                dept_name: getDeptName(d.dept_name),
+            }));
+
+            const resolvedFundingTypeData = pieChartFundingData.map((f: any) => ({
+                name: f.funding_agency || f.name,
+                value: f.value,
+            }));
+
+            const html = generateDirectorReportHtml({
+                overview: filteredOverview,
+                funds: filteredFunds,
+                intl,
+                proposals,
+                ipr,
+                topProjects: filteredTopProjects,
+                recentProjects: filteredRecentProjects,
+                projectStatusByYearData: sanitizedProjectStatusByYearData,
+                fundingTypeData: resolvedFundingTypeData,
+                topInvestigators: enrichedPIs,
+                pieChartDeptData: resolvedPieChartDeptData,
+                fullName,
+                deptNameMap,
+                researchStats,
+                consultancyStats,
+                startEndSanctionData: filteredStartEndSanctionData.map((d: any) => ({
+                    year: d.year,
+                    startAmount: d.startAmount === null ? 0 : d.startAmount,
+                    endAmount: d.endAmount === null ? 0 : d.endAmount
+                })),
+            });
+            return html;
+        } catch (err) {
+            console.error("Failed to generate report:", err);
+            return null;
+        }
     };
 
     const executeReportGeneration = () => {
@@ -2048,14 +2665,14 @@ export function DirectorDashboard() {
 
     const handleDownloadClick = () => {
         if (isLoading) return;
-        
+
         setIsGeneratingReport(true);
-        
+
         if (globalUtilizedLoading) {
             setIsWaitingForFunds(true);
             return;
         }
-        
+
         // If data is already loaded, generate instantly
         executeReportGeneration();
     };
@@ -2205,7 +2822,7 @@ export function DirectorDashboard() {
         if (allProjectsList) {
             allProjectsList.forEach((p: any) => {
                 if ((p.origin_of_funding_agency || "").toLowerCase() !== "international") return;
-                
+
                 const type = (p.project_type || "").toLowerCase();
                 const isOngoing = ongoingIds.has(p.name);
                 const isSubmitted = submittedIds.has(p.name);
@@ -2225,7 +2842,7 @@ export function DirectorDashboard() {
                 }
             });
         }
-        
+
         return (
             <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
                 <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
@@ -2312,8 +2929,10 @@ export function DirectorDashboard() {
 
         if (kpiModal?.year) {
             base = base.filter(p => {
-                const y = p.prj_start_date ? String(new Date(p.prj_start_date).getFullYear()) : "2024";
-                return y === kpiModal.year;
+                const dateStr = getEffectiveStartDate(p);
+                if (!dateStr) return false;
+                const yr = new Date(dateStr).getFullYear();
+                return !isNaN(yr) && String(yr) === kpiModal.year;
             });
         }
         if (kpiModal?.projectType) {
@@ -2347,11 +2966,32 @@ export function DirectorDashboard() {
             });
         }
 
+        const getStatusKey = (p: any): string => {
+            if (!ongoingIds.has(p.name)) return submittedIds.has(p.name) ? "pending_sanction" : "other";
+            const hasStartDate = !!(sanctionDateMap.get(p.name) || p.prj_start_date || p.sanctioned_letter_date);
+            const hasFundReceived = fundStatusMap.get(p.name) === true;
+            if (hasFundReceived) return "ongoing";
+            if (hasStartDate) return "pending_fund";
+            return "approved_sanction";
+        };
+
         if (tabKey !== "draft" && tabKey !== "pending") {
             if (kpiModal?.type === "ongoing" || kpiStatusFilter === "ongoing") {
-                base = base.filter(p => ongoingIds.has(p.name));
+                // Ongoing = sanction approved, regardless of fund-received status:
+                // covers Approved Sanction, Fund Received Pending, and Active alike.
+                base = base.filter(p => {
+                    const s = getStatusKey(p);
+                    return s === "ongoing" || s === "pending_fund" || s === "approved_sanction";
+                });
+            } else if (kpiStatusFilter === "pending_fund") {
+                base = base.filter(p => getStatusKey(p) === "pending_fund");
+            } else if (kpiStatusFilter === "approved_sanction") {
+                base = base.filter(p => getStatusKey(p) === "approved_sanction");
             } else if (kpiStatusFilter === "submitted") {
-                base = base.filter(p => submittedIds.has(p.name));
+                // Submitted = not yet sanction-approved.
+                base = base.filter(p => getStatusKey(p) === "pending_sanction");
+            } else if (kpiStatusFilter === "pending_sanction") {
+                base = base.filter(p => getStatusKey(p) === "pending_sanction");
             } else {
                 base = base.filter(p => ongoingIds.has(p.name) || submittedIds.has(p.name));
             }
@@ -2412,12 +3052,14 @@ export function DirectorDashboard() {
             if (tabKey === "draft") return (p.workflow_state || "").toLowerCase().includes("draft") || p.docstatus === 0;
             if (tabKey === "pending") return !((p.workflow_state || "").toLowerCase().includes("draft") || p.docstatus === 0);
             const t = (p.project_type || "").toLowerCase();
-            if (tabKey === "research") return isProjectComplete(p) && t.includes("research");
-            if (tabKey === "consultancy") return isProjectComplete(p) && t.includes("consult");
-            if (tabKey === "others") return isProjectComplete(p) && !t.includes("research") && !t.includes("consult");
+            // No isProjectComplete gate — Research/Consultancy/Others must sum to the full
+            // status-filtered total, matching kpiModalRows' equivalent tab filter above.
+            if (tabKey === "research") return t.includes("research");
+            if (tabKey === "consultancy") return t.includes("consult");
+            if (tabKey === "others") return !t.includes("research") && !t.includes("consult");
             return false;
         }).length;
-    }, [kpiModal, kpiStatusFilter, kpiAgeFilter, kpiSchemeFilter, allProjectsList, ongoingIds, submittedIds]);
+    }, [kpiModal, kpiStatusFilter, kpiAgeFilter, kpiSchemeFilter, allProjectsList, ongoingIds, submittedIds, fundStatusMap, sanctionDateMap, getEffectiveStartDate]);
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans text-[14px] leading-relaxed text-[#3F3F46] dark:text-[#E4E4E7]">
@@ -2488,69 +3130,61 @@ export function DirectorDashboard() {
                         <div className="flex items-center gap-2.5 overflow-x-auto pb-1">
                             <button
                                 onClick={() => setDashboardProjectTypeFilter("all")}
-                                className={`flex h-9 flex-shrink-0 items-center gap-2 rounded-lg border px-3.5 text-[11px] font-extrabold uppercase tracking-wide transition-all duration-150 ${
-                                    dashboardProjectTypeFilter === "all"
-                                        ? "bg-[#F5F3FF] border-[#7C3AED] text-[#4C1D95] shadow-sm shadow-[#7C3AED]/10 dark:bg-[#7C3AED]/18 dark:border-[#A78BFA] dark:text-[#DDD6FE]"
-                                        : "border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]"
-                                }`}
+                                className={`flex h-9 flex-shrink-0 items-center gap-2 rounded-lg border px-3.5 text-[11px] font-extrabold uppercase tracking-wide transition-all duration-150 ${dashboardProjectTypeFilter === "all"
+                                    ? "bg-[#F5F3FF] border-[#7C3AED] text-[#4C1D95] shadow-sm shadow-[#7C3AED]/10 dark:bg-[#7C3AED]/18 dark:border-[#A78BFA] dark:text-[#DDD6FE]"
+                                    : "border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]"
+                                    }`}
                             >
                                 All Projects
-                                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                                    dashboardProjectTypeFilter === "all"
-                                        ? "bg-[#7C3AED] text-white"
-                                        : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50 dark:text-[#A1A1AA]"
-                                }`}>
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${dashboardProjectTypeFilter === "all"
+                                    ? "bg-[#7C3AED] text-white"
+                                    : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50 dark:text-[#A1A1AA]"
+                                    }`}>
                                     {globalTypeCounts.all}
                                 </span>
                             </button>
                             <button
                                 onClick={() => setDashboardProjectTypeFilter("research")}
-                                className={`flex h-9 flex-shrink-0 items-center gap-2 rounded-lg border px-3.5 text-[11px] font-extrabold uppercase tracking-wide transition-all duration-150 ${
-                                    dashboardProjectTypeFilter === "research"
-                                        ? "bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A] shadow-sm shadow-[#4A6CF7]/10 dark:bg-[#4A6CF7]/18 dark:border-[#818CF8] dark:text-[#C7D2FE]"
-                                        : "border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]"
-                                }`}
+                                className={`flex h-9 flex-shrink-0 items-center gap-2 rounded-lg border px-3.5 text-[11px] font-extrabold uppercase tracking-wide transition-all duration-150 ${dashboardProjectTypeFilter === "research"
+                                    ? "bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A] shadow-sm shadow-[#4A6CF7]/10 dark:bg-[#4A6CF7]/18 dark:border-[#818CF8] dark:text-[#C7D2FE]"
+                                    : "border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]"
+                                    }`}
                             >
                                 Research
-                                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                                    dashboardProjectTypeFilter === "research"
-                                        ? "bg-[#4A6CF7] text-white"
-                                        : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50 dark:text-[#A1A1AA]"
-                                }`}>
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${dashboardProjectTypeFilter === "research"
+                                    ? "bg-[#4A6CF7] text-white"
+                                    : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50 dark:text-[#A1A1AA]"
+                                    }`}>
                                     {globalTypeCounts.r}
                                 </span>
                             </button>
                             <button
                                 onClick={() => setDashboardProjectTypeFilter("consultancy")}
-                                className={`flex h-9 flex-shrink-0 items-center gap-2 rounded-lg border px-3.5 text-[11px] font-extrabold uppercase tracking-wide transition-all duration-150 ${
-                                    dashboardProjectTypeFilter === "consultancy"
-                                        ? "border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] shadow-sm shadow-[#10B981]/10 dark:border-[#10B981]/30 dark:bg-[#10B981]/10 dark:text-[#A7F3D0]"
-                                        : "border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]"
-                                }`}
+                                className={`flex h-9 flex-shrink-0 items-center gap-2 rounded-lg border px-3.5 text-[11px] font-extrabold uppercase tracking-wide transition-all duration-150 ${dashboardProjectTypeFilter === "consultancy"
+                                    ? "border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] shadow-sm shadow-[#10B981]/10 dark:border-[#10B981]/30 dark:bg-[#10B981]/10 dark:text-[#A7F3D0]"
+                                    : "border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]"
+                                    }`}
                             >
                                 Consultancy
-                                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                                    dashboardProjectTypeFilter === "consultancy"
-                                        ? "bg-white/80 text-[#059669] dark:bg-[#18181B]/50"
-                                        : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50 dark:text-[#A1A1AA]"
-                                }`}>
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${dashboardProjectTypeFilter === "consultancy"
+                                    ? "bg-white/80 text-[#059669] dark:bg-[#18181B]/50"
+                                    : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50 dark:text-[#A1A1AA]"
+                                    }`}>
                                     {globalTypeCounts.c}
                                 </span>
                             </button>
                             <button
                                 onClick={() => setDashboardProjectTypeFilter("others")}
-                                className={`flex h-9 flex-shrink-0 items-center gap-2 rounded-lg border px-3.5 text-[11px] font-extrabold uppercase tracking-wide transition-all duration-150 ${
-                                    dashboardProjectTypeFilter === "others"
-                                        ? "bg-[#FAFAF9] border-[#71717A] text-[#27272A] shadow-sm dark:bg-[#27272A] dark:border-[#A1A1AA] dark:text-[#F4F4F5]"
-                                        : "border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]"
-                                }`}
+                                className={`flex h-9 flex-shrink-0 items-center gap-2 rounded-lg border px-3.5 text-[11px] font-extrabold uppercase tracking-wide transition-all duration-150 ${dashboardProjectTypeFilter === "others"
+                                    ? "bg-[#FAFAF9] border-[#71717A] text-[#27272A] shadow-sm dark:bg-[#27272A] dark:border-[#A1A1AA] dark:text-[#F4F4F5]"
+                                    : "border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]"
+                                    }`}
                             >
                                 Others
-                                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                                    dashboardProjectTypeFilter === "others"
-                                        ? "bg-[#71717A] text-white dark:bg-[#A1A1AA] dark:text-black"
-                                        : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50 dark:text-[#A1A1AA]"
-                                }`}>
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${dashboardProjectTypeFilter === "others"
+                                    ? "bg-[#71717A] text-white dark:bg-[#A1A1AA] dark:text-black"
+                                    : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50 dark:text-[#A1A1AA]"
+                                    }`}>
                                     {globalTypeCounts.o}
                                 </span>
                             </button>
@@ -2592,15 +3226,15 @@ export function DirectorDashboard() {
                                                 onClick={(e) => { e.stopPropagation(); openKpiModalWithTab("total", "All Projects", "Ongoing"); }}
                                             >
                                                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                                {projectStatusCounts.ongoing} Ongoing
+                                                {ongoingProjects} Ongoing
                                             </span>
                                             <span
                                                 className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 cursor-pointer hover:brightness-95 transition-all"
-                                                title="Registration but pending sanction"
+                                                title="Pending Sanction / Approved Sanction / Pending Fund Received"
                                                 onClick={(e) => { e.stopPropagation(); openKpiModalWithTab("total", "All Projects", "Submitted"); }}
                                             >
                                                 <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                                                {projectStatusCounts.submitted} Submitted
+                                                {submittedProjectsCount} Submitted
                                             </span>
                                         </div>
                                     )
@@ -2608,7 +3242,7 @@ export function DirectorDashboard() {
                             />
                             <KpiCard
                                 label="Total Allocation"
-                                description="From sanctioned & fund-approved projects"
+                                description="From all ongoing (sanction-approved) projects"
                                 value={isLoading ? "—" : formatCurrency(fundAlloc)}
                                 subtext={isLoading ? "" : `${fundUtilPercent}% utilized`}
                                 icon={
@@ -2690,6 +3324,461 @@ export function DirectorDashboard() {
                             />
                         </div>
 
+                        {/* ── System Activity (forms processed across the app, all doctypes) ── */}
+                        <SectionDivider title="System Activity — Form Submissions" />
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-[14px] mb-[14px]">
+                            <KpiCard
+                                label="Today"
+                                value={isProcessCountsLoading ? "—" : String(processCounts?.totals.today ?? 0)}
+                                subtext={
+                                    isProcessCountsLoading || !processCounts?.totals.this_week
+                                        ? ""
+                                        : `${Math.round((processCounts.totals.today / processCounts.totals.this_week) * 100)}% of this week's volume`
+                                }
+                                icon={
+                                    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <polyline points="12 6 12 12 16 14" />
+                                    </svg>
+                                }
+                                valueColor="text-orange-700 dark:text-orange-400"
+                                iconBg="#fff7ed"
+                                circleColor="#ea580c"
+                            />
+                            <KpiCard
+                                label="This Week"
+                                value={isProcessCountsLoading ? "—" : String(processCounts?.totals.this_week ?? 0)}
+                                subtext={
+                                    isProcessCountsLoading || !processCounts?.totals.this_month
+                                        ? ""
+                                        : `${Math.round((processCounts.totals.this_week / processCounts.totals.this_month) * 100)}% of this month's volume`
+                                }
+                                icon={
+                                    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                        <path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" />
+                                    </svg>
+                                }
+                                valueColor="text-blue-700 dark:text-blue-400"
+                                iconBg="#eff6ff"
+                                circleColor="#2563eb"
+                            />
+                            <KpiCard
+                                label="This Month"
+                                value={isProcessCountsLoading ? "—" : String(processCounts?.totals.this_month ?? 0)}
+                                subtext={
+                                    isProcessCountsLoading || !processCounts?.totals.total
+                                        ? ""
+                                        : `${Math.round((processCounts.totals.this_month / processCounts.totals.total) * 100)}% of all-time total`
+                                }
+                                icon={
+                                    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                        <rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /><path d="M8 2v4" /><path d="M16 2v4" /><path d="M8 14h.01" /><path d="M12 14h.01" /><path d="M16 14h.01" />
+                                    </svg>
+                                }
+                                valueColor="text-violet-700 dark:text-violet-400"
+                                iconBg="#f5f3ff"
+                                circleColor="#7c3aed"
+                            />
+                            <KpiCard
+                                label="Total (All Time)"
+                                value={isProcessCountsLoading ? "—" : String(processCounts?.totals.total ?? 0)}
+                                subtext={
+                                    isProcessCountsLoading || sortedDoctypeCounts.length === 0
+                                        ? ""
+                                        : `Across ${sortedDoctypeCounts.length} application types`
+                                }
+                                icon={
+                                    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                        <ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+                                    </svg>
+                                }
+                                valueColor="text-emerald-700 dark:text-emerald-400"
+                                iconBg="#ecfdf5"
+                                circleColor="#059669"
+                            />
+                        </div>
+                        {/* Trend chart */}
+                        <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden mb-[14px]">
+                            <div className="p-[18px] px-[24px] pb-[16px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
+                                <div>
+                                    <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-sm shadow-indigo-500/30">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                                <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /><polyline points="16 7 22 7 22 13" />
+                                            </svg>
+                                        </div>
+                                        Forms Processed Over Time
+                                    </div>
+                                    <p className="text-[11px] text-[#A1A1AA] mt-1 ml-[42px]">Daily volume with weekly &amp; monthly averages overlaid — last 30 days</p>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    {Object.values(TREND_SERIES_STYLE).map((s) => (
+                                        <div key={s.key} className="flex items-center gap-1.5">
+                                            <span className="w-[9px] h-[9px] rounded-full shrink-0" style={{ backgroundColor: s.stroke }} />
+                                            <span className="text-[10.5px] font-bold text-[#71717A] dark:text-[#A1A1AA]">{s.label}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="p-[18px] px-[22px] pb-6">
+                                {!isProcessCountsLoading && combinedTrendData.length > 0 && (
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
+                                        <div className={`rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] ${TREND_SERIES_STYLE.daily.chipBg} px-3.5 py-2.5`}>
+                                            <div className="text-[9.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide mb-1">
+                                                Daily Avg (30D)
+                                            </div>
+                                            <div className="text-[17px] font-extrabold tabular-nums" style={{ color: TREND_SERIES_STYLE.daily.stroke }}>
+                                                {combinedTrendStats.dailyAvg.toLocaleString("en-IN")}
+                                            </div>
+                                        </div>
+                                        <div className={`rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] ${TREND_SERIES_STYLE.weeklyAvg.chipBg} px-3.5 py-2.5`}>
+                                            <div className="text-[9.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide mb-1">
+                                                Weekly Avg/Day
+                                            </div>
+                                            <div className="text-[17px] font-extrabold tabular-nums" style={{ color: TREND_SERIES_STYLE.weeklyAvg.stroke }}>
+                                                {combinedTrendStats.weeklyAvg.toLocaleString("en-IN")}
+                                            </div>
+                                        </div>
+                                        <div className={`rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] ${TREND_SERIES_STYLE.monthlyAvg.chipBg} px-3.5 py-2.5`}>
+                                            <div className="text-[9.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide mb-1">
+                                                Monthly Avg/Day
+                                            </div>
+                                            <div className="text-[17px] font-extrabold tabular-nums" style={{ color: TREND_SERIES_STYLE.monthlyAvg.stroke }}>
+                                                {combinedTrendStats.monthlyAvg.toLocaleString("en-IN")}
+                                            </div>
+                                        </div>
+                                        <div className={`rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] px-3.5 py-2.5 ${combinedTrendStats.trendDirection === "up" ? "bg-emerald-50 dark:bg-emerald-950/20" : combinedTrendStats.trendDirection === "down" ? "bg-red-50 dark:bg-red-950/20" : "bg-[#FAFAF9] dark:bg-[#18181B]"}`}>
+                                            <div className="text-[9.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide mb-1">
+                                                Today vs Yesterday
+                                            </div>
+                                            <div className={`text-[17px] font-extrabold tabular-nums flex items-center gap-1 ${combinedTrendStats.trendDirection === "up" ? "text-emerald-600 dark:text-emerald-400" : combinedTrendStats.trendDirection === "down" ? "text-red-600 dark:text-red-400" : "text-[#3F3F46] dark:text-[#E4E4E7]"}`}>
+                                                {combinedTrendStats.trendDirection === "up" && <TrendingUp size={15} />}
+                                                {combinedTrendStats.trendDirection === "down" && <TrendingDown size={15} />}
+                                                {combinedTrendStats.trendDirection === "flat" && <Minus size={15} />}
+                                                {combinedTrendStats.trendPct > 0 ? "+" : ""}{combinedTrendStats.trendPct}%
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="h-[300px]">
+                                    {isProcessCountsLoading ? (
+                                        <div className="w-full h-full flex flex-col items-center justify-center text-[#71717A] text-sm gap-3">
+                                            <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                                            <span className="font-medium">Loading activity...</span>
+                                        </div>
+                                    ) : combinedTrendData.length > 0 ? (
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <ComposedChart data={combinedTrendData} margin={{ top: 20, right: 12, left: -18, bottom: 0 }}>
+                                                <defs>
+                                                    <linearGradient id={TREND_SERIES_STYLE.daily.gradientId} x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="0%" stopColor={TREND_SERIES_STYLE.daily.stroke} stopOpacity={0.28} />
+                                                        <stop offset="100%" stopColor={TREND_SERIES_STYLE.daily.stroke} stopOpacity={0.02} />
+                                                    </linearGradient>
+                                                </defs>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="#E4E4E7" vertical={false} />
+                                                <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#71717A", fontWeight: 600 }} axisLine={false} tickLine={false} dy={8} interval={4} />
+                                                <YAxis tick={{ fontSize: 12, fill: "#71717A" }} axisLine={false} tickLine={false} />
+                                                <Tooltip
+                                                    contentStyle={{ borderRadius: "0.75rem", border: "1px solid #27272A", background: "#18181B", boxShadow: "0 8px 24px rgba(0,0,0,0.25)" }}
+                                                    labelStyle={{ color: "#f4f4f5", fontWeight: 700, fontSize: 12, marginBottom: 4 }}
+                                                    itemStyle={{ fontSize: 12, fontWeight: 600 }}
+                                                    cursor={{ stroke: "#A1A1AA", strokeWidth: 1, strokeDasharray: "4 4" }}
+                                                />
+                                                <Area
+                                                    type="monotone"
+                                                    dataKey="daily"
+                                                    name={TREND_SERIES_STYLE.daily.label}
+                                                    stroke={TREND_SERIES_STYLE.daily.stroke}
+                                                    strokeWidth={2.5}
+                                                    fill={`url(#${TREND_SERIES_STYLE.daily.gradientId})`}
+                                                    dot={false}
+                                                    activeDot={{ r: 5, fill: TREND_SERIES_STYLE.daily.stroke, strokeWidth: 2, stroke: "#fff" }}
+                                                    isAnimationActive={false}
+                                                />
+                                                <Line
+                                                    type="monotone"
+                                                    dataKey="weeklyAvg"
+                                                    name={TREND_SERIES_STYLE.weeklyAvg.label}
+                                                    stroke={TREND_SERIES_STYLE.weeklyAvg.stroke}
+                                                    strokeWidth={2.5}
+                                                    strokeDasharray="5 3"
+                                                    dot={false}
+                                                    activeDot={{ r: 4.5, fill: TREND_SERIES_STYLE.weeklyAvg.stroke, strokeWidth: 2, stroke: "#fff" }}
+                                                    isAnimationActive={false}
+                                                />
+                                                <Line
+                                                    type="monotone"
+                                                    dataKey="monthlyAvg"
+                                                    name={TREND_SERIES_STYLE.monthlyAvg.label}
+                                                    stroke={TREND_SERIES_STYLE.monthlyAvg.stroke}
+                                                    strokeWidth={2.5}
+                                                    strokeDasharray="2 2"
+                                                    dot={false}
+                                                    activeDot={{ r: 4.5, fill: TREND_SERIES_STYLE.monthlyAvg.stroke, strokeWidth: 2, stroke: "#fff" }}
+                                                    isAnimationActive={false}
+                                                />
+                                            </ComposedChart>
+                                        </ResponsiveContainer>
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">
+                                            No data available
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-[14px] mb-6 items-start">
+                        {/* Application-wise breakdown */}
+                        <div className="lg:col-span-2 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden flex flex-col">
+                            <div className="p-[18px] px-[24px] pb-[16px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
+                                <div>
+                                    <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-sm shadow-emerald-500/30">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                                <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M8 13h2" /><path d="M14 13h2" /><path d="M8 17h2" /><path d="M14 17h2" />
+                                            </svg>
+                                        </div>
+                                        Application-wise Activity
+                                    </div>
+                                    <p className="text-[11px] text-[#A1A1AA] mt-1 ml-[42px]">Ranked by total submissions, most active first</p>
+                                </div>
+                                <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                    <span className="text-[10px] font-bold text-[#059669] bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                                        {showAllActivityApps ? sortedDoctypeCounts.length : Math.min(ACTIVITY_TOP_N, sortedDoctypeCounts.length)} of {sortedDoctypeCounts.length} apps
+                                    </span>
+                                    <div className="hidden md:flex items-center gap-2 flex-wrap justify-end max-w-[280px]">
+                                        {presentVolumeTiers.map((tier) => (
+                                            <div key={tier.label} className="flex items-center gap-1">
+                                                <span className="w-[7px] h-[7px] rounded-full shrink-0" style={{ backgroundColor: tier.color.to }} />
+                                                <span className="text-[9px] font-semibold text-[#A1A1AA]">{tier.label}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="max-h-[560px] overflow-y-auto">
+                                {isProcessCountsLoading ? (
+                                    <div className="flex flex-col items-center justify-center text-[#71717A] text-sm gap-3 py-16">
+                                        <div className="w-5 h-5 border-2 border-[#059669] border-t-transparent rounded-full animate-spin"></div>
+                                        <span className="font-medium">Loading applications...</span>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="hidden sm:flex items-center gap-3 px-[22px] py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] text-[9.5px] font-bold uppercase tracking-widest text-[#A1A1AA]">
+                                            <span className="w-6 shrink-0" />
+                                            <span className="w-[220px] shrink-0">Application</span>
+                                            <span className="flex-1">Volume</span>
+                                            <span className="w-[168px] shrink-0 text-right">Today &nbsp;·&nbsp; Week &nbsp;·&nbsp; Month</span>
+                                            <span className="w-[54px] shrink-0 text-right">Total</span>
+                                        </div>
+                                        <div className="divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]">
+                                            {visibleDoctypeCounts.map((row, idx) => {
+                                                const isExpanded = expandedActivityDoctypes.has(row.doctype);
+                                                const hasChildren = row.children.length > 0;
+                                                const pct = Math.max(3, Math.round((row.total / maxDoctypeTotal) * 100));
+                                                const volumeColor = getVolumeBucketColor(row.total);
+                                                const rankColors = idx === 0
+                                                    ? "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
+                                                    : idx === 1
+                                                        ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                                                        : idx === 2
+                                                            ? "bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400"
+                                                            : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B] dark:text-[#A1A1AA]";
+                                                return (
+                                                    <div key={row.doctype}>
+                                                        <div
+                                                            className={`flex items-center gap-3 px-[22px] py-2.5 ${hasChildren ? "cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B]" : ""} transition-colors`}
+                                                            onClick={() => hasChildren && toggleActivityDoctype(row.doctype)}
+                                                        >
+                                                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-extrabold shrink-0 tabular-nums ${rankColors}`}>
+                                                                {idx + 1}
+                                                            </span>
+                                                            <div className="w-[220px] shrink-0 flex items-center gap-1.5 min-w-0">
+                                                                {hasChildren ? (
+                                                                    <ChevronDown size={12} className={`text-[#A1A1AA] shrink-0 transition-transform ${isExpanded ? "" : "-rotate-90"}`} />
+                                                                ) : (
+                                                                    <span className="w-3 shrink-0" />
+                                                                )}
+                                                                <span className="text-[12.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">
+                                                                    {row.doctype}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex-1 h-[7px] rounded-full bg-[#F4F4F5] dark:bg-[#3F3F46] overflow-hidden">
+                                                                <div
+                                                                    className="h-full rounded-full"
+                                                                    style={{ width: `${pct}%`, background: `linear-gradient(to right, ${volumeColor.from}, ${volumeColor.to})` }}
+                                                                />
+                                                            </div>
+                                                            <div className="hidden sm:flex w-[168px] shrink-0 items-center justify-end gap-2 text-[10px] font-semibold text-[#A1A1AA] tabular-nums">
+                                                                <span className="w-[38px] text-right">{row.today}</span>
+                                                                <span className="text-[#D4D4D8] dark:text-[#3F3F46]">·</span>
+                                                                <span className="w-[38px] text-right">{row.this_week}</span>
+                                                                <span className="text-[#D4D4D8] dark:text-[#3F3F46]">·</span>
+                                                                <span className="w-[38px] text-right">{row.this_month}</span>
+                                                            </div>
+                                                            <span className={`w-[54px] shrink-0 text-right text-[13.5px] font-extrabold tabular-nums ${volumeColor.text}`}>
+                                                                {row.total}
+                                                            </span>
+                                                        </div>
+                                                        {isExpanded && hasChildren && (
+                                                            <div className="bg-[#FAFAF9] dark:bg-[#18181B] px-[22px] py-1.5 space-y-1">
+                                                                {row.children.map((child) => (
+                                                                    <div key={`${row.doctype}-${child.fieldname}`} className="flex items-center gap-3 pl-9">
+                                                                        <span className="text-[10.5px] text-[#71717A] dark:text-[#A1A1AA] truncate flex-1">
+                                                                            ↳ {child.doctype}
+                                                                        </span>
+                                                                        <span className="hidden sm:inline text-[10px] font-semibold text-[#A1A1AA] tabular-nums w-[168px] text-right">
+                                                                            {child.today} · {child.this_week} · {child.this_month}
+                                                                        </span>
+                                                                        <span className="text-[10.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums w-[54px] text-right">
+                                                                            {child.total}
+                                                                        </span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                            {!isProcessCountsLoading && sortedDoctypeCounts.length > ACTIVITY_TOP_N && (
+                                <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] p-2.5 shrink-0">
+                                    <button
+                                        onClick={() => setShowAllActivityApps((v) => !v)}
+                                        className="w-full py-2 rounded-lg text-[11.5px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors"
+                                    >
+                                        {showAllActivityApps ? "Show Top 10" : `Show All (${sortedDoctypeCounts.length})`}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Usage tier distribution */}
+                        <div className="lg:col-span-1 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden flex flex-col h-full">
+                            <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between gap-2">
+                                <div>
+                                    <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-rose-500 to-orange-500 text-white shadow-sm shadow-rose-500/30">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                                <path d="M21.21 15.89A10 10 0 1 1 8 2.83" /><path d="M22 12A10 10 0 0 0 12 2v10z" />
+                                            </svg>
+                                        </div>
+                                        Usage Distribution
+                                    </div>
+                                    <p className="text-[11px] text-[#A1A1AA] mt-1 ml-[42px]">Apps grouped into 3 tiers · click a tier for details</p>
+                                </div>
+                                <select
+                                    value={usageTierMetric}
+                                    onChange={(e) => { setUsageTierMetric(e.target.value as keyof typeof USAGE_TIER_METRICS); setExpandedUsageTier(null); }}
+                                    className="shrink-0 appearance-none bg-[#F4F4F5] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2.5 py-1 text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] outline-none cursor-pointer hover:bg-[#E4E4E7] dark:hover:bg-[#3F3F46] transition-colors"
+                                >
+                                    {Object.entries(USAGE_TIER_METRICS).map(([key, m]) => (
+                                        <option key={key} value={key}>{m.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="p-[18px] px-[22px] flex-1 flex flex-col">
+                                {isProcessCountsLoading ? (
+                                    <div className="flex-1 flex flex-col items-center justify-center text-[#71717A] text-sm gap-3 py-10">
+                                        <div className="w-5 h-5 border-2 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
+                                        <span className="font-medium">Loading...</span>
+                                    </div>
+                                ) : usageTierBreakdown.length > 0 ? (
+                                    <>
+                                        <div className="shrink-0 relative" style={{ height: "240px" }}>
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <PieChart>
+                                                    <Tooltip
+                                                        contentStyle={{ borderRadius: "0.75rem", border: "1px solid #27272A", background: "#18181B", boxShadow: "0 8px 24px rgba(0,0,0,0.25)" }}
+                                                        labelStyle={{ color: "#f4f4f5", fontWeight: 700, fontSize: 12, marginBottom: 2 }}
+                                                        itemStyle={{ color: "#e4e4e7", fontSize: 12, fontWeight: 600 }}
+                                                        formatter={(_value: number, name: string, props: { payload?: { value: number; appCount: number } }) => {
+                                                            const real = props.payload?.value ?? 0;
+                                                            const suffix = usageTierMetric === "weekly_avg" || usageTierMetric === "monthly_avg" ? "/day" : "";
+                                                            return [`${real.toLocaleString("en-IN")}${suffix} · ${props.payload?.appCount ?? 0} apps`, name];
+                                                        }}
+                                                    />
+                                                    <Pie
+                                                        data={usageTierPieData}
+                                                        dataKey="pieValue"
+                                                        nameKey="name"
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius="60%"
+                                                        outerRadius="80%"
+                                                        paddingAngle={3}
+                                                        isAnimationActive={false}
+                                                        onClick={(t: { name: string }) => setExpandedUsageTier(prev => prev === t.name ? null : t.name)}
+                                                        style={{ cursor: "pointer" }}
+                                                    >
+                                                        {usageTierPieData.map((t) => (
+                                                            <Cell key={t.name} fill={t.color} stroke={expandedUsageTier === t.name ? "#3F3F46" : "none"} strokeWidth={expandedUsageTier === t.name ? 2 : 0} />
+                                                        ))}
+                                                    </Pie>
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center z-10 w-28 h-28 rounded-full pointer-events-none">
+                                                <span className="text-3xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none tabular-nums">
+                                                    {usageTierTotal.toLocaleString("en-IN")}
+                                                </span>
+                                                <span className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">
+                                                    Total
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2 mt-2 flex-1">
+                                            {usageTierBreakdown.map((t) => {
+                                                const sharePct = usageTierTotal > 0 ? Math.round((t.value / usageTierTotal) * 100) : 0;
+                                                const isOpen = expandedUsageTier === t.name;
+                                                return (
+                                                    <div key={t.name} className="rounded-lg bg-[#FAFAF9] dark:bg-[#18181B] overflow-hidden">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setExpandedUsageTier(prev => prev === t.name ? null : t.name)}
+                                                            className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left hover:bg-white dark:hover:bg-[#27272A] transition-colors"
+                                                        >
+                                                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
+                                                            <div className="min-w-0 flex-1">
+                                                                <div className="text-[11.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{t.name}</div>
+                                                                <div className="text-[9.5px] font-semibold text-[#A1A1AA]">{t.appCount} app{t.appCount === 1 ? "" : "s"}</div>
+                                                            </div>
+                                                            <div className="text-right shrink-0">
+                                                                <div className="text-[13px] font-extrabold tabular-nums" style={{ color: t.color }}>{sharePct}%</div>
+                                                                <div className="text-[9px] font-semibold text-[#A1A1AA] tabular-nums">{t.value.toLocaleString("en-IN")}</div>
+                                                            </div>
+                                                            <ChevronDown size={13} className={`text-[#A1A1AA] shrink-0 transition-transform ${isOpen ? "" : "-rotate-90"}`} />
+                                                        </button>
+                                                        {isOpen && (
+                                                            <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] px-2.5 py-1.5 max-h-[220px] overflow-y-auto space-y-0.5">
+                                                                {t.rows.map((r, i) => (
+                                                                    <div key={r.doctype} className="flex items-center gap-2 py-1">
+                                                                        <span className="text-[9px] font-bold text-[#A1A1AA] w-4 text-right shrink-0 tabular-nums">{i + 1}</span>
+                                                                        <span className="text-[10.5px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] truncate flex-1">{r.doctype}</span>
+                                                                        <span className="text-[10.5px] font-extrabold tabular-nums shrink-0" style={{ color: t.color }}>
+                                                                            {usageTierGetValue(r).toLocaleString("en-IN")}
+                                                                        </span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="flex-1 flex items-center justify-center text-[#71717A] text-sm py-10">
+                                        No data available
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        </div>
+
                         {/* ── Project Analytics ── */}
                         <SectionDivider title="Project Analytics" />
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-[14px] mb-6">
@@ -2713,17 +3802,46 @@ export function DirectorDashboard() {
                                         </div>
                                         Financial Year — Project Status
                                     </div>
+                                    <div className="flex items-center gap-2">
+                                        {/* Type selector */}
+                                        <select
+                                            value={chartProjectTypeFilter}
+                                            onChange={(e) => setChartProjectTypeFilter(e.target.value)}
+                                            className="bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2 py-1 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none focus:border-[#2563eb] cursor-pointer"
+                                        >
+                                            <option value="all">All Types</option>
+                                            <option value="research">Research</option>
+                                            <option value="consultancy">Consultancy</option>
+                                            <option value="others">Others</option>
+                                        </select>
+                                        {/* Year selector */}
+                                        <span className="text-[11px] font-bold text-[#71717A] uppercase tracking-wider ml-1">Year:</span>
+                                        <div className="relative">
+                                            <select
+                                                value={chartYearFilter}
+                                                onChange={(e) => setChartYearFilter(e.target.value)}
+                                                className="appearance-none pl-2.5 pr-7 py-1 text-[11px] font-bold bg-[#F4F4F5] dark:bg-[#3F3F46] border border-[#E4E4E7] dark:border-[#52525B] text-[#3F3F46] dark:text-[#E4E4E7] rounded-lg outline-none cursor-pointer hover:bg-[#E4E4E7] dark:hover:bg-[#52525B] transition-colors"
+                                            >
+                                                <option value="All Time">All Years</option>
+                                                {chartAvailableYears.map(y => (
+                                                    <option key={y} value={y}>{y}</option>
+                                                ))}
+                                            </select>
+                                            <svg className="w-3 h-3 absolute right-1.5 top-1/2 -translate-y-1/2 text-[#A1A1AA] pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div className="p-[18px] px-[22px] pb-5">
                                     <div className="h-[250px]">
                                         {isLoading || allProjectsList === undefined ? (
-                                            <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">
-                                                Loading chart...
+                                            <div className="w-full h-full flex flex-col items-center justify-center text-[#71717A] text-sm gap-3">
+                                                <div className="w-5 h-5 border-2 border-[#2563eb] border-t-transparent rounded-full animate-spin"></div>
+                                                <span className="font-medium">Loading projects...</span>
                                             </div>
-                                        ) : projectStatusByYearData.length > 0 ? (
+                                        ) : chartDisplayData.length > 0 ? (
                                             <ResponsiveContainer width="100%" height="100%">
                                                 <BarChart
-                                                    data={projectStatusByYearData}
+                                                    data={chartDisplayData}
                                                     margin={{ top: 20, right: 4, left: -24, bottom: 0 }}
                                                     barCategoryGap="25%"
                                                     barGap={2}
@@ -2819,34 +3937,59 @@ export function DirectorDashboard() {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="flex items-start gap-5 flex-wrap mt-4 pt-4 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-                                        {[
-                                            [
-                                                "#2563eb",
-                                                `Submitted (${projectStatusCounts.submitted})`,
-                                                "Registration but pending sanction",
-                                            ],
-                                            [
-                                                "#7c3aed",
-                                                `Ongoing (${projectStatusCounts.ongoing})`,
-                                                "Fund sanctioned and formally approved",
-                                            ],
-                                        ].map(([color, label, desc]) => (
-                                            <div key={label} className="flex items-start gap-2">
-                                                <span
-                                                    className="w-2.5 h-2.5 rounded-sm shrink-0 mt-[2px]"
-                                                    style={{ backgroundColor: color }}
-                                                />
-                                                <div className="flex flex-col">
-                                                    <span className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight flex items-center">
-                                                        {label}
-                                                    </span>
-                                                    <span className="text-[10px] font-medium text-[#A1A1AA] dark:text-[#71717A] max-w-[120px] leading-snug mt-0.5">
-                                                        {desc}
-                                                    </span>
+                                    <div className="mt-4 pt-4 border-t border-[#E4E4E7] dark:border-[#3F3F46] space-y-3.5">
+                                        {/* Status totals */}
+                                        <div className="flex items-stretch gap-3 flex-wrap">
+                                            <div className="flex-1 min-w-[150px] rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-blue-50/60 dark:bg-blue-950/20 px-4 py-3">
+                                                <div className="flex items-center gap-1.5 mb-1">
+                                                    <span className="w-2 h-2 rounded-full bg-[#2563eb] shrink-0" />
+                                                    <span className="text-[10px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Submitted</span>
                                                 </div>
+                                                <div className="text-[22px] font-extrabold text-[#2563eb] leading-none">{chartYearSubmittedTotal}</div>
+                                                <div className="text-[10px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1.5 leading-snug">Pending Sanction</div>
                                             </div>
-                                        ))}
+                                            <div className="flex-1 min-w-[150px] rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-purple-50/60 dark:bg-purple-950/20 px-4 py-3">
+                                                <div className="flex items-center gap-1.5 mb-1">
+                                                    <span className="w-2 h-2 rounded-full bg-[#7c3aed] shrink-0" />
+                                                    <span className="text-[10px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Ongoing</span>
+                                                </div>
+                                                <div className="text-[22px] font-extrabold text-[#7c3aed] leading-none">{chartYearOngoingTotal}</div>
+                                                <div className="text-[10px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1.5 leading-snug">Sanction approved — fund received or pending</div>
+                                            </div>
+                                        </div>
+
+                                        {/* Type breakdown */}
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                                            {[
+                                                { label: "Research", ongoing: chartTypeBreakdown.researchOngoing, submitted: chartTypeBreakdown.researchSubmitted },
+                                                { label: "Consultancy", ongoing: chartTypeBreakdown.consultancyOngoing, submitted: chartTypeBreakdown.consultancySubmitted },
+                                                ...(chartTypeBreakdown.othersOngoing + chartTypeBreakdown.othersSubmitted > 0
+                                                    ? [{ label: "Others", ongoing: chartTypeBreakdown.othersOngoing, submitted: chartTypeBreakdown.othersSubmitted }]
+                                                    : []),
+                                            ].map((row) => (
+                                                <div key={row.label} className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] px-3 py-2.5">
+                                                    <div className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider mb-2">
+                                                        {row.label}
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <span className="flex items-center gap-1.5 text-[10px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                                                Ongoing
+                                                            </span>
+                                                            <span className="text-[13px] font-extrabold text-emerald-600 dark:text-emerald-400">{row.ongoing}</span>
+                                                        </div>
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <span className="flex items-center gap-1.5 text-[10px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                                                                Submitted
+                                                            </span>
+                                                            <span className="text-[13px] font-extrabold text-amber-600 dark:text-amber-400">{row.submitted}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -3030,13 +4173,16 @@ export function DirectorDashboard() {
                             {/* Financial Trends Line Chart */}
                             <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden flex flex-col">
                                 <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
-                                    <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
+                                    <div className="flex items-center gap-2">
                                         <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-amber-50 dark:bg-amber-950/20 text-[#d97706]">
                                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                                                 <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
                                             </svg>
                                         </div>
-                                        Financial Trends
+                                        <div>
+                                            <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Financial Trends</div>
+                                            <div className="text-[10px] font-medium text-[#A1A1AA] dark:text-[#71717A] leading-tight">Ongoing (sanction-approved) projects only</div>
+                                        </div>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <select
@@ -3064,7 +4210,7 @@ export function DirectorDashboard() {
                                 </div>
                                 <div className="p-[18px] px-[22px] flex-1 flex flex-col">
                                     <div className="flex gap-4 mb-5">
-                                        <div 
+                                        <div
                                             className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-xl p-3.5 text-center shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
                                             onClick={() => openKpiModalWithTab("total", "Projects: Total Sanctioned", "ongoing")}
                                         >
@@ -3075,7 +4221,7 @@ export function DirectorDashboard() {
                                                 Total Sanctioned
                                             </div>
                                         </div>
-                                        <div 
+                                        <div
                                             className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-xl p-3.5 text-center shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
                                             onClick={() => openKpiModalWithTab("total", "Projects: Utilized", "ongoing")}
                                         >
@@ -3087,24 +4233,24 @@ export function DirectorDashboard() {
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     <div className="h-[220px] w-full mt-2">
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart 
+                                            <BarChart
                                                 data={[
                                                     { name: "Sanctioned", value: fundAlloc, fill: "#2563eb", filter: "ongoing", title: "Projects: Total Sanctioned" },
                                                     { name: "Utilized", value: fundUtilized, fill: "#059669", filter: "ongoing", title: "Projects: Utilized" },
                                                     { name: "Remaining", value: fundRemaining, fill: "#0ea5e9", filter: "ongoing", title: "Projects: Remaining Balance" },
                                                     // { name: "Proposed", value: computedProposedBudget, fill: "#71717a", filter: "submitted", title: "Projects: Proposed Budget" }
-                                                ]} 
+                                                ]}
                                                 margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
                                                 barSize={40}
                                             >
                                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E4E7" className="dark:stroke-[#3F3F46]" />
-                                                <XAxis 
-                                                    dataKey="name" 
-                                                    axisLine={false} 
-                                                    tickLine={false} 
+                                                <XAxis
+                                                    dataKey="name"
+                                                    axisLine={false}
+                                                    tickLine={false}
                                                     tick={{ fill: "#71717A", fontSize: 11, fontWeight: 700 }}
                                                     dy={10}
                                                 />
@@ -3122,8 +4268,8 @@ export function DirectorDashboard() {
                                                         props.payload.name
                                                     ]}
                                                 />
-                                                <Bar 
-                                                    dataKey="value" 
+                                                <Bar
+                                                    dataKey="value"
                                                     radius={[6, 6, 0, 0]}
                                                     cursor="pointer"
                                                     isAnimationActive={false}
@@ -3133,11 +4279,11 @@ export function DirectorDashboard() {
                                                         }
                                                     }}
                                                 >
-                                                    <LabelList 
-                                                        dataKey="value" 
-                                                        position="top" 
+                                                    <LabelList
+                                                        dataKey="value"
+                                                        position="top"
                                                         formatter={(val: any) => (val && Number(val) > 0) ? formatCurrency(Number(val)) : ""}
-                                                        style={{ fontSize: '10px', fontWeight: 'bold', fill: '#71717a' }} 
+                                                        style={{ fontSize: '10px', fontWeight: 'bold', fill: '#71717a' }}
                                                     />
                                                     {
                                                         [
@@ -3146,9 +4292,9 @@ export function DirectorDashboard() {
                                                             { name: "Remaining", value: fundRemaining, fill: "#0ea5e9", filter: "ongoing", title: "Projects: Remaining Balance" },
                                                             // { name: "Proposed", value: computedProposedBudget, fill: "#71717a", filter: "submitted", title: "Projects: Proposed Budget" }
                                                         ].map((entry, index) => (
-                                                            <Cell 
-                                                                key={`cell-${index}`} 
-                                                                fill={entry.fill} 
+                                                            <Cell
+                                                                key={`cell-${index}`}
+                                                                fill={entry.fill}
                                                                 className="hover:opacity-80 transition-opacity"
                                                             />
                                                         ))
@@ -3160,7 +4306,7 @@ export function DirectorDashboard() {
 
                                     <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-4 mt-auto">
                                         <div className="space-y-1">
-                                            <div 
+                                            <div
                                                 className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
                                                 onClick={() => openKpiModalWithTab("total", "Projects: Total Sanctioned", "ongoing")}
                                             >
@@ -3169,7 +4315,7 @@ export function DirectorDashboard() {
                                                     {isLoading || globalUtilizedLoading ? "—" : formatCurrency(fundAlloc)}
                                                 </span>
                                             </div>
-                                            <div 
+                                            <div
                                                 className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
                                                 onClick={() => openKpiModalWithTab("total", "Projects: Utilized", "ongoing")}
                                             >
@@ -3178,7 +4324,7 @@ export function DirectorDashboard() {
                                                     {isLoading || globalUtilizedLoading ? "—" : formatCurrency(fundUtilized)}
                                                 </span>
                                             </div>
-                                            <div 
+                                            <div
                                                 className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
                                                 onClick={() => openKpiModalWithTab("total", "Projects: Remaining Balance", "ongoing")}
                                             >
@@ -3370,97 +4516,97 @@ export function DirectorDashboard() {
                                 </div>
                             </div>
 
-                        {/* ── Project Timeline (Year-wise) ── */}
-                        {false && (
-                        <div className="lg:col-span-2 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden flex flex-col">
-                            <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
-                                <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
-                                    <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-indigo-50 dark:bg-indigo-950/20 text-[#6366f1]">
-                                        <BarChart3 size={14} strokeWidth={2.5} />
-                                    </div>
-                                    Project Timeline (Year-wise)
-                                </div>
-                                <div className="flex items-center gap-4 text-[11px] font-bold text-[#71717A]">
-                                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#2563eb]"></div>Started</div>
-                                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#8b5cf6]"></div>Completed</div>
-                                </div>
-                            </div>
-                            <div className="p-[18px] px-[22px]">
-                                <div className="h-[260px] w-full">
-                                    {startEndSanctionData.length > 0 ? (
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart 
-                                                data={startEndSanctionData} 
-                                                margin={{ top: 20, right: 10, left: 10, bottom: 0 }}
-                                            >
-                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E4E7" className="dark:stroke-[#3F3F46]" />
-                                                <XAxis 
-                                                    dataKey="year" 
-                                                    axisLine={false} 
-                                                    tickLine={false} 
-                                                    tick={{ fill: "#71717A", fontSize: 11, fontWeight: 700 }}
-                                                    dy={10}
-                                                />
-                                                <Tooltip
-                                                    cursor={{ fill: 'rgba(0,0,0,0.04)' }}
-                                                    contentStyle={{
-                                                        borderRadius: "0.75rem",
-                                                        border: "1px solid #1e293b",
-                                                        background: "#0f172a",
-                                                    }}
-                                                    labelStyle={{
-                                                        color: "#f1f5f9",
-                                                        fontWeight: 700,
-                                                        fontSize: 13,
-                                                        marginBottom: 6
-                                                    }}
-                                                    itemStyle={{ fontSize: 13, fontWeight: 700 }}
-                                                    formatter={(value: any, name: string) => [
-                                                        `${value} Projects`,
-                                                        name === "startCount" ? "Started" : "Completed"
-                                                    ]}
-                                                />
-                                                <Bar 
-                                                    dataKey="startCount" 
-                                                    name="startCount"
-                                                    fill="#2563eb" 
-                                                    radius={[4, 4, 0, 0]}
-                                                    cursor="pointer"
-                                                    barSize={16}
-                                                    onClick={(data: any) => {
-                                                        const year = data?.payload?.year || data?.year;
-                                                        if (year) openKpiModalWithYear(year, "ongoing");
-                                                    }}
-                                                    className="hover:opacity-80 transition-opacity"
-                                                >
-                                                    <LabelList dataKey="startCount" position="top" style={{ fontSize: '10px', fontWeight: 'bold', fill: '#71717a' }} />
-                                                </Bar>
-                                                <Bar 
-                                                    dataKey="endCount" 
-                                                    name="endCount"
-                                                    fill="#8b5cf6" 
-                                                    radius={[4, 4, 0, 0]}
-                                                    cursor="pointer"
-                                                    barSize={16}
-                                                    onClick={(data: any) => {
-                                                        const year = data?.payload?.year || data?.year;
-                                                        if (year) openKpiModalWithYear(year, "completed");
-                                                    }}
-                                                    className="hover:opacity-80 transition-opacity"
-                                                >
-                                                    <LabelList dataKey="endCount" position="top" style={{ fontSize: '10px', fontWeight: 'bold', fill: '#71717a' }} />
-                                                </Bar>
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm font-medium">
-                                            No timeline data available
+                            {/* ── Project Timeline (Year-wise) ── */}
+                            {false && (
+                                <div className="lg:col-span-2 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden flex flex-col">
+                                    <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
+                                        <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
+                                            <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-indigo-50 dark:bg-indigo-950/20 text-[#6366f1]">
+                                                <BarChart3 size={14} strokeWidth={2.5} />
+                                            </div>
+                                            Project Timeline (Year-wise)
                                         </div>
-                                    )}
+                                        <div className="flex items-center gap-4 text-[11px] font-bold text-[#71717A]">
+                                            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#2563eb]"></div>Started</div>
+                                            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#8b5cf6]"></div>Completed</div>
+                                        </div>
+                                    </div>
+                                    <div className="p-[18px] px-[22px]">
+                                        <div className="h-[260px] w-full">
+                                            {startEndSanctionData.length > 0 ? (
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <BarChart
+                                                        data={startEndSanctionData}
+                                                        margin={{ top: 20, right: 10, left: 10, bottom: 0 }}
+                                                    >
+                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E4E7" className="dark:stroke-[#3F3F46]" />
+                                                        <XAxis
+                                                            dataKey="year"
+                                                            axisLine={false}
+                                                            tickLine={false}
+                                                            tick={{ fill: "#71717A", fontSize: 11, fontWeight: 700 }}
+                                                            dy={10}
+                                                        />
+                                                        <Tooltip
+                                                            cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+                                                            contentStyle={{
+                                                                borderRadius: "0.75rem",
+                                                                border: "1px solid #1e293b",
+                                                                background: "#0f172a",
+                                                            }}
+                                                            labelStyle={{
+                                                                color: "#f1f5f9",
+                                                                fontWeight: 700,
+                                                                fontSize: 13,
+                                                                marginBottom: 6
+                                                            }}
+                                                            itemStyle={{ fontSize: 13, fontWeight: 700 }}
+                                                            formatter={(value: any, name: string) => [
+                                                                `${value} Projects`,
+                                                                name === "startCount" ? "Started" : "Completed"
+                                                            ]}
+                                                        />
+                                                        <Bar
+                                                            dataKey="startCount"
+                                                            name="startCount"
+                                                            fill="#2563eb"
+                                                            radius={[4, 4, 0, 0]}
+                                                            cursor="pointer"
+                                                            barSize={16}
+                                                            onClick={(data: any) => {
+                                                                const year = data?.payload?.year || data?.year;
+                                                                if (year) openKpiModalWithYear(year, "ongoing");
+                                                            }}
+                                                            className="hover:opacity-80 transition-opacity"
+                                                        >
+                                                            <LabelList dataKey="startCount" position="top" style={{ fontSize: '10px', fontWeight: 'bold', fill: '#71717a' }} />
+                                                        </Bar>
+                                                        <Bar
+                                                            dataKey="endCount"
+                                                            name="endCount"
+                                                            fill="#8b5cf6"
+                                                            radius={[4, 4, 0, 0]}
+                                                            cursor="pointer"
+                                                            barSize={16}
+                                                            onClick={(data: any) => {
+                                                                const year = data?.payload?.year || data?.year;
+                                                                if (year) openKpiModalWithYear(year, "completed");
+                                                            }}
+                                                            className="hover:opacity-80 transition-opacity"
+                                                        >
+                                                            <LabelList dataKey="endCount" position="top" style={{ fontSize: '10px', fontWeight: 'bold', fill: '#71717a' }} />
+                                                        </Bar>
+                                                    </BarChart>
+                                                </ResponsiveContainer>
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm font-medium">
+                                                    No timeline data available
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                        )}
+                            )}
 
                             {false && (
                                 <>
@@ -3621,31 +4767,42 @@ export function DirectorDashboard() {
                             {/* All Projects Table */}
                             {(() => {
                                 // Director-only restrict filter
-                                const directorAllowedFilters = new Set(["all", "ongoing", "submitted"]);
+                                const directorAllowedFilters = new Set(["all", "ongoing", "pending_fund", "approved_sanction", "pending_sanction", "submitted"]);
 
                                 const STATUS_FILTER_OPTIONS = [
                                     { value: "all", label: "All Projects" },
                                     { value: "ongoing", label: "Ongoing (Sanction Approved)" },
-                                    { value: "submitted", label: "Submitted (Pending Sanction)" },
+                                    { value: "pending_fund", label: "Fund Received Pending" },
+                                    { value: "approved_sanction", label: "Approved Sanction" },
+                                    { value: "pending_sanction", label: "Pending Sanction" },
                                     { value: "completed", label: "Completed" },
                                     { value: "cancelled", label: "Cancelled" },
                                 ];
 
                                 let allProjs: any[] = (allProjectsList || []).map((p: any) => {
-                                    // Classify using the same ID sets used by all other charts
                                     let computedStatus: string;
-                                    const sanctioned = Number(p.total_budget_amount || p.grand_total_proposal) || 0;
-                                    const hasStartDate = !!p.prj_start_date;
-                                    const duration = Number(p.project_duration_months) || 0;
+                                    const sanctioned = getSanctionedAmount(p);
 
                                     if (ongoingIds.has(p.name)) {
-                                        if (sanctioned === 0 && !hasStartDate && duration === 0) {
-                                            computedStatus = "pending sanction";
+                                        // fund-received status is fetched per-project in the background (no bulk
+                                        // API for that doctype) — show a Loading badge instead of a guess that
+                                        // could silently flip from Pending to Active once the fetch resolves.
+                                        if (!fundStatusMap.has(p.name)) {
+                                            computedStatus = "loading";
                                         } else {
-                                            computedStatus = "ongoing";
+                                            const hasStartDate = !!(sanctionDateMap.get(p.name) || p.prj_start_date || p.sanctioned_letter_date);
+                                            const hasFundReceived = fundStatusMap.get(p.name) === true;
+
+                                            if (hasFundReceived) {
+                                                computedStatus = "ongoing";
+                                            } else if (hasStartDate) {
+                                                computedStatus = "pending_fund";
+                                            } else {
+                                                computedStatus = "approved_sanction";
+                                            }
                                         }
                                     }
-                                    else if (submittedIds.has(p.name)) computedStatus = "submitted";
+                                    else if (submittedIds.has(p.name)) computedStatus = "pending_sanction";
                                     else {
                                         const s = (p.workflow_state || "").toLowerCase();
                                         if (s.includes("draft") || p.docstatus === 0) computedStatus = "draft";
@@ -3661,13 +4818,15 @@ export function DirectorDashboard() {
                                     };
                                 }).sort((a: any, b: any) => (b.total_budget_amount - a.total_budget_amount));
 
-                                // Restrict the base array for 'Director' role to ONLY ongoing & submitted globally
+                                // Restrict the base array for 'Director' role to ONLY active statuses
                                 if (isDirectorOnly) {
-                                    allProjs = allProjs.filter((p: any) => ["ongoing", "submitted"].includes(p._status));
+                                    allProjs = allProjs.filter((p: any) => ["ongoing", "pending_fund", "approved_sanction", "pending_sanction"].includes(p._status));
                                 }
 
                                 const filtered = allProjs.filter((p: any) => {
                                     if (projectTableFilter === "all") return true;
+                                    // "submitted" kept for backward compatibility — same as pending_sanction
+                                    if (projectTableFilter === "submitted") return p._status === "pending_sanction";
                                     return p._status === projectTableFilter;
                                 }).filter((p: any) => {
                                     if (!projectTableSearch.trim()) return true;
@@ -3689,9 +4848,16 @@ export function DirectorDashboard() {
                                 const totalPages = Math.max(1, Math.ceil(filtered.length / PROJECT_TABLE_PAGE_SIZE));
                                 const safePage = Math.min(projectTablePage, totalPages);
                                 const pageSlice = filtered.slice((safePage - 1) * PROJECT_TABLE_PAGE_SIZE, safePage * PROJECT_TABLE_PAGE_SIZE);
+                                const nextPageSlice = filtered.slice(safePage * PROJECT_TABLE_PAGE_SIZE, (safePage + 1) * PROJECT_TABLE_PAGE_SIZE);
 
                                 return (
                                     <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden">
+                                        <VisiblePageTracker
+                                            pageSlice={pageSlice}
+                                            nextPageSlice={nextPageSlice}
+                                            targetRef={visibleProjectNamesRef}
+                                            active={!kpiModal}
+                                        />
                                         {/* Header */}
                                         <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between flex-wrap gap-3">
                                             <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
@@ -3777,7 +4943,7 @@ export function DirectorDashboard() {
                                                             return (
                                                                 <tr
                                                                     key={proj.name || idx}
-                                                                    onClick={() => navigate(`/project-details-overview/${proj.name}`, { state: { returnTo: location.pathname + location.search, ...getDashboardState() } })}
+                                                                    onClick={() => { if (window.getSelection()?.toString()) return; navigate(`/project-details-overview/${proj.name}`, { state: { returnTo: location.pathname + location.search, ...getDashboardState() } }); }}
                                                                     className="border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors cursor-pointer"
                                                                 >
                                                                     <td className="p-3 px-3.5 align-middle text-[11px] font-extrabold text-[#A1A1AA] font-mono">
@@ -3798,7 +4964,7 @@ export function DirectorDashboard() {
                                                                                 </span>
                                                                             )}
                                                                             {(() => {
-                                                                                const d = proj.sanctioned_letter_date || proj.prj_start_date || proj.creation;
+                                                                                const d = getEffectiveStartDate(proj);
                                                                                 const isOld = proj.is_old_project === 1 || proj.is_old_project === true || (d && new Date(d).getFullYear() < 2026);
                                                                                 return isOld ? (
                                                                                     <span className="font-mono text-[9px] text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded inline-block">Old</span>
@@ -3838,10 +5004,14 @@ export function DirectorDashboard() {
                                                                         </span>
                                                                     </td>
                                                                     <td className="p-3 px-3.5 align-middle">
-                                                                        <AsyncTableStatusBadge proj={proj} />
+                                                                        <AsyncTableStatusBadge proj={proj} fundReceived={fundStatusMap.get(proj.name)} />
                                                                     </td>
                                                                     <td className="p-3 px-3.5 align-middle font-extrabold text-[13px] text-[#059669] whitespace-nowrap">
-                                                                        {formatCurrency(proj.total_budget_amount || 0)}
+                                                                        <SanctionAmountOverride
+                                                                            projectName={proj.name}
+                                                                            isOngoing={!!(ongoingIds && (ongoingIds.has(proj.name) || ongoingIds.has(proj.project_no)))}
+                                                                            bulkAmount={proj.total_budget_amount || 0}
+                                                                        />
                                                                     </td>
                                                                 </tr>
                                                             );
@@ -3987,7 +5157,7 @@ export function DirectorDashboard() {
                                             </span>
                                         </div>
                                     ))}
-                                    
+
                                     {/* <button 
                                         onClick={() => setStaffBreakdownOpen(true)}
                                         className="w-full mt-2 flex items-center justify-between py-2.5 px-3 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 transition-colors group"
@@ -4050,7 +5220,7 @@ export function DirectorDashboard() {
                                                 <div
                                                     key={proj.project_id || idx}
                                                     className="flex items-center py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 gap-2.5 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
-                                                    onClick={() => navigate(`/project-details-overview/${proj.name}`, { state: { returnTo: location.pathname + location.search, ...getDashboardState() } })}
+                                                    onClick={() => { if (window.getSelection()?.toString()) return; navigate(`/project-details-overview/${proj.name}`, { state: { returnTo: location.pathname + location.search, ...getDashboardState() } }); }}
                                                 >
                                                     <div className="text-[11px] font-extrabold text-[#71717A] w-5 shrink-0 font-mono">
                                                         {String(idx + 1).padStart(2, "0")}
@@ -4120,7 +5290,7 @@ export function DirectorDashboard() {
                                                     : 0;
                                             const color = CHART_COLORS[i] || "#64748b";
                                             return (
-                                                <div 
+                                                <div
                                                     key={i}
                                                     className="cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors group"
                                                     onClick={() => {
@@ -4189,10 +5359,10 @@ export function DirectorDashboard() {
 
                 {viewMode === "Department" && (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 mb-8">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h2 className="text-[16px] font-extrabold tracking-tight text-[#3F3F46] dark:text-[#E4E4E7]">
-                                        Department Allocations
-                                    </h2>
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-[16px] font-extrabold tracking-tight text-[#3F3F46] dark:text-[#E4E4E7]">
+                                Department Allocations
+                            </h2>
                             <div className="relative">
                                 <Search
                                     className="absolute left-3 top-1/2 -translate-y-1/2 text-[#71717A] dark:text-[#A1A1AA]"
@@ -4793,7 +5963,7 @@ export function DirectorDashboard() {
                         </div>
 
                         <div className="p-5 bg-slate-50/50 dark:bg-slate-900/20 overflow-y-auto flex-1 min-h-0">
-                            <PIStatCards piDetails={selectedPIDetails} projects={selectedPIProjects} />
+                            <PIStatCards piDetails={selectedPIDetails} projects={selectedPIProjects} getSanctionedAmount={getSanctionedAmount} />
 
                             <div>
                                 <h3 className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] mb-3 uppercase tracking-widest flex items-center gap-2">
@@ -4927,7 +6097,7 @@ export function DirectorDashboard() {
                                                                         </div>
                                                                     )}
                                                                     {(() => {
-                                                                        const fund = proj.total_budget_amount || proj.grand_total_proposal || 0;
+                                                                        const fund = getSanctionedAmount(proj);
                                                                         if (!fund) return null;
                                                                         const formattedFund = fund >= 10000000
                                                                             ? `₹${(fund / 10000000).toFixed(2)} Cr`
@@ -4944,7 +6114,7 @@ export function DirectorDashboard() {
                                                                 <div className="flex flex-col items-end gap-2 shrink-0">
                                                                     <ProjectFundStatusBadge projectName={proj.name} />
                                                                     <button
-                                                                        onClick={() => navigate(`/project-details-overview/${proj.name}`, { state: { returnTo: location.pathname + location.search, ...getDashboardState() } })}
+                                                                        onClick={() => { if (window.getSelection()?.toString()) return; navigate(`/project-details-overview/${proj.name}`, { state: { returnTo: location.pathname + location.search, ...getDashboardState() } }); }}
                                                                         className="text-[10px] font-semibold text-[#D97757] hover:text-[#c26245] flex items-center gap-1 group transition-colors"
                                                                     >
                                                                         View Project
@@ -4958,15 +6128,7 @@ export function DirectorDashboard() {
                                                                         Sanction Amount
                                                                     </div>
                                                                     <div className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
-                                                                        {(() => {
-                                                                            const fund = proj.total_budget_amount || proj.grand_total_proposal || 0;
-                                                                            if (!fund) return "—";
-                                                                            return fund >= 10000000
-                                                                                ? `₹${(fund / 10000000).toFixed(2)} Cr`
-                                                                                : fund >= 100000
-                                                                                    ? `₹${(fund / 100000).toFixed(2)} L`
-                                                                                    : `₹${fund.toLocaleString("en-IN")}`;
-                                                                        })()}
+                                                                        <ProjectSanctionAmountLive proj={proj} bulkAmount={getSanctionedAmount(proj)} />
                                                                     </div>
                                                                 </div>
                                                                 <div className="bg-slate-50 dark:bg-slate-900/30 rounded-lg p-2.5 text-center flex flex-col justify-center">
@@ -5125,33 +6287,44 @@ export function DirectorDashboard() {
                                 <p className="text-[11px] font-bold uppercase tracking-widest text-[#71717A] mb-0.5">
                                     Projects
                                 </p>
-                                <h2 className="text-[16px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
+                                <h2 className="text-[16px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight flex items-center gap-2">
                                     {kpiModal.title}
+                                    {isSyncingFunds && (
+                                        <span
+                                            className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-full animate-pulse whitespace-nowrap"
+                                            title="Fund-received status is still syncing in the background — Active/Fund Pending badges may still change. Export/Print are disabled until this finishes so they capture the final data."
+                                        >
+                                            Syncing fund status…
+                                        </span>
+                                    )}
                                 </h2>
                             </div>
                             <div className="flex items-center gap-2 sm:gap-3">
                                 <button
+                                    disabled={isSyncingFunds}
+                                    title={isSyncingFunds ? "Waiting for fund status to finish syncing…" : "Export to Excel / CSV"}
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        if (!kpiModalRows || kpiModalRows.length === 0) return;
+                                        if (isSyncingFunds || !kpiModalRows || kpiModalRows.length === 0) return;
                                         const csvContent = [
-                                            ["Sl.", "Project No", "Project Title", "PI Name", "Department", "Project Type", "Status", "Funding Agency", "Scheme", "Total Budget", "Start Date", "Category"],
+                                            ["Sl.", "Project No", "Project Title", "PI Name", "PI Email", "Department", "Project Type", "Funding Agency", "Scheme", "Total Budget", "Start Date", "Category", "Status"],
                                             ...kpiModalRows.map((p, idx) => {
-                                                const d = p.sanctioned_letter_date || p.prj_start_date || p.creation;
+                                                const d = getEffectiveStartDate(p);
                                                 const isOld = p.is_old_project === 1 || p.is_old_project === true || (d && new Date(d).getFullYear() < 2026);
                                                 return [
                                                     (idx + 1).toString(),
                                                     p.project_no || "",
                                                     `"${(p.project_title || "").replace(/"/g, '""')}"`,
-                                                    `"${((p.pi_webmail ? emailToNameMap[p.pi_webmail.toLowerCase().trim()] : "") || "").replace(/"/g, '""')}"`,
+                                                    `"${((p.pi_webmail ? (emailToNameMap[p.pi_webmail.toLowerCase().trim()] || p.pi_webmail) : "") || "").replace(/"/g, '""')}"`,
+                                                    `"${(p.pi_webmail || "").replace(/"/g, '""')}"`,
                                                     `"${(getDeptName(p.implementation_department || p.user_department) || p.dept_name || "").replace(/"/g, '""')}"`,
                                                     p.project_type || "",
-                                                    p.workflow_state || "",
-                                                    `"${(p.funding_agency_name || p.funding_agency || p.funding_agency_other || p.origin_of_funding_agency || "").replace(/"/g, '""')}"`,
+                                                    `"${resolveAgencyName(p).replace(/"/g, '""')}"`,
                                                     `"${normalizeSchemeName(p.funding_agency_schemes || p.scheme_name || "")}"`,
-                                                    p.total_budget_amount || p.grand_total_proposal || "0",
+                                                    getSanctionedAmount(p),
                                                     d ? (typeof d === 'string' ? d.split(' ')[0] : new Date(d).toISOString().split('T')[0]) : "",
-                                                    isOld ? "Old" : "New"
+                                                    isOld ? "Old" : "New",
+                                                    `"${getProjectStatusLabel(p)}"`
                                                 ];
                                             })
                                         ].map(e => e.join(",")).join("\n");
@@ -5165,17 +6338,19 @@ export function DirectorDashboard() {
                                         link.click();
                                         document.body.removeChild(link);
                                     }}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20 rounded-lg text-[11px] font-bold transition-colors"
-                                    title="Export to Excel / CSV"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20 rounded-lg text-[11px] font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-50 dark:disabled:hover:bg-emerald-500/10"
                                 >
                                     <FileDown size={14} />
                                     <span className="hidden sm:inline">Export</span>
                                 </button>
                                 <button
+                                    disabled={isSyncingFunds}
+                                    title={isSyncingFunds ? "Waiting for fund status to finish syncing…" : "Print as PDF (Landscape)"}
                                     onClick={(e) => {
                                         e.stopPropagation();
+                                        if (isSyncingFunds) return;
                                         if (!kpiModalRows || kpiModalRows.length === 0) return;
-                                        
+
                                         const html = `
                                             <!DOCTYPE html>
                                             <html>
@@ -5199,36 +6374,39 @@ export function DirectorDashboard() {
                                                             <th>Project No</th>
                                                             <th>Project Title</th>
                                                             <th>PI Name</th>
+                                                            <th>PI Email</th>
                                                             <th>Department</th>
                                                             <th>Type</th>
-                                                            <th>Status</th>
                                                             <th>Funding Agency</th>
                                                             <th>Start Date</th>
                                                             <th>Category</th>
                                                             <th style="text-align: right;">Total Budget</th>
+                                                            <th>Status</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
                                                         ${kpiModalRows.map((p: any, idx: number) => {
-                                                            const d = p.sanctioned_letter_date || p.prj_start_date || p.creation;
-                                                            const isOld = p.is_old_project === 1 || p.is_old_project === true || (d && new Date(d).getFullYear() < 2026);
-                                                            const cat = isOld ? "Old" : "New";
-                                                            const pi = p.pi_webmail ? emailToNameMap[p.pi_webmail.toLowerCase().trim()] || p.pi_webmail : "";
-                                                            const dept = getDeptName(p.implementation_department || p.user_department) || p.dept_name || "";
-                                                            const sDate = d ? (typeof d === 'string' ? d.split(' ')[0] : new Date(d).toISOString().split('T')[0]) : "";
-                                                            const projNoStr = p.project_no || "";
-                                                            const budgetStr = p.total_budget_amount || p.grand_total_proposal ? "Rs. " + (p.total_budget_amount || p.grand_total_proposal) : "0";
-                                                            const agency = p.funding_agency_name || p.funding_agency || p.funding_agency_other || p.origin_of_funding_agency || "";
-                                                            const scheme = normalizeSchemeName(p.funding_agency_schemes || p.scheme_name || "");
-                                                            return `
+                                            const d = getEffectiveStartDate(p);
+                                            const isOld = p.is_old_project === 1 || p.is_old_project === true || (d && new Date(d).getFullYear() < 2026);
+                                            const cat = isOld ? "Old" : "New";
+                                            const pi = p.pi_webmail ? emailToNameMap[p.pi_webmail.toLowerCase().trim()] || p.pi_webmail : "";
+                                            const dept = getDeptName(p.implementation_department || p.user_department) || p.dept_name || "";
+                                            const sDate = d ? (typeof d === 'string' ? d.split(' ')[0] : new Date(d).toISOString().split('T')[0]) : "";
+                                            const projNoStr = p.project_no || "";
+                                            const sanctioned = getSanctionedAmount(p);
+                                            const budgetStr = sanctioned > 0 ? "Rs. " + sanctioned : "0";
+                                            const agency = resolveAgencyName(p);
+                                            const scheme = normalizeSchemeName(p.funding_agency_schemes || p.scheme_name || "");
+                                            const status = getProjectStatusLabel(p);
+                                            return `
                                                                 <tr>
                                                                     <td>${idx + 1}</td>
                                                                     <td>${projNoStr}</td>
                                                                     <td>${p.project_title || ""}</td>
                                                                     <td>${pi}</td>
+                                                                    <td>${p.pi_webmail || ""}</td>
                                                                     <td>${dept}</td>
                                                                     <td>${p.project_type || ""}</td>
-                                                                    <td>${p.workflow_state || ""}</td>
                                                                     <td>
                                                                         <div style="font-weight: bold;">${agency}</div>
                                                                         ${scheme ? `<div style="font-size: 8pt; color: #2563eb; margin-top: 2px;">${scheme}</div>` : ""}
@@ -5236,9 +6414,10 @@ export function DirectorDashboard() {
                                                                     <td>${sDate}</td>
                                                                     <td>${cat}</td>
                                                                     <td style="text-align: right;">${budgetStr}</td>
+                                                                    <td>${status}</td>
                                                                 </tr>
                                                             `;
-                                                        }).join('')}
+                                        }).join('')}
                                                     </tbody>
                                                 </table>
                                                 <script>
@@ -5254,8 +6433,7 @@ export function DirectorDashboard() {
                                             win.document.close();
                                         }
                                     }}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 rounded-lg text-[11px] font-bold transition-colors"
-                                    title="Print as PDF (Landscape)"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 rounded-lg text-[11px] font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-blue-50 dark:disabled:hover:bg-blue-500/10"
                                 >
                                     <Printer size={14} />
                                     <span className="hidden sm:inline">Print</span>
@@ -5283,8 +6461,11 @@ export function DirectorDashboard() {
                                             className="bg-white dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] text-[11px] font-bold px-3 py-1.5 rounded-lg text-[#3F3F46] dark:text-[#E4E4E7] outline-none shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             <option value="all">All Status</option>
-                                            <option value="ongoing">Ongoing (Sanction Approved)</option>
-                                            <option value="submitted">Submitted (Pending)</option>
+                                            <option value="ongoing">Ongoing (Active)</option>
+                                            <option value="submitted">Submitted (Inactive)</option>
+                                            <option value="pending_fund">— Fund Received Pending</option>
+                                            <option value="approved_sanction">— Approved Sanction</option>
+                                            <option value="pending_sanction">— Pending Sanction</option>
                                         </select>
                                         <select
                                             value={kpiAgeFilter}
@@ -5305,17 +6486,17 @@ export function DirectorDashboard() {
                                                     onClick={() => setIsKpiSchemeDropdownOpen(!isKpiSchemeDropdownOpen)}
                                                     className="bg-white dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] text-[11px] font-bold px-3 py-1.5 rounded-lg text-[#3F3F46] dark:text-[#E4E4E7] outline-none shadow-sm cursor-pointer max-w-[150px] truncate pr-8 relative text-left"
                                                 >
-                                                    {kpiSchemeFilter.length === 0 
-                                                        ? "All Schemes" 
-                                                        : kpiSchemeFilter.length === 1 
-                                                            ? kpiSchemeFilter[0] 
+                                                    {kpiSchemeFilter.length === 0
+                                                        ? "All Schemes"
+                                                        : kpiSchemeFilter.length === 1
+                                                            ? kpiSchemeFilter[0]
                                                             : `${kpiSchemeFilter.length} schemes`}
                                                     <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-[#A1A1AA] pointer-events-none" size={14} />
                                                 </button>
                                                 {isKpiSchemeDropdownOpen && (
                                                     <div className="absolute z-50 left-0 min-w-[200px] mt-1 bg-white dark:bg-[#18181B] border border-gray-300 dark:border-[#3F3F46] rounded shadow-md max-h-[300px] overflow-y-auto py-1">
                                                         <label className="flex items-center px-2 py-1.5 hover:bg-[#e5e5e5] dark:hover:bg-[#3F3F46] cursor-pointer">
-                                                            <input 
+                                                            <input
                                                                 type="checkbox"
                                                                 checked={kpiSchemeFilter.length === 0}
                                                                 onChange={() => {
@@ -5328,7 +6509,7 @@ export function DirectorDashboard() {
                                                         </label>
                                                         {kpiAvailableSchemes.map((scheme) => (
                                                             <label key={scheme} className="flex items-start px-2 py-1.5 hover:bg-[#e5e5e5] dark:hover:bg-[#3F3F46] cursor-pointer">
-                                                                <input 
+                                                                <input
                                                                     type="checkbox"
                                                                     checked={kpiSchemeFilter.includes(scheme)}
                                                                     onChange={(e) => {
@@ -5384,7 +6565,16 @@ export function DirectorDashboard() {
                                             [
                                                 {
                                                     key: "all",
-                                                    label: "All Projects",
+                                                    // Not literally every project — matches total_projects (submitted +
+                                                    // ongoing) per DASHBOARD_API_DOCUMENTATION.md, further narrowed by
+                                                    // the Status dropdown above. Label tracks that dropdown so it never
+                                                    // says "Submitted & Ongoing" while actually showing just one of them.
+                                                    label: kpiStatusFilter === "ongoing" ? "Ongoing"
+                                                        : kpiStatusFilter === "submitted" ? "Submitted"
+                                                        : kpiStatusFilter === "pending_fund" ? "Fund Received Pending"
+                                                        : kpiStatusFilter === "approved_sanction" ? "Approved Sanction"
+                                                        : kpiStatusFilter === "pending_sanction" ? "Pending Sanction"
+                                                        : "Submitted & Ongoing",
                                                     count: getDynamicTabCount("all"),
                                                     activeClass: "border-slate-500 text-slate-700 dark:text-slate-400",
                                                 },
@@ -5430,18 +6620,6 @@ export function DirectorDashboard() {
                                                     count: getDynamicTabCount("missing_agency"),
                                                     activeClass: "border-amber-500 text-amber-700 dark:text-amber-400",
                                                 }] : []),
-                                                ...(getDynamicTabCount("draft") > 0 ? [{
-                                                    key: "draft",
-                                                    label: "Drafts",
-                                                    count: getDynamicTabCount("draft"),
-                                                    activeClass: "border-zinc-500 text-zinc-700 dark:text-zinc-400",
-                                                }] : []),
-                                                ...(getDynamicTabCount("pending") > 0 ? [{
-                                                    key: "pending",
-                                                    label: "Pending",
-                                                    count: getDynamicTabCount("pending"),
-                                                    activeClass: "border-yellow-500 text-yellow-700 dark:text-yellow-400",
-                                                }] : [])
                                             ] as const
                                         ).map((tab) => (
                                             <button
@@ -5477,10 +6655,10 @@ export function DirectorDashboard() {
                                                     className={`px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-[#71717A]${h === "Budget" ? " text-right" : ""
                                                         }`}
                                                 >
-                                                    {h === "Budget" && kpiModal.title === "Projects: Utilized" ? "Utilized" : 
-                                                     h === "Budget" && kpiModal.title === "Projects: Remaining Balance" ? "Remaining" :
-                                                     h === "Budget" && kpiModal.title === "Projects: Proposed Budget" ? "Proposed" :
-                                                     h === "Budget" && kpiModal.title === "Projects: Total Sanctioned" ? "Sanctioned" : h}
+                                                    {h === "Budget" && kpiModal.title === "Projects: Utilized" ? "Utilized" :
+                                                        h === "Budget" && kpiModal.title === "Projects: Remaining Balance" ? "Remaining" :
+                                                            h === "Budget" && kpiModal.title === "Projects: Proposed Budget" ? "Proposed" :
+                                                                h === "Budget" && kpiModal.title === "Projects: Total Sanctioned" ? "Sanctioned" : h}
                                                 </th>
                                             )
                                         )}
@@ -5504,6 +6682,7 @@ export function DirectorDashboard() {
                                                 key={proj.name || idx}
                                                 className="border-t border-[#F4F4F5] dark:border-[#3F3F46] hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors cursor-pointer"
                                                 onClick={() => {
+                                                    if (window.getSelection()?.toString()) return;
                                                     navigate(`/project-details-overview/${proj.name}`, { state: { returnTo: location.pathname + location.search, ...getDashboardState() } });
                                                 }}
                                             >
@@ -5521,7 +6700,7 @@ export function DirectorDashboard() {
                                                             </span>
                                                         )}
                                                         {(() => {
-                                                            const d = proj.sanctioned_letter_date || proj.prj_start_date || proj.creation;
+                                                            const d = getEffectiveStartDate(proj);
                                                             const isOld = proj.is_old_project === 1 || proj.is_old_project === true || (d && new Date(d).getFullYear() < 2026);
                                                             return isOld ? (
                                                                 <span className="font-mono text-[9px] text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded inline-block">Old</span>
@@ -5559,7 +6738,7 @@ export function DirectorDashboard() {
                                                     {getDeptName(proj.implementation_department)}
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    <AsyncTableStatusBadge proj={proj} />
+                                                    <AsyncTableStatusBadge proj={proj} fundReceived={fundStatusMap.get(proj.name)} />
                                                 </td>
                                                 <td className="px-4 py-3 text-right">
                                                     {kpiModal.title === "Projects: Utilized" ? (
@@ -5659,17 +6838,16 @@ export function DirectorDashboard() {
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
                         </div>
-                        
+
                         <div className="p-4 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#18181B] flex gap-2">
                             {["designation", "department", "pi"].map(tab => (
                                 <button
                                     key={tab}
                                     onClick={() => setStaffGroupBy(tab as any)}
-                                    className={`px-4 py-2 text-sm font-bold rounded-lg capitalize transition-colors ${
-                                        staffGroupBy === tab 
-                                            ? "bg-[#2563eb] text-white" 
-                                            : "bg-zinc-100 dark:bg-zinc-800 text-[#71717A] hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                                    }`}
+                                    className={`px-4 py-2 text-sm font-bold rounded-lg capitalize transition-colors ${staffGroupBy === tab
+                                        ? "bg-[#2563eb] text-white"
+                                        : "bg-zinc-100 dark:bg-zinc-800 text-[#71717A] hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                        }`}
                                 >
                                     By {tab === "pi" ? "Project PI" : tab}
                                 </button>
@@ -5698,7 +6876,7 @@ export function DirectorDashboard() {
                                             const name = emailToNameMap[rawEmail.toLowerCase().trim()];
                                             key = name ? `${name} (${rawEmail})` : rawEmail;
                                         }
-                                        
+
                                         groups[key] = (groups[key] || 0) + 1;
                                     });
 
@@ -5738,7 +6916,7 @@ export function DirectorDashboard() {
                                 Generating Overview
                             </h3>
                             <p className="text-[13px] font-semibold text-[#71717A] dark:text-[#A1A1AA] leading-relaxed">
-                                {isWaitingForFunds 
+                                {isWaitingForFunds
                                     ? `Fetching live financial data from servers (${Math.round(globalUtilizedProgress)}%). This may take a few moments...`
                                     : "Aggregating institutional metrics and formatting print layout. Please wait a moment..."}
                             </p>
@@ -5759,8 +6937,8 @@ export function DirectorDashboard() {
             {/* Direct Open Full-Screen Iframe Preview (Bypasses Popup Blockers) */}
             {previewHtml && (
                 <div className="fixed inset-0 z-[200] bg-white dark:bg-zinc-900 animate-in fade-in zoom-in-95 duration-300">
-                    <iframe 
-                        srcDoc={previewHtml} 
+                    <iframe
+                        srcDoc={previewHtml}
                         className="w-full h-full border-none"
                         title="Director Report Preview"
                     />

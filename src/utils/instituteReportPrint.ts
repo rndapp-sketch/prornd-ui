@@ -31,18 +31,6 @@ export function generateInstituteReportHtml(
         });
     };
 
-    const calculateDuration = (start: string, end: string) => {
-        if (!start || !end) return "—";
-        const d1 = new Date(start);
-        const d2 = new Date(end);
-        const months = (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
-        if (months <= 0) return "—";
-        if (months < 12) return `${months} Months`;
-        const years = Math.floor(months / 12);
-        const rem = months % 12;
-        return rem > 0 ? `${years}y ${rem}m` : `${years} Years`;
-    };
-
     let tableRows = projects.map((p, index) => {
         const deptId = p.implementation_department || p.department;
         const deptName = getDeptName && deptId ? getDeptName(deptId) : (deptId || "—");
@@ -61,21 +49,16 @@ export function generateInstituteReportHtml(
                     ${rawEmail && resolvedName.toLowerCase() !== rawEmail.toLowerCase() ? `<div style="font-size: 7.5pt; color: #52525b; margin-top: 2px;">${rawEmail}</div>` : ""}
                 </td>
                 <td>${deptName}</td>
+                <td style="text-align:center;">${p._projectCategory || "—"}</td>
                 <td>${p.project_title || "—"}</td>
                 <td style="text-align:center;">
                     <div style="font-size: 8pt; font-weight: bold; color: #334155;">${agency}</div>
                     ${p._normalizedScheme && p._normalizedScheme !== "—" ? `<div style="font-size: 7.5pt; color: #2563eb; margin-top: 2px;">${p._normalizedScheme}</div>` : ""}
                 </td>
-                <td style="text-align:right; font-weight: bold; color: #047857;">${formatCurrency(p.total_budget_amount || p.grand_total_proposal)}</td>
+                <td style="text-align:right; font-weight: bold; color: #047857;">${formatCurrency(p._overrideSanctionedAmount ?? (p.total_budget_amount || p.grand_total_proposal))}</td>
                 <td style="text-align:center;">${formatDate(p._overrideStartDate || p.sanctioned_letter_date)}</td>
                 <td style="text-align:center;">${formatDate(p.creation)}</td>
-                <td style="text-align:center;">${
-                    p.project_duration_months
-                        ? (Number(p.project_duration_months) >= 12
-                            ? (() => { const y = Math.floor(Number(p.project_duration_months)/12); const m = Number(p.project_duration_months)%12; return m > 0 ? `${y}y ${m}m` : `${y} Years`; })()
-                            : `${p.project_duration_months} Months`)
-                        : calculateDuration(p._overrideStartDate || p.sanctioned_letter_date, p.prj_end_date)
-                }</td>
+                <td style="text-align:center;">${p._overrideDuration || "—"}</td>
                 <td style="text-align:center;">
                     ${p._printStatusHtml || "—"}
                 </td>
@@ -84,7 +67,7 @@ export function generateInstituteReportHtml(
     }).join("");
 
     if (projects.length === 0) {
-        tableRows = `<tr><td colspan="11" style="text-align:center; padding: 20px;">No projects found matching the selected criteria.</td></tr>`;
+        tableRows = `<tr><td colspan="12" style="text-align:center; padding: 20px;">No projects found matching the selected criteria.</td></tr>`;
     }
 
     return `
@@ -261,7 +244,8 @@ export function generateInstituteReportHtml(
                     <th style="width: 12%;">Project No.</th>
                     <th style="width: 10%;">PI Name</th>
                     <th style="width: 14%;">Department</th>
-                    <th style="width: 20%;">Project Title</th>
+                    <th style="width: 6%; text-align:center;">Type</th>
+                    <th style="width: 14%;">Project Title</th>
                     <th style="width: 12%;">Funding Agency</th>
                     <th style="width: 8%; text-align:right;">Sanctioned (₹)</th>
                     <th style="width: 8%; text-align:center;">Start Date</th>

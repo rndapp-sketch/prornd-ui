@@ -26,8 +26,15 @@ const MINIO_PATH_PREFIXES = [
     "/proprietary_purchase/"
 ];
 
-export function getFileUrl(path: string | null | undefined): string {
+export function getFileUrl(path: string | File | null | undefined): string {
     if (!path) return "";
+    if (path instanceof File) {
+        try {
+            return URL.createObjectURL(path);
+        } catch (e) {
+            return "";
+        }
+    }
 
     // Port-8081 URL that already contains the bucket — serve as-is
     if (path.startsWith(`${MINIO_HOST_8081}${MINIO_BUCKET}/`)) {
@@ -50,11 +57,13 @@ export function getFileUrl(path: string | null | undefined): string {
         return `http://172.16.135.118:9000${path}`;
     }
 
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+
     // Handle paths that got the /files/ prefix from Frappe but actually belong in MinIO
     if (path.startsWith("/files/standerdized_purchase/") || 
         path.startsWith("/files/direct_purchase/") || 
         path.startsWith("/files/indent_cum_sanction_sheet/")) {
-        return `/prod-rnd-files/${path.replace(/^\/files\//, "")}`;
+        return `${origin}/prod-rnd-files/${path.replace(/^\/files\//, "")}`;
     }
 
     // MinIO-stored file referenced by its object path (no bucket prefix)
@@ -64,14 +73,14 @@ export function getFileUrl(path: string | null | undefined): string {
 
     // Standard Frappe file paths are already complete — serve as-is
     if (path.startsWith("/files/") || path.startsWith("/private/files/")) {
-        return path;
+        return `${origin}${path}`;
     }
 
     // Other path starting with "/" — avoid double slash
     if (path.startsWith("/")) {
-        return `/files${path}`;
+        return `${origin}/files${path}`;
     }
 
     // Plain path without leading slash
-    return `/files/${path}`;
+    return `${origin}/files/${path}`;
 }

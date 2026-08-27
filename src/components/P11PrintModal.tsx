@@ -219,7 +219,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Printer, Download, X } from 'lucide-react';
+import { Printer, Download, X, Paperclip } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -229,12 +229,14 @@ export const P11PrintModal = ({
     htmlContent,
     docName,
     title = "P-11 Form Preview",
+    attachments = [],
 }: {
     isOpen: boolean;
     onClose: () => void;
     htmlContent: string;
     docName: string;
     title?: string;
+    attachments?: { label: string; url: string }[];
 }) => {
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -296,6 +298,7 @@ export const P11PrintModal = ({
                 <iframe
                     ref={iframeRef}
                     src={blobUrl}
+                    sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-modals allow-downloads allow-top-navigation-by-user-activation"
                     className="w-full h-full border-0"
                     title="P-11 Print Preview"
                 />

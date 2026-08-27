@@ -4,220 +4,197 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a React + TypeScript + Vite frontend application for an R&D Operations Management System (ProRnD) for IIT Guwahati. The application is built to work as a frontend for a **Frappe/ERPNext backend** and manages the complete lifecycle of research projects, funding, staff management, and financial operations.
+This is a React + TypeScript + Vite frontend application for an R&D Operations Management System (ProRnD) for IIT Guwahati. It connects to a **Frappe/ERPNext backend** and manages the complete lifecycle of research projects, funding, staff management, and financial operations.
 
 ## Development Commands
 
-### Setup and Development
 ```bash
-# Install dependencies
-yarn install
-
-# Start development server (runs on port 8081)
-yarn dev
-
-# Build for production
-yarn build
-
-# Lint code
-yarn lint
-
-# Preview production build
-yarn preview
+yarn install       # Install dependencies
+yarn dev           # Start dev server on port 8081 with HMR
+yarn build         # Production build
+yarn lint          # ESLint checks
+yarn preview       # Preview production build
 ```
 
-### Important Notes
-- The dev server runs on port 8081 with HMR enabled
+### Build Notes
 - Build output goes to `../rndopsapp/public/frontend/` (Frappe app directory)
-- After building, `index.html` is copied to `../rndopsapp/www/rndopsapp.html` via the `copy-html-entry` script
-- The build uses base path `/assets/rndopsapp/frontend/` for Frappe integration
+- Post-build, `index.html` is copied to `../rndopsapp/www/rndopsapp.html`
+- Production base path: `/assets/rndopsapp/frontend/`
+- No meaningful test suite — only a single near-empty test file exists
 
 ## Architecture Overview
 
 ### Backend Integration (Frappe)
 
-This frontend connects to a **Frappe/ERPNext backend** located at the site `prornd.local`:
-
-- **FrappeProvider**: Wraps the app and connects to the Frappe backend via `frappe-react-sdk`
-- **Site Name**: `prornd.local` (configured in [App.tsx](src/App.tsx#L184))
+- **Site**: `prornd.local` (configured in [src/App.tsx](src/App.tsx))
+- **FrappeProvider**: Wraps the app via `frappe-react-sdk`; SWR auto-revalidation is disabled globally to prevent unnecessary backend calls
 - **Socket Port**: 9001 for real-time updates
-- **Proxy Configuration**: Development proxy routes API calls to `http://172.16.117.39:8000` (defined in [proxyOptions.ts](proxyOptions.ts))
-- **Additional Ledger API**: Proxies `/ledger-api` to port 18083 for external ledger integration
+- **Proxy**: Dev server proxies to multiple backends (see [proxyOptions.ts](proxyOptions.ts)):
+  - Frappe API: `http://172.16.131.206:8000`
+  - Ledger API (`/ledger-api`): `http://172.16.134.81:18080`
+  - MinIO files (`/prod-rnd-files`): `http://172.16.135.118:9000`
+  - Appwrite messaging (`/appwrite`): `http://172.16.134.179:9080`
+  - Attendance API (`/attendance-api`): `http://172.16.135.27:7078`
+  - Candidate API: External Node server at port 8091
 
-### State Management
+### File Storage
 
-- **SWR**: Used extensively for data fetching and caching via `frappe-react-sdk`
-  - Global config in [App.tsx](src/App.tsx#L92-96) disables auto-revalidation to prevent unnecessary refetches
-  - Custom hooks leverage SWR for Frappe document operations
-- **Zustand**: Used for global state management (imported in package.json)
-- **React Context**: ThemeProvider for dark/light mode switching
+Files are stored in two places, resolved dynamically in [src/utils/fileUtils.ts](src/utils/fileUtils.ts):
+
+- **MinIO** (`prod-rnd-files` bucket): Used for document attachments in specific doctypes (`Project_Registration`, `direct_purchase`, `indent_general_form`, `proprietary_purchase`, `standerdized_purchase`)
+- **Frappe** (`/files/`, `/private/files/`): Used for all other doctypes
+
+`fileUtils.ts` auto-detects the correct URL based on the file path and doctype. Always use its helpers when resolving file URLs — do not construct them manually.
+
+### Messaging System (Appwrite)
+
+A separate real-time messaging module lives in [src/pages/messages/](src/pages/messages/) and is **not** backed by Frappe — it uses Appwrite:
+
+- Database: `prornd_messaging`; Collections: `conversations`, `messages`; Bucket: `message_attachments`
+- Appwrite endpoint configured via `VITE_APPWRITE_ENDPOINT` and related env vars
+- Uses Frappe auth for identity but persists conversations in Appwrite
 
 ### Routing Architecture
 
-The app uses **React Router v7** with role-based access control:
+**React Router v7** with role-based access via `AuthRouteWrapper`. All routes are defined in [src/main.tsx](src/main.tsx).
 
-- **Public Routes**: Landing page (`/`) and login (`/login`)
-- **Protected Routes**: All other routes wrapped in `AuthRouteWrapper` with specific role requirements
-- **Route Structure**: Defined in [main.tsx](src/main.tsx) with nested routes
-- **Role-Based Dashboards**:
-  - Director Dashboard (`/director-dashboard`)
-  - Dean Dashboard (`/dean-dashboard`)
-  - Head Dashboard (`/head-dashboard`)
-  - HoS R&D Dashboard (`/hos-rnd-dashboard`)
-  - R&D Staff Dashboard (`/rnd-staff-dashboard`)
-  - Project Staff Dashboard (`/project-staff-dashboard`)
-- **Main Workflow Pages**:
-  - Projects: Registration, Proposal, Endorsement, Details, Analytics
-  - Funding: Fund Sanction, Fund Received, Deposit Slips
-  - Applications: Travel, TA/DA Settlement, Temporary Advance, Reimbursement, Direct Purchase
-  - HR: Staff Recruitment, Resignation, Honorarium
-  - Tasks: Pending Tasks, Task Registry, Payments
+**Role-Based Dashboards:**
+- `/director-dashboard` — Director, Dean RnD, Ado_RnD, HoS RnD
+- `/dean-dashboard` — Dean, RnD
+- `/head-dashboard` — head_approver_1
+- `/hos-rnd-dashboard` — HoS RnD
+- `/rnd-staff-dashboard` — staff, RnD
+- `/project-staff-dashboard` — project staff
+- `/ado-rnd-dashboard` — Ado_RnD
+
+**Application Form Routes (50+ pages):** Travel, TA/DA Settlement, Temporary Advance, Advance Settlement, Direct Purchase, P-11, Sanction Sheet, ICSS, Disbursal of Consultancy/Honorarium, Loan Request, Recruitment forms, Leave Module, Miscellaneous Commit.
+
+**Role Types:**
+`All_ProRnd_User`, `Permanent Employee`, `Director`, `Dean, RnD`, `Hos, RnD`, `staff, RnD`, `project staff`, `head_approver_1`, `Ado_RnD`
+
+### API Service Layer
+
+[src/services/apiService.ts](src/services/apiService.ts) centralizes all 30+ Frappe doctype endpoints. Each module follows this pattern:
+
+```typescript
+const moduleAPI = {
+  getFields: "rndopsapp.api.module.get_fields",
+  save: "rndopsapp.api.module.save",
+  submit: "rndopsapp.api.module.submit",
+  getWorkflowActions: "...",
+  performAction: "...",
+  // module-specific methods
+}
+```
+
+`fileToBase64(file)` and `prepareFormDataForApi()` utilities handle Frappe's base64 attachment format before submission.
+
+### Dynamic Form System
+
+Forms are metadata-driven, mirroring Frappe's DocType behavior:
+
+- **DynamicFormRenderer** ([src/components/forms/DynamicFormRenderer.tsx](src/components/forms/DynamicFormRenderer.tsx)): Renders forms from Frappe field metadata; evaluates `depends_on`, `mandatory_depends_on`, `read_only_depends_on` via [src/utils/evalExpression.ts](src/utils/evalExpression.ts)
+- **ChildTableComponent**: Manages Frappe child table fields
+- **useFrappeClientScript**: Emulates Frappe's client-side script environment, executing `onchange` and `refresh` handlers with mock helpers (`flt`, `cint`, `$`)
+- **useFrappeFetchFrom**: Handles Frappe's `fetch_from` field linking
+
+### Print/PDF System
+
+16 print formats follow a consistent pattern — TypeScript utility + HTML template:
+
+- **Templates**: [src/pages/printformat/](src/pages/printformat/) — raw HTML with IIT Guwahati header/footer; imported via Vite's `?raw` query
+- **Generators**: [src/utils/](src/utils/) — `dpPrint.ts`, `icssPrint.ts`, `p11Print.ts`, `sanctionSheetPrint.ts`, etc.
+- **Pipeline**: populate template HTML → `html2canvas` → `jspdf` → browser download
+- **Helpers in each generator**: `fmtNum()` (en-IN, 2 decimals), `fmtDate()` (en-IN locale), `yesNo()`, `SKIP_FIELDS`, `FIELD_LABELS`, `BOOL_FIELDS`, `AMOUNT_FIELDS`
+
+### Workflow & Action Buttons
+
+Each form type has a dedicated `*ActionButtons` component that handles workflow state transitions, PDF download, and director PDF upload. Pattern: fetch available actions from `getWorkflowActions`, render buttons per state, call `performAction`. [src/utils/workflowUtils.ts](src/utils/workflowUtils.ts) maps workflow states to UI.
 
 ### Custom Hooks
 
 Located in [src/hooks/](src/hooks/):
+- **useProjectBudget**: Project budget allocation calculations
+- **useDepositSlipCalculations**: Deposit slip form calculations
+- **useStableFrappe**: Stable references to Frappe SDK methods
+- **useUserRoles**: Fetches and caches current user's Frappe roles
 
-- **useFrappeClientScript**: Emulates Frappe's client-side scripting environment in React
-  - Registers event handlers (e.g., `onchange`, `refresh`) for Frappe doctypes
-  - Provides mock helpers (`flt`, `cint`, `$`) to execute Frappe Python-to-JS scripts
-  - Synchronizes form state with Frappe scripts for dynamic behavior
-- **useFrappeFetchFrom**: Handles Frappe's `fetch_from` field linking
-- **useProjectBudget**: Calculates and manages project budget allocations
-- **useDepositSlipCalculations**: Complex calculations for deposit slip forms
-- **useStableFrappe**: Provides stable references to Frappe SDK methods
+### Data Fetching (Frappe SDK)
 
-### Dynamic Form System
+```typescript
+useFrappeGetDoc(doctype, name)          // Fetch single document
+useFrappeGetDocList(doctype, options)   // Fetch list with filters/fields
+useFrappeGetCall(method, params)        // Call server method (GET)
+useFrappePostCall(method)               // Call server method (POST)
+useFrappeCreateDoc / useFrappeUpdateDoc // Create/update documents
+useFrappeFileUpload                     // Upload files
+```
 
-The application features a sophisticated dynamic form rendering system that mirrors Frappe's DocType behavior:
+### UI Architecture
 
-- **DynamicFormRenderer** ([src/components/forms/DynamicFormRenderer.tsx](src/components/forms/DynamicFormRenderer.tsx)):
-  - Renders forms based on field metadata from Frappe backend
-  - Supports field dependencies (`depends_on`, `mandatory_depends_on`, `read_only_depends_on`)
-  - Evaluates expressions using [evalExpression.ts](src/utils/evalExpression.ts)
-  - Handles various field types: Data, Link, Select, Textarea, Date, Check, Attach, Table, etc.
-- **ChildTableComponent**: Renders and manages child tables (Frappe's table fields)
-- **API Service Layer** ([src/services/apiService.ts](src/services/apiService.ts)):
-  - Centralized API endpoints for different doctypes
-  - Structured endpoints for: Rate Contract, Travel, TA/DA Settlement, Resignation, Temporary Advance, etc.
-  - Each module has: `getFields`, `save`, `submit`, `getWorkflowActions`, `performAction` methods
+- **Base components**: [src/components/ui/](src/components/ui/) — Radix UI primitives styled with Tailwind CSS using `class-variance-authority`
+- **Business components**: [src/components/](src/components/) — `WorkflowTimeline`, `ActivityLog`, `ProjectLedgerModal`, `CommandPalette` (Cmd+K global search)
+- **Sidebar**: [src/components/RndSidebar.tsx](src/components/RndSidebar.tsx) — role-based menu, pending task count badges
+- **Theme**: Beige/neutral (`#F9F7F2` background), dark mode supported via `ThemeProvider`
+- **Fonts**: `.assamese-text`, `.hindi-text`, `.english-text` classes for multi-language header
+- **Icons**: Lucide React + React Icons
 
-### UI Component Architecture
+### Key Utilities
 
-- **Base UI Components**: Located in [src/components/ui/](src/components/ui/)
-  - Built with Radix UI primitives (Dialog, Dropdown, Select, Checkbox, etc.)
-  - Styled with Tailwind CSS using the `class-variance-authority` pattern
-  - Custom components: neo-brutalism design system, global-loader, sidebar
-- **Business Components**: Located in [src/components/](src/components/)
-  - Domain-specific components: WorkflowTimeline, ActivityStream, ProjectLedgerModal
-  - Action buttons: TemporaryAdvanceActionButtons, TADASettlementActionButtons, TravelActionButtons
-  - Utility components: DepartmentName, BudgetHeadName, ProjectTitle
-- **Layout**: AppSidebar ([src/components/RndSidebar.tsx](src/components/RndSidebar.tsx))
-  - Role-based menu rendering
-  - Pending task count badges
-  - User profile display with Frappe user image integration
-
-### Styling
-
-- **Tailwind CSS**: Primary styling solution (configured in [tailwind.config.js](tailwind.config.js))
-- **Custom Theme**: Beige/neutral palette (`#F9F7F2` background) with dark mode support
-- **Fonts**:
-  - Assamese and Hindi text support in header
-  - Custom font classes: `.assamese-text`, `.hindi-text`, `.english-text`
-- **Icons**: Lucide React for UI icons, React Icons for additional icon sets
-
-### Workflow System
-
-The application integrates with Frappe's workflow engine:
-
-- **Workflow Actions**: Fetched dynamically from backend for each doctype
-- **WorkflowTimeline Component**: Visualizes document approval stages
-- **Workflow Utilities** ([src/utils/workflowUtils.ts](src/utils/workflowUtils.ts)):
-  - Maps workflow states to UI states
-  - Determines available actions based on current state and user roles
-
-### Authentication & Authorization
-
-- **Auth Provider**: `useFrappeAuth` from frappe-react-sdk
-- **Role-Based Access**: `AuthRouteWrapper` component enforces role requirements
-- **User Roles Hook**: `useUserRoles` fetches and caches current user's Frappe roles
-- **Role Types**:
-  - `All_ProRnd_User`: General R&D users
-  - `Permanent Employee`: Faculty/permanent staff
-  - `Director`, `Dean, RnD`, `Hos, RnD (Head of Section, RnD)`
-  - `staff, RnD`, `project staff`
-  - `head_approver_1`, `Ado_RnD`
-
-### Data Fetching Patterns
-
-When working with Frappe data:
-
-1. **Fetch Document**: Use `useFrappeGetDoc(doctype, name, options)`
-2. **Fetch List**: Use `useFrappeGetDocList(doctype, options)`
-3. **Call Server Method**: Use `useFrappeGetCall(methodName, params, options)` or `useFrappePostCall`
-4. **Create/Update**: Use `useFrappeCreateDoc`, `useFrappeUpdateDoc`
-5. **File Upload**: Use `useFrappeFileUpload`
-
-### Important Patterns
-
-- **Date Handling**:
-  - Frappe dates are in `YYYY-MM-DD` format
-  - Use `date-fns` for date manipulation (v4.1.0)
-  - ECS date handling in dashboards
-- **Number Formatting**:
-  - Use `flt()` for floats and `cint()` for integers (mimics Frappe)
-  - Use `to-words` or `num-words` for number-to-text conversion
-- **PDF Generation**:
-  - `html2canvas` + `jspdf` for PDF exports
-- **Debouncing**: Use `use-debounce` for search/filter inputs
-- **Tables**: `@tanstack/react-table` for advanced data tables
-
-### Key Architectural Decisions
-
-1. **No Auto-Revalidation**: SWR is configured to not revalidate on focus/reconnect to avoid unnecessary backend calls
-2. **Global Loader**: Shows only on route navigation, not on data revalidation
-3. **Command Palette**: Global search accessible via Cmd+K ([CommandPalette.tsx](src/components/CommandPalette.tsx))
-4. **Frappe Integration**: The app is designed to be served from within a Frappe app (`rndopsapp`)
-5. **Multi-language Support**: Header displays institution name in Assamese, Hindi, and English
+- `flt()` / `cint()` — Float/integer helpers mimicking Frappe behavior
+- `date-fns` v4 — Date manipulation (Frappe dates are `YYYY-MM-DD`)
+- `to-words` / `num-words` — Number to words for financial documents
+- `use-debounce` — For search/filter inputs
+- `@tanstack/react-table` — Advanced data tables
+- `recharts` — Charts in dashboards
 
 ## Common Development Workflows
 
 ### Adding a New Form Page
 
-1. Create API endpoints in [src/services/apiService.ts](src/services/apiService.ts)
-2. Create a new page component in `src/pages/application/`
-3. Use `DynamicFormRenderer` with form fields from Frappe backend
-4. Implement client script hooks with `useFrappeClientScript` if needed
-5. Add route in [src/main.tsx](src/main.tsx) with appropriate role protection
-6. Add menu item in [src/components/RndSidebar.tsx](src/components/RndSidebar.tsx) if needed
+1. Add API endpoints in [src/services/apiService.ts](src/services/apiService.ts)
+2. Create page in `src/pages/application/`
+3. Use `DynamicFormRenderer` with fields from Frappe metadata
+4. Add `useFrappeClientScript` if the DocType has Frappe client scripts
+5. Create a `*ActionButtons` component for workflow transitions
+6. Add route in [src/main.tsx](src/main.tsx) with `AuthRouteWrapper` and required roles
+7. Add sidebar entry in [src/components/RndSidebar.tsx](src/components/RndSidebar.tsx) if needed
 
-### Working with Frappe Client Scripts
+### Adding a New Print Format
 
-When Frappe DocTypes have client scripts that need to run in the React frontend:
-
-1. Fetch the client script from the backend
-2. Use `useFrappeClientScript(script, formData, setFormData, doctype)`
-3. The hook will execute Frappe's client-side logic (field calculations, validations, etc.)
-4. Events like `onchange_fieldname` and `refresh` are automatically registered
+1. Create HTML template in `src/pages/printformat/`
+2. Create `*Print.ts` in `src/utils/` following existing generator pattern
+3. Import template with `?raw` suffix: `import template from '../pages/printformat/my_format.html?raw'`
+4. Use `fmtNum`, `fmtDate`, `yesNo` helpers; configure `SKIP_FIELDS`, `FIELD_LABELS`
 
 ### Debugging Frappe Integration
 
-- Check browser DevTools Network tab for API calls to `/api/method/`
-- Verify proxy is routing correctly to the Frappe backend
+- Check DevTools Network tab for `/api/method/` calls
+- Verify proxy routing in [proxyOptions.ts](proxyOptions.ts)
 - Ensure Frappe session is active (check cookies)
-- Use `console.log` statements in custom hooks to trace data flow
+- Socket updates on port 9001
 
 ## Path Aliases
 
-The project uses `@/` as an alias for the `src/` directory (configured in [vite.config.ts](vite.config.ts#L18-20) and [tsconfig.json](tsconfig.json#L18-21)).
+`@/` maps to `src/` — configured in [vite.config.ts](vite.config.ts) and [tsconfig.json](tsconfig.json).
 
-Example: `import { Button } from "@/components/ui/button"`
+## Environment Variables
 
-## Environment Configuration
+```env
+# Development (.env)
+VITE_BASE_PATH=
+VITE_FRAPPE_URL=http://localhost:8000
+VITE_APPWRITE_ENDPOINT=/appwrite/v1
+VITE_APPWRITE_PROJECT_ID=6a0201f20025d8289f76
+VITE_APPWRITE_DATABASE_ID=prornd_messaging
+VITE_APPWRITE_CONVERSATIONS_COLLECTION_ID=conversations
+VITE_APPWRITE_MESSAGES_COLLECTION_ID=messages
+VITE_APPWRITE_ATTACHMENTS_BUCKET_ID=message_attachments
 
-The application expects a `common_site_config.json` file at the project root for proxy configuration, containing:
-- `webserver_port`: Frappe backend port (default: 8000)
-- Other Frappe site configuration
+# Production (.env.production)
+VITE_BASE_PATH=/rndopsapp
+VITE_CANDIDATE_API_URL=http://172.16.135.27:8091
+VITE_APPWRITE_ENDPOINT=http://172.16.134.179:9080/v1
+```
 
-Environment variables (via Vite):
-- `VITE_BASE_PATH`: Base path for routing (optional)
-- `VITE_FRAPPE_URL`: Frappe backend URL (defaults to `http://localhost:8000`)
+Frappe site config is read from `common_site_config.json` (Frappe backend's config file at project root) to configure the proxy's `webserver_port`.

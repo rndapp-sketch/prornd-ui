@@ -1,3 +1,5 @@
+import { P11PrintModal } from "@/components/P11PrintModal";
+import { ActivityLog } from "@/components/ActivityLog";
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFrappeGetDoc, useFrappePostCall, useFrappeAuth, useFrappeGetCall } from 'frappe-react-sdk';
@@ -1689,6 +1691,8 @@ const TaskRegistryDetails: React.FC = () => {
     const [prPreviewLoading, setPrPreviewLoading] = useState(false);
 
     const [displayData, setDisplayData] = useState<Record<string, any>>({});
+    const [isTaPrintOpen, setIsTaPrintOpen] = useState(false);
+    const activityLogContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (data) {
@@ -1928,16 +1932,7 @@ const TaskRegistryDetails: React.FC = () => {
     };
 
     const handlePrintTemporaryAdvance = () => {
-        if (!data) return;
-        const html = generateTemporaryAdvanceHtml(displayData, resolvedProjectTitle, resolvedAccountHead, resolvedApplicantName);
-        const printWindow = window.open("", "_blank");
-        if (printWindow) {
-            printWindow.document.write(html);
-            printWindow.document.close();
-            setTimeout(() => {
-                printWindow.print();
-            }, 500);
-        }
+        setIsTaPrintOpen(true);
     };
 
     const { call: fetchTravelFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any } }>(travelAPI.getFields);
@@ -2308,6 +2303,30 @@ const TaskRegistryDetails: React.FC = () => {
                     onClose={() => setPrPreviewName(null)}
                 />
             )}
+            
+            <P11PrintModal
+                isOpen={isTaPrintOpen}
+                onClose={() => setIsTaPrintOpen(false)}
+                title={`${doctype} Preview`}
+                htmlContent={
+                    isTaPrintOpen && data
+                        ? generateTemporaryAdvanceHtml(
+                              displayData,
+                              resolvedProjectTitle,
+                              resolvedAccountHead,
+                              resolvedApplicantName,
+                              activityLogContainerRef.current
+                          )
+                        : ""
+                }
+                docName={data?.name || name || ""}
+            />
+            
+            <div style={{ display: "none" }} ref={activityLogContainerRef}>
+                {doctype === 'Temporary Advance' && name && (
+                    <ActivityLog doctype={doctype} docname={name} />
+                )}
+            </div>
         </div>
     );
 };

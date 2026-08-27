@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
 import { AppSidebar } from "../../components/RndSidebar";
@@ -20,6 +20,7 @@ import {
   XCircle as XCircleIcon,
   Pencil as PencilIcon,
   AlertTriangle,
+  Printer as PrinterIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlobalLoader } from "@/components/ui/global-loader";
@@ -29,7 +30,10 @@ import { ProjectLedgerModal } from "../../components/ProjectLedgerModal";
 import { DeclarationFields } from "@/components/DeclarationFields";
 import { CommitPayment } from "@/components/CommitPayment";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
+import { ActivityLog } from "@/components/ActivityLog";
 import ViewProjectButton from "@/components/ViewProjectButton";
+import { P11PrintModal } from "@/components/P11PrintModal";
+import { getFileUrl } from "@/utils/fileUtils";
 
 // --- TYPE DEFINITIONS ---
 interface ReimbursementData {
@@ -388,15 +392,6 @@ const ActionsDropdown = ({
               </>
             )}
 
-            {/* Download — always visible */}
-            <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />
-            <button
-              onClick={() => { setDropdownOpen(false); onDownload(); }}
-              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
-            >
-              <span className="text-zinc-400"><DownloadIcon className="h-3.5 w-3.5" /></span>
-              Download / Print
-            </button>
           </div>,
           document.body,
         )}
@@ -456,6 +451,8 @@ const ReimbursementDetails: React.FC = () => {
   const { roles } = useUserRoles(currentUser ?? null);
 
   const [isLedgerOpen, setIsLedgerOpen] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const activityLogContainerRef = useRef<HTMLDivElement>(null);
   const [commitHead, setCommitHead] = useState("");
   const [paymentAmount, setPaymentAmount] = useState("");
   const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
@@ -707,6 +704,64 @@ const ReimbursementDetails: React.FC = () => {
 
     const applicantName = resolvedNames.applicant_name || data.applicant_webmail || "-";
 
+    let activityRows = "<tr><td colspan='3' style='text-align:center;color:#888;font-style:italic;'>No activity recorded.</td></tr>";
+    let activityCount = 0;
+    const activityEl = activityLogContainerRef.current;
+
+    if (activityEl) {
+        const allItems = Array.from(activityEl.querySelectorAll(".flex.items-start"));
+        
+        const extracted = allItems.map((item) => {
+            const spans = item.querySelectorAll("span");
+            const rawName = spans[1]?.textContent?.trim() || "";
+            let name = rawName;
+            const designation = item.querySelector(".designation-text")?.textContent?.trim() || "";
+            if (designation) {
+                name = `${rawName} <br><span class="designation">(${designation})</span>`;
+            }
+            const timeRaw = item.querySelector("p.text-\\[11px\\]")?.textContent?.trim() || "";
+            let timeStr = timeRaw;
+            const parsedDt = new Date(timeRaw);
+            if (!isNaN(parsedDt.getTime())) {
+                const ds = parsedDt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+                const ts = parsedDt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+                timeStr = `${ds}, ${ts}`;
+            }
+            const content = item.querySelector(".prose")?.innerHTML?.trim() || spans[2]?.textContent?.trim() || "";
+            return { name, content, time: timeStr };
+        });
+
+        if (extracted.length > 0) {
+            activityRows = extracted.map(
+                (e) => `
+                    <tr>
+                        <td>${e.name}</td>
+                        <td>${e.content}</td>
+                        <td style="white-space:nowrap;">${e.time}</td>
+                    </tr>`
+            ).join("");
+            activityCount = extracted.length;
+        }
+    }
+
+    let attachmentsSection = "";
+    if (data.table_bosk && data.table_bosk.length > 0) {
+      const uploadItems = data.table_bosk.filter((item: any) => item.uploads);
+      if (uploadItems.length > 0) {
+        attachmentsSection = uploadItems.map((item: any, idx: number) => {
+          const fileName = item.uploads.split('/').pop() || "Attachment";
+          return `
+          <div class="print-hide" style="padding:30px 20px; text-align:center; border:2px dashed #cbd5e1; background:#f8fafc; border-radius:12px; margin-top: 30px;">
+              <div style="font-size:32px; margin-bottom:12px;">📄</div>
+              <div style="font-size:14pt; font-weight:bold; color:#334155; margin-bottom:8px;">PDF Attachment (${item.particulars || "Item " + (idx + 1)}): ${fileName}</div>
+              <div style="font-size:11pt; color:#64748b; margin-bottom:16px;">This document has multiple pages. Please print it separately.</div>
+              <a href="${getFileUrl(item.uploads)}" target="_blank" style="display:inline-block; padding:10px 24px; background:#2563eb; color:white; text-decoration:none; border-radius:6px; font-weight:bold; font-family:sans-serif;">Print Attached File</a>
+          </div>
+          `;
+        }).join("");
+      }
+    }
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -779,14 +834,26 @@ const ReimbursementDetails: React.FC = () => {
         .comment-header { background: #fffbea; border-bottom: 1px solid #e8d96a; padding: 5px 10px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #7a6100; }
         .comment-body { padding: 7px 10px; font-size: 9.5px; color: #333; font-style: italic; }
 
+        /* Activity Table */
+        .activity-table { width: 100%; border-collapse: collapse; font-size: 9.5px; margin-top: 4px; margin-bottom: 6px; }
+        .activity-table th, .activity-table td { border: 1px solid #dde2ee; padding: 5px 8px; text-align: left; vertical-align: top; }
+        .activity-table th { background-color: #f0f4fb; color: #1a3a6b; font-weight: 700; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .activity-table th:nth-child(1) { width: 35%; }
+        .activity-table th:nth-child(2) { width: 45%; }
+        .activity-table th:nth-child(3) { width: 20%; }
+        .activity-table .designation { display: block; font-size: 8.5px; color: #666; font-weight: normal; margin-top: 2px; }
+
         /* Footer */
         .page-footer { position: absolute; bottom: 12px; left: 22px; right: 22px; border-top: 1px solid #dde2ee; padding-top: 6px; display: flex; justify-content: space-between; align-items: center; }
         .footer-note { font-size: 8.5px; color: #888; font-style: italic; }
         .footer-meta { font-size: 8.5px; color: #999; text-align: right; }
 
+        .print-hide { display: block; }
         @media print {
             body { background: none; padding: 0; }
-            .page { box-shadow: none; margin: 0; width: 100%; padding: 0; min-height: auto; }
+            .print-hide { display: none !important; }
+            .page { box-shadow: none; margin: 0; width: 100%; padding: 0; padding-bottom: 25mm; min-height: auto; }
+            .page-footer { position: fixed; bottom: 0; left: 14mm; right: 14mm; background: #fff; padding-bottom: 10mm; }
         }
     </style>
 </head>
@@ -876,10 +943,14 @@ const ReimbursementDetails: React.FC = () => {
         <!-- Bank Details -->
         <div class="info-card info-card-full">
             <div class="card-header">Bank Details</div>
-            <div class="card-body" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 20px;">
+            <div class="card-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px;">
                 <div class="field-row">
                     <div class="field-label">Bank Name</div>
                     <div class="field-value">${data.bank_name || "-"}</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-label">Account Holder</div>
+                    <div class="field-value">${data.account_holder_name || "-"}</div>
                 </div>
                 <div class="field-row">
                     <div class="field-label">Account No.</div>
@@ -929,6 +1000,27 @@ const ReimbursementDetails: React.FC = () => {
         <div class="comment-body">${data.comment}</div>
     </div>` : ""}
 
+    <div class="section-title" style="margin-top:12px; display:flex; align-items:center;">
+        Activity Log
+        <span style="background:#f4f4f5; color:#52525b; padding:2px 8px; border-radius:12px; font-size:8pt; font-weight:bold; margin-left:8px; line-height:1;">
+            ${activityCount}
+        </span>
+    </div>
+    <table class="activity-table">
+        <thead>
+            <tr>
+                <th>Approver (Name &amp; Designation)</th>
+                <th>Comment</th>
+                <th>Time</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${activityRows}
+        </tbody>
+    </table>
+
+    ${attachmentsSection}
+
     <!-- Footer -->
     <div class="page-footer">
         <div class="footer-note">N.B. This is a system-generated document. No signature required.</div>
@@ -944,13 +1036,7 @@ const ReimbursementDetails: React.FC = () => {
   };
 
   const handleDownload = () => {
-    const htmlContent = generateDownloadHTML();
-    const printWindow = window.open("", "_blank");
-    if (printWindow) {
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
-      setTimeout(() => { printWindow.print(); }, 500);
-    }
+    setIsPrintModalOpen(true);
   };
 
   if (loading) return <GlobalLoader isLoading={true} />;
@@ -987,37 +1073,14 @@ const ReimbursementDetails: React.FC = () => {
         >
           <div className="flex items-center gap-3">
             <ViewProjectButton doctype="Reimbursement" data={data} />
-            <div className="text-right text-sm text-[#3F3F46] dark:text-[#E4E4E7] hidden md:block">
-              <div className="flex items-center gap-1 font-medium justify-end">
-                <CalendarIcon className="w-4 h-4" />
-                Created: {formatDate(data.creation)}
-              </div>
-              <div className="flex items-center gap-1 mt-1 font-medium justify-end">
-                <UserIcon className="w-4 h-4" />
-                By: {data.owner}
-              </div>
-            </div>
-            {!cancellationStatus?.message?.has_pending && (
-              <ActionsDropdown
-                docname={data.name}
-                workflowState={data.workflow_state || "Draft"}
-                onActionComplete={() => window.location.reload()}
-                onEdit={() => navigate(`/reimbursement?edit=${data.name}`)}
-                onSubmit={handleSubmit}
-                onDownload={handleDownload}
-                isSubmitting={isSubmitting}
-                commitRequired={
-                  isRnDStaff &&
-                  isCommittedForGate === false &&
-                  data.workflow_state === "Pending Staff Approval"
-                }
-              />
-            )}
-            {cancellationStatus?.message?.has_pending && (
-              <FrappeButton variant="outline" onClick={handleDownload}>
-                <DownloadIcon className="w-4 h-4" />
-              </FrappeButton>
-            )}
+            <button
+              onClick={handleDownload}
+              className="inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 shadow-sm transition-colors"
+              title="Print / PDF"
+            >
+              <PrinterIcon className="w-3.5 h-3.5" />
+              Print / PDF
+            </button>
           </div>
         </PageHeader>
 
@@ -1387,6 +1450,23 @@ const ReimbursementDetails: React.FC = () => {
 
       {/* Floating Activity Log */}
       {id && <FloatingActivityLogButton doctype="Reimbursement" docname={id} />}
+
+      <div style={{ display: "none" }} ref={activityLogContainerRef}>
+        {id && (
+          <ActivityLog 
+            doctype="Reimbursement" 
+            docname={id} 
+          />
+        )}
+      </div>
+
+      <P11PrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        title="Reimbursement Preview"
+        htmlContent={isPrintModalOpen ? generateDownloadHTML() : ""}
+        docName={data?.name || id || ""}
+      />
     </div>
   );
 };
