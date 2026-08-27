@@ -73,6 +73,19 @@ interface ExtensionDoc {
   ex_period_staff?: string;
   increment_by_pi?: string;
   increment_by_staff?: string;
+  ex_computed_new_joining_date?: string | null;
+  ex_computed_new_completion_date?: string | null;
+  ex_final_new_joining_date?: string | null;
+  ex_final_new_completion_date?: string | null;
+}
+
+interface PreviewNewTenure {
+  total_months_worked: number;
+  gap_days: number;
+  new_joining_date: string;
+  new_completion_date: string;
+  prev_basic_salary: number;
+  new_basic_salary: number;
 }
 
 interface WorkflowActionsResponse {
@@ -217,6 +230,16 @@ const ProjectStaffExtensionForm: React.FC = () => {
   const [savedStaffPeriod, setSavedStaffPeriod] = useState("");
   const [savedStaffIncrement, setSavedStaffIncrement] = useState("");
 
+  // New-tenure computation — system-suggested (read-only) vs the editable
+  // final override that wins at approval time if the staff user sets it.
+  const [computedNewJoiningDate, setComputedNewJoiningDate] = useState<string>("");
+  const [computedNewCompletionDate, setComputedNewCompletionDate] = useState<string>("");
+  const [finalNewJoiningDate, setFinalNewJoiningDate] = useState<string>("");
+  const [finalNewCompletionDate, setFinalNewCompletionDate] = useState<string>("");
+  const [tenurePreview, setTenurePreview] = useState<PreviewNewTenure | null>(null);
+  const [tenurePreviewError, setTenurePreviewError] = useState<string | null>(null);
+  const [tenurePreviewLoading, setTenurePreviewLoading] = useState(false);
+
   const [docName, setDocName] = useState<string | null>(null);
   const [docstatus, setDocstatus] = useState(0);
   const [workflowState, setWorkflowState] = useState("Draft");
@@ -346,6 +369,10 @@ const ProjectStaffExtensionForm: React.FC = () => {
         setSavedPIIncrement(doc.increment_by_pi ?? "");
         setSavedStaffPeriod(doc.ex_period_staff ?? "");
         setSavedStaffIncrement(doc.increment_by_staff ?? "");
+        setComputedNewJoiningDate(doc.ex_computed_new_joining_date ?? "");
+        setComputedNewCompletionDate(doc.ex_computed_new_completion_date ?? "");
+        setFinalNewJoiningDate(doc.ex_final_new_joining_date ?? doc.ex_computed_new_joining_date ?? "");
+        setFinalNewCompletionDate(doc.ex_final_new_completion_date ?? doc.ex_computed_new_completion_date ?? "");
         setIsEditing(false);
       } catch (error: unknown) {
         if (!cancelled) showToast("error", getErrorText(error, "Failed to load extension."));
@@ -389,6 +416,10 @@ const ProjectStaffExtensionForm: React.FC = () => {
   const { call: directSubmit } = useFrappePostCall<{
     message: { status: string; docstatus?: number };
   }>(extensionAPI.submit);
+
+  const { call: previewNewTenure } = useFrappePostCall<{
+    message: PreviewNewTenure;
+  }>(extensionAPI.previewNewTenure);
 
   // ── Business rules (extension eligibility policy) ─────────────────────────────
   // 1. A staff member may apply only within the last 1 month of the (current/new)
@@ -483,6 +514,12 @@ const ProjectStaffExtensionForm: React.FC = () => {
     ex_period_staff: extensionPeriodStaff,
     increment_by_pi: incrementPI,
     increment_by_staff: incrementStaff,
+    ...(canEditStaffFields
+      ? {
+        ex_final_new_joining_date: finalNewJoiningDate || null,
+        ex_final_new_completion_date: finalNewCompletionDate || null,
+      }
+      : {}),
   });
 
   const handleSave = async () => {
@@ -790,6 +827,52 @@ const ProjectStaffExtensionForm: React.FC = () => {
   const hasUnsavedEvaluationChanges =
     (canEditPIFields && (extensionPeriodPI !== savedPIPeriod || incrementPI !== savedPIIncrement)) ||
     (canEditStaffFields && (extensionPeriodStaff !== savedStaffPeriod || incrementStaff !== savedStaffIncrement));
+
+  // Live preview of the new tenure (start/end date, new basic) as the staff user
+  // enters/edits the period and increment — debounced so it doesn't fire on
+  // every keystroke. Only relevant while the staff evaluation fields are editable.
+  useEffect(() => {
+    if (!canEditStaffFields || !applicantEmpId || !extensionPeriodStaff) {
+      setTenurePreview(null);
+      setTenurePreviewError(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setTenurePreviewLoading(true);
+      setTenurePreviewError(null);
+      try {
+        const res = await previewNewTenure({
+          ex_emp_id: applicantEmpId,
+          period: extensionPeriodStaff,
+          increment: incrementStaff || undefined,
+        });
+        if (cancelled) return;
+        const preview = res?.message;
+        if (preview) {
+          setTenurePreview(preview);
+          // Only ever suggest the computed dates into the editable override
+          // while the user hasn't already set/changed one themselves.
+          setComputedNewJoiningDate(preview.new_joining_date);
+          setComputedNewCompletionDate(preview.new_completion_date);
+          setFinalNewJoiningDate((prev) => prev || preview.new_joining_date);
+          setFinalNewCompletionDate((prev) => prev || preview.new_completion_date);
+        }
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setTenurePreview(null);
+          setTenurePreviewError(getErrorText(err, "Could not compute the new tenure preview."));
+        }
+      } finally {
+        if (!cancelled) setTenurePreviewLoading(false);
+      }
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canEditStaffFields, applicantEmpId, extensionPeriodStaff, incrementStaff]);
 
   const showCommitSection =
     !!docName &&
@@ -1612,6 +1695,110 @@ const ProjectStaffExtensionForm: React.FC = () => {
                         )}
                       </div>
                     </div>
+
+                    {/* New Tenure — live preview + editable final override.
+                        Visible from Pending PI Approval onward (mirrors the
+                        card's own visibility), editable only for staff at
+                        Pending Staff Approval. */}
+                    {(extensionPeriodStaff || computedNewJoiningDate || finalNewJoiningDate) && (
+                      <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="p-1.5 bg-emerald-500/10 rounded-lg">
+                            <CalendarDays className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                          </div>
+                          <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-xs uppercase tracking-wide">
+                            New Tenure
+                          </h3>
+                        </div>
+
+                        {canEditStaffFields && (
+                          <div className="mb-3">
+                            {tenurePreviewLoading ? (
+                              <div className="flex items-center gap-2 text-sm text-[#71717A] dark:text-[#A1A1AA]">
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                Computing probable new term…
+                              </div>
+                            ) : tenurePreviewError ? (
+                              <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-300">
+                                <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                                {tenurePreviewError}
+                              </div>
+                            ) : tenurePreview ? (
+                              <div className="px-3 py-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-sm text-emerald-800 dark:text-emerald-300">
+                                Probable new term:{" "}
+                                <span className="font-semibold">{tenurePreview.new_joining_date}</span>
+                                {" → "}
+                                <span className="font-semibold">{tenurePreview.new_completion_date}</span>
+                                , new basic{" "}
+                                <span className="font-semibold">₹{tenurePreview.new_basic_salary.toLocaleString("en-IN")}</span>
+                              </div>
+                            ) : null}
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
+                              New Term Start (Final)
+                            </label>
+                            {canEditStaffFields ? (
+                              <input
+                                type="date"
+                                value={finalNewJoiningDate}
+                                onChange={(e) => setFinalNewJoiningDate(e.target.value)}
+                                disabled={isBusy}
+                                className={cn(
+                                  "w-full px-3 py-2 text-sm rounded-lg border transition-colors",
+                                  "bg-white dark:bg-zinc-900 text-[#27272A] dark:text-[#E4E4E7]",
+                                  "border-zinc-200 dark:border-zinc-700",
+                                  "focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]",
+                                  "disabled:opacity-60 disabled:cursor-not-allowed",
+                                )}
+                              />
+                            ) : (
+                              <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                                {finalNewJoiningDate || computedNewJoiningDate || "—"}
+                              </p>
+                            )}
+                            {computedNewJoiningDate && computedNewJoiningDate !== finalNewJoiningDate && (
+                              <p className="mt-1.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
+                                System-suggested: {computedNewJoiningDate}
+                              </p>
+                            )}
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
+                              New Term End (Final)
+                            </label>
+                            {canEditStaffFields ? (
+                              <input
+                                type="date"
+                                value={finalNewCompletionDate}
+                                onChange={(e) => setFinalNewCompletionDate(e.target.value)}
+                                disabled={isBusy}
+                                className={cn(
+                                  "w-full px-3 py-2 text-sm rounded-lg border transition-colors",
+                                  "bg-white dark:bg-zinc-900 text-[#27272A] dark:text-[#E4E4E7]",
+                                  "border-zinc-200 dark:border-zinc-700",
+                                  "focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]",
+                                  "disabled:opacity-60 disabled:cursor-not-allowed",
+                                )}
+                              />
+                            ) : (
+                              <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                                {finalNewCompletionDate || computedNewCompletionDate || "—"}
+                              </p>
+                            )}
+                            {computedNewCompletionDate && computedNewCompletionDate !== finalNewCompletionDate && (
+                              <p className="mt-1.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
+                                System-suggested: {computedNewCompletionDate}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {canEditStaffFields && (
                       <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700 flex justify-end">
