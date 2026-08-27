@@ -83,7 +83,7 @@ function buildActivityLogHtml(items: ActivityItem[], formData: Record<string, an
         <table class="activity-table">
             <thead>
                 <tr>
-                    <th>Approver (Name &amp; Designation)</th>
+                    <th>Approver</th>
                     <th>Comment</th>
                     <th>Time</th>
                 </tr>

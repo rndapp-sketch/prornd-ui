@@ -127,6 +127,7 @@ function KpiCard({
     onBadgeClick,
     valueAdornment,
     customBottom,
+    isLoading,
 }: {
     label: string;
     value: string;
@@ -149,6 +150,7 @@ function KpiCard({
     onBadgeClick?: (badgeLabel: string) => void;
     valueAdornment?: React.ReactNode;
     customBottom?: React.ReactNode;
+    isLoading?: boolean;
 }) {
     return (
         <div
@@ -177,7 +179,11 @@ function KpiCard({
                 <div
                     className={`text-[32px] font-extrabold tracking-tight leading-none drop-shadow-sm ${valueColor}`}
                 >
-                    {value}
+                    {isLoading ? (
+                        <span className="text-[13px] font-bold text-[#A1A1AA] dark:text-[#71717A] animate-pulse">Loading…</span>
+                    ) : (
+                        value
+                    )}
                 </div>
                 {valueAdornment}
             </div>
@@ -901,8 +907,12 @@ export function DirectorDashboard() {
         });
     }, []);
 
+    // "myProjects" is a test/leftover doctype entry from the backend — hide it from
+    // the Application-wise Activity list and everything derived from it.
     const sortedDoctypeCounts = React.useMemo(() => {
-        return [...(processCounts?.doctype_counts || [])].sort((a, b) => b.total - a.total);
+        return [...(processCounts?.doctype_counts || [])]
+            .filter(r => r.doctype !== "myProjects")
+            .sort((a, b) => b.total - a.total);
     }, [processCounts]);
 
     const ACTIVITY_TOP_N = 10;
@@ -3190,7 +3200,8 @@ export function DirectorDashboard() {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-[14px] mb-6">
                             <KpiCard
                                 label="Total Projects"
-                                value={isLoading ? "—" : String(totalProjects)}
+                                value={String(totalProjects)}
+                                isLoading={isLoading}
                                 subtext=""
                                 icon={
                                     <svg
@@ -3235,7 +3246,8 @@ export function DirectorDashboard() {
                             <KpiCard
                                 label="Total Allocation"
                                 description="From all ongoing (sanction-approved) projects"
-                                value={isLoading ? "—" : formatCurrency(fundAlloc)}
+                                value={formatCurrency(fundAlloc)}
+                                isLoading={isLoading}
                                 subtext={isLoading ? "" : `${fundUtilPercent}% utilized`}
                                 icon={
                                     <svg
@@ -3263,7 +3275,8 @@ export function DirectorDashboard() {
                             />
                             <KpiCard
                                 label="Ongoing Projects"
-                                value={isLoading ? "—" : String(ongoingProjects)}
+                                value={String(ongoingProjects)}
+                                isLoading={isLoading}
                                 subtext={
                                     totalProjects > 0
                                         ? `${((ongoingProjects / totalProjects) * 100).toFixed(0)}% of portfolio`
@@ -3291,7 +3304,8 @@ export function DirectorDashboard() {
                             />
                             <KpiCard
                                 label="Intl. Collaborators"
-                                value={isLoading ? "—" : String(intl.active_agencies || 0)}
+                                value={String(intl.active_agencies || 0)}
+                                isLoading={isLoading}
                                 subtext=""
                                 icon={
                                     <svg
@@ -3321,7 +3335,8 @@ export function DirectorDashboard() {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-[14px] mb-[14px]">
                             <KpiCard
                                 label="Today"
-                                value={isProcessCountsLoading ? "—" : String(processCounts?.totals.today ?? 0)}
+                                value={String(processCounts?.totals.today ?? 0)}
+                                isLoading={isProcessCountsLoading}
                                 subtext={
                                     isProcessCountsLoading || !processCounts?.totals.this_week
                                         ? ""
@@ -3339,7 +3354,8 @@ export function DirectorDashboard() {
                             />
                             <KpiCard
                                 label="This Week"
-                                value={isProcessCountsLoading ? "—" : String(processCounts?.totals.this_week ?? 0)}
+                                value={String(processCounts?.totals.this_week ?? 0)}
+                                isLoading={isProcessCountsLoading}
                                 subtext={
                                     isProcessCountsLoading || !processCounts?.totals.this_month
                                         ? ""
@@ -3356,7 +3372,8 @@ export function DirectorDashboard() {
                             />
                             <KpiCard
                                 label="This Month"
-                                value={isProcessCountsLoading ? "—" : String(processCounts?.totals.this_month ?? 0)}
+                                value={String(processCounts?.totals.this_month ?? 0)}
+                                isLoading={isProcessCountsLoading}
                                 subtext={
                                     isProcessCountsLoading || !processCounts?.totals.total
                                         ? ""
@@ -3373,7 +3390,8 @@ export function DirectorDashboard() {
                             />
                             <KpiCard
                                 label="Total (All Time)"
-                                value={isProcessCountsLoading ? "—" : String(processCounts?.totals.total ?? 0)}
+                                value={String(processCounts?.totals.total ?? 0)}
+                                isLoading={isProcessCountsLoading}
                                 subtext={
                                     isProcessCountsLoading || sortedDoctypeCounts.length === 0
                                         ? ""

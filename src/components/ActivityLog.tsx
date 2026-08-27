@@ -300,9 +300,21 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({
                     // Strip HTML tags to ensure plain text and hyperlinked versions of the same text match
                     const plainContent = (entry.content || "").replace(/<[^>]*>?/gm, "").trim().toLowerCase();
                     const ts = entry.timestamp ? new Date(entry.timestamp).getTime() : 0;
-                    // Group by 1-second window to handle slight timestamp variations
-                    const fuzzyTs = Math.floor(ts / 1000); 
-                    const key = `${fuzzyTs}_${plainContent}`;
+                    const userKey = (entry.user_email || entry.user || "").toLowerCase();
+                    // Real comments: key on user + text alone, ignoring timestamp entirely.
+                    // get_document_activity and get_project_activity can report the same
+                    // underlying comment with a couple seconds of timestamp drift between
+                    // them (different source fields), which slipped past the old 1-second
+                    // bucket and showed up as two rows with the same text and time in the
+                    // printed activity log. The same user posting identical text twice for
+                    // real is rare enough that collapsing it is the safer default.
+                    // System/workflow entries (no content) keep a timestamp bucket, widened
+                    // to 10s, since two distinct actions by the same user with no comment
+                    // are more plausible than two distinct real comments with identical text.
+                    const fuzzyTs = Math.floor(ts / 10000);
+                    const key = plainContent
+                        ? `c_${userKey}_${plainContent}`
+                        : `s_${fuzzyTs}_${userKey}_${entry.label}`;
                     
                     if (uniqueEntriesMap.has(key)) {
                         const existing = uniqueEntriesMap.get(key)!;

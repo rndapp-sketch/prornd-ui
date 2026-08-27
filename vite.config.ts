@@ -31,10 +31,11 @@ function creditBannerPlugin(): Plugin {
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-    // Nginx fronts the dev server at https://pragati.iitg.ac.in/dev/ (see
-    // server.allowedHosts below), so dev-mode asset/HMR requests need the
-    // /dev/ prefix. Production keeps the default root base, unchanged.
-    base: mode === 'development' ? '/dev/' : '/',
+    // Root base for both dev and prod: this environment accesses the dev
+    // server directly by IP:port, not through the pragati.iitg.ac.in/dev/
+    // nginx front. If that nginx /dev/ proxy setup is needed again, restore
+    // `mode === 'development' ? '/dev/' : '/'`.
+    base: '/',
     define: {
         // `define` substitutes this identifier with raw source code, not an
         // auto-quoted value — so the object must be JSON.stringify'd twice:

@@ -65,7 +65,7 @@ function buildActivityLogHtml(items: ActivityItem[], formData?: Record<string, a
     <table class="activity-table">
         <thead>
             <tr>
-                <th>Approver (Name &amp; Designation)</th>
+                <th>Approver</th>
                 <th>Comment</th>
                 <th>Time</th>
             </tr>
@@ -292,7 +292,7 @@ export function generateDisbursalOfConsultancyHtml(
                             <table class="activity-table">
                                 <thead>
                                     <tr>
-                                        <th>Approver (Name &amp; Designation)</th>
+                                        <th>Approver</th>
                                         <th>Comment</th>
                                         <th>Time</th>
                                     </tr>
