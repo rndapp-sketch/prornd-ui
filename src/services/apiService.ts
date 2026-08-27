@@ -106,6 +106,8 @@ export const directPurchaseAPI = {
     generateP11Form: `${API_BASE}.direct_purchase.direct_purchase.generate_p11_form`,
     generateSanctionSheet: `${API_BASE}.direct_purchase.direct_purchase.generate_sanction_sheet`,
     generatePurchaseOrder: `${API_BASE}.direct_purchase.direct_purchase.generate_purchase_order`,
+    getPiProjects: `${API_BASE}.direct_purchase.direct_purchase.get_direct_purchase_pi_projects`,
+    getProjectAccountHeads: `${API_BASE}.direct_purchase.direct_purchase.get_direct_purchase_project_account_heads`,
 };
 
 // Direct Purchase PO (dp_po) API endpoints — Stage 4
