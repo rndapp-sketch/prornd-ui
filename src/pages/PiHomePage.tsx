@@ -501,7 +501,7 @@ export function PiHomePage() {
 
   const overview = dashboardData?.message?.project_overview;
   const financials = dashboardData?.message?.financial_summary;
-  const recentUpdates = dashboardData?.message?.recent_updates ?? [];
+  const recentUpdates = (dashboardData?.message?.recent_updates ?? []).slice(0, 50);
 
   return (
     <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] font-sans transition-colors duration-300">
@@ -693,7 +693,7 @@ export function PiHomePage() {
           <section className="grid grid-cols-1 lg:grid-cols-3 gap-5 pb-8">
             <Card className="lg:col-span-2">
               <PanelHeader icon={<Megaphone />} title="Recent Updates" />
-              <div className="p-[18px] space-y-3">
+              <div className="p-[18px] space-y-3 max-h-[420px] overflow-y-auto">
                 {dashboardLoading ? (
                   <p className="text-[12px] text-[#A1A1AA] font-medium">
                     Loading updates...
