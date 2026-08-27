@@ -1616,19 +1616,32 @@ const ProjectRegistration: React.FC = () => {
                                 details.department ||
                                 details.applicant_department;
 
-                            if (
-                                deptName &&
-                                linkOptions["applicant_department"]
-                            ) {
-                                const matchedOption = linkOptions[
-                                    "applicant_department"
-                                ].find(
+                            if (deptName) {
+                                const normalize = (s: string) => s.trim().toLowerCase();
+                                const deptOptions = linkOptions["applicant_department"] || [];
+                                const matchedOption = deptOptions.find(
                                     (opt) =>
-                                        opt.label === deptName ||
-                                        opt.value === deptName,
+                                        normalize(opt.label) === normalize(deptName) ||
+                                        normalize(opt.value) === normalize(deptName),
                                 );
-                                departmentLinkValue =
-                                    matchedOption?.value || "";
+                                if (matchedOption) {
+                                    departmentLinkValue = matchedOption.value;
+                                } else {
+                                    // No exact/case-insensitive match in the preloaded options
+                                    // (e.g. PI's department record differs in casing/whitespace
+                                    // from the Department list, or that department wasn't in the
+                                    // initially loaded options) — inject it so the select still
+                                    // shows the PI's actual department instead of silently
+                                    // resetting to blank ("Select...").
+                                    departmentLinkValue = deptName;
+                                    setLinkOptions((prev: any) => ({
+                                        ...prev,
+                                        applicant_department: [
+                                            ...(prev.applicant_department || []),
+                                            { value: deptName, label: deptName },
+                                        ],
+                                    }));
+                                }
                             }
                             updatedData = {
                                 ...updatedData,
