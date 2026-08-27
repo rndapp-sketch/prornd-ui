@@ -25,6 +25,8 @@ interface BudgetActionsSidebarProps {
     defaultBudgetHead?: string;
     /** Optional helper note shown under the "Make a Commitment" title (e.g. clarifying what the pre-filled amount represents) */
     commitAmountNote?: string;
+    /** Include bill_amount (equal to the entered commitment amount) in the Kafka commit payload — e.g. required for TA DA Settlement */
+    includeBillAmount?: boolean;
 }
 
 export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
@@ -38,6 +40,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
     showPayment = true,
     defaultBudgetHead,
     commitAmountNote,
+    includeBillAmount = false,
 }) => {
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
@@ -120,6 +123,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
                     parentAppId={parentAppId}
                     defaultBudgetHead={defaultBudgetHead}
                     description={commitAmountNote}
+                    includeBillAmount={includeBillAmount}
                     onCommitSuccess={(head, amount) => setCommitSuccess({ head, amount })}
                     onStagingStatusChange={onStagingStatusChange}
                 />

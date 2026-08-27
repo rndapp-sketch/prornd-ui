@@ -285,6 +285,18 @@ export const loanRequestAPI = {
     performAction: `${API_BASE}.loan_request.loan_request.perform_loan_request_action`,
 };
 
+// Loan Settlement API endpoints (settling a project loan out of an incoming Fund Received)
+export const loanSettlementAPI = {
+    getActiveLoansForProject: `${API_BASE}.loan_settlement.loan_settlement.get_active_loan_for_project`,
+    saveRequests: `${API_BASE}.loan_settlement.loan_settlement.save_loan_settlement_requests`,
+    discardRequests: `${API_BASE}.loan_settlement.loan_settlement.discard_loan_settlement_requests`,
+    getDetails: `${API_BASE}.loan_settlement.loan_settlement.get_loan_settlement_details`,
+    getForFundReceived: `${API_BASE}.loan_settlement.loan_settlement.get_loan_settlements_for_fund_received`,
+    getWorkflowActions: `${API_BASE}.loan_settlement.loan_settlement.get_loan_settlement_workflow_actions`,
+    performAction: `${API_BASE}.loan_settlement.loan_settlement.perform_loan_settlement_action`,
+    retryPublish: `${API_BASE}.loan_settlement.loan_settlement.retry_publish_loan_settlement`,
+};
+
 // Miscellaneous Commit API endpoints
 export const miscellaneousCommitAPI = {
     getFields: `${API_BASE}.miscellaneous_commit.miscellaneous_commit.get_miscellaneous_commit_fields`,
@@ -352,7 +364,10 @@ export const fileToBase64 = (file: File): Promise<{ file_name: string; file_data
 };
 
 // Candidate APIs (External Node Server)
-export const CANDIDATE_API_BASE_URL = import.meta.env.VITE_CANDIDATE_API_URL || "https://iitg.ac.in/rndproj/recruitment";
+// In dev, calls are routed through the Vite proxy at /candidate-api (see proxyOptions.ts)
+// so that binary document downloads (which the external API does not send CORS headers for)
+// can be fetched same-origin instead of being blocked by the browser.
+export const CANDIDATE_API_BASE_URL = import.meta.env.VITE_CANDIDATE_API_URL || "/candidate-api";
 
 export const candidateAPI = {
     getApplications: (refNum: string) => `${CANDIDATE_API_BASE_URL}/api/applications?refNumParent=${encodeURIComponent(refNum)}`,
