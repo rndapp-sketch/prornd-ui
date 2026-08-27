@@ -281,6 +281,11 @@ export function AppSidebar() {
             path: "/task-registry",
         },
         {
+            label: "Track Application",
+            icon: Search,
+            path: "/track-application",
+        },
+        {
             label: "Payments",
             icon: CreditCard,
             path: "/payments",
@@ -368,6 +373,17 @@ export function AppSidebar() {
                 "Dean, RnD",
                 "Ado_RnD",
                 "head_approver_1",
+            ];
+            return roles && allowedRoles.some((role) => roles.includes(role));
+        }
+        if (item.label === "Track Application") {
+            const allowedRoles = [
+                "staff, RnD",
+                "Permanent Employee",
+                "head_approver_1",
+                "Hos, RnD (Head of Section, RnD)",
+                "Dean, RnD",
+                "Ado_RnD",
             ];
             return roles && allowedRoles.some((role) => roles.includes(role));
         }

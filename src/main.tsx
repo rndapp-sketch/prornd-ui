@@ -75,6 +75,7 @@ import TaskRegistry from './pages/TaskRegistry.tsx';
 import TaskRegistryDetails from './pages/TaskRegistryDetails.tsx';
 import TemporaryAdvanceDetails from './pages/application/TemporaryAdvanceDetails.tsx';
 import Payments from './pages/Payments.tsx';
+import TrackApplication from './pages/TrackApplication.tsx';
 import AdvanceSettlementForm from './pages/application/AdvanceSettlementForm.tsx';
 import AdvanceSettlementDetails from './pages/application/AdvanceSettlementDetails.tsx';
 import DisbursalOfHonorarium from './pages/application/DisbursalOfHonorarium.tsx';
@@ -724,6 +725,21 @@ const router = createBrowserRouter(
                             'Hos, RnD (Head of Section, RnD)',
                         ]}>
                             <Payments />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "track-application",
+                    element: (
+                        <AuthRouteWrapper allowedRole={[
+                            'staff, RnD',
+                            'Permanent Employee',
+                            'head_approver_1',
+                            'Hos, RnD (Head of Section, RnD)',
+                            'Dean, RnD',
+                            'Ado_RnD',
+                        ]}>
+                            <TrackApplication />
                         </AuthRouteWrapper>
                     )
                 },
