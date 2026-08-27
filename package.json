@@ -27,6 +27,7 @@
     "frappe-react-sdk": "^1.12.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.0.0",
+    "jszip": "^3.10.1",
     "lodash": "^4.17.23",
     "lucide-react": "^0.536.0",
     "num-words": "^1.2.3",
