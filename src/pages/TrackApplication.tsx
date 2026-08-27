@@ -17,6 +17,11 @@ import {
     Hash,
     Users as UsersIcon,
     UserCog,
+    HelpCircle,
+    Info,
+    BookOpen,
+    ChevronDown,
+    ChevronUp,
 } from "lucide-react";
 
 interface PendingWith {
@@ -176,6 +181,7 @@ const TrackApplication: React.FC = () => {
     const [docname, setDocname] = useState("");
     const [result, setResult] = useState<TrackApplicationResult | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [showGuide, setShowGuide] = useState(true);
 
     const { call: trackApplication, loading } = useFrappePostCall<{
         message: TrackApplicationResult;
@@ -186,6 +192,7 @@ const TrackApplication: React.FC = () => {
         if (!trimmed) return;
         setError(null);
         setResult(null);
+        setShowGuide(false);
         try {
             const res = await trackApplication({ docname: trimmed });
             const data = res?.message;
@@ -220,18 +227,32 @@ const TrackApplication: React.FC = () => {
             <main className="flex-1 px-6 md:px-8 pt-7 pb-10 w-full overflow-hidden">
                 <div className="mb-5 rounded-2xl overflow-hidden shadow-sm border border-[#E4E4E7] dark:border-[#3F3F46]">
                     <div className="h-1.5 bg-gradient-to-r from-[#D97757] via-[#c66a4e] to-[#4A6CF7]" />
-                    <div className="px-5 py-4 bg-white dark:bg-[#27272A]">
-                        <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">
-                            Track
-                        </span>
-                        <h1 className="mt-1 text-[24px] font-black tracking-tight text-[#18181B] dark:text-[#FAFAF9] leading-tight flex items-center gap-2.5">
-                            <Activity className="w-5.5 h-5.5 text-[#D97757]" />
-                            Track Application
-                        </h1>
-                        <p className="mt-1 text-[12.5px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
-                            Look up any application by its document number to see its current status,
-                            who it's pending with, and its recent activity.
-                        </p>
+                    <div className="px-5 py-4 bg-white dark:bg-[#27272A] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">
+                                Track
+                            </span>
+                            <h1 className="mt-1 text-[24px] font-black tracking-tight text-[#18181B] dark:text-[#FAFAF9] leading-tight flex items-center gap-2.5">
+                                <Activity className="w-5.5 h-5.5 text-[#D97757]" />
+                                Track Application
+                            </h1>
+                            <p className="mt-1 text-[12.5px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+                                Look up any application by its document number to see its current status,
+                                who it's pending with, and its recent activity.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setShowGuide((prev) => !prev)}
+                            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[12.5px] font-bold border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] hover:bg-zinc-100 dark:bg-[#18181B]/60 dark:hover:bg-[#18181B] text-[#3F3F46] dark:text-[#E4E4E7] transition-colors shrink-0 self-start sm:self-center"
+                        >
+                            <HelpCircle className="w-4 h-4 text-[#D97757]" />
+                            <span>{showGuide ? "Hide Guide" : "How to Use"}</span>
+                            {showGuide ? (
+                                <ChevronUp className="w-3.5 h-3.5 text-[#A1A1AA]" />
+                            ) : (
+                                <ChevronDown className="w-3.5 h-3.5 text-[#A1A1AA]" />
+                            )}
+                        </button>
                     </div>
                 </div>
 
@@ -244,7 +265,7 @@ const TrackApplication: React.FC = () => {
                                 value={docname}
                                 onChange={(e) => setDocname(e.target.value)}
                                 onKeyDown={handleKeyDown}
-                                placeholder="Enter document number, e.g. 2026082110002856"
+                                placeholder="Enter document number, e.g. 202234510002856"
                                 className="h-11 w-full pl-9 pr-3 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[13.5px] font-mono font-semibold text-[#27272A] dark:text-[#F4F4F5] placeholder:text-[#A1A1AA] placeholder:font-sans placeholder:font-normal focus:outline-none focus:border-[#4A6CF7] focus:ring-[3px] focus:ring-[#4A6CF7]/12 transition-colors"
                             />
                         </div>
@@ -261,6 +282,97 @@ const TrackApplication: React.FC = () => {
                         </button>
                     </div>
                 </FrappeCard>
+
+                {showGuide && (
+                    <FrappeCard title="How to Use Application Tracking" icon={BookOpen} accent="border-t-[#4A6CF7]" className="mb-5">
+                        <div className="space-y-5">
+                            <div>
+                                <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-[#A1A1AA] mb-3">
+                                    Quick 3-Step Process
+                                </h4>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                                    <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] p-4 bg-[#FAFAF9] dark:bg-[#18181B]/50 flex flex-col justify-between">
+                                        <div>
+                                            <div className="w-7 h-7 rounded-lg bg-[#D97757]/10 text-[#D97757] font-black text-[13px] flex items-center justify-center mb-2.5 border border-[#D97757]/20">
+                                                1
+                                            </div>
+                                            <h5 className="text-[13.5px] font-bold text-[#18181B] dark:text-[#FAFAF9] mb-1">
+                                                Locate Document ID
+                                            </h5>
+                                            <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] leading-relaxed">
+                                                Copy your document reference ID (e.g. <code className="px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[11px] font-mono font-bold text-[#18181B] dark:text-[#FAFAF9]">2026082110002856</code>) from your application submission receipt or dashboard.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] p-4 bg-[#FAFAF9] dark:bg-[#18181B]/50 flex flex-col justify-between">
+                                        <div>
+                                            <div className="w-7 h-7 rounded-lg bg-[#4A6CF7]/10 text-[#4A6CF7] font-black text-[13px] flex items-center justify-center mb-2.5 border border-[#4A6CF7]/20">
+                                                2
+                                            </div>
+                                            <h5 className="text-[13.5px] font-bold text-[#18181B] dark:text-[#FAFAF9] mb-1">
+                                                Search Application
+                                            </h5>
+                                            <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] leading-relaxed">
+                                                Enter the document reference into the search field above and click <strong className="text-[#18181B] dark:text-[#FAFAF9]">Track</strong> or press <kbd className="px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[10px] font-mono border border-zinc-300 dark:border-zinc-700">Enter</kbd>.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] p-4 bg-[#FAFAF9] dark:bg-[#18181B]/50 flex flex-col justify-between">
+                                        <div>
+                                            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-black text-[13px] flex items-center justify-center mb-2.5 border border-emerald-500/20">
+                                                3
+                                            </div>
+                                            <h5 className="text-[13.5px] font-bold text-[#18181B] dark:text-[#FAFAF9] mb-1">
+                                                View Live Progress
+                                            </h5>
+                                            <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] leading-relaxed">
+                                                Instantly review current workflow status, pending approvers/roles, linked project details, and the activity timeline.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]/40 p-4">
+                                <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-[#A1A1AA] mb-3 flex items-center gap-1.5">
+                                    <Info className="w-3.5 h-3.5 text-[#D97757]" /> Details Provided on Lookup
+                                </h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[12px]">
+                                    <div className="flex items-start gap-2.5">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-[#D97757] mt-1.5 shrink-0" />
+                                        <div>
+                                            <p className="font-bold text-[#27272A] dark:text-[#F4F4F5]">Workflow State</p>
+                                            <p className="text-[#71717A] dark:text-[#A1A1AA]">Current stage (Draft, Pending Approval, Approved, PO Generated, etc.)</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-2.5">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-[#4A6CF7] mt-1.5 shrink-0" />
+                                        <div>
+                                            <p className="font-bold text-[#27272A] dark:text-[#F4F4F5]">Pending Approvers</p>
+                                            <p className="text-[#71717A] dark:text-[#A1A1AA]">Roles and specific accounts responsible for the pending action</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-2.5">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+                                        <div>
+                                            <p className="font-bold text-[#27272A] dark:text-[#F4F4F5]">Linked Project</p>
+                                            <p className="text-[#71717A] dark:text-[#A1A1AA]">Associated Project ID and Document Type details</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-2.5">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                                        <div>
+                                            <p className="font-bold text-[#27272A] dark:text-[#F4F4F5]">Activity Timeline</p>
+                                            <p className="text-[#71717A] dark:text-[#A1A1AA]">Audit trail of workflow changes, comments, and approvals</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </FrappeCard>
+                )}
 
                 {error && (
                     <div className="mb-5 flex items-center gap-2.5 px-4 py-3.5 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 text-[13px] font-semibold text-red-700 dark:text-red-400">
@@ -495,11 +607,22 @@ const TrackApplication: React.FC = () => {
                 )}
 
                 {!result && !error && !loading && (
-                    <div className="py-20 text-center">
-                        <Search className="w-8 h-8 mx-auto mb-3 text-[#D4D4D8] dark:text-[#3F3F46]" />
-                        <p className="text-[13px] text-[#A1A1AA]">
-                            Enter a document number above to see its status.
+                    <div className="py-12 px-6 text-center bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
+                        <Search className="w-9 h-9 mx-auto mb-3 text-[#D97757]" />
+                        <h3 className="text-[15px] font-extrabold text-[#18181B] dark:text-[#FAFAF9]">
+                            Search Application Status
+                        </h3>
+                        <p className="text-[12.5px] text-[#71717A] dark:text-[#A1A1AA] max-w-md mx-auto mt-1 mb-3">
+                            Enter any document reference number in the search bar above (e.g. <code className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] font-bold">2026082110002856</code>) to track its progress.
                         </p>
+                        {!showGuide && (
+                            <button
+                                onClick={() => setShowGuide(true)}
+                                className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[#4A6CF7] hover:underline transition-all mt-1"
+                            >
+                                <HelpCircle className="w-3.5 h-3.5" /> Open How to Use Guide
+                            </button>
+                        )}
                     </div>
                 )}
             </main>
