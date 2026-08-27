@@ -13,6 +13,9 @@ import { AutocompleteEmail } from "@/components/AutocompleteEmail";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
 import { getFieldMaxLength } from "@/utils/fieldLimits";
 import { ErrorModal } from "../components/ErrorModal";
+
+// Person pickers rendered as type-to-search instead of a long <select>.
+const DP_AUTOCOMPLETE_FIELDS = ["dp_other_pi_id"];
 import { parseFrappeError } from "../utils/errorUtils";
 
 // --- TYPE DEFINITIONS ---
@@ -186,6 +189,23 @@ const MemoizedFormField = memo(({
                 <div className={cn(inputClasses, "flex items-center bg-zinc-50 dark:bg-zinc-800/40 text-[#27272A] dark:text-[#F4F4F5] overflow-hidden text-ellipsis whitespace-nowrap")}>
                     {value ? <DepartmentName name={value} /> : <span className="text-[12px] text-zinc-400 dark:text-zinc-500 italic">Not provided</span>}
                 </div>
+            );
+        }
+
+        // Person pickers are type-to-search rather than a long dropdown, matching
+        // Travel / IGF / ICSS / Reimbursement.
+        if (DP_AUTOCOMPLETE_FIELDS.includes(field.fieldname) && linkOptions.length > 0) {
+            return (
+                <AutocompleteEmail
+                    className={commonInputProps.className}
+                    value={value ?? ""}
+                    onChange={(val) => onChange(field.fieldname, val)}
+                    options={linkOptions}
+                    searchByLabel
+                    showAllOnFocus
+                    placeholder={`Search ${field.label}...`}
+                    disabled={commonInputProps.disabled}
+                />
             );
         }
 
@@ -1183,6 +1203,26 @@ const DirectPurchase: React.FC = () => {
         setCommentModalOpen(true);
     };
 
+    // Where to go once the form is done with. A purchase charged to another PI
+    // has no project number yet — the funding PI supplies it at their approval
+    // step — so the old `/project-details-overview/${project}` redirect built a
+    // bare "/project-details-overview/" and 404'd. Fall back to somewhere real.
+    const goAfterLeavingForm = (docname?: string) => {
+        const targetProject =
+            formData.project_no || projectName || formData.project_name || formData.project || '';
+        if (targetProject) {
+            navigate(`/project-details-overview/${targetProject}`, {
+                state: { tab: 'quick-actions', category: 'Purchase', app: 'Direct Purchase' },
+            });
+            return;
+        }
+        if (formData.dp_other_pi === 'Other') {
+            navigate('/other-pi');
+            return;
+        }
+        navigate(docname ? `/direct-purchase/${docname}` : '/form-application');
+    };
+
     const handleConfirmSubmit = async (comment: string) => {
         setCommentModalOpen(false);
         setIsSubmitting(true);
@@ -1195,10 +1235,7 @@ const DirectPurchase: React.FC = () => {
             });
 
             alert('Direct Purchase submitted successfully!');
-            const targetProject = formData.project_no || projectName || formData.project_name || formData.project || '';
-            navigate(`/project-details-overview/${targetProject}`, {
-                state: { tab: 'quick-actions', category: 'Purchase', app: 'Direct Purchase' }
-            });
+            goAfterLeavingForm(savedDocName);
         } catch (err: any) {
             setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(submitDocError, err) });
         } finally {
@@ -1464,12 +1501,7 @@ const DirectPurchase: React.FC = () => {
                     <div className="mt-8 flex justify-end gap-2.5">
                         <FrappeButton
                             type="button"
-                            onClick={() => {
-                                const targetProject = formData.project_no || projectName || formData.project_name || formData.project || '';
-                                navigate(`/project-details-overview/${targetProject}`, {
-                                    state: { tab: 'quick-actions', category: 'Purchase', app: 'Direct Purchase' }
-                                });
-                            }}
+                            onClick={() => goAfterLeavingForm(savedDocName)}
                             className="bg-white text-[#71717A] border-[#E4E4E7] hover:bg-[#FAFAF9] dark:bg-[#27272A] dark:text-[#A1A1AA] dark:border-[#3F3F46]"
                         >
                             Cancel

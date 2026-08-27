@@ -37,6 +37,8 @@ const getAppRoute = (app: PendingApplicationRecord) => {
             return `/indent-cum-sanction-sheet/${app.name}`;
         case "Reimbursement":
             return `/reimbursement/${app.name}`;
+        case "Direct Purchase":
+            return `/direct-purchase/${app.name}`;
         case "Leave Module":
         default:
             return `/leave-module/${app.name}`;
@@ -211,7 +213,7 @@ const PendingApplication: React.FC = () => {
                         <div className="min-w-0">
                             <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">PI Inbox</span>
                             <h1 className="mt-1 font-sans text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Pending Applications</h1>
-                            <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">Leave and Project Staff Extension applications awaiting your approval as Principal Investigator.</p>
+                            <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">Leave, extension and other-PI applications awaiting your approval as Principal Investigator.</p>
                         </div>
                     </div>
                 </div>

@@ -7,6 +7,7 @@ import {
     Receipt,
     FileText,
     ClipboardList,
+    ShoppingCart,
     SearchIcon,
     ChevronRightIcon,
     PlusCircle,
@@ -84,6 +85,15 @@ const FORM_TYPES = [
         desc: "Composite sanction sheet & PO for high-value items.",
         route: "/indent-cum-sanction-sheet?other_pi=1",
     },
+    {
+        key: "direct_purchase",
+        label: "Direct Purchase",
+        icon: ShoppingCart,
+        color: "from-rose-500/20 to-red-500/20 text-rose-500 dark:text-rose-400 border-rose-500/30",
+        btnColor: "bg-rose-600 hover:bg-rose-700 text-white",
+        desc: "Direct purchases charged to another PI's project.",
+        route: "/direct-purchase?other_pi=1",
+    },
 ];
 
 export function OtherPIView() {
@@ -129,13 +139,23 @@ export function OtherPIView() {
         orderBy: { field: "creation", order: "desc" },
     });
 
-    const isLoading = loadingTravel || loadingReimb || loadingIgf || loadingIcss;
+    // 5. Fetch Direct Purchase documents with dp_other_pi == "Other"
+    const { data: dpDocs, isLoading: loadingDp, mutate: mutateDp } = useFrappeGetDocList("Direct Purchase", {
+        fields: ["name", "owner", "applicant_name", "dp_other_pi_id", "workflow_state", "creation"],
+        filters: [["dp_other_pi", "=", "Other"]],
+        orFilters: [["owner", "=", currentUser || "__none__"], ["dp_other_pi_id", "=", currentUser || "__none__"]],
+        limit: 100,
+        orderBy: { field: "creation", order: "desc" },
+    });
+
+    const isLoading = loadingTravel || loadingReimb || loadingIgf || loadingIcss || loadingDp;
 
     const handleRefreshAll = () => {
         mutateTravel();
         mutateReimb();
         mutateIgf();
         mutateIcss();
+        mutateDp();
     };
 
     // Combine all docs into a single normalized list
@@ -202,12 +222,27 @@ export function OtherPIView() {
             });
         }
 
+        if (dpDocs) {
+            dpDocs.forEach((doc: any) => {
+                list.push({
+                    name: doc.name,
+                    doctype: "Direct Purchase",
+                    title: `Direct Purchase (${doc.name})`,
+                    applicant: doc.applicant_name || doc.owner || "N/A",
+                    other_pi: doc.dp_other_pi_id || "N/A",
+                    workflow_state: doc.workflow_state || "Draft",
+                    creation: doc.creation,
+                    detailRoute: `/direct-purchase/${doc.name}`,
+                });
+            });
+        }
+
         return list.sort((a, b) => {
             const dateA = a.creation ? new Date(a.creation).getTime() : 0;
             const dateB = b.creation ? new Date(b.creation).getTime() : 0;
             return dateB - dateA;
         });
-    }, [travelDocs, reimbursementDocs, igfDocs, icssDocs]);
+    }, [travelDocs, reimbursementDocs, igfDocs, icssDocs, dpDocs]);
 
     // Filter by search, doctype, and status
     const filteredDocs = React.useMemo(() => {
@@ -353,6 +388,7 @@ export function OtherPIView() {
                                     <SelectItem value="reimbursement">Reimbursement</SelectItem>
                                     <SelectItem value="indent_general_form">General Indent</SelectItem>
                                     <SelectItem value="indent_cum_sanction_sheet">ICSS Sheet</SelectItem>
+                                    <SelectItem value="direct_purchase">Direct Purchase</SelectItem>
                                 </SelectContent>
                             </Select>
 
