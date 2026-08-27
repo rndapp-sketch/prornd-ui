@@ -91,6 +91,9 @@ It also appends a synthetic `creation` row, and a Version-derived
 
 ### Cancellation Requests
 
+See `docs/form-cancellation.md` for the cancellation feature itself.
+
+
 A cancellation runs on a **separate `Cancellation Request` document**, so its
 approvals and comments are invisible from the form being cancelled.
 `get_document_activity` merges the linked request's comments in as `type:
