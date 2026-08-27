@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { useFrappePostCall } from "frappe-react-sdk";
-import { AppSidebar } from "@/components/RndSidebar";
 import { cn } from "@/lib/utils";
 import {
     Search,
@@ -218,7 +217,6 @@ const TrackApplication: React.FC = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
-            <AppSidebar />
             <main className="flex-1 px-6 md:px-8 pt-7 pb-10 w-full overflow-hidden">
                 <div className="mb-5 rounded-2xl overflow-hidden shadow-sm border border-[#E4E4E7] dark:border-[#3F3F46]">
                     <div className="h-1.5 bg-gradient-to-r from-[#D97757] via-[#c66a4e] to-[#4A6CF7]" />
