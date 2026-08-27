@@ -148,6 +148,7 @@ function KpiCard({
     onBadgeClick,
     valueAdornment,
     customBottom,
+    isLoading,
 }: {
     label: string;
     value: string;
@@ -170,6 +171,7 @@ function KpiCard({
     onBadgeClick?: (badgeLabel: string) => void;
     valueAdornment?: React.ReactNode;
     customBottom?: React.ReactNode;
+    isLoading?: boolean;
 }) {
     return (
         <div
@@ -196,7 +198,11 @@ function KpiCard({
             )}
             <div className="flex items-center gap-3 mb-2 flex-wrap">
                 <div className={`text-[32px] font-extrabold tracking-tight leading-none drop-shadow-sm ${valueColor}`}>
-                    {value}
+                    {isLoading ? (
+                        <span className="text-[13px] font-bold text-[#A1A1AA] dark:text-[#71717A] animate-pulse">Loading…</span>
+                    ) : (
+                        value
+                    )}
                 </div>
                 {valueAdornment}
             </div>
@@ -1368,7 +1374,8 @@ export function HeadOverview() {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-[14px] mb-6">
                             <KpiCard
                                 label="Total Projects"
-                                value={isPageLoading ? "—" : String((projectOverview.ongoing_projects || stats.ongoing) + (projectOverview.submitted_projects || stats.submitted))}
+                                value={String((projectOverview.ongoing_projects || stats.ongoing) + (projectOverview.submitted_projects || stats.submitted))}
+                                isLoading={isPageLoading}
                                 subtext=""
                                 icon={
                                     <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
@@ -1405,7 +1412,8 @@ export function HeadOverview() {
                             <KpiCard
                                 label="Total Allocation"
                                 description="From sanctioned & fund-approved projects"
-                                value={isPageLoading ? "—" : formatCurrency(fundAnalytics.total_allocation || stats.totalAlloc)}
+                                value={formatCurrency(fundAnalytics.total_allocation || stats.totalAlloc)}
+                                isLoading={isPageLoading}
                                 subtext={isPageLoading || fundUtilizedLoading ? "" : `${fundUtilPercent}% utilized`}
                                 icon={
                                     <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
@@ -1423,7 +1431,8 @@ export function HeadOverview() {
                             />
                             <KpiCard
                                 label="Ongoing Projects"
-                                value={isPageLoading ? "—" : String(projectOverview.ongoing_projects || stats.ongoing)}
+                                value={String(projectOverview.ongoing_projects || stats.ongoing)}
+                                isLoading={isPageLoading}
                                 subtext={(() => { const tot = (projectOverview.ongoing_projects || stats.ongoing) + (projectOverview.submitted_projects || stats.submitted); return tot > 0 ? `${(((projectOverview.ongoing_projects || stats.ongoing) / tot) * 100).toFixed(0)}% of portfolio` : "Currently Active"; })()}
                                 icon={
                                     <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
@@ -1439,7 +1448,8 @@ export function HeadOverview() {
                             />
                             <KpiCard
                                 label="Intl. Collaborations"
-                                value={isPageLoading ? "—" : String(stats.intlCount)}
+                                value={String(stats.intlCount)}
+                                isLoading={isPageLoading}
                                 subtext="International Funding Sources"
                                 icon={
                                     <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
