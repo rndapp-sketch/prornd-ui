@@ -109,7 +109,7 @@
 
             .info-table td.label {
                 font-weight: bold;
-                width: 45%;
+                width: 20%;
                 background-color: #f7f7f7;
             }
 
@@ -119,7 +119,6 @@
                 border-collapse: collapse;
                 font-size: 13px;
                 margin-bottom: 10px;
-                table-layout: fixed;
             }
 
             table.item-table th,
@@ -142,6 +141,7 @@
             }
             .right {
                 text-align: right;
+                white-space: nowrap;
             }
 
             .section-title {
@@ -188,6 +188,35 @@
             }
 
             @media print {
+            .watermark {
+                position: fixed !important;
+                top: 50% !important;
+                left: 50% !important;
+                transform: translate(-50%, -50%) !important;
+                z-index: 0 !important;
+                .print-footer {
+                display: flex !important;
+                justify-content: space-between;
+                align-items: center;
+                position: fixed;
+                bottom: 8mm;
+                right: 14mm;
+                left: 14mm;
+                font-size: 8pt;
+                color: #888;
+                border-top: 1px solid #ddd;
+                padding-top: 4px;
+                z-index: 100;
+            }
+        }
+
+            table.layout-table > tbody > tr,
+            table.layout-table > tbody > tr > td {
+                page-break-inside: auto !important;
+                break-inside: auto !important;
+            }
+
+            tr { page-break-inside: avoid; }
                 body {
                     margin: 0;
                     background: none;
@@ -202,26 +231,22 @@
                     page-break-inside: auto;
                 }
 
-                .content {
-                    padding: 0;
-                }
+                .content { padding: 0 14mm; }
 
                 .signature-section {
                     page-break-inside: avoid;
                 }
             }
-        </style>
+        
+        .print-footer {
+            display: none;
+        }
+    </style>
     </head>
 
     <body>
         <div class="page">
-            <div class="watermark">
-                <img
-                    src="http://172.16.117.39:8000/files/IITG_logo.png"
-                    alt="IITG Logo"
-                    onerror="this.style.display = 'none'"
-                />
-            </div>
+            
 
             <div class="content">
                 <!-- HEADER -->
@@ -296,15 +321,15 @@
                 <div class="section-title">Brief Details of Purchase</div>
                 <table class="item-table">
                     <colgroup>
-                        <col style="width: 5%" />
+                        <col style="width: 4%" />
                         <col style="width: 16%" />
+                        <col style="width: 9%" />
+                        <col style="width: 9%" />
+                        <col style="width: 21%" />
+                        <col style="width: 5%" />
                         <col style="width: 10%" />
-                        <col style="width: 10%" />
-                        <col style="width: 20%" />
-                        <col style="width: 8%" />
-                        <col style="width: 10%" />
-                        <col style="width: 8%" />
-                        <col style="width: 8%" />
+                        <col style="width: 9%" />
+                        <col style="width: 7%" />
                         <col style="width: 10%" />
                     </colgroup>
                     <thead>
@@ -327,44 +352,55 @@
                 </table>
 
                 <!-- TERMS & CONDITIONS -->
-                <div class="section-title">Terms &amp; Conditions</div>
-                <table class="info-table">
-                    <tr>
-                        <td class="label">Warranty</td>
-                        <td>{{SS_WARRANTY}}</td>
-                        <td class="label">Delivery</td>
-                        <td>{{SS_DELIVERY}}</td>
-                    </tr>
-                    <tr>
-                        <td class="label">Payment</td>
-                        <td colspan="3">{{SS_PAYMENT}}</td>
-                    </tr>
-                    {{ADDITIONAL_TERMS_ROW}}
-                </table>
+                <div style="page-break-inside: avoid; break-inside: avoid;">
+                    <div class="section-title">Terms &amp; Conditions</div>
+                    <table class="info-table">
+                        <tr>
+                            <td class="label">Warranty</td>
+                            <td>{{SS_WARRANTY}}</td>
+                            <td class="label">Delivery</td>
+                            <td>{{SS_DELIVERY}}</td>
+                        </tr>
+                        <tr>
+                            <td class="label">Payment</td>
+                            <td colspan="3">{{SS_PAYMENT}}</td>
+                        </tr>
+                        {{ADDITIONAL_TERMS_ROW}}
+                    </table>
+                </div>
 
                 <!-- REMARKS -->
                 {{REMARKS_ROW}}
 
-                <!-- DECLARATION -->
-                <div class="section-title">Declaration</div>
-                <div class="declaration">{{SS_DECLARATION}}</div>
+                <!-- DECLARATION AND SIGNATURES (Kept Together) -->
+                <div style="page-break-inside: avoid; break-inside: avoid;">
+                    <div class="section-title">Declaration</div>
+                    <div class="declaration">{{SS_DECLARATION}}</div>
 
-                <!-- SIGNATURES -->
-                <div class="signature-section">
-                    <div class="sig-block">
-                        _______________________<br /><br />
-                        <strong>Principal Investigator</strong>
-                    </div>
-                    <div class="sig-block">
-                        _______________________<br /><br />
-                        <strong>HoS (RnD)</strong>
-                    </div>
-                    <div class="sig-block">
-                        _______________________<br /><br />
-                        <strong>Assoc. Dean, R&amp;D</strong>
+                    <!-- SIGNATURES -->
+                    <div class="signature-section">
+                        <div class="sig-block">
+                            _______________________<br /><br />
+                            <strong>Principal Investigator</strong>
+                        </div>
+                        <div class="sig-block">
+                            _______________________<br /><br />
+                            <strong>HoS (RnD)</strong>
+                        </div>
+                        <div class="sig-block">
+                            _______________________<br /><br />
+                            <strong>Dean, R&amp;D / Assoc. Dean, R&amp;D</strong>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </body>
+    <div class="watermark">
+                <img
+                    src="http://172.16.117.39:8000/files/IITG_logo.png"
+                    alt="IITG Logo"
+                    onerror="this.style.display = 'none'"
+                />
+            </div>
+</body>
 </html>

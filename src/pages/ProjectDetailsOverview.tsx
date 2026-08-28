@@ -9,7 +9,7 @@ import React, {
     useEffect,
     useMemo,
 } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 
 import { createPortal } from "react-dom";
 import {
@@ -804,6 +804,7 @@ const QuickActions = ({
     hasFunds = false,
 }: QuickActionsProps) => {
     const [searchParams, setSearchParams] = useSearchParams();
+    const location = useLocation();
 
     const defaultSubtab = searchParams.get("subtab") || "Reimbursement";
     const defaultApp = searchParams.get("app");
@@ -1905,14 +1906,14 @@ const QuickActions = ({
             newParams.delete("app");
             setApplicationData([]);
         }
-        if (!embedded) setSearchParams(newParams);
+        if (!embedded) setSearchParams(newParams, { state: location.state });
     };
 
     const handleApplicationClick = (item: string) => {
         setSelectedApplication(item);
         const newParams = new URLSearchParams(searchParams);
         newParams.set("app", item);
-        if (!embedded) setSearchParams(newParams);
+        if (!embedded) setSearchParams(newParams, { state: location.state });
     };
 
     const handleBack = () => {
@@ -1925,7 +1926,7 @@ const QuickActions = ({
         setApplicationData([]);
         const newParams = new URLSearchParams(searchParams);
         newParams.delete("app");
-        if (!embedded) setSearchParams(newParams);
+        if (!embedded) setSearchParams(newParams, { state: location.state });
     };
 
     const handleApplyNew = () => {
@@ -3008,6 +3009,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
     }>();
     const projectName = propProjectName || paramProjectName;
     const navigate = useNavigate();
+    const location = useLocation();
     const [activeTab, setActiveTab] = useState("overview");
     const [activityViewType, setActivityViewType] = useState<"fund" | "sanction">("sanction");
     const activityStreamRef = useRef<ActivityStreamHandle>(null);
@@ -3927,7 +3929,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         const nextParams = new URLSearchParams(searchParams);
         nextParams.set("tab", tabId);
         if (isCoProjectView) nextParams.set("coProject", "1");
-        setSearchParams(nextParams);
+        setSearchParams(nextParams, { state: location.state });
     };
 
     useEffect(() => {
@@ -4113,6 +4115,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                 {!embedded && (
                                     <button
                                         onClick={() => {
+                                            if (location.state && location.state.returnTo) {
+                                                navigate(location.state.returnTo, { state: location.state });
+                                                return;
+                                            }
                                             const historyIdx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
                                             if (historyIdx > 0) {
                                                 navigate(-1);

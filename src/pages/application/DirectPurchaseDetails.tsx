@@ -44,11 +44,14 @@ import {
     dpPoAPI,
     p11FormAPI,
     sanctionSheetAPI,
+    commonAPI,
 } from "@/services/apiService";
 import { DepartmentName } from "@/components/DepartmentName";
 import { BudgetHeadName } from "@/components/BudgetHeadName";
 import { generateP11Html } from "@/utils/p11Print";
 import { generateSanctionSheetHtml } from "@/utils/sanctionSheetPrint";
+import { generateDpHtml } from "@/utils/dpPrint";
+import { generatePOHtml } from "@/utils/DpPoPrint";
 import { P11PrintModal } from "@/components/P11PrintModal";
 import { POEditor } from "@/components/POEditor";
 import { DeclarationFields } from "@/components/DeclarationFields";
@@ -1780,6 +1783,7 @@ const LinkedDocTab = ({
                         onActionComplete={handleReload}
                     />
                     <P11PrintModal
+                        title="P_11 Form Preview"
                         isOpen={isPrintModalOpen}
                         onClose={() => setIsPrintModalOpen(false)}
                         htmlContent={
@@ -1801,6 +1805,7 @@ const LinkedDocTab = ({
                         onActionComplete={handleReload}
                     />
                     <P11PrintModal
+                        title="Indent Cum Sanction Sheet Preview"
                         isOpen={isPrintModalOpen}
                         onClose={handleSanctionPrintModalClose}
                         htmlContent={
@@ -2630,6 +2635,21 @@ const DirectPurchaseDetails: React.FC = () => {
     const { call: generateP11 } = useFrappePostCall(
         directPurchaseAPI.generateP11Form,
     );
+    const { call: fetchUserDetails } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
+
+    const [fetchedOwnerName, setFetchedOwnerName] = useState<string>("");
+
+    useEffect(() => {
+        if (data?.owner) {
+            fetchUserDetails({ user_email: data.owner })
+                .then(res => {
+                    if (res?.message?.full_name) {
+                        setFetchedOwnerName(res.message.full_name);
+                    }
+                })
+                .catch(err => console.warn("Could not fetch owner details", err));
+        }
+    }, [data?.owner, fetchUserDetails]);
 
     // Check if P-11 Form exists for this Direct Purchase
     const { data: p11ListData } = useFrappeGetCall<{
@@ -2738,6 +2758,10 @@ const DirectPurchaseDetails: React.FC = () => {
 
     const [commitHead, setCommitHead] = useState("");
     const [paymentAmount, setPaymentAmount] = useState("");
+    const [isDpPrintOpen, setIsDpPrintOpen] = useState(false);
+    const [isPoPrintOpen, setIsPoPrintOpen] = useState(false);
+    const detailsContainerRef = useRef<HTMLDivElement>(null);
+    const activityLogContainerRef = useRef<HTMLDivElement>(null);
 
     const { call: submitPayment, loading: isPaying } = useFrappePostCall(
         "rndopsapp.rndopsapp.commitPayment.submit_payment_data",
@@ -2761,16 +2785,47 @@ const DirectPurchaseDetails: React.FC = () => {
                     '/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0',
                     { credentials: "include", headers: { Accept: "application/json" } },
                 );
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}`);
+                }
                 const result = await response.json();
-                if (result?.data) {
+                if (result?.data && Array.isArray(result.data) && result.data.length > 0) {
                     setBudgetHeadList(
                         result.data.map((item: any) => ({
                             name: item.budget_head,
                             id: item.id,
                         })),
                     );
+                } else {
+                    throw new Error("No data returned or empty array");
                 }
             } catch (err) {
+                setBudgetHeadList([
+                    { name: 'Overhead', id: '1' },
+                    { name: 'Manpower', id: '2' },
+                    { name: 'Travel', id: '3' },
+                    { name: 'Contingency', id: '4' },
+                    { name: 'Consumable', id: '5' },
+                    { name: 'Equipments', id: '6' },
+                    { name: 'GST', id: '7' },
+                    { name: 'Recurring', id: '8' },
+                    { name: 'Non-Recurring', id: '9' },
+                    { name: 'SSR', id: '10' },
+                    { name: 'Research Grant', id: '11' },
+                    { name: 'Operational', id: '12' },
+                    { name: 'Consultancy Fee', id: '13' },
+                    { name: 'HRD (Human Resource Development)', id: '14' },
+                    { name: 'Outsource', id: '15' },
+                    { name: 'Data', id: '16' },
+                    { name: 'Others', id: '17' },
+                    { name: 'License Fee', id: '18' },
+                    { name: 'Training and Workshop', id: '19' },
+                    { name: 'Facilitation', id: '20' },
+                    { name: 'Funding Support for FDP', id: '21' },
+                    { name: 'Fellowship', id: '22' },
+                    { name: 'Miscellaneous', id: '23' },
+                    { name: 'Manpower (C-Step)', id: '24' }
+                ]);
             }
         };
         fetchBudgetHeads();
@@ -3365,8 +3420,30 @@ const DirectPurchaseDetails: React.FC = () => {
                                     title="Direct Purchase Request"
                                     description="Key financials, applicant information, declarations, attachments, and purchase tables for this request."
                                     tone="details"
+                                    action={
+                                        <button
+                                            onClick={() => setIsDpPrintOpen(true)}
+                                            disabled={!!data.owner && !fetchedOwnerName}
+                                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[12px] font-bold text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <Printer className="h-3.5 w-3.5" /> Print / PDF
+                                        </button>
+                                    }
                                 />
-                                <DocumentViewer data={data} />
+                                <div ref={detailsContainerRef}>
+                                    <DocumentViewer data={data} />
+                                </div>
+                                <div style={{ display: "none" }} ref={activityLogContainerRef}>
+                                    {id && (
+                                        <ActivityLog 
+                                            doctype="Direct Purchase" 
+                                            docname={id} 
+                                            fallbackOwner={data.owner}
+                                            fallbackCreation={data.creation}
+                                            fallbackOwnerName={fetchedOwnerName || data.owner}
+                                        />
+                                    )}
+                                </div>
 
 
                                 {/* Record Payment — details tab only */}
@@ -3761,6 +3838,32 @@ const DirectPurchaseDetails: React.FC = () => {
                 </div>{/* end outer grid */}
 
                 {id && <FloatingActivityLogButton doctype="Direct Purchase" docname={id} />}
+                {id && data && (
+                    <P11PrintModal
+                        isOpen={isDpPrintOpen}
+                        onClose={() => setIsDpPrintOpen(false)}
+                        htmlContent={
+                            isDpPrintOpen
+                                ? generateDpHtml(
+                                      data,
+                                      activityLogContainerRef.current,
+                                      detailsContainerRef.current
+                                  )
+                                : ""
+                        }
+                        docName={id}
+                        title="Direct Purchase Preview"
+                    />
+                )}
+                <P11PrintModal
+                    isOpen={isPoPrintOpen}
+                    onClose={() => setIsPoPrintOpen(false)}
+                    htmlContent={
+                        isPoPrintOpen && poSanctionData ? generatePOHtml(poSanctionData) : ""
+                    }
+                    docName={dpPoDocname || id || ""}
+                    title="Purchase Order Preview"
+                />
                 <DirectPurchaseHelpGuide />
             </main>
             <ErrorModal

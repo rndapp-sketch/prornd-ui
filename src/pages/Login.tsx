@@ -164,7 +164,7 @@ const Login: React.FC = () => {
       <div className="grid min-h-screen lg:grid-cols-[minmax(0,1.08fr)_minmax(430px,0.92fr)]">
         <section className="relative hidden overflow-hidden lg:block">
           <img
-            src="/rnd_login_bg.png"
+            src={`${import.meta.env.BASE_URL}rnd_login_bg.png`}
             alt="IIT Guwahati campus"
             className="absolute inset-0 h-full w-full object-cover filter brightness-105 contrast-110"
           />
@@ -214,7 +214,7 @@ const Login: React.FC = () => {
                   IIT Guwahati
                 </span>
               </div>
-              <img src="/IITG_Large_Logo.gif" alt="IIT Guwahati" className="h-16 w-auto object-contain" />
+              <img src={`${import.meta.env.BASE_URL}IITG_Large_Logo.gif`} alt="IIT Guwahati" className="h-16 w-auto object-contain" />
             </div>
 
             <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
@@ -222,7 +222,7 @@ const Login: React.FC = () => {
               <div className="px-6 py-6 sm:px-7">
                 <div className="mb-6 text-center">
                   <div className="mb-5 flex items-center justify-center">
-                    <img src="/pragati_rnd_logo.png" alt="PRAGATI R&D Logo" className="h-24 sm:h-28 w-auto object-contain drop-shadow-md dark:drop-shadow-[0_0_10px_rgba(255,255,255,0.95)] dark:brightness-125 dark:contrast-110" />
+                    <img src={`${import.meta.env.BASE_URL}pragati_rnd_logo.png`} alt="PRAGATI R&D Logo" className="h-24 sm:h-28 w-auto object-contain drop-shadow-md dark:drop-shadow-[0_0_10px_rgba(255,255,255,0.95)] dark:brightness-125 dark:contrast-110" />
                   </div>
                   <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#71717A] dark:text-[#A1A1AA]">Authorized Access</p>
                   <h2 className="mt-1 text-[20px] font-extrabold leading-tight tracking-normal text-[#3F3F46] dark:text-[#E4E4E7]">
@@ -339,7 +339,7 @@ const Login: React.FC = () => {
                       <LifeBuoy className="h-3.5 w-3.5" />
                       Support
                     </a>
-                    <a className="flex items-center gap-1.5 text-[11px] font-bold text-[#71717A] transition-colors hover:text-[#D97757] dark:text-[#A1A1AA]" href="/User_manual/User_manual.pdf">
+                    <a className="flex items-center gap-1.5 text-[11px] font-bold text-[#71717A] transition-colors hover:text-[#D97757] dark:text-[#A1A1AA]" href={`${import.meta.env.BASE_URL}User_manual/User_manual.pdf`}>
                       <BookOpen className="h-3.5 w-3.5" />
                       Manual
                     </a>
