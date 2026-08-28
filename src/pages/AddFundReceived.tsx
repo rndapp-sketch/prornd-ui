@@ -5,7 +5,7 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 
 import { useFrappePostCall, useFrappeGetCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
-import { ArrowLeftIcon, LightbulbIcon, AlertCircleIcon } from "lucide-react";
+import { ArrowLeftIcon, LightbulbIcon, AlertCircleIcon, XIcon } from "lucide-react";
 import { AutocompleteEmail } from "../components/AutocompleteEmail";
 import { ErrorModal } from "../components/ErrorModal";
 import { parseFrappeError } from "../utils/errorUtils";
@@ -733,6 +733,10 @@ const fmtINR = (v: number) =>
 const LoanSettlementModal: React.FC<{
     loans: ActiveLoan[];
     projectName: string;
+    /** Project Registration docname — for navigating back to its overview page on Cancel.
+     * Distinct from `projectName`, which here is the project *number* the loan/backend
+     * calls key off; project-details-overview needs the actual docname instead. */
+    overviewProjectRef: string;
     onSettle: (
         settlementNames: string[],
         requirements: SettlementRequirements | null,
@@ -744,7 +748,8 @@ const LoanSettlementModal: React.FC<{
     /** Settlements saved on the previous pass; discarded before new ones are created. */
     previousRefs?: string[];
     onCancelEdit?: () => void;
-}> = ({ loans, projectName, onSettle, isEditing, initialSelections, previousRefs, onCancelEdit }) => {
+}> = ({ loans, projectName, overviewProjectRef, onSettle, isEditing, initialSelections, previousRefs, onCancelEdit }) => {
+    const navigate = useNavigate();
     const [selections, setSelections] = useState<Record<number, LoanSelection>>(() =>
         Object.fromEntries(
             loans.map((l) => [
@@ -908,7 +913,7 @@ const LoanSettlementModal: React.FC<{
                 {/* Header */}
                 <div className="flex items-start gap-2.5 px-5 py-4 border-b border-zinc-200 dark:border-zinc-700">
                     <AlertCircleIcon className="w-5 h-5 text-[#D97757] flex-shrink-0 mt-0.5" />
-                    <div>
+                    <div className="flex-1">
                         <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
                             {isEditing
                                 ? "Update loan settlement"
@@ -922,6 +927,18 @@ const LoanSettlementModal: React.FC<{
                                 : `${loans.length === 1 ? "It" : "They"} must be settled from this fund receipt — choose how much comes back against each budget head.`}
                         </p>
                     </div>
+                    <button
+                        type="button"
+                        onClick={() =>
+                            isEditing && onCancelEdit
+                                ? onCancelEdit()
+                                : navigate(`/project-details-overview/${overviewProjectRef}?tab=overview`)
+                        }
+                        title={isEditing ? "Close" : "Cancel and return to the project overview"}
+                        className="flex-shrink-0 p-1 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:text-zinc-500 dark:hover:text-zinc-200 dark:hover:bg-zinc-800 transition-colors"
+                    >
+                        <XIcon className="w-4 h-4" />
+                    </button>
                 </div>
 
                 {/* Loan list */}
@@ -1392,7 +1409,7 @@ const AddFundReceived: React.FC = () => {
     // If this project has unsettled loans, block the form behind a modal asking
     // whether to settle them out of this receipt. Fails open: if the Accounts
     // service is unreachable the backend returns [], no modal, business as usual.
-    const { data: activeLoansData } = useFrappeGetCall<{
+    const { data: activeLoansData, error: activeLoansError } = useFrappeGetCall<{
         message: { status: string; data: ActiveLoan[] };
     }>(
         loanSettlementAPI.getActiveLoansForProject,
@@ -1405,6 +1422,15 @@ const AddFundReceived: React.FC = () => {
             : null,
         { revalidateOnFocus: false, revalidateOnReconnect: false },
     );
+
+    // Fails open by design (a broken loan lookup must never block Fund Received),
+    // but a silent failure here is indistinguishable from "no loans" — so at least
+    // log it, per docs/loan-settlement-implementation.md §5.1.
+    useEffect(() => {
+        if (activeLoansError) {
+            console.error("Loan settlement check failed:", activeLoansError);
+        }
+    }, [activeLoansError]);
 
     const activeLoans = activeLoansData?.message?.data ?? [];
     const [loanModalDismissed, setLoanModalDismissed] = useState(false);
@@ -2216,6 +2242,9 @@ const AddFundReceived: React.FC = () => {
                 })
                 .filter((r: any) => r !== null);
 
+            if (loanSettlementRefs.length > 0) {
+                dataToSubmit.loan_settlement_refs = loanSettlementRefs;
+            }
 
             await submitForm({
                 doc_data: JSON.stringify(dataToSubmit),
@@ -2533,6 +2562,7 @@ const AddFundReceived: React.FC = () => {
                 <LoanSettlementModal
                     loans={activeLoans}
                     projectName={projectNoFromUrl || projectName || ""}
+                    overviewProjectRef={projectRegFromUrl || projectName || ""}
                     isEditing={editingSettlement}
                     initialSelections={settlementSelections}
                     previousRefs={loanSettlementRefs}
