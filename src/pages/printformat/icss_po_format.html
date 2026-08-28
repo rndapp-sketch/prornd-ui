@@ -252,6 +252,16 @@
         .terms-content li {
             display: list-item;
             margin-bottom: 5px;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        /* Allow massive list items (with tables or sub-lists) to break across pages to prevent huge gaps */
+        .terms-content li:has(table),
+        .terms-content li:has(ol),
+        .terms-content li:has(ul) {
+            page-break-inside: auto;
+            break-inside: auto;
         }
 
         .terms-content ol ol,
@@ -286,6 +296,35 @@
         }
 
         @media print {
+            .watermark {
+                position: fixed !important;
+                top: 50% !important;
+                left: 50% !important;
+                transform: translate(-50%, -50%) !important;
+                z-index: 0 !important;
+                .print-footer {
+                display: flex !important;
+                justify-content: space-between;
+                align-items: center;
+                position: fixed;
+                bottom: 8mm;
+                right: 14mm;
+                left: 14mm;
+                font-size: 8pt;
+                color: #888;
+                border-top: 1px solid #ddd;
+                padding-top: 4px;
+                z-index: 100;
+            }
+        }
+
+            table.layout-table > tbody > tr,
+            table.layout-table > tbody > tr > td {
+                page-break-inside: auto !important;
+                break-inside: auto !important;
+            }
+
+            tr { page-break-inside: avoid; }
             body {
                 margin: 0;
                 background: none;
@@ -300,23 +339,22 @@
                 page-break-inside: auto;
             }
 
-            .content {
-                padding: 0;
-            }
+            .content { padding: 0 14mm; }
 
             .signature-section {
                 page-break-inside: avoid;
             }
+        }
+    
+        .print-footer {
+            display: none;
         }
     </style>
 </head>
 
 <body>
     <div class="page">
-        <div class="watermark">
-            <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
-                onerror="this.style.display = 'none'" />
-        </div>
+        
 
         <div class="content">
             <!-- HEADER -->
@@ -408,6 +446,10 @@
             </div>
         </div>
     </div>
+<div class="watermark">
+            <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
+                onerror="this.style.display = 'none'" />
+        </div>
 </body>
 
 </html>

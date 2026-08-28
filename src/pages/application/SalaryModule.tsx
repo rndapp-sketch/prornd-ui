@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
@@ -470,14 +471,19 @@ const SalaryModule: React.FC = () => {
                 const first = json.message[0];
                 const hasCommitFields = first && typeof first === "object" && "projectNumber" in first;
                 if (first && typeof first === "object" && "status" in first && !hasCommitFields) {
-                    // Non-commit status object from the backend
+                    // Non-commit status object from the backend.
+                    // Only "Pending Approval" is a hard stop (salary already staged — must not retry).
+                    // All other errors (e.g. "No active tenure found") are non-fatal: fall through
+                    // to the ledger fallback below so the payment can still be processed.
                     const status = String(first.status || "").toLowerCase();
                     if (status.includes("pending approval")) {
                         return { ok: false, reason: first.message || "Salary already initiated for this month" };
                     }
-                    return { ok: false, reason: first.message || `Backend error: ${first.status}` };
+                    // Fall through to ledger fallback
+                } else {
+                    // Real commit record from the API — use it
+                    commitFromApi = first;
                 }
-                commitFromApi = first;
             } else {
             }
         } catch (err) {
@@ -523,7 +529,8 @@ const SalaryModule: React.FC = () => {
         // No commit data found — try ledger fallback
         try {
             const ledgerFallbackUrl = `/ledger-api/account-head-commit/by-status/COMMITTED`;
-            const ledgerRes = await fetch(ledgerFallbackUrl);
+            // Include credentials so session cookies are sent (auth required)
+            const ledgerRes = await fetch(ledgerFallbackUrl, { credentials: "include" });
             if (ledgerRes.ok) {
                 const commits = await ledgerRes.json();
 
@@ -543,8 +550,6 @@ const SalaryModule: React.FC = () => {
                     )
                     : undefined;
 
-                if (!match) {
-                }
                 if (match) {
                     return {
                         ok: true,
@@ -563,6 +568,8 @@ const SalaryModule: React.FC = () => {
                     };
                 }
                 return { ok: false, reason: `No committed budget-head entry found for project ${r.project_no || "(unknown)"}` };
+            } else {
+                return { ok: false, reason: `Ledger API returned HTTP ${ledgerRes.status} — please check ledger connectivity or contact admin` };
             }
         } catch (ledgerErr) {
             return { ok: false, reason: `Ledger fallback failed: ${ledgerErr instanceof Error ? ledgerErr.message : String(ledgerErr)}` };
@@ -2006,16 +2013,16 @@ const SalaryModule: React.FC = () => {
                                         <table className="min-w-[2400px] table-auto border-collapse divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
                                             <thead className="sticky top-0 z-20 bg-[#EEF2FF] text-[10px] font-extrabold uppercase tracking-wider text-[#1E3A8A] dark:bg-[#1E3A8A]/18 dark:text-[#C7D2FE]">
                                                 <tr className="border-b border-[#C7D2FE]/70 bg-[#EEF2FF] dark:border-[#4A6CF7]/25 dark:bg-[#1E3A8A]/18">
-                                                    {/* Checkbox select-all — only shown on pending tab */}
-                                                    {activeTab === "pending" && (
+                                                    {/* Checkbox select-all — shown on pending and termending tabs */}
+                                                    {(activeTab === "pending" || activeTab === "termending") && (
                                                         <th rowSpan={2} className="w-[44px] min-w-[44px] border-r border-[#C7D2FE]/70 px-3 py-4 text-center dark:border-[#4A6CF7]/25 sticky left-0 z-30 bg-[#EEF2FF] dark:bg-[#1e293b]">
                                                             <input
                                                                 type="checkbox"
-                                                                title="Select all pending"
-                                                                checked={pendingRecords.length > 0 && pendingRecords.every(r => selectedEmpIds.has(r.employee_id))}
+                                                                title="Select all"
+                                                                checked={displayedRecords.length > 0 && displayedRecords.every(r => selectedEmpIds.has(r.employee_id))}
                                                                 onChange={e => {
                                                                     if (e.target.checked) {
-                                                                        setSelectedEmpIds(new Set(pendingRecords.map(r => r.employee_id)));
+                                                                        setSelectedEmpIds(new Set(displayedRecords.map(r => r.employee_id)));
                                                                     } else {
                                                                         setSelectedEmpIds(new Set());
                                                                     }
@@ -2024,9 +2031,9 @@ const SalaryModule: React.FC = () => {
                                                             />
                                                         </th>
                                                     )}
-                                                    <th rowSpan={2} className={cn("min-w-[48px] border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25 z-30 bg-[#EEF2FF] dark:bg-[#1e293b]", activeTab === "pending" ? "w-[48px] sticky left-[44px]" : "w-[48px] sticky left-0")}>#</th>
-                                                    <th rowSpan={2} className={cn("w-[120px] min-w-[120px] border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25 z-30 bg-[#EEF2FF] dark:bg-[#1e293b]", activeTab === "pending" ? "sticky left-[92px]" : "sticky left-[48px]")}>Emp ID</th>
-                                                    <th rowSpan={2} className={cn("w-[200px] min-w-[200px] border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25 z-30 bg-[#EEF2FF] dark:bg-[#1e293b] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.1)]", activeTab === "pending" ? "sticky left-[212px]" : "sticky left-[168px]")}>Full Name</th>
+                                                    <th rowSpan={2} className={cn("min-w-[48px] border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25 z-30 bg-[#EEF2FF] dark:bg-[#1e293b]", (activeTab === "pending" || activeTab === "termending") ? "w-[48px] sticky left-[44px]" : "w-[48px] sticky left-0")}>#</th>
+                                                    <th rowSpan={2} className={cn("w-[120px] min-w-[120px] border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25 z-30 bg-[#EEF2FF] dark:bg-[#1e293b]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[92px]" : "sticky left-[48px]")}>Emp ID</th>
+                                                    <th rowSpan={2} className={cn("w-[200px] min-w-[200px] border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25 z-30 bg-[#EEF2FF] dark:bg-[#1e293b] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.1)]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[212px]" : "sticky left-[168px]")}>Full Name</th>
                                                     <th rowSpan={2} className="px-3 py-4 text-left">Email ID</th>
                                                     <th rowSpan={2} className="px-3 py-4 text-left">Department</th>
                                                     <th rowSpan={2} className="px-3 py-4 text-left">Role</th>
@@ -2047,9 +2054,9 @@ const SalaryModule: React.FC = () => {
                                                     <th rowSpan={2} className="px-3 py-4 text-left">Comment</th>
                                                     <th rowSpan={2} className="px-3 py-4 text-left border-r border-zinc-200 dark:border-zinc-800">Remarks</th>
                                                     <th rowSpan={2} className="px-3 py-4 text-center bg-zinc-50 dark:bg-zinc-950 shadow-sm min-w-[160px]">
-                                                        {activeTab === "pending" && selectedEmpIds.size > 0 ? (
+                                                        {(activeTab === "pending" || activeTab === "termending") && selectedEmpIds.size > 0 ? (
                                                             <button
-                                                                onClick={() => handlePaySelected(pendingRecords.filter(r => selectedEmpIds.has(r.employee_id)))}
+                                                                onClick={() => handlePaySelected(displayedRecords.filter(r => selectedEmpIds.has(r.employee_id)))}
                                                                 disabled={loadingEmpId === "__bulk__"}
                                                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700 transition-all shadow-sm disabled:opacity-60"
                                                             >
@@ -2101,8 +2108,8 @@ const SalaryModule: React.FC = () => {
 
                                                     return (
                                                         <tr key={r.docName || i} className={cn("transition-colors group", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50/80 dark:bg-zinc-900/60", "hover:bg-blue-50/50 dark:hover:bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
-                                                            {/* Checkbox — only on pending tab */}
-                                                            {activeTab === "pending" && (
+                                                            {/* Checkbox — shown on pending and termending tabs */}
+                                                            {(activeTab === "pending" || activeTab === "termending") && (
                                                                 <td className={cn("px-3 py-3 text-center border-r border-zinc-200 dark:border-zinc-800 sticky left-0 z-10 w-[44px] min-w-[44px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
                                                                     <input
                                                                         type="checkbox"
@@ -2121,17 +2128,17 @@ const SalaryModule: React.FC = () => {
                                                             )}
 
                                                             {/* # */}
-                                                            <td className={cn("px-3 py-3 text-xs font-semibold text-zinc-400 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[48px] min-w-[48px]", activeTab === "pending" ? "sticky left-[44px]" : "sticky left-0", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>{i + 1}</td>
+                                                            <td className={cn("px-3 py-3 text-xs font-semibold text-zinc-400 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[48px] min-w-[48px]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[44px]" : "sticky left-0", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>{i + 1}</td>
 
                                                             {/* Emp ID */}
-                                                            <td className={cn("px-3 py-3 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[120px] min-w-[120px]", activeTab === "pending" ? "sticky left-[92px]" : "sticky left-[48px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
+                                                            <td className={cn("px-3 py-3 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[120px] min-w-[120px]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[92px]" : "sticky left-[48px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
                                                                 <span className="text-xs font-mono font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-2 py-0.5 rounded border border-zinc-200/50 dark:border-zinc-700/50">
                                                                     {r.employee_id}
                                                                 </span>
                                                             </td>
 
                                                             {/* Full Name */}
-                                                            <td className={cn("px-3 py-3 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[200px] min-w-[200px] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.07)]", activeTab === "pending" ? "sticky left-[212px]" : "sticky left-[168px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
+                                                            <td className={cn("px-3 py-3 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[200px] min-w-[200px] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.07)]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[212px]" : "sticky left-[168px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
                                                                 <div className="flex items-center gap-2">
                                                                     <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#D97757]/20 to-orange-200/50 dark:from-[#D97757]/30 dark:to-orange-950/30 flex items-center justify-center shrink-0 border border-orange-500/10">
                                                                         <span className="text-[10px] font-bold text-[#D97757]">
@@ -2411,12 +2418,12 @@ const SalaryModule: React.FC = () => {
                                             {/* FOOTER */}
                                             <tfoot className="bg-zinc-50 dark:bg-zinc-955 sticky bottom-0 z-20 border-t-2 border-zinc-200 dark:border-zinc-700 font-bold text-xs uppercase tracking-wide">
                                                 <tr className="bg-zinc-50 dark:bg-zinc-950">
-                                                    {activeTab === "pending" && (
+                                                    {(activeTab === "pending" || activeTab === "termending") && (
                                                         <td className="px-3 py-4 bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 sticky left-0 z-30 w-[44px] min-w-[44px]"></td>
                                                     )}
-                                                    <td className={cn("px-3 py-4 text-sm font-serif font-bold text-zinc-900 dark:text-white bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 z-30 w-[48px] min-w-[48px]", activeTab === "pending" ? "sticky left-[44px]" : "sticky left-0")}></td>
-                                                    <td className={cn("px-3 py-4 text-sm font-serif font-bold text-zinc-900 dark:text-white bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 z-30 w-[120px] min-w-[120px] whitespace-nowrap", activeTab === "pending" ? "sticky left-[92px]" : "sticky left-[48px]")}>Total</td>
-                                                    <td className={cn("px-3 py-4 text-sm font-serif font-bold text-zinc-900 dark:text-white bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 z-30 w-[200px] min-w-[200px] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.1)] whitespace-nowrap", activeTab === "pending" ? "sticky left-[212px]" : "sticky left-[168px]")}>({displayedRecords.length} Staff)</td>
+                                                    <td className={cn("px-3 py-4 text-sm font-serif font-bold text-zinc-900 dark:text-white bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 z-30 w-[48px] min-w-[48px]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[44px]" : "sticky left-0")}></td>
+                                                    <td className={cn("px-3 py-4 text-sm font-serif font-bold text-zinc-900 dark:text-white bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 z-30 w-[120px] min-w-[120px] whitespace-nowrap", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[92px]" : "sticky left-[48px]")}>Total</td>
+                                                    <td className={cn("px-3 py-4 text-sm font-serif font-bold text-zinc-900 dark:text-white bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 z-30 w-[200px] min-w-[200px] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.1)] whitespace-nowrap", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[212px]" : "sticky left-[168px]")}>({displayedRecords.length} Staff)</td>
                                                     <td colSpan={8} className="px-3 py-4 bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800"></td>
 
                                                     {/* Earnings totals */}
@@ -2592,7 +2599,7 @@ const SalaryModule: React.FC = () => {
                             {/* Organization Header */}
                             <div className="text-center space-y-2 pb-6 border-b-2 border-zinc-800">
                                 <div className="flex justify-center items-center gap-4 mb-2">
-                                    <img src="/IITG_Large_Logo.gif" alt="IITG Logo" className="w-14 h-14 object-contain" />
+                                    <img src={`${import.meta.env.BASE_URL}IITG_Large_Logo.gif`} alt="IITG Logo" className="w-14 h-14 object-contain" />
                                     <div className="text-left">
                                         <h2 className="text-xl md:text-2xl font-serif font-bold tracking-tight text-zinc-950 uppercase">Indian Institute of Technology Guwahati</h2>
                                         <h3 className="text-sm font-semibold tracking-wide text-zinc-700 uppercase">Research & Development (R&D) Cell</h3>

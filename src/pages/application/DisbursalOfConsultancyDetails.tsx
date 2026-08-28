@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AppSidebar } from "@/components/RndSidebar";
 import {
@@ -6,7 +6,7 @@ import {
     useFrappeGetCall,
     useFrappeAuth,
 } from "frappe-react-sdk";
-import { disbursalOfConsultancyAPI } from "@/services/apiService";
+import { disbursalOfConsultancyAPI, commonAPI } from "@/services/apiService";
 import { cn } from "@/lib/utils";
 import {
     CalendarIcon,
@@ -31,6 +31,7 @@ import { ProjectLedgerModal } from "@/components/ProjectLedgerModal";
 import { ActivityLog } from "@/components/ActivityLog";
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { P11PrintModal } from "@/components/P11PrintModal";
+import { getFileUrl } from "@/utils/fileUtils";
 import { generateDisbursalOfConsultancyHtml } from "@/utils/disbursalOfConsultancyPrint";
 import type { ActivityItem } from "@/utils/disbursalOfHonorariumPrint";
 import { ErrorModal } from "../../components/ErrorModal";
@@ -164,6 +165,8 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+    const [fetchedOwnerName, setFetchedOwnerName] = useState<string>("");
+    const activityLogContainerRef = useRef<HTMLDivElement>(null);
 
     // Sidebar state
     const [sidebarComment, setSidebarComment] = useState("");
@@ -189,6 +192,7 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
     const { call: fetchUsersList } = useFrappePostCall<{ message: any[] }>(
         "frappe.client.get_list",
     );
+    const { call: fetchUserDetails } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
     const { call: addComment } = useFrappePostCall(
         "rndopsapp.rndopsapp.api.add_project_comment",
     );
@@ -424,6 +428,19 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
         setLoading(true);
     }, []);
 
+    // Fetch the actual owner's full name directly using the whitelisted API
+    useEffect(() => {
+        if (formData.owner) {
+            fetchUserDetails({ user_email: formData.owner })
+                .then(res => {
+                    if (res?.message?.full_name) {
+                        setFetchedOwnerName(res.message.full_name);
+                    }
+                })
+                .catch(err => console.warn("Could not fetch owner details", err));
+        }
+    }, [formData.owner, fetchUserDetails]);
+
     // --- SUBMIT DRAFT ---
     const handleSubmitDraft = async () => {
         if (!id || isSubmitting) return;
@@ -522,8 +539,10 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                     <div className="flex items-center gap-2">
                         {id && (
                             <button
+                                type="button"
                                 onClick={() => setIsPrintModalOpen(true)}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
+                                disabled={(!formData.pi_name && !formData.applicant_name && !formData.owner) || (!!formData.owner && !fetchedOwnerName && formData.owner !== currentUser)}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <Printer className="w-4 h-4" />
                                 Print / PDF
@@ -669,8 +688,16 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                         </div>
 
                         {/* Document Activity Log (new endpoint) */}
-                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            {id && <ActivityLog doctype="Disbursal of Consultancy" docname={id} />}
+                        <div ref={activityLogContainerRef} className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            {id && (
+                                <ActivityLog 
+                                    doctype="Disbursal of Consultancy" 
+                                    docname={id} 
+                                    fallbackOwner={formData.owner}
+                                    fallbackCreation={formData.creation}
+                                    fallbackOwnerName={formData.pi_name || formData.owner}
+                                />
+                            )}
                         </div>
 
                         {/* Add Comment */}
@@ -799,14 +826,27 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                 />
             )}
             <P11PrintModal
+                title="Disbursal of Consultancy Preview"
                 isOpen={isPrintModalOpen}
                 onClose={() => setIsPrintModalOpen(false)}
                 htmlContent={
                     isPrintModalOpen
-                        ? generateDisbursalOfConsultancyHtml(formData, activityData?.message || [])
+                        ? generateDisbursalOfConsultancyHtml(
+                              {
+                                  ...formData,
+                                  pi_name: fetchedOwnerName || formData.pi_name || formData.applicant_name || formData.owner
+                              }, 
+                              [], 
+                              [], 
+                              activityLogContainerRef.current
+                          )
                         : ""
                 }
                 docName={formData.name || id || ""}
+                attachments={[
+                    ...(formData.please_attach_a_copy_of_completion_report ? [{ label: "Completion Report", url: getFileUrl(formData.please_attach_a_copy_of_completion_report) }] : []),
+                    ...(formData.disbursal_additional_documents ? [{ label: "Additional Documents", url: getFileUrl(formData.disbursal_additional_documents) }] : [])
+                ]}
             />
             <ErrorModal
                 open={errorModal.open}

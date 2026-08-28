@@ -899,7 +899,7 @@ const SalaryRegisterFull: React.FC = () => {
                             {/* Org Header */}
                             <div className="text-center space-y-2 pb-6 border-b-2 border-zinc-800">
                                 <div className="flex justify-center items-center gap-4 mb-2">
-                                    <img src="/IITG_Large_Logo.gif" alt="IITG Logo" className="w-14 h-14 object-contain" />
+                                    <img src={`${import.meta.env.BASE_URL}IITG_Large_Logo.gif`} alt="IITG Logo" className="w-14 h-14 object-contain" />
                                     <div className="text-left">
                                         <h2 className="text-xl md:text-2xl font-serif font-bold tracking-tight text-zinc-950 uppercase">Indian Institute of Technology Guwahati</h2>
                                         <h3 className="text-sm font-semibold tracking-wide text-zinc-700 uppercase">Research &amp; Development (R&amp;D) Cell</h3>

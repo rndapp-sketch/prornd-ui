@@ -238,7 +238,7 @@ const AdminLogin: React.FC = () => {
               IIT Guwahati
             </span>
           </div>
-          <img src="/IITG_Large_Logo.gif" alt="IIT Guwahati" className="h-14 w-auto object-contain" />
+          <img src={`${import.meta.env.BASE_URL}IITG_Large_Logo.gif`} alt="IIT Guwahati" className="h-14 w-auto object-contain" />
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">

@@ -537,8 +537,8 @@ export function AppSidebar() {
                         state === "expanded" ? "px-3 gap-2.5" : "justify-center px-0",
                     )}>
                         <div className="flex items-center justify-center h-10 w-auto flex-shrink-0">
-                            <img src="/pragati_rnd_logo_light.png" alt="PRAGATI R&D Logo" className="h-full w-auto object-contain dark:hidden" />
-                            <img src="/pragati_rnd_logo_dark.png" alt="PRAGATI R&D Logo" className="hidden h-full w-auto object-contain dark:block" />
+                            <img src={`${import.meta.env.BASE_URL}pragati_rnd_logo_light.png`} alt="PRAGATI R&D Logo" className="h-full w-auto object-contain dark:hidden" />
+                            <img src={`${import.meta.env.BASE_URL}pragati_rnd_logo_dark.png`} alt="PRAGATI R&D Logo" className="hidden h-full w-auto object-contain dark:block" />
                         </div>
                         {state === "expanded" && (
                             <div className="flex flex-col overflow-hidden min-w-0">

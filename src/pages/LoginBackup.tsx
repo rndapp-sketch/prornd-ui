@@ -165,7 +165,7 @@ const Login: React.FC = () => {
       <div className="grid min-h-screen lg:grid-cols-[minmax(0,1.08fr)_minmax(430px,0.92fr)]">
         <section className="relative hidden overflow-hidden lg:block">
           <img
-            src="/rnd_login_bg.png"
+            src={`${import.meta.env.BASE_URL}rnd_login_bg.png`}
             alt="IIT Guwahati campus"
             className="absolute inset-0 h-full w-full object-cover"
           />
@@ -175,7 +175,7 @@ const Login: React.FC = () => {
           <div className="relative z-10 flex h-full flex-col justify-between p-8 xl:p-10">
             <div className="flex items-center gap-6 sm:gap-7">
               <div className="flex items-center justify-center flex-shrink-0">
-                <img src="/pragati_rnd_logo.png" alt="PRAGATI R&D Logo" className="h-28 sm:h-36 w-auto object-contain filter brightness-115 contrast-110 drop-shadow-2xl" />
+                <img src={`${import.meta.env.BASE_URL}pragati_rnd_logo.png`} alt="PRAGATI R&D Logo" className="h-28 sm:h-36 w-auto object-contain filter brightness-115 contrast-110 drop-shadow-2xl" />
               </div>
               <div>
                 <p className="text-[15px] sm:text-[17px] font-black uppercase tracking-[0.22em] text-white/95">Indian Institute of Technology Guwahati</p>
@@ -205,7 +205,7 @@ const Login: React.FC = () => {
             <div className="mb-7 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 items-center justify-center">
-                  <img src="/pragati_rnd_logo.png" alt="PRAGATI R&D Logo" className="h-9 w-auto object-contain filter brightness-110 contrast-105" />
+                  <img src={`${import.meta.env.BASE_URL}pragati_rnd_logo.png`} alt="PRAGATI R&D Logo" className="h-9 w-auto object-contain filter brightness-110 contrast-105" />
                 </div>
                 <div>
                   <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#0F3C6F] dark:text-[#93C5FD]">PRAGATI R&D</p>
@@ -223,7 +223,7 @@ const Login: React.FC = () => {
               <div className="px-6 py-6 sm:px-7">
                 <div className="mb-6">
                   <div className="mb-4 inline-flex items-center justify-center">
-                    <img src="/pragati_rnd_logo.png" alt="PRAGATI R&D Logo" className="h-14 w-auto object-contain filter brightness-110 contrast-105" />
+                    <img src={`${import.meta.env.BASE_URL}pragati_rnd_logo.png`} alt="PRAGATI R&D Logo" className="h-14 w-auto object-contain filter brightness-110 contrast-105" />
                   </div>
                   <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#71717A] dark:text-[#A1A1AA]">Authorized Access</p>
                   <h2 className="mt-1 text-[20px] font-extrabold leading-tight tracking-normal text-[#3F3F46] dark:text-[#E4E4E7]">
@@ -340,7 +340,7 @@ const Login: React.FC = () => {
                       <LifeBuoy className="h-3.5 w-3.5" />
                       Support
                     </a>
-                    <a className="flex items-center gap-1.5 text-[11px] font-bold text-[#71717A] transition-colors hover:text-[#D97757] dark:text-[#A1A1AA]" href="/User_manual/User_manual.pdf">
+                    <a className="flex items-center gap-1.5 text-[11px] font-bold text-[#71717A] transition-colors hover:text-[#D97757] dark:text-[#A1A1AA]" href={`${import.meta.env.BASE_URL}User_manual/User_manual.pdf`}>
                       <BookOpen className="h-3.5 w-3.5" />
                       Manual
                     </a>

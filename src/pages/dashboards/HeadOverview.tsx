@@ -27,6 +27,7 @@ import {
 } from "recharts";
 import {
     FileDown,
+    Printer,
     BarChart3,
     Users,
     Search,
@@ -59,6 +60,71 @@ const formatCurrency = (amount: number): string => {
     return `₹${amount.toLocaleString("en-IN")}`;
 };
 
+function normalizeFundResp(raw: any): any[] {
+    if (!raw) return [];
+    if (raw.message && raw.message.message && Array.isArray(raw.message.message)) return raw.message.message;
+    if (raw.message && Array.isArray(raw.message)) return raw.message;
+    if (Array.isArray(raw)) return raw;
+    if (raw.data && Array.isArray(raw.data)) return raw.data;
+    if (raw.results && Array.isArray(raw.results)) return raw.results;
+    if (raw.message && raw.message.data && Array.isArray(raw.message.data)) return raw.message.data;
+    return [];
+}
+
+// ── Cache for Fund Received API calls (shared across the dashboard's lifetime) ──
+const fundReceivedPromiseCache: Record<string, Promise<number>> = {};
+// Resolved per-project amount, keyed by docname — lets consumers read a single
+// project's utilized amount synchronously (e.g. to split the aggregate total by
+// project type) without re-deriving it from the promise cache.
+const fundReceivedValueCache: Record<string, number> = {};
+
+// ── Hook: fetch approved Fund Received total for a list of projects ─────────────
+function usePIFundReceivedTotal(projects: any[]) {
+    const [total, setTotal] = React.useState<number | null>(null);
+    const [loading, setLoading] = React.useState(false);
+    const projectNamesKey = projects.map((p: any) => p.name).filter(Boolean).join(",");
+
+    React.useEffect(() => {
+        const projectNames = projects.filter((p: any) => p.name).map((p: any) => p.name);
+        if (projectNames.length === 0) { setTotal(null); return; }
+        let cancelled = false;
+        setLoading(true);
+        Promise.all(
+            projectNames.map((docname: string) => {
+                if (!fundReceivedPromiseCache[docname]) {
+                    fundReceivedPromiseCache[docname] = fetch(
+                        `/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg?prjreg_title=${encodeURIComponent(docname)}&limit=200&start=0`,
+                        { headers: { "X-Frappe-CSRF-Token": (window as any).csrf_token || "" } }
+                    )
+                        .then(r => r.json())
+                        .then(json => normalizeFundResp(json))
+                        .then(records => {
+                            const amount = records
+                                .filter((r: any) => {
+                                    const s = (r.workflow_state || r.status || "").toLowerCase();
+                                    return s === "approved" || s.includes("fund received");
+                                })
+                                .reduce((s: number, r: any) => s + (Number(r.fund_received_amt) || Number(r.amount_received) || Number(r.amount) || 0), 0);
+                            fundReceivedValueCache[docname] = amount;
+                            return amount;
+                        })
+                        .catch(() => 0);
+                }
+                return fundReceivedPromiseCache[docname];
+            })
+        ).then(amounts => {
+            if (!cancelled) {
+                setTotal(amounts.reduce((a, b) => a + b, 0));
+                setLoading(false);
+            }
+        });
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [projectNamesKey]);
+
+    return { total, loading };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // SUB-COMPONENTS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -86,6 +152,9 @@ function KpiCard({
     description,
     badges,
     onBadgeClick,
+    valueAdornment,
+    customBottom,
+    isLoading,
 }: {
     label: string;
     value: string;
@@ -106,6 +175,9 @@ function KpiCard({
         originalState?: string;
     }>;
     onBadgeClick?: (badgeLabel: string) => void;
+    valueAdornment?: React.ReactNode;
+    customBottom?: React.ReactNode;
+    isLoading?: boolean;
 }) {
     return (
         <div
@@ -122,19 +194,28 @@ function KpiCard({
             >
                 {icon}
             </div>
-            <div className="text-[12px] font-extrabold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mb-0.5 shadow-sm">
+            <div className="text-[13px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide mb-0.5">
                 {label}
             </div>
             {description && (
-                <div className="text-[10px] text-[#A1A1AA] dark:text-[#71717A] font-medium mb-1 leading-tight">
+                <div className="text-[12px] text-[#52525B] dark:text-[#D4D4D8] font-semibold mb-1 leading-snug">
                     {description}
                 </div>
             )}
-            <div className={`text-[32px] font-extrabold tracking-tight leading-none mb-2 drop-shadow-sm ${valueColor}`}>
-                {value}
+            <div className="flex items-center gap-3 mb-2 flex-wrap">
+                <div className={`text-[32px] font-extrabold tracking-tight leading-none drop-shadow-sm ${valueColor}`}>
+                    {isLoading ? (
+                        <span className="text-[13px] font-bold text-[#A1A1AA] dark:text-[#71717A] animate-pulse">Loading…</span>
+                    ) : (
+                        value
+                    )}
+                </div>
+                {valueAdornment}
             </div>
             <div className="mt-auto pt-4 w-full">
-                {badges && badges.length > 0 ? (
+                {customBottom ? (
+                    customBottom
+                ) : badges && badges.length > 0 ? (
                     <div className="flex items-center gap-2 flex-wrap">
                         {badges.map((b) => (
                             <span
@@ -248,6 +329,142 @@ function StatusBadge({ status }: { status?: string }) {
     );
 }
 
+// ── PI modal: live fund-status badge (mirrors DirectorDashboard's ProjectFundStatusBadge) ──
+// Replaces a date-only Active/Upcoming/Completed guess with the real workflow signal: a
+// project only counts as Active once its sanction is approved AND the fund has actually
+// been received — dates alone can't tell you that.
+const ProjectFundStatusBadge: React.FC<{ projectName: string | undefined }> = ({ projectName }) => {
+    const { data: sanctionResp, isLoading: sanctionLoading } = useFrappeGetCall<{ message: any }>(
+        "rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_sanctions_for_project",
+        { project_name: projectName || "" },
+        projectName ? undefined : null,
+        { revalidateOnFocus: false },
+    );
+    const { data: fundResp, isLoading: fundLoading } = useFrappeGetCall<{ message: any }>(
+        "rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg",
+        { prjreg_title: projectName || "", limit: 200, start: 0 },
+        projectName ? undefined : null,
+        { revalidateOnFocus: false },
+    );
+    const isLoading = sanctionLoading || fundLoading;
+
+    const raw = sanctionResp as any;
+    let sanctionRecords: any[] = [];
+    if (raw) {
+        if (raw.message && raw.message.message && Array.isArray(raw.message.message)) sanctionRecords = raw.message.message;
+        else if (raw.message && Array.isArray(raw.message)) sanctionRecords = raw.message;
+        else if (Array.isArray(raw)) sanctionRecords = raw;
+        else if (raw.data && Array.isArray(raw.data)) sanctionRecords = raw.data;
+        else if (raw.message && raw.message.data && Array.isArray(raw.message.data)) sanctionRecords = raw.message.data;
+    }
+    const fundRecords: any[] = normalizeFundResp(fundResp);
+
+    const hasSanctionApproved = sanctionRecords.some(r => (r.sanction_workflow_status || r.workflow_state || "").toLowerCase().includes("sanction approved"));
+    const isFundApproved = (r: any) => {
+        const s = (r.workflow_state || r.status || "").toLowerCase();
+        return s === "approved" || s.includes("fund received");
+    };
+    const hasFundReceived = fundRecords.some(isFundApproved);
+
+    let label: string;
+    let className: string;
+    if (hasSanctionApproved && hasFundReceived) {
+        label = "● Active";
+        className = "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400";
+    } else if (hasSanctionApproved) {
+        label = "Pending Fund Received";
+        className = "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400";
+    } else {
+        label = "Pending Sanction";
+        className = "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400";
+    }
+
+    if (isLoading) {
+        return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 animate-pulse">Loading…</span>;
+    }
+    return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${className}`}>{label}</span>;
+};
+
+// ── PI modal: live-corrected sanction amount ──────────────────────────────────
+// total_budget_amount/grand_total_proposal is 0 for a lot of real projects — the true
+// sanctioned amount then only lives on the Fund Sanction record. Falls back to a live
+// per-project lookup only when the row's own budget field is empty.
+const ProjectSanctionAmountLive: React.FC<{ proj: any; className?: string; emptyClassName?: string }> = ({ proj, className, emptyClassName }) => {
+    const bulkAmount = Number(proj.total_budget_amount || proj.grand_total_proposal) || 0;
+    const needsLiveLookup = bulkAmount <= 0;
+    const { data: sanctionResp, isLoading } = useFrappeGetCall<{ message: any }>(
+        "rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_sanctions_for_project",
+        { project_name: proj.name || "" },
+        needsLiveLookup && proj.name ? undefined : null,
+        { revalidateOnFocus: false },
+    );
+
+    const fmt = (v: number) => v >= 10000000
+        ? `₹${(v / 10000000).toFixed(2)} Cr`
+        : v >= 100000
+            ? `₹${(v / 100000).toFixed(2)} L`
+            : `₹${v.toLocaleString("en-IN")}`;
+
+    if (!needsLiveLookup) return <div className={className}>{fmt(bulkAmount)}</div>;
+    if (isLoading) return <div className={`${emptyClassName ?? className ?? ""} animate-pulse`}>Loading…</div>;
+
+    const raw = sanctionResp as any;
+    let records: any[] = [];
+    if (raw) {
+        if (raw.message && raw.message.message && Array.isArray(raw.message.message)) records = raw.message.message;
+        else if (raw.message && Array.isArray(raw.message)) records = raw.message;
+        else if (Array.isArray(raw)) records = raw;
+        else if (raw.data && Array.isArray(raw.data)) records = raw.data;
+        else if (raw.message && raw.message.data && Array.isArray(raw.message.data)) records = raw.message.data;
+    }
+    const approved = records.find(r => (r.sanction_workflow_status || r.workflow_state || "").toLowerCase().includes("sanction approved") && Number(r.total_sanctioned_amount) > 0);
+    const anyWithAmount = records.find(r => Number(r.total_sanctioned_amount) > 0);
+    const liveAmount = Number((approved || anyWithAmount)?.total_sanctioned_amount) || 0;
+
+    return liveAmount > 0 ? <div className={className}>{fmt(liveAmount)}</div> : <div className={emptyClassName ?? className}>—</div>;
+};
+
+// ── PI modal: stat cards row (extracted to satisfy Rules of Hooks — usePIFundReceivedTotal
+// can't be called from inside a nested render-time closure) ────────────────────
+const PIStatCardsHead: React.FC<{ piDetails: any; projects: any[] }> = ({ piDetails, projects }) => {
+    const totalSanctioned = projects.reduce((sum: number, proj: any) => {
+        const own = Number(proj.total_budget_amount || proj.grand_total_proposal) || 0;
+        return sum + own;
+    }, 0);
+    const { total: liveFundTotal, loading: fundTotalLoading } = usePIFundReceivedTotal(projects);
+
+    const fmt = (v: number) => v >= 10000000
+        ? `₹${(v / 10000000).toFixed(2)} Cr`
+        : v >= 100000
+            ? `₹${(v / 100000).toFixed(2)} L`
+            : `₹${v.toLocaleString("en-IN")}`;
+
+    const formattedLiveFund = liveFundTotal && liveFundTotal > 0 ? fmt(liveFundTotal) : null;
+
+    return (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
+                <div className="text-[18px] sm:text-[20px] font-extrabold text-[#2563eb] leading-tight">{piDetails.project_count}</div>
+                <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Projects</div>
+            </div>
+            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
+                <div className="text-[18px] sm:text-[20px] font-extrabold text-[#7c3aed] leading-tight">{piDetails.departments?.length || 0}</div>
+                <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Implementing Departments</div>
+            </div>
+            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
+                <div className="text-[18px] sm:text-[20px] font-extrabold text-[#059669] leading-tight">{totalSanctioned > 0 ? fmt(totalSanctioned) : "—"}</div>
+                <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Sanctioned</div>
+            </div>
+            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
+                <div className="text-[18px] sm:text-[20px] font-extrabold text-[#d97706] leading-tight">
+                    {fundTotalLoading ? <span className="text-[12px] font-bold text-[#A1A1AA] animate-pulse">Loading…</span> : formattedLiveFund ?? "—"}
+                </div>
+                <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Fund Rcvd</div>
+            </div>
+        </div>
+    );
+};
+
 const BarTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.length) return null;
     return (
@@ -285,7 +502,7 @@ export function HeadOverview() {
     const viewMode = searchParams.get("view") || "Overview";
 
     // ── Pagination / modal state ─────────────────────────────────────────────
-    const [kpiModal, setKpiModal] = React.useState<{ type: string; title: string } | null>(null);
+    const [kpiModal, setKpiModal] = React.useState<{ type: string; title: string; fundingAgency?: string; excludedFundingAgencies?: string[]; projectType?: string; onlyOngoing?: boolean } | null>(null);
     const [kpiPage, setKpiPage] = React.useState(1);
     const [kpiTab, setKpiTab] = React.useState<"ongoing" | "submitted">("ongoing");
     const [kpiAllocTab, setKpiAllocTab] = React.useState<string>("ongoing");
@@ -298,6 +515,13 @@ export function HeadOverview() {
     const [piFundingFilter, setPiFundingFilter] = React.useState<string>("all");
     const [showFundingFilterDropdown, setShowFundingFilterDropdown] = React.useState(false);
     const [showAllDepts, setShowAllDepts] = React.useState(false);
+
+    // ── Chart year/type filters (Financial Year — Project Status) ───────────
+    const [chartYearFilter, setChartYearFilter] = React.useState<string>("All Time");
+    const [chartProjectTypeFilter, setChartProjectTypeFilter] = React.useState<string>("all");
+    // ── Chart year/type filters (Financial Trends) ───────────────────────────
+    const [financialYearFilter, setFinancialYearFilter] = React.useState<string>("all");
+    const [financialProjectTypeFilter, setFinancialProjectTypeFilter] = React.useState<string>("all");
 
     const KPI_PAGE_SIZE = 10;
     const PROJECT_TABLE_PAGE_SIZE = 10;
@@ -359,16 +583,69 @@ export function HeadOverview() {
                 "workflow_state",
                 "project_type",
                 "origin_of_funding_agency",
+                "funding_agen",
                 "select_funding_agency",
                 "funding_agency_other",
                 "total_budget_amount",
                 "grand_total_proposal",
                 "prj_start_date",
                 "prj_end_date",
+                "creation",
             ],
             limit: 2000,
         }
     );
+
+    // Until the user's department resolves, the Head-data call stays disabled — so
+    // isHeadDataLoading reports false (not "loading", just "not yet asked"), and every
+    // stat/chart briefly renders its empty state ("0", "No data available") instead of a
+    // loading indicator. `data === undefined` is the reliable "no response yet" signal here
+    // (unlike currentUser/userDept, which can resolve on a slower/different timeline and
+    // left the page stuck showing "Loading…" forever when used directly).
+    const isPageLoading = isLoading || isHeadDataLoading || allProjectsList === undefined || headDataRes === undefined;
+
+    // Projects — especially freshly Submitted ones that haven't reached sanction yet —
+    // often have no prj_start_date at all. Charts that bucket by year were silently
+    // dropping those rows (visible as "0 Submitted" totals that didn't match the
+    // Research/Consultancy/Others breakdown, which counts regardless of date), so every
+    // date-bucketed memo below falls back to the record's creation date instead.
+    const getEffectiveStartDate = React.useCallback((p: any) => p.prj_start_date || p.creation || null, []);
+
+    // ── Funding agency ID → display-name map ─────────────────────────────────
+    // The real agency name lives behind the `funding_agen` Link field (→ fundingagency_
+    // doctype), not the select_funding_agency/funding_agency_other text fields — those are
+    // usually empty, which is why the agency column was falling all the way back to
+    // origin_of_funding_agency ("National"/"International") for nearly every row.
+    const { data: fundingSearchLinkData } = useFrappeGetCall<{ message: { value: string, description: string, label?: string }[] }>(
+        "frappe.desk.search.search_link",
+        {
+            txt: "",
+            doctype: "fundingagency_",
+            ignore_user_permissions: 1,
+            reference_doctype: "Project Registration",
+            page_length: 5000
+        },
+        "funding-agencies-search-link"
+    );
+    // search_link alone missed some agencies (e.g. IDs "2850", "44" still showed raw), likely
+    // due to its own result-scoping quirks — a direct doctype list read has no such cap, so
+    // it's the primary source; search_link only fills in anything it happens to add on top.
+    const { data: fundingAgencyDocList } = useFrappeGetDocList<{ name: string; funding_agency_name: string }>(
+        "fundingagency_",
+        { fields: ["name", "funding_agency_name"], limit: 5000 }
+    );
+    const fundingAgencyMap = React.useMemo(() => {
+        const map: Record<string, string> = {};
+        if (fundingSearchLinkData?.message && Array.isArray(fundingSearchLinkData.message)) {
+            fundingSearchLinkData.message.forEach(opt => {
+                if (opt.value) map[opt.value] = opt.description || opt.label || opt.value;
+            });
+        }
+        (fundingAgencyDocList || []).forEach((agency) => {
+            if (agency.name && agency.funding_agency_name) map[agency.name] = agency.funding_agency_name;
+        });
+        return map;
+    }, [fundingSearchLinkData, fundingAgencyDocList]);
 
     // ── Compute ongoing/submitted ID sets specifically from Head API response ──
     // Do this FIRST so deptProjects can use the known IDs as primary filter
@@ -528,6 +805,191 @@ export function HeadOverview() {
         };
     }, [deptProjects, apiProjectsFlat, deptOngoingIds, deptSubmittedIds]);
 
+    const classifyProjectType = (p: any) => {
+        const type = (p.project_type || "").toLowerCase();
+        const isResearch = type.includes("research") || type === "r&d project";
+        const isConsultancy = type.includes("consult") || type === "testing";
+        return { isResearch, isConsultancy };
+    };
+
+    // Same classification the "Department Projects" table below uses — factored out so
+    // the KPI modal can show real Ongoing/Submitted/Draft/etc labels instead of the raw
+    // workflow_state fallback (which just showed "Approved" for every row regardless of tab).
+    const getDeptProjectStatus = (p: any): string => {
+        if (deptOngoingIds.has(p.name)) return "ongoing";
+        if (deptSubmittedIds.has(p.name)) return "submitted";
+        const s = (p.workflow_state || "").toLowerCase();
+        if (s.includes("draft")) return "draft";
+        if (s.includes("complet")) return "completed";
+        if (s.includes("cancel") || s.includes("reject")) return "cancelled";
+        return "pending";
+    };
+
+    // ── Financial Year — Project Status: Type + Year filterable chart data ───
+    // Recomputed from deptProjects directly (rather than stats.yearData, which has no
+    // type dimension) so the Type dropdown can narrow the bars.
+    const chartDisplayData = React.useMemo(() => {
+        const yearMap: Record<string, { year: string; ongoing: number; submitted: number }> = {};
+        deptProjects.forEach((p: any) => {
+            const isOngoing = deptOngoingIds.has(p.name);
+            const isSubmitted = !isOngoing && deptSubmittedIds.has(p.name);
+            if (!isOngoing && !isSubmitted) return;
+
+            if (chartProjectTypeFilter !== "all") {
+                const { isResearch, isConsultancy } = classifyProjectType(p);
+                if (chartProjectTypeFilter === "research" && !isResearch) return;
+                if (chartProjectTypeFilter === "consultancy" && !isConsultancy) return;
+                if (chartProjectTypeFilter === "others" && (isResearch || isConsultancy)) return;
+            }
+
+            const effDate = getEffectiveStartDate(p);
+            if (!effDate) return;
+            const yr = new Date(effDate).getFullYear();
+            if (isNaN(yr) || yr < 2019 || yr >= 2100) return;
+            const yearLabel = String(yr);
+            if (!yearMap[yearLabel]) yearMap[yearLabel] = { year: yearLabel, ongoing: 0, submitted: 0 };
+            if (isOngoing) yearMap[yearLabel].ongoing += 1;
+            else yearMap[yearLabel].submitted += 1;
+        });
+
+        let list = Object.values(yearMap).map(d => ({
+            year: d.year,
+            ongoing: d.ongoing === 0 ? null : d.ongoing,
+            submitted: d.submitted === 0 ? null : d.submitted,
+        })).sort((a, b) => a.year.localeCompare(b.year));
+
+        if (chartYearFilter !== "All Time") list = list.filter(d => d.year === chartYearFilter);
+        return list;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [deptProjects, deptOngoingIds, deptSubmittedIds, chartProjectTypeFilter, chartYearFilter]);
+
+    // Research/Consultancy/Others split for the panel's legend area — respects the Year
+    // filter but always shows all three types regardless of the Type dropdown, so it stays
+    // a comparison reference.
+    const chartTypeBreakdown = React.useMemo(() => {
+        let ro = 0, rs = 0, co = 0, cs = 0, oo = 0, os = 0;
+        deptProjects.forEach((p: any) => {
+            const isOngoing = deptOngoingIds.has(p.name);
+            const isSubmitted = !isOngoing && deptSubmittedIds.has(p.name);
+            if (!isOngoing && !isSubmitted) return;
+
+            if (chartYearFilter !== "All Time") {
+                const effDate = getEffectiveStartDate(p);
+                const yr = effDate ? new Date(effDate).getFullYear() : null;
+                if (String(yr) !== chartYearFilter) return;
+            }
+
+            const { isResearch, isConsultancy } = classifyProjectType(p);
+            if (isResearch) { if (isOngoing) ro++; else rs++; }
+            else if (isConsultancy) { if (isOngoing) co++; else cs++; }
+            else { if (isOngoing) oo++; else os++; }
+        });
+        return { researchOngoing: ro, researchSubmitted: rs, consultancyOngoing: co, consultancySubmitted: cs, othersOngoing: oo, othersSubmitted: os };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [deptProjects, deptOngoingIds, deptSubmittedIds, chartYearFilter]);
+
+    const chartYearSubmittedTotal = React.useMemo(
+        () => chartDisplayData.reduce((s, d) => s + (Number(d.submitted) || 0), 0),
+        [chartDisplayData]
+    );
+    const chartYearOngoingTotal = React.useMemo(
+        () => chartDisplayData.reduce((s, d) => s + (Number(d.ongoing) || 0), 0),
+        [chartDisplayData]
+    );
+    const chartAvailableYears = React.useMemo(() => {
+        const currentYear = new Date().getFullYear();
+        const years: string[] = [];
+        for (let y = currentYear; y >= 2019; y--) years.push(String(y));
+        return years;
+    }, []);
+
+    // ── Financial Trends: Sanctioned / Utilized / Remaining, Type + Year filterable ──
+    const financialAvailableYears = React.useMemo(() => {
+        const years = new Set<string>();
+        deptProjects.forEach((p: any) => {
+            const effDate = getEffectiveStartDate(p);
+            if (effDate) {
+                const yr = new Date(effDate).getFullYear();
+                if (yr >= 2000 && yr <= 2100) years.add(yr.toString());
+            }
+        });
+        return Array.from(years).sort((a, b) => b.localeCompare(a));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [deptProjects]);
+
+    const fundAlloc = React.useMemo(() => {
+        let sum = 0;
+        deptProjects.forEach((p: any) => {
+            if (!deptOngoingIds.has(p.name)) return;
+            if (financialYearFilter !== "all") {
+                const effDate = getEffectiveStartDate(p);
+                const year = effDate ? new Date(effDate).getFullYear().toString() : null;
+                if (year !== financialYearFilter) return;
+            }
+            if (financialProjectTypeFilter !== "all") {
+                const { isResearch, isConsultancy } = classifyProjectType(p);
+                if (financialProjectTypeFilter === "research" && !isResearch) return;
+                if (financialProjectTypeFilter === "consultancy" && !isConsultancy) return;
+                if (financialProjectTypeFilter === "others" && (isResearch || isConsultancy)) return;
+            }
+            sum += (p.total_budget_amount || p.grand_total_proposal || 0);
+        });
+        return sum;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [deptProjects, deptOngoingIds, financialYearFilter, financialProjectTypeFilter]);
+
+    const ongoingProjectsListForFunds = React.useMemo(() => {
+        return deptProjects.filter((p: any) => {
+            if (!deptOngoingIds.has(p.name)) return false;
+            if (financialYearFilter !== "all") {
+                const effDate = getEffectiveStartDate(p);
+                const year = effDate ? new Date(effDate).getFullYear().toString() : null;
+                if (year !== financialYearFilter) return false;
+            }
+            if (financialProjectTypeFilter !== "all") {
+                const { isResearch, isConsultancy } = classifyProjectType(p);
+                if (financialProjectTypeFilter === "research" && !isResearch) return false;
+                if (financialProjectTypeFilter === "consultancy" && !isConsultancy) return false;
+                if (financialProjectTypeFilter === "others" && (isResearch || isConsultancy)) return false;
+            }
+            return true;
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [deptProjects, deptOngoingIds, financialYearFilter, financialProjectTypeFilter]);
+
+    const { total: liveFundUtilized, loading: fundUtilizedLoading } = usePIFundReceivedTotal(ongoingProjectsListForFunds);
+    const fundUtilized = liveFundUtilized || 0;
+    const fundRemaining = Math.max(0, fundAlloc - fundUtilized);
+    const fundUtilPercent = fundAlloc > 0 ? ((fundUtilized / fundAlloc) * 100).toFixed(1) : "0";
+
+    // ₹ allocation AND ₹ utilization split by project type, among ongoing (sanction-
+    // approved) projects only — matches DirectorDashboard's Total Allocation card.
+    // Utilized reads fundReceivedValueCache (populated by the same
+    // usePIFundReceivedTotal(ongoingProjectsListForFunds) call above), so it's
+    // recomputed once that background fetch resolves via the fundUtilized/
+    // fundUtilizedLoading deps below. pending tracks how many ongoing projects don't
+    // yet have a cache entry — used to show "Loading…" instead of a false "₹0" if the
+    // loading flag has already flipped false but the cache isn't fully populated yet.
+    const allocationByType = React.useMemo(() => {
+        let rAmt = 0, cAmt = 0, oAmt = 0;
+        let rUtil = 0, cUtil = 0, oUtil = 0;
+        let pending = 0;
+        deptProjects.forEach((p: any) => {
+            if (!deptOngoingIds.has(p.name)) return;
+            const { isResearch, isConsultancy } = classifyProjectType(p);
+            const amt = p.total_budget_amount || p.grand_total_proposal || 0;
+            if (!Object.prototype.hasOwnProperty.call(fundReceivedValueCache, p.name)) pending++;
+            const util = fundReceivedValueCache[p.name] || 0;
+            if (isResearch) { rAmt += amt; rUtil += util; }
+            else if (isConsultancy) { cAmt += amt; cUtil += util; }
+            else { oAmt += amt; oUtil += util; }
+        });
+        return { rAmt, cAmt, oAmt, rUtil, cUtil, oUtil, pending };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [deptProjects, deptOngoingIds, fundUtilized, fundUtilizedLoading]);
+
+    const isFundUtilDataReady = !fundUtilizedLoading && allocationByType.pending === 0;
+
     // ── Funding sources pie (dept-scoped) ───────────────────────────────────
     const pieChartFundingData = React.useMemo(() => {
         const source = deptProjects.length > 0 ? deptProjects : apiProjectsFlat;
@@ -538,10 +1000,11 @@ export function HeadOverview() {
             const isSubmitted = useApiStatus ? p._api_status === "submitted" : deptSubmittedIds.has(p.name);
             if (!isOngoing && !isSubmitted) return;
             const agency =
+                (fundingAgencyMap[p.funding_agen] || "").trim() ||
                 (p.select_funding_agency || "").trim() ||
-                (p.origin_of_funding_agency || "").trim() ||
                 (p.funding_agency_other || "").trim() ||
-                "Unknown";
+                (p.origin_of_funding_agency || "").trim() ||
+                "Missing Funding Agency Name";
             agencyMap[agency] = (agencyMap[agency] || 0) + 1;
         });
         const arr = Object.entries(agencyMap)
@@ -553,7 +1016,7 @@ export function HeadOverview() {
             return [...top5, { funding_agency: "Others", value: othersCount }];
         }
         return arr;
-    }, [deptProjects, apiProjectsFlat, deptOngoingIds, deptSubmittedIds]);
+    }, [deptProjects, apiProjectsFlat, deptOngoingIds, deptSubmittedIds, fundingAgencyMap]);
 
     // ── PI workload (dept-scoped) directly from Head API ──────────────────────
     const piData = React.useMemo(() => {
@@ -568,12 +1031,13 @@ export function HeadOverview() {
 
     const getProjectAgency = React.useCallback((proj: any): string => {
         return (
+            (fundingAgencyMap[proj.funding_agen] || "").trim() ||
             (proj.select_funding_agency || "").trim() ||
-            (proj.origin_of_funding_agency || "").trim() ||
             (proj.funding_agency_other || "").trim() ||
-            "Unknown"
+            (proj.origin_of_funding_agency || "").trim() ||
+            "Missing Funding Agency Name"
         );
-    }, []);
+    }, [fundingAgencyMap]);
 
     const piWorkloadAgencies = React.useMemo(() => {
         const agencyMap: Record<string, { agency_name: string; piEmails: Set<string>; project_count: number }> = {};
@@ -688,12 +1152,52 @@ export function HeadOverview() {
             );
         }
         if (kpiModal.type === "intl") {
-            return source.filter(
+            let filtered = source.filter(
                 (p: any) => (p.origin_of_funding_agency || "").toLowerCase() === "international"
             );
+            if (kpiModal.projectType) {
+                filtered = filtered.filter((p: any) => {
+                    const { isResearch, isConsultancy } = classifyProjectType(p);
+                    if (kpiModal.projectType === "research") return isResearch;
+                    if (kpiModal.projectType === "consultancy") return isConsultancy;
+                    return !isResearch && !isConsultancy;
+                });
+            }
+            return filtered;
+        }
+        const activeOrSubmitted = source.filter((p: any) =>
+            deptProjects.length > 0
+                ? deptOngoingIds.has(p.name) || deptSubmittedIds.has(p.name)
+                : p._api_status === "ongoing" || p._api_status === "submitted"
+        );
+        if (kpiModal.type === "fundingAgency") {
+            return activeOrSubmitted.filter((p: any) => {
+                const agency = getProjectAgency(p);
+                if (kpiModal.fundingAgency === "Others") {
+                    return !(kpiModal.excludedFundingAgencies || []).includes(agency);
+                }
+                return agency === kpiModal.fundingAgency;
+            });
+        }
+        if (kpiModal.type === "projectType") {
+            // onlyOngoing narrows to the ongoing subset — used when the click came from a
+            // card/row that's itself scoped to ongoing projects only (e.g. the "Ongoing
+            // Projects" KPI card's per-type rows), so the modal's row count matches what
+            // was clicked instead of pulling in submitted projects of that type too.
+            const base = kpiModal.onlyOngoing
+                ? source.filter((p: any) =>
+                    deptProjects.length > 0 ? deptOngoingIds.has(p.name) : p._api_status === "ongoing"
+                )
+                : activeOrSubmitted;
+            return base.filter((p: any) => {
+                const { isResearch, isConsultancy } = classifyProjectType(p);
+                if (kpiModal.projectType === "research") return isResearch;
+                if (kpiModal.projectType === "consultancy") return isConsultancy;
+                return !isResearch && !isConsultancy;
+            });
         }
         return source;
-    }, [deptProjects, apiProjectsFlat, deptOngoingIds, deptSubmittedIds, kpiModal, kpiTab, kpiAllocTab]);
+    }, [deptProjects, apiProjectsFlat, deptOngoingIds, deptSubmittedIds, kpiModal, kpiTab, kpiAllocTab, getProjectAgency]);
 
     const kpiTotalPages = Math.max(1, Math.ceil(kpiModalRows.length / KPI_PAGE_SIZE));
     const kpiPagedRows = kpiModalRows.slice((kpiPage - 1) * KPI_PAGE_SIZE, kpiPage * KPI_PAGE_SIZE);
@@ -713,26 +1217,239 @@ export function HeadOverview() {
     };
     const closeKpiModal = () => setKpiModal(null);
 
-    // ── Badges ────────────────────────────────────────────────────────────────
-    const totalProjectBadges = React.useMemo(() => [
-        {
-            label: "Ongoing",
-            originalState: "ongoing",
-            count: projectOverview.ongoing_projects || stats.ongoing,
-            dotColor: "bg-emerald-500",
-            bgClass: "bg-emerald-50 dark:bg-emerald-950/30",
-            textClass: "text-emerald-700 dark:text-emerald-400",
-        },
-        {
-            label: "Submitted",
-            originalState: "submitted",
-            count: projectOverview.submitted_projects || stats.submitted,
-            title: "Registration but pending sanction",
-            dotColor: "bg-amber-400",
-            bgClass: "bg-amber-50 dark:bg-amber-950/30",
-            textClass: "text-amber-700 dark:text-amber-400",
-        },
-    ], [stats, projectOverview]);
+    // ── Research/Consultancy/Others breakdown (unfiltered — mirrors Director's KPI card
+    // detail panels) ─────────────────────────────────────────────────────────────
+    const {
+        researchProjects: allResearchProjects,
+        consultancyProjects: allConsultancyProjects,
+        othersProjects: allOthersProjects,
+        researchOngoing: allResearchOngoing,
+        researchSubmitted: allResearchSubmitted,
+        consultancyOngoing: allConsultancyOngoing,
+        consultancySubmitted: allConsultancySubmitted,
+        othersOngoing: allOthersOngoing,
+        othersSubmitted: allOthersSubmitted,
+    } = React.useMemo(() => {
+        let ro = 0, rs = 0, co = 0, cs = 0, oo = 0, os = 0;
+        deptProjects.forEach((p: any) => {
+            const isOngoing = deptOngoingIds.has(p.name);
+            const isSubmitted = !isOngoing && deptSubmittedIds.has(p.name);
+            if (!isOngoing && !isSubmitted) return;
+            const { isResearch, isConsultancy } = classifyProjectType(p);
+            if (isResearch) { if (isOngoing) ro++; else rs++; }
+            else if (isConsultancy) { if (isOngoing) co++; else cs++; }
+            else { if (isOngoing) oo++; else os++; }
+        });
+        return {
+            researchOngoing: ro, researchSubmitted: rs,
+            consultancyOngoing: co, consultancySubmitted: cs,
+            othersOngoing: oo, othersSubmitted: os,
+            researchProjects: ro + rs, consultancyProjects: co + cs, othersProjects: oo + os,
+        };
+    }, [deptProjects, deptOngoingIds, deptSubmittedIds]);
+
+    // Shared row renderer for the "type → total, with Ongoing/Submitted context"
+    // breakdown shape — dot/label + right-aligned total on top, muted ongoing/submitted
+    // detail + a pct pill below. Same visual language across every KPI card that shows
+    // a Research/Consultancy/Others split, so a reader recognizes the pattern at a
+    // glance instead of parsing a different layout per card. Zero counts are shown,
+    // not hidden, so a 0 reads as "checked, none found," not "missing data."
+    const rowTabByLabel: Record<string, "research" | "consultancy" | "others"> = {
+        Research: "research",
+        Consultancy: "consultancy",
+        Others: "others",
+    };
+
+    const renderTypeSplitRows = (
+        rows: Array<{ label: string; dotColor: string; total: number; ongoing: number; submitted: number }>,
+        onRowClick?: (tab: "research" | "consultancy" | "others") => void,
+    ) => (
+        <div className="flex flex-col divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]/60 pt-1 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+            {rows.map((r) => {
+                const ongoingPct = r.total > 0 ? Math.round((r.ongoing / r.total) * 100) : 0;
+                return (
+                    <div
+                        key={r.label}
+                        onClick={onRowClick ? (e) => { e.stopPropagation(); onRowClick(rowTabByLabel[r.label]); } : undefined}
+                        className={`flex flex-col gap-0.5 py-1.5 -mx-1.5 px-1.5 rounded-md${onRowClick ? " cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors" : ""}`}
+                    >
+                        <div className="flex items-center justify-between gap-2 text-[13px]">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${r.dotColor}`} />
+                                <span className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.label}</span>
+                            </div>
+                            <span className="font-extrabold text-[14px] text-[#3F3F46] dark:text-[#E4E4E7] shrink-0">{r.total}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 pl-4 text-[12px]">
+                            <span className="text-[#52525B] dark:text-[#D4D4D8] font-semibold truncate">
+                                {r.ongoing} ongoing &middot; {r.submitted} submitted
+                            </span>
+                            <span
+                                className="shrink-0 font-bold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
+                                title={`${ongoingPct}% of ${r.label} projects are ongoing`}
+                            >
+                                {ongoingPct}% ongoing
+                            </span>
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+
+    const projectBreakdownGrid = React.useMemo(() => renderTypeSplitRows([
+        { label: "Research", dotColor: "bg-blue-500", total: allResearchProjects, ongoing: allResearchOngoing, submitted: allResearchSubmitted },
+        { label: "Consultancy", dotColor: "bg-purple-500", total: allConsultancyProjects, ongoing: allConsultancyOngoing, submitted: allConsultancySubmitted },
+        ...(allOthersProjects > 0 ? [{ label: "Others", dotColor: "bg-emerald-500", total: allOthersProjects, ongoing: allOthersOngoing, submitted: allOthersSubmitted }] : []),
+    ], (tab) => {
+        setKpiModal({
+            type: "projectType",
+            title: `Projects: ${tab === "research" ? "Research" : tab === "consultancy" ? "Consultancy" : "Others"}`,
+            projectType: tab,
+        });
+        setKpiPage(1);
+    }), [
+        allResearchProjects, allResearchOngoing, allResearchSubmitted,
+        allConsultancyProjects, allConsultancyOngoing, allConsultancySubmitted,
+        allOthersProjects, allOthersOngoing, allOthersSubmitted,
+    ]);
+
+    const allocationBreakdownRows = React.useMemo(() => {
+        const pct = (util: number, amt: number) => amt > 0 ? ((util / amt) * 100).toFixed(1) : "0.0";
+        const build = (label: string, dotColor: string, count: number, amount: number, util: number) => ({
+            label, dotColor, count, amount,
+            util, remaining: Math.max(0, amount - util),
+            pct: pct(util, amount),
+        });
+        const rows = [
+            build("Research", "bg-blue-500", allResearchOngoing, allocationByType.rAmt, allocationByType.rUtil),
+            build("Consultancy", "bg-purple-500", allConsultancyOngoing, allocationByType.cAmt, allocationByType.cUtil),
+        ];
+        if (allOthersOngoing > 0) {
+            rows.push(build("Others", "bg-emerald-500", allOthersOngoing, allocationByType.oAmt, allocationByType.oUtil));
+        }
+        return rows;
+    }, [allocationByType, allResearchOngoing, allConsultancyOngoing, allOthersOngoing]);
+
+    const allocationBreakdownList = React.useMemo(() => (
+        <div className="flex flex-col divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]/60 pt-1 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+            {allocationBreakdownRows.map((r) => (
+                <div
+                    key={r.label}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setKpiModal({
+                            type: "projectType",
+                            title: `Projects by Allocation: ${r.label}`,
+                            projectType: rowTabByLabel[r.label],
+                            onlyOngoing: true,
+                        });
+                        setKpiPage(1);
+                    }}
+                    className="flex flex-col gap-0.5 py-1.5 -mx-1.5 px-1.5 rounded-md cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
+                >
+                    <div className="flex items-center justify-between gap-2 text-[13px]">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${r.dotColor}`} />
+                            <span className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.label}</span>
+                            <span className="text-[#71717A] dark:text-[#A1A1AA] font-semibold shrink-0">({r.count})</span>
+                        </div>
+                        <span className="font-extrabold text-[14px] text-[#3F3F46] dark:text-[#E4E4E7] shrink-0">{formatCurrency(r.amount)}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 pl-4 text-[12px]">
+                        {!isFundUtilDataReady ? (
+                            <span className="text-[#52525B] dark:text-[#D4D4D8] font-semibold animate-pulse">Loading…</span>
+                        ) : (
+                            <>
+                                <span className="text-[#52525B] dark:text-[#D4D4D8] font-semibold truncate">
+                                    {formatCurrency(r.util)} utilized &middot; {formatCurrency(r.remaining)} left
+                                </span>
+                                <span
+                                    className="shrink-0 font-bold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
+                                    title={`${r.pct}% of ${r.label} allocation utilized`}
+                                >
+                                    {r.pct}%
+                                </span>
+                            </>
+                        )}
+                    </div>
+                </div>
+            ))}
+        </div>
+    ), [allocationBreakdownRows, isFundUtilDataReady]);
+
+    const ongoingBreakdownList = React.useMemo(() => {
+        const totalOngoing = allResearchOngoing + allConsultancyOngoing + allOthersOngoing;
+        const pct = (n: number) => totalOngoing > 0 ? Math.round((n / totalOngoing) * 100) : 0;
+        const rows = [
+            { label: "Research", dotColor: "bg-blue-500", count: allResearchOngoing },
+            { label: "Consultancy", dotColor: "bg-purple-500", count: allConsultancyOngoing },
+            ...(allOthersOngoing > 0 ? [{ label: "Others", dotColor: "bg-emerald-500", count: allOthersOngoing }] : []),
+        ];
+        return (
+            <div className="flex flex-col divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]/60 pt-1 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                {rows.map((r) => (
+                    <div
+                        key={r.label}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setKpiModal({
+                                type: "projectType",
+                                title: `Ongoing Projects: ${r.label}`,
+                                projectType: rowTabByLabel[r.label],
+                                onlyOngoing: true,
+                            });
+                            setKpiPage(1);
+                        }}
+                        className="flex items-center justify-between gap-2 py-1.5 text-[13px] -mx-1.5 px-1.5 rounded-md cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
+                    >
+                        <div className="flex items-center gap-1.5 min-w-0">
+                            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${r.dotColor}`} />
+                            <span className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.label}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            <span className="font-extrabold text-[14px] text-[#3F3F46] dark:text-[#E4E4E7]">{r.count}</span>
+                            <span
+                                className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
+                                title={`${pct(r.count)}% of ongoing projects are ${r.label}`}
+                            >
+                                {pct(r.count)}%
+                            </span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    }, [allResearchOngoing, allConsultancyOngoing, allOthersOngoing]);
+
+    const intlBreakdownGrid = React.useMemo(() => {
+        let rP = 0, rO = 0, rS = 0;
+        let cP = 0, cO = 0, cS = 0;
+        let oP = 0, oO = 0, oS = 0;
+
+        deptProjects.forEach((p: any) => {
+            if ((p.origin_of_funding_agency || "").toLowerCase() !== "international") return;
+            const { isResearch, isConsultancy } = classifyProjectType(p);
+            const isOngoing = deptOngoingIds.has(p.name);
+            const isSubmitted = deptSubmittedIds.has(p.name);
+            if (isResearch) { rP++; if (isOngoing) rO++; if (isSubmitted) rS++; }
+            else if (isConsultancy) { cP++; if (isOngoing) cO++; if (isSubmitted) cS++; }
+            else { oP++; if (isOngoing) oO++; if (isSubmitted) oS++; }
+        });
+
+        return renderTypeSplitRows([
+            { label: "Research", dotColor: "bg-blue-500", total: rP, ongoing: rO, submitted: rS },
+            { label: "Consultancy", dotColor: "bg-purple-500", total: cP, ongoing: cO, submitted: cS },
+            { label: "Others", dotColor: "bg-emerald-500", total: oP, ongoing: oO, submitted: oS },
+        ], (tab) => {
+            setKpiModal({
+                type: "intl",
+                title: `International Collaborator Projects: ${tab === "research" ? "Research" : tab === "consultancy" ? "Consultancy" : "Others"}`,
+                projectType: tab,
+            });
+            setKpiPage(1);
+        });
+    }, [deptProjects, deptOngoingIds, deptSubmittedIds]);
 
     // ═════════════════════════════════════════════════════════════════════════
     // RENDER
@@ -773,7 +1490,8 @@ export function HeadOverview() {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-[14px] mb-6">
                             <KpiCard
                                 label="Total Projects"
-                                value={isLoading || isHeadDataLoading ? "—" : String((projectOverview.ongoing_projects || stats.ongoing) + (projectOverview.submitted_projects || stats.submitted))}
+                                value={String((projectOverview.ongoing_projects || stats.ongoing) + (projectOverview.submitted_projects || stats.submitted))}
+                                isLoading={isPageLoading}
                                 subtext=""
                                 icon={
                                     <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
@@ -784,14 +1502,46 @@ export function HeadOverview() {
                                 iconBg="#eff6ff"
                                 circleColor="#2563eb"
                                 onClick={() => openKpiModal("total", "All Department Projects")}
-                                badges={isLoading || isHeadDataLoading ? undefined : totalProjectBadges}
-                                onBadgeClick={(badgeLabel) => openKpiModalWithTab("total", "All Department Projects", badgeLabel)}
+                                customBottom={!isLoading && !isHeadDataLoading && projectBreakdownGrid}
+                                valueAdornment={
+                                    !isLoading && !isHeadDataLoading && (
+                                        <div className="flex items-center gap-2">
+                                            <span
+                                                className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 cursor-pointer hover:brightness-95 transition-all"
+                                                onClick={(e) => { e.stopPropagation(); openKpiModalWithTab("total", "All Department Projects", "ongoing"); }}
+                                            >
+                                                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                                {projectOverview.ongoing_projects || stats.ongoing} Ongoing
+                                            </span>
+                                            <span
+                                                className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 cursor-pointer hover:brightness-95 transition-all"
+                                                title="Registration but pending sanction"
+                                                onClick={(e) => { e.stopPropagation(); openKpiModalWithTab("total", "All Department Projects", "submitted"); }}
+                                            >
+                                                <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                                                {projectOverview.submitted_projects || stats.submitted} Submitted
+                                            </span>
+                                        </div>
+                                    )
+                                }
                             />
                             <KpiCard
                                 label="Total Allocation"
                                 description="From sanctioned & fund-approved projects"
-                                value={isLoading || isHeadDataLoading ? "—" : formatCurrency(fundAnalytics.total_allocation || stats.totalAlloc)}
-                                subtext="Combined dept. pipeline value"
+                                value={formatCurrency(fundAnalytics.total_allocation || stats.totalAlloc)}
+                                isLoading={isPageLoading}
+                                subtext=""
+                                valueAdornment={
+                                    !isPageLoading && (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
+                                            {fundUtilizedLoading ? (
+                                                <span className="animate-pulse">Loading…</span>
+                                            ) : (
+                                                `${fundUtilPercent}% utilized`
+                                            )}
+                                        </span>
+                                    )
+                                }
                                 icon={
                                     <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                                         <line x1="6" y1="5" x2="18" y2="5" />
@@ -804,13 +1554,23 @@ export function HeadOverview() {
                                 iconBg="#ecfdf5"
                                 circleColor="#059669"
                                 onClick={() => openKpiModal("allocation", "Projects by Allocation")}
-                                badges={isLoading || isHeadDataLoading ? undefined : totalProjectBadges}
-                                onBadgeClick={(badgeLabel) => openKpiModalWithTab("allocation", "Projects by Allocation", badgeLabel)}
+                                customBottom={!isLoading && !isHeadDataLoading && allocationBreakdownList}
                             />
                             <KpiCard
                                 label="Ongoing Projects"
-                                value={isLoading || isHeadDataLoading ? "—" : String(projectOverview.ongoing_projects || stats.ongoing)}
-                                subtext={(() => { const tot = (projectOverview.ongoing_projects || stats.ongoing) + (projectOverview.submitted_projects || stats.submitted); return tot > 0 ? `${(((projectOverview.ongoing_projects || stats.ongoing) / tot) * 100).toFixed(0)}% of portfolio` : "Currently Active"; })()}
+                                value={String(projectOverview.ongoing_projects || stats.ongoing)}
+                                isLoading={isPageLoading}
+                                subtext=""
+                                valueAdornment={
+                                    !isPageLoading && (() => {
+                                        const tot = (projectOverview.ongoing_projects || stats.ongoing) + (projectOverview.submitted_projects || stats.submitted);
+                                        return tot > 0 && (
+                                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
+                                                {(((projectOverview.ongoing_projects || stats.ongoing) / tot) * 100).toFixed(0)}% of portfolio
+                                            </span>
+                                        );
+                                    })()
+                                }
                                 icon={
                                     <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                                         <circle cx="12" cy="12" r="10" />
@@ -821,10 +1581,12 @@ export function HeadOverview() {
                                 iconBg="#f5f3ff"
                                 circleColor="#7c3aed"
                                 onClick={() => openKpiModal("ongoing", "Ongoing Projects")}
+                                customBottom={!isPageLoading && ongoingBreakdownList}
                             />
                             <KpiCard
                                 label="Intl. Collaborations"
-                                value={isLoading || isHeadDataLoading ? "—" : String(stats.intlCount)}
+                                value={String(stats.intlCount)}
+                                isLoading={isPageLoading}
                                 subtext="International Funding Sources"
                                 icon={
                                     <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
@@ -837,12 +1599,13 @@ export function HeadOverview() {
                                 iconBg="#f0f9ff"
                                 circleColor="#0284c7"
                                 onClick={() => openKpiModal("intl", "International Collaborator Projects")}
+                                customBottom={!isLoading && !isHeadDataLoading && stats.intlCount > 0 && intlBreakdownGrid}
                             />
                         </div>
 
                         {/* ── Project Analytics ── */}
                         <SectionDivider title="Project Analytics" />
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-[14px] mb-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-[14px] mb-6 items-start">
                             {/* Financial Year Chart */}
                             <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden">
                                 <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
@@ -856,23 +1619,71 @@ export function HeadOverview() {
                                         </div>
                                         Financial Year — Project Status
                                     </div>
+                                    <div className="flex items-center gap-2">
+                                        {/* Type selector */}
+                                        <select
+                                            value={chartProjectTypeFilter}
+                                            onChange={(e) => setChartProjectTypeFilter(e.target.value)}
+                                            className="bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2 py-1 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none focus:border-[#2563eb] cursor-pointer"
+                                        >
+                                            <option value="all">All Types</option>
+                                            <option value="research">Research</option>
+                                            <option value="consultancy">Consultancy</option>
+                                            <option value="others">Others</option>
+                                        </select>
+                                        {/* Year selector */}
+                                        <span className="text-[11px] font-bold text-[#71717A] uppercase tracking-wider ml-1">Year:</span>
+                                        <div className="relative">
+                                            <select
+                                                value={chartYearFilter}
+                                                onChange={(e) => setChartYearFilter(e.target.value)}
+                                                className="appearance-none pl-2.5 pr-7 py-1 text-[11px] font-bold bg-[#F4F4F5] dark:bg-[#3F3F46] border border-[#E4E4E7] dark:border-[#52525B] text-[#3F3F46] dark:text-[#E4E4E7] rounded-lg outline-none cursor-pointer hover:bg-[#E4E4E7] dark:hover:bg-[#52525B] transition-colors"
+                                            >
+                                                <option value="All Time">All Years</option>
+                                                {chartAvailableYears.map(y => (
+                                                    <option key={y} value={y}>{y}</option>
+                                                ))}
+                                            </select>
+                                            <svg className="w-3 h-3 absolute right-1.5 top-1/2 -translate-y-1/2 text-[#A1A1AA] pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div className="p-[18px] px-[22px] pb-5">
                                     <div className="h-[250px]">
-                                        {isLoading || isHeadDataLoading ? (
-                                            <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">Loading chart...</div>
-                                        ) : stats.yearData.length > 0 ? (
+                                        {isPageLoading ? (
+                                            <div className="w-full h-full flex flex-col items-center justify-center text-[#71717A] text-sm gap-3">
+                                                <div className="w-5 h-5 border-2 border-[#2563eb] border-t-transparent rounded-full animate-spin"></div>
+                                                <span className="font-medium">Loading projects...</span>
+                                            </div>
+                                        ) : chartDisplayData.length > 0 ? (
                                             <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart data={stats.yearData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }} barCategoryGap="25%" barGap={2}>
+                                                <BarChart
+                                                    data={chartDisplayData}
+                                                    margin={{ top: 20, right: 4, left: -24, bottom: 0 }}
+                                                    barCategoryGap="25%"
+                                                    barGap={2}
+                                                    onClick={(state: any, e: any) => {
+                                                        if (state && state.activeLabel) {
+                                                            let status = "ongoing";
+                                                            if (e && e.target && typeof e.target.getAttribute === "function") {
+                                                                const name = e.target.getAttribute("name");
+                                                                if (name === "Submitted") status = "submitted";
+                                                                else if (name === "Ongoing") status = "ongoing";
+                                                            }
+                                                            openKpiModalWithTab("total", "All Department Projects", status);
+                                                        }
+                                                    }}
+                                                    style={{ cursor: "pointer" }}
+                                                >
                                                     <CartesianGrid strokeDasharray="3 3" stroke="#E4E4E7" vertical={false} />
                                                     <XAxis dataKey="year" tick={{ fontSize: 12, fill: "#71717A", fontWeight: 600 }} axisLine={false} tickLine={false} dy={8} />
                                                     <YAxis tick={{ fontSize: 12, fill: "#71717A" }} axisLine={false} tickLine={false} />
                                                     <Tooltip contentStyle={{ borderRadius: "0.75rem", border: "1px solid #1e293b", background: "#0f172a" }} labelStyle={{ color: "#f1f5f9", fontWeight: 700, fontSize: 12 }} itemStyle={{ color: "#94a3b8", fontSize: 11 }} cursor={{ fill: "#f4f4f5" }} />
-                                                    <Bar dataKey="submitted" name="Submitted" stackId="a" fill="#2563eb" maxBarSize={34} isAnimationActive={false}>
-                                                        <LabelList dataKey="submitted" position="center" fill="#ffffff" fontSize={11} fontWeight={700} formatter={(val: any) => (val > 0 ? val : "")} />
+                                                    <Bar dataKey="submitted" name="Submitted" fill="#2563eb" maxBarSize={24} radius={[4, 4, 0, 0]} isAnimationActive={false} cursor="pointer">
+                                                        <LabelList dataKey="submitted" position="top" fill="#71717A" fontSize={11} fontWeight={600} formatter={(val: any) => (val > 0 ? val : "")} />
                                                     </Bar>
-                                                    <Bar dataKey="ongoing" name="Ongoing" stackId="a" fill="#7c3aed" maxBarSize={34} isAnimationActive={false}>
-                                                        <LabelList dataKey="ongoing" position="center" fill="#ffffff" fontSize={11} fontWeight={700} formatter={(val: any) => (val > 0 ? val : "")} />
+                                                    <Bar dataKey="ongoing" name="Ongoing" fill="#7c3aed" maxBarSize={24} radius={[4, 4, 0, 0]} isAnimationActive={false} cursor="pointer">
+                                                        <LabelList dataKey="ongoing" position="top" fill="#71717A" fontSize={11} fontWeight={600} formatter={(val: any) => (val > 0 ? val : "")} />
                                                     </Bar>
                                                 </BarChart>
                                             </ResponsiveContainer>
@@ -880,19 +1691,59 @@ export function HeadOverview() {
                                             <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">No data available</div>
                                         )}
                                     </div>
-                                    <div className="flex items-start gap-5 flex-wrap mt-4 pt-4 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-                                        {[
-                                            ["#2563eb", `Submitted (${projectOverview.submitted_projects || stats.submitted})`, "Registration but pending sanction"],
-                                            ["#7c3aed", `Ongoing (${projectOverview.ongoing_projects || stats.ongoing})`, "Fund sanctioned and formally approved"],
-                                        ].map(([color, label, desc]) => (
-                                            <div key={label} className="flex items-start gap-2">
-                                                <span className="w-2.5 h-2.5 rounded-sm shrink-0 mt-[2px]" style={{ backgroundColor: color }} />
-                                                <div className="flex flex-col">
-                                                    <span className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">{label}</span>
-                                                    <span className="text-[10px] font-medium text-[#A1A1AA] dark:text-[#71717A] max-w-[120px] leading-snug mt-0.5">{desc}</span>
+                                    <div className="mt-4 pt-4 border-t border-[#E4E4E7] dark:border-[#3F3F46] space-y-3.5">
+                                        {/* Status totals */}
+                                        <div className="flex items-stretch gap-3 flex-wrap">
+                                            <div className="flex-1 min-w-[150px] rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-blue-50/60 dark:bg-blue-950/20 px-4 py-3">
+                                                <div className="flex items-center gap-1.5 mb-1">
+                                                    <span className="w-2 h-2 rounded-full bg-[#2563eb] shrink-0" />
+                                                    <span className="text-[10px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Submitted</span>
                                                 </div>
+                                                <div className="text-[22px] font-extrabold text-[#2563eb] leading-none">{chartYearSubmittedTotal}</div>
+                                                <div className="text-[10px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1.5 leading-snug">Pending Sanction</div>
                                             </div>
-                                        ))}
+                                            <div className="flex-1 min-w-[150px] rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-purple-50/60 dark:bg-purple-950/20 px-4 py-3">
+                                                <div className="flex items-center gap-1.5 mb-1">
+                                                    <span className="w-2 h-2 rounded-full bg-[#7c3aed] shrink-0" />
+                                                    <span className="text-[10px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Ongoing</span>
+                                                </div>
+                                                <div className="text-[22px] font-extrabold text-[#7c3aed] leading-none">{chartYearOngoingTotal}</div>
+                                                <div className="text-[10px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1.5 leading-snug">Sanction approved</div>
+                                            </div>
+                                        </div>
+
+                                        {/* Type breakdown */}
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                                            {[
+                                                { label: "Research", ongoing: chartTypeBreakdown.researchOngoing, submitted: chartTypeBreakdown.researchSubmitted },
+                                                { label: "Consultancy", ongoing: chartTypeBreakdown.consultancyOngoing, submitted: chartTypeBreakdown.consultancySubmitted },
+                                                ...(chartTypeBreakdown.othersOngoing + chartTypeBreakdown.othersSubmitted > 0
+                                                    ? [{ label: "Others", ongoing: chartTypeBreakdown.othersOngoing, submitted: chartTypeBreakdown.othersSubmitted }]
+                                                    : []),
+                                            ].map((row) => (
+                                                <div key={row.label} className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] px-3 py-2.5">
+                                                    <div className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider mb-2">
+                                                        {row.label}
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <span className="flex items-center gap-1.5 text-[10px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                                                Ongoing
+                                                            </span>
+                                                            <span className="text-[13px] font-extrabold text-emerald-600 dark:text-emerald-400">{row.ongoing}</span>
+                                                        </div>
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <span className="flex items-center gap-1.5 text-[10px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                                                                Submitted
+                                                            </span>
+                                                            <span className="text-[13px] font-extrabold text-amber-600 dark:text-amber-400">{row.submitted}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -911,14 +1762,32 @@ export function HeadOverview() {
                                     </div>
                                 </div>
                                 <div className="p-[18px] px-[22px] pb-5">
-                                    {isLoading || isHeadDataLoading ? (
-                                        <div className="h-[300px] flex items-center justify-center text-[#71717A] text-sm">Loading chart...</div>
+                                    {isPageLoading || fundingSearchLinkData === undefined || fundingAgencyDocList === undefined ? (
+                                        <div className="h-[300px] flex flex-col items-center justify-center text-[#71717A] text-sm gap-3">
+                                            <div className="w-5 h-5 border-2 border-[#7c3aed] border-t-transparent rounded-full animate-spin"></div>
+                                            <span className="font-medium">Loading…</span>
+                                        </div>
                                     ) : pieChartFundingData.length > 0 ? (
-                                        <div className="flex items-center gap-6 h-[300px]">
+                                        <div className="flex flex-col items-center gap-5">
                                             <div className="relative flex items-center justify-center w-[200px] h-[200px] shrink-0">
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <PieChart>
-                                                        <Pie data={pieChartFundingData} cx="50%" cy="50%" innerRadius={65} outerRadius={88} dataKey="value" nameKey="funding_agency" paddingAngle={3} isAnimationActive={false}>
+                                                        <Pie
+                                                            data={pieChartFundingData}
+                                                            cx="50%" cy="50%" innerRadius={65} outerRadius={88} dataKey="value" nameKey="funding_agency" paddingAngle={3} isAnimationActive={false}
+                                                            onClick={(entry: any) => {
+                                                                const clickedAgency = entry?.funding_agency;
+                                                                if (!clickedAgency) return;
+                                                                if (clickedAgency === "Others") {
+                                                                    const excludedAgencies = pieChartFundingData.slice(0, pieChartFundingData.length - 1).map((d: any) => d.funding_agency);
+                                                                    setKpiModal({ type: "fundingAgency", title: "Funding: Others", fundingAgency: "Others", excludedFundingAgencies: excludedAgencies });
+                                                                } else {
+                                                                    setKpiModal({ type: "fundingAgency", title: `Funding: ${clickedAgency}`, fundingAgency: clickedAgency });
+                                                                }
+                                                                setKpiPage(1);
+                                                            }}
+                                                            style={{ cursor: "pointer" }}
+                                                        >
                                                             {pieChartFundingData.map((_: any, i: number) => (
                                                                 <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} stroke="none" />
                                                             ))}
@@ -933,14 +1802,26 @@ export function HeadOverview() {
                                                     <span className="text-[11px] font-bold text-[#71717A] uppercase tracking-widest mt-0.5">Total</span>
                                                 </div>
                                             </div>
-                                            <div className="flex-1 min-w-0">
+                                            <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0.5">
                                                 {pieChartFundingData.map((item: any, i: number) => (
-                                                    <div key={i} className="flex items-center justify-between py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0">
-                                                        <div className="flex items-center gap-2">
+                                                    <div
+                                                        key={i}
+                                                        onClick={() => {
+                                                            if (item.funding_agency === "Others") {
+                                                                const excludedAgencies = pieChartFundingData.slice(0, pieChartFundingData.length - 1).map((d: any) => d.funding_agency);
+                                                                setKpiModal({ type: "fundingAgency", title: "Funding: Others", fundingAgency: "Others", excludedFundingAgencies: excludedAgencies });
+                                                            } else {
+                                                                setKpiModal({ type: "fundingAgency", title: `Funding: ${item.funding_agency}`, fundingAgency: item.funding_agency });
+                                                            }
+                                                            setKpiPage(1);
+                                                        }}
+                                                        className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] px-2 -mx-2 rounded transition-colors"
+                                                    >
+                                                        <div className="flex items-center gap-2 min-w-0">
                                                             <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
-                                                            <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA] truncate max-w-[130px]" title={item.funding_agency}>{item.funding_agency}</span>
+                                                            <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA] truncate" title={item.funding_agency}>{item.funding_agency}</span>
                                                         </div>
-                                                        <span className="text-[13px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">{item.value}</span>
+                                                        <span className="text-[13px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] shrink-0 ml-2">{item.value}</span>
                                                     </div>
                                                 ))}
                                             </div>
@@ -954,7 +1835,7 @@ export function HeadOverview() {
 
                         {/* ── Project Analytics & Distribution ── */}
                         <SectionDivider title="Project Analytics & Distribution" />
-                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-[14px] mb-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-[14px] mb-6">
                             {/* Research vs Consultancy */}
                             <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden">
                                 <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46]">
@@ -970,7 +1851,7 @@ export function HeadOverview() {
                                 </div>
                                 <div className="p-[18px] px-[22px] pb-5">
                                     <div className="h-[260px] relative">
-                                        {isLoading || isHeadDataLoading ? (
+                                        {isPageLoading ? (
                                             <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">Loading chart...</div>
                                         ) : ((projectOverview.ongoing_projects || stats.ongoing) + (projectOverview.submitted_projects || stats.submitted)) === 0 ? (
                                             <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">No data available</div>
@@ -988,6 +1869,12 @@ export function HeadOverview() {
                                                                 { name: "Consultancy", value: stats.consultancyProjects, color: "#7c3aed" },
                                                             ]}
                                                             cx="50%" cy="50%" innerRadius="60%" outerRadius="80%" dataKey="value" nameKey="name" paddingAngle={5} isAnimationActive={false}
+                                                            onClick={(entry: any) => {
+                                                                const t = entry?.name === "Research" ? "research" : "consultancy";
+                                                                setKpiModal({ type: "projectType", title: `Projects: ${entry?.name}`, projectType: t });
+                                                                setKpiPage(1);
+                                                            }}
+                                                            style={{ cursor: "pointer" }}
                                                         >
                                                             <Cell fill="#2563eb" stroke="none" />
                                                             <Cell fill="#7c3aed" stroke="none" />
@@ -1000,7 +1887,10 @@ export function HeadOverview() {
                                     </div>
                                     <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-3 mt-3">
                                         <div className="grid grid-cols-2 gap-3 pt-1">
-                                            <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
+                                            <div
+                                                className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] rounded-lg transition-colors py-1"
+                                                onClick={() => { setKpiModal({ type: "projectType", title: "Projects: Research", projectType: "research" }); setKpiPage(1); }}
+                                            >
                                                 <div className="text-[22px] font-extrabold text-[#2563eb] leading-tight">{stats.researchProjects}</div>
                                                 <div className="text-[11px] font-bold text-[#71717A] uppercase tracking-widest mb-2">Research</div>
                                                 <div className="flex flex-col gap-1.5 w-full px-2 lg:px-4">
@@ -1014,7 +1904,10 @@ export function HeadOverview() {
                                                     </span>
                                                 </div>
                                             </div>
-                                            <div className="flex flex-col items-center justify-start">
+                                            <div
+                                                className="flex flex-col items-center justify-start cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] rounded-lg transition-colors py-1"
+                                                onClick={() => { setKpiModal({ type: "projectType", title: "Projects: Consultancy", projectType: "consultancy" }); setKpiPage(1); }}
+                                            >
                                                 <div className="text-[22px] font-extrabold text-[#7c3aed] leading-tight">{projectOverview.consultancy_projects || stats.consultancyProjects}</div>
                                                 <div className="text-[11px] font-bold text-[#71717A] uppercase tracking-widest mb-2">Consultancy</div>
                                                 <div className="flex flex-col gap-1.5 w-full px-2 lg:px-4">
@@ -1033,53 +1926,168 @@ export function HeadOverview() {
                                 </div>
                             </div>
 
-                            {/* Sanction Amount — Start vs End */}
-                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden lg:col-span-2 xl:col-span-2">
-                                <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46]">
-                                    <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
-                                        <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-emerald-50 dark:bg-emerald-950/20 text-[#059669]">
+                            {/* Financial Trends */}
+                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden flex flex-col">
+                                <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-amber-50 dark:bg-amber-950/20 text-[#d97706]">
                                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                                                <line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" />
+                                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
                                             </svg>
                                         </div>
-                                        Sanction Amount — Start vs End Year
+                                        <div>
+                                            <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Financial Trends</div>
+                                            <div className="text-[10px] font-medium text-[#A1A1AA] dark:text-[#71717A] leading-tight">Ongoing (sanction-approved) projects only</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <select
+                                            value={financialProjectTypeFilter}
+                                            onChange={(e) => setFinancialProjectTypeFilter(e.target.value)}
+                                            className="bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2 py-1 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none focus:border-[#2563eb] cursor-pointer"
+                                        >
+                                            <option value="all">All Types</option>
+                                            <option value="research">Research</option>
+                                            <option value="consultancy">Consultancy</option>
+                                            <option value="others">Others</option>
+                                        </select>
+                                        <span className="text-[11px] font-bold text-[#71717A] uppercase tracking-wider ml-1">Year:</span>
+                                        <select
+                                            value={financialYearFilter}
+                                            onChange={(e) => setFinancialYearFilter(e.target.value)}
+                                            className="bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2 py-1 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none focus:border-[#2563eb] cursor-pointer"
+                                        >
+                                            <option value="all">All Years</option>
+                                            {financialAvailableYears.map(y => (
+                                                <option key={y} value={y}>{y}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
-                                <div className="p-[18px] px-[22px]">
-                                    <div className="h-[300px]">
-                                        {isLoading || isHeadDataLoading ? (
-                                            <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">Loading chart...</div>
-                                        ) : stats.startEndData.length === 0 ? (
-                                            <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">No data available</div>
-                                        ) : (
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart data={stats.startEndData} margin={{ top: 4, right: 4, left: -10, bottom: 0 }} barCategoryGap="30%" barGap={3}>
-                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E4E7" />
-                                                    <XAxis dataKey="year" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 700, fill: "#71717A" }} dy={8} />
-                                                    <YAxis axisLine={false} tickLine={false}
-                                                        tickFormatter={(v) => v >= 10000000 ? `₹${(v / 10000000).toFixed(0)}Cr` : v >= 100000 ? `₹${(v / 100000).toFixed(0)}L` : `₹${v}`}
-                                                        tick={{ fontSize: 12, fill: "#71717A" }}
-                                                    />
-                                                    <Tooltip content={<BarTooltip />} cursor={{ fill: "#f4f4f5" }} />
-                                                    <Bar dataKey="startAmount" name="Project Start" fill="#2563eb" radius={[6, 6, 0, 0]} maxBarSize={36} />
-                                                    <Bar dataKey="endAmount" name="Project End" fill="#d97706" radius={[6, 6, 0, 0]} maxBarSize={36} />
-                                                </BarChart>
-                                            </ResponsiveContainer>
-                                        )}
-                                    </div>
-                                    <div className="flex items-start gap-5 flex-wrap mt-4 pt-3 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-                                        {[
-                                            ["#2563eb", "Project Start", "Budget of projects beginning this year"],
-                                            ["#d97706", "Project End", "Budget of projects closing this year"],
-                                        ].map(([color, label, desc]) => (
-                                            <div key={label} className="flex items-start gap-2">
-                                                <span className="w-2.5 h-2.5 rounded-sm shrink-0 mt-[2px]" style={{ backgroundColor: color }} />
-                                                <div className="flex flex-col">
-                                                    <span className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">{label}</span>
-                                                    <span className="text-[10px] font-medium text-[#A1A1AA] dark:text-[#71717A] max-w-[120px] leading-snug mt-0.5">{desc}</span>
-                                                </div>
+                                <div className="p-[18px] px-[22px] flex-1 flex flex-col">
+                                    <div className="flex gap-4 mb-5">
+                                        <div
+                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-xl p-3.5 text-center shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
+                                            onClick={() => openKpiModalWithTab("total", "Projects: Total Sanctioned", "ongoing")}
+                                        >
+                                            <div className="text-[20px] font-extrabold tracking-[-0.03em] text-[#2563eb]">
+                                                {isPageLoading ? "—" : formatCurrency(fundAlloc)}
                                             </div>
-                                        ))}
+                                            <div className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">
+                                                Total Sanctioned
+                                            </div>
+                                        </div>
+                                        <div
+                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-xl p-3.5 text-center shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
+                                            onClick={() => openKpiModalWithTab("total", "Projects: Utilized", "ongoing")}
+                                        >
+                                            <div className="text-[20px] font-extrabold tracking-[-0.03em] text-[#059669]">
+                                                {isPageLoading || fundUtilizedLoading ? "—" : formatCurrency(fundUtilized)}
+                                            </div>
+                                            <div className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">
+                                                Utilized
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="h-[220px] w-full mt-2">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart
+                                                data={[
+                                                    { name: "Sanctioned", value: fundAlloc, fill: "#2563eb", title: "Projects: Total Sanctioned" },
+                                                    { name: "Utilized", value: fundUtilized, fill: "#059669", title: "Projects: Utilized" },
+                                                    { name: "Remaining", value: fundRemaining, fill: "#0ea5e9", title: "Projects: Remaining Balance" },
+                                                ]}
+                                                margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
+                                                barSize={40}
+                                            >
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E4E7" className="dark:stroke-[#3F3F46]" />
+                                                <XAxis
+                                                    dataKey="name"
+                                                    axisLine={false}
+                                                    tickLine={false}
+                                                    tick={{ fill: "#71717A", fontSize: 11, fontWeight: 700 }}
+                                                    dy={10}
+                                                />
+                                                <Tooltip
+                                                    cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+                                                    contentStyle={{
+                                                        borderRadius: "0.75rem",
+                                                        border: "1px solid #1e293b",
+                                                        background: "#0f172a",
+                                                    }}
+                                                    labelStyle={{ display: "none" }}
+                                                    itemStyle={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9" }}
+                                                    formatter={(value: any, name: string, props: any) => [
+                                                        formatCurrency(value),
+                                                        props.payload.name
+                                                    ]}
+                                                />
+                                                <Bar
+                                                    dataKey="value"
+                                                    radius={[6, 6, 0, 0]}
+                                                    cursor="pointer"
+                                                    isAnimationActive={false}
+                                                    onClick={(data: any) => {
+                                                        if (data && data.payload) {
+                                                            openKpiModalWithTab("total", data.payload.title, "ongoing");
+                                                        }
+                                                    }}
+                                                >
+                                                    <LabelList
+                                                        dataKey="value"
+                                                        position="top"
+                                                        formatter={(val: any) => (val && Number(val) > 0) ? formatCurrency(Number(val)) : ""}
+                                                        style={{ fontSize: '10px', fontWeight: 'bold', fill: '#71717a' }}
+                                                    />
+                                                    {
+                                                        [
+                                                            { name: "Sanctioned", value: fundAlloc, fill: "#2563eb" },
+                                                            { name: "Utilized", value: fundUtilized, fill: "#059669" },
+                                                            { name: "Remaining", value: fundRemaining, fill: "#0ea5e9" },
+                                                        ].map((entry, index) => (
+                                                            <Cell
+                                                                key={`cell-${index}`}
+                                                                fill={entry.fill}
+                                                                className="hover:opacity-80 transition-opacity"
+                                                            />
+                                                        ))
+                                                    }
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+
+                                    <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-4 mt-auto">
+                                        <div className="space-y-1">
+                                            <div
+                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                onClick={() => openKpiModalWithTab("total", "Projects: Total Sanctioned", "ongoing")}
+                                            >
+                                                <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Total Sanctioned</span>
+                                                <span className="text-[13px] font-extrabold text-[#2563eb]">
+                                                    {isPageLoading ? "—" : formatCurrency(fundAlloc)}
+                                                </span>
+                                            </div>
+                                            <div
+                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                onClick={() => openKpiModalWithTab("total", "Projects: Utilized", "ongoing")}
+                                            >
+                                                <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Utilized</span>
+                                                <span className="text-[13px] font-extrabold text-[#059669]">
+                                                    {isPageLoading || fundUtilizedLoading ? "—" : formatCurrency(fundUtilized)}
+                                                </span>
+                                            </div>
+                                            <div
+                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                onClick={() => openKpiModalWithTab("total", "Projects: Remaining Balance", "ongoing")}
+                                            >
+                                                <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Remaining Balance</span>
+                                                <span className="text-[13px] font-extrabold text-[#0ea5e9]">
+                                                    {isPageLoading || fundUtilizedLoading ? "—" : formatCurrency(fundRemaining)}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1112,10 +2120,13 @@ export function HeadOverview() {
                                     }
                                     return {
                                         name: p.name,
+                                        project_no: p.project_no,
                                         project_title: p.project_title,
+                                        project_type: p.project_type,
                                         pi_webmail: p.pi_webmail,
                                         department: p.implementation_department,
                                         workflow_state: p.workflow_state,
+                                        prj_start_date: getEffectiveStartDate(p),
                                         _status: computedStatus,
                                         total_budget_amount: p.total_budget_amount || p.grand_total_proposal || 0,
                                     };
@@ -1158,22 +2169,43 @@ export function HeadOverview() {
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {isLoading || isHeadDataLoading ? (
+                                                    {isPageLoading ? (
                                                         <tr><td colSpan={5} className="p-8 text-center text-[#71717A] text-sm">Loading projects...</td></tr>
                                                     ) : pageSlice.length === 0 ? (
                                                         <tr><td colSpan={5} className="p-8 text-center text-[#71717A] text-sm">No projects match the selected filter.</td></tr>
                                                     ) : (
                                                         pageSlice.map((proj: any, idx: number) => {
                                                             const globalIdx = (safePage - 1) * PROJECT_TABLE_PAGE_SIZE + idx;
+                                                            const piName = proj.pi_webmail ? (piNameMap[proj.pi_webmail.toLowerCase().trim()] || proj.pi_webmail) : "—";
                                                             return (
-                                                                <tr key={proj.name || idx} className="border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors">
+                                                                <tr
+                                                                    key={proj.name || idx}
+                                                                    className="border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors cursor-pointer"
+                                                                    onClick={() => {
+                                                                        if (window.getSelection()?.toString()) return;
+                                                                        navigate(`/project-details-overview/${proj.name}`);
+                                                                    }}
+                                                                >
                                                                     <td className="p-3 px-3.5 align-middle text-[11px] font-extrabold text-[#A1A1AA] font-mono">{String(globalIdx + 1).padStart(2, "0")}</td>
-                                                                    <td className="p-3 px-3.5 align-middle max-w-[300px]">
+                                                                    <td className="p-3 px-3.5 align-middle max-w-[340px]">
                                                                         <div className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight line-clamp-2">{proj.project_title || "Untitled"}</div>
-                                                                        <span className="font-mono text-[9px] text-[#71717A] bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] px-1.5 py-0.5 rounded inline-block mt-1">{proj.name}</span>
+                                                                        <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                                                            {proj.project_no && (
+                                                                                <span className="font-mono text-[9px] text-[#71717A] bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] px-1.5 py-0.5 rounded inline-block">{proj.project_no}</span>
+                                                                            )}
+                                                                            {proj.project_type && (
+                                                                                <span className="font-mono text-[9px] text-purple-700 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-400 px-1.5 py-0.5 rounded inline-block">{proj.project_type}</span>
+                                                                            )}
+                                                                            {proj.prj_start_date && (
+                                                                                <span className="font-mono text-[9px] text-blue-700 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded inline-block">
+                                                                                    {String(proj.prj_start_date).split(" ")[0]}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
                                                                     </td>
-                                                                    <td className="p-3 px-3.5 align-middle text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA] whitespace-nowrap">
-                                                                        {proj.pi_webmail ? proj.pi_webmail.split("@")[0] : "—"}
+                                                                    <td className="p-3 px-3.5 align-middle text-[11px] whitespace-nowrap">
+                                                                        <div className="font-bold text-[#3F3F46] dark:text-[#E4E4E7]">{piName}</div>
+                                                                        {proj.pi_webmail && <div className="text-[#71717A] dark:text-[#A1A1AA] mt-0.5">{proj.pi_webmail}</div>}
                                                                     </td>
                                                                     <td className="p-3 px-3.5 align-middle"><StatusBadge status={proj._status} /></td>
                                                                     <td className="p-3 px-3.5 align-middle font-extrabold text-[13px] text-[#059669] whitespace-nowrap">
@@ -1223,11 +2255,11 @@ export function HeadOverview() {
                                 <div className="p-[18px] px-[22px] space-y-3">
                                     <div className="flex gap-2">
                                         <div className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg p-2.5 text-center">
-                                            <div className="text-[18px] font-extrabold tracking-[-0.03em] text-[#2563eb]">{isLoading || isHeadDataLoading ? "—" : formatCurrency(fundAnalytics.total_allocation || stats.totalAlloc)}</div>
+                                            <div className="text-[18px] font-extrabold tracking-[-0.03em] text-[#2563eb]">{isPageLoading ? "—" : formatCurrency(fundAnalytics.total_allocation || stats.totalAlloc)}</div>
                                             <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mt-0.5">Total Sanctioned</div>
                                         </div>
                                         <div className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg p-2.5 text-center">
-                                            <div className="text-[18px] font-extrabold tracking-[-0.03em] text-[#059669]">{isLoading || isHeadDataLoading ? "—" : String(projectOverview.ongoing_projects || stats.ongoing)}</div>
+                                            <div className="text-[18px] font-extrabold tracking-[-0.03em] text-[#059669]">{isPageLoading ? "—" : String(projectOverview.ongoing_projects || stats.ongoing)}</div>
                                             <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mt-0.5">Ongoing</div>
                                         </div>
                                     </div>
@@ -1240,7 +2272,7 @@ export function HeadOverview() {
                                         ].map((row, i) => (
                                             <div key={i} className="flex items-center justify-between py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0">
                                                 <span className="text-[11px] text-[#71717A] dark:text-[#A1A1AA]">{row.label}</span>
-                                                <span className={`text-[12px] font-extrabold ${row.color}`}>{isLoading || isHeadDataLoading ? "—" : row.value}</span>
+                                                <span className={`text-[12px] font-extrabold ${row.color}`}>{isPageLoading ? "—" : row.value}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -1332,7 +2364,16 @@ export function HeadOverview() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
-                                        {paginatedPIs && paginatedPIs.length > 0 ? (
+                                        {isPageLoading ? (
+                                            <tr>
+                                                <td colSpan={3} className="px-6 py-16 text-center text-[#71717A] font-medium">
+                                                    <div className="flex flex-col items-center justify-center gap-3">
+                                                        <div className="w-5 h-5 border-2 border-[#2563eb] border-t-transparent rounded-full animate-spin"></div>
+                                                        <span>Loading data…</span>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ) : paginatedPIs && paginatedPIs.length > 0 ? (
                                             paginatedPIs.map((pi: any, index: number) => (
                                                 <tr key={pi.user_email || index} className="hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors group cursor-pointer" onClick={() => { setExpandedPI(pi.user_email); setPiModalPage(1); }}>
                                                     <td className="px-6 py-4">
@@ -1422,26 +2463,22 @@ export function HeadOverview() {
                         {/* Body */}
                         <div className="p-5 bg-slate-50/50 dark:bg-slate-900/20 overflow-y-auto flex-1 min-h-0">
                             {/* Stats row */}
-                            {(() => {
-                                const totalSanctioned = selectedPIProjects.reduce((sum: number, proj: any) => sum + (proj.total_budget_amount || proj.grand_total_proposal || 0), 0);
-                                const formatted = totalSanctioned >= 10000000 ? `₹${(totalSanctioned / 10000000).toFixed(2)} Cr` : totalSanctioned >= 100000 ? `₹${(totalSanctioned / 100000).toFixed(2)} L` : `₹${totalSanctioned.toLocaleString("en-IN")}`;
-                                return (
-                                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
-                                        <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center">
-                                            <div className="text-[20px] font-extrabold text-[#2563eb] leading-tight">{selectedPIDetails.project_count}</div>
-                                            <div className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">Projects</div>
+                            <PIStatCardsHead piDetails={selectedPIDetails} projects={selectedPIProjects} />
+
+                            {/* Department Affiliations */}
+                            <div>
+                                <h3 className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] mb-3 uppercase tracking-widest flex items-center gap-2">
+                                    <Building2 className="w-3.5 h-3.5 text-[#A1A1AA]" />
+                                    Department Affiliations
+                                </h3>
+                                <div className="flex flex-col gap-2">
+                                    {(selectedPIDetails?.departments || [resolvedDeptName]).map((dept: string, i: number) => (
+                                        <div key={`${dept}-${i}`} className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg p-3 flex items-center justify-between text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] shadow-sm">
+                                            {getDeptName(dept) !== "—" ? getDeptName(dept) : dept}
                                         </div>
-                                        <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center">
-                                            <div className="text-[20px] font-extrabold text-[#059669] leading-tight">{totalSanctioned > 0 ? formatted : "—"}</div>
-                                            <div className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">Sanctioned</div>
-                                        </div>
-                                        <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center">
-                                            <div className="text-[20px] font-extrabold text-[#7c3aed] leading-tight">{resolvedDeptName}</div>
-                                            <div className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">Implementation Department</div>
-                                        </div>
-                                    </div>
-                                );
-                            })()}
+                                    ))}
+                                </div>
+                            </div>
 
                             {/* Project Timeline */}
                             {selectedPIProjects.length > 0 && (() => {
@@ -1450,7 +2487,7 @@ export function HeadOverview() {
                                     piModalPage * PI_PROJECTS_PAGE_SIZE
                                 );
                                 return (
-                                    <div>
+                                    <div className="mt-5">
                                         <h3 className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] mb-3 uppercase tracking-widest flex items-center gap-2">
                                             <svg className="w-3.5 h-3.5 text-[#A1A1AA]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                                                 <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
@@ -1465,11 +2502,7 @@ export function HeadOverview() {
                                                 const now = new Date();
                                                 const isActive = startDate && endDate && now >= startDate && now <= endDate;
                                                 const isCompleted = endDate && now > endDate;
-                                                const totalMonths = startDate && endDate ? Math.max(0, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44))) : null;
                                                 const progressPct = startDate && endDate && now > startDate ? Math.min(100, Math.round(((now.getTime() - startDate.getTime()) / (endDate.getTime() - startDate.getTime())) * 100)) : 0;
-                                                const formatDate = (d: Date | null) => d ? d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
-                                                const fund = proj.total_budget_amount || proj.grand_total_proposal || 0;
-                                                const formattedFund = fund >= 10000000 ? `₹${(fund / 10000000).toFixed(2)} Cr` : fund >= 100000 ? `₹${(fund / 100000).toFixed(2)} L` : fund > 0 ? `₹${fund.toLocaleString("en-IN")}` : null;
                                                 const progressColor = isCompleted ? "#A1A1AA" : progressPct >= 80 ? "#EF4444" : progressPct >= 60 ? "#FB923C" : progressPct >= 40 ? "#FACC15" : "#22C55E";
 
                                                 return (
@@ -1477,13 +2510,10 @@ export function HeadOverview() {
                                                         <div className="flex items-start justify-between gap-3 mb-3">
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-snug line-clamp-2">{proj.project_title || proj.name}</div>
-                                                                {proj.project_no && <div className="text-[10px] font-mono text-[#A1A1AA] mt-0.5">{proj.project_no}</div>}
-                                                                {formattedFund && <div className="text-[10px] font-extrabold mt-1 text-[#3F3F46] dark:text-[#E4E4E7]">{formattedFund}</div>}
+                                                                {proj.project_no && <div className="text-[10px] font-mono font-semibold text-[#71717A] dark:text-[#A1A1AA] mt-0.5">{proj.project_no}</div>}
                                                             </div>
                                                             <div className="flex flex-col items-end gap-2 shrink-0">
-                                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isCompleted ? "bg-slate-100 dark:bg-slate-800 text-slate-500" : isActive ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400" : "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"}`}>
-                                                                    {isCompleted ? "Completed" : isActive ? "● Active" : "Upcoming"}
-                                                                </span>
+                                                                <ProjectFundStatusBadge projectName={proj.name} />
                                                                 <button onClick={() => navigate(`/project-details-overview/${proj.name}`, { state: { returnTo: location.pathname + location.search, expandedPI, piModalPage } })}
                                                                     className="text-[10px] font-semibold text-[#D97757] hover:text-[#c26245] flex items-center gap-1 group transition-colors">
                                                                     View Project
@@ -1491,17 +2521,21 @@ export function HeadOverview() {
                                                                 </button>
                                                             </div>
                                                         </div>
-                                                        <div className="grid grid-cols-3 gap-2 mb-3">
-                                                            {[
-                                                                { label: "Start", value: formatDate(startDate) },
-                                                                { label: "End", value: formatDate(endDate) },
-                                                                { label: "Duration", value: totalMonths !== null ? `${totalMonths}mo` : "—" },
-                                                            ].map((cell) => (
-                                                                <div key={cell.label} className="bg-slate-50 dark:bg-slate-900/30 rounded-lg p-2.5 text-center">
-                                                                    <div className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-widest mb-1">{cell.label}</div>
-                                                                    <div className="text-[11px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">{cell.value}</div>
+                                                        <div className="grid grid-cols-2 gap-2 mb-3">
+                                                            <div className="bg-slate-50 dark:bg-slate-900/30 rounded-lg p-2.5 text-center flex flex-col justify-center">
+                                                                <div className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-widest mb-1">Sanction Amount</div>
+                                                                <ProjectSanctionAmountLive
+                                                                    proj={proj}
+                                                                    className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight"
+                                                                    emptyClassName="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight"
+                                                                />
+                                                            </div>
+                                                            <div className="bg-slate-50 dark:bg-slate-900/30 rounded-lg p-2.5 text-center flex flex-col justify-center">
+                                                                <div className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-widest mb-1">Funding Agency</div>
+                                                                <div className="text-[11px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight line-clamp-2" title={getProjectAgency(proj)}>
+                                                                    {getProjectAgency(proj)}
                                                                 </div>
-                                                            ))}
+                                                            </div>
                                                         </div>
                                                         {startDate && endDate && (isActive || isCompleted) && (
                                                             <>
@@ -1550,14 +2584,96 @@ export function HeadOverview() {
             {/* ═══════════════════════════════════════════════════════════════ */}
             {kpiModal && (
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", backgroundColor: "rgba(0,0,0,0.45)" }} onClick={closeKpiModal}>
-                    <div className="bg-white dark:bg-[#27272A] rounded-2xl shadow-2xl border border-[#E4E4E7] dark:border-[#3F3F46] w-full max-w-4xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+                    <div className="bg-white dark:bg-[#27272A] rounded-2xl shadow-2xl border border-[#E4E4E7] dark:border-[#3F3F46] w-[95vw] max-w-[1100px] max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between px-6 py-4 border-b border-[#E4E4E7] dark:border-[#3F3F46] shrink-0">
                             <div>
                                 <p className="text-[11px] font-bold uppercase tracking-widest text-[#71717A] mb-0.5">Projects</p>
                                 <h2 className="text-[16px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">{kpiModal.title}</h2>
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 sm:gap-3">
                                 <span className="text-[11px] font-semibold text-[#71717A] bg-[#F4F4F5] dark:bg-[#3F3F46] px-2.5 py-1 rounded-full">{kpiModalRows.length} record{kpiModalRows.length !== 1 ? "s" : ""}</span>
+                                <button
+                                    title="Export to Excel / CSV"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (!kpiModalRows || kpiModalRows.length === 0) return;
+                                        const csvContent = [
+                                            ["Sl.", "Project No", "Project Title", "PI Name", "PI Email", "Department", "Project Type", "Funding Agency", "Origin", "Total Budget", "Start Date", "End Date", "Status"],
+                                            ...kpiModalRows.map((p: any, idx: number) => [
+                                                (idx + 1).toString(),
+                                                p.project_no || "",
+                                                `"${(p.project_title || "").replace(/"/g, '""')}"`,
+                                                `"${(p.pi_webmail ? (piNameMap[p.pi_webmail.toLowerCase().trim()] || p.pi_webmail) : "").replace(/"/g, '""')}"`,
+                                                `"${(p.pi_webmail || "").replace(/"/g, '""')}"`,
+                                                `"${resolvedDeptName.replace(/"/g, '""')}"`,
+                                                p.project_type || "",
+                                                `"${getProjectAgency(p).replace(/"/g, '""')}"`,
+                                                p.origin_of_funding_agency || "",
+                                                p.total_budget_amount || p.grand_total_proposal || 0,
+                                                p.prj_start_date || "",
+                                                p.prj_end_date || "",
+                                                `"${getDeptProjectStatus(p)}"`,
+                                            ])
+                                        ].map(e => e.join(",")).join("\n");
+                                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                                        const url = URL.createObjectURL(blob);
+                                        const link = document.createElement("a");
+                                        link.setAttribute("href", url);
+                                        link.setAttribute("download", `${kpiModal.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.csv`);
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+                                    }}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20 rounded-lg text-[11px] font-bold transition-colors"
+                                >
+                                    <FileDown size={14} />
+                                    <span className="hidden sm:inline">Export</span>
+                                </button>
+                                <button
+                                    title="Print as PDF (Landscape)"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (!kpiModalRows || kpiModalRows.length === 0) return;
+                                        const html = `
+                                            <!DOCTYPE html><html><head><title>${kpiModal.title}</title>
+                                            <style>
+                                                @page { size: A4 landscape; margin: 10mm; }
+                                                body { font-family: -apple-system, sans-serif; font-size: 9pt; padding: 20px; }
+                                                h2 { margin-top: 0; font-size: 14pt; }
+                                                table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                                                th, td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; }
+                                                th { background: #f8fafc; font-weight: bold; }
+                                            </style></head><body>
+                                            <h2>${kpiModal.title}</h2>
+                                            <table><thead><tr>
+                                                <th>Sl.</th><th>Project No</th><th>Project Title</th><th>PI Name</th><th>PI Email</th><th>Department</th>
+                                                <th>Type</th><th>Funding Agency</th><th>Origin</th><th style="text-align:right;">Total Budget</th><th>Start Date</th><th>End Date</th><th>Status</th>
+                                            </tr></thead><tbody>
+                                                ${kpiModalRows.map((p: any, idx: number) => {
+                                            const pi = p.pi_webmail ? (piNameMap[p.pi_webmail.toLowerCase().trim()] || p.pi_webmail) : "";
+                                            const budget = p.total_budget_amount || p.grand_total_proposal || 0;
+                                            const sDate = p.prj_start_date ? String(p.prj_start_date).split(" ")[0] : "";
+                                            const eDate = p.prj_end_date ? String(p.prj_end_date).split(" ")[0] : "";
+                                            return `<tr>
+                                                        <td>${idx + 1}</td><td>${p.project_no || ""}</td><td>${p.project_title || ""}</td>
+                                                        <td>${pi}</td><td>${p.pi_webmail || ""}</td><td>${resolvedDeptName}</td><td>${p.project_type || ""}</td>
+                                                        <td>${getProjectAgency(p)}</td><td>${p.origin_of_funding_agency || ""}</td>
+                                                        <td style="text-align:right;">${budget ? formatCurrency(budget) : "0"}</td>
+                                                        <td>${sDate}</td><td>${eDate}</td><td>${getDeptProjectStatus(p)}</td>
+                                                    </tr>`;
+                                        }).join('')}
+                                            </tbody></table>
+                                            <script>window.onload = function() { window.print(); window.close(); }</script>
+                                            </body></html>
+                                        `;
+                                        const win = window.open("", "_blank");
+                                        if (win) { win.document.open(); win.document.write(html); win.document.close(); }
+                                    }}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 rounded-lg text-[11px] font-bold transition-colors"
+                                >
+                                    <Printer size={14} />
+                                    <span className="hidden sm:inline">Print</span>
+                                </button>
                                 <button onClick={closeKpiModal} className="w-8 h-8 rounded-lg flex items-center justify-center text-[#71717A] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] transition-colors"><X size={16} /></button>
                             </div>
                         </div>
@@ -1586,24 +2702,51 @@ export function HeadOverview() {
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-[#FAFAF9] dark:bg-[#18181B] sticky top-0">
-                                        {["#", "Project", "PI", "Status", "Budget"].map((h) => (
+                                        {["#", "Project", "PI", "Funding Agency", "Status", "Budget"].map((h) => (
                                             <th key={h} className={`px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-[#71717A]${h === "Budget" ? " text-right" : ""}`}>{h}</th>
                                         ))}
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {kpiPagedRows.length === 0 ? (
-                                        <tr><td colSpan={5} className="px-4 py-10 text-center text-[#71717A] text-sm">{isLoading || isHeadDataLoading ? "Loading…" : "No projects found."}</td></tr>
+                                        <tr><td colSpan={6} className="px-4 py-10 text-center text-[#71717A] text-sm">{isPageLoading ? "Loading…" : "No projects found."}</td></tr>
                                     ) : (
                                         kpiPagedRows.map((proj: any, idx: number) => (
-                                            <tr key={proj.name || idx} className="border-t border-[#F4F4F5] dark:border-[#3F3F46] hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors">
+                                            <tr
+                                                key={proj.name || idx}
+                                                className="border-t border-[#F4F4F5] dark:border-[#3F3F46] hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors cursor-pointer"
+                                                onClick={() => {
+                                                    if (window.getSelection()?.toString()) return;
+                                                    navigate(`/project-details-overview/${proj.name}`);
+                                                }}
+                                            >
                                                 <td className="px-4 py-3 text-[10px] font-bold text-[#71717A] font-mono">{(kpiPage - 1) * KPI_PAGE_SIZE + idx + 1}</td>
                                                 <td className="px-4 py-3">
                                                     <div className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight line-clamp-1">{proj.project_title || proj.name || "—"}</div>
-                                                    {proj.project_no && <span className="font-mono text-[9px] text-[#71717A] bg-[#F4F4F5] dark:bg-[#3F3F46] px-1.5 py-0.5 rounded mt-0.5 inline-block">{proj.project_no}</span>}
+                                                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                                        {proj.project_no && (
+                                                            <span className="font-mono text-[9px] text-[#71717A] bg-[#F4F4F5] dark:bg-[#3F3F46] px-1.5 py-0.5 rounded inline-block">{proj.project_no}</span>
+                                                        )}
+                                                        {proj.project_type && (
+                                                            <span className="font-mono text-[9px] text-purple-700 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-400 px-1.5 py-0.5 rounded inline-block">{proj.project_type}</span>
+                                                        )}
+                                                        {proj.prj_start_date && (
+                                                            <span className="font-mono text-[9px] text-blue-700 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded inline-block">
+                                                                {String(proj.prj_start_date).split(" ")[0]}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </td>
-                                                <td className="px-4 py-3 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">{proj.pi_webmail || "—"}</td>
-                                                <td className="px-4 py-3"><StatusBadge status={proj.workflow_state} /></td>
+                                                <td className="px-4 py-3 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
+                                                    <div className="font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                                        {proj.pi_webmail ? (piNameMap[proj.pi_webmail.toLowerCase().trim()] || proj.pi_webmail) : "—"}
+                                                    </div>
+                                                    {proj.pi_webmail && <div className="mt-0.5">{proj.pi_webmail}</div>}
+                                                </td>
+                                                <td className="px-4 py-3 text-[11px] text-[#71717A] dark:text-[#A1A1AA] max-w-[160px] truncate" title={getProjectAgency(proj)}>
+                                                    {getProjectAgency(proj)}
+                                                </td>
+                                                <td className="px-4 py-3"><StatusBadge status={getDeptProjectStatus(proj)} /></td>
                                                 <td className="px-4 py-3 text-right text-[12px] font-extrabold text-[#059669] whitespace-nowrap">
                                                     {proj.total_budget_amount || proj.grand_total_proposal ? formatCurrency(proj.total_budget_amount || proj.grand_total_proposal) : "—"}
                                                 </td>
