@@ -73,6 +73,10 @@ function normalizeFundResp(raw: any): any[] {
 
 // ── Cache for Fund Received API calls (shared across the dashboard's lifetime) ──
 const fundReceivedPromiseCache: Record<string, Promise<number>> = {};
+// Resolved per-project amount, keyed by docname — lets consumers read a single
+// project's utilized amount synchronously (e.g. to split the aggregate total by
+// project type) without re-deriving it from the promise cache.
+const fundReceivedValueCache: Record<string, number> = {};
 
 // ── Hook: fetch approved Fund Received total for a list of projects ─────────────
 function usePIFundReceivedTotal(projects: any[]) {
@@ -95,12 +99,14 @@ function usePIFundReceivedTotal(projects: any[]) {
                         .then(r => r.json())
                         .then(json => normalizeFundResp(json))
                         .then(records => {
-                            return records
+                            const amount = records
                                 .filter((r: any) => {
                                     const s = (r.workflow_state || r.status || "").toLowerCase();
                                     return s === "approved" || s.includes("fund received");
                                 })
                                 .reduce((s: number, r: any) => s + (Number(r.fund_received_amt) || Number(r.amount_received) || Number(r.amount) || 0), 0);
+                            fundReceivedValueCache[docname] = amount;
+                            return amount;
                         })
                         .catch(() => 0);
                 }
@@ -188,11 +194,11 @@ function KpiCard({
             >
                 {icon}
             </div>
-            <div className="text-[12px] font-extrabold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mb-0.5 shadow-sm">
+            <div className="text-[13px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide mb-0.5">
                 {label}
             </div>
             {description && (
-                <div className="text-[10px] text-[#A1A1AA] dark:text-[#71717A] font-medium mb-1 leading-tight">
+                <div className="text-[12px] text-[#52525B] dark:text-[#D4D4D8] font-semibold mb-1 leading-snug">
                     {description}
                 </div>
             )}
@@ -496,7 +502,7 @@ export function HeadOverview() {
     const viewMode = searchParams.get("view") || "Overview";
 
     // ── Pagination / modal state ─────────────────────────────────────────────
-    const [kpiModal, setKpiModal] = React.useState<{ type: string; title: string; fundingAgency?: string; excludedFundingAgencies?: string[]; projectType?: string } | null>(null);
+    const [kpiModal, setKpiModal] = React.useState<{ type: string; title: string; fundingAgency?: string; excludedFundingAgencies?: string[]; projectType?: string; onlyOngoing?: boolean } | null>(null);
     const [kpiPage, setKpiPage] = React.useState(1);
     const [kpiTab, setKpiTab] = React.useState<"ongoing" | "submitted">("ongoing");
     const [kpiAllocTab, setKpiAllocTab] = React.useState<string>("ongoing");
@@ -956,6 +962,34 @@ export function HeadOverview() {
     const fundRemaining = Math.max(0, fundAlloc - fundUtilized);
     const fundUtilPercent = fundAlloc > 0 ? ((fundUtilized / fundAlloc) * 100).toFixed(1) : "0";
 
+    // ₹ allocation AND ₹ utilization split by project type, among ongoing (sanction-
+    // approved) projects only — matches DirectorDashboard's Total Allocation card.
+    // Utilized reads fundReceivedValueCache (populated by the same
+    // usePIFundReceivedTotal(ongoingProjectsListForFunds) call above), so it's
+    // recomputed once that background fetch resolves via the fundUtilized/
+    // fundUtilizedLoading deps below. pending tracks how many ongoing projects don't
+    // yet have a cache entry — used to show "Loading…" instead of a false "₹0" if the
+    // loading flag has already flipped false but the cache isn't fully populated yet.
+    const allocationByType = React.useMemo(() => {
+        let rAmt = 0, cAmt = 0, oAmt = 0;
+        let rUtil = 0, cUtil = 0, oUtil = 0;
+        let pending = 0;
+        deptProjects.forEach((p: any) => {
+            if (!deptOngoingIds.has(p.name)) return;
+            const { isResearch, isConsultancy } = classifyProjectType(p);
+            const amt = p.total_budget_amount || p.grand_total_proposal || 0;
+            if (!Object.prototype.hasOwnProperty.call(fundReceivedValueCache, p.name)) pending++;
+            const util = fundReceivedValueCache[p.name] || 0;
+            if (isResearch) { rAmt += amt; rUtil += util; }
+            else if (isConsultancy) { cAmt += amt; cUtil += util; }
+            else { oAmt += amt; oUtil += util; }
+        });
+        return { rAmt, cAmt, oAmt, rUtil, cUtil, oUtil, pending };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [deptProjects, deptOngoingIds, fundUtilized, fundUtilizedLoading]);
+
+    const isFundUtilDataReady = !fundUtilizedLoading && allocationByType.pending === 0;
+
     // ── Funding sources pie (dept-scoped) ───────────────────────────────────
     const pieChartFundingData = React.useMemo(() => {
         const source = deptProjects.length > 0 ? deptProjects : apiProjectsFlat;
@@ -1118,9 +1152,18 @@ export function HeadOverview() {
             );
         }
         if (kpiModal.type === "intl") {
-            return source.filter(
+            let filtered = source.filter(
                 (p: any) => (p.origin_of_funding_agency || "").toLowerCase() === "international"
             );
+            if (kpiModal.projectType) {
+                filtered = filtered.filter((p: any) => {
+                    const { isResearch, isConsultancy } = classifyProjectType(p);
+                    if (kpiModal.projectType === "research") return isResearch;
+                    if (kpiModal.projectType === "consultancy") return isConsultancy;
+                    return !isResearch && !isConsultancy;
+                });
+            }
+            return filtered;
         }
         const activeOrSubmitted = source.filter((p: any) =>
             deptProjects.length > 0
@@ -1137,7 +1180,16 @@ export function HeadOverview() {
             });
         }
         if (kpiModal.type === "projectType") {
-            return activeOrSubmitted.filter((p: any) => {
+            // onlyOngoing narrows to the ongoing subset — used when the click came from a
+            // card/row that's itself scoped to ongoing projects only (e.g. the "Ongoing
+            // Projects" KPI card's per-type rows), so the modal's row count matches what
+            // was clicked instead of pulling in submitted projects of that type too.
+            const base = kpiModal.onlyOngoing
+                ? source.filter((p: any) =>
+                    deptProjects.length > 0 ? deptOngoingIds.has(p.name) : p._api_status === "ongoing"
+                )
+                : activeOrSubmitted;
+            return base.filter((p: any) => {
                 const { isResearch, isConsultancy } = classifyProjectType(p);
                 if (kpiModal.projectType === "research") return isResearch;
                 if (kpiModal.projectType === "consultancy") return isConsultancy;
@@ -1196,86 +1248,178 @@ export function HeadOverview() {
         };
     }, [deptProjects, deptOngoingIds, deptSubmittedIds]);
 
-    const projectBreakdownGrid = React.useMemo(() => (
-        <div className={`grid ${allOthersProjects > 0 ? "grid-cols-3" : "grid-cols-2"} gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]`}>
-            <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
-                <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">{allResearchProjects}</div>
-                <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
-                <div className="flex flex-col gap-1 w-full px-1">
-                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                        <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-emerald-500"></span>Ongoing</div>
-                        <span>{allResearchOngoing}</span>
-                    </span>
-                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                        <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-amber-400"></span>Submitted</div>
-                        <span>{allResearchSubmitted}</span>
-                    </span>
-                </div>
-            </div>
-            <div className={`flex flex-col items-center justify-start ${allOthersProjects > 0 ? "border-r border-[#E4E4E7] dark:border-[#3F3F46]" : ""}`}>
-                <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">{allConsultancyProjects}</div>
-                <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
-                <div className="flex flex-col gap-1 w-full px-1">
-                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                        <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-emerald-500"></span>Ongoing</div>
-                        <span>{allConsultancyOngoing}</span>
-                    </span>
-                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                        <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-amber-400"></span>Submitted</div>
-                        <span>{allConsultancySubmitted}</span>
-                    </span>
-                </div>
-            </div>
-            {allOthersProjects > 0 && (
-                <div className="flex flex-col items-center justify-start">
-                    <div className="text-[14px] font-extrabold text-[#059669] leading-tight">{allOthersProjects}</div>
-                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Others</div>
-                    <div className="flex flex-col gap-1 w-full px-1">
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-emerald-500"></span>Ongoing</div>
-                            <span>{allOthersOngoing}</span>
-                        </span>
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-amber-400"></span>Submitted</div>
-                            <span>{allOthersSubmitted}</span>
-                        </span>
+    // Shared row renderer for the "type → total, with Ongoing/Submitted context"
+    // breakdown shape — dot/label + right-aligned total on top, muted ongoing/submitted
+    // detail + a pct pill below. Same visual language across every KPI card that shows
+    // a Research/Consultancy/Others split, so a reader recognizes the pattern at a
+    // glance instead of parsing a different layout per card. Zero counts are shown,
+    // not hidden, so a 0 reads as "checked, none found," not "missing data."
+    const rowTabByLabel: Record<string, "research" | "consultancy" | "others"> = {
+        Research: "research",
+        Consultancy: "consultancy",
+        Others: "others",
+    };
+
+    const renderTypeSplitRows = (
+        rows: Array<{ label: string; dotColor: string; total: number; ongoing: number; submitted: number }>,
+        onRowClick?: (tab: "research" | "consultancy" | "others") => void,
+    ) => (
+        <div className="flex flex-col divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]/60 pt-1 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+            {rows.map((r) => {
+                const ongoingPct = r.total > 0 ? Math.round((r.ongoing / r.total) * 100) : 0;
+                return (
+                    <div
+                        key={r.label}
+                        onClick={onRowClick ? (e) => { e.stopPropagation(); onRowClick(rowTabByLabel[r.label]); } : undefined}
+                        className={`flex flex-col gap-0.5 py-1.5 -mx-1.5 px-1.5 rounded-md${onRowClick ? " cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors" : ""}`}
+                    >
+                        <div className="flex items-center justify-between gap-2 text-[13px]">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${r.dotColor}`} />
+                                <span className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.label}</span>
+                            </div>
+                            <span className="font-extrabold text-[14px] text-[#3F3F46] dark:text-[#E4E4E7] shrink-0">{r.total}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 pl-4 text-[12px]">
+                            <span className="text-[#52525B] dark:text-[#D4D4D8] font-semibold truncate">
+                                {r.ongoing} ongoing &middot; {r.submitted} submitted
+                            </span>
+                            <span
+                                className="shrink-0 font-bold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
+                                title={`${ongoingPct}% of ${r.label} projects are ongoing`}
+                            >
+                                {ongoingPct}% ongoing
+                            </span>
+                        </div>
                     </div>
-                </div>
-            )}
+                );
+            })}
         </div>
-    ), [
+    );
+
+    const projectBreakdownGrid = React.useMemo(() => renderTypeSplitRows([
+        { label: "Research", dotColor: "bg-blue-500", total: allResearchProjects, ongoing: allResearchOngoing, submitted: allResearchSubmitted },
+        { label: "Consultancy", dotColor: "bg-purple-500", total: allConsultancyProjects, ongoing: allConsultancyOngoing, submitted: allConsultancySubmitted },
+        ...(allOthersProjects > 0 ? [{ label: "Others", dotColor: "bg-emerald-500", total: allOthersProjects, ongoing: allOthersOngoing, submitted: allOthersSubmitted }] : []),
+    ], (tab) => {
+        setKpiModal({
+            type: "projectType",
+            title: `Projects: ${tab === "research" ? "Research" : tab === "consultancy" ? "Consultancy" : "Others"}`,
+            projectType: tab,
+        });
+        setKpiPage(1);
+    }), [
         allResearchProjects, allResearchOngoing, allResearchSubmitted,
         allConsultancyProjects, allConsultancyOngoing, allConsultancySubmitted,
         allOthersProjects, allOthersOngoing, allOthersSubmitted,
     ]);
 
-    const ongoingBreakdownBadges = React.useMemo(() => {
-        const badges = [
-            {
-                label: "Research",
-                count: allResearchOngoing,
-                dotColor: "bg-blue-500",
-                bgClass: "bg-blue-50 dark:bg-blue-950/30",
-                textClass: "text-blue-700 dark:text-blue-400",
-            },
-            {
-                label: "Consultancy",
-                count: allConsultancyOngoing,
-                dotColor: "bg-purple-500",
-                bgClass: "bg-purple-50 dark:bg-purple-950/30",
-                textClass: "text-purple-700 dark:text-purple-400",
-            },
+    const allocationBreakdownRows = React.useMemo(() => {
+        const pct = (util: number, amt: number) => amt > 0 ? ((util / amt) * 100).toFixed(1) : "0.0";
+        const build = (label: string, dotColor: string, count: number, amount: number, util: number) => ({
+            label, dotColor, count, amount,
+            util, remaining: Math.max(0, amount - util),
+            pct: pct(util, amount),
+        });
+        const rows = [
+            build("Research", "bg-blue-500", allResearchOngoing, allocationByType.rAmt, allocationByType.rUtil),
+            build("Consultancy", "bg-purple-500", allConsultancyOngoing, allocationByType.cAmt, allocationByType.cUtil),
         ];
         if (allOthersOngoing > 0) {
-            badges.push({
-                label: "Others",
-                count: allOthersOngoing,
-                dotColor: "bg-emerald-500",
-                bgClass: "bg-emerald-50 dark:bg-emerald-950/30",
-                textClass: "text-emerald-700 dark:text-emerald-400",
-            });
+            rows.push(build("Others", "bg-emerald-500", allOthersOngoing, allocationByType.oAmt, allocationByType.oUtil));
         }
-        return badges;
+        return rows;
+    }, [allocationByType, allResearchOngoing, allConsultancyOngoing, allOthersOngoing]);
+
+    const allocationBreakdownList = React.useMemo(() => (
+        <div className="flex flex-col divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]/60 pt-1 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+            {allocationBreakdownRows.map((r) => (
+                <div
+                    key={r.label}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setKpiModal({
+                            type: "projectType",
+                            title: `Projects by Allocation: ${r.label}`,
+                            projectType: rowTabByLabel[r.label],
+                            onlyOngoing: true,
+                        });
+                        setKpiPage(1);
+                    }}
+                    className="flex flex-col gap-0.5 py-1.5 -mx-1.5 px-1.5 rounded-md cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
+                >
+                    <div className="flex items-center justify-between gap-2 text-[13px]">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${r.dotColor}`} />
+                            <span className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.label}</span>
+                            <span className="text-[#71717A] dark:text-[#A1A1AA] font-semibold shrink-0">({r.count})</span>
+                        </div>
+                        <span className="font-extrabold text-[14px] text-[#3F3F46] dark:text-[#E4E4E7] shrink-0">{formatCurrency(r.amount)}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 pl-4 text-[12px]">
+                        {!isFundUtilDataReady ? (
+                            <span className="text-[#52525B] dark:text-[#D4D4D8] font-semibold animate-pulse">Loading…</span>
+                        ) : (
+                            <>
+                                <span className="text-[#52525B] dark:text-[#D4D4D8] font-semibold truncate">
+                                    {formatCurrency(r.util)} utilized &middot; {formatCurrency(r.remaining)} left
+                                </span>
+                                <span
+                                    className="shrink-0 font-bold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
+                                    title={`${r.pct}% of ${r.label} allocation utilized`}
+                                >
+                                    {r.pct}%
+                                </span>
+                            </>
+                        )}
+                    </div>
+                </div>
+            ))}
+        </div>
+    ), [allocationBreakdownRows, isFundUtilDataReady]);
+
+    const ongoingBreakdownList = React.useMemo(() => {
+        const totalOngoing = allResearchOngoing + allConsultancyOngoing + allOthersOngoing;
+        const pct = (n: number) => totalOngoing > 0 ? Math.round((n / totalOngoing) * 100) : 0;
+        const rows = [
+            { label: "Research", dotColor: "bg-blue-500", count: allResearchOngoing },
+            { label: "Consultancy", dotColor: "bg-purple-500", count: allConsultancyOngoing },
+            ...(allOthersOngoing > 0 ? [{ label: "Others", dotColor: "bg-emerald-500", count: allOthersOngoing }] : []),
+        ];
+        return (
+            <div className="flex flex-col divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]/60 pt-1 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                {rows.map((r) => (
+                    <div
+                        key={r.label}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setKpiModal({
+                                type: "projectType",
+                                title: `Ongoing Projects: ${r.label}`,
+                                projectType: rowTabByLabel[r.label],
+                                onlyOngoing: true,
+                            });
+                            setKpiPage(1);
+                        }}
+                        className="flex items-center justify-between gap-2 py-1.5 text-[13px] -mx-1.5 px-1.5 rounded-md cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
+                    >
+                        <div className="flex items-center gap-1.5 min-w-0">
+                            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${r.dotColor}`} />
+                            <span className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.label}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            <span className="font-extrabold text-[14px] text-[#3F3F46] dark:text-[#E4E4E7]">{r.count}</span>
+                            <span
+                                className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
+                                title={`${pct(r.count)}% of ongoing projects are ${r.label}`}
+                            >
+                                {pct(r.count)}%
+                            </span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
     }, [allResearchOngoing, allConsultancyOngoing, allOthersOngoing]);
 
     const intlBreakdownGrid = React.useMemo(() => {
@@ -1293,46 +1437,18 @@ export function HeadOverview() {
             else { oP++; if (isOngoing) oO++; if (isSubmitted) oS++; }
         });
 
-        return (
-            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-                <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
-                    <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">{rP}</div>
-                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
-                    <div className="flex flex-col gap-1 w-full px-1">
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-emerald-500"></span>Ongoing</div><span>{rO}</span>
-                        </span>
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-amber-400"></span>Submitted</div><span>{rS}</span>
-                        </span>
-                    </div>
-                </div>
-                <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
-                    <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">{cP}</div>
-                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
-                    <div className="flex flex-col gap-1 w-full px-1">
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-emerald-500"></span>Ongoing</div><span>{cO}</span>
-                        </span>
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-amber-400"></span>Submitted</div><span>{cS}</span>
-                        </span>
-                    </div>
-                </div>
-                <div className="flex flex-col items-center justify-start">
-                    <div className="text-[14px] font-extrabold text-[#059669] leading-tight">{oP}</div>
-                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Others</div>
-                    <div className="flex flex-col gap-1 w-full px-1">
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-emerald-500"></span>Ongoing</div><span>{oO}</span>
-                        </span>
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-amber-400"></span>Submitted</div><span>{oS}</span>
-                        </span>
-                    </div>
-                </div>
-            </div>
-        );
+        return renderTypeSplitRows([
+            { label: "Research", dotColor: "bg-blue-500", total: rP, ongoing: rO, submitted: rS },
+            { label: "Consultancy", dotColor: "bg-purple-500", total: cP, ongoing: cO, submitted: cS },
+            { label: "Others", dotColor: "bg-emerald-500", total: oP, ongoing: oO, submitted: oS },
+        ], (tab) => {
+            setKpiModal({
+                type: "intl",
+                title: `International Collaborator Projects: ${tab === "research" ? "Research" : tab === "consultancy" ? "Consultancy" : "Others"}`,
+                projectType: tab,
+            });
+            setKpiPage(1);
+        });
     }, [deptProjects, deptOngoingIds, deptSubmittedIds]);
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -1414,7 +1530,18 @@ export function HeadOverview() {
                                 description="From sanctioned & fund-approved projects"
                                 value={formatCurrency(fundAnalytics.total_allocation || stats.totalAlloc)}
                                 isLoading={isPageLoading}
-                                subtext={isPageLoading || fundUtilizedLoading ? "" : `${fundUtilPercent}% utilized`}
+                                subtext=""
+                                valueAdornment={
+                                    !isPageLoading && (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
+                                            {fundUtilizedLoading ? (
+                                                <span className="animate-pulse">Loading…</span>
+                                            ) : (
+                                                `${fundUtilPercent}% utilized`
+                                            )}
+                                        </span>
+                                    )
+                                }
                                 icon={
                                     <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                                         <line x1="6" y1="5" x2="18" y2="5" />
@@ -1427,13 +1554,23 @@ export function HeadOverview() {
                                 iconBg="#ecfdf5"
                                 circleColor="#059669"
                                 onClick={() => openKpiModal("allocation", "Projects by Allocation")}
-                                customBottom={!isLoading && !isHeadDataLoading && projectBreakdownGrid}
+                                customBottom={!isLoading && !isHeadDataLoading && allocationBreakdownList}
                             />
                             <KpiCard
                                 label="Ongoing Projects"
                                 value={String(projectOverview.ongoing_projects || stats.ongoing)}
                                 isLoading={isPageLoading}
-                                subtext={(() => { const tot = (projectOverview.ongoing_projects || stats.ongoing) + (projectOverview.submitted_projects || stats.submitted); return tot > 0 ? `${(((projectOverview.ongoing_projects || stats.ongoing) / tot) * 100).toFixed(0)}% of portfolio` : "Currently Active"; })()}
+                                subtext=""
+                                valueAdornment={
+                                    !isPageLoading && (() => {
+                                        const tot = (projectOverview.ongoing_projects || stats.ongoing) + (projectOverview.submitted_projects || stats.submitted);
+                                        return tot > 0 && (
+                                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
+                                                {(((projectOverview.ongoing_projects || stats.ongoing) / tot) * 100).toFixed(0)}% of portfolio
+                                            </span>
+                                        );
+                                    })()
+                                }
                                 icon={
                                     <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                                         <circle cx="12" cy="12" r="10" />
@@ -1444,7 +1581,7 @@ export function HeadOverview() {
                                 iconBg="#f5f3ff"
                                 circleColor="#7c3aed"
                                 onClick={() => openKpiModal("ongoing", "Ongoing Projects")}
-                                badges={isPageLoading ? undefined : ongoingBreakdownBadges}
+                                customBottom={!isPageLoading && ongoingBreakdownList}
                             />
                             <KpiCard
                                 label="Intl. Collaborations"

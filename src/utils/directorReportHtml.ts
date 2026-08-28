@@ -854,6 +854,11 @@ function fmt(amount: number): string {
 }
 
 export function generateDirectorReportHtml(d: ReportData): string {
+    // This HTML is rendered into an <iframe srcDoc="...">, which resolves absolute
+    // paths against the parent page's origin, not the app's configured base path —
+    // so a bare "/IITG_Large_Logo.gif" 404s whenever the app is served under a
+    // sub-path (e.g. /dev/).
+    const logoUrl = `${import.meta.env.BASE_URL}IITG_Large_Logo.gif`;
     const {
         overview,
         funds,
@@ -994,7 +999,7 @@ export function generateDirectorReportHtml(d: ReportData): string {
     </div>
 
     <div class="page">
-        <div class="watermark"><img src="/IITG_Large_Logo.gif" alt="IITG Watermark"></div>
+        <div class="watermark"><img src="${logoUrl}" alt="IITG Watermark"></div>
         <!-- HEADER -->
         <div class="header">
             <div class="inst-title">R&D <span>Executive Report</span></div>
@@ -1111,7 +1116,7 @@ export function generateDirectorReportHtml(d: ReportData): string {
 
     <!-- PAGE 2 -->
     <div class="page">
-        <div class="watermark"><img src="/IITG_Large_Logo.gif" alt="IITG Watermark"></div>
+        <div class="watermark"><img src="${logoUrl}" alt="IITG Watermark"></div>
         <div class="section-title">Funding Agency Distribution</div>
         <table>
             <thead>
@@ -1206,7 +1211,7 @@ export function generateDirectorReportHtml(d: ReportData): string {
 
     <!-- PAGE 3 -->
     <div class="page">
-        <div class="watermark"><img src="/IITG_Large_Logo.gif" alt="IITG Watermark"></div>
+        <div class="watermark"><img src="${logoUrl}" alt="IITG Watermark"></div>
         <div class="section-title">Sanction Amount — Start vs End</div>
         <table>
             <thead>

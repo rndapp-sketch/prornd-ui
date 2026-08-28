@@ -140,12 +140,13 @@ function KpiCard({
     description?: string;
     badges?: Array<{
         label: string;
-        count: number;
+        count: number | string;
         dotColor: string;
         bgClass: string;
         textClass: string;
         title?: string;
         originalState?: string;
+        sublabel?: string;
     }>;
     onBadgeClick?: (badgeLabel: string) => void;
     valueAdornment?: React.ReactNode;
@@ -167,11 +168,11 @@ function KpiCard({
             >
                 {icon}
             </div>
-            <div className="text-[12px] font-extrabold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mb-0.5 shadow-sm">
+            <div className="text-[13px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide mb-0.5">
                 {label}
             </div>
             {description && (
-                <div className="text-[10px] text-[#A1A1AA] dark:text-[#71717A] font-medium mb-1 leading-tight">
+                <div className="text-[12px] text-[#52525B] dark:text-[#D4D4D8] font-semibold mb-1 leading-snug">
                     {description}
                 </div>
             )}
@@ -180,7 +181,7 @@ function KpiCard({
                     className={`text-[32px] font-extrabold tracking-tight leading-none drop-shadow-sm ${valueColor}`}
                 >
                     {isLoading ? (
-                        <span className="text-[13px] font-bold text-[#A1A1AA] dark:text-[#71717A] animate-pulse">Loading…</span>
+                        <span className="text-[13px] font-bold text-[#71717A] dark:text-[#A1A1AA] animate-pulse">Loading…</span>
                     ) : (
                         value
                     )}
@@ -204,11 +205,16 @@ function KpiCard({
                                         }
                                         : undefined
                                 }
-                                className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 ${b.bgClass} ${b.textClass}${onBadgeClick ? " cursor-pointer hover:brightness-95 transition-all" : ""}`}
+                                className={`inline-flex items-start gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 ${b.bgClass} ${b.textClass}${onBadgeClick ? " cursor-pointer hover:brightness-95 transition-all" : ""}`}
                                 title={b.title}
                             >
-                                <span className={`w-2 h-2 rounded-full ${b.dotColor}`} />
-                                {b.count} {b.label}
+                                <span className={`w-2 h-2 rounded-full ${b.dotColor} mt-1 shrink-0`} />
+                                <span className="flex flex-col leading-tight">
+                                    <span>{b.count} {b.label}</span>
+                                    {b.sublabel && (
+                                        <span className="text-[10px] font-semibold opacity-70">{b.sublabel}</span>
+                                    )}
+                                </span>
                             </span>
                         ))}
                     </div>
@@ -245,13 +251,13 @@ const VisiblePageTracker: React.FC<{
 };
 
 function StatusBadge({ status }: { status?: string }) {
-    if (!status) return <span className="text-[#A1A1AA] text-[9px]">—</span>;
+    if (!status) return <span className="text-[#A1A1AA] text-[10px]">—</span>;
 
     // Fund-received status not fetched for this project yet — show this instead of a
     // guess that could silently flip (Pending → Active) once the background fetch lands.
     if (status === "loading")
         return (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 whitespace-nowrap animate-pulse">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 whitespace-nowrap animate-pulse">
                 <span className="w-[5px] h-[5px] rounded-full bg-zinc-400 shrink-0" />
                 Loading…
             </span>
@@ -260,56 +266,56 @@ function StatusBadge({ status }: { status?: string }) {
     // Granular computed statuses from sync maps
     if (status === "ongoing")
         return (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 whitespace-nowrap">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 whitespace-nowrap">
                 <span className="w-[5px] h-[5px] rounded-full bg-emerald-500 shrink-0" />
                 Active
             </span>
         );
     if (status === "pending_fund")
         return (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-400 whitespace-nowrap">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-400 whitespace-nowrap">
                 <span className="w-[5px] h-[5px] rounded-full bg-sky-500 shrink-0" />
                 Fund Pending
             </span>
         );
     if (status === "approved_sanction")
         return (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400 whitespace-nowrap">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400 whitespace-nowrap">
                 <span className="w-[5px] h-[5px] rounded-full bg-purple-500 shrink-0" />
                 Sanction Approved
             </span>
         );
     if (status === "pending_sanction" || status === "submitted")
         return (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 whitespace-nowrap">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 whitespace-nowrap">
                 <span className="w-[5px] h-[5px] rounded-full bg-amber-400 shrink-0" />
                 Pending Sanction
             </span>
         );
     if (status === "draft")
         return (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 whitespace-nowrap">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 whitespace-nowrap">
                 <span className="w-[5px] h-[5px] rounded-full bg-zinc-400 shrink-0" />
                 Draft
             </span>
         );
     if (status === "completed")
         return (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-400 whitespace-nowrap">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-400 whitespace-nowrap">
                 <span className="w-[5px] h-[5px] rounded-full bg-violet-500 shrink-0" />
                 Completed
             </span>
         );
     if (status === "cancelled")
         return (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400 whitespace-nowrap">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400 whitespace-nowrap">
                 <span className="w-[5px] h-[5px] rounded-full bg-red-500 shrink-0" />
                 Cancelled
             </span>
         );
     if (status === "pending")
         return (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 whitespace-nowrap">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 whitespace-nowrap">
                 <span className="w-[5px] h-[5px] rounded-full bg-amber-500 shrink-0" />
                 Pending
             </span>
@@ -320,7 +326,7 @@ function StatusBadge({ status }: { status?: string }) {
     // Sanctioned / Ongoing
     if (s.includes("ongoing") || s.includes("sanctioned") || s.includes("active"))
         return (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 whitespace-nowrap">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 whitespace-nowrap">
                 <span className="w-[5px] h-[5px] rounded-full bg-emerald-500 shrink-0" />
                 Ongoing (Sanctioned)
             </span>
@@ -329,7 +335,7 @@ function StatusBadge({ status }: { status?: string }) {
     // Submitted — approved but waiting for sanction
     if (s.includes("submitted") || s.includes("pending sanction") || s.includes("approved"))
         return (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400 whitespace-nowrap">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400 whitespace-nowrap">
                 <span className="w-[5px] h-[5px] rounded-full bg-blue-500 shrink-0" />
                 Submitted (Pending Sanction)
             </span>
@@ -338,7 +344,7 @@ function StatusBadge({ status }: { status?: string }) {
     // Draft
     if (s.includes("draft"))
         return (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 whitespace-nowrap">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 whitespace-nowrap">
                 <span className="w-[5px] h-[5px] rounded-full bg-zinc-400 shrink-0" />
                 Draft
             </span>
@@ -347,7 +353,7 @@ function StatusBadge({ status }: { status?: string }) {
     // Completed
     if (s.includes("complet"))
         return (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-400 whitespace-nowrap">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-400 whitespace-nowrap">
                 <span className="w-[5px] h-[5px] rounded-full bg-violet-500 shrink-0" />
                 Completed
             </span>
@@ -356,7 +362,7 @@ function StatusBadge({ status }: { status?: string }) {
     // Cancelled / Rejected
     if (s.includes("cancel") || s.includes("reject"))
         return (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400 whitespace-nowrap">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400 whitespace-nowrap">
                 <span className="w-[5px] h-[5px] rounded-full bg-red-500 shrink-0" />
                 Cancelled
             </span>
@@ -365,7 +371,7 @@ function StatusBadge({ status }: { status?: string }) {
     // Pending / Awaiting something
     if (s.includes("pending") || s.includes("review") || s.includes("waiting"))
         return (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 whitespace-nowrap">
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 whitespace-nowrap">
                 <span className="w-[5px] h-[5px] rounded-full bg-amber-500 shrink-0" />
                 Pending
             </span>
@@ -373,7 +379,7 @@ function StatusBadge({ status }: { status?: string }) {
 
     // Fallback
     return (
-        <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 whitespace-nowrap">
+        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 whitespace-nowrap">
             <span className="w-[5px] h-[5px] rounded-full bg-zinc-400 shrink-0" />
             {status}
         </span>
@@ -385,7 +391,7 @@ const BarTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.length) return null;
     return (
         <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl px-3 py-2 text-xs font-bold text-slate-200 shadow-xl">
-            <p className="text-slate-400 text-[10px] mb-1 font-bold">
+            <p className="text-slate-400 text-[11px] mb-1 font-bold">
                 {payload[0].payload.year}
             </p>
             {payload.map((entry: any, i: number) => {
@@ -564,10 +570,10 @@ const ProjectFundStatusBadge: React.FC<{ projectName: string | undefined }> = ({
     }
 
     if (isLoading) {
-        return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 animate-pulse">Loading…</span>;
+        return <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 animate-pulse">Loading…</span>;
     }
 
-    return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${className}`}>{label}</span>;
+    return <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${className}`}>{label}</span>;
 };
 
 // getSanctionedAmount's bulk Fund Sanction map still comes back 0 for some projects
@@ -620,7 +626,7 @@ export const ProjectDateBadge: React.FC<{ proj: any }> = ({ proj }) => {
     const isSanc = proj._status === "ongoing" || proj._status === "completed" || (proj.workflow_state || "").toLowerCase().includes("sanction approved") || proj._status === "Fund sanctioned and formally approved";
 
     if (isLoading) {
-        return <span className="font-mono text-[9px] text-zinc-400 dark:text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded inline-block animate-pulse">Loading...</span>;
+        return <span className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded inline-block animate-pulse">Loading...</span>;
     }
 
     const raw = sanctionResp as any;
@@ -654,7 +660,7 @@ export const ProjectDateBadge: React.FC<{ proj: any }> = ({ proj }) => {
     const displayDate = typeof d === 'string' ? d.split(' ')[0] : new Date(d).toISOString().split('T')[0];
 
     return (
-        <span className="font-mono text-[9px] text-blue-700 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded inline-block">
+        <span className="font-mono text-[10px] text-blue-700 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded inline-block">
             {displayDate}
         </span>
     );
@@ -757,21 +763,21 @@ const PIStatCards: React.FC<{ piDetails: any; projects: any[]; getSanctionedAmou
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
             <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
                 <div className="text-[18px] sm:text-[20px] font-extrabold text-[#2563eb] leading-tight">{piDetails.project_count}</div>
-                <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Projects</div>
+                <div className="text-[10px] sm:text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Projects</div>
             </div>
             <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
                 <div className="text-[18px] sm:text-[20px] font-extrabold text-[#7c3aed] leading-tight">{piDetails.departments?.length || 0}</div>
-                <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Implementing Departments</div>
+                <div className="text-[10px] sm:text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Implementing Departments</div>
             </div>
             <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
                 <div className="text-[18px] sm:text-[20px] font-extrabold text-[#059669] leading-tight">{totalSanctioned > 0 ? fmt(totalSanctioned) : "—"}</div>
-                <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Sanctioned</div>
+                <div className="text-[10px] sm:text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Sanctioned</div>
             </div>
             <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
                 <div className="text-[18px] sm:text-[20px] font-extrabold text-[#d97706] leading-tight">
                     {fundTotalLoading ? <span className="text-[12px] font-bold text-[#A1A1AA] animate-pulse">Loading…</span> : formattedLiveFund ?? "—"}
                 </div>
-                <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Fund Rcvd</div>
+                <div className="text-[10px] sm:text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Fund Rcvd</div>
             </div>
         </div>
     );
@@ -1150,6 +1156,7 @@ export function DirectorDashboard() {
                 "project_no",
                 "project_title",
                 "pi_webmail",
+                "principal_investigator_name",
                 "implementation_department",
                 "workflow_state",
                 "project_type",
@@ -1880,9 +1887,20 @@ export function DirectorDashboard() {
                 return filtered;
             }
             if (kpiModal.type === "intl") {
-                return projects.filter(
+                let filtered = projects.filter(
                     (p) => (p.origin_of_funding_agency || "").toLowerCase() === "international"
                 );
+                if (kpiTab === "research") {
+                    filtered = filtered.filter(p => (p.project_type || "").toLowerCase().includes("research"));
+                } else if (kpiTab === "consultancy") {
+                    filtered = filtered.filter(p => (p.project_type || "").toLowerCase().includes("consult"));
+                } else if (kpiTab === "others") {
+                    filtered = filtered.filter(p => {
+                        const t = (p.project_type || "").toLowerCase();
+                        return !t.includes("research") && !t.includes("consult");
+                    });
+                }
+                return filtered;
             }
             return projects;
         };
@@ -1936,7 +1954,7 @@ export function DirectorDashboard() {
         setKpiModal({ type, title });
         setKpiPage(1);
         setKpiTab("all");
-        if (type === "ongoing") setKpiStatusFilter("ongoing");
+        if (type === "ongoing" || type === "allocation") setKpiStatusFilter("ongoing");
         else setKpiStatusFilter("all");
         setKpiSchemeFilter([]);
         setKpiAgeFilter("all");
@@ -1961,6 +1979,17 @@ export function DirectorDashboard() {
         setKpiStatusFilter(type === "ongoing" ? "ongoing" : statusFilter);
         setKpiSchemeFilter([]);
         setKpiAgeFilter("all");
+    };
+
+    // For clicking a Research/Consultancy/Others row inside a KPI card's breakdown —
+    // reuses openKpiModal's per-card-type status defaults (e.g. "allocation"/"ongoing"
+    // force kpiStatusFilter to "ongoing") and layers the project-type tab on top,
+    // rather than re-deriving status from a free-text tab string the way
+    // openKpiModalWithTab does (which can't express "this type AND ongoing" in one
+    // call — its tab-string parsing is one branch OR the other, never both).
+    const openKpiModalForType = (type: string, title: string, projectTypeTab: "research" | "consultancy" | "others") => {
+        openKpiModal(type, title);
+        setKpiTab(projectTypeTab);
     };
 
     const openKpiModalWithYear = (year: string, status: string) => {
@@ -2733,188 +2762,245 @@ export function DirectorDashboard() {
             });
     }, [expandedPI, allProjectsList]);
 
-    const projectBreakdownGrid = React.useMemo(() => (
-        <div className={`grid ${othersProjects > 0 ? "grid-cols-3" : "grid-cols-2"} gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]`}>
-            <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
-                <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">
-                    {researchProjects}
-                </div>
-                <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">
-                    Research
-                </div>
-                <div className="flex flex-col gap-1 w-full px-1">
-                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                        <div className="flex items-center gap-1">
-                            <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
-                            Ongoing
-                        </div>
-                        <span>{researchOngoing}</span>
-                    </span>
-                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                        <div className="flex items-center gap-1">
-                            <span className="w-1 h-1 rounded-full bg-amber-400"></span>
-                            Submitted
-                        </div>
-                        <span>{researchSubmitted}</span>
-                    </span>
-                </div>
-            </div>
-            <div className={`flex flex-col items-center justify-start ${othersProjects > 0 ? "border-r border-[#E4E4E7] dark:border-[#3F3F46]" : ""}`}>
-                <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">
-                    {consultancyProjects}
-                </div>
-                <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">
-                    Consultancy
-                </div>
-                <div className="flex flex-col gap-1 w-full px-1">
-                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                        <div className="flex items-center gap-1">
-                            <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
-                            Ongoing
-                        </div>
-                        <span>{consultancyOngoing}</span>
-                    </span>
-                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                        <div className="flex items-center gap-1">
-                            <span className="w-1 h-1 rounded-full bg-amber-400"></span>
-                            Submitted
-                        </div>
-                        <span>{consultancySubmitted}</span>
-                    </span>
-                </div>
-            </div>
-            {othersProjects > 0 && (
-                <div className="flex flex-col items-center justify-start">
-                    <div className="text-[14px] font-extrabold text-[#059669] leading-tight">
-                        {othersProjects}
-                    </div>
-                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">
-                        Others
-                    </div>
-                    <div className="flex flex-col gap-1 w-full px-1">
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                            <div className="flex items-center gap-1">
-                                <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
-                                Ongoing
+    // Shared row renderer for the "type → total, with Ongoing/Submitted context"
+    // breakdown shape — same visual language as the Total Allocation card's rows
+    // (label/dot + right-aligned headline value on top, muted detail + a pct pill
+    // below), applied wherever a card needs Research/Consultancy/Others × status
+    // detail (Total Projects, Intl. Collaborators). Zero counts are shown, not
+    // hidden — a 0 that's visibly present reads as "checked, none found," not
+    // "missing data."
+    const rowTabByLabel: Record<string, "research" | "consultancy" | "others"> = {
+        Research: "research",
+        Consultancy: "consultancy",
+        Others: "others",
+    };
+
+    const renderStatusSplitRows = (
+        rows: Array<{ label: string; dotColor: string; total: number; ongoing: number; submitted: number }>,
+        onRowClick?: (tab: "research" | "consultancy" | "others") => void,
+    ) => (
+        <div className="flex flex-col divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]/60 pt-1 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+            {rows.map((r) => {
+                const ongoingPct = r.total > 0 ? Math.round((r.ongoing / r.total) * 100) : 0;
+                return (
+                    <div
+                        key={r.label}
+                        onClick={onRowClick ? (e) => { e.stopPropagation(); onRowClick(rowTabByLabel[r.label]); } : undefined}
+                        className={`flex flex-col gap-0.5 py-1.5 -mx-1.5 px-1.5 rounded-md${onRowClick ? " cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors" : ""}`}
+                    >
+                        <div className="flex items-center justify-between gap-2 text-[13px]">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${r.dotColor}`} />
+                                <span className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.label}</span>
                             </div>
-                            <span>{othersOngoing}</span>
-                        </span>
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                            <div className="flex items-center gap-1">
-                                <span className="w-1 h-1 rounded-full bg-amber-400"></span>
-                                Submitted
-                            </div>
-                            <span>{othersSubmitted}</span>
-                        </span>
+                            <span className="font-extrabold text-[14px] text-[#3F3F46] dark:text-[#E4E4E7] shrink-0">{r.total}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 pl-4 text-[12px]">
+                            <span className="text-[#52525B] dark:text-[#D4D4D8] font-semibold truncate">
+                                {r.ongoing} ongoing &middot; {r.submitted} submitted
+                            </span>
+                            <span
+                                className="shrink-0 font-bold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
+                                title={`${ongoingPct}% of ${r.label} projects are ongoing`}
+                            >
+                                {ongoingPct}% ongoing
+                            </span>
+                        </div>
                     </div>
-                </div>
-            )}
+                );
+            })}
         </div>
-    ), [
+    );
+
+    const projectBreakdownList = React.useMemo(() => renderStatusSplitRows([
+        { label: "Research", dotColor: "bg-blue-500", total: researchProjects, ongoing: researchOngoing, submitted: researchSubmitted },
+        { label: "Consultancy", dotColor: "bg-purple-500", total: consultancyProjects, ongoing: consultancyOngoing, submitted: consultancySubmitted },
+        ...(othersProjects > 0 ? [{ label: "Others", dotColor: "bg-emerald-500", total: othersProjects, ongoing: othersOngoing, submitted: othersSubmitted }] : []),
+    ], (tab) => openKpiModalForType(
+        "total",
+        `Projects: ${tab === "research" ? "Research" : tab === "consultancy" ? "Consultancy" : "Others"} Projects`,
+        tab,
+    )), [
         researchProjects, researchOngoing, researchSubmitted,
         consultancyProjects, consultancyOngoing, consultancySubmitted,
         othersProjects, othersOngoing, othersSubmitted
     ]);
 
-    const intlBreakdownGrid = React.useMemo(() => {
+    // Same Research/Consultancy/Others × Ongoing/Submitted detail as projectBreakdownList
+    // above, scoped to projects with an international funding agency.
+    const intlBreakdownList = React.useMemo(() => {
         let rP = 0, rO = 0, rS = 0;
         let cP = 0, cO = 0, cS = 0;
         let oP = 0, oO = 0, oS = 0;
 
-        if (allProjectsList) {
-            allProjectsList.forEach((p: any) => {
-                if ((p.origin_of_funding_agency || "").toLowerCase() !== "international") return;
+        (allProjectsList ?? []).forEach((p: any) => {
+            if ((p.origin_of_funding_agency || "").toLowerCase() !== "international") return;
 
-                const type = (p.project_type || "").toLowerCase();
-                const isOngoing = ongoingIds.has(p.name);
-                const isSubmitted = submittedIds.has(p.name);
+            const type = (p.project_type || "").toLowerCase();
+            const isOngoing = ongoingIds.has(p.name);
+            const isSubmitted = submittedIds.has(p.name);
 
-                if (type.includes("research") || type.includes("r&d project")) {
-                    rP++;
-                    if (isOngoing) rO++;
-                    if (isSubmitted) rS++;
-                } else if (type.includes("consult") || type.includes("testing")) {
-                    cP++;
-                    if (isOngoing) cO++;
-                    if (isSubmitted) cS++;
-                } else {
-                    oP++;
-                    if (isOngoing) oO++;
-                    if (isSubmitted) oS++;
-                }
-            });
-        }
+            if (type.includes("research") || type.includes("r&d project")) {
+                rP++;
+                if (isOngoing) rO++;
+                if (isSubmitted) rS++;
+            } else if (type.includes("consult") || type.includes("testing")) {
+                cP++;
+                if (isOngoing) cO++;
+                if (isSubmitted) cS++;
+            } else {
+                oP++;
+                if (isOngoing) oO++;
+                if (isSubmitted) oS++;
+            }
+        });
 
-        return (
-            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-                <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
-                    <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">{rP}</div>
-                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
-                    <div className="flex flex-col gap-1 w-full px-1">
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-emerald-500"></span>Ongoing</div><span>{rO}</span>
-                        </span>
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-amber-400"></span>Submitted</div><span>{rS}</span>
-                        </span>
-                    </div>
-                </div>
-                <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
-                    <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">{cP}</div>
-                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
-                    <div className="flex flex-col gap-1 w-full px-1">
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-emerald-500"></span>Ongoing</div><span>{cO}</span>
-                        </span>
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-amber-400"></span>Submitted</div><span>{cS}</span>
-                        </span>
-                    </div>
-                </div>
-                <div className="flex flex-col items-center justify-start">
-                    <div className="text-[14px] font-extrabold text-[#059669] leading-tight">{oP}</div>
-                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Others</div>
-                    <div className="flex flex-col gap-1 w-full px-1">
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-emerald-500"></span>Ongoing</div><span>{oO}</span>
-                        </span>
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-amber-400"></span>Submitted</div><span>{oS}</span>
-                        </span>
-                    </div>
-                </div>
-            </div>
-        );
+        return renderStatusSplitRows([
+            { label: "Research", dotColor: "bg-blue-500", total: rP, ongoing: rO, submitted: rS },
+            { label: "Consultancy", dotColor: "bg-purple-500", total: cP, ongoing: cO, submitted: cS },
+            { label: "Others", dotColor: "bg-emerald-500", total: oP, ongoing: oO, submitted: oS },
+        ], (tab) => openKpiModalForType(
+            "intl",
+            `International Collaborator Projects: ${tab === "research" ? "Research" : tab === "consultancy" ? "Consultancy" : "Others"}`,
+            tab,
+        ));
     }, [allProjectsList, ongoingIds, submittedIds]);
 
-    const ongoingBreakdownBadges = React.useMemo(() => {
-        const badges = [
-            {
-                label: "Research",
-                count: researchOngoing,
-                dotColor: "bg-blue-500",
-                bgClass: "bg-blue-50 dark:bg-blue-950/30",
-                textClass: "text-blue-700 dark:text-blue-400",
-            },
-            {
-                label: "Consultancy",
-                count: consultancyOngoing,
-                dotColor: "bg-purple-500",
-                bgClass: "bg-purple-50 dark:bg-purple-950/30",
-                textClass: "text-purple-700 dark:text-purple-400",
-            },
+    // ₹ allocation AND ₹ utilization split by project type, among ongoing
+    // (sanction-approved) projects only — allocation must match fundAlloc's scope
+    // exactly so the three amounts sum to the Total Allocation headline figure above
+    // them. Utilized reads fundReceivedValueCache (populated by the same
+    // usePIFundReceivedTotal(ongoingProjectsListForFunds) call that computes the
+    // headline's own fundUtilized), so it's recomputed once that background fetch
+    // resolves via the fundUtilized/globalUtilizedLoading deps below.
+    const allocationByType = React.useMemo(() => {
+        let rAmt = 0, cAmt = 0, oAmt = 0;
+        let rUtil = 0, cUtil = 0, oUtil = 0;
+        // Don't trust globalUtilizedLoading alone to mean "cache is populated" — track
+        // whether every ongoing project actually has an entry in fundReceivedValueCache.
+        // usePIFundReceivedTotal's loading flag only toggles for the exact project set it
+        // was called with; if that set doesn't (yet, or ever) cover every project counted
+        // here, loading can read false while this cache is still incomplete, which
+        // previously rendered as a false "₹0 utilized / 0.0%" instead of "still fetching."
+        let pending = 0;
+        (allProjectsList ?? []).forEach((p: any) => {
+            if (!ongoingIds.has(p.name)) return;
+            const type = (p.project_type || "").toLowerCase();
+            const amt = p.total_budget_amount || p.grand_total_proposal || 0;
+            if (!Object.prototype.hasOwnProperty.call(fundReceivedValueCache, p.name)) pending++;
+            const util = fundReceivedValueCache[p.name] || 0;
+            if (type.includes("research") || type === "r&d project") { rAmt += amt; rUtil += util; }
+            else if (type.includes("consult") || type === "testing") { cAmt += amt; cUtil += util; }
+            else { oAmt += amt; oUtil += util; }
+        });
+        return { rAmt, cAmt, oAmt, rUtil, cUtil, oUtil, pending };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [allProjectsList, ongoingIds, fundUtilized, globalUtilizedLoading]);
+
+    // Responsive row layout (each type on its own full-width row) rather than
+    // horizontally-wrapping pills — three variable-width chips (short "Others" vs long
+    // "₹164.49Cr Research") wrap unevenly on a 2-column mobile grid, which is what
+    // reads as "odd" at narrow widths. A stacked row never wraps: it just gets taller.
+    const allocationBreakdownRows = React.useMemo(() => {
+        const pct = (util: number, amt: number) => amt > 0 ? ((util / amt) * 100).toFixed(1) : "0.0";
+        const build = (label: string, dotColor: string, count: number, amount: number, util: number) => ({
+            label, dotColor, count, amount,
+            util, remaining: Math.max(0, amount - util),
+            pct: pct(util, amount),
+        });
+        const rows = [
+            build("Research", "bg-blue-500", researchOngoing, allocationByType.rAmt, allocationByType.rUtil),
+            build("Consultancy", "bg-purple-500", consultancyOngoing, allocationByType.cAmt, allocationByType.cUtil),
         ];
         if (othersOngoing > 0) {
-            badges.push({
-                label: "Others",
-                count: othersOngoing,
-                dotColor: "bg-emerald-500",
-                bgClass: "bg-emerald-50 dark:bg-emerald-950/30",
-                textClass: "text-emerald-700 dark:text-emerald-400",
-            });
+            rows.push(build("Others", "bg-emerald-500", othersOngoing, allocationByType.oAmt, allocationByType.oUtil));
         }
-        return badges;
-    }, [researchOngoing, consultancyOngoing, othersOngoing]);
+        return rows;
+    }, [allocationByType, researchOngoing, consultancyOngoing, othersOngoing]);
+
+    const ongoingBreakdownRows = React.useMemo(() => {
+        const pct = (n: number) => ongoingProjects > 0 ? ((n / ongoingProjects) * 100).toFixed(0) : "0";
+        const rows = [
+            { label: "Research", dotColor: "bg-blue-500", count: researchOngoing, pct: pct(researchOngoing) },
+            { label: "Consultancy", dotColor: "bg-purple-500", count: consultancyOngoing, pct: pct(consultancyOngoing) },
+        ];
+        if (othersOngoing > 0) {
+            rows.push({ label: "Others", dotColor: "bg-emerald-500", count: othersOngoing, pct: pct(othersOngoing) });
+        }
+        return rows;
+    }, [researchOngoing, consultancyOngoing, othersOngoing, ongoingProjects]);
+
+    const isFundUtilDataReady = !globalUtilizedLoading && allocationByType.pending === 0;
+
+    const allocationBreakdownList = React.useMemo(() => (
+        <div className="flex flex-col divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]/60 pt-1 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+            {allocationBreakdownRows.map((r) => (
+                <div
+                    key={r.label}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        openKpiModalForType("allocation", `Projects by Allocation: ${r.label}`, rowTabByLabel[r.label]);
+                    }}
+                    className="flex flex-col gap-0.5 py-1.5 -mx-1.5 px-1.5 rounded-md cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
+                >
+                    <div className="flex items-center justify-between gap-2 text-[13px]">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${r.dotColor}`} />
+                            <span className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.label}</span>
+                            <span className="text-[#71717A] dark:text-[#A1A1AA] font-semibold shrink-0">({r.count})</span>
+                        </div>
+                        <span className="font-extrabold text-[14px] text-[#3F3F46] dark:text-[#E4E4E7] shrink-0">{formatCurrency(r.amount)}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 pl-4 text-[12px]">
+                        {!isFundUtilDataReady ? (
+                            <span className="text-[#52525B] dark:text-[#D4D4D8] font-semibold animate-pulse">Loading…</span>
+                        ) : (
+                            <>
+                                <span className="text-[#52525B] dark:text-[#D4D4D8] font-semibold truncate">
+                                    {formatCurrency(r.util)} utilized &middot; {formatCurrency(r.remaining)} left
+                                </span>
+                                <span
+                                    className="shrink-0 font-bold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
+                                    title={`${r.pct}% of ${r.label} allocation utilized`}
+                                >
+                                    {r.pct}%
+                                </span>
+                            </>
+                        )}
+                    </div>
+                </div>
+            ))}
+        </div>
+    ), [allocationBreakdownRows, isFundUtilDataReady]);
+
+    const ongoingBreakdownList = React.useMemo(() => (
+        <div className="flex flex-col divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]/60 pt-1 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+            {ongoingBreakdownRows.map((r) => (
+                <div
+                    key={r.label}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        openKpiModalForType("ongoing", `Ongoing Projects: ${r.label}`, rowTabByLabel[r.label]);
+                    }}
+                    className="flex items-center justify-between gap-2 py-1.5 text-[13px] -mx-1.5 px-1.5 rounded-md cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
+                >
+                    <div className="flex items-center gap-1.5 min-w-0">
+                        <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${r.dotColor}`} />
+                        <span className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.label}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                        <span className="font-extrabold text-[14px] text-[#3F3F46] dark:text-[#E4E4E7]">{r.count}</span>
+                        <span
+                            className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
+                            title={`${r.pct}% of ongoing projects are ${r.label}`}
+                        >
+                            {r.pct}%
+                        </span>
+                    </div>
+                </div>
+            ))}
+        </div>
+    ), [ongoingBreakdownRows]);
 
     // ── Dynamic Tab Counts for Modal ─────────────────────────────────────────
     const getDynamicTabCount = React.useCallback((tabKey: string) => {
@@ -2928,6 +3014,22 @@ export function DirectorDashboard() {
 
         const projectsList = allProjectsList ?? [];
         let base = projectsList;
+
+        // "intl" modal is scoped to international-agency projects only, and — like
+        // getBaseRows()'s matching branch above — doesn't apply the ongoing/submitted
+        // status filter at all (an international collaboration count isn't split by
+        // sanction status the way the other cards are), so it returns early here.
+        if (kpiModal?.type === "intl") {
+            base = base.filter(p => (p.origin_of_funding_agency || "").toLowerCase() === "international");
+            return base.filter(p => {
+                if (tabKey === "all") return true;
+                const t = (p.project_type || "").toLowerCase();
+                if (tabKey === "research") return t.includes("research");
+                if (tabKey === "consultancy") return t.includes("consult");
+                if (tabKey === "others") return !t.includes("research") && !t.includes("consult");
+                return false;
+            }).length;
+        }
 
         if (kpiModal?.year) {
             base = base.filter(p => {
@@ -3098,7 +3200,7 @@ export function DirectorDashboard() {
                         </div>
                     </div>
                     <div className="flex items-center gap-2.5 flex-wrap">
-                        <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold px-3 py-1.5 rounded-full tracking-widest uppercase">
+                        <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold px-3 py-1.5 rounded-full tracking-widest uppercase">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                             Live Data
                         </div>
@@ -3119,14 +3221,14 @@ export function DirectorDashboard() {
                         >
                             <FileText className="size-3.5" />
                             Genarate Detailed Report
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-blue-400/30 text-white ml-1">NEW</span>
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-blue-400/30 text-white ml-1">NEW</span>
                         </button>
                     </div>
                 </div>
 
                 {viewMode === "Director" && (
                     <div className="mb-8 border-t-2 border-[#4A6CF7]/35 pt-5 dark:border-[#818CF8]/35 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                        <div className="mb-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#71717A] dark:text-[#A1A1AA]">
+                        <div className="mb-3 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#71717A] dark:text-[#A1A1AA]">
                             Project Type
                         </div>
                         <div className="flex items-center gap-2.5 overflow-x-auto pb-1">
@@ -3220,7 +3322,7 @@ export function DirectorDashboard() {
                                 iconBg="#eff6ff"
                                 circleColor="#2563eb"
                                 onClick={() => openKpiModal("total", "All Projects")}
-                                customBottom={!isLoading && projectBreakdownGrid}
+                                customBottom={!isLoading && projectBreakdownList}
                                 valueAdornment={
                                     !isLoading && (
                                         <div className="flex items-center gap-2">
@@ -3248,7 +3350,18 @@ export function DirectorDashboard() {
                                 description="From all ongoing (sanction-approved) projects"
                                 value={formatCurrency(fundAlloc)}
                                 isLoading={isLoading}
-                                subtext={isLoading ? "" : `${fundUtilPercent}% utilized`}
+                                subtext=""
+                                valueAdornment={
+                                    !isLoading && (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
+                                            {!isFundUtilDataReady ? (
+                                                <span className="animate-pulse">Loading…</span>
+                                            ) : (
+                                                `${fundUtilPercent}% utilized`
+                                            )}
+                                        </span>
+                                    )
+                                }
                                 icon={
                                     <svg
                                         className="w-[18px] h-[18px]"
@@ -3271,16 +3384,20 @@ export function DirectorDashboard() {
                                 onClick={() =>
                                     openKpiModal("allocation", "Projects by Allocation")
                                 }
-                                customBottom={!isLoading && projectBreakdownGrid}
+                                customBottom={!isLoading && allocationBreakdownList}
                             />
                             <KpiCard
                                 label="Ongoing Projects"
+                                description="Sanction approved — Active or awaiting fund receipt"
                                 value={String(ongoingProjects)}
                                 isLoading={isLoading}
-                                subtext={
-                                    totalProjects > 0
-                                        ? `${((ongoingProjects / totalProjects) * 100).toFixed(0)}% of portfolio`
-                                        : "Currently Active"
+                                subtext=""
+                                valueAdornment={
+                                    !isLoading && totalProjects > 0 && (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
+                                            {((ongoingProjects / totalProjects) * 100).toFixed(0)}% of portfolio
+                                        </span>
+                                    )
                                 }
                                 icon={
                                     <svg
@@ -3300,10 +3417,11 @@ export function DirectorDashboard() {
                                 iconBg="#f5f3ff"
                                 circleColor="#7c3aed"
                                 onClick={() => openKpiModal("ongoing", "Ongoing Projects")}
-                                badges={isLoading ? undefined : ongoingBreakdownBadges}
+                                customBottom={!isLoading && ongoingBreakdownList}
                             />
                             <KpiCard
                                 label="Intl. Collaborators"
+                                description="Projects with an international funding agency"
                                 value={String(intl.active_agencies || 0)}
                                 isLoading={isLoading}
                                 subtext=""
@@ -3326,7 +3444,7 @@ export function DirectorDashboard() {
                                 iconBg="#f0f9ff"
                                 circleColor="#0284c7"
                                 onClick={() => openKpiModal("intl", "International Collaborator Projects")}
-                                customBottom={!isLoading && intlBreakdownGrid}
+                                customBottom={!isLoading && intlBreakdownList}
                             />
                         </div>
 
@@ -3419,13 +3537,13 @@ export function DirectorDashboard() {
                                         </div>
                                         Forms Processed Over Time
                                     </div>
-                                    <p className="text-[11px] text-[#A1A1AA] mt-1 ml-[42px]">Daily volume with weekly &amp; monthly averages overlaid — last 30 days</p>
+                                    <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1 ml-[42px]">Daily volume with weekly &amp; monthly averages overlaid — last 30 days</p>
                                 </div>
                                 <div className="flex items-center gap-3">
                                     {Object.values(TREND_SERIES_STYLE).map((s) => (
                                         <div key={s.key} className="flex items-center gap-1.5">
                                             <span className="w-[9px] h-[9px] rounded-full shrink-0" style={{ backgroundColor: s.stroke }} />
-                                            <span className="text-[10.5px] font-bold text-[#71717A] dark:text-[#A1A1AA]">{s.label}</span>
+                                            <span className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">{s.label}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -3434,7 +3552,7 @@ export function DirectorDashboard() {
                                 {!isProcessCountsLoading && combinedTrendData.length > 0 && (
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
                                         <div className={`rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] ${TREND_SERIES_STYLE.daily.chipBg} px-3.5 py-2.5`}>
-                                            <div className="text-[9.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide mb-1">
+                                            <div className="text-[10.5px] font-bold text-[#52525B] dark:text-[#D4D4D8] uppercase tracking-wide mb-1">
                                                 Daily Avg (30D)
                                             </div>
                                             <div className="text-[17px] font-extrabold tabular-nums" style={{ color: TREND_SERIES_STYLE.daily.stroke }}>
@@ -3442,7 +3560,7 @@ export function DirectorDashboard() {
                                             </div>
                                         </div>
                                         <div className={`rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] ${TREND_SERIES_STYLE.weeklyAvg.chipBg} px-3.5 py-2.5`}>
-                                            <div className="text-[9.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide mb-1">
+                                            <div className="text-[10.5px] font-bold text-[#52525B] dark:text-[#D4D4D8] uppercase tracking-wide mb-1">
                                                 Weekly Avg/Day
                                             </div>
                                             <div className="text-[17px] font-extrabold tabular-nums" style={{ color: TREND_SERIES_STYLE.weeklyAvg.stroke }}>
@@ -3450,7 +3568,7 @@ export function DirectorDashboard() {
                                             </div>
                                         </div>
                                         <div className={`rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] ${TREND_SERIES_STYLE.monthlyAvg.chipBg} px-3.5 py-2.5`}>
-                                            <div className="text-[9.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide mb-1">
+                                            <div className="text-[10.5px] font-bold text-[#52525B] dark:text-[#D4D4D8] uppercase tracking-wide mb-1">
                                                 Monthly Avg/Day
                                             </div>
                                             <div className="text-[17px] font-extrabold tabular-nums" style={{ color: TREND_SERIES_STYLE.monthlyAvg.stroke }}>
@@ -3458,7 +3576,7 @@ export function DirectorDashboard() {
                                             </div>
                                         </div>
                                         <div className={`rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] px-3.5 py-2.5 ${combinedTrendStats.trendDirection === "up" ? "bg-emerald-50 dark:bg-emerald-950/20" : combinedTrendStats.trendDirection === "down" ? "bg-red-50 dark:bg-red-950/20" : "bg-[#FAFAF9] dark:bg-[#18181B]"}`}>
-                                            <div className="text-[9.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide mb-1">
+                                            <div className="text-[10.5px] font-bold text-[#52525B] dark:text-[#D4D4D8] uppercase tracking-wide mb-1">
                                                 Today vs Yesterday
                                             </div>
                                             <div className={`text-[17px] font-extrabold tabular-nums flex items-center gap-1 ${combinedTrendStats.trendDirection === "up" ? "text-emerald-600 dark:text-emerald-400" : combinedTrendStats.trendDirection === "down" ? "text-red-600 dark:text-red-400" : "text-[#3F3F46] dark:text-[#E4E4E7]"}`}>
@@ -3551,17 +3669,17 @@ export function DirectorDashboard() {
                                         </div>
                                         Application-wise Activity
                                     </div>
-                                    <p className="text-[11px] text-[#A1A1AA] mt-1 ml-[42px]">Ranked by total submissions, most active first</p>
+                                    <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1 ml-[42px]">Ranked by total submissions, most active first</p>
                                 </div>
                                 <div className="flex flex-col items-end gap-1.5 shrink-0">
-                                    <span className="text-[10px] font-bold text-[#059669] bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                                    <span className="text-[11px] font-bold text-[#059669] bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-full uppercase tracking-wider">
                                         {showAllActivityApps ? sortedDoctypeCounts.length : Math.min(ACTIVITY_TOP_N, sortedDoctypeCounts.length)} of {sortedDoctypeCounts.length} apps
                                     </span>
                                     <div className="hidden md:flex items-center gap-2 flex-wrap justify-end max-w-[280px]">
                                         {presentVolumeTiers.map((tier) => (
                                             <div key={tier.label} className="flex items-center gap-1">
                                                 <span className="w-[7px] h-[7px] rounded-full shrink-0" style={{ backgroundColor: tier.color.to }} />
-                                                <span className="text-[9px] font-semibold text-[#A1A1AA]">{tier.label}</span>
+                                                <span className="text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">{tier.label}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -3575,7 +3693,7 @@ export function DirectorDashboard() {
                                     </div>
                                 ) : (
                                     <>
-                                        <div className="hidden sm:flex items-center gap-3 px-[22px] py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] text-[9.5px] font-bold uppercase tracking-widest text-[#A1A1AA]">
+                                        <div className="hidden sm:flex items-center gap-3 px-[22px] py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] text-[10.5px] font-bold uppercase tracking-widest text-[#52525B] dark:text-[#D4D4D8]">
                                             <span className="w-6 shrink-0" />
                                             <span className="w-[220px] shrink-0">Application</span>
                                             <span className="flex-1">Volume</span>
@@ -3620,11 +3738,11 @@ export function DirectorDashboard() {
                                                                     style={{ width: `${pct}%`, background: `linear-gradient(to right, ${volumeColor.from}, ${volumeColor.to})` }}
                                                                 />
                                                             </div>
-                                                            <div className="hidden sm:flex w-[168px] shrink-0 items-center justify-end gap-2 text-[10px] font-semibold text-[#A1A1AA] tabular-nums">
+                                                            <div className="hidden sm:flex w-[168px] shrink-0 items-center justify-end gap-2 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">
                                                                 <span className="w-[38px] text-right">{row.today}</span>
-                                                                <span className="text-[#D4D4D8] dark:text-[#3F3F46]">·</span>
+                                                                <span className="text-[#A1A1AA] dark:text-[#71717A]">·</span>
                                                                 <span className="w-[38px] text-right">{row.this_week}</span>
-                                                                <span className="text-[#D4D4D8] dark:text-[#3F3F46]">·</span>
+                                                                <span className="text-[#A1A1AA] dark:text-[#71717A]">·</span>
                                                                 <span className="w-[38px] text-right">{row.this_month}</span>
                                                             </div>
                                                             <span className={`w-[54px] shrink-0 text-right text-[13.5px] font-extrabold tabular-nums ${volumeColor.text}`}>
@@ -3635,10 +3753,10 @@ export function DirectorDashboard() {
                                                             <div className="bg-[#FAFAF9] dark:bg-[#18181B] px-[22px] py-1.5 space-y-1">
                                                                 {row.children.map((child) => (
                                                                     <div key={`${row.doctype}-${child.fieldname}`} className="flex items-center gap-3 pl-9">
-                                                                        <span className="text-[10.5px] text-[#71717A] dark:text-[#A1A1AA] truncate flex-1">
+                                                                        <span className="text-[11.5px] text-[#52525B] dark:text-[#D4D4D8] truncate flex-1">
                                                                             ↳ {child.doctype}
                                                                         </span>
-                                                                        <span className="hidden sm:inline text-[10px] font-semibold text-[#A1A1AA] tabular-nums w-[168px] text-right">
+                                                                        <span className="hidden sm:inline text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums w-[168px] text-right">
                                                                             {child.today} · {child.this_week} · {child.this_month}
                                                                         </span>
                                                                         <span className="text-[10.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums w-[54px] text-right">
@@ -3679,7 +3797,7 @@ export function DirectorDashboard() {
                                         </div>
                                         Usage Distribution
                                     </div>
-                                    <p className="text-[11px] text-[#A1A1AA] mt-1 ml-[42px]">Apps grouped into 3 tiers · click a tier for details</p>
+                                    <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1 ml-[42px]">Apps grouped into 3 tiers · click a tier for details</p>
                                 </div>
                                 <select
                                     value={usageTierMetric}
@@ -3735,7 +3853,7 @@ export function DirectorDashboard() {
                                                 <span className="text-3xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none tabular-nums">
                                                     {usageTierTotal.toLocaleString("en-IN")}
                                                 </span>
-                                                <span className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">
+                                                <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
                                                     Total
                                                 </span>
                                             </div>
@@ -3754,20 +3872,20 @@ export function DirectorDashboard() {
                                                             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
                                                             <div className="min-w-0 flex-1">
                                                                 <div className="text-[11.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{t.name}</div>
-                                                                <div className="text-[9.5px] font-semibold text-[#A1A1AA]">{t.appCount} app{t.appCount === 1 ? "" : "s"}</div>
+                                                                <div className="text-[10.5px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">{t.appCount} app{t.appCount === 1 ? "" : "s"}</div>
                                                             </div>
                                                             <div className="text-right shrink-0">
                                                                 <div className="text-[13px] font-extrabold tabular-nums" style={{ color: t.color }}>{sharePct}%</div>
-                                                                <div className="text-[9px] font-semibold text-[#A1A1AA] tabular-nums">{t.value.toLocaleString("en-IN")}</div>
+                                                                <div className="text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8] tabular-nums">{t.value.toLocaleString("en-IN")}</div>
                                                             </div>
-                                                            <ChevronDown size={13} className={`text-[#A1A1AA] shrink-0 transition-transform ${isOpen ? "" : "-rotate-90"}`} />
+                                                            <ChevronDown size={13} className={`text-[#71717A] dark:text-[#A1A1AA] shrink-0 transition-transform ${isOpen ? "" : "-rotate-90"}`} />
                                                         </button>
                                                         {isOpen && (
                                                             <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] px-2.5 py-1.5 max-h-[220px] overflow-y-auto space-y-0.5">
                                                                 {t.rows.map((r, i) => (
                                                                     <div key={r.doctype} className="flex items-center gap-2 py-1">
-                                                                        <span className="text-[9px] font-bold text-[#A1A1AA] w-4 text-right shrink-0 tabular-nums">{i + 1}</span>
-                                                                        <span className="text-[10.5px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] truncate flex-1">{r.doctype}</span>
+                                                                        <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] w-4 text-right shrink-0 tabular-nums">{i + 1}</span>
+                                                                        <span className="text-[11.5px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] truncate flex-1">{r.doctype}</span>
                                                                         <span className="text-[10.5px] font-extrabold tabular-nums shrink-0" style={{ color: t.color }}>
                                                                             {usageTierGetValue(r).toLocaleString("en-IN")}
                                                                         </span>
@@ -3825,7 +3943,7 @@ export function DirectorDashboard() {
                                             <option value="others">Others</option>
                                         </select>
                                         {/* Year selector */}
-                                        <span className="text-[11px] font-bold text-[#71717A] uppercase tracking-wider ml-1">Year:</span>
+                                        <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider ml-1">Year:</span>
                                         <div className="relative">
                                             <select
                                                 value={chartYearFilter}
@@ -3953,18 +4071,18 @@ export function DirectorDashboard() {
                                             <div className="flex-1 min-w-[150px] rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-blue-50/60 dark:bg-blue-950/20 px-4 py-3">
                                                 <div className="flex items-center gap-1.5 mb-1">
                                                     <span className="w-2 h-2 rounded-full bg-[#2563eb] shrink-0" />
-                                                    <span className="text-[10px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Submitted</span>
+                                                    <span className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Submitted</span>
                                                 </div>
                                                 <div className="text-[22px] font-extrabold text-[#2563eb] leading-none">{chartYearSubmittedTotal}</div>
-                                                <div className="text-[10px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1.5 leading-snug">Pending Sanction</div>
+                                                <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1.5 leading-snug">Pending Sanction</div>
                                             </div>
                                             <div className="flex-1 min-w-[150px] rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-purple-50/60 dark:bg-purple-950/20 px-4 py-3">
                                                 <div className="flex items-center gap-1.5 mb-1">
                                                     <span className="w-2 h-2 rounded-full bg-[#7c3aed] shrink-0" />
-                                                    <span className="text-[10px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Ongoing</span>
+                                                    <span className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Ongoing</span>
                                                 </div>
                                                 <div className="text-[22px] font-extrabold text-[#7c3aed] leading-none">{chartYearOngoingTotal}</div>
-                                                <div className="text-[10px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1.5 leading-snug">Sanction approved — fund received or pending</div>
+                                                <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1.5 leading-snug">Sanction approved — fund received or pending</div>
                                             </div>
                                         </div>
 
@@ -3978,19 +4096,19 @@ export function DirectorDashboard() {
                                                     : []),
                                             ].map((row) => (
                                                 <div key={row.label} className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] px-3 py-2.5">
-                                                    <div className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider mb-2">
+                                                    <div className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider mb-2">
                                                         {row.label}
                                                     </div>
                                                     <div className="space-y-1.5">
                                                         <div className="flex items-center justify-between gap-2">
-                                                            <span className="flex items-center gap-1.5 text-[10px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
+                                                            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
                                                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                                                                 Ongoing
                                                             </span>
                                                             <span className="text-[13px] font-extrabold text-emerald-600 dark:text-emerald-400">{row.ongoing}</span>
                                                         </div>
                                                         <div className="flex items-center justify-between gap-2">
-                                                            <span className="flex items-center gap-1.5 text-[10px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
+                                                            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
                                                                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
                                                                 Submitted
                                                             </span>
@@ -4053,7 +4171,7 @@ export function DirectorDashboard() {
                                                     <span className="text-3xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none">
                                                         {pieChartFundingData.reduce((sum: number, d: any) => sum + d.value, 0)}
                                                     </span>
-                                                    <span className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">
+                                                    <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
                                                         Total
                                                     </span>
                                                 </div>
@@ -4191,7 +4309,7 @@ export function DirectorDashboard() {
                                         </div>
                                         <div>
                                             <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Financial Trends</div>
-                                            <div className="text-[10px] font-medium text-[#A1A1AA] dark:text-[#71717A] leading-tight">Ongoing (sanction-approved) projects only</div>
+                                            <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-tight">Ongoing (sanction-approved) projects only</div>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -4205,7 +4323,7 @@ export function DirectorDashboard() {
                                             <option value="consultancy">Consultancy</option>
                                             <option value="others">Others</option>
                                         </select>
-                                        <span className="text-[11px] font-bold text-[#71717A] uppercase tracking-wider ml-1">Year:</span>
+                                        <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider ml-1">Year:</span>
                                         <select
                                             value={financialYearFilter}
                                             onChange={(e) => setFinancialYearFilter(e.target.value)}
@@ -4227,7 +4345,7 @@ export function DirectorDashboard() {
                                             <div className="text-[20px] font-extrabold tracking-[-0.03em] text-[#2563eb]">
                                                 {isLoading ? "—" : formatCurrency(fundAlloc)}
                                             </div>
-                                            <div className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">
+                                            <div className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
                                                 Total Sanctioned
                                             </div>
                                         </div>
@@ -4236,9 +4354,11 @@ export function DirectorDashboard() {
                                             onClick={() => openKpiModalWithTab("total", "Projects: Utilized", "ongoing")}
                                         >
                                             <div className="text-[20px] font-extrabold tracking-[-0.03em] text-[#059669]">
-                                                {isLoading || globalUtilizedLoading ? "—" : formatCurrency(fundUtilized)}
+                                                {isLoading ? "—" : globalUtilizedLoading ? (
+                                                    <span className="text-[13px] font-bold text-[#71717A] dark:text-[#A1A1AA] animate-pulse">Loading…</span>
+                                                ) : formatCurrency(fundUtilized)}
                                             </div>
-                                            <div className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">
+                                            <div className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
                                                 Utilized
                                             </div>
                                         </div>
@@ -4322,7 +4442,7 @@ export function DirectorDashboard() {
                                             >
                                                 <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Total Sanctioned</span>
                                                 <span className="text-[13px] font-extrabold text-[#2563eb]">
-                                                    {isLoading || globalUtilizedLoading ? "—" : formatCurrency(fundAlloc)}
+                                                    {isLoading ? "—" : formatCurrency(fundAlloc)}
                                                 </span>
                                             </div>
                                             <div
@@ -4331,7 +4451,9 @@ export function DirectorDashboard() {
                                             >
                                                 <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Utilized</span>
                                                 <span className="text-[13px] font-extrabold text-[#059669]">
-                                                    {isLoading || globalUtilizedLoading ? "—" : formatCurrency(fundUtilized)}
+                                                    {isLoading ? "—" : globalUtilizedLoading ? (
+                                                        <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] animate-pulse">Loading…</span>
+                                                    ) : formatCurrency(fundUtilized)}
                                                 </span>
                                             </div>
                                             <div
@@ -4340,7 +4462,9 @@ export function DirectorDashboard() {
                                             >
                                                 <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Remaining Balance</span>
                                                 <span className="text-[13px] font-extrabold text-[#0ea5e9]">
-                                                    {isLoading || globalUtilizedLoading ? "—" : formatCurrency(fundRemaining)}
+                                                    {isLoading ? "—" : globalUtilizedLoading ? (
+                                                        <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] animate-pulse">Loading…</span>
+                                                    ) : formatCurrency(fundRemaining)}
                                                 </span>
                                             </div>
                                             {/* 
@@ -4425,7 +4549,7 @@ export function DirectorDashboard() {
                                                                 <span className="text-3xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none">
                                                                     {totalDeptCount}
                                                                 </span>
-                                                                <span className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">
+                                                                <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
                                                                     Projects
                                                                 </span>
                                                             </div>
@@ -4745,7 +4869,7 @@ export function DirectorDashboard() {
                                                         <span className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
                                                             Project Start
                                                         </span>
-                                                        <span className="text-[10px] font-medium text-[#A1A1AA] dark:text-[#71717A] max-w-[120px] leading-snug mt-0.5">
+                                                        <span className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] max-w-[120px] leading-snug mt-0.5">
                                                             Budget of projects beginning this year
                                                         </span>
                                                     </div>
@@ -4759,7 +4883,7 @@ export function DirectorDashboard() {
                                                         <span className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
                                                             Project End
                                                         </span>
-                                                        <span className="text-[10px] font-medium text-[#A1A1AA] dark:text-[#71717A] max-w-[120px] leading-snug mt-0.5">
+                                                        <span className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] max-w-[120px] leading-snug mt-0.5">
                                                             Budget of projects closing this year
                                                         </span>
                                                     </div>
@@ -4878,7 +5002,7 @@ export function DirectorDashboard() {
                                                     </svg>
                                                 </div>
                                                 All Projects
-                                                <span className="ml-1 text-[11px] font-bold text-[#71717A] bg-[#F4F4F5] dark:bg-[#3F3F46] px-2 py-0.5 rounded-full">
+                                                <span className="ml-1 text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] bg-[#F4F4F5] dark:bg-[#3F3F46] px-2 py-0.5 rounded-full">
                                                     {filtered.length}
                                                 </span>
                                             </div>
@@ -4932,7 +5056,7 @@ export function DirectorDashboard() {
                                                 <thead>
                                                     <tr className="border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
                                                         {["#", "Project", "PI / Lead", "Department", "Status", "Amount"].map((h) => (
-                                                            <th key={h} className="p-2.5 px-3.5 text-[10px] font-bold text-[#71717A] uppercase tracking-widest text-left whitespace-nowrap">
+                                                            <th key={h} className="p-2.5 px-3.5 text-[11px] font-bold text-[#52525B] dark:text-[#D4D4D8] uppercase tracking-widest text-left whitespace-nowrap">
                                                                 {h}
                                                             </th>
                                                         ))}
@@ -4956,7 +5080,7 @@ export function DirectorDashboard() {
                                                                     onClick={() => { if (window.getSelection()?.toString()) return; navigate(`/project-details-overview/${proj.name}`, { state: { returnTo: location.pathname + location.search, ...getDashboardState() } }); }}
                                                                     className="border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors cursor-pointer"
                                                                 >
-                                                                    <td className="p-3 px-3.5 align-middle text-[11px] font-extrabold text-[#A1A1AA] font-mono">
+                                                                    <td className="p-3 px-3.5 align-middle text-[11px] font-extrabold text-[#71717A] dark:text-[#A1A1AA] font-mono">
                                                                         {String(globalIdx + 1).padStart(2, "0")}
                                                                     </td>
                                                                     <td className="p-3 px-3.5 align-middle max-w-[300px]">
@@ -4965,11 +5089,11 @@ export function DirectorDashboard() {
                                                                         </div>
                                                                         <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                                                                             {proj.project_no ? (
-                                                                                <span className="font-mono text-[9px] text-[#71717A] bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] px-1.5 py-0.5 rounded inline-block">
+                                                                                <span className="font-mono text-[10px] text-[#71717A] dark:text-[#A1A1AA] bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] px-1.5 py-0.5 rounded inline-block">
                                                                                     {proj.project_no}
                                                                                 </span>
                                                                             ) : (
-                                                                                <span className="font-mono text-[9px] text-[#71717A] bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] px-1.5 py-0.5 rounded inline-block">
+                                                                                <span className="font-mono text-[10px] text-[#71717A] dark:text-[#A1A1AA] bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] px-1.5 py-0.5 rounded inline-block">
                                                                                     {proj.name}
                                                                                 </span>
                                                                             )}
@@ -4977,21 +5101,21 @@ export function DirectorDashboard() {
                                                                                 const d = getEffectiveStartDate(proj);
                                                                                 const isOld = proj.is_old_project === 1 || proj.is_old_project === true || (d && new Date(d).getFullYear() < 2026);
                                                                                 return isOld ? (
-                                                                                    <span className="font-mono text-[9px] text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded inline-block">Old</span>
+                                                                                    <span className="font-mono text-[10px] text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded inline-block">Old</span>
                                                                                 ) : (
-                                                                                    <span className="font-mono text-[9px] text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded inline-block">New</span>
+                                                                                    <span className="font-mono text-[10px] text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded inline-block">New</span>
                                                                                 );
                                                                             })()}
                                                                             <ProjectDateBadge proj={proj} />
                                                                             {proj.project_type && (
-                                                                                <span className="font-mono text-[9px] text-purple-700 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-400 px-1.5 py-0.5 rounded inline-block">
+                                                                                <span className="font-mono text-[10px] text-purple-700 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-400 px-1.5 py-0.5 rounded inline-block">
                                                                                     {proj.project_type}
                                                                                 </span>
                                                                             )}
                                                                             {(() => {
                                                                                 const scheme = normalizeSchemeName(proj.funding_agency_schemes || proj.scheme_name || "");
                                                                                 return scheme ? (
-                                                                                    <span className="font-mono text-[9px] text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded inline-block">
+                                                                                    <span className="font-mono text-[10px] text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded inline-block">
                                                                                         {scheme}
                                                                                     </span>
                                                                                 ) : null;
@@ -5000,7 +5124,7 @@ export function DirectorDashboard() {
                                                                     </td>
                                                                     <td className="p-3 px-3.5 align-middle text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
                                                                         <div className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
-                                                                            {proj.pi_webmail ? (emailToNameMap[proj.pi_webmail.toLowerCase().trim()] || proj.pi_webmail.split("@")[0]) : "—"}
+                                                                            {proj.principal_investigator_name || (proj.pi_webmail ? (emailToNameMap[proj.pi_webmail.toLowerCase().trim()] || proj.pi_webmail.split("@")[0]) : "—")}
                                                                         </div>
                                                                         {proj.pi_webmail && (
                                                                             <div className="mt-0.5">
@@ -5009,7 +5133,7 @@ export function DirectorDashboard() {
                                                                         )}
                                                                     </td>
                                                                     <td className="p-3 px-3.5 align-middle">
-                                                                        <span className="inline-block text-[9px] font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                                                                        <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 uppercase tracking-wide">
                                                                             {proj.department ? getDeptName(proj.department) : "—"}
                                                                         </span>
                                                                     </td>
@@ -5034,7 +5158,7 @@ export function DirectorDashboard() {
                                         {/* Pagination Footer */}
                                         {filtered.length > PROJECT_TABLE_PAGE_SIZE && (
                                             <div className="flex items-center justify-between px-4 py-3 border-t border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
-                                                <span className="text-[11px] text-[#71717A] font-semibold">
+                                                <span className="text-[12px] text-[#52525B] dark:text-[#D4D4D8] font-semibold">
                                                     Showing {(safePage - 1) * PROJECT_TABLE_PAGE_SIZE + 1}–{Math.min(safePage * PROJECT_TABLE_PAGE_SIZE, filtered.length)} of {filtered.length} projects
                                                 </span>
                                                 <div className="flex items-center gap-1">
@@ -5054,7 +5178,7 @@ export function DirectorDashboard() {
                                                                 onClick={() => setProjectTablePage(page)}
                                                                 className={`w-7 h-7 rounded-lg text-[11px] font-bold transition-colors ${page === safePage
                                                                     ? "bg-[#2563eb] text-white"
-                                                                    : "border border-[#E4E4E7] dark:border-[#3F3F46] text-[#71717A] hover:bg-[#E4E4E7] dark:hover:bg-[#3F3F46]"
+                                                                    : "border border-[#E4E4E7] dark:border-[#3F3F46] text-[#71717A] dark:text-[#A1A1AA] hover:bg-[#E4E4E7] dark:hover:bg-[#3F3F46]"
                                                                     }`}
                                                             >
                                                                 {page}
@@ -5146,7 +5270,7 @@ export function DirectorDashboard() {
                                                     className="w-2 h-2 rounded-sm shrink-0"
                                                     style={{ backgroundColor: item.color }}
                                                 />
-                                                <span className="text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">
+                                                <span className="text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
                                                     {item.label}
                                                 </span>
                                             </div>
@@ -5232,14 +5356,14 @@ export function DirectorDashboard() {
                                                     className="flex items-center py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 gap-2.5 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
                                                     onClick={() => { if (window.getSelection()?.toString()) return; navigate(`/project-details-overview/${proj.name}`, { state: { returnTo: location.pathname + location.search, ...getDashboardState() } }); }}
                                                 >
-                                                    <div className="text-[11px] font-extrabold text-[#71717A] w-5 shrink-0 font-mono">
+                                                    <div className="text-[11px] font-extrabold text-[#71717A] dark:text-[#A1A1AA] w-5 shrink-0 font-mono">
                                                         {String(idx + 1).padStart(2, "0")}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] truncate">
                                                             {proj.project_title || "Untitled"}
                                                         </div>
-                                                        <div className="text-[10px] text-[#71717A] dark:text-[#A1A1AA] mt-[1px]">
+                                                        <div className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-[1px]">
                                                             {proj.department
                                                                 ? getDeptName(proj.department)
                                                                 : "—"}{" "}
@@ -5247,7 +5371,7 @@ export function DirectorDashboard() {
                                                         </div>
                                                     </div>
                                                     <div
-                                                        className={`text-[11px] font-bold whitespace-nowrap ${isNew ? "text-[#2563eb]" : "text-[#71717A]"
+                                                        className={`text-[11px] font-bold whitespace-nowrap ${isNew ? "text-[#2563eb] dark:text-blue-400" : "text-[#71717A] dark:text-[#A1A1AA]"
                                                             }`}
                                                     >
                                                         {label}
@@ -5330,7 +5454,7 @@ export function DirectorDashboard() {
                                                             <div className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
                                                                 {agency.funding_agency}
                                                             </div>
-                                                            <div className="text-[10px] text-[#71717A] dark:text-[#A1A1AA]">
+                                                            <div className="text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
                                                                 {agency.value} projects
                                                             </div>
                                                         </div>
@@ -5341,7 +5465,7 @@ export function DirectorDashboard() {
                                                             >
                                                                 {pct}%
                                                             </div>
-                                                            <div className="text-[9px] text-[#71717A]">
+                                                            <div className="text-[10.5px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
                                                                 of total
                                                             </div>
                                                         </div>
@@ -5563,7 +5687,7 @@ export function DirectorDashboard() {
                                                                     setPiFundingFilter("all");
                                                                     setShowFundingFilterDropdown(false);
                                                                 }}
-                                                                className="text-[10px] font-semibold text-[#2563eb] hover:underline"
+                                                                className="text-[11px] font-semibold text-[#2563eb] hover:underline"
                                                             >
                                                                 Clear
                                                             </button>
@@ -5737,7 +5861,7 @@ export function DirectorDashboard() {
                 )}
 
                 {/* ── Footer ── */}
-                <footer className="flex items-center justify-between pt-5 border-t border-[#E4E4E7] dark:border-[#3F3F46] text-[#71717A] dark:text-[#A1A1AA] text-[10px] font-semibold tracking-widest uppercase">
+                <footer className="flex items-center justify-between pt-5 border-t border-[#E4E4E7] dark:border-[#3F3F46] text-[#71717A] dark:text-[#A1A1AA] text-[11px] font-semibold tracking-widest uppercase">
                     <span>© 2026 R&D Operations · IIT Guwahati · Internal Use Only</span>
                     <a
                         href="mailto:ernd@iitg.ac.in"
@@ -6026,7 +6150,7 @@ export function DirectorDashboard() {
                                                     <line x1="3" y1="10" x2="21" y2="10" />
                                                 </svg>
                                                 Project Timeline
-                                                <span className="ml-auto text-[10px] font-semibold text-[#71717A] bg-[#F4F4F5] dark:bg-[#3F3F46] px-2 py-0.5 rounded-full normal-case tracking-normal">
+                                                <span className="ml-auto text-[11px] font-semibold text-[#71717A] bg-[#F4F4F5] dark:bg-[#3F3F46] px-2 py-0.5 rounded-full normal-case tracking-normal">
                                                     {selectedPIProjects.length} project
                                                     {selectedPIProjects.length !== 1 ? "s" : ""}
                                                 </span>
@@ -6102,7 +6226,7 @@ export function DirectorDashboard() {
                                                                         {proj.project_title || proj.name}
                                                                     </div>
                                                                     {proj.project_no && (
-                                                                        <div className="text-[10px] font-mono font-semibold text-[#71717A] dark:text-[#A1A1AA] mt-0.5">
+                                                                        <div className="text-[11px] font-mono font-semibold text-[#71717A] dark:text-[#A1A1AA] mt-0.5">
                                                                             {proj.project_no}
                                                                         </div>
                                                                     )}
@@ -6115,7 +6239,7 @@ export function DirectorDashboard() {
                                                                                 ? `₹${(fund / 100000).toFixed(2)} L`
                                                                                 : `₹${fund.toLocaleString("en-IN")}`;
                                                                         return (
-                                                                            <div className="text-[10px] font-extrabold mt-1 text-[#3F3F46] dark:text-[#E4E4E7]">
+                                                                            <div className="text-[11px] font-extrabold mt-1 text-[#3F3F46] dark:text-[#E4E4E7]">
                                                                                 {formattedFund}
                                                                             </div>
                                                                         );
@@ -6125,7 +6249,7 @@ export function DirectorDashboard() {
                                                                     <ProjectFundStatusBadge projectName={proj.name} />
                                                                     <button
                                                                         onClick={() => { if (window.getSelection()?.toString()) return; navigate(`/project-details-overview/${proj.name}`, { state: { returnTo: location.pathname + location.search, ...getDashboardState() } }); }}
-                                                                        className="text-[10px] font-semibold text-[#D97757] hover:text-[#c26245] flex items-center gap-1 group transition-colors"
+                                                                        className="text-[11px] font-semibold text-[#D97757] hover:text-[#c26245] flex items-center gap-1 group transition-colors"
                                                                     >
                                                                         View Project
                                                                         <svg className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0l-7.5 7.5M21 12H3" /></svg>
@@ -6134,7 +6258,7 @@ export function DirectorDashboard() {
                                                             </div>
                                                             <div className="grid grid-cols-2 gap-2 mb-3">
                                                                 <div className="bg-slate-50 dark:bg-slate-900/30 rounded-lg p-2.5 text-center flex flex-col justify-center">
-                                                                    <div className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-widest mb-1">
+                                                                    <div className="text-[11px] font-bold text-[#A1A1AA] uppercase tracking-widest mb-1">
                                                                         Sanction Amount
                                                                     </div>
                                                                     <div className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
@@ -6142,7 +6266,7 @@ export function DirectorDashboard() {
                                                                     </div>
                                                                 </div>
                                                                 <div className="bg-slate-50 dark:bg-slate-900/30 rounded-lg p-2.5 text-center flex flex-col justify-center">
-                                                                    <div className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-widest mb-1">
+                                                                    <div className="text-[11px] font-bold text-[#A1A1AA] uppercase tracking-widest mb-1">
                                                                         Funding Agency
                                                                     </div>
                                                                     {proj.select_funding_agency === "Other" ? (
@@ -6180,12 +6304,12 @@ export function DirectorDashboard() {
                                                                                 <>
                                                                                     <div className="flex justify-between items-center mb-1">
                                                                                         <span
-                                                                                            className="text-[10px] font-bold"
+                                                                                            className="text-[11px] font-bold"
                                                                                             style={{ color: progressColor }}
                                                                                         >
                                                                                             {progressPct}% complete
                                                                                         </span>
-                                                                                        <span className="text-[10px] font-semibold text-[#A1A1AA]">
+                                                                                        <span className="text-[11px] font-semibold text-[#A1A1AA]">
                                                                                             {isCompleted
                                                                                                 ? "Finished"
                                                                                                 : `${Math.max(
@@ -6301,7 +6425,7 @@ export function DirectorDashboard() {
                                     {kpiModal.title}
                                     {isSyncingFunds && (
                                         <span
-                                            className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-full animate-pulse whitespace-nowrap"
+                                            className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-full animate-pulse whitespace-nowrap"
                                             title="Fund-received status is still syncing in the background — Active/Fund Pending badges may still change. Export/Print are disabled until this finishes so they capture the final data."
                                         >
                                             Syncing fund status…
@@ -6325,7 +6449,7 @@ export function DirectorDashboard() {
                                                     (idx + 1).toString(),
                                                     p.project_no || "",
                                                     `"${(p.project_title || "").replace(/"/g, '""')}"`,
-                                                    `"${((p.pi_webmail ? (emailToNameMap[p.pi_webmail.toLowerCase().trim()] || p.pi_webmail) : "") || "").replace(/"/g, '""')}"`,
+                                                    `"${((p.principal_investigator_name || (p.pi_webmail ? (emailToNameMap[p.pi_webmail.toLowerCase().trim()] || p.pi_webmail) : "")) || "").replace(/"/g, '""')}"`,
                                                     `"${(p.pi_webmail || "").replace(/"/g, '""')}"`,
                                                     `"${(getDeptName(p.implementation_department || p.user_department) || p.dept_name || "").replace(/"/g, '""')}"`,
                                                     p.project_type || "",
@@ -6644,7 +6768,7 @@ export function DirectorDashboard() {
                                                     }`}
                                             >
                                                 {tab.label}
-                                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#F4F4F5] dark:bg-[#3F3F46] text-[#71717A]">
+                                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#F4F4F5] dark:bg-[#3F3F46] text-[#71717A]">
                                                     {tab.count}
                                                 </span>
                                             </button>
@@ -6662,7 +6786,7 @@ export function DirectorDashboard() {
                                             (h) => (
                                                 <th
                                                     key={h}
-                                                    className={`px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-[#71717A]${h === "Budget" ? " text-right" : ""
+                                                    className={`px-4 py-2.5 text-[11px] font-bold uppercase tracking-widest text-[#71717A]${h === "Budget" ? " text-right" : ""
                                                         }`}
                                                 >
                                                     {h === "Budget" && kpiModal.title === "Projects: Utilized" ? "Utilized" :
@@ -6681,7 +6805,7 @@ export function DirectorDashboard() {
                                                 colSpan={6}
                                                 className="px-4 py-10 text-center text-[#71717A] text-sm"
                                             >
-                                                {allProjectsList === undefined
+                                                {allProjectsList === undefined || isLoading || isSyncingFunds
                                                     ? "Loading…"
                                                     : "No projects found."}
                                             </td>
@@ -6696,7 +6820,7 @@ export function DirectorDashboard() {
                                                     navigate(`/project-details-overview/${proj.name}`, { state: { returnTo: location.pathname + location.search, ...getDashboardState() } });
                                                 }}
                                             >
-                                                <td className="px-4 py-3 text-[10px] font-bold text-[#71717A] font-mono">
+                                                <td className="px-4 py-3 text-[11px] font-bold text-[#71717A] font-mono">
                                                     {(kpiPage - 1) * KPI_PAGE_SIZE + idx + 1}
                                                 </td>
                                                 <td className="px-4 py-3">
@@ -6705,7 +6829,7 @@ export function DirectorDashboard() {
                                                     </div>
                                                     <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                                                         {proj.project_no && (
-                                                            <span className="font-mono text-[9px] text-[#71717A] bg-[#F4F4F5] dark:bg-[#3F3F46] px-1.5 py-0.5 rounded inline-block">
+                                                            <span className="font-mono text-[10px] text-[#71717A] bg-[#F4F4F5] dark:bg-[#3F3F46] px-1.5 py-0.5 rounded inline-block">
                                                                 {proj.project_no}
                                                             </span>
                                                         )}
@@ -6713,21 +6837,21 @@ export function DirectorDashboard() {
                                                             const d = getEffectiveStartDate(proj);
                                                             const isOld = proj.is_old_project === 1 || proj.is_old_project === true || (d && new Date(d).getFullYear() < 2026);
                                                             return isOld ? (
-                                                                <span className="font-mono text-[9px] text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded inline-block">Old</span>
+                                                                <span className="font-mono text-[10px] text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded inline-block">Old</span>
                                                             ) : (
-                                                                <span className="font-mono text-[9px] text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded inline-block">New</span>
+                                                                <span className="font-mono text-[10px] text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded inline-block">New</span>
                                                             );
                                                         })()}
                                                         <ProjectDateBadge proj={proj} />
                                                         {proj.project_type && (
-                                                            <span className="font-mono text-[9px] text-purple-700 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-400 px-1.5 py-0.5 rounded inline-block">
+                                                            <span className="font-mono text-[10px] text-purple-700 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-400 px-1.5 py-0.5 rounded inline-block">
                                                                 {proj.project_type}
                                                             </span>
                                                         )}
                                                         {(() => {
                                                             const scheme = normalizeSchemeName(proj.funding_agency_schemes || proj.scheme_name || "");
                                                             return scheme ? (
-                                                                <span className="font-mono text-[9px] text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded inline-block">
+                                                                <span className="font-mono text-[10px] text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded inline-block">
                                                                     {scheme}
                                                                 </span>
                                                             ) : null;
@@ -6736,7 +6860,7 @@ export function DirectorDashboard() {
                                                 </td>
                                                 <td className="px-4 py-3 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
                                                     <div className="font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
-                                                        {proj.pi_webmail ? (emailToNameMap[proj.pi_webmail.toLowerCase().trim()] || "—") : "—"}
+                                                        {proj.principal_investigator_name || (proj.pi_webmail ? (emailToNameMap[proj.pi_webmail.toLowerCase().trim()] || proj.pi_webmail.split("@")[0]) : "—")}
                                                     </div>
                                                     {proj.pi_webmail && (
                                                         <div className="mt-0.5">

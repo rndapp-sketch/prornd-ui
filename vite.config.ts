@@ -32,9 +32,10 @@ function creditBannerPlugin(): Plugin {
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
     // Root base for both dev and prod: this environment accesses the dev
-    // server directly by IP:port, not through the pragati.iitg.ac.in/dev/
-    // nginx front. If that nginx /dev/ proxy setup is needed again, restore
-    // `mode === 'development' ? '/dev/' : '/'`.
+    // server directly by IP:port (172.16.134.106:8081), not through the
+    // pragati.iitg.ac.in/dev/ nginx front that other developers (e.g. via
+    // 172.16.135.118) rely on. If that nginx /dev/ proxy setup is needed
+    // again for this checkout, restore `mode === 'development' ? '/dev/' : '/'`.
     base: '/',
     define: {
         // `define` substitutes this identifier with raw source code, not an
