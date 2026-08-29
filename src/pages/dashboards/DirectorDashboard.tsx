@@ -168,7 +168,7 @@ function KpiCard({
             >
                 {icon}
             </div>
-            <div className="text-[13px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide mb-0.5">
+            <div className="text-[11.5px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide mb-0.5">
                 {label}
             </div>
             {description && (
@@ -836,6 +836,10 @@ export function DirectorDashboard() {
     const [piModalPage, setPiModalPage] = React.useState<number>(location.state?.piModalPage || 1);
     const [deptModalPage, setDeptModalPage] = React.useState(1);
     const [kpiSearchText, setKpiSearchText] = React.useState<string>(location.state?.kpiSearchText || "");
+    // Header search bar — quick project lookup by title/no/PI/dept, separate from
+    // kpiSearchText above (which only filters rows already inside an open KPI modal).
+    const [headerSearchText, setHeaderSearchText] = React.useState("");
+    const [headerSearchFocused, setHeaderSearchFocused] = React.useState(false);
     const PI_PROJECTS_PAGE_SIZE = 2;
     const DEPT_MODAL_PAGE_SIZE = 10;
     const KPI_PAGE_SIZE = 10;
@@ -1280,6 +1284,28 @@ export function DirectorDashboard() {
         });
         return { r, c, o, all: r + c + o };
     }, [allProjectsList, ongoingIds, submittedIds]);
+
+    // Header search bar results — same match fields as kpiSearchText (project title,
+    // no, PI email/name, department), capped to a short list for a dropdown rather
+    // than the full KPI-modal table.
+    const HEADER_SEARCH_LIMIT = 8;
+    const headerSearchResults = React.useMemo(() => {
+        const query = headerSearchText.toLowerCase().trim();
+        if (!query) return [];
+        const matches: any[] = [];
+        for (const p of (allProjectsList ?? [])) {
+            const title = (p.project_title || p.name || "").toLowerCase();
+            const projNo = (p.project_no || p.name || "").toLowerCase();
+            const piEmail = (p.pi_webmail || "").toLowerCase();
+            const piName = (p.pi_webmail ? (emailToNameMap[p.pi_webmail.toLowerCase().trim()] || p.pi_webmail.split("@")[0]) : "").toLowerCase();
+            const deptName = (p.implementation_department || p.user_department || p.dept_name || "").toLowerCase();
+            if (title.includes(query) || projNo.includes(query) || piEmail.includes(query) || piName.includes(query) || deptName.includes(query)) {
+                matches.push(p);
+                if (matches.length >= HEADER_SEARCH_LIMIT) break;
+            }
+        }
+        return matches;
+    }, [allProjectsList, headerSearchText, emailToNameMap]);
 
     // Fund Sanction supports bulk List-View access (confirmed working elsewhere in
     // this app), so fetch it in one request. Submitted vs Ongoing classification
@@ -1778,22 +1804,30 @@ export function DirectorDashboard() {
                 };
 
                 if (kpiTab !== "draft" && kpiTab !== "pending") {
-                    if (kpiModal.type === "ongoing" || kpiStatusFilter === "ongoing") {
+                    // Narrower statuses are checked before the broad "ongoing" fallback below —
+                    // otherwise kpiModal.type === "ongoing" (true for every Ongoing Projects
+                    // modal open) would always win first and swallow a more specific
+                    // kpiStatusFilter like "active"/"pending_fund" before it's ever read.
+                    if (kpiStatusFilter === "active") {
+                        // True Active = sanction approved AND fund received, distinct from the
+                        // broader "ongoing" bucket below (which also includes Pending Fund).
+                        filtered = filtered.filter((p) => kpiGetStatus(p) === "ongoing");
+                    } else if (kpiStatusFilter === "pending_fund") {
+                        filtered = filtered.filter((p) => kpiGetStatus(p) === "pending_fund");
+                    } else if (kpiStatusFilter === "approved_sanction") {
+                        filtered = filtered.filter((p) => kpiGetStatus(p) === "approved_sanction");
+                    } else if (kpiStatusFilter === "submitted") {
+                        // Submitted = not yet sanction-approved.
+                        filtered = filtered.filter((p) => kpiGetStatus(p) === "pending_sanction");
+                    } else if (kpiStatusFilter === "pending_sanction") {
+                        filtered = filtered.filter((p) => kpiGetStatus(p) === "pending_sanction");
+                    } else if (kpiModal.type === "ongoing" || kpiStatusFilter === "ongoing") {
                         // Ongoing = sanction approved, regardless of fund-received status:
                         // covers Approved Sanction, Fund Received Pending, and Active alike.
                         filtered = filtered.filter((p) => {
                             const s = kpiGetStatus(p);
                             return s === "ongoing" || s === "pending_fund" || s === "approved_sanction";
                         });
-                    } else if (kpiStatusFilter === "submitted") {
-                        // Submitted = not yet sanction-approved.
-                        filtered = filtered.filter((p) => kpiGetStatus(p) === "pending_sanction");
-                    } else if (kpiStatusFilter === "pending_fund") {
-                        filtered = filtered.filter((p) => kpiGetStatus(p) === "pending_fund");
-                    } else if (kpiStatusFilter === "approved_sanction") {
-                        filtered = filtered.filter((p) => kpiGetStatus(p) === "approved_sanction");
-                    } else if (kpiStatusFilter === "pending_sanction") {
-                        filtered = filtered.filter((p) => kpiGetStatus(p) === "pending_sanction");
                     } else {
                         filtered = filtered.filter((p) => ongoingIds.has(p.name) || submittedIds.has(p.name));
                     }
@@ -1990,6 +2024,15 @@ export function DirectorDashboard() {
     const openKpiModalForType = (type: string, title: string, projectTypeTab: "research" | "consultancy" | "others") => {
         openKpiModal(type, title);
         setKpiTab(projectTypeTab);
+    };
+
+    // Ongoing Projects card's Active/Pending Fund badges — openKpiModalWithTab can't
+    // express this distinction (it hardcodes kpiStatusFilter to "ongoing" whenever
+    // type === "ongoing"), so this calls openKpiModal's baseline setup and then
+    // overrides the status filter directly to the finer-grained value.
+    const openOngoingFundStatusModal = (status: "active" | "pending_fund", title: string) => {
+        openKpiModal("ongoing", title);
+        setKpiStatusFilter(status);
     };
 
     const openKpiModalWithYear = (year: string, status: string) => {
@@ -2918,17 +2961,57 @@ export function DirectorDashboard() {
         return rows;
     }, [allocationByType, researchOngoing, consultancyOngoing, othersOngoing]);
 
+    // Ongoing Projects card: split by fund-received status, not just project type —
+    // "sanction approved" alone doesn't tell the Director whether a project is truly
+    // active (fund in hand) or still waiting on disbursal. Mirrors kpiGetStatus's
+    // ongoing/pending_fund classification so the card and the modal it opens agree.
+    const ongoingFundStatusBreakdown = React.useMemo(() => {
+        let active = 0, pendingFund = 0, checking = 0;
+        (allProjectsList ?? []).forEach((p: any) => {
+            if (!ongoingIds.has(p.name)) return;
+            if (!fundStatusMap.has(p.name)) { checking++; return; }
+            if (fundStatusMap.get(p.name) === true) active++;
+            else pendingFund++;
+        });
+        return { active, pendingFund, checking };
+    }, [allProjectsList, ongoingIds, fundStatusMap]);
+
+    // Same Active/Pending Fund split as ongoingFundStatusBreakdown, broken out per
+    // project type — so a Research-heavy pending-fund backlog isn't hidden inside an
+    // aggregate that looks healthy overall.
+    const ongoingByTypeFundStatus = React.useMemo(() => {
+        const counts: Record<"Research" | "Consultancy" | "Others", { active: number; pendingFund: number; checking: number }> = {
+            Research: { active: 0, pendingFund: 0, checking: 0 },
+            Consultancy: { active: 0, pendingFund: 0, checking: 0 },
+            Others: { active: 0, pendingFund: 0, checking: 0 },
+        };
+        (allProjectsList ?? []).forEach((p: any) => {
+            if (!ongoingIds.has(p.name)) return;
+            const type = (p.project_type || "").toLowerCase();
+            const bucket: "Research" | "Consultancy" | "Others" = type.includes("research") ? "Research" : type.includes("consult") ? "Consultancy" : "Others";
+            if (!fundStatusMap.has(p.name)) { counts[bucket].checking++; return; }
+            if (fundStatusMap.get(p.name) === true) counts[bucket].active++;
+            else counts[bucket].pendingFund++;
+        });
+        return counts;
+    }, [allProjectsList, ongoingIds, fundStatusMap]);
+
     const ongoingBreakdownRows = React.useMemo(() => {
         const pct = (n: number) => ongoingProjects > 0 ? ((n / ongoingProjects) * 100).toFixed(0) : "0";
-        const rows = [
+        const rows: Array<{
+            label: "Research" | "Consultancy" | "Others";
+            dotColor: string;
+            count: number;
+            pct: string;
+        }> = [
             { label: "Research", dotColor: "bg-blue-500", count: researchOngoing, pct: pct(researchOngoing) },
             { label: "Consultancy", dotColor: "bg-purple-500", count: consultancyOngoing, pct: pct(consultancyOngoing) },
         ];
         if (othersOngoing > 0) {
             rows.push({ label: "Others", dotColor: "bg-emerald-500", count: othersOngoing, pct: pct(othersOngoing) });
         }
-        return rows;
-    }, [researchOngoing, consultancyOngoing, othersOngoing, ongoingProjects]);
+        return rows.map((r) => ({ ...r, fundStatus: ongoingByTypeFundStatus[r.label] }));
+    }, [researchOngoing, consultancyOngoing, othersOngoing, ongoingProjects, ongoingByTypeFundStatus]);
 
     const isFundUtilDataReady = !globalUtilizedLoading && allocationByType.pending === 0;
 
@@ -2975,30 +3058,52 @@ export function DirectorDashboard() {
 
     const ongoingBreakdownList = React.useMemo(() => (
         <div className="flex flex-col divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]/60 pt-1 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-            {ongoingBreakdownRows.map((r) => (
-                <div
-                    key={r.label}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        openKpiModalForType("ongoing", `Ongoing Projects: ${r.label}`, rowTabByLabel[r.label]);
-                    }}
-                    className="flex items-center justify-between gap-2 py-1.5 text-[13px] -mx-1.5 px-1.5 rounded-md cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
-                >
-                    <div className="flex items-center gap-1.5 min-w-0">
-                        <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${r.dotColor}`} />
-                        <span className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.label}</span>
+            {ongoingBreakdownRows.map((r) => {
+                const { active, pendingFund, checking } = r.fundStatus;
+                return (
+                    <div
+                        key={r.label}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            openKpiModalForType("ongoing", `Ongoing Projects: ${r.label}`, rowTabByLabel[r.label]);
+                        }}
+                        className="flex flex-col gap-0.5 py-1.5 -mx-1.5 px-1.5 rounded-md cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
+                    >
+                        <div className="flex items-center justify-between gap-2 text-[13px]">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${r.dotColor}`} />
+                                <span className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.label}</span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <span className="font-extrabold text-[14px] text-[#3F3F46] dark:text-[#E4E4E7]">{r.count}</span>
+                                <span
+                                    className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
+                                    title={`${r.pct}% of ongoing projects are ${r.label}`}
+                                >
+                                    {r.pct}%
+                                </span>
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 pl-4 text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
+                            {checking > 0 ? (
+                                // Fund-status is still resolving for some of this type's projects —
+                                // show a plain loading state for the whole row rather than partial,
+                                // steadily-increasing counts that look inconsistent mid-fetch. Final
+                                // numbers only appear once every project in this type has resolved.
+                                <span className="font-semibold text-zinc-400 dark:text-zinc-500 animate-pulse">Loading…</span>
+                            ) : (
+                                <span className="flex items-center gap-1 truncate">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                    {active} active
+                                    <span className="text-[#D4D4D8] dark:text-[#3F3F46] mx-0.5">&middot;</span>
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                                    {pendingFund} pending fund
+                                </span>
+                            )}
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                        <span className="font-extrabold text-[14px] text-[#3F3F46] dark:text-[#E4E4E7]">{r.count}</span>
-                        <span
-                            className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
-                            title={`${r.pct}% of ongoing projects are ${r.label}`}
-                        >
-                            {r.pct}%
-                        </span>
-                    </div>
-                </div>
-            ))}
+                );
+            })}
         </div>
     ), [ongoingBreakdownRows]);
 
@@ -3080,13 +3185,11 @@ export function DirectorDashboard() {
         };
 
         if (tabKey !== "draft" && tabKey !== "pending") {
-            if (kpiModal?.type === "ongoing" || kpiStatusFilter === "ongoing") {
-                // Ongoing = sanction approved, regardless of fund-received status:
-                // covers Approved Sanction, Fund Received Pending, and Active alike.
-                base = base.filter(p => {
-                    const s = getStatusKey(p);
-                    return s === "ongoing" || s === "pending_fund" || s === "approved_sanction";
-                });
+            // Narrower statuses are checked before the broad "ongoing" fallback below —
+            // see the matching comment in kpiModalRows's getBaseRows for why the order
+            // matters here.
+            if (kpiStatusFilter === "active") {
+                base = base.filter(p => getStatusKey(p) === "ongoing");
             } else if (kpiStatusFilter === "pending_fund") {
                 base = base.filter(p => getStatusKey(p) === "pending_fund");
             } else if (kpiStatusFilter === "approved_sanction") {
@@ -3096,6 +3199,13 @@ export function DirectorDashboard() {
                 base = base.filter(p => getStatusKey(p) === "pending_sanction");
             } else if (kpiStatusFilter === "pending_sanction") {
                 base = base.filter(p => getStatusKey(p) === "pending_sanction");
+            } else if (kpiModal?.type === "ongoing" || kpiStatusFilter === "ongoing") {
+                // Ongoing = sanction approved, regardless of fund-received status:
+                // covers Approved Sanction, Fund Received Pending, and Active alike.
+                base = base.filter(p => {
+                    const s = getStatusKey(p);
+                    return s === "ongoing" || s === "pending_fund" || s === "approved_sanction";
+                });
             } else {
                 base = base.filter(p => ongoingIds.has(p.name) || submittedIds.has(p.name));
             }
@@ -3199,6 +3309,74 @@ export function DirectorDashboard() {
                             </div>
                         </div>
                     </div>
+                    {viewMode === "Director" && (
+                        <div className="relative w-full md:w-[320px] shrink-0">
+                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-zinc-400 dark:text-zinc-500">
+                                <Search className="w-4 h-4" />
+                            </span>
+                            <input
+                                type="text"
+                                placeholder="Search project title, no, PI, dept..."
+                                value={headerSearchText}
+                                onChange={(e) => setHeaderSearchText(e.target.value)}
+                                onFocus={() => setHeaderSearchFocused(true)}
+                                onBlur={() => setTimeout(() => setHeaderSearchFocused(false), 150)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Escape") {
+                                        setHeaderSearchText("");
+                                        (e.target as HTMLInputElement).blur();
+                                    }
+                                }}
+                                className="w-full h-10 text-[13px] font-semibold pl-9 pr-8 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg outline-none focus:border-[#2563eb] text-[#3F3F46] dark:text-[#E4E4E7] placeholder-zinc-400 transition-colors shadow-sm"
+                            />
+                            {headerSearchText && (
+                                <button
+                                    onClick={() => setHeaderSearchText("")}
+                                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-[#71717A] hover:text-black dark:hover:text-white"
+                                    type="button"
+                                    tabIndex={-1}
+                                >
+                                    <X size={13} />
+                                </button>
+                            )}
+                            {headerSearchFocused && headerSearchText.trim() && (
+                                <div className="absolute z-50 mt-1.5 w-full max-h-[360px] overflow-y-auto bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg shadow-lg">
+                                    {headerSearchResults.length === 0 ? (
+                                        <div className="px-4 py-3 text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
+                                            No projects match &ldquo;{headerSearchText}&rdquo;
+                                        </div>
+                                    ) : (
+                                        headerSearchResults.map((p) => {
+                                            const piName = p.pi_webmail ? (emailToNameMap[p.pi_webmail.toLowerCase().trim()] || p.pi_webmail.split("@")[0]) : "";
+                                            return (
+                                                <div
+                                                    key={p.name}
+                                                    onClick={() => {
+                                                        setHeaderSearchText("");
+                                                        navigate(`/project-details-overview/${p.name}`, { state: { returnTo: location.pathname + location.search, ...getDashboardState() } });
+                                                    }}
+                                                    className="px-4 py-2.5 border-b last:border-b-0 border-[#F4F4F5] dark:border-[#3F3F46] cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
+                                                >
+                                                    <div className="text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">
+                                                        {p.project_title || p.name}
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA] truncate">
+                                                        <span>{p.project_no || p.name}</span>
+                                                        {piName && (<><span>&middot;</span><span className="truncate">{piName}</span></>)}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                    {headerSearchResults.length === HEADER_SEARCH_LIMIT && (
+                                        <div className="px-4 py-2 text-[10.5px] text-[#A1A1AA] dark:text-[#71717A] border-t border-[#F4F4F5] dark:border-[#3F3F46]">
+                                            Showing first {HEADER_SEARCH_LIMIT} matches — refine your search for more.
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
                     <div className="flex items-center gap-2.5 flex-wrap">
                         <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold px-3 py-1.5 rounded-full tracking-widest uppercase">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -3244,7 +3422,7 @@ export function DirectorDashboard() {
                                     ? "bg-[#7C3AED] text-white"
                                     : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50 dark:text-[#A1A1AA]"
                                     }`}>
-                                    {globalTypeCounts.all}
+                                    {isLoading ? "Loading…" : globalTypeCounts.all}
                                 </span>
                             </button>
                             <button
@@ -3259,7 +3437,7 @@ export function DirectorDashboard() {
                                     ? "bg-[#4A6CF7] text-white"
                                     : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50 dark:text-[#A1A1AA]"
                                     }`}>
-                                    {globalTypeCounts.r}
+                                    {isLoading ? "Loading…" : globalTypeCounts.r}
                                 </span>
                             </button>
                             <button
@@ -3274,7 +3452,7 @@ export function DirectorDashboard() {
                                     ? "bg-white/80 text-[#059669] dark:bg-[#18181B]/50"
                                     : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50 dark:text-[#A1A1AA]"
                                     }`}>
-                                    {globalTypeCounts.c}
+                                    {isLoading ? "Loading…" : globalTypeCounts.c}
                                 </span>
                             </button>
                             <button
@@ -3289,7 +3467,7 @@ export function DirectorDashboard() {
                                     ? "bg-[#71717A] text-white dark:bg-[#A1A1AA] dark:text-black"
                                     : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50 dark:text-[#A1A1AA]"
                                     }`}>
-                                    {globalTypeCounts.o}
+                                    {isLoading ? "Loading…" : globalTypeCounts.o}
                                 </span>
                             </button>
                         </div>
@@ -3346,8 +3524,7 @@ export function DirectorDashboard() {
                                 }
                             />
                             <KpiCard
-                                label="Total Allocation"
-                                description="From all ongoing (sanction-approved) projects"
+                                label="Total Fund Allocation for Ongoing Projects"
                                 value={formatCurrency(fundAlloc)}
                                 isLoading={isLoading}
                                 subtext=""
@@ -3388,15 +3565,42 @@ export function DirectorDashboard() {
                             />
                             <KpiCard
                                 label="Ongoing Projects"
-                                description="Sanction approved — Active or awaiting fund receipt"
+                                description="Sanction-approved projects, by fund status"
                                 value={String(ongoingProjects)}
                                 isLoading={isLoading}
                                 subtext=""
                                 valueAdornment={
-                                    !isLoading && totalProjects > 0 && (
-                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
-                                            {((ongoingProjects / totalProjects) * 100).toFixed(0)}% of portfolio
-                                        </span>
+                                    !isLoading && ongoingProjects > 0 && (
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            {ongoingFundStatusBreakdown.checking > 0 ? (
+                                                // Fund-status is still resolving for some ongoing projects —
+                                                // show a plain loading state rather than partial, steadily-
+                                                // increasing Active/Pending Fund counts that look inconsistent
+                                                // mid-fetch. Final numbers only appear once fully resolved.
+                                                <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 animate-pulse">
+                                                    Loading…
+                                                </span>
+                                            ) : (
+                                                <>
+                                                    <span
+                                                        className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 cursor-pointer hover:brightness-95 transition-all"
+                                                        title="Sanctioned and fund received"
+                                                        onClick={(e) => { e.stopPropagation(); openOngoingFundStatusModal("active", "Ongoing Projects: Active"); }}
+                                                    >
+                                                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                                        {ongoingFundStatusBreakdown.active} Active
+                                                    </span>
+                                                    <span
+                                                        className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 cursor-pointer hover:brightness-95 transition-all"
+                                                        title="Sanctioned but fund not yet received"
+                                                        onClick={(e) => { e.stopPropagation(); openOngoingFundStatusModal("pending_fund", "Ongoing Projects: Pending Fund Received"); }}
+                                                    >
+                                                        <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                                                        {ongoingFundStatusBreakdown.pendingFund} Pending Fund
+                                                    </span>
+                                                </>
+                                            )}
+                                        </div>
                                     )
                                 }
                                 icon={
@@ -3420,7 +3624,7 @@ export function DirectorDashboard() {
                                 customBottom={!isLoading && ongoingBreakdownList}
                             />
                             <KpiCard
-                                label="Intl. Collaborators"
+                                label="International Collaborators"
                                 description="Projects with an international funding agency"
                                 value={String(intl.active_agencies || 0)}
                                 isLoading={isLoading}
@@ -3928,7 +4132,7 @@ export function DirectorDashboard() {
                                                 <line x1="6" y1="20" x2="6" y2="14" />
                                             </svg>
                                         </div>
-                                        Financial Year — Project Status
+                                        Year-Wise Project Status
                                     </div>
                                     <div className="flex items-center gap-2">
                                         {/* Type selector */}
@@ -6703,7 +6907,8 @@ export function DirectorDashboard() {
                                                     // ongoing) per DASHBOARD_API_DOCUMENTATION.md, further narrowed by
                                                     // the Status dropdown above. Label tracks that dropdown so it never
                                                     // says "Submitted & Ongoing" while actually showing just one of them.
-                                                    label: kpiStatusFilter === "ongoing" ? "Ongoing"
+                                                    label: kpiStatusFilter === "active" ? "Active"
+                                                        : kpiStatusFilter === "ongoing" ? "Ongoing"
                                                         : kpiStatusFilter === "submitted" ? "Submitted"
                                                         : kpiStatusFilter === "pending_fund" ? "Fund Received Pending"
                                                         : kpiStatusFilter === "approved_sanction" ? "Approved Sanction"
