@@ -13,6 +13,7 @@ export interface ActivityItem {
 }
 
 function buildActivityLogHtml(items: ActivityItem[], formData: Record<string, any>): string {
+    // Include all comment types except system Administrator entries
     const allItems = [...(items || [])].filter((c) => c.owner !== "Administrator");
 
     // Inject creation entry if not already present
@@ -27,30 +28,70 @@ function buildActivityLogHtml(items: ActivityItem[], formData: Record<string, an
     }
 
     if (!allItems.length) {
-        return '<div class="activity-log"><em style="color:#888;font-size:12px;">No activity yet.</em></div>';
+        return '<table class="activity-table"><tr><td colspan="3" style="text-align: center; color: #888;">No activity yet.</td></tr></table>';
     }
 
     const sorted = [...allItems].sort(
         (a, b) => new Date(a.creation).getTime() - new Date(b.creation).getTime(),
     );
 
-    const entries = sorted.map((c) => {
+    // Strip HTML tags and decode basic HTML entities
+    const stripHtml = (html: string): string =>
+        html
+            .replace(/<[^>]*>/g, " ")
+            .replace(/&amp;/g, "&")
+            .replace(/&lt;/g, "<")
+            .replace(/&gt;/g, ">")
+            .replace(/&nbsp;/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+
+    const activityRows = sorted.map((c: any) => {
         const dt = c.creation ? new Date(c.creation) : null;
         const dateStr = dt
-            ? dt.toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" })
+            ? dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
             : "";
         const timeStr = dt
             ? dt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })
             : "";
-        const label = c.comment_type === "Creation" ? "created document" : "";
-        const plainContent = (c.content || "").replace(/<[^>]*>/g, "").trim();
-        return `<div class="activity-entry">
-            <div class="activity-meta"><strong>${c.owner}</strong>${label ? `&nbsp;&middot;&nbsp;${label}` : ""}&nbsp;&middot;&nbsp;${dateStr}${timeStr ? ", " + timeStr : ""}</div>
-            ${plainContent ? `<div class="activity-content">${plainContent}</div>` : ""}
-        </div>`;
+
+        // Determine display name: prefer comment_by, then owner
+        const displayName = (c.comment_by || c.owner || "").trim();
+
+        // Determine comment text
+        const rawContent = stripHtml(c.content || "");
+
+        let commentText = rawContent;
+        if (!commentText) {
+            if (c.comment_type === "Creation") commentText = "created document";
+            else if (c.comment_type === "Workflow") commentText = c.data || "workflow action";
+            else if (c.comment_type === "Approval") commentText = "approved";
+            else if (c.comment_type === "Submission") commentText = "submitted";
+            else if (c.comment_type === "Cancelled") commentText = "cancelled";
+            else commentText = c.comment_type || "—";
+        }
+
+        return `
+            <tr>
+                <td>${esc(displayName)}</td>
+                <td>${esc(commentText)}</td>
+                <td style="white-space:nowrap;">${dateStr}${timeStr ? ", " + timeStr : ""}</td>
+            </tr>`;
     }).join("");
 
-    return `<div class="activity-log">${entries}</div>`;
+    return `
+        <table class="activity-table">
+            <thead>
+                <tr>
+                    <th>Approver</th>
+                    <th>Comment</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${activityRows}
+            </tbody>
+        </table>`;
 }
 
 const fmt = (val: any): string => {
@@ -126,14 +167,19 @@ export function generateIgfPrintHtml(
            </div>`
         : "";
 
-    return igfTemplate
+    let webmailId = formData.igf_webmail_user_id || "";
+    if (webmailId && !webmailId.includes("@")) {
+        webmailId += "@iitg.ac.in";
+    }
+
+    const cleanHtml = igfTemplate
         .replace(/http:\/\/172\.16\.117\.39:8000/g, `http://${ASSET_HOST}:${ASSET_PORT}`)
         .replace("{{DOC_REF}}", esc(formData.name))
         .replace("{{DATE}}", esc(creationDate))
         .replace("{{INDENTER_NAME}}", esc(formData.igf_indenter))
         .replace("{{INDENTER_DESIGNATION}}", esc(formData.igf_indenter_designation))
         .replace("{{EMPLOYEE_CODE}}", esc(formData.igf_employee_code))
-        .replace("{{WEBMAIL_ID}}", esc(formData.igf_webmail_user_id))
+        .replace("{{WEBMAIL_ID}}", esc(webmailId))
         .replace("{{DEPARTMENT}}", esc(resolvedDept || formData.igf_department_centre_section))
         .replace("{{PROJECT_CODE}}", esc(formData.igf_project_code))
         .replace("{{ACCOUNT_HEAD}}", esc(resolvedAccountHead || formData.igf_account_head))
@@ -144,6 +190,70 @@ export function generateIgfPrintHtml(
         .replace("{{NUMBER_OF_BIDS}}", esc(formData.igf_number_of_bids))
         .replace("{{SANCTIONED_ROW}}", sanctionedRow)
         .replace("{{COMMITTEE_SECTION}}", committeeSection)
-        .replace("{{DECLARATION_SECTION}}", declarationSection)
-        .replace("{{ACTIVITY_LOG_SECTION}}", buildActivityLogHtml(activityItems, formData));
+        .replace("{{DECLARATION_SECTION}}", declarationSection);
+
+    // Extract Attachments
+    const attachments: { name: string, url: string }[] = [];
+    
+    // 1. Explicit fields
+    if (formData.igf_upload_detailed_specification) {
+        const url = formData.igf_upload_detailed_specification;
+        attachments.push({ name: url.split('/').pop() || "Detailed Specification", url });
+    }
+    if (formData.igf_upload_vendor_list) {
+        const url = formData.igf_upload_vendor_list;
+        attachments.push({ name: url.split('/').pop() || "Vendor List", url });
+    }
+
+    // 2. Parse from Activity Log (Frappe standard attachments)
+    activityItems?.forEach(item => {
+        if (item.content && item.content.includes("href=") && (item.content.includes("Attachment") || item.content.includes("fa-lock"))) {
+            // Very simple extraction of href and text
+            const match = item.content.match(/href=["']([^"']+)["'][^>]*>([^<]+)<\/a>/i);
+            if (match) {
+                // Ensure we don't duplicate
+                if (!attachments.some(a => a.url === match[1])) {
+                    attachments.push({ name: match[2].trim() || match[1].split('/').pop() || "Attachment", url: match[1] });
+                }
+            }
+        }
+    });
+
+    // Build each attachment as a standalone printable row with its own button
+    let attachmentsHtml = "";
+    if (attachments.length > 0) {
+        const attachmentRows = attachments.map((att) => {
+            const proxyUrl = att.url.startsWith("/files/")
+                ? `/prod-rnd-files${att.url}`
+                : att.url.startsWith("http")
+                    ? att.url
+                    : `/prod-rnd-files${att.url}`;
+            // onclick: open file in new tab — user can Ctrl+P from there
+            return `
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 12px; font-weight:bold; font-family:sans-serif; color:#333; font-size: 13px;">${att.name}</td>
+              <td style="padding: 12px; text-align:right;">
+                <a href="${proxyUrl}" target="_blank"
+                   style="display:inline-block; padding:10px 24px; background:#2563eb; color:white; text-decoration:none; border-radius:6px; font-weight:bold; font-family:sans-serif; font-size: 13px;">
+                  Print Attached File
+                </a>
+              </td>
+            </tr>`;
+        }).join("");
+
+        attachmentsHtml = `
+            <div class="hide-on-print" style="margin-top: 30px; page-break-inside: avoid;">
+                <div class="section-title" style="margin-bottom: 10px;">Attachments</div>
+                <table style="width: 100%; border-collapse: collapse; background: #f8fafc; border: 1px solid #e2e8f0;">
+                    <tbody>
+                        ${attachmentRows}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    return cleanHtml
+        .replace("{{ACTIVITY_LOG_SECTION}}", buildActivityLogHtml(activityItems, formData))
+        .replace("{{ATTACHMENTS_SECTION}}", attachmentsHtml);
 }

@@ -25,6 +25,9 @@ export interface ActivityLogProps {
     className?: string;
     /** Max height of the scrollable list. Defaults to 400px. */
     maxHeight?: string;
+    fallbackOwner?: string;
+    fallbackCreation?: string;
+    fallbackOwnerName?: string;
     /** Show only comment-type entries, hiding creation/edit activity. */
     onlyComments?: boolean;
 }
@@ -125,6 +128,39 @@ const LogItem: React.FC<{ entry: ActivityLogEntry; isLast: boolean }> = ({
         .charAt(0)
         .toUpperCase();
 
+    const [designation, setDesignation] = useState<string>("");
+    const [fullName, setFullName] = useState<string>("");
+
+    useEffect(() => {
+        if (!entry.user_email) return;
+        
+        const email = encodeURIComponent(entry.user_email);
+
+        fetch(`/api/resource/Employee?filters=[["user_id","=","${email}"]]&fields=["designation","employee_name"]`, { credentials: "include" })
+            .then(res => res.json())
+            .then(json => {
+                let nameSet = false;
+                if (json?.data && json.data.length > 0) {
+                    if (json.data[0].designation) setDesignation(json.data[0].designation);
+                    if (json.data[0].employee_name) {
+                        setFullName(json.data[0].employee_name);
+                        nameSet = true;
+                    }
+                }
+                
+                // Fallback to User doctype if Employee record doesn't exist
+                if (!nameSet) {
+                    fetch(`/api/resource/User/${email}?fields=["full_name"]`, { credentials: "include" })
+                        .then(r => r.json())
+                        .then(j => {
+                            if (j?.data?.full_name) setFullName(j.data.full_name);
+                        })
+                        .catch(err => console.warn("Failed to fetch User name:", err));
+                }
+            })
+            .catch(err => console.warn("Failed to fetch Employee designation:", err));
+    }, [entry.user_email]);
+
     return (
         <div className="flex items-start gap-3 group">
             {/* Left column: dot + connector */}
@@ -152,8 +188,13 @@ const LogItem: React.FC<{ entry: ActivityLogEntry; isLast: boolean }> = ({
                         {initials}
                     </span>
                     <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate max-w-[130px]">
-                        {entry.user || entry.user_email}
+                        {fullName || entry.user || entry.user_email}
                     </span>
+                    {designation && (
+                        <span className="designation-text" style={{ display: "none" }}>
+                            {designation}
+                        </span>
+                    )}
                     <span className="text-xs text-zinc-500 dark:text-zinc-400">
                         {entry.label}
                     </span>
@@ -193,6 +234,9 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({
     docname,
     className,
     maxHeight = "400px",
+    fallbackOwner,
+    fallbackCreation,
+    fallbackOwnerName,
     onlyComments = false,
 }) => {
     const [entries, setEntries] = useState<ActivityLogEntry[]>([]);
@@ -200,7 +244,7 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({
     const [error, setError] = useState<string | null>(null);
     const abortRef = useRef<AbortController | null>(null);
 
-    const fetchLogs = (dt: string, dn: string, force = false) => {
+    const fetchLogs = (dt: string, dn: string, force = false, fOwner?: string, fCreation?: string, fOwnerName?: string) => {
         if (!dt || !dn) return;
 
         const key = cacheKey(dt, dn);
@@ -222,29 +266,100 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({
         setError(null);
 
         const params = new URLSearchParams({ doctype: dt, docname: dn });
-        const url = `/api/method/rndopsapp.rndopsapp.api.get_document_activity?${params}`;
+        const docActivityUrl = `/api/method/rndopsapp.rndopsapp.api.get_document_activity?${params}`;
+        const projActivityUrl = `/api/method/rndopsapp.rndopsapp.api.get_project_activity?${params}`;
 
-        fetch(url, {
-            method: "GET",
-            credentials: "include",
-            signal: controller.signal,
-        })
-            .then((res) => {
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                return res.json();
-            })
-            .then((json) => {
-                const rawEntries: ActivityLogEntry[] = (Array.isArray(json?.message)
-                    ? json.message
+        Promise.all([
+            fetch(docActivityUrl, { method: "GET", credentials: "include", signal: controller.signal }),
+            fetch(projActivityUrl, { method: "GET", credentials: "include", signal: controller.signal }).catch(() => null)
+        ])
+            .then(async ([docRes, projRes]) => {
+                if (!docRes.ok) throw new Error(`HTTP ${docRes.status}`);
+                const docJson = await docRes.json();
+                const projJson = projRes && projRes.ok ? await projRes.json() : { message: [] };
+
+                const docEntries: ActivityLogEntry[] = (Array.isArray(docJson?.message)
+                    ? docJson.message
                     : []
                 ).filter((e: ActivityLogEntry) => e.type !== "share" && e.type !== "unshare");
-                // Already in reverse-chronological order from API;
+
+                const commentEntries: ActivityLogEntry[] = (Array.isArray(projJson?.message) ? projJson.message : []).map((c: any) => ({
+                    type: "comment",
+                    label: "Added a comment",
+                    user: c.owner,
+                    user_email: c.owner,
+                    timestamp: c.creation,
+                    content: c.content
+                }));
+
+                const rawEntries: ActivityLogEntry[] = [...docEntries, ...commentEntries];
+                
+                // Deduplicate entries (both APIs might return the same comments/attachments)
+                const uniqueEntriesMap = new Map<string, ActivityLogEntry>();
+                rawEntries.forEach(entry => {
+                    // Strip HTML tags to ensure plain text and hyperlinked versions of the same text match
+                    const plainContent = (entry.content || "").replace(/<[^>]*>?/gm, "").trim().toLowerCase();
+                    const ts = entry.timestamp ? new Date(entry.timestamp).getTime() : 0;
+                    const userKey = (entry.user_email || entry.user || "").toLowerCase();
+                    // Real comments: key on user + text alone, ignoring timestamp entirely.
+                    // get_document_activity and get_project_activity can report the same
+                    // underlying comment with a couple seconds of timestamp drift between
+                    // them (different source fields), which slipped past the old 1-second
+                    // bucket and showed up as two rows with the same text and time in the
+                    // printed activity log. The same user posting identical text twice for
+                    // real is rare enough that collapsing it is the safer default.
+                    // System/workflow entries (no content) keep a timestamp bucket, widened
+                    // to 10s, since two distinct actions by the same user with no comment
+                    // are more plausible than two distinct real comments with identical text.
+                    const fuzzyTs = Math.floor(ts / 10000);
+                    const key = plainContent
+                        ? `c_${userKey}_${plainContent}`
+                        : `s_${fuzzyTs}_${userKey}_${entry.label}`;
+                    
+                    if (uniqueEntriesMap.has(key)) {
+                        const existing = uniqueEntriesMap.get(key)!;
+                        // Prefer the entry with a real name over an email address
+                        if (existing.user === existing.user_email && entry.user !== entry.user_email) {
+                            // If we replace, we might lose the HTML link if the new one doesn't have it.
+                            // Let's copy the content from the existing one if it has HTML and the new one doesn't.
+                            const hasHtml = /<[a-z][\s\S]*>/i.test(existing.content || "");
+                            if (hasHtml && !/<[a-z][\s\S]*>/i.test(entry.content || "")) {
+                                entry.content = existing.content;
+                            }
+                            uniqueEntriesMap.set(key, entry);
+                        } else if (/<[a-z][\s\S]*>/i.test(entry.content || "") && !/<[a-z][\s\S]*>/i.test(existing.content || "")) {
+                            // If we keep existing, but the new one has better HTML (like a link), update existing's content
+                            existing.content = entry.content;
+                        }
+                    } else {
+                        uniqueEntriesMap.set(key, entry);
+                    }
+                });
+
                 // Sort just in case, newest first
-                const sorted = [...rawEntries].sort(
+                let sorted = Array.from(uniqueEntriesMap.values()).sort(
                     (a, b) =>
                         new Date(b.timestamp).getTime() -
                         new Date(a.timestamp).getTime(),
                 );
+
+                // Inject fallback creation if not present
+                const hasCreation = sorted.some((e) => e.type === "creation");
+                if (!hasCreation && fOwner && fCreation) {
+                    sorted.push({
+                        type: "creation",
+                        label: "Submitted",
+                        user: fOwnerName || "",
+                        user_email: fOwner,
+                        timestamp: fCreation,
+                    });
+                    sorted.sort(
+                        (a, b) =>
+                            new Date(b.timestamp).getTime() -
+                            new Date(a.timestamp).getTime(),
+                    );
+                }
+
                 _cache.set(key, sorted);
                 setEntries(sorted);
                 setLoading(false);
@@ -257,16 +372,16 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({
     };
 
     useEffect(() => {
-        fetchLogs(doctype, docname);
+        fetchLogs(doctype, docname, false, fallbackOwner, fallbackCreation, fallbackOwnerName);
         return () => {
             abortRef.current?.abort();
         };
-    }, [doctype, docname]);
+    }, [doctype, docname, fallbackOwner, fallbackCreation, fallbackOwnerName]);
 
     const handleRefresh = () => {
         const key = cacheKey(doctype, docname);
         _cache.delete(key); // bust cache
-        fetchLogs(doctype, docname, true);
+        fetchLogs(doctype, docname, true, fallbackOwner, fallbackCreation, fallbackOwnerName);
     };
 
     // ── Render ──────────────────────────────────────────────────────────────

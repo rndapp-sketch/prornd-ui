@@ -1,43 +1,12 @@
 import tempTemplate from "@/pages/printformat/temporary_advance_format.html?raw";
 import { ToWords } from "to-words";
 
-import type { ActivityItem } from "@/utils/disbursalOfHonorariumPrint";
+// Activity Log will be generated inline via DOM scraping.
 
 // The .html?raw template is static text pulled in at build time, so it can't
 // reference import.meta.env itself; substitute the asset host here instead.
 const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.117.39";
 const ASSET_PORT = import.meta.env.VITE_ASSET_PORT || "8000";
-
-function buildActivityLogHtml(items: ActivityItem[]): string {
-    const filtered = (items || []).filter(
-        (c) =>
-            c.owner !== "Administrator" &&
-            (!c.comment_type || c.comment_type === "Comment"),
-    );
-
-    if (!filtered.length) {
-        return '<div class="activity-log"><em style="color:#888;font-size:12px;">No activity comments.</em></div>';
-    }
-
-    const entries = filtered
-        .map((c) => {
-            const dt = c.creation ? new Date(c.creation) : null;
-            const dateStr = dt
-                ? dt.toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" })
-                : "";
-            const timeStr = dt
-                ? dt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })
-                : "";
-            const plainContent = (c.content || "").replace(/<[^>]*>/g, "").trim();
-            return `<div class="activity-entry">
-            <div class="activity-meta"><strong>${c.owner}</strong>&nbsp;&middot;&nbsp;${dateStr}${timeStr ? ", " + timeStr : ""}</div>
-            <div class="activity-content">${plainContent}</div>
-        </div>`;
-        })
-        .join("");
-
-    return `<div class="activity-log">${entries}</div>`;
-}
 
 const toWords = new ToWords({ localeCode: "en-IN", converterOptions: { ignoreDecimal: false } });
 
@@ -61,7 +30,7 @@ export function generateTemporaryAdvanceHtml(
     resolvedProjectTitle: string,
     resolvedAccountHead: string,
     resolvedApplicantName = "",
-    activityItems: ActivityItem[] = [],
+    activityEl: HTMLElement | null = null,
 ): string {
     const creation = data.creation
         ? new Date(data.creation).toLocaleDateString("en-IN", {
@@ -91,10 +60,64 @@ export function generateTemporaryAdvanceHtml(
     }
 
     const indenterName = resolvedApplicantName || data.applicant_name || data.owner || "";
+    
+    let activityRows = "<tr><td colspan='3' style='text-align:center;color:#888;font-style:italic;'>No activity recorded.</td></tr>";
+    let activityCount = 0;
+
+    if (activityEl) {
+        const allItems = Array.from(activityEl.querySelectorAll(".flex.items-start"));
+        
+        const extracted = allItems.map((item) => {
+            const spans = item.querySelectorAll("span");
+            const rawName = spans[1]?.textContent?.trim() || "";
+            let name = rawName;
+            const designation = item.querySelector(".designation-text")?.textContent?.trim() || "";
+            if (designation) {
+                name = `${rawName} <br><span class="designation">(${designation})</span>`;
+            }
+            const timeRaw = item.querySelector("p.text-\\[11px\\]")?.textContent?.trim() || "";
+            let timeStr = timeRaw;
+            const parsedDt = new Date(timeRaw);
+            if (!isNaN(parsedDt.getTime())) {
+                const ds = parsedDt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+                const ts = parsedDt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+                timeStr = `${ds}, ${ts}`;
+            }
+            const content = item.querySelector(".prose")?.innerHTML?.trim() || spans[2]?.textContent?.trim() || "";
+            return { name, content, time: timeStr };
+        });
+
+        if (extracted.length > 0) {
+            activityRows = extracted.map(
+                (e) => `
+                    <tr>
+                        <td>${e.name}</td>
+                        <td>${e.content}</td>
+                        <td style="white-space:nowrap;">${e.time}</td>
+                    </tr>`
+            ).join("");
+            activityCount = extracted.length;
+        }
+    }
+    
+    const finalActivityHtml = `
+        <table class="activity-table">
+            <thead>
+                <tr>
+                    <th>Approver</th>
+                    <th>Comment</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${activityRows}
+            </tbody>
+        </table>`;
 
     const cleanHtml = tempTemplate
         .replace(/http:\/\/172\.16\.117\.39:8000/g, `http://${ASSET_HOST}:${ASSET_PORT}`)
         .replace("{{DOC_REF}}", data.name || "")
+        .replace("{{WORKFLOW_STATE}}", data.workflow_state || "")
         .replace("{{DATE}}", creation)
         .replace("{{PROJECT_CODE}}", data.project_code || "")
         .replace("{{ACCOUNT_HEAD}}", resolvedAccountHead || data.account_head || "")
@@ -113,7 +136,12 @@ export function generateTemporaryAdvanceHtml(
         .replace("{{ACCOUNT_NUMBER}}", data.bank_account_number || "-")
         .replace("{{IFSC_CODE}}", data.ifsc_code || "-")
         .replace("{{JUSTIFICATION}}", data.justification || data.reason || data.purpose || data.comments || "-")
-        .replace("{{ACTIVITY_LOG_SECTION}}", buildActivityLogHtml(activityItems));
+        .replace("{{ACTIVITY_COUNT}}", String(activityCount))
+        .replace("{{ACTIVITY_LOG_SECTION}}", finalActivityHtml)
+        .replace("{{CURRENT_TIME}}", new Date().toLocaleString("en-IN", {
+            day: "2-digit", month: "short", year: "numeric",
+            hour: "2-digit", minute: "2-digit", hour12: true
+        }));
 
     return cleanHtml;
 }

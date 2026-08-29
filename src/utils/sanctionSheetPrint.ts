@@ -97,6 +97,7 @@ export function generateSanctionSheetHtml(
         )
         .replace("{{DATE}}", creation)
         .replace("{{SS_APPLICANT_NAME}}", formData.ss_applicant_name || "")
+        .replace("{{SS_APPLICANT_EMAIL}}", formData.owner || "")
         .replace(
             "{{SS_YEAR_PERIOD}}",
             formData.ss_year_period_of_sanction || "",
