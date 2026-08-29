@@ -23,6 +23,7 @@ import { ActivityLog } from "@/components/ActivityLog";
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { P11PrintModal } from "@/components/P11PrintModal";
 import { generateAdvanceSettlementHtml } from "@/utils/advanceSettlementPrint";
+import { resolveDepartmentLabel } from "@/utils/resolveDepartmentLabel";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
 import { FIELD_CHAR_LIMITS } from "@/utils/fieldLimits";
 
@@ -336,8 +337,62 @@ const AdvanceSettlementDetails: React.FC = () => {
   }, []);
 
   // Load Project Budget Data
-  const projectTitle = data?.project_code || "";
-  const { budgetData, heads: budgetHeads } = useProjectBudget(projectTitle);
+  const budgetProjectCode = data?.project_code || "";
+  const { budgetData, heads: budgetHeads } = useProjectBudget(budgetProjectCode);
+
+  // Print-only: resolve a human-readable project title, applicant name, department, and
+  // designation from the linked Project Registration/Proposal — Advance Settlement's own
+  // doc only carries the project code and the applicant's webmail, so without this the
+  // printed form shows the raw code as the title and "-" for department/designation.
+  const [projectTitle, setProjectTitle] = useState<string>("");
+  const [resolvedApplicantName, setResolvedApplicantName] = useState<string>("");
+  const [resolvedApplicantDept, setResolvedApplicantDept] = useState<string>("");
+  const [resolvedApplicantDesig, setResolvedApplicantDesig] = useState<string>("");
+
+  useEffect(() => {
+    const codeToResolve = data?.project_code;
+    if (!codeToResolve) return;
+    (async () => {
+      const doctypes = ["Project Registration", "Project Proposal"];
+      for (const doctype of doctypes) {
+        try {
+          const r1 = await fetch(
+            `/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(codeToResolve)}`,
+            { credentials: "include" }
+          );
+          if (r1.ok) {
+            const json1 = await r1.json();
+            const title1 = json1?.data?.project_title || json1?.data?.title || "";
+            if (json1?.data?.principal_investigator_name) setResolvedApplicantName(json1.data.principal_investigator_name);
+            if (json1?.data?.applicant_department) resolveDepartmentLabel(json1.data.applicant_department).then(setResolvedApplicantDept);
+            if (json1?.data?.designation) setResolvedApplicantDesig(json1.data.designation);
+
+            if (title1 && title1 !== codeToResolve) { setProjectTitle(title1); return; }
+          }
+        } catch { /* ignore */ }
+        try {
+          const r2 = await fetch("/api/method/frappe.client.get_list", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ doctype, filters: { project_no: codeToResolve }, fields: ["project_title", "principal_investigator_name", "applicant_department", "designation"], limit_page_length: 1 }),
+          });
+          if (r2.ok) {
+            const json2 = await r2.json();
+            const title2 = json2?.message?.[0]?.project_title || "";
+            const piName = json2?.message?.[0]?.principal_investigator_name;
+            const piDept = json2?.message?.[0]?.applicant_department;
+            const piDesig = json2?.message?.[0]?.designation;
+            if (piName) setResolvedApplicantName(piName);
+            if (piDept) resolveDepartmentLabel(piDept).then(setResolvedApplicantDept);
+            if (piDesig) setResolvedApplicantDesig(piDesig);
+            if (title2) { setProjectTitle(title2); return; }
+          }
+        } catch { /* ignore */ }
+      }
+      setProjectTitle(data?.project_code || "");
+    })();
+  }, [data?.project_code]);
 
   // Auto-select head/amount if already committed
   const linkedCommitment = budgetData.find(
@@ -753,10 +808,14 @@ const AdvanceSettlementDetails: React.FC = () => {
         onClose={() => setIsPrintModalOpen(false)}
         title={`Advance Settlement - ${data.name}`}
         htmlContent={isPrintModalOpen && data ? generateAdvanceSettlementHtml(
-          data,
+          {
+            ...data,
+            applicant_department: resolvedApplicantDept || "-",
+            applicant_designation: resolvedApplicantDesig || "-",
+          },
           projectTitle || data.project_name || "",
           budgetHeadName || data.account_head || "",
-          data.owner || "",
+          resolvedApplicantName || data.owner || "",
           activityLogContainerRef.current
         ) : ""}
       />
