@@ -202,8 +202,9 @@ function buildDeclarationsBlock(fields: FormFieldMeta[], data: Record<string, an
         </div>`;
     }).join("");
 
+    // No heading here — the caller (buildSectionsHtml) already renders the section's
+    // own heading (its real title, e.g. "Declaration") right before this block.
     return `
-        <div class="section-heading">Declaration</div>
         <div style="border:1px solid #ddd;border-radius:3px;padding:8px 10px;background:#fafafa;page-break-inside:avoid;">
             ${items}
         </div>`;
@@ -306,7 +307,20 @@ function buildSectionsHtml(fields: FormFieldMeta[], data: Record<string, any>, l
     }).join("\n");
 }
 
-function buildActivityLogHtml(activityEl: HTMLElement | null): string {
+function buildActivityLogHtml(activity: HTMLElement | string | null): string {
+    // Pages without a live, always-mounted <ActivityLog> element to scrape (e.g. the
+    // approval/review view in PendingTaskDetails.tsx) pre-fetch the activity log
+    // straight from the backend instead and pass the finished HTML in as a string.
+    if (typeof activity === "string") {
+        return activity || `
+        <div class="section-heading">Activity Log</div>
+        <table class="activity-table">
+            <thead><tr><th>Approver</th><th>Comment</th><th>Time</th></tr></thead>
+            <tbody><tr><td colspan="3" style="text-align:center;color:#888;font-style:italic;">No activity recorded.</td></tr></tbody>
+        </table>`;
+    }
+
+    const activityEl = activity;
     let activityRows = "<tr><td colspan='3' style='text-align:center;color:#888;font-style:italic;'>No activity recorded.</td></tr>";
 
     if (activityEl) {
@@ -395,7 +409,7 @@ export function generateRecruitmentAdhocContractualHtml(
     data: Record<string, any>,
     fields: FormFieldMeta[] = [],
     linkOptions: Record<string, any[]> = {},
-    activityEl: HTMLElement | null = null,
+    activity: HTMLElement | string | null = null,
 ): string {
     let sectionsHtml = buildSectionsHtml(fields, data, linkOptions);
 
@@ -412,7 +426,7 @@ export function generateRecruitmentAdhocContractualHtml(
         sectionsHtml += arrayTables;
     }
 
-    const activityHtml = buildActivityLogHtml(activityEl);
+    const activityHtml = buildActivityLogHtml(activity);
     const attachmentsHtml = buildAttachmentsHtml(data);
 
     return racTemplate

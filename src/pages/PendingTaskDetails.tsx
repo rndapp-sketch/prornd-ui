@@ -65,6 +65,7 @@ import TADASettlementActionButtons from "@/components/TADASettlementActionButton
 import LeaveModuleActionButtons from "@/components/LeaveModuleActionButtons";
 import { generateTemporaryAdvanceHtml } from "@/utils/temporaryAdvancePrint";
 import { generateRecruitmentAdhocContractualHtml } from "@/utils/recruitmentAdhocContractualPrint";
+import { fetchActivityLogHtml } from "@/utils/fetchActivityLogHtml";
 import { P11PrintModal } from "@/components/P11PrintModal";
 import { useUserRoles } from "@/components/UserRole";
 import { POEditor } from "@/components/POEditor";
@@ -3151,6 +3152,7 @@ const PendingTaskDetails: React.FC = () => {
     };
 
     const [isRecruitmentPrintOpen, setIsRecruitmentPrintOpen] = useState(false);
+    const [recruitmentActivityHtml, setRecruitmentActivityHtml] = useState("");
 
     // Helper to resolve Linked fields to readable names
     const resolveLinkFields = async (
@@ -3885,7 +3887,12 @@ const PendingTaskDetails: React.FC = () => {
                     {doctype === "Recruitment Adhoc Contractual" && name && !cancellationStatus?.message?.has_pending && (
                         <div className="flex items-center gap-3">
                             <button
-                                onClick={() => setIsRecruitmentPrintOpen(true)}
+                                onClick={() => {
+                                    setIsRecruitmentPrintOpen(true);
+                                    if (name) {
+                                        fetchActivityLogHtml("Recruitment Adhoc Contractual", name).then(setRecruitmentActivityHtml);
+                                    }
+                                }}
                                 className="inline-flex items-center justify-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-700 shadow-sm transition-all"
                                 title="Print Recruitment Adhoc Contractual"
                             >
@@ -5006,7 +5013,7 @@ const PendingTaskDetails: React.FC = () => {
                     docName={name || "Draft"}
                     htmlContent={
                         isRecruitmentPrintOpen
-                            ? generateRecruitmentAdhocContractualHtml(displayData, recruitmentFields, recruitmentLinkOptions)
+                            ? generateRecruitmentAdhocContractualHtml(displayData, recruitmentFields, recruitmentLinkOptions, recruitmentActivityHtml)
                             : ""
                     }
                 />
