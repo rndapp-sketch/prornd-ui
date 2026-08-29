@@ -219,10 +219,31 @@ export function generateIcssHtml(
         .map((k) => [k, data[k]]);
 
 
+    // A label this long (a full question, e.g. "Whether The Services Rendered During
+    // The Previous Year Have Been Satisfactory Or Not") wraps across many lines when
+    // squeezed into the 20%-wide label column, making that one row tall enough that
+    // page-break-inside:avoid pushes it whole onto the next page — leaving a large
+    // blank gap at the bottom of the previous one. Long-label fields get their own
+    // full-width row (label above value) instead of being paired into two columns.
+    const LONG_LABEL_THRESHOLD = 32;
+    const isLongLabelField = (k: string): boolean => fmtLabel(k, domLabelMap).length > LONG_LABEL_THRESHOLD;
+
     let infoRows = "";
-    for (let i = 0; i < infoEntries.length; i += 2) {
+    let i = 0;
+    while (i < infoEntries.length) {
         const [k1, v1] = infoEntries[i];
-        const pair = infoEntries[i + 1];
+        if (isLongLabelField(k1)) {
+            infoRows += `<tr>
+                <td class="lbl" colspan="4">
+                    <div>${fmtLabel(k1, domLabelMap)}</div>
+                    <div style="font-weight:normal;margin-top:3px;">${fmtValue(k1, v1, data, domDisplayMap, linkOptions, domLabelMap)}</div>
+                </td>
+            </tr>\n`;
+            i += 1;
+            continue;
+        }
+
+        const pair = infoEntries[i + 1] && !isLongLabelField(infoEntries[i + 1][0]) ? infoEntries[i + 1] : null;
         infoRows += `<tr>
             <td class="lbl">${fmtLabel(k1, domLabelMap)}</td>
             <td class="val">${fmtValue(k1, v1, data, domDisplayMap, linkOptions, domLabelMap)}</td>
@@ -231,6 +252,7 @@ export function generateIcssHtml(
                 : `<td></td><td></td>`
             }
         </tr>\n`;
+        i += pair ? 2 : 1;
     }
 
     const itemsTableField = Object.keys(data).find(k => Array.isArray(data[k]) && data[k].length > 0 && typeof data[k][0] === "object" && (k.startsWith("table_") || ["details_of_items_to_be_purchased", "items", "icss_items", "rate_contract_items"].includes(k)));
