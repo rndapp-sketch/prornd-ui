@@ -64,6 +64,7 @@ import TemporaryAdvanceActionButtons from "@/components/TemporaryAdvanceActionBu
 import TADASettlementActionButtons from "@/components/TADASettlementActionButtons";
 import LeaveModuleActionButtons from "@/components/LeaveModuleActionButtons";
 import { generateTemporaryAdvanceHtml } from "@/utils/temporaryAdvancePrint";
+import { generateRecruitmentAdhocContractualHtml } from "@/utils/recruitmentAdhocContractualPrint";
 import { useUserRoles } from "@/components/UserRole";
 import { POEditor } from "@/components/POEditor";
 import { DeclarationFields } from "@/components/DeclarationFields";
@@ -3148,6 +3149,19 @@ const PendingTaskDetails: React.FC = () => {
         }
     };
 
+    const handlePrintRecruitmentAdhocContractual = () => {
+        if (!displayData) return;
+        const html = generateRecruitmentAdhocContractualHtml(displayData, recruitmentFields, recruitmentLinkOptions);
+        const printWindow = window.open("", "_blank");
+        if (printWindow) {
+            printWindow.document.write(html);
+            printWindow.document.close();
+            setTimeout(() => {
+                printWindow.print();
+            }, 500);
+        }
+    };
+
     // Helper to resolve Linked fields to readable names
     const resolveLinkFields = async (
         fields: FormField[],
@@ -3879,11 +3893,21 @@ const PendingTaskDetails: React.FC = () => {
                         />
                     )}
                     {doctype === "Recruitment Adhoc Contractual" && name && !cancellationStatus?.message?.has_pending && (
-                        <RecruitmentAdhocContractualWorkflowActions
-                            docname={name}
-                            onActionComplete={() => window.location.reload()}
-                            commitRequired={isRnDStaff && isCommittedForGate === false}
-                        />
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={handlePrintRecruitmentAdhocContractual}
+                                className="inline-flex items-center justify-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-700 shadow-sm transition-all"
+                                title="Print Recruitment Adhoc Contractual"
+                            >
+                                <Printer className="h-4 w-4" />
+                                Print
+                            </button>
+                            <RecruitmentAdhocContractualWorkflowActions
+                                docname={name}
+                                onActionComplete={() => window.location.reload()}
+                                commitRequired={isRnDStaff && isCommittedForGate === false}
+                            />
+                        </div>
                     )}
                     {doctype === "Top Up Fellowship" && name && (
                         <TopUpFellowshipWorkflowActions
