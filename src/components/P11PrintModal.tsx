@@ -213,7 +213,6 @@ export const P11PrintModal = ({
                 <iframe
                     ref={iframeRef}
                     src={blobUrl}
-                    sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-modals allow-downloads allow-top-navigation-by-user-activation"
                     className="w-full h-full border-0"
                     title="P-11 Print Preview"
                 />
