@@ -12,7 +12,7 @@ import { BudgetHeadName } from "@/components/BudgetHeadName";
 import { AutocompleteEmail } from "@/components/AutocompleteEmail";
 import { getFileUrl } from "@/utils/fileUtils";
 import { CountrySelect } from "@/components/CountrySelect";
-import { getFieldMaxLength, getWarnableMaxLength, INT_MAX_LENGTH, CURRENCY_MAX_LENGTH } from "@/utils/fieldLimits";
+import { getFieldMaxLength, getWarnableMaxLength, INT_MAX_LENGTH, CURRENCY_MAX_LENGTH, PERCENT_MAX_LENGTH } from "@/utils/fieldLimits";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
 
 // --- TYPE DEFINITIONS ---
@@ -497,6 +497,44 @@ const MemoizedFormField = memo(
                 }
               }}
             />
+          );
+
+        case "Percent":
+          return (
+            <div className="relative">
+              <input
+                type="text"
+                inputMode="decimal"
+                title="Enter a percentage between 0 and 100"
+                {...commonProps}
+                maxLength={PERCENT_MAX_LENGTH}
+                className={cn(commonProps.className, "pr-7")}
+                value={String(value ?? "")}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (
+                    val === "" ||
+                    (/^\d{0,3}(\.\d{0,2})?$/.test(val) &&
+                      (val === "" || parseFloat(val) <= 100))
+                  ) {
+                    handleChange(field.fieldname, val);
+                  }
+                }}
+                onBlur={(e) => {
+                  const val = e.target.value;
+                  if (val !== "") {
+                    const numVal = parseFloat(val);
+                    handleChange(
+                      field.fieldname,
+                      isNaN(numVal) ? 0 : Math.min(100, Math.round(numVal * 100) / 100),
+                    );
+                  }
+                }}
+              />
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[13px] font-semibold text-zinc-400 dark:text-zinc-500">
+                %
+              </span>
+            </div>
           );
 
         case "Check":

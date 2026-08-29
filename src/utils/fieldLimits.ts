@@ -23,6 +23,10 @@ export const INT_MAX_LENGTH = 10;
 // Currency column is DECIMAL(21,9) — 21 digits total plus a decimal point.
 export const CURRENCY_MAX_LENGTH = 22;
 
+// Percent is a 0–100 value (validated in the input handler); "100.00" plus
+// a little headroom while typing.
+export const PERCENT_MAX_LENGTH = 6;
+
 export const getFieldMaxLength = (fieldtype: string): number | undefined =>
   FIELD_CHAR_LIMITS[fieldtype];
 
@@ -32,6 +36,7 @@ export const getFieldMaxLength = (fieldtype: string): number | undefined =>
 export const getEffectiveMaxLength = (fieldtype: string): number | undefined => {
   if (fieldtype === "Int") return INT_MAX_LENGTH;
   if (fieldtype === "Currency") return CURRENCY_MAX_LENGTH;
+  if (fieldtype === "Percent") return PERCENT_MAX_LENGTH;
   return FIELD_CHAR_LIMITS[fieldtype];
 };
 
