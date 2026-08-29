@@ -225,7 +225,7 @@ export function generateIcssHtml(
     // page-break-inside:avoid pushes it whole onto the next page — leaving a large
     // blank gap at the bottom of the previous one. Long-label fields get their own
     // full-width row (label above value) instead of being paired into two columns.
-    const LONG_LABEL_THRESHOLD = 32;
+    const LONG_LABEL_THRESHOLD = 60;
     const isLongLabelField = (k: string): boolean => fmtLabel(k, domLabelMap).length > LONG_LABEL_THRESHOLD;
 
     let infoRows = "";
