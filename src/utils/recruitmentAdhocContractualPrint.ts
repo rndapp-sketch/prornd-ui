@@ -104,11 +104,12 @@ function fmtFieldValue(field: FormFieldMeta, rawVal: any, data: Record<string, a
             return fmtDateShort(rawVal);
         case "Datetime":
             return rawVal ? fmtDateShort(String(rawVal).split(" ")[0]) : "—";
-        case "Link":
-        case "Select":
-            return resolveLinkLabel(field, rawVal, data, linkOptions);
         default:
-            return esc(rawVal);
+            // Attempt link-style resolution for every remaining field, not just ones
+            // schema-tagged as "Link"/"Select" — some Department/Account Head-style
+            // fields carry a linked doctype's raw id while being exposed as a plain
+            // Data/Select fieldtype, and only resolve via the same options merge.
+            return resolveLinkLabel(field, rawVal, data, linkOptions);
     }
 }
 
@@ -117,18 +118,33 @@ const CHILD_SKIP_KEYS = new Set([
     "parenttype", "idx", "docstatus", "doctype",
 ]);
 
+const LONG_TEXT_FIELDTYPES = new Set(["Text", "Small Text", "Text Editor", "Long Text", "Code", "Markdown Editor", "HTML Editor"]);
+const LONG_TEXT_NAME_HINT = /description|justification|qualification|remarks|notes|comment/i;
+const CHECKBOX_NAME_HINT = /^is_|^has_|required|medical/i;
+
 function buildChildTable(title: string, rows: any[], meta?: FormFieldMeta): string {
     if (!rows || rows.length === 0) return "";
 
-    let columns: { fieldname: string; label: string }[];
+    let allColumns: { fieldname: string; label: string; fieldtype?: string }[];
     if (meta?.child_fields?.length) {
-        columns = meta.child_fields
+        allColumns = meta.child_fields
             .filter((cf) => !["Section Break", "Column Break", "HTML"].includes(cf.fieldtype || "") && !CHILD_SKIP_KEYS.has(cf.fieldname))
-            .map((cf) => ({ fieldname: cf.fieldname, label: cf.label || fmtLabelFallback(cf.fieldname) }));
+            .map((cf) => ({ fieldname: cf.fieldname, label: cf.label || fmtLabelFallback(cf.fieldname), fieldtype: cf.fieldtype }));
     } else {
         const keys = Object.keys(rows[0]).filter((k) => !CHILD_SKIP_KEYS.has(k) && !k.startsWith("_"));
-        columns = keys.map((k) => ({ fieldname: k, label: fmtLabelFallback(k) }));
+        allColumns = keys.map((k) => ({ fieldname: k, label: fmtLabelFallback(k) }));
     }
+    if (allColumns.length === 0) return "";
+
+    // Long free-text columns (qualification, justification, description...) wreck a
+    // tabular layout when squeezed into narrow columns — pull them out into a note
+    // block under each row instead, the same way icssPrint.ts handles item descriptions.
+    const isLongText = (c: { fieldname: string; fieldtype?: string }) =>
+        (c.fieldtype && LONG_TEXT_FIELDTYPES.has(c.fieldtype)) || LONG_TEXT_NAME_HINT.test(c.fieldname);
+
+    const columns = allColumns.filter((c) => !isLongText(c));
+    const noteColumns = allColumns.filter(isLongText);
+
     if (columns.length === 0) return "";
 
     const headerCells = columns.map((c) => `<th>${esc(c.label)}</th>`).join("");
@@ -136,20 +152,38 @@ function buildChildTable(title: string, rows: any[], meta?: FormFieldMeta): stri
         const cells = columns.map((c) => {
             const v = row[c.fieldname];
             if (v === null || v === undefined || v === "") return `<td>—</td>`;
-            if (typeof v === "boolean" || v === 0 || v === 1) {
-                // Ambiguous 0/1 — only render as Yes/No if the column name suggests a checkbox.
-                if (/^(is_|has_|required|medical)/i.test(c.fieldname)) return `<td class="center">${v ? "Yes" : "No"}</td>`;
+            if (c.fieldtype === "Check" || v === true || v === false) {
+                return `<td class="center">${(v === true || v === 1 || v === "1") ? "Yes" : "No"}</td>`;
             }
-            if (typeof v === "number") return `<td class="right">${fmtNum(v)}</td>`;
+            if ((v === 0 || v === 1) && CHECKBOX_NAME_HINT.test(c.fieldname)) {
+                return `<td class="center">${v ? "Yes" : "No"}</td>`;
+            }
+            if (typeof v === "number") {
+                if (c.fieldtype === "Int") return `<td class="right">${v}</td>`;
+                return `<td class="right">${fmtNum(v)}</td>`;
+            }
             return `<td>${esc(v)}</td>`;
         }).join("");
-        return `<tr><td class="center">${i + 1}</td>${cells}</tr>`;
+
+        let noteRow = "";
+        if (noteColumns.length) {
+            const notes = noteColumns
+                .map((c) => ({ c, v: row[c.fieldname] }))
+                .filter(({ v }) => v !== null && v !== undefined && String(v).trim() !== "")
+                .map(({ c, v }) => `<div style="margin-top:3px;"><b>${esc(c.label)}:</b> ${esc(v).replace(/\n/g, "<br>")}</div>`)
+                .join("");
+            if (notes) {
+                noteRow = `<tr><td></td><td colspan="${columns.length}" style="font-size:8.5pt;color:#333;background:#fafafa;">${notes}</td></tr>`;
+            }
+        }
+
+        return `<tr><td class="center">${i + 1}</td>${cells}</tr>${noteRow}`;
     }).join("");
 
     return `
         <div class="section-heading">${esc(title)}</div>
         <table class="item-table">
-            <thead><tr><th style="width:5%;">#</th>${headerCells}</tr></thead>
+            <thead><tr><th style="width:4%;">#</th>${headerCells}</tr></thead>
             <tbody>${bodyRows}</tbody>
         </table>`;
 }
@@ -224,8 +258,15 @@ function buildSectionsHtml(fields: FormFieldMeta[], data: Record<string, any>, l
 
     for (const f of fields) {
         if (f.fieldtype === "Section Break") {
-            pushCurrent();
-            current = { title: f.label || "Details", scalar: [], checks: [], tables: [] };
+            // An unlabeled break is a pure layout hint (e.g. separating a bare
+            // grid of fields that isn't wrapped in its own card on screen) —
+            // starting a new section for it would produce a spurious repeated
+            // "Details" heading, so fields just keep accumulating into the
+            // current section instead.
+            if (f.label) {
+                pushCurrent();
+                current = { title: f.label, scalar: [], checks: [], tables: [] };
+            }
             continue;
         }
         if (f.fieldtype === "Column Break") continue;
