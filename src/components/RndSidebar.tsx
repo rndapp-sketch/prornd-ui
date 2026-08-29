@@ -490,8 +490,14 @@ export function AppSidebar() {
                 undefined, // No data to update
                 { revalidate: false }, // Do not revalidate
             );
+            localStorage.removeItem("prornd_last_user");
             navigate("/login", { replace: true });
-            window.location.href = "/login";
+            // Hard reload for a clean slate (fresh Frappe session/socket state) — must
+            // use the configured base path, not a bare "/login": under a non-root base
+            // (e.g. /dev/), an unprefixed absolute path is outside the SPA's mount
+            // point and the backend/proxy won't resolve it to the login page, so this
+            // used to silently strand the user instead of logging them out.
+            window.location.href = `${import.meta.env.BASE_URL}login`;
             setIsLoggingOut(false);
         }
     };

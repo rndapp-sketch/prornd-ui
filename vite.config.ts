@@ -30,11 +30,9 @@ function creditBannerPlugin(): Plugin {
 }
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
-    // Nginx fronts the dev server at http://<host>:8081/dev/ (confirmed real usage:
-    // http://172.16.135.118:8081/dev/dashboard), so dev-mode asset/HMR requests need
-    // the /dev/ prefix. Production keeps the default root base, unchanged.
-    base: mode === 'development' ? '/dev/' : '/',
+export default defineConfig(() => ({
+    // Root base for both dev and prod — no /dev/ nginx-prefix special-casing.
+    base: '/',
     define: {
         // `define` substitutes this identifier with raw source code, not an
         // auto-quoted value — so the object must be JSON.stringify'd twice:

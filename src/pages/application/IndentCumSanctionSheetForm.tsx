@@ -3101,19 +3101,29 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       if (
         [
           "basic_value_bv_of_the_po",
+          "amc_value_type",
           "amc_value",
+          "amc_value_percentage",
+          "amc_computed_value",
           "amc_other_charges",
           "amc_gst",
           "amc_grand_total",
         ].some((fieldname) => fieldname in next)
       ) {
         const basicValue = toNumber(next.basic_value_bv_of_the_po);
-        const amcPercent = toNumber(next.amc_value);
-        const amcValueAmount = (basicValue * amcPercent) / 100;
-        const subtotal = amcValueAmount + toNumber(next.amc_other_charges);
-        const gstAmount = (subtotal * toNumber(next.amc_gst)) / 100;
-        const grandTotal = roundCurrency(subtotal + gstAmount);
+        const isPercentage = next.amc_value_type === "Percentage";
+        const computedValue = roundCurrency(
+          isPercentage
+            ? (basicValue * toNumber(next.amc_value_percentage)) / 100
+            : toNumber(next.amc_value),
+        );
+        const grandTotal = roundCurrency(
+          computedValue +
+          toNumber(next.amc_other_charges) +
+          toNumber(next.amc_gst),
+        );
 
+        next.amc_computed_value = computedValue;
         next.amc_grand_total = grandTotal;
         next.grand_total_in_words = convertAmountToWords(grandTotal);
         next.amount_in_words = convertAmountToWords(grandTotal);
