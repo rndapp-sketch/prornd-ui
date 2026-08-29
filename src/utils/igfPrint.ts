@@ -1,4 +1,5 @@
 import igfTemplate from "@/pages/printformat/igf_format.html?raw";
+import { getFileUrl } from "@/utils/fileUtils";
 
 // The .html?raw template is static text pulled in at build time, so it can't
 // reference import.meta.env itself; substitute the asset host here instead.
@@ -223,11 +224,7 @@ export function generateIgfPrintHtml(
     let attachmentsHtml = "";
     if (attachments.length > 0) {
         const attachmentRows = attachments.map((att) => {
-            const proxyUrl = att.url.startsWith("/files/")
-                ? `/prod-rnd-files${att.url}`
-                : att.url.startsWith("http")
-                    ? att.url
-                    : `/prod-rnd-files${att.url}`;
+            const proxyUrl = getFileUrl(att.url);
             // onclick: open file in new tab — user can Ctrl+P from there
             return `
             <tr style="border-bottom: 1px solid #e2e8f0;">
