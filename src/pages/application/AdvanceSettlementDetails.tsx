@@ -6,7 +6,7 @@ import {
   FileTextIcon,
   CalendarIcon,
   UserIcon,
-  DownloadIcon,
+  PrinterIcon,
   IndianRupeeIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -19,7 +19,10 @@ import { Wallet as WalletIcon, CheckCircle2 } from "lucide-react";
 import { DeclarationFields } from "@/components/DeclarationFields";
 import { CommitPayment } from "@/components/CommitPayment";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
+import { ActivityLog } from "@/components/ActivityLog";
 import ViewProjectButton from "@/components/ViewProjectButton";
+import { P11PrintModal } from "@/components/P11PrintModal";
+import { generateAdvanceSettlementHtml } from "@/utils/advanceSettlementPrint";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
 import { FIELD_CHAR_LIMITS } from "@/utils/fieldLimits";
 
@@ -271,6 +274,8 @@ const AdvanceSettlementDetails: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const activityLogContainerRef = React.useRef<HTMLDivElement>(null);
 
   const { call: fetchDoc } = useFrappePostCall<{
     message: AdvanceSettlementData;
@@ -448,163 +453,11 @@ const AdvanceSettlementDetails: React.FC = () => {
     });
   };
 
-  // Generate HTML for download/print
-  const generateDownloadHTML = () => {
-    if (!data) return "";
-
-    const now = new Date();
-    const formattedDate = now.toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-    const formattedTime = now.toLocaleTimeString("en-IN", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-
-    const displayStatus =
-      data.workflow_state || (data.docstatus === 1 ? "Submitted" : "Draft");
-
-    // Generate expenditure rows
-    const expenditureRows =
-      data.expenditure_details
-        ?.map(
-          (item: any, index: number) => `
-            <tr>
-                <td style="text-align: center;">${index + 1}</td>
-                <td>${item.expenditure_date ? new Date(item.expenditure_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "-"}</td>
-                <td>${item.description || item.particulars || "-"}</td>
-                <td style="text-align: center;">${(parseFloat(item.amount || item.amount_in_rs) || 0).toLocaleString("en-IN")}</td>
-            </tr>
-        `,
-        )
-        .join("") ||
-      '<tr><td colspan="4" style="text-align: center;">No items</td></tr>';
-
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advance Settlement - ${data.name}</title>
-    <style>
-        @page { size: A4; margin: 10mm; }
-        * { box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; font-size: 11px; line-height: 1.3; color: #333; margin: 0; padding: 10px; background-color: #f0f0f0; }
-        .page { width: 190mm; max-width: 100%; margin: 0 auto; background-color: white; padding: 15px 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); position: relative; min-height: 277mm; }
-        .top-meta { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 8px; color: #666; }
-        .header-box { border: 1px solid #000; padding: 8px 12px; display: flex; align-items: center; margin-bottom: 8px; }
-        .logo-img { width: 60px; height: 60px; margin-right: 15px; object-fit: contain; }
-        .header-text h1 { margin: 0; font-size: 16px; color: #2d3e8b; text-transform: uppercase; }
-        .header-text h2 { margin: 0; font-size: 14px; color: #2d3e8b; }
-        .header-text p { margin: 2px 0 0; font-weight: bold; font-size: 11px; }
-        .barcode-container { margin-top: 5px; text-align: left; font-size: 10px; }
-        .barcode { width: 150px; height: 25px; background: linear-gradient(90deg, #000 2%, transparent 2%, transparent 4%, #000 4%, #000 5%, transparent 5%, transparent 7%, #000 7%, #000 10%, transparent 10%, transparent 12%, #000 12%, #000 13%, transparent 13%, transparent 15%, #000 15%); background-size: 15px 100%; }
-        .date-line { text-align: right; margin-bottom: 10px; font-size: 11px; }
-        h2.main-title { text-align: center; font-weight: normal; font-size: 16px; margin: 10px 0 15px; }
-        .details-grid { display: flex; gap: 20px; margin-bottom: 10px; }
-        .details-section { flex: 1; }
-        .section-header { border: 1px solid #000; text-align: center; font-weight: bold; padding: 4px; margin-bottom: 6px; background-color: #f5f5f5; font-size: 11px; }
-        .info-row { display: flex; margin-bottom: 6px; font-size: 10px; }
-        .info-label { width: 110px; font-weight: normal; color: #555; }
-        .info-value { flex: 1; font-weight: 500; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10px; }
-        th, td { border: 1px solid #000; padding: 5px; text-align: left; vertical-align: top; }
-        th { background-color: #f5f5f5; text-align: center; font-size: 10px; }
-        .footer-info { margin-top: 15px; font-size: 10px; }
-        .footer-info p { margin: 3px 0; }
-        .bottom-meta { position: absolute; bottom: 8px; left: 20px; right: 20px; display: flex; justify-content: space-between; font-size: 9px; border-top: 1px solid #ddd; padding-top: 4px; color: #666; }
-        @media print {
-            body { background: none; padding: 0; }
-            .page { box-shadow: none; margin: 0; width: 100%; min-height: auto; padding: 10mm; }
-        }
-    </style>
-</head>
-<body>
-<div class="page">
-    <div class="top-meta">
-        <span>${data.name}</span>
-        <span>https://rndops.iitg.ac.in</span>
-    </div>
-
-    <div class="header-box">
-        <img src="http://${import.meta.env.VITE_ASSET_HOST || '172.16.117.39'}:${import.meta.env.VITE_ASSET_PORT || '8000'}/files/IITG_logo.png" alt="IITG Logo" class="logo-img" />
-        <div class="header-text">
-            <h1>भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</h1>
-            <h2>INDIAN INSTITUTE OF TECHNOLOGY GUWAHATI</h2>
-            <p>RESEARCH AND DEVELOPMENT CELL</p>
-        </div>
-    </div>
-
-    <div class="barcode-container">
-        <div class="barcode"></div>
-        <div>${data.name}</div>
-    </div>
-
-    <div class="date-line">Date: ${formattedDate}</div>
-
-    <h2 class="main-title">Advance Settlement</h2>
-
-    <div class="details-grid">
-        <div class="details-section">
-            <div class="section-header">Project Details</div>
-            <div class="info-row"><div class="info-label">Project Name:</div><div class="info-value">${data.project_name || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Project Code:</div><div class="info-value">${data.project_code || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Budget Head:</div><div class="info-value">${budgetHeadName || data.account_head || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Reference Advance:</div><div class="info-value">${data.temporary_advance_application || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Account Name:</div><div class="info-value">${data.bank_account_holders_name || "-"}</div></div>
-             <div class="info-row"><div class="info-label">Account No:</div><div class="info-value">${data.bank_account_number || "-"}</div></div>
-        </div>
-    </div>
-
-    <div style="margin-top: 15px; margin-bottom: 15px; border-top: 1px dashed #ccc;"></div>
-
-    <h3 style="text-align: center; margin-top: 10px;">Expenditure Details</h3>
-
-    <table>
-        <thead>
-            <tr>
-                <th>Sl No.</th>
-                <th>Date</th>
-                <th>Particulars</th>
-                <th>Amount (Rs.)</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${expenditureRows}
-            <tr style="font-weight: bold; background-color: #f9f9f9;">
-                <td colspan="3" style="text-align: right;">Total</td>
-                <td style="text-align: center;">${(data.total_amount || 0).toLocaleString("en-IN")}</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <div class="footer-info">
-        <p>Application Status: ${displayStatus}</p>
-        <p style="margin-top: 20px;">N.B. This is a system generated form. Signature is not required.</p>
-    </div>
-
-    <div class="bottom-meta">
-        <span>1 of 1</span>
-        <span>${formattedDate}, ${formattedTime}</span>
-    </div>
-</div>
-</body>
-</html>`;
-  };
+  // Generate HTML for download/print removed, handled externally by
+  // generateAdvanceSettlementHtml() via the shared P11PrintModal (see below).
 
   const handleDownload = () => {
-    const htmlContent = generateDownloadHTML();
-    const printWindow = window.open("", "_blank");
-    if (printWindow) {
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
-      setTimeout(() => {
-        printWindow.print();
-      }, 500);
-    }
+    setIsPrintModalOpen(true);
   };
 
   if (loading) {
@@ -691,14 +544,15 @@ const AdvanceSettlementDetails: React.FC = () => {
               </FrappeButton>
             )}
 
-            {/* Download button - always visible */}
-            <FrappeButton
-              variant="outline"
+            {/* Print / PDF button - always visible */}
+            <button
               onClick={handleDownload}
-              className="px-3"
+              className="inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 shadow-sm transition-colors"
+              title="Print / PDF"
             >
-              <DownloadIcon className="w-4 h-4" />
-            </FrappeButton>
+              <PrinterIcon className="w-3.5 h-3.5" />
+              Print / PDF
+            </button>
           </div>
         </PageHeader>
 
@@ -889,6 +743,23 @@ const AdvanceSettlementDetails: React.FC = () => {
         </div>
       </main>
       {id && <FloatingActivityLogButton doctype="Advance Settlement" docname={id} />}
+
+      <div ref={activityLogContainerRef} style={{ display: 'none' }}>
+        <ActivityLog doctype="Advance Settlement" docname={id || ""} />
+      </div>
+
+      <P11PrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        title={`Advance Settlement - ${data.name}`}
+        htmlContent={isPrintModalOpen && data ? generateAdvanceSettlementHtml(
+          data,
+          projectTitle || data.project_name || "",
+          budgetHeadName || data.account_head || "",
+          data.owner || "",
+          activityLogContainerRef.current
+        ) : ""}
+      />
     </div>
   );
 };
