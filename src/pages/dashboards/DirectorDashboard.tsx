@@ -3267,7 +3267,7 @@ export function DirectorDashboard() {
                 </div>
 
                 {viewMode === "Director" && (
-                    <div className="mb-8 border-t-2 border-[#4A6CF7]/35 pt-3 dark:border-[#818CF8]/35 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    <div className="mb-8 border-t-2 border-[#4A6CF7]/35 pt-1.5 dark:border-[#818CF8]/35 animate-in fade-in slide-in-from-bottom-2 duration-500">
                         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
                             <div className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#71717A] dark:text-[#A1A1AA]">
                                 Project Type
