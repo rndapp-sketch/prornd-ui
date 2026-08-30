@@ -26,7 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import {
   ChevronRightIcon as ChevronRight,
   SearchIcon,
@@ -34,10 +34,17 @@ import {
   CheckCircle2,
   DownloadIcon,
   Trash2,
+  MoreHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserRoles } from "../components/UserRole";
 import { format } from "date-fns";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // --- LOGIC: Interfaces & Data ---
 interface Task {
@@ -400,15 +407,40 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     | "owner"
   >("creation");
   const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc");
-  const [currentPage, setCurrentPage] = React.useState(1);
   const [itemsPerPage, setItemsPerPage] = React.useState(10); // Unused set, but kept for future or consistency
   const [activeTaskTab, setActiveTaskTab] = React.useState(
     Object.keys(pendingTasksData)[0],
   );
-  const [selectedProjectType, setSelectedProjectType] = React.useState<ProjectTypeTab>('Research');
-
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedProjectType, setSelectedProjectType] = React.useState<ProjectTypeTab>(
+    (searchParams.get('type') as ProjectTypeTab) ||
+      (location.state as any)?.activeProjectType ||
+      'Research',
+  );
+  const [currentPage, setCurrentPage] = React.useState(
+    Number(searchParams.get('page')) || (location.state as any)?.currentPage || 1,
+  );
+
+  const updateProjectTypeTab = (tab: ProjectTypeTab) => {
+    setSelectedProjectType(tab);
+    setCurrentPage(1);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('type', tab);
+    nextParams.set('page', '1');
+    setSearchParams(nextParams, { replace: true });
+  };
+
+  const updateCurrentPage = (updater: (p: number) => number) => {
+    setCurrentPage((p: number) => {
+      const next = updater(p);
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set('page', String(next));
+      setSearchParams(nextParams, { replace: true });
+      return next;
+    });
+  };
   const { currentUser } = useFrappeAuth();
   const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", {
     fields: ["*"],
@@ -1067,7 +1099,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
             return (
               <button
                 key={tab}
-                onClick={() => { setSelectedProjectType(tab); setCurrentPage(1); }}
+                onClick={() => updateProjectTypeTab(tab)}
                 className={cn(
                   "flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3 text-[12px] font-extrabold uppercase tracking-wide transition-all duration-150",
                   tabColors[tab]
@@ -1213,7 +1245,13 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                               "Proposal Approved"
                               ? `/project-details-overview/${p.name}`
                               : `/project-details/${p.name}`;
-                          navigate(targetPath);
+                          navigate(targetPath, {
+                            state: {
+                              returnTo: "/projects-view",
+                              activeProjectType: selectedProjectType,
+                              currentPage,
+                            },
+                          });
                         }}
                       >
                         <TableCell className="px-4 py-3 font-mono text-xs font-semibold text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
@@ -1272,33 +1310,37 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                                 </Button>
                               )}
                             {p.workflow_state === "Endorsement Approved" ? (
-                              <>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 px-2 text-xs"
-                                  disabled={downloadingEndorsementProject === p.name}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDownloadEndorsement(p);
-                                  }}
-                                >
-                                  <DownloadIcon className="mr-1 h-3.5 w-3.5" />
-                                  {downloadingEndorsementProject === p.name ? "Downloading..." : "Download"}
-                                </Button>
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigate(
-                                      `/project-registration?docname=${p.name}&isApprovedEndorsement=true`,
-                                    );
-                                  }}
-                                >
-                                  Register Project
-                                </Button>
-                              </>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <span className="sr-only">Open menu</span>
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                  <DropdownMenuItem
+                                    disabled={downloadingEndorsementProject === p.name}
+                                    onClick={() => handleDownloadEndorsement(p)}
+                                  >
+                                    <DownloadIcon className="mr-2 h-3.5 w-3.5" />
+                                    {downloadingEndorsementProject === p.name ? "Downloading..." : "Download"}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      navigate(
+                                        `/project-registration?docname=${p.name}&isApprovedEndorsement=true`,
+                                      )
+                                    }
+                                  >
+                                    Register Project
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             ) : (
                               <>
                                 {(p.workflow_state === "Approved" || p.workflow_state === "Proposal Approved") &&
@@ -1346,7 +1388,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  setCurrentPage((p) => Math.max(1, p - 1))
+                  updateCurrentPage((p) => Math.max(1, p - 1))
                 }
                 disabled={currentPage === 1}
               >
@@ -1356,7 +1398,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  setCurrentPage((p) =>
+                  updateCurrentPage((p) =>
                     Math.min(totalPages, p + 1),
                   )
                 }
