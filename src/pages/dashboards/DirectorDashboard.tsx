@@ -3878,7 +3878,7 @@ export function DirectorDashboard() {
                                         <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] overflow-hidden divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
                                             {/* Status totals */}
                                             <div className="grid grid-cols-2 divide-x divide-[#E4E4E7] dark:divide-[#3F3F46]">
-                                                <div className="bg-blue-50/60 dark:bg-blue-950/20 px-3 py-2">
+                                                <div className="bg-[#FAFAF9] dark:bg-[#18181B] px-3 py-2">
                                                     <div className="flex items-center gap-1.5">
                                                         <span className="w-2 h-2 rounded-full bg-[#2563eb] shrink-0" />
                                                         <span className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Submitted</span>
@@ -3886,7 +3886,7 @@ export function DirectorDashboard() {
                                                     <div className="text-[22px] font-extrabold text-[#2563eb] leading-none mt-0.5">{chartYearSubmittedTotal}</div>
                                                     <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug">Pending Sanction</div>
                                                 </div>
-                                                <div className="bg-purple-50/60 dark:bg-purple-950/20 px-3 py-2">
+                                                <div className="bg-[#FAFAF9] dark:bg-[#18181B] px-3 py-2">
                                                     <div className="flex items-center gap-1.5">
                                                         <span className="w-2 h-2 rounded-full bg-[#7c3aed] shrink-0" />
                                                         <span className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Ongoing</span>
