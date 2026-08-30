@@ -4758,7 +4758,7 @@ export function DirectorDashboard() {
                                     )}
                                 </div>
                                 <div className="p-[18px] px-[22px] pb-5">
-                                    <div className="transition-all duration-300 w-full min-h-[340px]">
+                                    <div className="transition-all duration-300 w-full min-h-[300px]">
                                         {isLoading ? (
                                             <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">
                                                 Loading chart...
@@ -4791,7 +4791,7 @@ export function DirectorDashboard() {
 
                                                 return (
                                                     <div className="flex flex-col w-full h-full">
-                                                        <div className="relative w-full shrink-0" style={{ height: "240px" }}>
+                                                        <div className="relative w-full shrink-0" style={{ height: "200px" }}>
                                                             <div
                                                                 className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition-transform z-10 w-28 h-28 rounded-full"
                                                                 onClick={() => {
@@ -4861,7 +4861,7 @@ export function DirectorDashboard() {
                                                             </ResponsiveContainer>
                                                         </div>
 
-                                                        <div className="w-full mt-2">
+                                                        <div className="w-full mt-0.5">
                                                             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-20 gap-y-1 w-full">
                                                                 {pieData.map((entry: any, index: number) => (
                                                                     <li
