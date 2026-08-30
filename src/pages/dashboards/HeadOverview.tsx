@@ -1759,7 +1759,7 @@ export function HeadOverview() {
                                 }
                             />
                             <KpiCard
-                                label="Total Fund Allocation for Ongoing Projects"
+                                label="Fund Allocation for Ongoing Projects"
                                 value={formatCurrency(fundAnalytics.total_allocation || stats.totalAlloc)}
                                 isLoading={isPageLoading}
                                 subtext=""
@@ -1795,7 +1795,7 @@ export function HeadOverview() {
                                 subtext=""
                                 valueAdornment={
                                     !isPageLoading && (projectOverview.ongoing_projects || stats.ongoing) > 0 && (
-                                        <div className="flex items-center gap-2 flex-wrap">
+                                        <div className="flex items-center gap-2">
                                             {ongoingFundStatusBreakdown.checking > 0 ? (
                                                 // Fund-status is still resolving for some ongoing projects —
                                                 // show a plain loading state rather than partial, steadily-

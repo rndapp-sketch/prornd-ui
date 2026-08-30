@@ -3539,7 +3539,7 @@ export function DirectorDashboard() {
                                 }
                             />
                             <KpiCard
-                                label="Total Fund Allocation for Ongoing Projects"
+                                label="Fund Allocation for Ongoing Projects"
                                 value={formatCurrency(fundAlloc)}
                                 isLoading={isLoading}
                                 subtext=""
@@ -3585,7 +3585,7 @@ export function DirectorDashboard() {
                                 subtext=""
                                 valueAdornment={
                                     !isLoading && ongoingProjects > 0 && (
-                                        <div className="flex items-center gap-2 flex-wrap">
+                                        <div className="flex items-center gap-2">
                                             {ongoingFundStatusBreakdown.checking > 0 ? (
                                                 // Fund-status is still resolving for some ongoing projects —
                                                 // show a plain loading state rather than partial, steadily-
