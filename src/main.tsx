@@ -116,6 +116,7 @@ import DepartmentProjects from './pages/DepartmentProjects.tsx';
 import AdminLogin from './pages/AdminLogin.tsx';
 import NIQForm from './pages/application/NIQForm.tsx';
 import Profile from './pages/Profile.tsx';
+import StudentProfile from './pages/StudentProfile.tsx';
 import { HeadOverview } from './pages/dashboards/HeadOverview.tsx';
 import MessagesPage from './pages/messages/MessagesPage.tsx';
 import DirectorPdfUpload from './pages/application/DirectorPdfUpload.tsx';
@@ -149,6 +150,10 @@ const router = createBrowserRouter(
                 {
                     path: "",
                     element: <LandingPage />, // Public landing page
+                },
+                {
+                    path: "student-profile",
+                    element: <StudentProfile />,
                 },
                 {
                     path: "login",
