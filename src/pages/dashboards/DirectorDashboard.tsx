@@ -162,31 +162,35 @@ function KpiCard({
                 className="absolute bottom-0 right-0 w-[90px] h-[90px] rounded-full translate-x-5 translate-y-5"
                 style={{ backgroundColor: circleColor, opacity: 0.07 }}
             />
-            <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center mb-3 shrink-0 transition-transform"
-                style={{ backgroundColor: iconBg, color: circleColor }}
-            >
-                {icon}
-            </div>
-            <div className="text-[11.5px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide mb-0.5">
-                {label}
-            </div>
-            {description && (
-                <div className="text-[12px] text-[#52525B] dark:text-[#D4D4D8] font-semibold mb-1 leading-snug">
-                    {description}
-                </div>
-            )}
-            <div className="flex items-center gap-3 mb-1.5 flex-wrap">
+            <div className="flex items-start gap-3 mb-1.5">
                 <div
-                    className={`text-[26px] font-extrabold tracking-tight leading-none drop-shadow-sm ${valueColor}`}
+                    className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-transform"
+                    style={{ backgroundColor: iconBg, color: circleColor }}
                 >
-                    {isLoading ? (
-                        <span className="text-[13px] font-bold text-[#71717A] dark:text-[#A1A1AA] animate-pulse">Loading…</span>
-                    ) : (
-                        value
-                    )}
+                    {icon}
                 </div>
-                {valueAdornment}
+                <div className="min-w-0 flex-1">
+                    <div className="text-[11.5px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide mb-0.5">
+                        {label}
+                    </div>
+                    {description && (
+                        <div className="text-[12px] text-[#52525B] dark:text-[#D4D4D8] font-semibold mb-1 leading-snug">
+                            {description}
+                        </div>
+                    )}
+                    <div className="flex items-center gap-3 flex-wrap">
+                        <div
+                            className={`text-[26px] font-extrabold tracking-tight leading-none drop-shadow-sm ${valueColor}`}
+                        >
+                            {isLoading ? (
+                                <span className="text-[13px] font-bold text-[#71717A] dark:text-[#A1A1AA] animate-pulse">Loading…</span>
+                            ) : (
+                                value
+                            )}
+                        </div>
+                        {valueAdornment}
+                    </div>
+                </div>
             </div>
 
             <div className="mt-auto pt-3 w-full">
