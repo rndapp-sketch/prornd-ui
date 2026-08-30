@@ -1510,43 +1510,63 @@ export function HeadOverview() {
         return counts;
     }, [deptProjects, deptOngoingIds, fundStatusMap]);
 
-    // Research/Consultancy/Others pill badges for the Ongoing Projects card — count
-    // plus a received/pending fund sub-line, no per-type click target (the card's own
-    // onClick already opens the ongoing-projects KPI modal).
-    const ongoingBreakdownBadges = React.useMemo(() => {
-        const sublabelFor = (bucket: "Research" | "Consultancy" | "Others") => {
-            const { received, pending } = ongoingByTypeFundStatus[bucket];
-            return `${received} received · ${pending} pending`;
-        };
-        const badges = [
-            {
-                label: "Research",
-                count: allResearchOngoing,
-                dotColor: "bg-blue-500",
-                bgClass: "bg-blue-50 dark:bg-blue-950/30",
-                textClass: "text-blue-700 dark:text-blue-400",
-                sublabel: sublabelFor("Research"),
-            },
-            {
-                label: "Consultancy",
-                count: allConsultancyOngoing,
-                dotColor: "bg-purple-500",
-                bgClass: "bg-purple-50 dark:bg-purple-950/30",
-                textClass: "text-purple-700 dark:text-purple-400",
-                sublabel: sublabelFor("Consultancy"),
-            },
-        ];
-        if (allOthersOngoing > 0) {
-            badges.push({
-                label: "Others",
-                count: allOthersOngoing,
-                dotColor: "bg-emerald-500",
-                bgClass: "bg-emerald-50 dark:bg-emerald-950/30",
-                textClass: "text-emerald-700 dark:text-emerald-400",
-                sublabel: sublabelFor("Others"),
-            });
-        }
-        return badges;
+    const renderFundBadge = (kind: "received" | "pending", count: number, total: number) => {
+        const isReceived = kind === "received";
+        return (
+            <span
+                className={`flex flex-col w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 ${isReceived
+                    ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400"
+                    : "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"
+                    }`}
+            >
+                <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-1">
+                        <span className={`w-1 h-1 rounded-full ${isReceived ? "bg-emerald-500" : "bg-amber-400"}`}></span>
+                        {isReceived ? "Received" : "Pending"}
+                    </div>
+                    <span>{count}</span>
+                </div>
+                <div className="text-right text-[8px] font-semibold opacity-70">{pctOf(count, total)}%</div>
+            </span>
+        );
+    };
+
+    // Same compact grid as projectBreakdownGrid/allocationBreakdownGrid — headline
+    // ongoing count per type, then Received/Pending fund badges instead of
+    // Ongoing/Submitted, so this card matches the other three visually instead of
+    // standing out as a row of horizontal pills.
+    const ongoingBreakdownGrid = React.useMemo(() => {
+        const showOthers = allOthersOngoing > 0;
+        return (
+            <div className={`grid ${showOthers ? "grid-cols-3" : "grid-cols-2"} gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]`}>
+                <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
+                    <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">{allResearchOngoing}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
+                    <div className="flex flex-col gap-1 w-full px-1">
+                        {renderFundBadge("received", ongoingByTypeFundStatus.Research.received, allResearchOngoing)}
+                        {renderFundBadge("pending", ongoingByTypeFundStatus.Research.pending, allResearchOngoing)}
+                    </div>
+                </div>
+                <div className={`flex flex-col items-center justify-start ${showOthers ? "border-r border-[#E4E4E7] dark:border-[#3F3F46]" : ""}`}>
+                    <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">{allConsultancyOngoing}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
+                    <div className="flex flex-col gap-1 w-full px-1">
+                        {renderFundBadge("received", ongoingByTypeFundStatus.Consultancy.received, allConsultancyOngoing)}
+                        {renderFundBadge("pending", ongoingByTypeFundStatus.Consultancy.pending, allConsultancyOngoing)}
+                    </div>
+                </div>
+                {showOthers && (
+                    <div className="flex flex-col items-center justify-start">
+                        <div className="text-[14px] font-extrabold text-[#059669] leading-tight">{allOthersOngoing}</div>
+                        <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Others</div>
+                        <div className="flex flex-col gap-1 w-full px-1">
+                            {renderFundBadge("received", ongoingByTypeFundStatus.Others.received, allOthersOngoing)}
+                            {renderFundBadge("pending", ongoingByTypeFundStatus.Others.pending, allOthersOngoing)}
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
     }, [allResearchOngoing, allConsultancyOngoing, allOthersOngoing, ongoingByTypeFundStatus]);
 
     // Same compact grid as projectBreakdownGrid, scoped to projects with an
@@ -1817,7 +1837,7 @@ export function HeadOverview() {
                                 iconBg="#f5f3ff"
                                 circleColor="#7c3aed"
                                 onClick={() => openKpiModal("ongoing", "Ongoing Projects")}
-                                badges={isPageLoading ? undefined : ongoingBreakdownBadges}
+                                customBottom={!isPageLoading && ongoingBreakdownGrid}
                             />
                             <KpiCard
                                 label="International Collaborators"
