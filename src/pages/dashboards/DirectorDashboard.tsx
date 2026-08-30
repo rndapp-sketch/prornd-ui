@@ -4187,7 +4187,9 @@ export function DirectorDashboard() {
                                 circleColor="#059669"
                             />
                         </div>
-                        {/* Trend chart */}
+                        {/* Trend chart — hidden per feedback: unclear what it shows; revisit once a
+                            per-staff processing-time metric is available from the backend */}
+                        {false && (
                         <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden mb-[14px]">
                             <div className="p-[18px] px-[24px] pb-[16px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
                                 <div>
@@ -4317,6 +4319,7 @@ export function DirectorDashboard() {
                                 </div>
                             </div>
                         </div>
+                        )}
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-[14px] mb-6 items-start">
                         {/* Application-wise breakdown */}
