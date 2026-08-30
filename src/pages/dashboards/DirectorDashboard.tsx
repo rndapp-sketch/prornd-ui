@@ -2806,16 +2806,19 @@ export function DirectorDashboard() {
         const isOngoing = status === "ongoing";
         return (
             <span
-                className={`inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 ${isOngoing
+                className={`flex flex-col w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 ${isOngoing
                     ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400"
                     : "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"
                     }`}
             >
-                <div className="flex items-center gap-1">
-                    <span className={`w-1 h-1 rounded-full ${isOngoing ? "bg-emerald-500" : "bg-amber-400"}`}></span>
-                    {isOngoing ? "Ongoing" : "Submitted"}
+                <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-1">
+                        <span className={`w-1 h-1 rounded-full ${isOngoing ? "bg-emerald-500" : "bg-amber-400"}`}></span>
+                        {isOngoing ? "Ongoing" : "Submitted"}
+                    </div>
+                    <span>{count}</span>
                 </div>
-                <span>{count} ({pctOf(count, total)}%)</span>
+                <div className="text-right text-[8px] font-semibold opacity-70">{pctOf(count, total)}%</div>
             </span>
         );
     };
@@ -2978,6 +2981,62 @@ export function DirectorDashboard() {
     }, [allProjectsList, ongoingIds, fundStatusMap]);
 
     const isFundUtilDataReady = !globalUtilizedLoading && allocationByType.pending === 0;
+
+    const renderMoneyBadge = (kind: "utilized" | "left", amount: number, ready: boolean) => {
+        const isUtilized = kind === "utilized";
+        return (
+            <span
+                className={`flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 ${isUtilized
+                    ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400"
+                    : "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"
+                    }`}
+            >
+                <div className="flex items-center gap-1">
+                    <span className={`w-1 h-1 rounded-full ${isUtilized ? "bg-emerald-500" : "bg-amber-400"}`}></span>
+                    {isUtilized ? "Utilized" : "Left"}
+                </div>
+                <span>{ready ? formatCurrency(amount) : "…"}</span>
+            </span>
+        );
+    };
+
+    // Total Fund Allocation card's own breakdown — allocated amount per type as the
+    // headline, then Utilized/Left in money instead of Ongoing/Submitted project
+    // counts, since this card is specifically about money, not project status.
+    const allocationBreakdownGrid = React.useMemo(() => {
+        const { rAmt, cAmt, oAmt, rUtil, cUtil, oUtil } = allocationByType;
+        const showOthers = othersOngoing > 0;
+        return (
+            <div className={`grid ${showOthers ? "grid-cols-3" : "grid-cols-2"} gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]`}>
+                <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
+                    <div className="text-[13px] font-extrabold text-[#2563eb] leading-tight">{formatCurrency(rAmt)}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
+                    <div className="flex flex-col gap-1 w-full px-1">
+                        {renderMoneyBadge("utilized", rUtil, isFundUtilDataReady)}
+                        {renderMoneyBadge("left", Math.max(0, rAmt - rUtil), isFundUtilDataReady)}
+                    </div>
+                </div>
+                <div className={`flex flex-col items-center justify-start ${showOthers ? "border-r border-[#E4E4E7] dark:border-[#3F3F46]" : ""}`}>
+                    <div className="text-[13px] font-extrabold text-[#7c3aed] leading-tight">{formatCurrency(cAmt)}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
+                    <div className="flex flex-col gap-1 w-full px-1">
+                        {renderMoneyBadge("utilized", cUtil, isFundUtilDataReady)}
+                        {renderMoneyBadge("left", Math.max(0, cAmt - cUtil), isFundUtilDataReady)}
+                    </div>
+                </div>
+                {showOthers && (
+                    <div className="flex flex-col items-center justify-start">
+                        <div className="text-[13px] font-extrabold text-[#059669] leading-tight">{formatCurrency(oAmt)}</div>
+                        <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Others</div>
+                        <div className="flex flex-col gap-1 w-full px-1">
+                            {renderMoneyBadge("utilized", oUtil, isFundUtilDataReady)}
+                            {renderMoneyBadge("left", Math.max(0, oAmt - oUtil), isFundUtilDataReady)}
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }, [allocationByType, othersOngoing, isFundUtilDataReady]);
 
     // Same Received Fund/Pending split as ongoingFundStatusBreakdown, broken out per
     // project type — so a Research-heavy pending-fund backlog isn't hidden inside an
@@ -3497,7 +3556,7 @@ export function DirectorDashboard() {
                                 onClick={() =>
                                     openKpiModal("allocation", "Projects by Allocation")
                                 }
-                                customBottom={!isLoading && projectBreakdownGrid}
+                                customBottom={!isLoading && allocationBreakdownGrid}
                             />
                             <KpiCard
                                 label="Ongoing Projects"
