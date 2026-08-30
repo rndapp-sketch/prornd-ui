@@ -2030,17 +2030,17 @@ export function HeadOverview() {
                                                 </div>
                                                 <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-[#E4E4E7]/70 dark:border-[#3F3F46]/70">
                                                     <div className="text-center">
-                                                        <div className="text-[8.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide leading-none">Research</div>
-                                                        <div className="text-[12px] font-extrabold text-[#2563eb] tabular-nums leading-none mt-1">{chartTypeBreakdown.researchSubmitted}</div>
+                                                        <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Research</div>
+                                                        <div className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA] tabular-nums leading-none mt-1">{chartTypeBreakdown.researchSubmitted}</div>
                                                     </div>
                                                     <div className="text-center">
-                                                        <div className="text-[8.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide leading-none">Consultancy</div>
-                                                        <div className="text-[12px] font-extrabold text-[#7c3aed] tabular-nums leading-none mt-1">{chartTypeBreakdown.consultancySubmitted}</div>
+                                                        <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Consultancy</div>
+                                                        <div className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA] tabular-nums leading-none mt-1">{chartTypeBreakdown.consultancySubmitted}</div>
                                                     </div>
                                                     {chartTypeBreakdown.othersSubmitted > 0 && (
                                                         <div className="text-center">
-                                                            <div className="text-[8.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide leading-none">Others</div>
-                                                            <div className="text-[12px] font-extrabold text-[#059669] tabular-nums leading-none mt-1">{chartTypeBreakdown.othersSubmitted}</div>
+                                                            <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Others</div>
+                                                            <div className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA] tabular-nums leading-none mt-1">{chartTypeBreakdown.othersSubmitted}</div>
                                                         </div>
                                                     )}
                                                 </div>
@@ -2058,17 +2058,17 @@ export function HeadOverview() {
                                                 </div>
                                                 <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-[#E4E4E7]/70 dark:border-[#3F3F46]/70">
                                                     <div className="text-center">
-                                                        <div className="text-[8.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide leading-none">Research</div>
-                                                        <div className="text-[12px] font-extrabold text-[#2563eb] tabular-nums leading-none mt-1">{chartTypeBreakdown.researchOngoing}</div>
+                                                        <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Research</div>
+                                                        <div className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA] tabular-nums leading-none mt-1">{chartTypeBreakdown.researchOngoing}</div>
                                                     </div>
                                                     <div className="text-center">
-                                                        <div className="text-[8.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide leading-none">Consultancy</div>
-                                                        <div className="text-[12px] font-extrabold text-[#7c3aed] tabular-nums leading-none mt-1">{chartTypeBreakdown.consultancyOngoing}</div>
+                                                        <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Consultancy</div>
+                                                        <div className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA] tabular-nums leading-none mt-1">{chartTypeBreakdown.consultancyOngoing}</div>
                                                     </div>
                                                     {chartTypeBreakdown.othersOngoing > 0 && (
                                                         <div className="text-center">
-                                                            <div className="text-[8.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide leading-none">Others</div>
-                                                            <div className="text-[12px] font-extrabold text-[#059669] tabular-nums leading-none mt-1">{chartTypeBreakdown.othersOngoing}</div>
+                                                            <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Others</div>
+                                                            <div className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA] tabular-nums leading-none mt-1">{chartTypeBreakdown.othersOngoing}</div>
                                                         </div>
                                                     )}
                                                 </div>
