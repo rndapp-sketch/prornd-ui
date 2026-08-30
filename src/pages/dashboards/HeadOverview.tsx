@@ -2022,27 +2022,25 @@ export function HeadOverview() {
                                                     <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-blue-50 dark:bg-blue-950/30 text-[#2563eb]">
                                                         <FileText size={14} strokeWidth={2.5} />
                                                     </div>
-                                                    <div className="min-w-0">
-                                                        <div className="flex items-baseline gap-1.5">
-                                                            <span className="text-[18px] font-extrabold text-[#2563eb] leading-none tabular-nums">{chartYearSubmittedTotal}</span>
-                                                            <span className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider">Submitted</span>
-                                                        </div>
-                                                        <div className="text-[10.5px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-0.5">Pending Sanction</div>
+                                                    <div className="min-w-0 flex items-baseline gap-1.5 flex-wrap">
+                                                        <span className="text-[18px] font-extrabold text-[#2563eb] leading-none tabular-nums">{chartYearSubmittedTotal}</span>
+                                                        <span className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider">Submitted</span>
+                                                        <span className="text-[10px] font-medium text-[#A1A1AA] dark:text-[#71717A]">(Pending Sanction)</span>
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-[#E4E4E7]/70 dark:border-[#3F3F46]/70">
                                                     <div className="text-center">
                                                         <div className="text-[8.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide leading-none">Research</div>
-                                                        <div className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums leading-none mt-1">{chartTypeBreakdown.researchSubmitted}</div>
+                                                        <div className="text-[12px] font-extrabold text-[#2563eb] tabular-nums leading-none mt-1">{chartTypeBreakdown.researchSubmitted}</div>
                                                     </div>
                                                     <div className="text-center">
                                                         <div className="text-[8.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide leading-none">Consultancy</div>
-                                                        <div className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums leading-none mt-1">{chartTypeBreakdown.consultancySubmitted}</div>
+                                                        <div className="text-[12px] font-extrabold text-[#7c3aed] tabular-nums leading-none mt-1">{chartTypeBreakdown.consultancySubmitted}</div>
                                                     </div>
                                                     {chartTypeBreakdown.othersSubmitted > 0 && (
                                                         <div className="text-center">
                                                             <div className="text-[8.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide leading-none">Others</div>
-                                                            <div className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums leading-none mt-1">{chartTypeBreakdown.othersSubmitted}</div>
+                                                            <div className="text-[12px] font-extrabold text-[#059669] tabular-nums leading-none mt-1">{chartTypeBreakdown.othersSubmitted}</div>
                                                         </div>
                                                     )}
                                                 </div>
@@ -2052,27 +2050,25 @@ export function HeadOverview() {
                                                     <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-violet-50 dark:bg-violet-950/30 text-[#7c3aed]">
                                                         <TrendingUp size={14} strokeWidth={2.5} />
                                                     </div>
-                                                    <div className="min-w-0">
-                                                        <div className="flex items-baseline gap-1.5">
-                                                            <span className="text-[18px] font-extrabold text-[#7c3aed] leading-none tabular-nums">{chartYearOngoingTotal}</span>
-                                                            <span className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider">Ongoing</span>
-                                                        </div>
-                                                        <div className="text-[10.5px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-0.5">Sanction approved</div>
+                                                    <div className="min-w-0 flex items-baseline gap-1.5 flex-wrap">
+                                                        <span className="text-[18px] font-extrabold text-[#7c3aed] leading-none tabular-nums">{chartYearOngoingTotal}</span>
+                                                        <span className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider">Ongoing</span>
+                                                        <span className="text-[10px] font-medium text-[#A1A1AA] dark:text-[#71717A]">(Sanction approved)</span>
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-[#E4E4E7]/70 dark:border-[#3F3F46]/70">
                                                     <div className="text-center">
                                                         <div className="text-[8.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide leading-none">Research</div>
-                                                        <div className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums leading-none mt-1">{chartTypeBreakdown.researchOngoing}</div>
+                                                        <div className="text-[12px] font-extrabold text-[#2563eb] tabular-nums leading-none mt-1">{chartTypeBreakdown.researchOngoing}</div>
                                                     </div>
                                                     <div className="text-center">
                                                         <div className="text-[8.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide leading-none">Consultancy</div>
-                                                        <div className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums leading-none mt-1">{chartTypeBreakdown.consultancyOngoing}</div>
+                                                        <div className="text-[12px] font-extrabold text-[#7c3aed] tabular-nums leading-none mt-1">{chartTypeBreakdown.consultancyOngoing}</div>
                                                     </div>
                                                     {chartTypeBreakdown.othersOngoing > 0 && (
                                                         <div className="text-center">
                                                             <div className="text-[8.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide leading-none">Others</div>
-                                                            <div className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums leading-none mt-1">{chartTypeBreakdown.othersOngoing}</div>
+                                                            <div className="text-[12px] font-extrabold text-[#059669] tabular-nums leading-none mt-1">{chartTypeBreakdown.othersOngoing}</div>
                                                         </div>
                                                     )}
                                                 </div>
