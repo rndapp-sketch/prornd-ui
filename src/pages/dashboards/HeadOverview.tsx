@@ -1427,7 +1427,7 @@ export function HeadOverview() {
                     <span className={`w-1 h-1 rounded-full ${isUtilized ? "bg-emerald-500" : "bg-amber-400"}`}></span>
                     {isUtilized ? "Utilized" : "Left"}
                 </div>
-                <span>{ready ? formatCurrency(amount) : "…"}</span>
+                <span>{ready ? formatCurrency(amount) : "Loading…"}</span>
             </span>
         );
     };
@@ -1524,9 +1524,11 @@ export function HeadOverview() {
                         <span className={`w-1 h-1 rounded-full ${isReceived ? "bg-emerald-500" : "bg-amber-400"}`}></span>
                         {isReceived ? "Received" : "Pending"}
                     </div>
-                    <span>{ready ? count : "…"}</span>
+                    <span>{ready ? count : "Loading…"}</span>
                 </div>
-                <div className="text-right text-[8px] font-semibold opacity-70">{ready ? `${pctOf(count, total)}%` : "…"}</div>
+                {ready && (
+                    <div className="text-right text-[8px] font-semibold opacity-70">{pctOf(count, total)}%</div>
+                )}
             </span>
         );
     };
