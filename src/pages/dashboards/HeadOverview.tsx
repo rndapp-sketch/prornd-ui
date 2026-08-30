@@ -182,14 +182,14 @@ function KpiCard({
     return (
         <div
             onClick={onClick}
-            className={`bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl p-6 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all flex flex-col h-full min-h-[160px]${onClick ? " cursor-pointer select-none" : ""}`}
+            className={`bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl p-5 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all flex flex-col h-full min-h-[136px]${onClick ? " cursor-pointer select-none" : ""}`}
         >
             <div
                 className="absolute bottom-0 right-0 w-[90px] h-[90px] rounded-full translate-x-5 translate-y-5"
                 style={{ backgroundColor: circleColor, opacity: 0.07 }}
             />
             <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center mb-4 shrink-0"
+                className="w-9 h-9 rounded-xl flex items-center justify-center mb-3 shrink-0"
                 style={{ backgroundColor: iconBg, color: circleColor }}
             >
                 {icon}
@@ -202,8 +202,8 @@ function KpiCard({
                     {description}
                 </div>
             )}
-            <div className="flex items-center gap-3 mb-2 flex-wrap">
-                <div className={`text-[32px] font-extrabold tracking-tight leading-none drop-shadow-sm ${valueColor}`}>
+            <div className="flex items-center gap-3 mb-1.5 flex-wrap">
+                <div className={`text-[26px] font-extrabold tracking-tight leading-none drop-shadow-sm ${valueColor}`}>
                     {isLoading ? (
                         <span className="text-[13px] font-bold text-[#A1A1AA] dark:text-[#71717A] animate-pulse">Loading…</span>
                     ) : (
@@ -212,7 +212,7 @@ function KpiCard({
                 </div>
                 {valueAdornment}
             </div>
-            <div className="mt-auto pt-4 w-full">
+            <div className="mt-auto pt-3 w-full">
                 {customBottom ? (
                     customBottom
                 ) : badges && badges.length > 0 ? (
