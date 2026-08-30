@@ -342,14 +342,6 @@ export const HelpModule: React.FC<HelpModuleProps> = ({ isOpen, onClose }) => {
                                 border: 0
                             }}
                         ></iframe>
-                        {/* Scribe's own "Comment on this Scribe" button renders inside their
-                            cross-origin iframe, so it can't be removed with our CSS/JS — this
-                            strip just visually masks the right-edge gutter it appears in. It's
-                            not attached to the real button (different document), so it can
-                            drift out of alignment if Scribe changes their layout. */}
-                        {!isLoadingIframe && (
-                            <div className="absolute right-0 top-0 h-full w-16 bg-slate-50 dark:bg-zinc-900 pointer-events-none" />
-                        )}
                     </div>
                 ) : null}
 
