@@ -2798,6 +2798,28 @@ export function DirectorDashboard() {
             });
     }, [expandedPI, allProjectsList]);
 
+    // Percentage that n represents of total, rounded — used throughout the compact
+    // breakdown grids so "170 Ongoing" also reads as "170 (58%)" without a separate row.
+    const pctOf = (n: number, total: number): number => (total > 0 ? Math.round((n / total) * 100) : 0);
+
+    const renderStatusBadge = (status: "ongoing" | "submitted", count: number, total: number) => {
+        const isOngoing = status === "ongoing";
+        return (
+            <span
+                className={`inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 ${isOngoing
+                    ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400"
+                    : "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"
+                    }`}
+            >
+                <div className="flex items-center gap-1">
+                    <span className={`w-1 h-1 rounded-full ${isOngoing ? "bg-emerald-500" : "bg-amber-400"}`}></span>
+                    {isOngoing ? "Ongoing" : "Submitted"}
+                </div>
+                <span>{count} ({pctOf(count, total)}%)</span>
+            </span>
+        );
+    };
+
     // Compact Research/Consultancy/Others × Ongoing/Submitted breakdown — three
     // columns side by side rather than a stacked list, so the card stays short.
     // Shared by both Total Projects and Total Allocation (neither drills into a
@@ -2813,20 +2835,8 @@ export function DirectorDashboard() {
                     Research
                 </div>
                 <div className="flex flex-col gap-1 w-full px-1">
-                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                        <div className="flex items-center gap-1">
-                            <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
-                            Ongoing
-                        </div>
-                        <span>{researchOngoing}</span>
-                    </span>
-                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                        <div className="flex items-center gap-1">
-                            <span className="w-1 h-1 rounded-full bg-amber-400"></span>
-                            Submitted
-                        </div>
-                        <span>{researchSubmitted}</span>
-                    </span>
+                    {renderStatusBadge("ongoing", researchOngoing, researchProjects)}
+                    {renderStatusBadge("submitted", researchSubmitted, researchProjects)}
                 </div>
             </div>
             <div className={`flex flex-col items-center justify-start ${othersProjects > 0 ? "border-r border-[#E4E4E7] dark:border-[#3F3F46]" : ""}`}>
@@ -2837,20 +2847,8 @@ export function DirectorDashboard() {
                     Consultancy
                 </div>
                 <div className="flex flex-col gap-1 w-full px-1">
-                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                        <div className="flex items-center gap-1">
-                            <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
-                            Ongoing
-                        </div>
-                        <span>{consultancyOngoing}</span>
-                    </span>
-                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                        <div className="flex items-center gap-1">
-                            <span className="w-1 h-1 rounded-full bg-amber-400"></span>
-                            Submitted
-                        </div>
-                        <span>{consultancySubmitted}</span>
-                    </span>
+                    {renderStatusBadge("ongoing", consultancyOngoing, consultancyProjects)}
+                    {renderStatusBadge("submitted", consultancySubmitted, consultancyProjects)}
                 </div>
             </div>
             {othersProjects > 0 && (
@@ -2862,20 +2860,8 @@ export function DirectorDashboard() {
                         Others
                     </div>
                     <div className="flex flex-col gap-1 w-full px-1">
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                            <div className="flex items-center gap-1">
-                                <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
-                                Ongoing
-                            </div>
-                            <span>{othersOngoing}</span>
-                        </span>
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                            <div className="flex items-center gap-1">
-                                <span className="w-1 h-1 rounded-full bg-amber-400"></span>
-                                Submitted
-                            </div>
-                            <span>{othersSubmitted}</span>
-                        </span>
+                        {renderStatusBadge("ongoing", othersOngoing, othersProjects)}
+                        {renderStatusBadge("submitted", othersSubmitted, othersProjects)}
                     </div>
                 </div>
             )}
@@ -2921,36 +2907,24 @@ export function DirectorDashboard() {
                     <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">{rP}</div>
                     <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
                     <div className="flex flex-col gap-1 w-full px-1">
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-emerald-500"></span>Ongoing</div><span>{rO}</span>
-                        </span>
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-amber-400"></span>Submitted</div><span>{rS}</span>
-                        </span>
+                        {renderStatusBadge("ongoing", rO, rP)}
+                        {renderStatusBadge("submitted", rS, rP)}
                     </div>
                 </div>
                 <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
                     <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">{cP}</div>
                     <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
                     <div className="flex flex-col gap-1 w-full px-1">
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-emerald-500"></span>Ongoing</div><span>{cO}</span>
-                        </span>
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-amber-400"></span>Submitted</div><span>{cS}</span>
-                        </span>
+                        {renderStatusBadge("ongoing", cO, cP)}
+                        {renderStatusBadge("submitted", cS, cP)}
                     </div>
                 </div>
                 <div className="flex flex-col items-center justify-start">
                     <div className="text-[14px] font-extrabold text-[#059669] leading-tight">{oP}</div>
                     <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Others</div>
                     <div className="flex flex-col gap-1 w-full px-1">
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-emerald-500"></span>Ongoing</div><span>{oO}</span>
-                        </span>
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-amber-400"></span>Submitted</div><span>{oS}</span>
-                        </span>
+                        {renderStatusBadge("ongoing", oO, oP)}
+                        {renderStatusBadge("submitted", oS, oP)}
                     </div>
                 </div>
             </div>
@@ -3005,10 +2979,37 @@ export function DirectorDashboard() {
 
     const isFundUtilDataReady = !globalUtilizedLoading && allocationByType.pending === 0;
 
-    // Simple Research/Consultancy/Others pill badges for the Ongoing Projects card —
-    // just the counts, no per-type click target (the card's own onClick already opens
-    // the ongoing-projects KPI modal).
+    // Same Received Fund/Pending split as ongoingFundStatusBreakdown, broken out per
+    // project type — so a Research-heavy pending-fund backlog isn't hidden inside an
+    // aggregate that looks healthy overall.
+    const ongoingByTypeFundStatus = React.useMemo(() => {
+        const counts: Record<"Research" | "Consultancy" | "Others", { received: number; pending: number }> = {
+            Research: { received: 0, pending: 0 },
+            Consultancy: { received: 0, pending: 0 },
+            Others: { received: 0, pending: 0 },
+        };
+        (allProjectsList ?? []).forEach((p: any) => {
+            if (!ongoingIds.has(p.name)) return;
+            if (!fundStatusMap.has(p.name)) return;
+            const type = (p.project_type || "").toLowerCase();
+            const bucket: "Research" | "Consultancy" | "Others" =
+                type.includes("research") || type.includes("r&d project") ? "Research"
+                    : type.includes("consult") || type.includes("testing") ? "Consultancy"
+                        : "Others";
+            if (fundStatusMap.get(p.name) === true) counts[bucket].received++;
+            else counts[bucket].pending++;
+        });
+        return counts;
+    }, [allProjectsList, ongoingIds, fundStatusMap]);
+
+    // Research/Consultancy/Others pill badges for the Ongoing Projects card — count
+    // plus a received/pending fund sub-line, no per-type click target (the card's own
+    // onClick already opens the ongoing-projects KPI modal).
     const ongoingBreakdownBadges = React.useMemo(() => {
+        const sublabelFor = (bucket: "Research" | "Consultancy" | "Others") => {
+            const { received, pending } = ongoingByTypeFundStatus[bucket];
+            return `${received} received · ${pending} pending`;
+        };
         const badges = [
             {
                 label: "Research",
@@ -3016,6 +3017,7 @@ export function DirectorDashboard() {
                 dotColor: "bg-blue-500",
                 bgClass: "bg-blue-50 dark:bg-blue-950/30",
                 textClass: "text-blue-700 dark:text-blue-400",
+                sublabel: sublabelFor("Research"),
             },
             {
                 label: "Consultancy",
@@ -3023,6 +3025,7 @@ export function DirectorDashboard() {
                 dotColor: "bg-purple-500",
                 bgClass: "bg-purple-50 dark:bg-purple-950/30",
                 textClass: "text-purple-700 dark:text-purple-400",
+                sublabel: sublabelFor("Consultancy"),
             },
         ];
         if (othersOngoing > 0) {
@@ -3032,10 +3035,11 @@ export function DirectorDashboard() {
                 dotColor: "bg-emerald-500",
                 bgClass: "bg-emerald-50 dark:bg-emerald-950/30",
                 textClass: "text-emerald-700 dark:text-emerald-400",
+                sublabel: sublabelFor("Others"),
             });
         }
         return badges;
-    }, [researchOngoing, consultancyOngoing, othersOngoing]);
+    }, [researchOngoing, consultancyOngoing, othersOngoing, ongoingByTypeFundStatus]);
 
     // ── Dynamic Tab Counts for Modal ─────────────────────────────────────────
     const getDynamicTabCount = React.useCallback((tabKey: string) => {
@@ -3516,10 +3520,10 @@ export function DirectorDashboard() {
                                                     <span
                                                         className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 cursor-pointer hover:brightness-95 transition-all"
                                                         title="Sanctioned and fund received"
-                                                        onClick={(e) => { e.stopPropagation(); openOngoingFundStatusModal("active", "Ongoing Projects: Active"); }}
+                                                        onClick={(e) => { e.stopPropagation(); openOngoingFundStatusModal("active", "Ongoing Projects: Received Fund"); }}
                                                     >
                                                         <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                                        {ongoingFundStatusBreakdown.active} Active
+                                                        {ongoingFundStatusBreakdown.active} Received Fund
                                                     </span>
                                                     <span
                                                         className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 cursor-pointer hover:brightness-95 transition-all"

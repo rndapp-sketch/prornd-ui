@@ -173,6 +173,7 @@ function KpiCard({
         textClass: string;
         title?: string;
         originalState?: string;
+        sublabel?: string;
     }>;
     onBadgeClick?: (badgeLabel: string) => void;
     valueAdornment?: React.ReactNode;
@@ -232,11 +233,16 @@ function KpiCard({
                                         }
                                         : undefined
                                 }
-                                className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 ${b.bgClass} ${b.textClass}${onBadgeClick ? " cursor-pointer hover:brightness-95 transition-all" : ""}`}
+                                className={`inline-flex items-start gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 ${b.bgClass} ${b.textClass}${onBadgeClick ? " cursor-pointer hover:brightness-95 transition-all" : ""}`}
                                 title={b.title}
                             >
-                                <span className={`w-2 h-2 rounded-full ${b.dotColor}`} />
-                                {b.count} {b.label}
+                                <span className={`w-2 h-2 rounded-full ${b.dotColor} mt-1 shrink-0`} />
+                                <span className="flex flex-col leading-tight">
+                                    <span>{b.count} {b.label}</span>
+                                    {b.sublabel && (
+                                        <span className="text-[10px] font-semibold opacity-70">{b.sublabel}</span>
+                                    )}
+                                </span>
                             </span>
                         ))}
                     </div>
@@ -1306,6 +1312,28 @@ export function HeadOverview() {
         };
     }, [deptProjects, deptOngoingIds, deptSubmittedIds]);
 
+    // Percentage that n represents of total, rounded — used throughout the compact
+    // breakdown grids so "170 Ongoing" also reads as "170 (58%)" without a separate row.
+    const pctOf = (n: number, total: number): number => (total > 0 ? Math.round((n / total) * 100) : 0);
+
+    const renderStatusBadge = (status: "ongoing" | "submitted", count: number, total: number) => {
+        const isOngoing = status === "ongoing";
+        return (
+            <span
+                className={`inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 ${isOngoing
+                    ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400"
+                    : "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"
+                    }`}
+            >
+                <div className="flex items-center gap-1">
+                    <span className={`w-1 h-1 rounded-full ${isOngoing ? "bg-emerald-500" : "bg-amber-400"}`}></span>
+                    {isOngoing ? "Ongoing" : "Submitted"}
+                </div>
+                <span>{count} ({pctOf(count, total)}%)</span>
+            </span>
+        );
+    };
+
     // Compact Research/Consultancy/Others × Ongoing/Submitted breakdown — three
     // columns side by side rather than a stacked list, so the card stays short.
     // Shared by both Total Projects and Total Allocation (neither drills into a
@@ -1321,20 +1349,8 @@ export function HeadOverview() {
                     Research
                 </div>
                 <div className="flex flex-col gap-1 w-full px-1">
-                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                        <div className="flex items-center gap-1">
-                            <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
-                            Ongoing
-                        </div>
-                        <span>{allResearchOngoing}</span>
-                    </span>
-                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                        <div className="flex items-center gap-1">
-                            <span className="w-1 h-1 rounded-full bg-amber-400"></span>
-                            Submitted
-                        </div>
-                        <span>{allResearchSubmitted}</span>
-                    </span>
+                    {renderStatusBadge("ongoing", allResearchOngoing, allResearchProjects)}
+                    {renderStatusBadge("submitted", allResearchSubmitted, allResearchProjects)}
                 </div>
             </div>
             <div className={`flex flex-col items-center justify-start ${allOthersProjects > 0 ? "border-r border-[#E4E4E7] dark:border-[#3F3F46]" : ""}`}>
@@ -1345,20 +1361,8 @@ export function HeadOverview() {
                     Consultancy
                 </div>
                 <div className="flex flex-col gap-1 w-full px-1">
-                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                        <div className="flex items-center gap-1">
-                            <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
-                            Ongoing
-                        </div>
-                        <span>{allConsultancyOngoing}</span>
-                    </span>
-                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                        <div className="flex items-center gap-1">
-                            <span className="w-1 h-1 rounded-full bg-amber-400"></span>
-                            Submitted
-                        </div>
-                        <span>{allConsultancySubmitted}</span>
-                    </span>
+                    {renderStatusBadge("ongoing", allConsultancyOngoing, allConsultancyProjects)}
+                    {renderStatusBadge("submitted", allConsultancySubmitted, allConsultancyProjects)}
                 </div>
             </div>
             {allOthersProjects > 0 && (
@@ -1370,20 +1374,8 @@ export function HeadOverview() {
                         Others
                     </div>
                     <div className="flex flex-col gap-1 w-full px-1">
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                            <div className="flex items-center gap-1">
-                                <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
-                                Ongoing
-                            </div>
-                            <span>{allOthersOngoing}</span>
-                        </span>
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                            <div className="flex items-center gap-1">
-                                <span className="w-1 h-1 rounded-full bg-amber-400"></span>
-                                Submitted
-                            </div>
-                            <span>{allOthersSubmitted}</span>
-                        </span>
+                        {renderStatusBadge("ongoing", allOthersOngoing, allOthersProjects)}
+                        {renderStatusBadge("submitted", allOthersSubmitted, allOthersProjects)}
                     </div>
                 </div>
             )}
@@ -1414,10 +1406,34 @@ export function HeadOverview() {
         setKpiPage(1);
     };
 
-    // Simple Research/Consultancy/Others pill badges for the Ongoing Projects card —
-    // just the counts, no per-type click target (the card's own onClick already opens
-    // the ongoing-projects KPI modal).
+    // Same Received Fund/Pending split as ongoingFundStatusBreakdown, broken out per
+    // project type — so a Research-heavy pending-fund backlog isn't hidden inside an
+    // aggregate that looks healthy overall.
+    const ongoingByTypeFundStatus = React.useMemo(() => {
+        const counts: Record<"Research" | "Consultancy" | "Others", { received: number; pending: number }> = {
+            Research: { received: 0, pending: 0 },
+            Consultancy: { received: 0, pending: 0 },
+            Others: { received: 0, pending: 0 },
+        };
+        deptProjects.forEach((p: any) => {
+            if (!deptOngoingIds.has(p.name)) return;
+            if (!fundStatusMap.has(p.name)) return;
+            const { isResearch, isConsultancy } = classifyProjectType(p);
+            const bucket: "Research" | "Consultancy" | "Others" = isResearch ? "Research" : isConsultancy ? "Consultancy" : "Others";
+            if (fundStatusMap.get(p.name) === true) counts[bucket].received++;
+            else counts[bucket].pending++;
+        });
+        return counts;
+    }, [deptProjects, deptOngoingIds, fundStatusMap]);
+
+    // Research/Consultancy/Others pill badges for the Ongoing Projects card — count
+    // plus a received/pending fund sub-line, no per-type click target (the card's own
+    // onClick already opens the ongoing-projects KPI modal).
     const ongoingBreakdownBadges = React.useMemo(() => {
+        const sublabelFor = (bucket: "Research" | "Consultancy" | "Others") => {
+            const { received, pending } = ongoingByTypeFundStatus[bucket];
+            return `${received} received · ${pending} pending`;
+        };
         const badges = [
             {
                 label: "Research",
@@ -1425,6 +1441,7 @@ export function HeadOverview() {
                 dotColor: "bg-blue-500",
                 bgClass: "bg-blue-50 dark:bg-blue-950/30",
                 textClass: "text-blue-700 dark:text-blue-400",
+                sublabel: sublabelFor("Research"),
             },
             {
                 label: "Consultancy",
@@ -1432,6 +1449,7 @@ export function HeadOverview() {
                 dotColor: "bg-purple-500",
                 bgClass: "bg-purple-50 dark:bg-purple-950/30",
                 textClass: "text-purple-700 dark:text-purple-400",
+                sublabel: sublabelFor("Consultancy"),
             },
         ];
         if (allOthersOngoing > 0) {
@@ -1441,10 +1459,11 @@ export function HeadOverview() {
                 dotColor: "bg-emerald-500",
                 bgClass: "bg-emerald-50 dark:bg-emerald-950/30",
                 textClass: "text-emerald-700 dark:text-emerald-400",
+                sublabel: sublabelFor("Others"),
             });
         }
         return badges;
-    }, [allResearchOngoing, allConsultancyOngoing, allOthersOngoing]);
+    }, [allResearchOngoing, allConsultancyOngoing, allOthersOngoing, ongoingByTypeFundStatus]);
 
     // Same compact grid as projectBreakdownGrid, scoped to projects with an
     // international funding agency.
@@ -1469,36 +1488,24 @@ export function HeadOverview() {
                     <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">{rP}</div>
                     <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
                     <div className="flex flex-col gap-1 w-full px-1">
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-emerald-500"></span>Ongoing</div><span>{rO}</span>
-                        </span>
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-amber-400"></span>Submitted</div><span>{rS}</span>
-                        </span>
+                        {renderStatusBadge("ongoing", rO, rP)}
+                        {renderStatusBadge("submitted", rS, rP)}
                     </div>
                 </div>
                 <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
                     <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">{cP}</div>
                     <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
                     <div className="flex flex-col gap-1 w-full px-1">
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-emerald-500"></span>Ongoing</div><span>{cO}</span>
-                        </span>
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-amber-400"></span>Submitted</div><span>{cS}</span>
-                        </span>
+                        {renderStatusBadge("ongoing", cO, cP)}
+                        {renderStatusBadge("submitted", cS, cP)}
                     </div>
                 </div>
                 <div className="flex flex-col items-center justify-start">
                     <div className="text-[14px] font-extrabold text-[#059669] leading-tight">{oP}</div>
                     <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Others</div>
                     <div className="flex flex-col gap-1 w-full px-1">
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-emerald-500"></span>Ongoing</div><span>{oO}</span>
-                        </span>
-                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
-                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-amber-400"></span>Submitted</div><span>{oS}</span>
-                        </span>
+                        {renderStatusBadge("ongoing", oO, oP)}
+                        {renderStatusBadge("submitted", oS, oP)}
                     </div>
                 </div>
             </div>
@@ -1698,10 +1705,10 @@ export function HeadOverview() {
                                                     <span
                                                         className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 cursor-pointer hover:brightness-95 transition-all"
                                                         title="Sanctioned and fund received"
-                                                        onClick={(e) => { e.stopPropagation(); openOngoingFundStatusModal("active", "Ongoing Projects: Active"); }}
+                                                        onClick={(e) => { e.stopPropagation(); openOngoingFundStatusModal("active", "Ongoing Projects: Received Fund"); }}
                                                     >
                                                         <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                                        {ongoingFundStatusBreakdown.active} Active
+                                                        {ongoingFundStatusBreakdown.active} Received Fund
                                                     </span>
                                                     <span
                                                         className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 cursor-pointer hover:brightness-95 transition-all"
