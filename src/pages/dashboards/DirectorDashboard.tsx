@@ -3874,10 +3874,10 @@ export function DirectorDashboard() {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="mt-4 pt-4 border-t border-[#E4E4E7] dark:border-[#3F3F46] space-y-3.5">
+                                    <div className="mt-3 pt-3 border-t border-[#E4E4E7] dark:border-[#3F3F46] space-y-2">
                                         {/* Status totals */}
-                                        <div className="flex items-stretch gap-3 flex-wrap">
-                                            <div className="flex-1 min-w-[150px] rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-blue-50/60 dark:bg-blue-950/20 px-4 py-2.5">
+                                        <div className="flex items-stretch gap-2 flex-wrap">
+                                            <div className="flex-1 min-w-[150px] rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-blue-50/60 dark:bg-blue-950/20 px-3 py-2">
                                                 <div className="flex items-center gap-1.5">
                                                     <span className="w-2 h-2 rounded-full bg-[#2563eb] shrink-0" />
                                                     <span className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Submitted</span>
@@ -3885,7 +3885,7 @@ export function DirectorDashboard() {
                                                 <div className="text-[22px] font-extrabold text-[#2563eb] leading-none mt-0.5">{chartYearSubmittedTotal}</div>
                                                 <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug">Pending Sanction</div>
                                             </div>
-                                            <div className="flex-1 min-w-[150px] rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-purple-50/60 dark:bg-purple-950/20 px-4 py-2.5">
+                                            <div className="flex-1 min-w-[150px] rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-purple-50/60 dark:bg-purple-950/20 px-3 py-2">
                                                 <div className="flex items-center gap-1.5">
                                                     <span className="w-2 h-2 rounded-full bg-[#7c3aed] shrink-0" />
                                                     <span className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Ongoing</span>
@@ -3896,7 +3896,7 @@ export function DirectorDashboard() {
                                         </div>
 
                                         {/* Type breakdown */}
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                                             {[
                                                 { label: "Research", ongoing: chartTypeBreakdown.researchOngoing, submitted: chartTypeBreakdown.researchSubmitted },
                                                 { label: "Consultancy", ongoing: chartTypeBreakdown.consultancyOngoing, submitted: chartTypeBreakdown.consultancySubmitted },
@@ -3904,11 +3904,11 @@ export function DirectorDashboard() {
                                                     ? [{ label: "Others", ongoing: chartTypeBreakdown.othersOngoing, submitted: chartTypeBreakdown.othersSubmitted }]
                                                     : []),
                                             ].map((row) => (
-                                                <div key={row.label} className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] px-3 py-2.5">
-                                                    <div className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider mb-2">
+                                                <div key={row.label} className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] px-2.5 py-2">
+                                                    <div className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider mb-1">
                                                         {row.label}
                                                     </div>
-                                                    <div className="space-y-1.5">
+                                                    <div className="space-y-1">
                                                         <div className="flex items-center justify-between gap-2">
                                                             <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
                                                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
