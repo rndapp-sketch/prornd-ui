@@ -194,7 +194,7 @@ function KpiCard({
             >
                 {icon}
             </div>
-            <div className="text-[13px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide mb-0.5">
+            <div className="text-[11.5px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide mb-0.5">
                 {label}
             </div>
             {description && (
@@ -502,7 +502,7 @@ export function HeadOverview() {
     const viewMode = searchParams.get("view") || "Overview";
 
     // ── Pagination / modal state ─────────────────────────────────────────────
-    const [kpiModal, setKpiModal] = React.useState<{ type: string; title: string; fundingAgency?: string; excludedFundingAgencies?: string[]; projectType?: string; onlyOngoing?: boolean } | null>(null);
+    const [kpiModal, setKpiModal] = React.useState<{ type: string; title: string; fundingAgency?: string; excludedFundingAgencies?: string[]; projectType?: string; onlyOngoing?: boolean; fundStatus?: "active" | "pending_fund" } | null>(null);
     const [kpiPage, setKpiPage] = React.useState(1);
     const [kpiTab, setKpiTab] = React.useState<"ongoing" | "submitted">("ongoing");
     const [kpiAllocTab, setKpiAllocTab] = React.useState<string>("ongoing");
@@ -510,6 +510,10 @@ export function HeadOverview() {
     const [expandedPI, setExpandedPI] = React.useState<string | null>(location.state?.expandedPI || null);
     const [projectTableFilter, setProjectTableFilter] = React.useState<string>("all");
     const [projectTablePage, setProjectTablePage] = React.useState(1);
+    // Header search bar — quick project lookup by title/no/PI/dept, scoped to this
+    // department's projects. Mirrors DirectorDashboard's header search.
+    const [headerSearchText, setHeaderSearchText] = React.useState("");
+    const [headerSearchFocused, setHeaderSearchFocused] = React.useState(false);
     const [piSearch, setPiSearch] = React.useState("");
     const [piPage, setPiPage] = React.useState(1);
     const [piFundingFilter, setPiFundingFilter] = React.useState<string>("all");
@@ -706,6 +710,54 @@ export function HeadOverview() {
             (p) => p.implementation_department === userDept
         );
     }, [allProjectsList, userDept, deptOngoingIds, deptSubmittedIds]);
+
+    // Bulk fund-received status for this department's ongoing projects — mirrors
+    // DirectorDashboard's fundStatusMap sync, scoped to deptProjects/deptOngoingIds
+    // instead of the whole institute. Powers the Ongoing Projects card's Active/
+    // Pending Fund split without a per-row live fetch per project.
+    const [fundStatusMap, setFundStatusMap] = React.useState<Map<string, boolean>>(new Map());
+
+    React.useEffect(() => {
+        let isCancelled = false;
+        if (deptProjects.length === 0) return;
+
+        const syncFunds = async () => {
+            const map = new Map<string, boolean>();
+            const projectsToFetch = deptProjects.filter((p: any) => deptOngoingIds.has(p.name));
+            const total = projectsToFetch.length;
+            if (total === 0) return;
+
+            const chunkSize = 20;
+            for (let i = 0; i < total; i += chunkSize) {
+                if (isCancelled) break;
+                const chunk = projectsToFetch.slice(i, i + chunkSize);
+
+                await Promise.all(chunk.map(async (p: any) => {
+                    try {
+                        const csrf = (window as any).csrf_token || "";
+                        const headers = { "X-Frappe-CSRF-Token": csrf, "Content-Type": "application/json" };
+                        const res = await fetch(`/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg?prjreg_title=${encodeURIComponent(p.name)}&limit=10&start=0`, { headers }).then(r => r.json()).catch(() => null);
+
+                        const fundsRaw = res?.message || res?.data || [];
+                        const funds = Array.isArray(fundsRaw) ? fundsRaw : (fundsRaw.message || []);
+
+                        const hasFund = funds.some((r: any) => {
+                            const s = (r.workflow_state || r.status || "").toLowerCase();
+                            return s === "approved" || s.includes("fund received");
+                        });
+                        map.set(p.name, hasFund);
+                    } catch {
+                        map.set(p.name, false);
+                    }
+                }));
+
+                if (!isCancelled) setFundStatusMap(new Map(map));
+            }
+        };
+
+        syncFunds();
+        return () => { isCancelled = true; };
+    }, [deptProjects, deptOngoingIds]);
 
     // ── Resolved department display name ─────────────────────────────────
     // Tries: userDept lookup → first project's implementation_department → raw userDept
@@ -1061,6 +1113,27 @@ export function HeadOverview() {
         return m;
     }, [piWiseProjects]);
 
+    // Header search bar results — matches project title, no, PI email/name, department
+    // — scoped to deptProjects, capped to a short list for a dropdown.
+    const HEADER_SEARCH_LIMIT = 8;
+    const headerSearchResults = React.useMemo(() => {
+        const query = headerSearchText.toLowerCase().trim();
+        if (!query) return [];
+        const matches: any[] = [];
+        for (const p of deptProjects) {
+            const title = (p.project_title || p.name || "").toLowerCase();
+            const projNo = (p.project_no || p.name || "").toLowerCase();
+            const piEmail = (p.pi_webmail || "").toLowerCase();
+            const piName = (p.pi_webmail ? (piNameMap[p.pi_webmail.toLowerCase().trim()] || p.pi_webmail.split("@")[0]) : "").toLowerCase();
+            const deptName = (p.implementation_department || "").toLowerCase();
+            if (title.includes(query) || projNo.includes(query) || piEmail.includes(query) || piName.includes(query) || deptName.includes(query)) {
+                matches.push(p);
+                if (matches.length >= HEADER_SEARCH_LIMIT) break;
+            }
+        }
+        return matches;
+    }, [deptProjects, headerSearchText, piNameMap]);
+
     const filteredPIsFromProjects = React.useMemo(() => {
         if (piFundingFilter === "all") return null;
         const piMap: Record<string, { user_email: string; user_name: string; project_count: number; departments: string[] }> = {};
@@ -1147,9 +1220,18 @@ export function HeadOverview() {
             );
         }
         if (kpiModal.type === "ongoing") {
-            return source.filter((p: any) =>
+            let base = source.filter((p: any) =>
                 deptProjects.length > 0 ? deptOngoingIds.has(p.name) : p._api_status === "ongoing"
             );
+            // fundStatus narrows further to just Active (fund received) or Pending Fund —
+            // set when the click came from the Ongoing Projects card's Active/Pending Fund
+            // badges rather than the card itself.
+            if (kpiModal.fundStatus === "active") {
+                base = base.filter((p: any) => fundStatusMap.get(p.name) === true);
+            } else if (kpiModal.fundStatus === "pending_fund") {
+                base = base.filter((p: any) => fundStatusMap.get(p.name) !== true);
+            }
+            return base;
         }
         if (kpiModal.type === "intl") {
             let filtered = source.filter(
@@ -1197,7 +1279,7 @@ export function HeadOverview() {
             });
         }
         return source;
-    }, [deptProjects, apiProjectsFlat, deptOngoingIds, deptSubmittedIds, kpiModal, kpiTab, kpiAllocTab, getProjectAgency]);
+    }, [deptProjects, apiProjectsFlat, deptOngoingIds, deptSubmittedIds, kpiModal, kpiTab, kpiAllocTab, getProjectAgency, fundStatusMap]);
 
     const kpiTotalPages = Math.max(1, Math.ceil(kpiModalRows.length / KPI_PAGE_SIZE));
     const kpiPagedRows = kpiModalRows.slice((kpiPage - 1) * KPI_PAGE_SIZE, kpiPage * KPI_PAGE_SIZE);
@@ -1378,49 +1460,109 @@ export function HeadOverview() {
         </div>
     ), [allocationBreakdownRows, isFundUtilDataReady]);
 
+    // Ongoing Projects card: split by fund-received status, not just project type —
+    // "sanction approved" alone doesn't tell the Head whether a project is truly
+    // active (fund in hand) or still waiting on disbursal. Mirrors DirectorDashboard's
+    // ongoingFundStatusBreakdown, scoped to deptProjects/deptOngoingIds.
+    const ongoingFundStatusBreakdown = React.useMemo(() => {
+        let active = 0, pendingFund = 0, checking = 0;
+        deptProjects.forEach((p: any) => {
+            if (!deptOngoingIds.has(p.name)) return;
+            if (!fundStatusMap.has(p.name)) { checking++; return; }
+            if (fundStatusMap.get(p.name) === true) active++;
+            else pendingFund++;
+        });
+        return { active, pendingFund, checking };
+    }, [deptProjects, deptOngoingIds, fundStatusMap]);
+
+    // Same split, broken out per project type — so a Research-heavy pending-fund
+    // backlog isn't hidden inside an aggregate that looks healthy overall.
+    const ongoingByTypeFundStatus = React.useMemo(() => {
+        const counts: Record<"Research" | "Consultancy" | "Others", { active: number; pendingFund: number; checking: number }> = {
+            Research: { active: 0, pendingFund: 0, checking: 0 },
+            Consultancy: { active: 0, pendingFund: 0, checking: 0 },
+            Others: { active: 0, pendingFund: 0, checking: 0 },
+        };
+        deptProjects.forEach((p: any) => {
+            if (!deptOngoingIds.has(p.name)) return;
+            const { isResearch, isConsultancy } = classifyProjectType(p);
+            const bucket: "Research" | "Consultancy" | "Others" = isResearch ? "Research" : isConsultancy ? "Consultancy" : "Others";
+            if (!fundStatusMap.has(p.name)) { counts[bucket].checking++; return; }
+            if (fundStatusMap.get(p.name) === true) counts[bucket].active++;
+            else counts[bucket].pendingFund++;
+        });
+        return counts;
+    }, [deptProjects, deptOngoingIds, fundStatusMap]);
+
+    const openOngoingFundStatusModal = (status: "active" | "pending_fund", title: string) => {
+        setKpiModal({ type: "ongoing", title, fundStatus: status });
+        setKpiPage(1);
+    };
+
     const ongoingBreakdownList = React.useMemo(() => {
         const totalOngoing = allResearchOngoing + allConsultancyOngoing + allOthersOngoing;
         const pct = (n: number) => totalOngoing > 0 ? Math.round((n / totalOngoing) * 100) : 0;
-        const rows = [
+        const rows: Array<{ label: "Research" | "Consultancy" | "Others"; dotColor: string; count: number }> = [
             { label: "Research", dotColor: "bg-blue-500", count: allResearchOngoing },
             { label: "Consultancy", dotColor: "bg-purple-500", count: allConsultancyOngoing },
-            ...(allOthersOngoing > 0 ? [{ label: "Others", dotColor: "bg-emerald-500", count: allOthersOngoing }] : []),
+            ...(allOthersOngoing > 0 ? [{ label: "Others" as const, dotColor: "bg-emerald-500", count: allOthersOngoing }] : []),
         ];
         return (
             <div className="flex flex-col divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]/60 pt-1 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-                {rows.map((r) => (
-                    <div
-                        key={r.label}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setKpiModal({
-                                type: "projectType",
-                                title: `Ongoing Projects: ${r.label}`,
-                                projectType: rowTabByLabel[r.label],
-                                onlyOngoing: true,
-                            });
-                            setKpiPage(1);
-                        }}
-                        className="flex items-center justify-between gap-2 py-1.5 text-[13px] -mx-1.5 px-1.5 rounded-md cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
-                    >
-                        <div className="flex items-center gap-1.5 min-w-0">
-                            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${r.dotColor}`} />
-                            <span className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.label}</span>
+                {rows.map((r) => {
+                    const { active, pendingFund, checking } = ongoingByTypeFundStatus[r.label];
+                    return (
+                        <div
+                            key={r.label}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setKpiModal({
+                                    type: "projectType",
+                                    title: `Ongoing Projects: ${r.label}`,
+                                    projectType: rowTabByLabel[r.label],
+                                    onlyOngoing: true,
+                                });
+                                setKpiPage(1);
+                            }}
+                            className="flex flex-col gap-0.5 py-1.5 -mx-1.5 px-1.5 rounded-md cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
+                        >
+                            <div className="flex items-center justify-between gap-2 text-[13px]">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                    <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${r.dotColor}`} />
+                                    <span className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.label}</span>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <span className="font-extrabold text-[14px] text-[#3F3F46] dark:text-[#E4E4E7]">{r.count}</span>
+                                    <span
+                                        className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
+                                        title={`${pct(r.count)}% of ongoing projects are ${r.label}`}
+                                    >
+                                        {pct(r.count)}%
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 pl-4 text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
+                                {checking > 0 ? (
+                                    // Fund-status is still resolving for some of this type's projects —
+                                    // show a plain loading state for the whole row rather than partial,
+                                    // steadily-increasing counts that look inconsistent mid-fetch.
+                                    <span className="font-semibold text-zinc-400 dark:text-zinc-500 animate-pulse">Loading…</span>
+                                ) : (
+                                    <span className="flex items-center gap-1 truncate">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                        {active} active
+                                        <span className="text-[#D4D4D8] dark:text-[#3F3F46] mx-0.5">&middot;</span>
+                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                                        {pendingFund} pending fund
+                                    </span>
+                                )}
+                            </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                            <span className="font-extrabold text-[14px] text-[#3F3F46] dark:text-[#E4E4E7]">{r.count}</span>
-                            <span
-                                className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
-                                title={`${pct(r.count)}% of ongoing projects are ${r.label}`}
-                            >
-                                {pct(r.count)}%
-                            </span>
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         );
-    }, [allResearchOngoing, allConsultancyOngoing, allOthersOngoing]);
+    }, [allResearchOngoing, allConsultancyOngoing, allOthersOngoing, ongoingByTypeFundStatus, rowTabByLabel]);
 
     const intlBreakdownGrid = React.useMemo(() => {
         let rP = 0, rO = 0, rS = 0;
@@ -1482,6 +1624,74 @@ export function HeadOverview() {
                             </div>
                         </div>
                     </div>
+                    {viewMode !== "PI" && (
+                        <div className="relative w-full md:w-[320px] shrink-0">
+                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-zinc-400 dark:text-zinc-500">
+                                <Search className="w-4 h-4" />
+                            </span>
+                            <input
+                                type="text"
+                                placeholder="Search project title, no, PI, dept..."
+                                value={headerSearchText}
+                                onChange={(e) => setHeaderSearchText(e.target.value)}
+                                onFocus={() => setHeaderSearchFocused(true)}
+                                onBlur={() => setTimeout(() => setHeaderSearchFocused(false), 150)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Escape") {
+                                        setHeaderSearchText("");
+                                        (e.target as HTMLInputElement).blur();
+                                    }
+                                }}
+                                className="w-full h-10 text-[13px] font-semibold pl-9 pr-8 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg outline-none focus:border-[#2563eb] text-[#3F3F46] dark:text-[#E4E4E7] placeholder-zinc-400 transition-colors shadow-sm"
+                            />
+                            {headerSearchText && (
+                                <button
+                                    onClick={() => setHeaderSearchText("")}
+                                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-[#71717A] hover:text-black dark:hover:text-white"
+                                    type="button"
+                                    tabIndex={-1}
+                                >
+                                    <X size={13} />
+                                </button>
+                            )}
+                            {headerSearchFocused && headerSearchText.trim() && (
+                                <div className="absolute z-50 mt-1.5 w-full max-h-[360px] overflow-y-auto bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg shadow-lg">
+                                    {headerSearchResults.length === 0 ? (
+                                        <div className="px-4 py-3 text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
+                                            No projects match &ldquo;{headerSearchText}&rdquo;
+                                        </div>
+                                    ) : (
+                                        headerSearchResults.map((p) => {
+                                            const piName = p.pi_webmail ? (piNameMap[p.pi_webmail.toLowerCase().trim()] || p.pi_webmail.split("@")[0]) : "";
+                                            return (
+                                                <div
+                                                    key={p.name}
+                                                    onClick={() => {
+                                                        setHeaderSearchText("");
+                                                        navigate(`/project-details-overview/${p.name}`, { state: { returnTo: location.pathname + location.search } });
+                                                    }}
+                                                    className="px-4 py-2.5 border-b last:border-b-0 border-[#F4F4F5] dark:border-[#3F3F46] cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
+                                                >
+                                                    <div className="text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">
+                                                        {p.project_title || p.name}
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA] truncate">
+                                                        <span>{p.project_no || p.name}</span>
+                                                        {piName && (<><span>&middot;</span><span className="truncate">{piName}</span></>)}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                    {headerSearchResults.length === HEADER_SEARCH_LIMIT && (
+                                        <div className="px-4 py-2 text-[10.5px] text-[#A1A1AA] dark:text-[#71717A] border-t border-[#F4F4F5] dark:border-[#3F3F46]">
+                                            Showing first {HEADER_SEARCH_LIMIT} matches — refine your search for more.
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {viewMode !== "PI" && (
@@ -1526,8 +1736,7 @@ export function HeadOverview() {
                                 }
                             />
                             <KpiCard
-                                label="Total Allocation"
-                                description="From sanctioned & fund-approved projects"
+                                label="Total Fund Allocation for Ongoing Projects"
                                 value={formatCurrency(fundAnalytics.total_allocation || stats.totalAlloc)}
                                 isLoading={isPageLoading}
                                 subtext=""
@@ -1558,18 +1767,43 @@ export function HeadOverview() {
                             />
                             <KpiCard
                                 label="Ongoing Projects"
+                                description="Sanction-approved projects, by fund status"
                                 value={String(projectOverview.ongoing_projects || stats.ongoing)}
                                 isLoading={isPageLoading}
                                 subtext=""
                                 valueAdornment={
-                                    !isPageLoading && (() => {
-                                        const tot = (projectOverview.ongoing_projects || stats.ongoing) + (projectOverview.submitted_projects || stats.submitted);
-                                        return tot > 0 && (
-                                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
-                                                {(((projectOverview.ongoing_projects || stats.ongoing) / tot) * 100).toFixed(0)}% of portfolio
-                                            </span>
-                                        );
-                                    })()
+                                    !isPageLoading && (projectOverview.ongoing_projects || stats.ongoing) > 0 && (
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            {ongoingFundStatusBreakdown.checking > 0 ? (
+                                                // Fund-status is still resolving for some ongoing projects —
+                                                // show a plain loading state rather than partial, steadily-
+                                                // increasing Active/Pending Fund counts that look inconsistent
+                                                // mid-fetch. Final numbers only appear once fully resolved.
+                                                <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 animate-pulse">
+                                                    Loading…
+                                                </span>
+                                            ) : (
+                                                <>
+                                                    <span
+                                                        className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 cursor-pointer hover:brightness-95 transition-all"
+                                                        title="Sanctioned and fund received"
+                                                        onClick={(e) => { e.stopPropagation(); openOngoingFundStatusModal("active", "Ongoing Projects: Active"); }}
+                                                    >
+                                                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                                        {ongoingFundStatusBreakdown.active} Active
+                                                    </span>
+                                                    <span
+                                                        className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 cursor-pointer hover:brightness-95 transition-all"
+                                                        title="Sanctioned but fund not yet received"
+                                                        onClick={(e) => { e.stopPropagation(); openOngoingFundStatusModal("pending_fund", "Ongoing Projects: Pending Fund Received"); }}
+                                                    >
+                                                        <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                                                        {ongoingFundStatusBreakdown.pendingFund} Pending Fund
+                                                    </span>
+                                                </>
+                                            )}
+                                        </div>
+                                    )
                                 }
                                 icon={
                                     <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
@@ -1584,10 +1818,11 @@ export function HeadOverview() {
                                 customBottom={!isPageLoading && ongoingBreakdownList}
                             />
                             <KpiCard
-                                label="Intl. Collaborations"
+                                label="International Collaborators"
+                                description="Projects with an international funding agency"
                                 value={String(stats.intlCount)}
                                 isLoading={isPageLoading}
-                                subtext="International Funding Sources"
+                                subtext=""
                                 icon={
                                     <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                                         <circle cx="12" cy="12" r="10" />
@@ -1599,7 +1834,7 @@ export function HeadOverview() {
                                 iconBg="#f0f9ff"
                                 circleColor="#0284c7"
                                 onClick={() => openKpiModal("intl", "International Collaborator Projects")}
-                                customBottom={!isLoading && !isHeadDataLoading && stats.intlCount > 0 && intlBreakdownGrid}
+                                customBottom={!isLoading && !isHeadDataLoading && intlBreakdownGrid}
                             />
                         </div>
 
@@ -1617,7 +1852,7 @@ export function HeadOverview() {
                                                 <line x1="6" y1="20" x2="6" y2="14" />
                                             </svg>
                                         </div>
-                                        Financial Year — Project Status
+                                        Yearwise Project Status
                                     </div>
                                     <div className="flex items-center gap-2">
                                         {/* Type selector */}

@@ -9,7 +9,7 @@ import {
     recruitmentAdhocContractualAPI,
     prepareFormDataForApi,
 } from "@/services/apiService";
-import { Loader2, ArrowLeft, Save, Send, CheckCircle2, MessageSquare, X } from "lucide-react";
+import { Loader2, ArrowLeft, Save, Send, CheckCircle2, MessageSquare, X, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,8 @@ import { useProjectBudget } from '@/hooks/useProjectBudget';
 import { BudgetHeadName } from '@/components/BudgetHeadName';
 import { CommitPayment } from '@/components/CommitPayment';
 import { ActivityLog, clearActivityLogCache } from '@/components/ActivityLog';
+import { P11PrintModal } from "@/components/P11PrintModal";
+import { generateRecruitmentAdhocContractualHtml } from "@/utils/recruitmentAdhocContractualPrint";
 import { ErrorModal } from "../../components/ErrorModal";
 import { parseFrappeError } from "../../utils/errorUtils";
 
@@ -162,6 +164,8 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
     const [isLoadingFields, setIsLoadingFields] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isActivityOpen, setIsActivityOpen] = useState(false);
+    const [isPrintOpen, setIsPrintOpen] = useState(false);
+    const activityLogContainerRef = useRef<HTMLDivElement>(null);
     const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
     const isSavingRef = useRef(false);
     const [savedDocName, setSavedDocName] = useState<string | null>(
@@ -1294,6 +1298,17 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                                 </p>
                             </div>
                         </div>
+                        {currentDocName && (
+                            <button
+                                type="button"
+                                onClick={() => setIsPrintOpen(true)}
+                                className="inline-flex items-center gap-2 rounded-xl border border-[#E4E4E7] bg-white px-4 py-2 text-sm font-bold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-[#3F3F46] dark:bg-[#18181B] dark:text-zinc-300 dark:hover:bg-zinc-800"
+                                title="Print this document"
+                            >
+                                <Printer className="h-4 w-4" />
+                                Print
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -1696,6 +1711,34 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                     title={errorModal.title}
                     message={errorModal.message}
                     onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+                />
+
+                <div style={{ display: "none" }} ref={activityLogContainerRef}>
+                    {currentDocName && (
+                        <ActivityLog
+                            doctype="Recruitment Adhoc Contractual"
+                            docname={currentDocName}
+                            fallbackOwner={formData.owner}
+                            fallbackCreation={formData.creation}
+                        />
+                    )}
+                </div>
+
+                <P11PrintModal
+                    title="Recruitment Adhoc Contractual Preview"
+                    isOpen={isPrintOpen}
+                    onClose={() => setIsPrintOpen(false)}
+                    docName={currentDocName || "Draft"}
+                    htmlContent={
+                        isPrintOpen
+                            ? generateRecruitmentAdhocContractualHtml(
+                                formData,
+                                fields,
+                                linkOptions,
+                                activityLogContainerRef.current
+                            )
+                            : ""
+                    }
                 />
 
             </main>

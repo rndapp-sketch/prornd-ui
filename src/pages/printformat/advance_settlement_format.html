@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Temporary Advance Sanction Sheet</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Times New Roman", Times, serif;
+            background: #e0e0e0;
+        }
+
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 20px auto;
+            background: #fff;
+            position: relative;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .content {
+            position: relative;
+            z-index: 1;
+            padding: 0 14mm 0 14mm;
+        }
+
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.06;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .watermark img {
+            width: 350px;
+        }
+
+        /* ── HEADER ── */
+        .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 6px;
+        }
+
+        .logo-left img {
+            height: 85px;
+            width: auto;
+            display: block;
+        }
+
+        .header-center {
+            text-align: center;
+            flex: 1;
+            padding: 0 10px;
+        }
+
+        .header-hindi {
+            font-size: 11pt;
+            font-weight: bold;
+            line-height: 1.3;
+        }
+
+        .header-english {
+            font-size: 12pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            line-height: 1.3;
+        }
+
+        .header-sub {
+            font-size: 9.5pt;
+            line-height: 1.3;
+        }
+
+        /* ── DOC META ── */
+        .doc-ref-right {
+            text-align: right;
+            font-size: 8.5pt;
+            line-height: 1.5;
+            margin: 3px 0 2px 0;
+        }
+
+        .doc-ref-right .doc-ref-label { font-weight: bold; }
+
+        .form-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin: 4px 0 3px 0;
+            font-size: 9.5pt;
+        }
+
+        .form-type { font-weight: bold; font-size: 10pt; }
+
+        .title {
+            text-align: center;
+            font-weight: bold;
+            text-decoration: underline;
+            margin: 15px 0 20px 0;
+            font-size: 14pt;
+            text-transform: uppercase;
+        }
+
+        /* Info table (key-value pairs) */
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-bottom: 15px;
+        }
+
+        .info-table th,
+        .info-table td {
+            border: 1px solid #000;
+            padding: 6px 10px;
+            vertical-align: top;
+            line-height: 1.4;
+        }
+
+        .info-table th {
+            background-color: #f7f7f7;
+            font-weight: bold;
+            text-align: left;
+        }
+
+        .info-table td.label {
+            font-weight: bold;
+            width: 25%;
+            background-color: #f7f7f7;
+        }
+
+        .text-right {
+            text-align: right !important;
+        }
+
+        .label-bg {
+            background-color: #f7f7f7 !important;
+            font-weight: bold !important;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: bold;
+            text-decoration: underline;
+            margin: 15px 0 8px 0;
+            text-transform: uppercase;
+        }
+
+        .remarks {
+            font-size: 13px;
+            line-height: 1.5;
+            border: 1px solid #000;
+            padding: 10px;
+            background-color: #fff;
+            min-height: 60px;
+            white-space: pre-wrap;
+        }
+
+        /* ── ACTIVITY LOG ── */
+        .activity-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 9pt;
+            margin-top: 4px;
+            margin-bottom: 6px;
+        }
+
+        .activity-table th,
+        .activity-table td {
+            border: 1px solid #ccc;
+            padding: 4px 8px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .activity-table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+            font-size: 8.5pt;
+        }
+
+        .activity-table th:nth-child(1) { width: 30%; }
+        .activity-table th:nth-child(2) { width: 50%; }
+        .activity-table th:nth-child(3) { width: 20%; }
+
+        .activity-table .designation {
+            display: block;
+            font-size: 8pt;
+            color: #555;
+            font-weight: normal;
+        }
+
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        @media print {
+            .watermark {
+                position: fixed !important;
+                top: 50% !important;
+                left: 50% !important;
+                transform: translate(-50%, -50%) !important;
+                z-index: 0 !important;
+            }
+
+            table.layout-table > tbody > tr,
+            table.layout-table > tbody > tr > td {
+                page-break-inside: auto !important;
+                break-inside: auto !important;
+            }
+
+            tr { page-break-inside: avoid; }
+            body {
+                margin: 0;
+                background: none;
+            }
+
+            .page {
+                margin: 0;
+                box-shadow: none;
+                background: none;
+                width: auto;
+                min-height: auto;
+                page-break-inside: auto;
+            }
+
+            .content { padding: 0 14mm; }
+
+            .activity-log {
+                page-break-inside: avoid;
+            }
+
+            .hide-on-print {
+                display: none !important;
+            }
+
+            .print-footer {
+                display: flex !important;
+                justify-content: space-between;
+                align-items: center;
+                position: fixed;
+                bottom: 8mm;
+                right: 14mm;
+                left: 14mm;
+                font-size: 8pt;
+                color: #888;
+                border-top: 1px solid #ddd;
+                padding-top: 4px;
+                z-index: 100;
+            }
+
+        }
+    
+        table.layout-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: none;
+        }
+        table.layout-table > tbody > tr > td,
+        table.layout-table > tfoot > tr > td,
+        table.layout-table > thead > tr > td {
+            border: none;
+            padding: 0;
+            margin: 0;
+        }
+        .footer-space { height: 15mm; }
+        .header-space { height: 10mm; }
+
+        .print-footer {
+            display: none;
+        }
+
+    </style>
+
+</head>
+
+<body>
+    <div class="page">
+        
+
+        <div class="content">
+        <table class="layout-table">
+            <thead>
+                <tr>
+                    <td><div class="header-space"></div></td>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+
+            <!-- HEADER -->
+            <div class="header-row">
+                <div class="logo-left">
+                    <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo" onerror="this.style.display = 'none'" />
+                </div>
+                <div class="header-center">
+                    <div class="header-hindi">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
+                    <div class="header-english">Indian Institute of Technology Guwahati</div>
+                    <div class="header-sub">अनुसंधान एवं विकास अनुभाग / Research & Development Section</div>
+                </div>
+            </div>
+
+            <!-- DOC META & FORM TYPE -->
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin: 4px 0 2px 0;">
+                <div class="form-type">Form Type: Advance Settlement</div>
+                <div class="doc-ref-right" style="margin: 0;">
+                    <span class="doc-ref-label">Doc Ref: </span><span>{{DOC_REF}}</span>
+                    &nbsp;&nbsp;
+                    <span class="doc-ref-label">Status: </span><span>{{WORKFLOW_STATE}}</span>
+                </div>
+            </div>
+            <!-- PROJECT LINE & DATE -->
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; font-size: 9.5pt;">
+                <div>
+                    <strong>Project No:</strong> {{PROJECT_CODE}}
+                </div>
+                <div style="text-align: right;">
+                    <strong>Date:</strong> {{DATE}}
+                </div>
+            </div>
+
+            <!-- APPLICANT DETAILS -->
+            <div class="section-title">Applicant Details</div>
+            <table class="info-table">
+                <tr>
+                    <td class="label">Applicant Name</td>
+                    <td>{{APPLICANT_NAME}}</td>
+                    <td class="label" style="width: 15%;">Webmail</td>
+                    <td>{{APPLICANT_WEBMAIL}}</td>
+                </tr>
+                <tr>
+                    <td class="label">Department</td>
+                    <td>{{APPLICANT_DEPARTMENT}}</td>
+                    <td class="label" style="width: 15%;">Designation</td>
+                    <td>{{APPLICANT_DESIGNATION}}</td>
+                </tr>
+            </table>
+
+            <!-- PROJECT & ADVANCE DETAILS -->
+            <div class="section-title">Project Details</div>
+            <table class="info-table">
+                <tr>
+                    <td class="label">Project Title</td>
+                    <td colspan="3">{{PROJECT_TITLE}}</td>
+                </tr>
+                <tr>
+                    <td class="label">Account Head</td>
+                    <td>{{ACCOUNT_HEAD}}</td>
+                    <td class="label">Temporary Advance Ref</td>
+                    <td>{{TEMP_ADVANCE_REF}}</td>
+                </tr>
+                <tr>
+                    <td class="label">Total Settlement</td>
+                    <td colspan="3" style="font-weight: bold; font-size: 14px; color: #111;">{{TOTAL_AMOUNT}}</td>
+                </tr>
+            </table>
+
+            <!-- BANK DETAILS -->
+            <div class="section-title">Account Details</div>
+            <table class="info-table">
+                <tr>
+                    <td class="label">Account Holder</td>
+                    <td>{{ACCOUNT_HOLDER}}</td>
+                    <td class="label">Account Number</td>
+                    <td style="font-family: monospace;">{{ACCOUNT_NUMBER}}</td>
+                </tr>
+            </table>
+
+            <!-- EXPENDITURE DETAILS -->
+            <div class="section-title">Expenditure Details</div>
+            {{EXPENDITURE_TABLE}}
+
+            <!-- ACTIVITY LOG -->
+            <div class="section-title" style="margin-top:8px; display:flex; align-items:center;">Activity Log <span style="background:#f4f4f5; color:#52525b; padding:2px 8px; border-radius:12px; font-size:8pt; font-weight:bold; margin-left:8px; line-height:1;">{{ACTIVITY_COUNT}}</span></div>
+            {{ACTIVITY_LOG_SECTION}}
+                    </td>
+                </tr>
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td><div class="footer-space"></div></td>
+                </tr>
+            </tfoot>
+        </table>
+        
+        
+        </div>
+    </div>
+<div class="watermark">
+            <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
+                onerror="this.style.display = 'none'" />
+        </div>
+<div class="print-footer">
+    Printed on: {{CURRENT_TIME}} &nbsp;|&nbsp; IIT Guwahati — R&amp;D Section &nbsp;|&nbsp; Advance Settlement
+</div>
+</body>
+
+</html>

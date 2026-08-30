@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Loan Request — {{DOC_REF}}</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: "Times New Roman", Times, serif;
+            font-size: 10pt;
+            background: #ccc;
+            color: #111;
+        }
+
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 20px auto;
+            background: #fff;
+            position: relative;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .content {
+            position: relative;
+            z-index: 1;
+            padding: 0 14mm 0 14mm;
+        }
+
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.06;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .watermark img { width: 350px; }
+
+        /* ── HEADER ── */
+        .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10mm 0 4mm 0;
+            border-bottom: 2px solid #000;
+            margin-bottom: 5px;
+        }
+
+        .logo-left img {
+            height: 85px;
+            width: auto;
+            display: block;
+        }
+
+        .header-center {
+            text-align: center;
+            flex: 1;
+            padding: 0 10px;
+        }
+
+        .header-hindi {
+            font-size: 11pt;
+            font-weight: bold;
+            line-height: 1.3;
+        }
+
+        .header-english {
+            font-size: 12pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            line-height: 1.3;
+        }
+
+        .header-sub {
+            font-size: 9.5pt;
+            line-height: 1.3;
+        }
+
+        .form-type {
+            font-size: 9pt;
+            font-weight: bold;
+            color: #444;
+            letter-spacing: 0.03em;
+        }
+
+        .doc-ref-right {
+            font-size: 9pt;
+            color: #333;
+            text-align: right;
+        }
+        .doc-ref-label { font-weight: bold; }
+
+        /* ── SECTION TITLE ── */
+        .section-title {
+            font-size: 9.5pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #1a1a1a;
+            border-bottom: 1px solid #bbb;
+            padding-bottom: 2px;
+            margin: 10px 0 6px 0;
+        }
+
+        /* ── INFO TABLE ── */
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+            font-size: 9.5pt;
+        }
+
+        .info-table td {
+            padding: 4px 6px;
+            border: 1px solid #ddd;
+            vertical-align: top;
+        }
+
+        .info-table td.label {
+            font-weight: bold;
+            background-color: #f7f7f7;
+            width: 22%;
+            white-space: nowrap;
+        }
+
+        /* ── FUND BREAKUP TABLE ── */
+        .breakup-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+            font-size: 9.5pt;
+        }
+
+        .breakup-table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+            font-size: 8.5pt;
+            padding: 5px 6px;
+            border: 1px solid #ccc;
+            text-align: left;
+        }
+
+        .breakup-table td {
+            padding: 4px 6px;
+            border: 1px solid #ddd;
+            vertical-align: top;
+        }
+
+        .breakup-table tr:nth-child(even) td { background-color: #fafafa; }
+
+        .breakup-table tfoot td {
+            font-weight: bold;
+            background-color: #f0f0f0;
+            border-top: 2px solid #999;
+        }
+
+        /* ── AGREEMENTS ── */
+        .agreement-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+            margin-bottom: 5px;
+            font-size: 9pt;
+        }
+
+        .agreement-check {
+            flex-shrink: 0;
+            width: 12px;
+            height: 12px;
+            border: 1.5px solid #333;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 1px;
+        }
+
+        .agreement-check.checked::after {
+            content: "✓";
+            font-size: 9pt;
+            line-height: 1;
+        }
+
+        /* ── REMARKS ── */
+        .remarks {
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 6px 8px;
+            min-height: 40px;
+            font-size: 9.5pt;
+            background: #fafafa;
+            margin-bottom: 8px;
+            white-space: pre-wrap;
+        }
+
+        /* ── STATUS BADGE ── */
+        .status-badge {
+            display: inline-block;
+            padding: 1px 8px;
+            border-radius: 99px;
+            font-size: 8pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+
+        /* ── ACTIVITY LOG ── */
+        .activity-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 8.5pt;
+            margin-top: 4px;
+        }
+
+        .activity-table th, .activity-table td {
+            border: 1px solid #ddd;
+            padding: 4px 6px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .activity-table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+            font-size: 8.5pt;
+        }
+
+        .activity-table th:nth-child(1) { width: 25%; }
+        .activity-table th:nth-child(2) { width: 55%; }
+        .activity-table th:nth-child(3) { width: 20%; }
+
+        .activity-table .designation {
+            display: block;
+            font-size: 8pt;
+            color: #555;
+            font-weight: normal;
+        }
+
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        @media print {
+            .watermark {
+                position: fixed !important;
+                top: 50% !important;
+                left: 50% !important;
+                transform: translate(-50%, -50%) !important;
+                z-index: 0 !important;
+            }
+
+            table.layout-table > tbody > tr,
+            table.layout-table > tbody > tr > td {
+                page-break-inside: auto !important;
+                break-inside: auto !important;
+            }
+
+            tr { page-break-inside: avoid; }
+
+            body { margin: 0; background: none; }
+
+            .page {
+                margin: 0;
+                box-shadow: none;
+                background: none;
+                width: auto;
+                min-height: auto;
+                page-break-inside: auto;
+            }
+
+            .content { padding: 0 14mm; }
+
+            .print-footer {
+                display: block !important;
+                position: fixed;
+                bottom: 8mm;
+                right: 14mm;
+                left: 14mm;
+                font-size: 8pt;
+                color: #888;
+                text-align: right;
+                border-top: 1px solid #ddd;
+                padding-top: 4px;
+                z-index: 100;
+            }
+        }
+
+        table.layout-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: none;
+        }
+        table.layout-table > tbody > tr > td,
+        table.layout-table > tfoot > tr > td,
+        table.layout-table > thead > tr > td {
+            border: none;
+            padding: 0;
+            margin: 0;
+        }
+        .footer-space { height: 15mm; }
+        .header-space { height: 10mm; }
+
+        .print-footer { display: none; }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+        <div class="content">
+        <table class="layout-table">
+            <thead>
+                <tr><td><div class="header-space"></div></td></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+
+            <!-- HEADER -->
+            <div class="header-row">
+                <div class="logo-left">
+                    <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo" onerror="this.style.display='none'">
+                </div>
+                <div class="header-center">
+                    <div class="header-hindi">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
+                    <div class="header-english">Indian Institute of Technology Guwahati</div>
+                    <div class="header-sub">Research and Development Section</div>
+                </div>
+            </div>
+
+            <!-- DOC META & FORM TYPE -->
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin:4px 0 2px 0;">
+                <div class="form-type">Form Type: Loan Request</div>
+                <div class="doc-ref-right" style="margin:0;">
+                    <span class="doc-ref-label">Doc Ref: </span><span>{{DOC_REF}}</span>
+                    &nbsp;&nbsp;
+                    <span class="doc-ref-label">Status: </span><span>{{WORKFLOW_STATE}}</span>
+                </div>
+            </div>
+
+            <!-- PROJECT LINE & DATE -->
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; font-size:9.5pt;">
+                <div><strong>Project No:</strong> {{PROJECT_NUMBER}}</div>
+                <div style="text-align:right;"><strong>Date:</strong> {{DATE}}</div>
+            </div>
+
+            <!-- SECTION A: APPLICANT & PROJECT -->
+            <div class="section-title">Applicant &amp; Project Details</div>
+            <table class="info-table">
+                <tr>
+                    <td class="label">Applicant Name</td>
+                    <td>{{APPLICANT_NAME}}</td>
+                    <td class="label">Webmail</td>
+                    <td>{{APPLICANT_WEBMAIL}}</td>
+                </tr>
+                <tr>
+                    <td class="label">Department</td>
+                    <td>{{APPLICANT_DEPARTMENT}}</td>
+                    <td class="label">Designation</td>
+                    <td>{{APPLICANT_DESIGNATION}}</td>
+                </tr>
+                <tr>
+                    <td class="label">Project Title</td>
+                    <td colspan="3">{{PROJECT_TITLE}}</td>
+                </tr>
+
+                <tr>
+                    <td class="label">Applying For</td>
+                    <td colspan="3">{{SELF_OTHER}}</td>
+                </tr>
+            </table>
+
+            {{LOAN_FOR_SECTION}}
+
+            <!-- SECTION B: LOAN DETAILS -->
+            <div class="section-title">Loan Details</div>
+            <table class="info-table">
+                <tr>
+                    <td class="label">Loan From Account Type</td>
+                    <td>{{LOAN_ACCOUNT_TYPE}}</td>
+                    <td class="label">Total Loan Amount</td>
+                    <td style="font-weight:bold; font-size:12px; color:#111;">{{LOAN_AMOUNT}}</td>
+                </tr>
+                <tr>
+                    <td class="label">Amount in Words</td>
+                    <td colspan="3" style="text-transform:capitalize;">{{AMOUNT_IN_WORDS}}</td>
+                </tr>
+            </table>
+
+            <!-- SECTION C: FUND BREAKUP -->
+            <div class="section-title">Account Head Fund Breakup</div>
+            {{FUND_BREAKUP_TABLE}}
+
+            <!-- SECTION D: AGREEMENTS -->
+            <div class="section-title">Loan Agreements</div>
+            <div style="margin-bottom:8px;">
+                <div class="agreement-item">
+                    <span class="agreement-check {{AGREEMENT_1_CLASS}}"></span>
+                    <span>I Agree to Repay the Loan upon Receipt and Realization of the said Project Funds in the R&amp;D Section.</span>
+                </div>
+                <div class="agreement-item">
+                    <span class="agreement-check {{AGREEMENT_2_CLASS}}"></span>
+                    <span>In case of Non-Receipt of Funds by the end of the Current Financial Year, I Authorize Recovery from any dues payable to me by the Institute.</span>
+                </div>
+            </div>
+
+            <table class="info-table">
+                <tr>
+                    <td class="label">Co-PI in Project</td>
+                    <td colspan="3">{{PROJECT_COPI}}</td>
+                </tr>
+            </table>
+
+            {{COMMENTS_SECTION}}
+
+            <!-- ACTIVITY LOG -->
+            <div class="section-title" style="margin-top:8px; display:flex; align-items:center;">
+                Activity Log
+                <span style="background:#f4f4f5; color:#52525b; padding:2px 8px; border-radius:12px; font-size:8pt; font-weight:bold; margin-left:8px; line-height:1;">{{ACTIVITY_COUNT}}</span>
+            </div>
+            {{ACTIVITY_LOG_SECTION}}
+
+                    </td>
+                </tr>
+            </tbody>
+            <tfoot>
+                <tr><td><div class="footer-space"></div></td></tr>
+            </tfoot>
+        </table>
+        </div>
+    </div>
+</div>
+<div class="watermark">
+    <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="" onerror="this.style.display='none'">
+</div>
+<div class="print-footer">
+    Printed on: {{CURRENT_TIME}} &nbsp;|&nbsp; IIT Guwahati — R&amp;D Section &nbsp;|&nbsp; Loan Request
+</div>
+</body>
+</html>
