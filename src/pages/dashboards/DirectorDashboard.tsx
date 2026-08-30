@@ -3878,11 +3878,11 @@ export function DirectorDashboard() {
                                         <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] overflow-hidden grid grid-cols-2 divide-x divide-[#E4E4E7] dark:divide-[#3F3F46]">
                                             <div className="px-3 py-2">
                                                 <div className="flex items-center gap-2.5">
-                                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400">
+                                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-blue-50 dark:bg-blue-950/30 text-[#2563eb]">
                                                         <FileText size={14} strokeWidth={2.5} />
                                                     </div>
                                                     <div className="min-w-0 flex items-baseline gap-1.5 flex-wrap">
-                                                        <span className="text-[18px] font-extrabold text-amber-600 dark:text-amber-400 leading-none tabular-nums">{chartYearSubmittedTotal}</span>
+                                                        <span className="text-[18px] font-extrabold text-[#2563eb] leading-none tabular-nums">{chartYearSubmittedTotal}</span>
                                                         <span className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider">Submitted</span>
                                                         <span className="text-[10px] font-medium text-[#A1A1AA] dark:text-[#71717A]">(Pending Sanction)</span>
                                                     </div>
@@ -3906,11 +3906,11 @@ export function DirectorDashboard() {
                                             </div>
                                             <div className="px-3 py-2">
                                                 <div className="flex items-center gap-2.5">
-                                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400">
+                                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-violet-50 dark:bg-violet-950/30 text-[#7c3aed]">
                                                         <TrendingUp size={14} strokeWidth={2.5} />
                                                     </div>
                                                     <div className="min-w-0 flex items-baseline gap-1.5 flex-wrap">
-                                                        <span className="text-[18px] font-extrabold text-emerald-600 dark:text-emerald-400 leading-none tabular-nums">{chartYearOngoingTotal}</span>
+                                                        <span className="text-[18px] font-extrabold text-[#7c3aed] leading-none tabular-nums">{chartYearOngoingTotal}</span>
                                                         <span className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider">Ongoing</span>
                                                         <span className="text-[10px] font-medium text-[#A1A1AA] dark:text-[#71717A]">(Sanction approved)</span>
                                                     </div>
