@@ -13,12 +13,13 @@ import {
     AlertTriangle,
     Ban,
     CheckCircle2,
-    Loader2,
 } from "lucide-react";
 import { FaArrowLeft } from "react-icons/fa";
 import { cn } from "@/lib/utils";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { CancellationModal } from "@/components/CancellationModal";
+import { MyCancellationRequests } from "@/components/MyCancellationRequests";
+import { awaitingLabel } from "@/utils/cancellationLabels";
 
 interface ApplicationRecord {
     name: string;
@@ -29,6 +30,12 @@ interface ApplicationRecord {
     owner: string;
     docstatus: number;
     has_pending_cancellation: boolean;
+    cancellation?: {
+        name: string;
+        status: string;
+        workflow_state: string;
+        creation: string;
+    } | null;
 }
 
 interface ApplicationGroup {
@@ -49,6 +56,7 @@ interface ApplicationsResponse {
 const FormApplication: React.FC = () => {
     const navigate = useNavigate();
     const { currentUser } = useFrappeAuth();
+    const [activeTab, setActiveTab] = useState<"applications" | "cancellations">("applications");
     const [selectedModule, setSelectedModule] = useState<string>("all");
     const [searchQuery, setSearchQuery] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
@@ -296,6 +304,30 @@ const FormApplication: React.FC = () => {
                         </div>
                     </div>
 
+                    {/* Tabs */}
+                    <div className="mb-4 flex items-center gap-1 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-1 shadow-sm w-fit">
+                        {([
+                            ["applications", "My Applications"],
+                            ["cancellations", "Cancellation Requests"],
+                        ] as const).map(([key, label]) => (
+                            <button
+                                key={key}
+                                onClick={() => setActiveTab(key)}
+                                className={`px-4 py-2 rounded-lg text-[12px] font-bold transition-colors ${
+                                    activeTab === key
+                                        ? "bg-[#D97757] text-white shadow-sm"
+                                        : "text-[#71717A] dark:text-[#A1A1AA] hover:bg-[#FAFAF9] dark:hover:bg-[#18181B]"
+                                }`}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {activeTab === "cancellations" ? (
+                        <MyCancellationRequests />
+                    ) : (
+                    <>
                     {/* Filter Section */}
                     <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-3 shadow-sm">
                         <div className="flex items-center gap-3">
@@ -484,11 +516,36 @@ const FormApplication: React.FC = () => {
                                                         >
                                                             View
                                                         </button>
-                                                        {record.has_pending_cancellation ? (
-                                                            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800/40">
-                                                                <Loader2 className="w-3 h-3 animate-spin" />
-                                                                Cancelling
+                                                        {record.cancellation?.status === "Approved" ? (
+                                                            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-zinc-100 text-zinc-600 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
+                                                                <Ban className="w-3 h-3" />
+                                                                Cancelled
                                                             </span>
+                                                        ) : record.has_pending_cancellation ? (
+                                                            <button
+                                                                onClick={() =>
+                                                                    navigate(
+                                                                        `/pending-tasks/${encodeURIComponent("Cancellation Request")}/${record.cancellation?.name ?? ""}`,
+                                                                    )
+                                                                }
+                                                                disabled={!record.cancellation?.name}
+                                                                title={
+                                                                    awaitingLabel(record.cancellation?.workflow_state)
+                                                                        ? `Cancellation request awaiting approval from ${awaitingLabel(record.cancellation?.workflow_state)}`
+                                                                        : "Cancellation request awaiting approval"
+                                                                }
+                                                                className="inline-flex flex-col items-start px-3 py-1 rounded-lg text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800/40 hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors disabled:cursor-default"
+                                                            >
+                                                                <span className="inline-flex items-center gap-1">
+                                                                    <Clock className="w-3 h-3" />
+                                                                    Cancellation requested
+                                                                </span>
+                                                                {awaitingLabel(record.cancellation?.workflow_state) && (
+                                                                    <span className="text-[9px] font-medium opacity-80 leading-tight">
+                                                                        with {awaitingLabel(record.cancellation?.workflow_state)}
+                                                                    </span>
+                                                                )}
+                                                            </button>
                                                         ) : (
                                                             <button
                                                                 onClick={() =>
@@ -596,6 +653,8 @@ const FormApplication: React.FC = () => {
                             </div>
                         )}
                     </div>
+                    </>
+                    )}
                 </main>
             </div>
 

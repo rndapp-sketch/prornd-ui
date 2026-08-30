@@ -87,7 +87,11 @@ export async function fetchActivityLogHtml(doctype: string, docname: string): Pr
         // Oldest first, so the printed table reads as a chronological story.
         // Exclude Administrator system entries (manual overrides, etc.) — they
         // are internal housekeeping and should not appear on printed copies.
+        // "cancellation" entries are the linked Cancellation Request's own
+        // timeline, merged in by get_document_activity for the on-screen widget;
+        // they belong to a different document and are kept off printed copies.
         const sorted = [...entries]
+            .filter((e) => e.type !== "cancellation")
             .filter((e) => e.user !== "Administrator" && e.user_email !== "Administrator")
             .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
