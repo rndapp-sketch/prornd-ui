@@ -2023,7 +2023,7 @@ export function HeadOverview() {
                                                         <FileText size={14} strokeWidth={2.5} />
                                                     </div>
                                                     <div className="min-w-0 flex items-baseline gap-1.5 flex-wrap">
-                                                        <span className="text-[18px] font-extrabold text-[#2563eb] leading-none tabular-nums">{chartYearSubmittedTotal}</span>
+                                                        <span className="text-[18px] font-extrabold text-[#2563eb] leading-none tabular-nums">{isPageLoading ? "Loading…" : chartYearSubmittedTotal}</span>
                                                         <span className="text-[10px] font-bold text-[#2563eb] uppercase tracking-wider">Submitted</span>
                                                         <span className="text-[10px] font-medium text-[#A1A1AA] dark:text-[#71717A]">(Pending Sanction)</span>
                                                     </div>
@@ -2031,16 +2031,16 @@ export function HeadOverview() {
                                                 <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-[#E4E4E7]/70 dark:border-[#3F3F46]/70">
                                                     <div className="text-center">
                                                         <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Research</div>
-                                                        <div className="text-[12px] font-extrabold text-[#2563eb] tabular-nums leading-none mt-1">{chartTypeBreakdown.researchSubmitted}</div>
+                                                        <div className="text-[12px] font-extrabold text-[#2563eb] tabular-nums leading-none mt-1">{isPageLoading ? "Loading…" : chartTypeBreakdown.researchSubmitted}</div>
                                                     </div>
                                                     <div className="text-center">
                                                         <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Consultancy</div>
-                                                        <div className="text-[12px] font-extrabold text-[#2563eb] tabular-nums leading-none mt-1">{chartTypeBreakdown.consultancySubmitted}</div>
+                                                        <div className="text-[12px] font-extrabold text-[#2563eb] tabular-nums leading-none mt-1">{isPageLoading ? "Loading…" : chartTypeBreakdown.consultancySubmitted}</div>
                                                     </div>
-                                                    {chartTypeBreakdown.othersSubmitted > 0 && (
+                                                    {(isPageLoading || chartTypeBreakdown.othersSubmitted > 0) && (
                                                         <div className="text-center">
                                                             <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Others</div>
-                                                            <div className="text-[12px] font-extrabold text-[#2563eb] tabular-nums leading-none mt-1">{chartTypeBreakdown.othersSubmitted}</div>
+                                                            <div className="text-[12px] font-extrabold text-[#2563eb] tabular-nums leading-none mt-1">{isPageLoading ? "Loading…" : chartTypeBreakdown.othersSubmitted}</div>
                                                         </div>
                                                     )}
                                                 </div>
@@ -2051,7 +2051,7 @@ export function HeadOverview() {
                                                         <TrendingUp size={14} strokeWidth={2.5} />
                                                     </div>
                                                     <div className="min-w-0 flex items-baseline gap-1.5 flex-wrap">
-                                                        <span className="text-[18px] font-extrabold text-[#7c3aed] leading-none tabular-nums">{chartYearOngoingTotal}</span>
+                                                        <span className="text-[18px] font-extrabold text-[#7c3aed] leading-none tabular-nums">{isPageLoading ? "Loading…" : chartYearOngoingTotal}</span>
                                                         <span className="text-[10px] font-bold text-[#7c3aed] uppercase tracking-wider">Ongoing</span>
                                                         <span className="text-[10px] font-medium text-[#A1A1AA] dark:text-[#71717A]">(Sanction approved)</span>
                                                     </div>
@@ -2059,16 +2059,16 @@ export function HeadOverview() {
                                                 <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-[#E4E4E7]/70 dark:border-[#3F3F46]/70">
                                                     <div className="text-center">
                                                         <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Research</div>
-                                                        <div className="text-[12px] font-extrabold text-[#7c3aed] tabular-nums leading-none mt-1">{chartTypeBreakdown.researchOngoing}</div>
+                                                        <div className="text-[12px] font-extrabold text-[#7c3aed] tabular-nums leading-none mt-1">{isPageLoading ? "Loading…" : chartTypeBreakdown.researchOngoing}</div>
                                                     </div>
                                                     <div className="text-center">
                                                         <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Consultancy</div>
-                                                        <div className="text-[12px] font-extrabold text-[#7c3aed] tabular-nums leading-none mt-1">{chartTypeBreakdown.consultancyOngoing}</div>
+                                                        <div className="text-[12px] font-extrabold text-[#7c3aed] tabular-nums leading-none mt-1">{isPageLoading ? "Loading…" : chartTypeBreakdown.consultancyOngoing}</div>
                                                     </div>
-                                                    {chartTypeBreakdown.othersOngoing > 0 && (
+                                                    {(isPageLoading || chartTypeBreakdown.othersOngoing > 0) && (
                                                         <div className="text-center">
                                                             <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Others</div>
-                                                            <div className="text-[12px] font-extrabold text-[#7c3aed] tabular-nums leading-none mt-1">{chartTypeBreakdown.othersOngoing}</div>
+                                                            <div className="text-[12px] font-extrabold text-[#7c3aed] tabular-nums leading-none mt-1">{isPageLoading ? "Loading…" : chartTypeBreakdown.othersOngoing}</div>
                                                         </div>
                                                     )}
                                                 </div>
