@@ -3879,20 +3879,24 @@ export function DirectorDashboard() {
                                             {/* Status totals */}
                                             <div className="grid grid-cols-2 divide-x divide-[#E4E4E7] dark:divide-[#3F3F46]">
                                                 <div className="bg-[#FAFAF9] dark:bg-[#18181B] px-3 py-2">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="w-2 h-2 rounded-full bg-[#2563eb] shrink-0" />
-                                                        <span className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Submitted</span>
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="flex items-center gap-1.5">
+                                                            <span className="w-2 h-2 rounded-full bg-[#2563eb] shrink-0" />
+                                                            <span className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Submitted</span>
+                                                        </span>
+                                                        <span className="text-[22px] font-extrabold text-[#2563eb] leading-none">{chartYearSubmittedTotal}</span>
                                                     </div>
-                                                    <div className="text-[22px] font-extrabold text-[#2563eb] leading-none mt-0.5">{chartYearSubmittedTotal}</div>
-                                                    <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug">Pending Sanction</div>
+                                                    <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-0.5">Pending Sanction</div>
                                                 </div>
                                                 <div className="bg-[#FAFAF9] dark:bg-[#18181B] px-3 py-2">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="w-2 h-2 rounded-full bg-[#7c3aed] shrink-0" />
-                                                        <span className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Ongoing</span>
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="flex items-center gap-1.5">
+                                                            <span className="w-2 h-2 rounded-full bg-[#7c3aed] shrink-0" />
+                                                            <span className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Ongoing</span>
+                                                        </span>
+                                                        <span className="text-[22px] font-extrabold text-[#7c3aed] leading-none">{chartYearOngoingTotal}</span>
                                                     </div>
-                                                    <div className="text-[22px] font-extrabold text-[#7c3aed] leading-none mt-0.5">{chartYearOngoingTotal}</div>
-                                                    <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug">Sanction approved — fund received or pending</div>
+                                                    <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-0.5">Sanction approved — fund received or pending</div>
                                                 </div>
                                             </div>
 
