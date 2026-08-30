@@ -4309,247 +4309,6 @@ export function DirectorDashboard() {
                         </div>
                         )}
 
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-[14px] mb-6 items-start">
-                        {/* Application-wise breakdown */}
-                        <div className="lg:col-span-2 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden flex flex-col">
-                            <div className="p-[14px] px-[20px] pb-[12px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
-                                <div>
-                                    <div className="text-[14px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
-                                        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-sm shadow-emerald-500/30">
-                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                                                <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M8 13h2" /><path d="M14 13h2" /><path d="M8 17h2" /><path d="M14 17h2" />
-                                            </svg>
-                                        </div>
-                                        Application-wise Activity
-                                    </div>
-                                    <p className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1 ml-[38px]">Ranked by total submissions, most active first</p>
-                                </div>
-                                <span className="text-[11px] font-bold text-[#059669] bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-full uppercase tracking-wider shrink-0">
-                                    {showAllActivityApps ? sortedDoctypeCounts.length : Math.min(ACTIVITY_TOP_N, sortedDoctypeCounts.length)} of {sortedDoctypeCounts.length} apps
-                                </span>
-                            </div>
-                            <div className="max-h-[440px] overflow-y-auto">
-                                {isProcessCountsLoading ? (
-                                    <div className="flex flex-col items-center justify-center text-[#71717A] text-sm gap-3 py-16">
-                                        <div className="w-5 h-5 border-2 border-[#059669] border-t-transparent rounded-full animate-spin"></div>
-                                        <span className="font-medium">Loading applications...</span>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div className="hidden sm:flex items-center gap-3 px-[22px] py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] text-[10.5px] font-bold uppercase tracking-widest text-[#52525B] dark:text-[#D4D4D8]">
-                                            <span className="w-6 shrink-0" />
-                                            <span className="w-[220px] shrink-0">Application</span>
-                                            <span className="flex-1">Volume</span>
-                                            <span className="w-[168px] shrink-0 text-right">Today &nbsp;·&nbsp; Week &nbsp;·&nbsp; Month</span>
-                                            <span className="w-[54px] shrink-0 text-right">Total</span>
-                                        </div>
-                                        <div className="divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]">
-                                            {visibleDoctypeCounts.map((row, idx) => {
-                                                const isExpanded = expandedActivityDoctypes.has(row.doctype);
-                                                const hasChildren = row.children.length > 0;
-                                                const pct = Math.max(3, Math.round((row.total / maxDoctypeTotal) * 100));
-                                                const volumeColor = getVolumeBucketColor(row.total);
-                                                const rankColors = idx === 0
-                                                    ? "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
-                                                    : idx === 1
-                                                        ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-                                                        : idx === 2
-                                                            ? "bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400"
-                                                            : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B] dark:text-[#A1A1AA]";
-                                                return (
-                                                    <div key={row.doctype}>
-                                                        <div
-                                                            className={`flex items-center gap-3 px-[22px] py-2 ${hasChildren ? "cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B]" : ""} transition-colors`}
-                                                            onClick={() => hasChildren && toggleActivityDoctype(row.doctype)}
-                                                        >
-                                                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-extrabold shrink-0 tabular-nums ${rankColors}`}>
-                                                                {idx + 1}
-                                                            </span>
-                                                            <div className="w-[220px] shrink-0 flex items-center gap-1.5 min-w-0">
-                                                                {hasChildren ? (
-                                                                    <ChevronDown size={12} className={`text-[#A1A1AA] shrink-0 transition-transform ${isExpanded ? "" : "-rotate-90"}`} />
-                                                                ) : (
-                                                                    <span className="w-3 shrink-0" />
-                                                                )}
-                                                                <span className="text-[12.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">
-                                                                    {row.doctype}
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex-1 h-[7px] rounded-full bg-[#F4F4F5] dark:bg-[#3F3F46] overflow-hidden">
-                                                                <div
-                                                                    className="h-full rounded-full"
-                                                                    style={{ width: `${pct}%`, background: `linear-gradient(to right, ${volumeColor.from}, ${volumeColor.to})` }}
-                                                                />
-                                                            </div>
-                                                            <div className="hidden sm:flex w-[168px] shrink-0 items-center justify-end gap-2 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">
-                                                                <span className="w-[38px] text-right">{row.today}</span>
-                                                                <span className="text-[#A1A1AA] dark:text-[#71717A]">·</span>
-                                                                <span className="w-[38px] text-right">{row.this_week}</span>
-                                                                <span className="text-[#A1A1AA] dark:text-[#71717A]">·</span>
-                                                                <span className="w-[38px] text-right">{row.this_month}</span>
-                                                            </div>
-                                                            <span className={`w-[54px] shrink-0 text-right text-[13.5px] font-extrabold tabular-nums ${volumeColor.text}`}>
-                                                                {row.total}
-                                                            </span>
-                                                        </div>
-                                                        {isExpanded && hasChildren && (
-                                                            <div className="bg-[#FAFAF9] dark:bg-[#18181B] px-[22px] py-1.5 space-y-1">
-                                                                {row.children.map((child) => (
-                                                                    <div key={`${row.doctype}-${child.fieldname}`} className="flex items-center gap-3 pl-9">
-                                                                        <span className="text-[11.5px] text-[#52525B] dark:text-[#D4D4D8] truncate flex-1">
-                                                                            ↳ {child.doctype}
-                                                                        </span>
-                                                                        <span className="hidden sm:inline text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums w-[168px] text-right">
-                                                                            {child.today} · {child.this_week} · {child.this_month}
-                                                                        </span>
-                                                                        <span className="text-[10.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums w-[54px] text-right">
-                                                                            {child.total}
-                                                                        </span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                            {!isProcessCountsLoading && sortedDoctypeCounts.length > ACTIVITY_TOP_N && (
-                                <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] p-2.5 shrink-0">
-                                    <button
-                                        onClick={() => setShowAllActivityApps((v) => !v)}
-                                        className="w-full py-2 rounded-lg text-[11.5px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors"
-                                    >
-                                        {showAllActivityApps ? "Show Top 10" : `Show All (${sortedDoctypeCounts.length})`}
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Usage tier distribution */}
-                        <div className="lg:col-span-1 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden flex flex-col h-full">
-                            <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between gap-2">
-                                <div>
-                                    <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2.5">
-                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-rose-500 to-orange-500 text-white shadow-sm shadow-rose-500/30">
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                                                <path d="M21.21 15.89A10 10 0 1 1 8 2.83" /><path d="M22 12A10 10 0 0 0 12 2v10z" />
-                                            </svg>
-                                        </div>
-                                        Usage Distribution
-                                    </div>
-                                    <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1 ml-[42px]">Apps grouped into 3 tiers · click a tier for details</p>
-                                </div>
-                                <select
-                                    value={usageTierMetric}
-                                    onChange={(e) => { setUsageTierMetric(e.target.value as keyof typeof USAGE_TIER_METRICS); setExpandedUsageTier(null); }}
-                                    className="shrink-0 appearance-none bg-[#F4F4F5] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2.5 py-1 text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] outline-none cursor-pointer hover:bg-[#E4E4E7] dark:hover:bg-[#3F3F46] transition-colors"
-                                >
-                                    {Object.entries(USAGE_TIER_METRICS).map(([key, m]) => (
-                                        <option key={key} value={key}>{m.label}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="p-[18px] px-[22px] flex-1 flex flex-col">
-                                {isProcessCountsLoading ? (
-                                    <div className="flex-1 flex flex-col items-center justify-center text-[#71717A] text-sm gap-3 py-10">
-                                        <div className="w-5 h-5 border-2 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
-                                        <span className="font-medium">Loading...</span>
-                                    </div>
-                                ) : usageTierBreakdown.length > 0 ? (
-                                    <>
-                                        <div className="shrink-0 relative" style={{ height: "200px" }}>
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <PieChart>
-                                                    <Tooltip
-                                                        contentStyle={{ borderRadius: "0.75rem", border: "1px solid #27272A", background: "#18181B", boxShadow: "0 8px 24px rgba(0,0,0,0.25)" }}
-                                                        labelStyle={{ color: "#f4f4f5", fontWeight: 700, fontSize: 12, marginBottom: 2 }}
-                                                        itemStyle={{ color: "#e4e4e7", fontSize: 12, fontWeight: 600 }}
-                                                        formatter={(_value: number, name: string, props: { payload?: { value: number; appCount: number } }) => {
-                                                            const real = props.payload?.value ?? 0;
-                                                            const suffix = usageTierMetric === "weekly_avg" || usageTierMetric === "monthly_avg" ? "/day" : "";
-                                                            return [`${real.toLocaleString("en-IN")}${suffix} · ${props.payload?.appCount ?? 0} apps`, name];
-                                                        }}
-                                                    />
-                                                    <Pie
-                                                        data={usageTierPieData}
-                                                        dataKey="pieValue"
-                                                        nameKey="name"
-                                                        cx="50%"
-                                                        cy="50%"
-                                                        innerRadius="60%"
-                                                        outerRadius="80%"
-                                                        paddingAngle={3}
-                                                        isAnimationActive={false}
-                                                        onClick={(t: { name: string }) => setExpandedUsageTier(prev => prev === t.name ? null : t.name)}
-                                                        style={{ cursor: "pointer" }}
-                                                    >
-                                                        {usageTierPieData.map((t) => (
-                                                            <Cell key={t.name} fill={t.color} stroke={expandedUsageTier === t.name ? "#3F3F46" : "none"} strokeWidth={expandedUsageTier === t.name ? 2 : 0} />
-                                                        ))}
-                                                    </Pie>
-                                                </PieChart>
-                                            </ResponsiveContainer>
-                                            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center z-10 w-28 h-28 rounded-full pointer-events-none">
-                                                <span className="text-3xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none tabular-nums">
-                                                    {usageTierTotal.toLocaleString("en-IN")}
-                                                </span>
-                                                <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
-                                                    Total
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div className="space-y-2 mt-2 flex-1">
-                                            {usageTierBreakdown.map((t) => {
-                                                const sharePct = usageTierTotal > 0 ? Math.round((t.value / usageTierTotal) * 100) : 0;
-                                                const isOpen = expandedUsageTier === t.name;
-                                                return (
-                                                    <div key={t.name} className="rounded-lg bg-[#FAFAF9] dark:bg-[#18181B] overflow-hidden">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setExpandedUsageTier(prev => prev === t.name ? null : t.name)}
-                                                            className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left hover:bg-white dark:hover:bg-[#27272A] transition-colors"
-                                                        >
-                                                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
-                                                            <div className="min-w-0 flex-1">
-                                                                <div className="text-[11.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{t.name}</div>
-                                                                <div className="text-[10.5px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">{t.appCount} app{t.appCount === 1 ? "" : "s"}</div>
-                                                            </div>
-                                                            <div className="text-right shrink-0">
-                                                                <div className="text-[13px] font-extrabold tabular-nums" style={{ color: t.color }}>{sharePct}%</div>
-                                                                <div className="text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8] tabular-nums">{t.value.toLocaleString("en-IN")}</div>
-                                                            </div>
-                                                            <ChevronDown size={13} className={`text-[#71717A] dark:text-[#A1A1AA] shrink-0 transition-transform ${isOpen ? "" : "-rotate-90"}`} />
-                                                        </button>
-                                                        {isOpen && (
-                                                            <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] px-2.5 py-1.5 max-h-[220px] overflow-y-auto space-y-0.5">
-                                                                {t.rows.map((r, i) => (
-                                                                    <div key={r.doctype} className="flex items-center gap-2 py-1">
-                                                                        <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] w-4 text-right shrink-0 tabular-nums">{i + 1}</span>
-                                                                        <span className="text-[11.5px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] truncate flex-1">{r.doctype}</span>
-                                                                        <span className="text-[10.5px] font-extrabold tabular-nums shrink-0" style={{ color: t.color }}>
-                                                                            {usageTierGetValue(r).toLocaleString("en-IN")}
-                                                                        </span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div className="flex-1 flex items-center justify-center text-[#71717A] text-sm py-10">
-                                        No data available
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                        </div>
-
                         {/* ── Project Analytics & Distribution ── */}
                         <SectionDivider title="Project Analytics & Distribution" />
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-[14px] mb-6">
@@ -5148,6 +4907,247 @@ export function DirectorDashboard() {
                                     </div>
                                 </>
                             )}
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-[14px] mb-6 items-start">
+                        {/* Application-wise breakdown */}
+                        <div className="lg:col-span-2 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden flex flex-col">
+                            <div className="p-[14px] px-[20px] pb-[12px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
+                                <div>
+                                    <div className="text-[14px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
+                                        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-sm shadow-emerald-500/30">
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                                <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M8 13h2" /><path d="M14 13h2" /><path d="M8 17h2" /><path d="M14 17h2" />
+                                            </svg>
+                                        </div>
+                                        Application-wise Activity
+                                    </div>
+                                    <p className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1 ml-[38px]">Ranked by total submissions, most active first</p>
+                                </div>
+                                <span className="text-[11px] font-bold text-[#059669] bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-full uppercase tracking-wider shrink-0">
+                                    {showAllActivityApps ? sortedDoctypeCounts.length : Math.min(ACTIVITY_TOP_N, sortedDoctypeCounts.length)} of {sortedDoctypeCounts.length} apps
+                                </span>
+                            </div>
+                            <div className="max-h-[440px] overflow-y-auto">
+                                {isProcessCountsLoading ? (
+                                    <div className="flex flex-col items-center justify-center text-[#71717A] text-sm gap-3 py-16">
+                                        <div className="w-5 h-5 border-2 border-[#059669] border-t-transparent rounded-full animate-spin"></div>
+                                        <span className="font-medium">Loading applications...</span>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="hidden sm:flex items-center gap-3 px-[22px] py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] text-[10.5px] font-bold uppercase tracking-widest text-[#52525B] dark:text-[#D4D4D8]">
+                                            <span className="w-6 shrink-0" />
+                                            <span className="w-[220px] shrink-0">Application</span>
+                                            <span className="flex-1">Volume</span>
+                                            <span className="w-[168px] shrink-0 text-right">Today &nbsp;·&nbsp; Week &nbsp;·&nbsp; Month</span>
+                                            <span className="w-[54px] shrink-0 text-right">Total</span>
+                                        </div>
+                                        <div className="divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]">
+                                            {visibleDoctypeCounts.map((row, idx) => {
+                                                const isExpanded = expandedActivityDoctypes.has(row.doctype);
+                                                const hasChildren = row.children.length > 0;
+                                                const pct = Math.max(3, Math.round((row.total / maxDoctypeTotal) * 100));
+                                                const volumeColor = getVolumeBucketColor(row.total);
+                                                const rankColors = idx === 0
+                                                    ? "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
+                                                    : idx === 1
+                                                        ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                                                        : idx === 2
+                                                            ? "bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400"
+                                                            : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B] dark:text-[#A1A1AA]";
+                                                return (
+                                                    <div key={row.doctype}>
+                                                        <div
+                                                            className={`flex items-center gap-3 px-[22px] py-2 ${hasChildren ? "cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B]" : ""} transition-colors`}
+                                                            onClick={() => hasChildren && toggleActivityDoctype(row.doctype)}
+                                                        >
+                                                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-extrabold shrink-0 tabular-nums ${rankColors}`}>
+                                                                {idx + 1}
+                                                            </span>
+                                                            <div className="w-[220px] shrink-0 flex items-center gap-1.5 min-w-0">
+                                                                {hasChildren ? (
+                                                                    <ChevronDown size={12} className={`text-[#A1A1AA] shrink-0 transition-transform ${isExpanded ? "" : "-rotate-90"}`} />
+                                                                ) : (
+                                                                    <span className="w-3 shrink-0" />
+                                                                )}
+                                                                <span className="text-[12.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">
+                                                                    {row.doctype}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex-1 h-[7px] rounded-full bg-[#F4F4F5] dark:bg-[#3F3F46] overflow-hidden">
+                                                                <div
+                                                                    className="h-full rounded-full"
+                                                                    style={{ width: `${pct}%`, background: `linear-gradient(to right, ${volumeColor.from}, ${volumeColor.to})` }}
+                                                                />
+                                                            </div>
+                                                            <div className="hidden sm:flex w-[168px] shrink-0 items-center justify-end gap-2 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">
+                                                                <span className="w-[38px] text-right">{row.today}</span>
+                                                                <span className="text-[#A1A1AA] dark:text-[#71717A]">·</span>
+                                                                <span className="w-[38px] text-right">{row.this_week}</span>
+                                                                <span className="text-[#A1A1AA] dark:text-[#71717A]">·</span>
+                                                                <span className="w-[38px] text-right">{row.this_month}</span>
+                                                            </div>
+                                                            <span className={`w-[54px] shrink-0 text-right text-[13.5px] font-extrabold tabular-nums ${volumeColor.text}`}>
+                                                                {row.total}
+                                                            </span>
+                                                        </div>
+                                                        {isExpanded && hasChildren && (
+                                                            <div className="bg-[#FAFAF9] dark:bg-[#18181B] px-[22px] py-1.5 space-y-1">
+                                                                {row.children.map((child) => (
+                                                                    <div key={`${row.doctype}-${child.fieldname}`} className="flex items-center gap-3 pl-9">
+                                                                        <span className="text-[11.5px] text-[#52525B] dark:text-[#D4D4D8] truncate flex-1">
+                                                                            ↳ {child.doctype}
+                                                                        </span>
+                                                                        <span className="hidden sm:inline text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums w-[168px] text-right">
+                                                                            {child.today} · {child.this_week} · {child.this_month}
+                                                                        </span>
+                                                                        <span className="text-[10.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums w-[54px] text-right">
+                                                                            {child.total}
+                                                                        </span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                            {!isProcessCountsLoading && sortedDoctypeCounts.length > ACTIVITY_TOP_N && (
+                                <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] p-2.5 shrink-0">
+                                    <button
+                                        onClick={() => setShowAllActivityApps((v) => !v)}
+                                        className="w-full py-2 rounded-lg text-[11.5px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors"
+                                    >
+                                        {showAllActivityApps ? "Show Top 10" : `Show All (${sortedDoctypeCounts.length})`}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Usage tier distribution */}
+                        <div className="lg:col-span-1 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden flex flex-col h-full">
+                            <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between gap-2">
+                                <div>
+                                    <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-rose-500 to-orange-500 text-white shadow-sm shadow-rose-500/30">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                                <path d="M21.21 15.89A10 10 0 1 1 8 2.83" /><path d="M22 12A10 10 0 0 0 12 2v10z" />
+                                            </svg>
+                                        </div>
+                                        Usage Distribution
+                                    </div>
+                                    <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1 ml-[42px]">Apps grouped into 3 tiers · click a tier for details</p>
+                                </div>
+                                <select
+                                    value={usageTierMetric}
+                                    onChange={(e) => { setUsageTierMetric(e.target.value as keyof typeof USAGE_TIER_METRICS); setExpandedUsageTier(null); }}
+                                    className="shrink-0 appearance-none bg-[#F4F4F5] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2.5 py-1 text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] outline-none cursor-pointer hover:bg-[#E4E4E7] dark:hover:bg-[#3F3F46] transition-colors"
+                                >
+                                    {Object.entries(USAGE_TIER_METRICS).map(([key, m]) => (
+                                        <option key={key} value={key}>{m.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="p-[18px] px-[22px] flex-1 flex flex-col">
+                                {isProcessCountsLoading ? (
+                                    <div className="flex-1 flex flex-col items-center justify-center text-[#71717A] text-sm gap-3 py-10">
+                                        <div className="w-5 h-5 border-2 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
+                                        <span className="font-medium">Loading...</span>
+                                    </div>
+                                ) : usageTierBreakdown.length > 0 ? (
+                                    <>
+                                        <div className="shrink-0 relative" style={{ height: "200px" }}>
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <PieChart>
+                                                    <Tooltip
+                                                        contentStyle={{ borderRadius: "0.75rem", border: "1px solid #27272A", background: "#18181B", boxShadow: "0 8px 24px rgba(0,0,0,0.25)" }}
+                                                        labelStyle={{ color: "#f4f4f5", fontWeight: 700, fontSize: 12, marginBottom: 2 }}
+                                                        itemStyle={{ color: "#e4e4e7", fontSize: 12, fontWeight: 600 }}
+                                                        formatter={(_value: number, name: string, props: { payload?: { value: number; appCount: number } }) => {
+                                                            const real = props.payload?.value ?? 0;
+                                                            const suffix = usageTierMetric === "weekly_avg" || usageTierMetric === "monthly_avg" ? "/day" : "";
+                                                            return [`${real.toLocaleString("en-IN")}${suffix} · ${props.payload?.appCount ?? 0} apps`, name];
+                                                        }}
+                                                    />
+                                                    <Pie
+                                                        data={usageTierPieData}
+                                                        dataKey="pieValue"
+                                                        nameKey="name"
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius="60%"
+                                                        outerRadius="80%"
+                                                        paddingAngle={3}
+                                                        isAnimationActive={false}
+                                                        onClick={(t: { name: string }) => setExpandedUsageTier(prev => prev === t.name ? null : t.name)}
+                                                        style={{ cursor: "pointer" }}
+                                                    >
+                                                        {usageTierPieData.map((t) => (
+                                                            <Cell key={t.name} fill={t.color} stroke={expandedUsageTier === t.name ? "#3F3F46" : "none"} strokeWidth={expandedUsageTier === t.name ? 2 : 0} />
+                                                        ))}
+                                                    </Pie>
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center z-10 w-28 h-28 rounded-full pointer-events-none">
+                                                <span className="text-3xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none tabular-nums">
+                                                    {usageTierTotal.toLocaleString("en-IN")}
+                                                </span>
+                                                <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
+                                                    Total
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2 mt-2 flex-1">
+                                            {usageTierBreakdown.map((t) => {
+                                                const sharePct = usageTierTotal > 0 ? Math.round((t.value / usageTierTotal) * 100) : 0;
+                                                const isOpen = expandedUsageTier === t.name;
+                                                return (
+                                                    <div key={t.name} className="rounded-lg bg-[#FAFAF9] dark:bg-[#18181B] overflow-hidden">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setExpandedUsageTier(prev => prev === t.name ? null : t.name)}
+                                                            className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left hover:bg-white dark:hover:bg-[#27272A] transition-colors"
+                                                        >
+                                                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
+                                                            <div className="min-w-0 flex-1">
+                                                                <div className="text-[11.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{t.name}</div>
+                                                                <div className="text-[10.5px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">{t.appCount} app{t.appCount === 1 ? "" : "s"}</div>
+                                                            </div>
+                                                            <div className="text-right shrink-0">
+                                                                <div className="text-[13px] font-extrabold tabular-nums" style={{ color: t.color }}>{sharePct}%</div>
+                                                                <div className="text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8] tabular-nums">{t.value.toLocaleString("en-IN")}</div>
+                                                            </div>
+                                                            <ChevronDown size={13} className={`text-[#71717A] dark:text-[#A1A1AA] shrink-0 transition-transform ${isOpen ? "" : "-rotate-90"}`} />
+                                                        </button>
+                                                        {isOpen && (
+                                                            <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] px-2.5 py-1.5 max-h-[220px] overflow-y-auto space-y-0.5">
+                                                                {t.rows.map((r, i) => (
+                                                                    <div key={r.doctype} className="flex items-center gap-2 py-1">
+                                                                        <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] w-4 text-right shrink-0 tabular-nums">{i + 1}</span>
+                                                                        <span className="text-[11.5px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] truncate flex-1">{r.doctype}</span>
+                                                                        <span className="text-[10.5px] font-extrabold tabular-nums shrink-0" style={{ color: t.color }}>
+                                                                            {usageTierGetValue(r).toLocaleString("en-IN")}
+                                                                        </span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="flex-1 flex items-center justify-center text-[#71717A] text-sm py-10">
+                                        No data available
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                         </div>
 
                         {/* ── Financial Intelligence ── */}
