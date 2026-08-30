@@ -1679,7 +1679,6 @@ export function HeadOverview() {
                             />
                             <KpiCard
                                 label="Ongoing Projects"
-                                description="Sanction-approved projects, by fund status"
                                 value={String(projectOverview.ongoing_projects || stats.ongoing)}
                                 isLoading={isPageLoading}
                                 subtext=""
@@ -1731,7 +1730,6 @@ export function HeadOverview() {
                             />
                             <KpiCard
                                 label="International Collaborators"
-                                description="Projects with an international funding agency"
                                 value={String(stats.intlCount)}
                                 isLoading={isPageLoading}
                                 subtext=""

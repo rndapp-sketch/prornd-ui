@@ -3495,7 +3495,6 @@ export function DirectorDashboard() {
                             />
                             <KpiCard
                                 label="Ongoing Projects"
-                                description="Sanction-approved projects, by fund status"
                                 value={String(ongoingProjects)}
                                 isLoading={isLoading}
                                 subtext=""
@@ -3555,7 +3554,6 @@ export function DirectorDashboard() {
                             />
                             <KpiCard
                                 label="International Collaborators"
-                                description="Projects with an international funding agency"
                                 value={String(intl.active_agencies || 0)}
                                 isLoading={isLoading}
                                 subtext=""
