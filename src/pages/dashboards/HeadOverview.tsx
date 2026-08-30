@@ -1510,7 +1510,7 @@ export function HeadOverview() {
         return counts;
     }, [deptProjects, deptOngoingIds, fundStatusMap]);
 
-    const renderFundBadge = (kind: "received" | "pending", count: number, total: number) => {
+    const renderFundBadge = (kind: "received" | "pending", count: number, total: number, ready: boolean) => {
         const isReceived = kind === "received";
         return (
             <span
@@ -1524,9 +1524,9 @@ export function HeadOverview() {
                         <span className={`w-1 h-1 rounded-full ${isReceived ? "bg-emerald-500" : "bg-amber-400"}`}></span>
                         {isReceived ? "Received" : "Pending"}
                     </div>
-                    <span>{count}</span>
+                    <span>{ready ? count : "…"}</span>
                 </div>
-                <div className="text-right text-[8px] font-semibold opacity-70">{pctOf(count, total)}%</div>
+                <div className="text-right text-[8px] font-semibold opacity-70">{ready ? `${pctOf(count, total)}%` : "…"}</div>
             </span>
         );
     };
@@ -1537,22 +1537,26 @@ export function HeadOverview() {
     // standing out as a row of horizontal pills.
     const ongoingBreakdownGrid = React.useMemo(() => {
         const showOthers = allOthersOngoing > 0;
+        // Some ongoing projects' fund status may still be resolving even once the
+        // headline counts are known — show "…" per badge rather than a false "0"
+        // that looks identical to a genuine zero.
+        const ready = ongoingFundStatusBreakdown.checking === 0;
         return (
             <div className={`grid ${showOthers ? "grid-cols-3" : "grid-cols-2"} gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]`}>
                 <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
                     <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">{allResearchOngoing}</div>
                     <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
                     <div className="flex flex-col gap-1 w-full px-1">
-                        {renderFundBadge("received", ongoingByTypeFundStatus.Research.received, allResearchOngoing)}
-                        {renderFundBadge("pending", ongoingByTypeFundStatus.Research.pending, allResearchOngoing)}
+                        {renderFundBadge("received", ongoingByTypeFundStatus.Research.received, allResearchOngoing, ready)}
+                        {renderFundBadge("pending", ongoingByTypeFundStatus.Research.pending, allResearchOngoing, ready)}
                     </div>
                 </div>
                 <div className={`flex flex-col items-center justify-start ${showOthers ? "border-r border-[#E4E4E7] dark:border-[#3F3F46]" : ""}`}>
                     <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">{allConsultancyOngoing}</div>
                     <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
                     <div className="flex flex-col gap-1 w-full px-1">
-                        {renderFundBadge("received", ongoingByTypeFundStatus.Consultancy.received, allConsultancyOngoing)}
-                        {renderFundBadge("pending", ongoingByTypeFundStatus.Consultancy.pending, allConsultancyOngoing)}
+                        {renderFundBadge("received", ongoingByTypeFundStatus.Consultancy.received, allConsultancyOngoing, ready)}
+                        {renderFundBadge("pending", ongoingByTypeFundStatus.Consultancy.pending, allConsultancyOngoing, ready)}
                     </div>
                 </div>
                 {showOthers && (
@@ -1560,14 +1564,14 @@ export function HeadOverview() {
                         <div className="text-[14px] font-extrabold text-[#059669] leading-tight">{allOthersOngoing}</div>
                         <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Others</div>
                         <div className="flex flex-col gap-1 w-full px-1">
-                            {renderFundBadge("received", ongoingByTypeFundStatus.Others.received, allOthersOngoing)}
-                            {renderFundBadge("pending", ongoingByTypeFundStatus.Others.pending, allOthersOngoing)}
+                            {renderFundBadge("received", ongoingByTypeFundStatus.Others.received, allOthersOngoing, ready)}
+                            {renderFundBadge("pending", ongoingByTypeFundStatus.Others.pending, allOthersOngoing, ready)}
                         </div>
                     </div>
                 )}
             </div>
         );
-    }, [allResearchOngoing, allConsultancyOngoing, allOthersOngoing, ongoingByTypeFundStatus]);
+    }, [allResearchOngoing, allConsultancyOngoing, allOthersOngoing, ongoingByTypeFundStatus, ongoingFundStatusBreakdown]);
 
     // Same compact grid as projectBreakdownGrid, scoped to projects with an
     // international funding agency.

@@ -3061,7 +3061,7 @@ export function DirectorDashboard() {
         return counts;
     }, [allProjectsList, ongoingIds, fundStatusMap]);
 
-    const renderFundBadge = (kind: "received" | "pending", count: number, total: number) => {
+    const renderFundBadge = (kind: "received" | "pending", count: number, total: number, ready: boolean) => {
         const isReceived = kind === "received";
         return (
             <span
@@ -3075,9 +3075,9 @@ export function DirectorDashboard() {
                         <span className={`w-1 h-1 rounded-full ${isReceived ? "bg-emerald-500" : "bg-amber-400"}`}></span>
                         {isReceived ? "Received" : "Pending"}
                     </div>
-                    <span>{count}</span>
+                    <span>{ready ? count : "…"}</span>
                 </div>
-                <div className="text-right text-[8px] font-semibold opacity-70">{pctOf(count, total)}%</div>
+                <div className="text-right text-[8px] font-semibold opacity-70">{ready ? `${pctOf(count, total)}%` : "…"}</div>
             </span>
         );
     };
@@ -3088,22 +3088,26 @@ export function DirectorDashboard() {
     // standing out as a row of horizontal pills.
     const ongoingBreakdownGrid = React.useMemo(() => {
         const showOthers = othersOngoing > 0;
+        // Some ongoing projects' fund status may still be resolving even once the
+        // headline counts are known — show "…" per badge rather than a false "0"
+        // that looks identical to a genuine zero.
+        const ready = ongoingFundStatusBreakdown.checking === 0;
         return (
             <div className={`grid ${showOthers ? "grid-cols-3" : "grid-cols-2"} gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]`}>
                 <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
                     <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">{researchOngoing}</div>
                     <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
                     <div className="flex flex-col gap-1 w-full px-1">
-                        {renderFundBadge("received", ongoingByTypeFundStatus.Research.received, researchOngoing)}
-                        {renderFundBadge("pending", ongoingByTypeFundStatus.Research.pending, researchOngoing)}
+                        {renderFundBadge("received", ongoingByTypeFundStatus.Research.received, researchOngoing, ready)}
+                        {renderFundBadge("pending", ongoingByTypeFundStatus.Research.pending, researchOngoing, ready)}
                     </div>
                 </div>
                 <div className={`flex flex-col items-center justify-start ${showOthers ? "border-r border-[#E4E4E7] dark:border-[#3F3F46]" : ""}`}>
                     <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">{consultancyOngoing}</div>
                     <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
                     <div className="flex flex-col gap-1 w-full px-1">
-                        {renderFundBadge("received", ongoingByTypeFundStatus.Consultancy.received, consultancyOngoing)}
-                        {renderFundBadge("pending", ongoingByTypeFundStatus.Consultancy.pending, consultancyOngoing)}
+                        {renderFundBadge("received", ongoingByTypeFundStatus.Consultancy.received, consultancyOngoing, ready)}
+                        {renderFundBadge("pending", ongoingByTypeFundStatus.Consultancy.pending, consultancyOngoing, ready)}
                     </div>
                 </div>
                 {showOthers && (
@@ -3111,14 +3115,14 @@ export function DirectorDashboard() {
                         <div className="text-[14px] font-extrabold text-[#059669] leading-tight">{othersOngoing}</div>
                         <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Others</div>
                         <div className="flex flex-col gap-1 w-full px-1">
-                            {renderFundBadge("received", ongoingByTypeFundStatus.Others.received, othersOngoing)}
-                            {renderFundBadge("pending", ongoingByTypeFundStatus.Others.pending, othersOngoing)}
+                            {renderFundBadge("received", ongoingByTypeFundStatus.Others.received, othersOngoing, ready)}
+                            {renderFundBadge("pending", ongoingByTypeFundStatus.Others.pending, othersOngoing, ready)}
                         </div>
                     </div>
                 )}
             </div>
         );
-    }, [researchOngoing, consultancyOngoing, othersOngoing, ongoingByTypeFundStatus]);
+    }, [researchOngoing, consultancyOngoing, othersOngoing, ongoingByTypeFundStatus, ongoingFundStatusBreakdown]);
 
     // ── Dynamic Tab Counts for Modal ─────────────────────────────────────────
     const getDynamicTabCount = React.useCallback((tabKey: string) => {
