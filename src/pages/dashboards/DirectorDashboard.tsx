@@ -3602,7 +3602,7 @@ export function DirectorDashboard() {
                                                         onClick={(e) => { e.stopPropagation(); openOngoingFundStatusModal("active", "Ongoing Projects: Received Fund"); }}
                                                     >
                                                         <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                                        {ongoingFundStatusBreakdown.active} Received Fund
+                                                        {ongoingFundStatusBreakdown.active} Received
                                                     </span>
                                                     <span
                                                         className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 cursor-pointer hover:brightness-95 transition-all"
@@ -3610,7 +3610,7 @@ export function DirectorDashboard() {
                                                         onClick={(e) => { e.stopPropagation(); openOngoingFundStatusModal("pending_fund", "Ongoing Projects: Pending Fund Received"); }}
                                                     >
                                                         <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                                                        {ongoingFundStatusBreakdown.pendingFund} Pending Fund
+                                                        {ongoingFundStatusBreakdown.pendingFund} Pending
                                                     </span>
                                                 </>
                                             )}
