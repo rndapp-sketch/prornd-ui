@@ -3247,22 +3247,6 @@ export function DirectorDashboard() {
                         <div className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] font-mono bg-white dark:bg-[#27272A] px-3 py-1.5 rounded-full border border-[#E4E4E7] dark:border-[#3F3F46]">
                             {liveTime}
                         </div>
-                        <button
-                            onClick={handleDownloadClick}
-                            disabled={isLoading || isWaitingForFunds}
-                            className="flex items-center gap-2 px-4 py-2 bg-[#D97757] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[12px] font-semibold rounded-lg shadow-sm transition-all"
-                        >
-                            {isWaitingForFunds ? <Loader2 className="size-3.5 animate-spin" /> : <FileDown className="size-3.5" />}
-                            {isWaitingForFunds ? "Generating Overview..." : "Download Director Overview Report"}
-                        </button>
-                        <button
-                            onClick={() => navigate("/generate-report")}
-                            className="flex items-center gap-2 px-4 py-2 bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-[12px] font-semibold rounded-lg shadow-sm transition-all"
-                        >
-                            <FileText className="size-3.5" />
-                            Genarate Detailed Report
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-blue-400/30 text-white ml-1">NEW</span>
-                        </button>
                     </div>
                 </div>
 
@@ -3272,7 +3256,24 @@ export function DirectorDashboard() {
                             <div className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#71717A] dark:text-[#A1A1AA]">
                                 Project Type
                             </div>
-                            <div className="relative w-full md:w-[320px] shrink-0">
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto">
+                                <button
+                                    onClick={handleDownloadClick}
+                                    disabled={isLoading || isWaitingForFunds}
+                                    className="flex items-center justify-center gap-2 px-4 py-2 bg-[#D97757] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[12px] font-semibold rounded-lg shadow-sm transition-all shrink-0"
+                                >
+                                    {isWaitingForFunds ? <Loader2 className="size-3.5 animate-spin" /> : <FileDown className="size-3.5" />}
+                                    {isWaitingForFunds ? "Generating Overview..." : "Download Director Overview Report"}
+                                </button>
+                                <button
+                                    onClick={() => navigate("/generate-report")}
+                                    className="flex items-center justify-center gap-2 px-4 py-2 bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-[12px] font-semibold rounded-lg shadow-sm transition-all shrink-0"
+                                >
+                                    <FileText className="size-3.5" />
+                                    Genarate Detailed Report
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-blue-400/30 text-white ml-1">NEW</span>
+                                </button>
+                                <div className="relative w-full md:w-[320px] shrink-0">
                                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-zinc-400 dark:text-zinc-500">
                                     <Search className="w-4 h-4" />
                                 </span>
@@ -3337,6 +3338,7 @@ export function DirectorDashboard() {
                                         )}
                                     </div>
                                 )}
+                            </div>
                             </div>
                         </div>
                         <div className="flex items-center gap-2.5 overflow-x-auto pb-1">
