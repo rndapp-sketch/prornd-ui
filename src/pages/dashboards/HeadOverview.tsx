@@ -1990,31 +1990,31 @@ export function HeadOverview() {
                                             <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">No data available</div>
                                         )}
                                     </div>
-                                    <div className="mt-3 pt-3 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                                    <div className="mt-2.5 pt-2.5 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
                                         <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] overflow-hidden grid grid-cols-2 divide-x divide-[#E4E4E7] dark:divide-[#3F3F46]">
-                                            <div className="px-3.5 py-3">
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 bg-blue-50 dark:bg-blue-950/30 text-[#2563eb]">
-                                                            <FileText size={12} strokeWidth={2.5} />
-                                                        </div>
+                                            <div className="flex items-center gap-2.5 px-3 py-2">
+                                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-blue-50 dark:bg-blue-950/30 text-[#2563eb]">
+                                                    <FileText size={14} strokeWidth={2.5} />
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-baseline gap-1.5">
+                                                        <span className="text-[18px] font-extrabold text-[#2563eb] leading-none tabular-nums">{chartYearSubmittedTotal}</span>
                                                         <span className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider">Submitted</span>
                                                     </div>
-                                                    <span className="text-[22px] font-extrabold text-[#2563eb] leading-none tabular-nums">{chartYearSubmittedTotal}</span>
+                                                    <div className="text-[10.5px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-0.5">Pending Sanction</div>
                                                 </div>
-                                                <div className="text-[10px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-1.5">Pending Sanction</div>
                                             </div>
-                                            <div className="px-3.5 py-3">
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 bg-violet-50 dark:bg-violet-950/30 text-[#7c3aed]">
-                                                            <TrendingUp size={12} strokeWidth={2.5} />
-                                                        </div>
+                                            <div className="flex items-center gap-2.5 px-3 py-2">
+                                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-violet-50 dark:bg-violet-950/30 text-[#7c3aed]">
+                                                    <TrendingUp size={14} strokeWidth={2.5} />
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-baseline gap-1.5">
+                                                        <span className="text-[18px] font-extrabold text-[#7c3aed] leading-none tabular-nums">{chartYearOngoingTotal}</span>
                                                         <span className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider">Ongoing</span>
                                                     </div>
-                                                    <span className="text-[22px] font-extrabold text-[#7c3aed] leading-none tabular-nums">{chartYearOngoingTotal}</span>
+                                                    <div className="text-[10.5px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-0.5">Sanction approved</div>
                                                 </div>
-                                                <div className="text-[10px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-1.5">Sanction approved</div>
                                             </div>
                                         </div>
                                     </div>
