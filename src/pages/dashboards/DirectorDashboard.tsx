@@ -3886,7 +3886,10 @@ export function DirectorDashboard() {
                                                         </span>
                                                         <span className="text-[22px] font-extrabold text-[#2563eb] leading-none">{chartYearSubmittedTotal}</span>
                                                     </div>
-                                                    <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-0.5">Pending Sanction</div>
+                                                    <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-0.5">
+                                                        Pending Sanction
+                                                        <span className="text-[#A1A1AA] dark:text-[#71717A]"> (R {chartTypeBreakdown.researchSubmitted} · C {chartTypeBreakdown.consultancySubmitted}{chartTypeBreakdown.othersSubmitted > 0 ? ` · O ${chartTypeBreakdown.othersSubmitted}` : ""})</span>
+                                                    </div>
                                                 </div>
                                                 <div className="bg-[#FAFAF9] dark:bg-[#18181B] px-3 py-2">
                                                     <div className="flex items-center justify-between gap-2">
@@ -3896,7 +3899,10 @@ export function DirectorDashboard() {
                                                         </span>
                                                         <span className="text-[22px] font-extrabold text-[#7c3aed] leading-none">{chartYearOngoingTotal}</span>
                                                     </div>
-                                                    <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-0.5">Sanction approved — fund received or pending</div>
+                                                    <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-0.5">
+                                                        Sanction approved — fund received or pending
+                                                        <span className="text-[#A1A1AA] dark:text-[#71717A]"> (R {chartTypeBreakdown.researchOngoing} · C {chartTypeBreakdown.consultancyOngoing}{chartTypeBreakdown.othersOngoing > 0 ? ` · O ${chartTypeBreakdown.othersOngoing}` : ""})</span>
+                                                    </div>
                                                 </div>
                                             </div>
 
