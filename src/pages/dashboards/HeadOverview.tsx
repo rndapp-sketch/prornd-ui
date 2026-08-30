@@ -1014,34 +1014,6 @@ export function HeadOverview() {
     const fundRemaining = Math.max(0, fundAlloc - fundUtilized);
     const fundUtilPercent = fundAlloc > 0 ? ((fundUtilized / fundAlloc) * 100).toFixed(1) : "0";
 
-    // ₹ allocation AND ₹ utilization split by project type, among ongoing (sanction-
-    // approved) projects only — matches DirectorDashboard's Total Allocation card.
-    // Utilized reads fundReceivedValueCache (populated by the same
-    // usePIFundReceivedTotal(ongoingProjectsListForFunds) call above), so it's
-    // recomputed once that background fetch resolves via the fundUtilized/
-    // fundUtilizedLoading deps below. pending tracks how many ongoing projects don't
-    // yet have a cache entry — used to show "Loading…" instead of a false "₹0" if the
-    // loading flag has already flipped false but the cache isn't fully populated yet.
-    const allocationByType = React.useMemo(() => {
-        let rAmt = 0, cAmt = 0, oAmt = 0;
-        let rUtil = 0, cUtil = 0, oUtil = 0;
-        let pending = 0;
-        deptProjects.forEach((p: any) => {
-            if (!deptOngoingIds.has(p.name)) return;
-            const { isResearch, isConsultancy } = classifyProjectType(p);
-            const amt = p.total_budget_amount || p.grand_total_proposal || 0;
-            if (!Object.prototype.hasOwnProperty.call(fundReceivedValueCache, p.name)) pending++;
-            const util = fundReceivedValueCache[p.name] || 0;
-            if (isResearch) { rAmt += amt; rUtil += util; }
-            else if (isConsultancy) { cAmt += amt; cUtil += util; }
-            else { oAmt += amt; oUtil += util; }
-        });
-        return { rAmt, cAmt, oAmt, rUtil, cUtil, oUtil, pending };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [deptProjects, deptOngoingIds, fundUtilized, fundUtilizedLoading]);
-
-    const isFundUtilDataReady = !fundUtilizedLoading && allocationByType.pending === 0;
-
     // ── Funding sources pie (dept-scoped) ───────────────────────────────────
     const pieChartFundingData = React.useMemo(() => {
         const source = deptProjects.length > 0 ? deptProjects : apiProjectsFlat;
@@ -1330,135 +1302,93 @@ export function HeadOverview() {
         };
     }, [deptProjects, deptOngoingIds, deptSubmittedIds]);
 
-    // Shared row renderer for the "type → total, with Ongoing/Submitted context"
-    // breakdown shape — dot/label + right-aligned total on top, muted ongoing/submitted
-    // detail + a pct pill below. Same visual language across every KPI card that shows
-    // a Research/Consultancy/Others split, so a reader recognizes the pattern at a
-    // glance instead of parsing a different layout per card. Zero counts are shown,
-    // not hidden, so a 0 reads as "checked, none found," not "missing data."
-    const rowTabByLabel: Record<string, "research" | "consultancy" | "others"> = {
-        Research: "research",
-        Consultancy: "consultancy",
-        Others: "others",
-    };
-
-    const renderTypeSplitRows = (
-        rows: Array<{ label: string; dotColor: string; total: number; ongoing: number; submitted: number }>,
-        onRowClick?: (tab: "research" | "consultancy" | "others") => void,
-    ) => (
-        <div className="flex flex-col divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]/60 pt-1 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-            {rows.map((r) => {
-                const ongoingPct = r.total > 0 ? Math.round((r.ongoing / r.total) * 100) : 0;
-                return (
-                    <div
-                        key={r.label}
-                        onClick={onRowClick ? (e) => { e.stopPropagation(); onRowClick(rowTabByLabel[r.label]); } : undefined}
-                        className={`flex flex-col gap-0.5 py-1.5 -mx-1.5 px-1.5 rounded-md${onRowClick ? " cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors" : ""}`}
-                    >
-                        <div className="flex items-center justify-between gap-2 text-[13px]">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${r.dotColor}`} />
-                                <span className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.label}</span>
-                            </div>
-                            <span className="font-extrabold text-[14px] text-[#3F3F46] dark:text-[#E4E4E7] shrink-0">{r.total}</span>
+    // Compact Research/Consultancy/Others × Ongoing/Submitted breakdown — three
+    // columns side by side rather than a stacked list, so the card stays short.
+    // Shared by both Total Projects and Total Allocation (neither drills into a
+    // per-type click target here; the whole card's onClick already opens the
+    // detailed KPI modal).
+    const projectBreakdownGrid = React.useMemo(() => (
+        <div className={`grid ${allOthersProjects > 0 ? "grid-cols-3" : "grid-cols-2"} gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]`}>
+            <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
+                <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">
+                    {allResearchProjects}
+                </div>
+                <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">
+                    Research
+                </div>
+                <div className="flex flex-col gap-1 w-full px-1">
+                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
+                        <div className="flex items-center gap-1">
+                            <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
+                            Ongoing
                         </div>
-                        <div className="flex items-center justify-between gap-2 pl-4 text-[12px]">
-                            <span className="text-[#52525B] dark:text-[#D4D4D8] font-semibold truncate">
-                                {r.ongoing} ongoing &middot; {r.submitted} submitted
-                            </span>
-                            <span
-                                className="shrink-0 font-bold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
-                                title={`${ongoingPct}% of ${r.label} projects are ongoing`}
-                            >
-                                {ongoingPct}% ongoing
-                            </span>
+                        <span>{allResearchOngoing}</span>
+                    </span>
+                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
+                        <div className="flex items-center gap-1">
+                            <span className="w-1 h-1 rounded-full bg-amber-400"></span>
+                            Submitted
                         </div>
+                        <span>{allResearchSubmitted}</span>
+                    </span>
+                </div>
+            </div>
+            <div className={`flex flex-col items-center justify-start ${allOthersProjects > 0 ? "border-r border-[#E4E4E7] dark:border-[#3F3F46]" : ""}`}>
+                <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">
+                    {allConsultancyProjects}
+                </div>
+                <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">
+                    Consultancy
+                </div>
+                <div className="flex flex-col gap-1 w-full px-1">
+                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
+                        <div className="flex items-center gap-1">
+                            <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
+                            Ongoing
+                        </div>
+                        <span>{allConsultancyOngoing}</span>
+                    </span>
+                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
+                        <div className="flex items-center gap-1">
+                            <span className="w-1 h-1 rounded-full bg-amber-400"></span>
+                            Submitted
+                        </div>
+                        <span>{allConsultancySubmitted}</span>
+                    </span>
+                </div>
+            </div>
+            {allOthersProjects > 0 && (
+                <div className="flex flex-col items-center justify-start">
+                    <div className="text-[14px] font-extrabold text-[#059669] leading-tight">
+                        {allOthersProjects}
                     </div>
-                );
-            })}
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">
+                        Others
+                    </div>
+                    <div className="flex flex-col gap-1 w-full px-1">
+                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
+                            <div className="flex items-center gap-1">
+                                <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
+                                Ongoing
+                            </div>
+                            <span>{allOthersOngoing}</span>
+                        </span>
+                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
+                            <div className="flex items-center gap-1">
+                                <span className="w-1 h-1 rounded-full bg-amber-400"></span>
+                                Submitted
+                            </div>
+                            <span>{allOthersSubmitted}</span>
+                        </span>
+                    </div>
+                </div>
+            )}
         </div>
-    );
-
-    const projectBreakdownGrid = React.useMemo(() => renderTypeSplitRows([
-        { label: "Research", dotColor: "bg-blue-500", total: allResearchProjects, ongoing: allResearchOngoing, submitted: allResearchSubmitted },
-        { label: "Consultancy", dotColor: "bg-purple-500", total: allConsultancyProjects, ongoing: allConsultancyOngoing, submitted: allConsultancySubmitted },
-        ...(allOthersProjects > 0 ? [{ label: "Others", dotColor: "bg-emerald-500", total: allOthersProjects, ongoing: allOthersOngoing, submitted: allOthersSubmitted }] : []),
-    ], (tab) => {
-        setKpiModal({
-            type: "projectType",
-            title: `Projects: ${tab === "research" ? "Research" : tab === "consultancy" ? "Consultancy" : "Others"}`,
-            projectType: tab,
-        });
-        setKpiPage(1);
-    }), [
+    ), [
         allResearchProjects, allResearchOngoing, allResearchSubmitted,
         allConsultancyProjects, allConsultancyOngoing, allConsultancySubmitted,
         allOthersProjects, allOthersOngoing, allOthersSubmitted,
     ]);
-
-    const allocationBreakdownRows = React.useMemo(() => {
-        const pct = (util: number, amt: number) => amt > 0 ? ((util / amt) * 100).toFixed(1) : "0.0";
-        const build = (label: string, dotColor: string, count: number, amount: number, util: number) => ({
-            label, dotColor, count, amount,
-            util, remaining: Math.max(0, amount - util),
-            pct: pct(util, amount),
-        });
-        const rows = [
-            build("Research", "bg-blue-500", allResearchOngoing, allocationByType.rAmt, allocationByType.rUtil),
-            build("Consultancy", "bg-purple-500", allConsultancyOngoing, allocationByType.cAmt, allocationByType.cUtil),
-        ];
-        if (allOthersOngoing > 0) {
-            rows.push(build("Others", "bg-emerald-500", allOthersOngoing, allocationByType.oAmt, allocationByType.oUtil));
-        }
-        return rows;
-    }, [allocationByType, allResearchOngoing, allConsultancyOngoing, allOthersOngoing]);
-
-    const allocationBreakdownList = React.useMemo(() => (
-        <div className="flex flex-col divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]/60 pt-1 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-            {allocationBreakdownRows.map((r) => (
-                <div
-                    key={r.label}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setKpiModal({
-                            type: "projectType",
-                            title: `Projects by Allocation: ${r.label}`,
-                            projectType: rowTabByLabel[r.label],
-                            onlyOngoing: true,
-                        });
-                        setKpiPage(1);
-                    }}
-                    className="flex flex-col gap-0.5 py-1.5 -mx-1.5 px-1.5 rounded-md cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
-                >
-                    <div className="flex items-center justify-between gap-2 text-[13px]">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${r.dotColor}`} />
-                            <span className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.label}</span>
-                            <span className="text-[#71717A] dark:text-[#A1A1AA] font-semibold shrink-0">({r.count})</span>
-                        </div>
-                        <span className="font-extrabold text-[14px] text-[#3F3F46] dark:text-[#E4E4E7] shrink-0">{formatCurrency(r.amount)}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2 pl-4 text-[12px]">
-                        {!isFundUtilDataReady ? (
-                            <span className="text-[#52525B] dark:text-[#D4D4D8] font-semibold animate-pulse">Loading…</span>
-                        ) : (
-                            <>
-                                <span className="text-[#52525B] dark:text-[#D4D4D8] font-semibold truncate">
-                                    {formatCurrency(r.util)} utilized &middot; {formatCurrency(r.remaining)} left
-                                </span>
-                                <span
-                                    className="shrink-0 font-bold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
-                                    title={`${r.pct}% of ${r.label} allocation utilized`}
-                                >
-                                    {r.pct}%
-                                </span>
-                            </>
-                        )}
-                    </div>
-                </div>
-            ))}
-        </div>
-    ), [allocationBreakdownRows, isFundUtilDataReady]);
 
     // Ongoing Projects card: split by fund-received status, not just project type —
     // "sanction approved" alone doesn't tell the Head whether a project is truly
@@ -1475,95 +1405,45 @@ export function HeadOverview() {
         return { active, pendingFund, checking };
     }, [deptProjects, deptOngoingIds, fundStatusMap]);
 
-    // Same split, broken out per project type — so a Research-heavy pending-fund
-    // backlog isn't hidden inside an aggregate that looks healthy overall.
-    const ongoingByTypeFundStatus = React.useMemo(() => {
-        const counts: Record<"Research" | "Consultancy" | "Others", { active: number; pendingFund: number; checking: number }> = {
-            Research: { active: 0, pendingFund: 0, checking: 0 },
-            Consultancy: { active: 0, pendingFund: 0, checking: 0 },
-            Others: { active: 0, pendingFund: 0, checking: 0 },
-        };
-        deptProjects.forEach((p: any) => {
-            if (!deptOngoingIds.has(p.name)) return;
-            const { isResearch, isConsultancy } = classifyProjectType(p);
-            const bucket: "Research" | "Consultancy" | "Others" = isResearch ? "Research" : isConsultancy ? "Consultancy" : "Others";
-            if (!fundStatusMap.has(p.name)) { counts[bucket].checking++; return; }
-            if (fundStatusMap.get(p.name) === true) counts[bucket].active++;
-            else counts[bucket].pendingFund++;
-        });
-        return counts;
-    }, [deptProjects, deptOngoingIds, fundStatusMap]);
-
     const openOngoingFundStatusModal = (status: "active" | "pending_fund", title: string) => {
         setKpiModal({ type: "ongoing", title, fundStatus: status });
         setKpiPage(1);
     };
 
-    const ongoingBreakdownList = React.useMemo(() => {
-        const totalOngoing = allResearchOngoing + allConsultancyOngoing + allOthersOngoing;
-        const pct = (n: number) => totalOngoing > 0 ? Math.round((n / totalOngoing) * 100) : 0;
-        const rows: Array<{ label: "Research" | "Consultancy" | "Others"; dotColor: string; count: number }> = [
-            { label: "Research", dotColor: "bg-blue-500", count: allResearchOngoing },
-            { label: "Consultancy", dotColor: "bg-purple-500", count: allConsultancyOngoing },
-            ...(allOthersOngoing > 0 ? [{ label: "Others" as const, dotColor: "bg-emerald-500", count: allOthersOngoing }] : []),
+    // Simple Research/Consultancy/Others pill badges for the Ongoing Projects card —
+    // just the counts, no per-type click target (the card's own onClick already opens
+    // the ongoing-projects KPI modal).
+    const ongoingBreakdownBadges = React.useMemo(() => {
+        const badges = [
+            {
+                label: "Research",
+                count: allResearchOngoing,
+                dotColor: "bg-blue-500",
+                bgClass: "bg-blue-50 dark:bg-blue-950/30",
+                textClass: "text-blue-700 dark:text-blue-400",
+            },
+            {
+                label: "Consultancy",
+                count: allConsultancyOngoing,
+                dotColor: "bg-purple-500",
+                bgClass: "bg-purple-50 dark:bg-purple-950/30",
+                textClass: "text-purple-700 dark:text-purple-400",
+            },
         ];
-        return (
-            <div className="flex flex-col divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]/60 pt-1 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-                {rows.map((r) => {
-                    const { active, pendingFund, checking } = ongoingByTypeFundStatus[r.label];
-                    return (
-                        <div
-                            key={r.label}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setKpiModal({
-                                    type: "projectType",
-                                    title: `Ongoing Projects: ${r.label}`,
-                                    projectType: rowTabByLabel[r.label],
-                                    onlyOngoing: true,
-                                });
-                                setKpiPage(1);
-                            }}
-                            className="flex flex-col gap-0.5 py-1.5 -mx-1.5 px-1.5 rounded-md cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
-                        >
-                            <div className="flex items-center justify-between gap-2 text-[13px]">
-                                <div className="flex items-center gap-1.5 min-w-0">
-                                    <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${r.dotColor}`} />
-                                    <span className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.label}</span>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                    <span className="font-extrabold text-[14px] text-[#3F3F46] dark:text-[#E4E4E7]">{r.count}</span>
-                                    <span
-                                        className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
-                                        title={`${pct(r.count)}% of ongoing projects are ${r.label}`}
-                                    >
-                                        {pct(r.count)}%
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="flex items-center justify-between gap-2 pl-4 text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
-                                {checking > 0 ? (
-                                    // Fund-status is still resolving for some of this type's projects —
-                                    // show a plain loading state for the whole row rather than partial,
-                                    // steadily-increasing counts that look inconsistent mid-fetch.
-                                    <span className="font-semibold text-zinc-400 dark:text-zinc-500 animate-pulse">Loading…</span>
-                                ) : (
-                                    <span className="flex items-center gap-1 truncate">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                                        {active} active
-                                        <span className="text-[#D4D4D8] dark:text-[#3F3F46] mx-0.5">&middot;</span>
-                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-                                        {pendingFund} pending fund
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-        );
-    }, [allResearchOngoing, allConsultancyOngoing, allOthersOngoing, ongoingByTypeFundStatus, rowTabByLabel]);
+        if (allOthersOngoing > 0) {
+            badges.push({
+                label: "Others",
+                count: allOthersOngoing,
+                dotColor: "bg-emerald-500",
+                bgClass: "bg-emerald-50 dark:bg-emerald-950/30",
+                textClass: "text-emerald-700 dark:text-emerald-400",
+            });
+        }
+        return badges;
+    }, [allResearchOngoing, allConsultancyOngoing, allOthersOngoing]);
 
+    // Same compact grid as projectBreakdownGrid, scoped to projects with an
+    // international funding agency.
     const intlBreakdownGrid = React.useMemo(() => {
         let rP = 0, rO = 0, rS = 0;
         let cP = 0, cO = 0, cS = 0;
@@ -1579,18 +1459,46 @@ export function HeadOverview() {
             else { oP++; if (isOngoing) oO++; if (isSubmitted) oS++; }
         });
 
-        return renderTypeSplitRows([
-            { label: "Research", dotColor: "bg-blue-500", total: rP, ongoing: rO, submitted: rS },
-            { label: "Consultancy", dotColor: "bg-purple-500", total: cP, ongoing: cO, submitted: cS },
-            { label: "Others", dotColor: "bg-emerald-500", total: oP, ongoing: oO, submitted: oS },
-        ], (tab) => {
-            setKpiModal({
-                type: "intl",
-                title: `International Collaborator Projects: ${tab === "research" ? "Research" : tab === "consultancy" ? "Consultancy" : "Others"}`,
-                projectType: tab,
-            });
-            setKpiPage(1);
-        });
+        return (
+            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
+                    <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">{rP}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
+                    <div className="flex flex-col gap-1 w-full px-1">
+                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
+                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-emerald-500"></span>Ongoing</div><span>{rO}</span>
+                        </span>
+                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
+                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-amber-400"></span>Submitted</div><span>{rS}</span>
+                        </span>
+                    </div>
+                </div>
+                <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
+                    <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">{cP}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
+                    <div className="flex flex-col gap-1 w-full px-1">
+                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
+                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-emerald-500"></span>Ongoing</div><span>{cO}</span>
+                        </span>
+                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
+                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-amber-400"></span>Submitted</div><span>{cS}</span>
+                        </span>
+                    </div>
+                </div>
+                <div className="flex flex-col items-center justify-start">
+                    <div className="text-[14px] font-extrabold text-[#059669] leading-tight">{oP}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Others</div>
+                    <div className="flex flex-col gap-1 w-full px-1">
+                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
+                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-emerald-500"></span>Ongoing</div><span>{oO}</span>
+                        </span>
+                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
+                            <div className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-amber-400"></span>Submitted</div><span>{oS}</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        );
     }, [deptProjects, deptOngoingIds, deptSubmittedIds]);
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -1763,7 +1671,7 @@ export function HeadOverview() {
                                 iconBg="#ecfdf5"
                                 circleColor="#059669"
                                 onClick={() => openKpiModal("allocation", "Projects by Allocation")}
-                                customBottom={!isLoading && !isHeadDataLoading && allocationBreakdownList}
+                                customBottom={!isLoading && !isHeadDataLoading && projectBreakdownGrid}
                             />
                             <KpiCard
                                 label="Ongoing Projects"
@@ -1815,7 +1723,7 @@ export function HeadOverview() {
                                 iconBg="#f5f3ff"
                                 circleColor="#7c3aed"
                                 onClick={() => openKpiModal("ongoing", "Ongoing Projects")}
-                                customBottom={!isPageLoading && ongoingBreakdownList}
+                                badges={isPageLoading ? undefined : ongoingBreakdownBadges}
                             />
                             <KpiCard
                                 label="International Collaborators"
