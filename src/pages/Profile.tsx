@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
     useFrappeAuth,
+    useFrappeGetCall,
     useFrappeGetDoc,
     useFrappePostCall,
 } from "frappe-react-sdk";
@@ -29,6 +30,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DepartmentName } from "@/components/DepartmentName";
 import { useUserRoles } from "@/components/UserRole";
+import { studentAPI } from "@/services/apiService";
 import { cn } from "@/lib/utils";
 
 type UserDoc = {
@@ -79,6 +81,41 @@ type UploadedFileResponse = {
         file_name?: string;
     };
 };
+
+/** The student-owned half of `student_details` — mirrors STUDENT_PROFILE_FIELDS
+ *  in student_api.py. The project/pay half belongs to the PI's office. */
+const STUDENT_PROFILE_FIELDS: Array<{
+    name: string;
+    label: string;
+    icon: React.ElementType;
+    type?: string;
+    options?: string[];
+    multiline?: boolean;
+}> = [
+    { name: "dob", label: "Date of Birth", icon: Calendar, type: "date" },
+    { name: "gender", label: "Gender", icon: User, options: ["Male", "Female"] },
+    { name: "contact_number", label: "Contact Number", icon: Phone },
+    { name: "qualification", label: "Qualification", icon: BadgeCheck },
+    { name: "father_name", label: "Father's Name", icon: User },
+    {
+        name: "blood_group",
+        label: "Blood Group",
+        icon: BadgeCheck,
+        options: ["A+", "A−", "B+", "B−", "AB+", "AB−", "O+", "O−"],
+    },
+    {
+        name: "maritial_status",
+        label: "Marital Status",
+        icon: User,
+        options: ["Married", "Unmarried"],
+    },
+    { name: "citizenship", label: "Citizenship", icon: MapPin },
+    { name: "permanent_address", label: "Permanent Address", icon: MapPin, multiline: true },
+    { name: "present_address", label: "Present Address", icon: MapPin },
+    { name: "account_number", label: "Bank Account Number", icon: BadgeCheck },
+    { name: "pan", label: "PAN Number", icon: BadgeCheck },
+    { name: "aadhar_number", label: "Aadhaar Number", icon: BadgeCheck },
+];
 
 const editableFields: Array<keyof ProfileForm> = [
     "first_name",
@@ -238,6 +275,50 @@ export default function Profile() {
         "rndopsapp.rndopsapp.api.get_user_details",
     );
     const [resolvedEmpclass, setResolvedEmpclass] = useState<string>("");
+
+    // --- Student profile -----------------------------------------------------
+    // For a student the useful record is their own `student_details` row, not
+    // the sparse User doc — so show and edit that instead.
+    const { data: studentProfile, mutate: refetchStudentProfile } = useFrappeGetCall<{
+        message: {
+            is_student: boolean;
+            is_complete: boolean;
+            data: Record<string, string>;
+        };
+    }>(studentAPI.getMyProfile, {});
+    const { call: saveStudentProfile } = useFrappePostCall(studentAPI.saveMyProfile);
+
+    const isStudent = studentProfile?.message?.is_student ?? false;
+    const [studentForm, setStudentForm] = useState<Record<string, string>>({});
+    const [studentDirty, setStudentDirty] = useState(false);
+    const [studentSaving, setStudentSaving] = useState(false);
+
+    useEffect(() => {
+        const existing = studentProfile?.message?.data;
+        if (!existing) return;
+        setStudentForm(
+            Object.fromEntries(Object.entries(existing).map(([k, v]) => [k, v ?? ""])),
+        );
+        setStudentDirty(false);
+    }, [studentProfile]);
+
+    const setStudentField = (key: string, value: string) => {
+        setStudentForm((prev) => ({ ...prev, [key]: value }));
+        setStudentDirty(true);
+    };
+
+    const handleStudentSave = async () => {
+        setStudentSaving(true);
+        try {
+            await saveStudentProfile({ data: JSON.stringify(studentForm) });
+            setStudentDirty(false);
+            refetchStudentProfile();
+        } catch {
+            /* the endpoint reports its own validation errors */
+        } finally {
+            setStudentSaving(false);
+        }
+    };
 
     useEffect(() => {
         if (!currentUser) return;
@@ -517,6 +598,69 @@ export default function Profile() {
                 </div>
 
                 <div className="space-y-6">
+                    {/* Students edit their own `student_details` record here; the
+                        User-doc fields below are hidden for them. */}
+                    {isStudent && (
+                        <Card className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm bg-white dark:bg-[#27272A]">
+                            <CardHeader className="border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] px-6 py-4">
+                                <CardTitle className="flex items-center gap-2.5 text-base font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                    <div className="w-1 h-5 rounded-full bg-[#D97757]" />
+                                    Student Details
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-6">
+                                <div className="grid gap-5 md:grid-cols-2">
+                                    {STUDENT_PROFILE_FIELDS.map((f) => (
+                                        <Field key={f.name} id={f.name} label={f.label} icon={f.icon}>
+                                            {f.options ? (
+                                                <select
+                                                    id={f.name}
+                                                    className="flex h-10 w-full rounded-md border border-[#E4E4E7] bg-white px-3 py-2 text-sm dark:border-[#3F3F46] dark:bg-[#18181B] dark:text-[#E4E4E7]"
+                                                    value={studentForm[f.name] || ""}
+                                                    onChange={(e) => setStudentField(f.name, e.target.value)}
+                                                >
+                                                    <option value="">Select…</option>
+                                                    {f.options.map((o) => (
+                                                        <option key={o} value={o}>{o}</option>
+                                                    ))}
+                                                </select>
+                                            ) : f.multiline ? (
+                                                <Textarea
+                                                    id={f.name}
+                                                    rows={3}
+                                                    value={studentForm[f.name] || ""}
+                                                    onChange={(e) => setStudentField(f.name, e.target.value)}
+                                                />
+                                            ) : (
+                                                <Input
+                                                    id={f.name}
+                                                    type={f.type || "text"}
+                                                    value={studentForm[f.name] || ""}
+                                                    onChange={(e) => setStudentField(f.name, e.target.value)}
+                                                />
+                                            )}
+                                        </Field>
+                                    ))}
+                                </div>
+                                <div className="mt-6 flex items-center justify-end gap-3">
+                                    <span className="mr-auto text-xs font-medium text-[#A1A1AA] dark:text-[#71717A]">
+                                        {studentDirty ? "You have unsaved changes" : "All changes saved"}
+                                    </span>
+                                    <Button
+                                        type="button"
+                                        onClick={handleStudentSave}
+                                        disabled={!studentDirty || studentSaving}
+                                        className="bg-[#D97757] hover:bg-[#c66a4e] text-white font-semibold"
+                                    >
+                                        <Save className="mr-2 h-4 w-4" />
+                                        {studentSaving ? "Saving..." : "Save Student Details"}
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {!isStudent && (
                     <Card className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm bg-white dark:bg-[#27272A]">
                         <CardHeader className="border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] px-6 py-4">
                             <CardTitle className="flex items-center gap-2.5 text-base font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
@@ -725,6 +869,7 @@ export default function Profile() {
                             </div>
                         </CardContent>
                     </Card>
+                    )}
 
                     <Card className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm bg-white dark:bg-[#27272A]">
                         <CardHeader className="border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] px-6 py-4">

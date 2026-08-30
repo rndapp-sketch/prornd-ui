@@ -394,6 +394,16 @@ export const leaveModuleAPI = {
     getLeaveBalance: `${API_BASE}.leave_module.leave_module.get_leave_balance`,
 };
 
+// Student Dashboard (PI-side "Add Student") API endpoints
+export const studentAPI = {
+    getByEmail: `rndopsapp.rndopsapp.user_api.student_api.get_student_by_email`,
+    getPiProjects: `rndopsapp.rndopsapp.user_api.student_api.get_pi_projects`,
+    addStudent: `rndopsapp.rndopsapp.user_api.student_api.add_student`,
+    // Student self-service profile (must be completed before using the portal)
+    getMyProfile: `rndopsapp.rndopsapp.user_api.student_api.get_my_student_profile`,
+    saveMyProfile: `rndopsapp.rndopsapp.user_api.student_api.save_my_student_profile`,
+};
+
 // Helper to prepare form data with file conversions for API submission
 export const prepareFormDataForApi = async (formData: Record<string, unknown>): Promise<Record<string, unknown>> => {
     const data = JSON.parse(JSON.stringify(formData)) as Record<string, unknown>;
