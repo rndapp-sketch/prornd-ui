@@ -3931,188 +3931,175 @@ export function DirectorDashboard() {
                                 </div>
                             </div>
 
-                            {/* Financial Trends Line Chart */}
-                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden flex flex-col">
-                                <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-amber-50 dark:bg-amber-950/20 text-[#d97706]">
-                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                                            </svg>
+                            {/* Funding Sources Pie */}
+                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden">
+                                <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                                    <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center justify-between w-full">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-violet-50 dark:bg-violet-950/20 text-[#7c3aed]">
+                                                <svg
+                                                    className="w-3.5 h-3.5"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth="2"
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
+                                                    <path d="M22 12A10 10 0 0 0 12 2v10z" />
+                                                </svg>
+                                            </div>
+                                            Funding Sources — Breakdown
                                         </div>
-                                        <div>
-                                            <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Financial Trends</div>
-                                            <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-tight">Ongoing (sanction-approved) projects only</div>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <select
-                                            value={financialProjectTypeFilter}
-                                            onChange={(e) => setFinancialProjectTypeFilter(e.target.value)}
-                                            className="bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2 py-1 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none focus:border-[#2563eb] cursor-pointer"
+                                        <button
+                                            onClick={() => setShowAllFunding(!showAllFunding)}
+                                            className="text-[11px] font-bold text-[#2563eb] dark:text-blue-400 hover:underline whitespace-nowrap bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-md transition-colors"
                                         >
-                                            <option value="all">All Types</option>
-                                            <option value="research">Research</option>
-                                            <option value="consultancy">Consultancy</option>
-                                            <option value="others">Others</option>
-                                        </select>
-                                        <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider ml-1">Year:</span>
-                                        <select
-                                            value={financialYearFilter}
-                                            onChange={(e) => setFinancialYearFilter(e.target.value)}
-                                            className="bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2 py-1 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none focus:border-[#2563eb] cursor-pointer"
-                                        >
-                                            <option value="all">All Years</option>
-                                            {availableYears.map(y => (
-                                                <option key={y} value={y}>{y}</option>
-                                            ))}
-                                        </select>
+                                            {showAllFunding ? "Show Top 7" : "Show All"}
+                                        </button>
                                     </div>
                                 </div>
-                                <div className="p-[18px] px-[22px] flex-1 flex flex-col">
-                                    <div className="flex gap-4 mb-5">
-                                        <div
-                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-xl p-3.5 text-center shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
-                                            onClick={() => openKpiModalWithTab("total", "Projects: Total Sanctioned", "ongoing")}
-                                        >
-                                            <div className="text-[20px] font-extrabold tracking-[-0.03em] text-[#2563eb]">
-                                                {isLoading ? "—" : formatCurrency(fundAlloc)}
-                                            </div>
-                                            <div className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
-                                                Total Sanctioned
-                                            </div>
+                                <div className="p-[18px] px-[22px] pb-5">
+                                    {isLoading ? (
+                                        <div className="h-[300px] flex items-center justify-center text-[#71717A] text-sm">
+                                            Loading chart...
                                         </div>
-                                        <div
-                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-xl p-3.5 text-center shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
-                                            onClick={() => openKpiModalWithTab("total", "Projects: Utilized", "ongoing")}
-                                        >
-                                            <div className="text-[20px] font-extrabold tracking-[-0.03em] text-[#059669]">
-                                                {isLoading ? "—" : globalUtilizedLoading ? (
-                                                    <span className="text-[13px] font-bold text-[#71717A] dark:text-[#A1A1AA] animate-pulse">Loading…</span>
-                                                ) : formatCurrency(fundUtilized)}
-                                            </div>
-                                            <div className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
-                                                Utilized
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="h-[220px] w-full mt-2">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart
-                                                data={[
-                                                    { name: "Sanctioned", value: fundAlloc, fill: "#2563eb", filter: "ongoing", title: "Projects: Total Sanctioned" },
-                                                    { name: "Utilized", value: fundUtilized, fill: "#059669", filter: "ongoing", title: "Projects: Utilized" },
-                                                    { name: "Remaining", value: fundRemaining, fill: "#0ea5e9", filter: "ongoing", title: "Projects: Remaining Balance" },
-                                                    // { name: "Proposed", value: computedProposedBudget, fill: "#71717a", filter: "submitted", title: "Projects: Proposed Budget" }
-                                                ]}
-                                                margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
-                                                barSize={40}
-                                            >
-                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E4E7" className="dark:stroke-[#3F3F46]" />
-                                                <XAxis
-                                                    dataKey="name"
-                                                    axisLine={false}
-                                                    tickLine={false}
-                                                    tick={{ fill: "#71717A", fontSize: 11, fontWeight: 700 }}
-                                                    dy={10}
-                                                />
-                                                <Tooltip
-                                                    cursor={{ fill: 'rgba(0,0,0,0.04)' }}
-                                                    contentStyle={{
-                                                        borderRadius: "0.75rem",
-                                                        border: "1px solid #1e293b",
-                                                        background: "#0f172a",
-                                                    }}
-                                                    labelStyle={{ display: "none" }}
-                                                    itemStyle={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9" }}
-                                                    formatter={(value: any, name: string, props: any) => [
-                                                        formatCurrency(value),
-                                                        props.payload.name
-                                                    ]}
-                                                />
-                                                <Bar
-                                                    dataKey="value"
-                                                    radius={[6, 6, 0, 0]}
-                                                    cursor="pointer"
-                                                    isAnimationActive={false}
-                                                    onClick={(data: any) => {
-                                                        if (data && data.payload) {
-                                                            openKpiModalWithTab("total", data.payload.title, data.payload.filter);
-                                                        }
+                                    ) : pieChartFundingData.length > 0 ? (
+                                        <div className="flex flex-col w-full h-full">
+                                            <div className="relative w-full shrink-0" style={{ height: "240px" }}>
+                                                <div
+                                                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition-transform z-10 w-28 h-28 rounded-full"
+                                                    onClick={() => {
+                                                        setKpiModal({ type: "total", title: `Funding: All Sources` });
+                                                        setKpiPage(1);
+                                                        setKpiTab("all");
+                                                        setKpiStatusFilter("all");
                                                     }}
                                                 >
-                                                    <LabelList
-                                                        dataKey="value"
-                                                        position="top"
-                                                        formatter={(val: any) => (val && Number(val) > 0) ? formatCurrency(Number(val)) : ""}
-                                                        style={{ fontSize: '10px', fontWeight: 'bold', fill: '#71717a' }}
-                                                    />
-                                                    {
-                                                        [
-                                                            { name: "Sanctioned", value: fundAlloc, fill: "#2563eb", filter: "ongoing", title: "Projects: Total Sanctioned" },
-                                                            { name: "Utilized", value: fundUtilized, fill: "#059669", filter: "ongoing", title: "Projects: Utilized" },
-                                                            { name: "Remaining", value: fundRemaining, fill: "#0ea5e9", filter: "ongoing", title: "Projects: Remaining Balance" },
-                                                            // { name: "Proposed", value: computedProposedBudget, fill: "#71717a", filter: "submitted", title: "Projects: Proposed Budget" }
-                                                        ].map((entry, index) => (
-                                                            <Cell
-                                                                key={`cell-${index}`}
-                                                                fill={entry.fill}
-                                                                className="hover:opacity-80 transition-opacity"
-                                                            />
-                                                        ))
-                                                    }
-                                                </Bar>
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
+                                                    <span className="text-3xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none">
+                                                        {pieChartFundingData.reduce((sum: number, d: any) => sum + d.value, 0)}
+                                                    </span>
+                                                    <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
+                                                        Total
+                                                    </span>
+                                                </div>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <PieChart>
+                                                        <Pie
+                                                            data={pieChartFundingData}
+                                                            cx="50%"
+                                                            cy="50%"
+                                                            innerRadius="60%"
+                                                            outerRadius="80%"
+                                                            dataKey="value"
+                                                            nameKey="funding_agency"
+                                                            paddingAngle={3}
+                                                            isAnimationActive={false}
+                                                            onClick={(data: any) => {
+                                                                if (data && data.payload && data.payload.funding_agency) {
+                                                                    const clickedAgency = data.payload.funding_agency;
 
-                                    <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-4 mt-auto">
-                                        <div className="space-y-1">
-                                            <div
-                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
-                                                onClick={() => openKpiModalWithTab("total", "Projects: Total Sanctioned", "ongoing")}
-                                            >
-                                                <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Total Sanctioned</span>
-                                                <span className="text-[13px] font-extrabold text-[#2563eb]">
-                                                    {isLoading ? "—" : formatCurrency(fundAlloc)}
-                                                </span>
+                                                                    if (clickedAgency === "Others") {
+                                                                        const excludedAgencies = pieChartFundingData.slice(0, 7).map((d: any) => d.funding_agency);
+                                                                        setKpiModal({
+                                                                            type: "total",
+                                                                            title: `Funding: Others`,
+                                                                            fundingAgency: "Others",
+                                                                            excludedFundingAgencies: excludedAgencies
+                                                                        });
+                                                                    } else {
+                                                                        setKpiModal({ type: "total", title: `Funding: ${clickedAgency}`, fundingAgency: clickedAgency });
+                                                                    }
+
+                                                                    setKpiPage(1);
+                                                                    setKpiTab("all");
+                                                                    setKpiStatusFilter("all");
+                                                                    setKpiSchemeFilter([]);
+                                                                    setKpiAgeFilter("all");
+                                                                }
+                                                            }}
+                                                            style={{ cursor: "pointer" }}
+                                                        >
+                                                            {pieChartFundingData.map((_: any, i: number) => (
+                                                                <Cell
+                                                                    key={i}
+                                                                    fill={CHART_COLORS[i % CHART_COLORS.length]}
+                                                                    stroke="none"
+                                                                />
+                                                            ))}
+                                                        </Pie>
+                                                        <Tooltip
+                                                            contentStyle={{
+                                                                borderRadius: "0.5rem",
+                                                                border: "1px solid #1e293b",
+                                                                background: "#0f172a",
+                                                            }}
+                                                            labelStyle={{ color: "#f1f5f9", fontWeight: 700 }}
+                                                            itemStyle={{ color: "#94a3b8", fontSize: 11 }}
+                                                            formatter={(value: number, name: string) => [
+                                                                `${value} Projects`,
+                                                                name,
+                                                            ]}
+                                                        />
+                                                    </PieChart>
+                                                </ResponsiveContainer>
                                             </div>
-                                            <div
-                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
-                                                onClick={() => openKpiModalWithTab("total", "Projects: Utilized", "ongoing")}
-                                            >
-                                                <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Utilized</span>
-                                                <span className="text-[13px] font-extrabold text-[#059669]">
-                                                    {isLoading ? "—" : globalUtilizedLoading ? (
-                                                        <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] animate-pulse">Loading…</span>
-                                                    ) : formatCurrency(fundUtilized)}
-                                                </span>
+                                            <div className="w-full mt-2">
+                                                <ul className={`grid grid-cols-1 sm:grid-cols-2 gap-x-20 gap-y-1 w-full ${showAllFunding ? "overflow-y-auto max-h-[160px] custom-scrollbar pr-2" : ""}`}>
+                                                    {pieChartFundingData.map((item: any, i: number) => (
+                                                        <li
+                                                            key={i}
+                                                            className="flex items-start justify-between min-w-0 text-[11px] group cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30 px-2 rounded-lg transition-colors gap-1.5 py-1"
+                                                            onClick={() => {
+                                                                const clickedAgency = item.funding_agency;
+
+                                                                if (clickedAgency === "Others") {
+                                                                    const excludedAgencies = pieChartFundingData.slice(0, 7).map((d: any) => d.funding_agency);
+                                                                    setKpiModal({
+                                                                        type: "total",
+                                                                        title: `Funding: Others`,
+                                                                        fundingAgency: "Others",
+                                                                        excludedFundingAgencies: excludedAgencies
+                                                                    });
+                                                                } else {
+                                                                    setKpiModal({ type: "total", title: `Funding: ${clickedAgency}`, fundingAgency: clickedAgency });
+                                                                }
+
+                                                                setKpiPage(1);
+                                                                setKpiTab("all");
+                                                                setKpiStatusFilter("all");
+                                                                setKpiSchemeFilter([]);
+                                                                setKpiAgeFilter("all");
+                                                            }}
+                                                        >
+                                                            <div className="flex items-start gap-2 pr-2">
+                                                                <span
+                                                                    className="w-2.5 h-2.5 rounded-sm shrink-0 mt-[2px]"
+                                                                    style={{
+                                                                        backgroundColor: CHART_COLORS[i % CHART_COLORS.length],
+                                                                    }}
+                                                                />
+                                                                <span
+                                                                    className="text-[#64748B] dark:text-[#A1A1AA] font-semibold break-words whitespace-normal flex-1 group-hover:text-[#3F3F46] dark:group-hover:text-[#E4E4E7] transition-colors leading-snug"
+                                                                    title={item.funding_agency}
+                                                                >
+                                                                    {item.funding_agency}
+                                                                </span>
+                                                            </div>
+                                                            <span className="font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] shrink-0 mt-[1px]">
+                                                                {item.value}
+                                                            </span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
                                             </div>
-                                            <div
-                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
-                                                onClick={() => openKpiModalWithTab("total", "Projects: Remaining Balance", "ongoing")}
-                                            >
-                                                <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Remaining Balance</span>
-                                                <span className="text-[13px] font-extrabold text-[#0ea5e9]">
-                                                    {isLoading ? "—" : globalUtilizedLoading ? (
-                                                        <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] animate-pulse">Loading…</span>
-                                                    ) : formatCurrency(fundRemaining)}
-                                                </span>
-                                            </div>
-                                            {/* 
-                                            <div 
-                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
-                                                onClick={() => openKpiModalWithTab("total", "Projects: Proposed Budget", "submitted")}
-                                            >
-                                                <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Proposed Budget (Review)</span>
-                                                <span className="text-[13px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
-                                                    {isLoading ? "—" : formatCurrency(computedProposedBudget)}
-                                                </span>
-                                            </div>
-                                            */}
                                         </div>
-                                    </div>
+                                    ) : (
+                                        <div className="h-[300px] flex items-center justify-center text-[#71717A] text-sm">
+                                            No data available
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -4579,175 +4566,188 @@ export function DirectorDashboard() {
                         {/* ── Project Analytics & Distribution ── */}
                         <SectionDivider title="Project Analytics & Distribution" />
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-[14px] mb-6">
-                            {/* Funding Sources Pie */}
-                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden">
-                                <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46]">
-                                    <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center justify-between w-full">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-violet-50 dark:bg-violet-950/20 text-[#7c3aed]">
-                                                <svg
-                                                    className="w-3.5 h-3.5"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    strokeWidth="2"
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
-                                                    <path d="M22 12A10 10 0 0 0 12 2v10z" />
-                                                </svg>
-                                            </div>
-                                            Funding Sources — Breakdown
+                            {/* Financial Trends Line Chart */}
+                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden flex flex-col">
+                                <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-amber-50 dark:bg-amber-950/20 text-[#d97706]">
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                                            </svg>
                                         </div>
-                                        <button
-                                            onClick={() => setShowAllFunding(!showAllFunding)}
-                                            className="text-[11px] font-bold text-[#2563eb] dark:text-blue-400 hover:underline whitespace-nowrap bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-md transition-colors"
+                                        <div>
+                                            <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Financial Trends</div>
+                                            <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-tight">Ongoing (sanction-approved) projects only</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <select
+                                            value={financialProjectTypeFilter}
+                                            onChange={(e) => setFinancialProjectTypeFilter(e.target.value)}
+                                            className="bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2 py-1 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none focus:border-[#2563eb] cursor-pointer"
                                         >
-                                            {showAllFunding ? "Show Top 7" : "Show All"}
-                                        </button>
+                                            <option value="all">All Types</option>
+                                            <option value="research">Research</option>
+                                            <option value="consultancy">Consultancy</option>
+                                            <option value="others">Others</option>
+                                        </select>
+                                        <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider ml-1">Year:</span>
+                                        <select
+                                            value={financialYearFilter}
+                                            onChange={(e) => setFinancialYearFilter(e.target.value)}
+                                            className="bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2 py-1 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none focus:border-[#2563eb] cursor-pointer"
+                                        >
+                                            <option value="all">All Years</option>
+                                            {availableYears.map(y => (
+                                                <option key={y} value={y}>{y}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
-                                <div className="p-[18px] px-[22px] pb-5">
-                                    {isLoading ? (
-                                        <div className="h-[300px] flex items-center justify-center text-[#71717A] text-sm">
-                                            Loading chart...
+                                <div className="p-[18px] px-[22px] flex-1 flex flex-col">
+                                    <div className="flex gap-4 mb-5">
+                                        <div
+                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-xl p-3.5 text-center shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
+                                            onClick={() => openKpiModalWithTab("total", "Projects: Total Sanctioned", "ongoing")}
+                                        >
+                                            <div className="text-[20px] font-extrabold tracking-[-0.03em] text-[#2563eb]">
+                                                {isLoading ? "—" : formatCurrency(fundAlloc)}
+                                            </div>
+                                            <div className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
+                                                Total Sanctioned
+                                            </div>
                                         </div>
-                                    ) : pieChartFundingData.length > 0 ? (
-                                        <div className="flex flex-col w-full h-full">
-                                            <div className="relative w-full shrink-0" style={{ height: "240px" }}>
-                                                <div
-                                                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition-transform z-10 w-28 h-28 rounded-full"
-                                                    onClick={() => {
-                                                        setKpiModal({ type: "total", title: `Funding: All Sources` });
-                                                        setKpiPage(1);
-                                                        setKpiTab("all");
-                                                        setKpiStatusFilter("all");
+                                        <div
+                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-xl p-3.5 text-center shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
+                                            onClick={() => openKpiModalWithTab("total", "Projects: Utilized", "ongoing")}
+                                        >
+                                            <div className="text-[20px] font-extrabold tracking-[-0.03em] text-[#059669]">
+                                                {isLoading ? "—" : globalUtilizedLoading ? (
+                                                    <span className="text-[13px] font-bold text-[#71717A] dark:text-[#A1A1AA] animate-pulse">Loading…</span>
+                                                ) : formatCurrency(fundUtilized)}
+                                            </div>
+                                            <div className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
+                                                Utilized
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="h-[220px] w-full mt-2">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart
+                                                data={[
+                                                    { name: "Sanctioned", value: fundAlloc, fill: "#2563eb", filter: "ongoing", title: "Projects: Total Sanctioned" },
+                                                    { name: "Utilized", value: fundUtilized, fill: "#059669", filter: "ongoing", title: "Projects: Utilized" },
+                                                    { name: "Remaining", value: fundRemaining, fill: "#0ea5e9", filter: "ongoing", title: "Projects: Remaining Balance" },
+                                                    // { name: "Proposed", value: computedProposedBudget, fill: "#71717a", filter: "submitted", title: "Projects: Proposed Budget" }
+                                                ]}
+                                                margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
+                                                barSize={40}
+                                            >
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E4E7" className="dark:stroke-[#3F3F46]" />
+                                                <XAxis
+                                                    dataKey="name"
+                                                    axisLine={false}
+                                                    tickLine={false}
+                                                    tick={{ fill: "#71717A", fontSize: 11, fontWeight: 700 }}
+                                                    dy={10}
+                                                />
+                                                <Tooltip
+                                                    cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+                                                    contentStyle={{
+                                                        borderRadius: "0.75rem",
+                                                        border: "1px solid #1e293b",
+                                                        background: "#0f172a",
+                                                    }}
+                                                    labelStyle={{ display: "none" }}
+                                                    itemStyle={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9" }}
+                                                    formatter={(value: any, name: string, props: any) => [
+                                                        formatCurrency(value),
+                                                        props.payload.name
+                                                    ]}
+                                                />
+                                                <Bar
+                                                    dataKey="value"
+                                                    radius={[6, 6, 0, 0]}
+                                                    cursor="pointer"
+                                                    isAnimationActive={false}
+                                                    onClick={(data: any) => {
+                                                        if (data && data.payload) {
+                                                            openKpiModalWithTab("total", data.payload.title, data.payload.filter);
+                                                        }
                                                     }}
                                                 >
-                                                    <span className="text-3xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none">
-                                                        {pieChartFundingData.reduce((sum: number, d: any) => sum + d.value, 0)}
-                                                    </span>
-                                                    <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
-                                                        Total
-                                                    </span>
-                                                </div>
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <PieChart>
-                                                        <Pie
-                                                            data={pieChartFundingData}
-                                                            cx="50%"
-                                                            cy="50%"
-                                                            innerRadius="60%"
-                                                            outerRadius="80%"
-                                                            dataKey="value"
-                                                            nameKey="funding_agency"
-                                                            paddingAngle={3}
-                                                            isAnimationActive={false}
-                                                            onClick={(data: any) => {
-                                                                if (data && data.payload && data.payload.funding_agency) {
-                                                                    const clickedAgency = data.payload.funding_agency;
+                                                    <LabelList
+                                                        dataKey="value"
+                                                        position="top"
+                                                        formatter={(val: any) => (val && Number(val) > 0) ? formatCurrency(Number(val)) : ""}
+                                                        style={{ fontSize: '10px', fontWeight: 'bold', fill: '#71717a' }}
+                                                    />
+                                                    {
+                                                        [
+                                                            { name: "Sanctioned", value: fundAlloc, fill: "#2563eb", filter: "ongoing", title: "Projects: Total Sanctioned" },
+                                                            { name: "Utilized", value: fundUtilized, fill: "#059669", filter: "ongoing", title: "Projects: Utilized" },
+                                                            { name: "Remaining", value: fundRemaining, fill: "#0ea5e9", filter: "ongoing", title: "Projects: Remaining Balance" },
+                                                            // { name: "Proposed", value: computedProposedBudget, fill: "#71717a", filter: "submitted", title: "Projects: Proposed Budget" }
+                                                        ].map((entry, index) => (
+                                                            <Cell
+                                                                key={`cell-${index}`}
+                                                                fill={entry.fill}
+                                                                className="hover:opacity-80 transition-opacity"
+                                                            />
+                                                        ))
+                                                    }
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
 
-                                                                    if (clickedAgency === "Others") {
-                                                                        const excludedAgencies = pieChartFundingData.slice(0, 7).map((d: any) => d.funding_agency);
-                                                                        setKpiModal({
-                                                                            type: "total",
-                                                                            title: `Funding: Others`,
-                                                                            fundingAgency: "Others",
-                                                                            excludedFundingAgencies: excludedAgencies
-                                                                        });
-                                                                    } else {
-                                                                        setKpiModal({ type: "total", title: `Funding: ${clickedAgency}`, fundingAgency: clickedAgency });
-                                                                    }
-
-                                                                    setKpiPage(1);
-                                                                    setKpiTab("all");
-                                                                    setKpiStatusFilter("all");
-                                                                    setKpiSchemeFilter([]);
-                                                                    setKpiAgeFilter("all");
-                                                                }
-                                                            }}
-                                                            style={{ cursor: "pointer" }}
-                                                        >
-                                                            {pieChartFundingData.map((_: any, i: number) => (
-                                                                <Cell
-                                                                    key={i}
-                                                                    fill={CHART_COLORS[i % CHART_COLORS.length]}
-                                                                    stroke="none"
-                                                                />
-                                                            ))}
-                                                        </Pie>
-                                                        <Tooltip
-                                                            contentStyle={{
-                                                                borderRadius: "0.5rem",
-                                                                border: "1px solid #1e293b",
-                                                                background: "#0f172a",
-                                                            }}
-                                                            labelStyle={{ color: "#f1f5f9", fontWeight: 700 }}
-                                                            itemStyle={{ color: "#94a3b8", fontSize: 11 }}
-                                                            formatter={(value: number, name: string) => [
-                                                                `${value} Projects`,
-                                                                name,
-                                                            ]}
-                                                        />
-                                                    </PieChart>
-                                                </ResponsiveContainer>
+                                    <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-4 mt-auto">
+                                        <div className="space-y-1">
+                                            <div
+                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                onClick={() => openKpiModalWithTab("total", "Projects: Total Sanctioned", "ongoing")}
+                                            >
+                                                <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Total Sanctioned</span>
+                                                <span className="text-[13px] font-extrabold text-[#2563eb]">
+                                                    {isLoading ? "—" : formatCurrency(fundAlloc)}
+                                                </span>
                                             </div>
-                                            <div className="w-full mt-2">
-                                                <ul className={`grid grid-cols-1 sm:grid-cols-2 gap-x-20 gap-y-1 w-full ${showAllFunding ? "overflow-y-auto max-h-[160px] custom-scrollbar pr-2" : ""}`}>
-                                                    {pieChartFundingData.map((item: any, i: number) => (
-                                                        <li
-                                                            key={i}
-                                                            className="flex items-start justify-between min-w-0 text-[11px] group cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30 px-2 rounded-lg transition-colors gap-1.5 py-1"
-                                                            onClick={() => {
-                                                                const clickedAgency = item.funding_agency;
-
-                                                                if (clickedAgency === "Others") {
-                                                                    const excludedAgencies = pieChartFundingData.slice(0, 7).map((d: any) => d.funding_agency);
-                                                                    setKpiModal({
-                                                                        type: "total",
-                                                                        title: `Funding: Others`,
-                                                                        fundingAgency: "Others",
-                                                                        excludedFundingAgencies: excludedAgencies
-                                                                    });
-                                                                } else {
-                                                                    setKpiModal({ type: "total", title: `Funding: ${clickedAgency}`, fundingAgency: clickedAgency });
-                                                                }
-
-                                                                setKpiPage(1);
-                                                                setKpiTab("all");
-                                                                setKpiStatusFilter("all");
-                                                                setKpiSchemeFilter([]);
-                                                                setKpiAgeFilter("all");
-                                                            }}
-                                                        >
-                                                            <div className="flex items-start gap-2 pr-2">
-                                                                <span
-                                                                    className="w-2.5 h-2.5 rounded-sm shrink-0 mt-[2px]"
-                                                                    style={{
-                                                                        backgroundColor: CHART_COLORS[i % CHART_COLORS.length],
-                                                                    }}
-                                                                />
-                                                                <span
-                                                                    className="text-[#64748B] dark:text-[#A1A1AA] font-semibold break-words whitespace-normal flex-1 group-hover:text-[#3F3F46] dark:group-hover:text-[#E4E4E7] transition-colors leading-snug"
-                                                                    title={item.funding_agency}
-                                                                >
-                                                                    {item.funding_agency}
-                                                                </span>
-                                                            </div>
-                                                            <span className="font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] shrink-0 mt-[1px]">
-                                                                {item.value}
-                                                            </span>
-                                                        </li>
-                                                    ))}
-                                                </ul>
+                                            <div
+                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                onClick={() => openKpiModalWithTab("total", "Projects: Utilized", "ongoing")}
+                                            >
+                                                <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Utilized</span>
+                                                <span className="text-[13px] font-extrabold text-[#059669]">
+                                                    {isLoading ? "—" : globalUtilizedLoading ? (
+                                                        <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] animate-pulse">Loading…</span>
+                                                    ) : formatCurrency(fundUtilized)}
+                                                </span>
                                             </div>
+                                            <div
+                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                onClick={() => openKpiModalWithTab("total", "Projects: Remaining Balance", "ongoing")}
+                                            >
+                                                <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Remaining Balance</span>
+                                                <span className="text-[13px] font-extrabold text-[#0ea5e9]">
+                                                    {isLoading ? "—" : globalUtilizedLoading ? (
+                                                        <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] animate-pulse">Loading…</span>
+                                                    ) : formatCurrency(fundRemaining)}
+                                                </span>
+                                            </div>
+                                            {/* 
+                                            <div 
+                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                onClick={() => openKpiModalWithTab("total", "Projects: Proposed Budget", "submitted")}
+                                            >
+                                                <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Proposed Budget (Review)</span>
+                                                <span className="text-[13px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                                    {isLoading ? "—" : formatCurrency(computedProposedBudget)}
+                                                </span>
+                                            </div>
+                                            */}
                                         </div>
-                                    ) : (
-                                        <div className="h-[300px] flex items-center justify-center text-[#71717A] text-sm">
-                                            No data available
-                                        </div>
-                                    )}
+                                    </div>
                                 </div>
                             </div>
 
