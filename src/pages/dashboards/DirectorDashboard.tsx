@@ -3716,6 +3716,407 @@ export function DirectorDashboard() {
                             />
                         </div>
 
+                        {/* ── Project Analytics ── */}
+                        <SectionDivider title="Project Analytics" />
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-[14px] mb-6">
+                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden">
+                                <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
+                                    <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
+                                        <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-blue-50 dark:bg-blue-950/20 text-[#2563eb]">
+                                            <svg
+                                                className="w-3.5 h-3.5"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <line x1="18" y1="20" x2="18" y2="10" />
+                                                <line x1="12" y1="20" x2="12" y2="4" />
+                                                <line x1="6" y1="20" x2="6" y2="14" />
+                                            </svg>
+                                        </div>
+                                        Year-Wise Project Status
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {/* Type selector */}
+                                        <select
+                                            value={chartProjectTypeFilter}
+                                            onChange={(e) => setChartProjectTypeFilter(e.target.value)}
+                                            className="bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2 py-1 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none focus:border-[#2563eb] cursor-pointer"
+                                        >
+                                            <option value="all">All Types</option>
+                                            <option value="research">Research</option>
+                                            <option value="consultancy">Consultancy</option>
+                                            <option value="others">Others</option>
+                                        </select>
+                                        {/* Year selector */}
+                                        <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider ml-1">Year:</span>
+                                        <div className="relative">
+                                            <select
+                                                value={chartYearFilter}
+                                                onChange={(e) => setChartYearFilter(e.target.value)}
+                                                className="appearance-none pl-2.5 pr-7 py-1 text-[11px] font-bold bg-[#F4F4F5] dark:bg-[#3F3F46] border border-[#E4E4E7] dark:border-[#52525B] text-[#3F3F46] dark:text-[#E4E4E7] rounded-lg outline-none cursor-pointer hover:bg-[#E4E4E7] dark:hover:bg-[#52525B] transition-colors"
+                                            >
+                                                <option value="All Time">All Years</option>
+                                                {chartAvailableYears.map(y => (
+                                                    <option key={y} value={y}>{y}</option>
+                                                ))}
+                                            </select>
+                                            <svg className="w-3 h-3 absolute right-1.5 top-1/2 -translate-y-1/2 text-[#A1A1AA] pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="p-[18px] px-[22px] pb-5">
+                                    <div className="h-[250px]">
+                                        {isLoading || allProjectsList === undefined ? (
+                                            <div className="w-full h-full flex flex-col items-center justify-center text-[#71717A] text-sm gap-3">
+                                                <div className="w-5 h-5 border-2 border-[#2563eb] border-t-transparent rounded-full animate-spin"></div>
+                                                <span className="font-medium">Loading projects...</span>
+                                            </div>
+                                        ) : chartDisplayData.length > 0 ? (
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart
+                                                    data={chartDisplayData}
+                                                    margin={{ top: 20, right: 4, left: -24, bottom: 0 }}
+                                                    barCategoryGap="25%"
+                                                    barGap={2}
+                                                    onClick={(state: any, e: any) => {
+                                                        if (state && state.activeLabel) {
+                                                            let status = "all";
+                                                            if (e && e.target && typeof e.target.getAttribute === "function") {
+                                                                const name = e.target.getAttribute("name");
+                                                                if (name === "Submitted") status = "submitted";
+                                                                else if (name === "Ongoing") status = "ongoing";
+                                                            }
+                                                            openKpiModalWithYear(state.activeLabel, status);
+                                                        }
+                                                    }}
+                                                    style={{ cursor: "pointer" }}
+                                                >
+                                                    <CartesianGrid
+                                                        strokeDasharray="3 3"
+                                                        stroke="#E4E4E7"
+                                                        vertical={false}
+                                                    />
+                                                    <XAxis
+                                                        dataKey="year"
+                                                        tick={{
+                                                            fontSize: 12,
+                                                            fill: "#71717A",
+                                                            fontWeight: 600,
+                                                        }}
+                                                        axisLine={false}
+                                                        tickLine={false}
+                                                        dy={8}
+                                                    />
+                                                    <YAxis
+                                                        tick={{ fontSize: 12, fill: "#71717A" }}
+                                                        axisLine={false}
+                                                        tickLine={false}
+                                                    />
+                                                    <Tooltip
+                                                        contentStyle={{
+                                                            borderRadius: "0.75rem",
+                                                            border: "1px solid #1e293b",
+                                                            background: "#0f172a",
+                                                        }}
+                                                        labelStyle={{
+                                                            color: "#f1f5f9",
+                                                            fontWeight: 700,
+                                                            fontSize: 12,
+                                                        }}
+                                                        itemStyle={{ color: "#94a3b8", fontSize: 11 }}
+                                                        cursor={{ fill: "#f4f4f5" }}
+                                                    />
+                                                    <Bar
+                                                        dataKey="submitted"
+                                                        name="Submitted"
+                                                        fill="#2563eb"
+                                                        maxBarSize={24}
+                                                        radius={[4, 4, 0, 0]}
+                                                        isAnimationActive={false}
+                                                        cursor="pointer"
+                                                    >
+                                                        <LabelList
+                                                            dataKey="submitted"
+                                                            position="top"
+                                                            fill="#71717A"
+                                                            fontSize={11}
+                                                            fontWeight={600}
+                                                            formatter={(val: any) => (val > 0 ? val : "")}
+                                                        />
+                                                    </Bar>
+                                                    <Bar
+                                                        dataKey="ongoing"
+                                                        name="Ongoing"
+                                                        fill="#7c3aed"
+                                                        maxBarSize={24}
+                                                        radius={[4, 4, 0, 0]}
+                                                        isAnimationActive={false}
+                                                        cursor="pointer"
+                                                    >
+                                                        <LabelList
+                                                            dataKey="ongoing"
+                                                            position="top"
+                                                            fill="#71717A"
+                                                            fontSize={11}
+                                                            fontWeight={600}
+                                                            formatter={(val: any) => (val > 0 ? val : "")}
+                                                        />
+                                                    </Bar>
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">
+                                                No data available
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="mt-4 pt-4 border-t border-[#E4E4E7] dark:border-[#3F3F46] space-y-3.5">
+                                        {/* Status totals */}
+                                        <div className="flex items-stretch gap-3 flex-wrap">
+                                            <div className="flex-1 min-w-[150px] rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-blue-50/60 dark:bg-blue-950/20 px-4 py-3">
+                                                <div className="flex items-center gap-1.5 mb-1">
+                                                    <span className="w-2 h-2 rounded-full bg-[#2563eb] shrink-0" />
+                                                    <span className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Submitted</span>
+                                                </div>
+                                                <div className="text-[22px] font-extrabold text-[#2563eb] leading-none">{chartYearSubmittedTotal}</div>
+                                                <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1.5 leading-snug">Pending Sanction</div>
+                                            </div>
+                                            <div className="flex-1 min-w-[150px] rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-purple-50/60 dark:bg-purple-950/20 px-4 py-3">
+                                                <div className="flex items-center gap-1.5 mb-1">
+                                                    <span className="w-2 h-2 rounded-full bg-[#7c3aed] shrink-0" />
+                                                    <span className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Ongoing</span>
+                                                </div>
+                                                <div className="text-[22px] font-extrabold text-[#7c3aed] leading-none">{chartYearOngoingTotal}</div>
+                                                <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1.5 leading-snug">Sanction approved — fund received or pending</div>
+                                            </div>
+                                        </div>
+
+                                        {/* Type breakdown */}
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                                            {[
+                                                { label: "Research", ongoing: chartTypeBreakdown.researchOngoing, submitted: chartTypeBreakdown.researchSubmitted },
+                                                { label: "Consultancy", ongoing: chartTypeBreakdown.consultancyOngoing, submitted: chartTypeBreakdown.consultancySubmitted },
+                                                ...(chartTypeBreakdown.othersOngoing + chartTypeBreakdown.othersSubmitted > 0
+                                                    ? [{ label: "Others", ongoing: chartTypeBreakdown.othersOngoing, submitted: chartTypeBreakdown.othersSubmitted }]
+                                                    : []),
+                                            ].map((row) => (
+                                                <div key={row.label} className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] px-3 py-2.5">
+                                                    <div className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider mb-2">
+                                                        {row.label}
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                                                Ongoing
+                                                            </span>
+                                                            <span className="text-[13px] font-extrabold text-emerald-600 dark:text-emerald-400">{row.ongoing}</span>
+                                                        </div>
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                                                                Submitted
+                                                            </span>
+                                                            <span className="text-[13px] font-extrabold text-amber-600 dark:text-amber-400">{row.submitted}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Financial Trends Line Chart */}
+                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden flex flex-col">
+                                <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-amber-50 dark:bg-amber-950/20 text-[#d97706]">
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Financial Trends</div>
+                                            <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-tight">Ongoing (sanction-approved) projects only</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <select
+                                            value={financialProjectTypeFilter}
+                                            onChange={(e) => setFinancialProjectTypeFilter(e.target.value)}
+                                            className="bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2 py-1 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none focus:border-[#2563eb] cursor-pointer"
+                                        >
+                                            <option value="all">All Types</option>
+                                            <option value="research">Research</option>
+                                            <option value="consultancy">Consultancy</option>
+                                            <option value="others">Others</option>
+                                        </select>
+                                        <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider ml-1">Year:</span>
+                                        <select
+                                            value={financialYearFilter}
+                                            onChange={(e) => setFinancialYearFilter(e.target.value)}
+                                            className="bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2 py-1 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none focus:border-[#2563eb] cursor-pointer"
+                                        >
+                                            <option value="all">All Years</option>
+                                            {availableYears.map(y => (
+                                                <option key={y} value={y}>{y}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="p-[18px] px-[22px] flex-1 flex flex-col">
+                                    <div className="flex gap-4 mb-5">
+                                        <div
+                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-xl p-3.5 text-center shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
+                                            onClick={() => openKpiModalWithTab("total", "Projects: Total Sanctioned", "ongoing")}
+                                        >
+                                            <div className="text-[20px] font-extrabold tracking-[-0.03em] text-[#2563eb]">
+                                                {isLoading ? "—" : formatCurrency(fundAlloc)}
+                                            </div>
+                                            <div className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
+                                                Total Sanctioned
+                                            </div>
+                                        </div>
+                                        <div
+                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-xl p-3.5 text-center shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
+                                            onClick={() => openKpiModalWithTab("total", "Projects: Utilized", "ongoing")}
+                                        >
+                                            <div className="text-[20px] font-extrabold tracking-[-0.03em] text-[#059669]">
+                                                {isLoading ? "—" : globalUtilizedLoading ? (
+                                                    <span className="text-[13px] font-bold text-[#71717A] dark:text-[#A1A1AA] animate-pulse">Loading…</span>
+                                                ) : formatCurrency(fundUtilized)}
+                                            </div>
+                                            <div className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
+                                                Utilized
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="h-[220px] w-full mt-2">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart
+                                                data={[
+                                                    { name: "Sanctioned", value: fundAlloc, fill: "#2563eb", filter: "ongoing", title: "Projects: Total Sanctioned" },
+                                                    { name: "Utilized", value: fundUtilized, fill: "#059669", filter: "ongoing", title: "Projects: Utilized" },
+                                                    { name: "Remaining", value: fundRemaining, fill: "#0ea5e9", filter: "ongoing", title: "Projects: Remaining Balance" },
+                                                    // { name: "Proposed", value: computedProposedBudget, fill: "#71717a", filter: "submitted", title: "Projects: Proposed Budget" }
+                                                ]}
+                                                margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
+                                                barSize={40}
+                                            >
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E4E7" className="dark:stroke-[#3F3F46]" />
+                                                <XAxis
+                                                    dataKey="name"
+                                                    axisLine={false}
+                                                    tickLine={false}
+                                                    tick={{ fill: "#71717A", fontSize: 11, fontWeight: 700 }}
+                                                    dy={10}
+                                                />
+                                                <Tooltip
+                                                    cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+                                                    contentStyle={{
+                                                        borderRadius: "0.75rem",
+                                                        border: "1px solid #1e293b",
+                                                        background: "#0f172a",
+                                                    }}
+                                                    labelStyle={{ display: "none" }}
+                                                    itemStyle={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9" }}
+                                                    formatter={(value: any, name: string, props: any) => [
+                                                        formatCurrency(value),
+                                                        props.payload.name
+                                                    ]}
+                                                />
+                                                <Bar
+                                                    dataKey="value"
+                                                    radius={[6, 6, 0, 0]}
+                                                    cursor="pointer"
+                                                    isAnimationActive={false}
+                                                    onClick={(data: any) => {
+                                                        if (data && data.payload) {
+                                                            openKpiModalWithTab("total", data.payload.title, data.payload.filter);
+                                                        }
+                                                    }}
+                                                >
+                                                    <LabelList
+                                                        dataKey="value"
+                                                        position="top"
+                                                        formatter={(val: any) => (val && Number(val) > 0) ? formatCurrency(Number(val)) : ""}
+                                                        style={{ fontSize: '10px', fontWeight: 'bold', fill: '#71717a' }}
+                                                    />
+                                                    {
+                                                        [
+                                                            { name: "Sanctioned", value: fundAlloc, fill: "#2563eb", filter: "ongoing", title: "Projects: Total Sanctioned" },
+                                                            { name: "Utilized", value: fundUtilized, fill: "#059669", filter: "ongoing", title: "Projects: Utilized" },
+                                                            { name: "Remaining", value: fundRemaining, fill: "#0ea5e9", filter: "ongoing", title: "Projects: Remaining Balance" },
+                                                            // { name: "Proposed", value: computedProposedBudget, fill: "#71717a", filter: "submitted", title: "Projects: Proposed Budget" }
+                                                        ].map((entry, index) => (
+                                                            <Cell
+                                                                key={`cell-${index}`}
+                                                                fill={entry.fill}
+                                                                className="hover:opacity-80 transition-opacity"
+                                                            />
+                                                        ))
+                                                    }
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+
+                                    <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-4 mt-auto">
+                                        <div className="space-y-1">
+                                            <div
+                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                onClick={() => openKpiModalWithTab("total", "Projects: Total Sanctioned", "ongoing")}
+                                            >
+                                                <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Total Sanctioned</span>
+                                                <span className="text-[13px] font-extrabold text-[#2563eb]">
+                                                    {isLoading ? "—" : formatCurrency(fundAlloc)}
+                                                </span>
+                                            </div>
+                                            <div
+                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                onClick={() => openKpiModalWithTab("total", "Projects: Utilized", "ongoing")}
+                                            >
+                                                <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Utilized</span>
+                                                <span className="text-[13px] font-extrabold text-[#059669]">
+                                                    {isLoading ? "—" : globalUtilizedLoading ? (
+                                                        <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] animate-pulse">Loading…</span>
+                                                    ) : formatCurrency(fundUtilized)}
+                                                </span>
+                                            </div>
+                                            <div
+                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                onClick={() => openKpiModalWithTab("total", "Projects: Remaining Balance", "ongoing")}
+                                            >
+                                                <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Remaining Balance</span>
+                                                <span className="text-[13px] font-extrabold text-[#0ea5e9]">
+                                                    {isLoading ? "—" : globalUtilizedLoading ? (
+                                                        <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] animate-pulse">Loading…</span>
+                                                    ) : formatCurrency(fundRemaining)}
+                                                </span>
+                                            </div>
+                                            {/* 
+                                            <div 
+                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                onClick={() => openKpiModalWithTab("total", "Projects: Proposed Budget", "submitted")}
+                                            >
+                                                <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Proposed Budget (Review)</span>
+                                                <span className="text-[13px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                                    {isLoading ? "—" : formatCurrency(computedProposedBudget)}
+                                                </span>
+                                            </div>
+                                            */}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         {/* ── System Activity (forms processed across the app, all doctypes) ── */}
                         <SectionDivider title="System Activity — Form Submissions" />
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-[14px] mb-[14px]">
@@ -4173,407 +4574,6 @@ export function DirectorDashboard() {
                                 )}
                             </div>
                         </div>
-                        </div>
-
-                        {/* ── Project Analytics ── */}
-                        <SectionDivider title="Project Analytics" />
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-[14px] mb-6">
-                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden">
-                                <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
-                                    <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
-                                        <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-blue-50 dark:bg-blue-950/20 text-[#2563eb]">
-                                            <svg
-                                                className="w-3.5 h-3.5"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                strokeWidth="2"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <line x1="18" y1="20" x2="18" y2="10" />
-                                                <line x1="12" y1="20" x2="12" y2="4" />
-                                                <line x1="6" y1="20" x2="6" y2="14" />
-                                            </svg>
-                                        </div>
-                                        Year-Wise Project Status
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        {/* Type selector */}
-                                        <select
-                                            value={chartProjectTypeFilter}
-                                            onChange={(e) => setChartProjectTypeFilter(e.target.value)}
-                                            className="bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2 py-1 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none focus:border-[#2563eb] cursor-pointer"
-                                        >
-                                            <option value="all">All Types</option>
-                                            <option value="research">Research</option>
-                                            <option value="consultancy">Consultancy</option>
-                                            <option value="others">Others</option>
-                                        </select>
-                                        {/* Year selector */}
-                                        <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider ml-1">Year:</span>
-                                        <div className="relative">
-                                            <select
-                                                value={chartYearFilter}
-                                                onChange={(e) => setChartYearFilter(e.target.value)}
-                                                className="appearance-none pl-2.5 pr-7 py-1 text-[11px] font-bold bg-[#F4F4F5] dark:bg-[#3F3F46] border border-[#E4E4E7] dark:border-[#52525B] text-[#3F3F46] dark:text-[#E4E4E7] rounded-lg outline-none cursor-pointer hover:bg-[#E4E4E7] dark:hover:bg-[#52525B] transition-colors"
-                                            >
-                                                <option value="All Time">All Years</option>
-                                                {chartAvailableYears.map(y => (
-                                                    <option key={y} value={y}>{y}</option>
-                                                ))}
-                                            </select>
-                                            <svg className="w-3 h-3 absolute right-1.5 top-1/2 -translate-y-1/2 text-[#A1A1AA] pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="p-[18px] px-[22px] pb-5">
-                                    <div className="h-[250px]">
-                                        {isLoading || allProjectsList === undefined ? (
-                                            <div className="w-full h-full flex flex-col items-center justify-center text-[#71717A] text-sm gap-3">
-                                                <div className="w-5 h-5 border-2 border-[#2563eb] border-t-transparent rounded-full animate-spin"></div>
-                                                <span className="font-medium">Loading projects...</span>
-                                            </div>
-                                        ) : chartDisplayData.length > 0 ? (
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart
-                                                    data={chartDisplayData}
-                                                    margin={{ top: 20, right: 4, left: -24, bottom: 0 }}
-                                                    barCategoryGap="25%"
-                                                    barGap={2}
-                                                    onClick={(state: any, e: any) => {
-                                                        if (state && state.activeLabel) {
-                                                            let status = "all";
-                                                            if (e && e.target && typeof e.target.getAttribute === "function") {
-                                                                const name = e.target.getAttribute("name");
-                                                                if (name === "Submitted") status = "submitted";
-                                                                else if (name === "Ongoing") status = "ongoing";
-                                                            }
-                                                            openKpiModalWithYear(state.activeLabel, status);
-                                                        }
-                                                    }}
-                                                    style={{ cursor: "pointer" }}
-                                                >
-                                                    <CartesianGrid
-                                                        strokeDasharray="3 3"
-                                                        stroke="#E4E4E7"
-                                                        vertical={false}
-                                                    />
-                                                    <XAxis
-                                                        dataKey="year"
-                                                        tick={{
-                                                            fontSize: 12,
-                                                            fill: "#71717A",
-                                                            fontWeight: 600,
-                                                        }}
-                                                        axisLine={false}
-                                                        tickLine={false}
-                                                        dy={8}
-                                                    />
-                                                    <YAxis
-                                                        tick={{ fontSize: 12, fill: "#71717A" }}
-                                                        axisLine={false}
-                                                        tickLine={false}
-                                                    />
-                                                    <Tooltip
-                                                        contentStyle={{
-                                                            borderRadius: "0.75rem",
-                                                            border: "1px solid #1e293b",
-                                                            background: "#0f172a",
-                                                        }}
-                                                        labelStyle={{
-                                                            color: "#f1f5f9",
-                                                            fontWeight: 700,
-                                                            fontSize: 12,
-                                                        }}
-                                                        itemStyle={{ color: "#94a3b8", fontSize: 11 }}
-                                                        cursor={{ fill: "#f4f4f5" }}
-                                                    />
-                                                    <Bar
-                                                        dataKey="submitted"
-                                                        name="Submitted"
-                                                        fill="#2563eb"
-                                                        maxBarSize={24}
-                                                        radius={[4, 4, 0, 0]}
-                                                        isAnimationActive={false}
-                                                        cursor="pointer"
-                                                    >
-                                                        <LabelList
-                                                            dataKey="submitted"
-                                                            position="top"
-                                                            fill="#71717A"
-                                                            fontSize={11}
-                                                            fontWeight={600}
-                                                            formatter={(val: any) => (val > 0 ? val : "")}
-                                                        />
-                                                    </Bar>
-                                                    <Bar
-                                                        dataKey="ongoing"
-                                                        name="Ongoing"
-                                                        fill="#7c3aed"
-                                                        maxBarSize={24}
-                                                        radius={[4, 4, 0, 0]}
-                                                        isAnimationActive={false}
-                                                        cursor="pointer"
-                                                    >
-                                                        <LabelList
-                                                            dataKey="ongoing"
-                                                            position="top"
-                                                            fill="#71717A"
-                                                            fontSize={11}
-                                                            fontWeight={600}
-                                                            formatter={(val: any) => (val > 0 ? val : "")}
-                                                        />
-                                                    </Bar>
-                                                </BarChart>
-                                            </ResponsiveContainer>
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">
-                                                No data available
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="mt-4 pt-4 border-t border-[#E4E4E7] dark:border-[#3F3F46] space-y-3.5">
-                                        {/* Status totals */}
-                                        <div className="flex items-stretch gap-3 flex-wrap">
-                                            <div className="flex-1 min-w-[150px] rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-blue-50/60 dark:bg-blue-950/20 px-4 py-3">
-                                                <div className="flex items-center gap-1.5 mb-1">
-                                                    <span className="w-2 h-2 rounded-full bg-[#2563eb] shrink-0" />
-                                                    <span className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Submitted</span>
-                                                </div>
-                                                <div className="text-[22px] font-extrabold text-[#2563eb] leading-none">{chartYearSubmittedTotal}</div>
-                                                <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1.5 leading-snug">Pending Sanction</div>
-                                            </div>
-                                            <div className="flex-1 min-w-[150px] rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-purple-50/60 dark:bg-purple-950/20 px-4 py-3">
-                                                <div className="flex items-center gap-1.5 mb-1">
-                                                    <span className="w-2 h-2 rounded-full bg-[#7c3aed] shrink-0" />
-                                                    <span className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Ongoing</span>
-                                                </div>
-                                                <div className="text-[22px] font-extrabold text-[#7c3aed] leading-none">{chartYearOngoingTotal}</div>
-                                                <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1.5 leading-snug">Sanction approved — fund received or pending</div>
-                                            </div>
-                                        </div>
-
-                                        {/* Type breakdown */}
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                                            {[
-                                                { label: "Research", ongoing: chartTypeBreakdown.researchOngoing, submitted: chartTypeBreakdown.researchSubmitted },
-                                                { label: "Consultancy", ongoing: chartTypeBreakdown.consultancyOngoing, submitted: chartTypeBreakdown.consultancySubmitted },
-                                                ...(chartTypeBreakdown.othersOngoing + chartTypeBreakdown.othersSubmitted > 0
-                                                    ? [{ label: "Others", ongoing: chartTypeBreakdown.othersOngoing, submitted: chartTypeBreakdown.othersSubmitted }]
-                                                    : []),
-                                            ].map((row) => (
-                                                <div key={row.label} className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] px-3 py-2.5">
-                                                    <div className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider mb-2">
-                                                        {row.label}
-                                                    </div>
-                                                    <div className="space-y-1.5">
-                                                        <div className="flex items-center justify-between gap-2">
-                                                            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
-                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                                                                Ongoing
-                                                            </span>
-                                                            <span className="text-[13px] font-extrabold text-emerald-600 dark:text-emerald-400">{row.ongoing}</span>
-                                                        </div>
-                                                        <div className="flex items-center justify-between gap-2">
-                                                            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
-                                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-                                                                Submitted
-                                                            </span>
-                                                            <span className="text-[13px] font-extrabold text-amber-600 dark:text-amber-400">{row.submitted}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Financial Trends Line Chart */}
-                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden flex flex-col">
-                                <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-amber-50 dark:bg-amber-950/20 text-[#d97706]">
-                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Financial Trends</div>
-                                            <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-tight">Ongoing (sanction-approved) projects only</div>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <select
-                                            value={financialProjectTypeFilter}
-                                            onChange={(e) => setFinancialProjectTypeFilter(e.target.value)}
-                                            className="bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2 py-1 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none focus:border-[#2563eb] cursor-pointer"
-                                        >
-                                            <option value="all">All Types</option>
-                                            <option value="research">Research</option>
-                                            <option value="consultancy">Consultancy</option>
-                                            <option value="others">Others</option>
-                                        </select>
-                                        <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider ml-1">Year:</span>
-                                        <select
-                                            value={financialYearFilter}
-                                            onChange={(e) => setFinancialYearFilter(e.target.value)}
-                                            className="bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2 py-1 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none focus:border-[#2563eb] cursor-pointer"
-                                        >
-                                            <option value="all">All Years</option>
-                                            {availableYears.map(y => (
-                                                <option key={y} value={y}>{y}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-                                <div className="p-[18px] px-[22px] flex-1 flex flex-col">
-                                    <div className="flex gap-4 mb-5">
-                                        <div
-                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-xl p-3.5 text-center shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
-                                            onClick={() => openKpiModalWithTab("total", "Projects: Total Sanctioned", "ongoing")}
-                                        >
-                                            <div className="text-[20px] font-extrabold tracking-[-0.03em] text-[#2563eb]">
-                                                {isLoading ? "—" : formatCurrency(fundAlloc)}
-                                            </div>
-                                            <div className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
-                                                Total Sanctioned
-                                            </div>
-                                        </div>
-                                        <div
-                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-xl p-3.5 text-center shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
-                                            onClick={() => openKpiModalWithTab("total", "Projects: Utilized", "ongoing")}
-                                        >
-                                            <div className="text-[20px] font-extrabold tracking-[-0.03em] text-[#059669]">
-                                                {isLoading ? "—" : globalUtilizedLoading ? (
-                                                    <span className="text-[13px] font-bold text-[#71717A] dark:text-[#A1A1AA] animate-pulse">Loading…</span>
-                                                ) : formatCurrency(fundUtilized)}
-                                            </div>
-                                            <div className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
-                                                Utilized
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="h-[220px] w-full mt-2">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart
-                                                data={[
-                                                    { name: "Sanctioned", value: fundAlloc, fill: "#2563eb", filter: "ongoing", title: "Projects: Total Sanctioned" },
-                                                    { name: "Utilized", value: fundUtilized, fill: "#059669", filter: "ongoing", title: "Projects: Utilized" },
-                                                    { name: "Remaining", value: fundRemaining, fill: "#0ea5e9", filter: "ongoing", title: "Projects: Remaining Balance" },
-                                                    // { name: "Proposed", value: computedProposedBudget, fill: "#71717a", filter: "submitted", title: "Projects: Proposed Budget" }
-                                                ]}
-                                                margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
-                                                barSize={40}
-                                            >
-                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E4E7" className="dark:stroke-[#3F3F46]" />
-                                                <XAxis
-                                                    dataKey="name"
-                                                    axisLine={false}
-                                                    tickLine={false}
-                                                    tick={{ fill: "#71717A", fontSize: 11, fontWeight: 700 }}
-                                                    dy={10}
-                                                />
-                                                <Tooltip
-                                                    cursor={{ fill: 'rgba(0,0,0,0.04)' }}
-                                                    contentStyle={{
-                                                        borderRadius: "0.75rem",
-                                                        border: "1px solid #1e293b",
-                                                        background: "#0f172a",
-                                                    }}
-                                                    labelStyle={{ display: "none" }}
-                                                    itemStyle={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9" }}
-                                                    formatter={(value: any, name: string, props: any) => [
-                                                        formatCurrency(value),
-                                                        props.payload.name
-                                                    ]}
-                                                />
-                                                <Bar
-                                                    dataKey="value"
-                                                    radius={[6, 6, 0, 0]}
-                                                    cursor="pointer"
-                                                    isAnimationActive={false}
-                                                    onClick={(data: any) => {
-                                                        if (data && data.payload) {
-                                                            openKpiModalWithTab("total", data.payload.title, data.payload.filter);
-                                                        }
-                                                    }}
-                                                >
-                                                    <LabelList
-                                                        dataKey="value"
-                                                        position="top"
-                                                        formatter={(val: any) => (val && Number(val) > 0) ? formatCurrency(Number(val)) : ""}
-                                                        style={{ fontSize: '10px', fontWeight: 'bold', fill: '#71717a' }}
-                                                    />
-                                                    {
-                                                        [
-                                                            { name: "Sanctioned", value: fundAlloc, fill: "#2563eb", filter: "ongoing", title: "Projects: Total Sanctioned" },
-                                                            { name: "Utilized", value: fundUtilized, fill: "#059669", filter: "ongoing", title: "Projects: Utilized" },
-                                                            { name: "Remaining", value: fundRemaining, fill: "#0ea5e9", filter: "ongoing", title: "Projects: Remaining Balance" },
-                                                            // { name: "Proposed", value: computedProposedBudget, fill: "#71717a", filter: "submitted", title: "Projects: Proposed Budget" }
-                                                        ].map((entry, index) => (
-                                                            <Cell
-                                                                key={`cell-${index}`}
-                                                                fill={entry.fill}
-                                                                className="hover:opacity-80 transition-opacity"
-                                                            />
-                                                        ))
-                                                    }
-                                                </Bar>
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-
-                                    <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-4 mt-auto">
-                                        <div className="space-y-1">
-                                            <div
-                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
-                                                onClick={() => openKpiModalWithTab("total", "Projects: Total Sanctioned", "ongoing")}
-                                            >
-                                                <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Total Sanctioned</span>
-                                                <span className="text-[13px] font-extrabold text-[#2563eb]">
-                                                    {isLoading ? "—" : formatCurrency(fundAlloc)}
-                                                </span>
-                                            </div>
-                                            <div
-                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
-                                                onClick={() => openKpiModalWithTab("total", "Projects: Utilized", "ongoing")}
-                                            >
-                                                <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Utilized</span>
-                                                <span className="text-[13px] font-extrabold text-[#059669]">
-                                                    {isLoading ? "—" : globalUtilizedLoading ? (
-                                                        <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] animate-pulse">Loading…</span>
-                                                    ) : formatCurrency(fundUtilized)}
-                                                </span>
-                                            </div>
-                                            <div
-                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
-                                                onClick={() => openKpiModalWithTab("total", "Projects: Remaining Balance", "ongoing")}
-                                            >
-                                                <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Remaining Balance</span>
-                                                <span className="text-[13px] font-extrabold text-[#0ea5e9]">
-                                                    {isLoading ? "—" : globalUtilizedLoading ? (
-                                                        <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] animate-pulse">Loading…</span>
-                                                    ) : formatCurrency(fundRemaining)}
-                                                </span>
-                                            </div>
-                                            {/* 
-                                            <div 
-                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
-                                                onClick={() => openKpiModalWithTab("total", "Projects: Proposed Budget", "submitted")}
-                                            >
-                                                <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Proposed Budget (Review)</span>
-                                                <span className="text-[13px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
-                                                    {isLoading ? "—" : formatCurrency(computedProposedBudget)}
-                                                </span>
-                                            </div>
-                                            */}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
 
                         {/* ── Project Analytics & Distribution ── */}
