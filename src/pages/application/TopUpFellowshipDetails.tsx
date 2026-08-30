@@ -1,20 +1,23 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import {
     ActivityIcon, CheckCircle2, Clock, XCircle, ChevronRight,
-    UserIcon, GraduationCapIcon, BuildingIcon, FileTextIcon, ExternalLink,
+    UserIcon, GraduationCapIcon, BuildingIcon, Printer, ExternalLink, FileTextIcon,
     FileSpreadsheetIcon as LedgerIcon,
 } from 'lucide-react';
 import { AppSidebar } from '@/components/RndSidebar';
 import { PageHeader } from '@/components/common/PageHeader';
 import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButton';
 import { GlobalLoader } from '@/components/ui/global-loader';
+import { ActivityLog } from '@/components/ActivityLog';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { CommitPayment } from '@/components/CommitPayment';
 import { BudgetHeadName } from '@/components/BudgetHeadName';
 import { useUserRoles } from '@/components/UserRole';
+import { P11PrintModal } from '@/components/P11PrintModal';
+import { resolveTopUpFellowshipPrintData, generateTopUpFellowshipHtml } from '@/utils/topUpFellowshipPrint';
 import TopUpFellowshipActionButtons from '@/components/TopUpFellowshipActionButtons';
 import { useProjectBudget } from '@/hooks/useProjectBudget';
 import { ProjectLedgerModal } from '@/components/ProjectLedgerModal';
@@ -50,22 +53,25 @@ const stageStatus = (current: string, state: string): StageStatus => {
 // ---------------------------------------------------------------------------
 // UI helpers
 // ---------------------------------------------------------------------------
-const GroupCard = ({ icon: Icon, label, children }: {
-    icon: React.ElementType; label: string; children: React.ReactNode;
+const GroupCard = ({ icon: Icon, label, children, action }: {
+    icon: React.ElementType; label: string; children: React.ReactNode; action?: React.ReactNode;
 }) => (
     <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
-        <div className="flex items-center gap-3 border-b border-[#E4E4E7] bg-[#FAFAF9] px-5 py-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[#2563EB] dark:bg-blue-950/30 dark:text-blue-300">
-                <Icon className="h-4 w-4" />
+        <div className="flex items-center justify-between border-b border-[#E4E4E7] bg-[#FAFAF9] px-5 py-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
+            <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[#2563EB] dark:bg-blue-950/30 dark:text-blue-300">
+                    <Icon className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                    <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#2563EB] dark:text-blue-300">
+                        Section
+                    </p>
+                    <h3 className="truncate text-[15px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
+                        {label}
+                    </h3>
+                </div>
             </div>
-            <div className="min-w-0">
-                <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#2563EB] dark:text-blue-300">
-                    Section
-                </p>
-                <h3 className="truncate text-[15px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
-                    {label}
-                </h3>
-            </div>
+            {action}
         </div>
         <div className="p-4 sm:p-5">{children}</div>
     </div>
@@ -193,6 +199,9 @@ const TopUpFellowshipDetails: React.FC = () => {
     const [refreshKey, setRefreshKey] = useState(0);
     const [isLedgerOpen, setIsLedgerOpen] = useState(false);
     const [budgetHeadList, setBudgetHeadList] = useState<{ name: string; id: string }[]>([]);
+    const [isPrintOpen, setIsPrintOpen] = useState(false);
+    const [fetchedOwnerName, setFetchedOwnerName] = useState<string>("");
+    const activityLogContainerRef = useRef<HTMLDivElement>(null);
 
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
@@ -206,15 +215,24 @@ const TopUpFellowshipDetails: React.FC = () => {
         'rndopsapp.rndopsapp.doctype.top_up_fellowship.top_up_fellowship.get_top_up_fellowship_commit_details',
     );
     const { call: fetchValue } = useFrappePostCall<{ message: any }>('frappe.client.get_value');
+    const { call: fetchActivity } = useFrappePostCall<{ message: any[] }>('rndopsapp.rndopsapp.doctype.rnd_activity_log.rnd_activity_log.get_document_activity');
+    const { call: fetchUserDetails } = useFrappePostCall<{ message: any }>("rndopsapp.rndopsapp.api.get_user_details");
+
+    const [activityLogs, setActivityLogs] = useState<any[]>([]);
 
     const loadAll = useCallback(async () => {
         if (!docName) return;
         setLoading(true);
         try {
-            const [meta, docRes] = await Promise.all([
+            const [meta, docRes, activityRes] = await Promise.all([
                 fetchFormData({}),
                 fetchDoc({ doctype: 'Top Up Fellowship', name: docName }),
+                fetchActivity({ doctype: 'Top Up Fellowship', docname: docName }).catch(() => ({ message: [] })),
             ]);
+
+            if (activityRes?.message) {
+                setActivityLogs(activityRes.message);
+            }
 
             const apiFields: FormField[] = meta?.message?.fields || [];
             const childFields = meta?.message?.child_table_fields || {};
@@ -229,6 +247,14 @@ const TopUpFellowshipDetails: React.FC = () => {
             setLinkOptions(meta?.message?.link_options || {});
 
             const doc = docRes?.message || {};
+            if (Array.isArray(doc.students)) {
+                doc.students = doc.students.map((student: any) => ({
+                    ...student,
+                    email_of_student: (student.email_of_student && !student.email_of_student.includes('@'))
+                        ? `${student.email_of_student}@iitg.ac.in`
+                        : student.email_of_student
+                }));
+            }
             setFormData(doc);
 
             // Resolve account_head doc name → human-readable budget_head label
@@ -253,7 +279,7 @@ const TopUpFellowshipDetails: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [docName, fetchFormData, fetchDoc, fetchCommitDetails, fetchValue]);
+    }, [docName, fetchFormData, fetchDoc, fetchCommitDetails, fetchValue, fetchActivity]);
 
     useEffect(() => { loadAll(); }, [loadAll, refreshKey]);
 
@@ -268,6 +294,19 @@ const TopUpFellowshipDetails: React.FC = () => {
             })
             .catch(() => {});
     }, []);
+
+    // Fetch the actual owner's full name directly using the whitelisted API
+    useEffect(() => {
+        if (formData.owner) {
+            fetchUserDetails({ user_email: formData.owner })
+                .then(res => {
+                    if (res?.message?.full_name) {
+                        setFetchedOwnerName(res.message.full_name);
+                    }
+                })
+                .catch(err => console.warn("Could not fetch owner details", err));
+        }
+    }, [formData.owner, fetchUserDetails]);
 
     // Derive projectCode before the early return so useProjectBudget is always called
     // project_no / project_number hold the human-readable number for the ledger API
@@ -378,7 +417,21 @@ const TopUpFellowshipDetails: React.FC = () => {
 
                         {/* Summary card */}
                         {summaryFields.length > 0 && (
-                            <GroupCard icon={UserIcon} label="Application Summary">
+                            <GroupCard 
+                                icon={UserIcon} 
+                                label="Application Summary"
+                                action={
+                                    <button 
+                                        type="button"
+                                        onClick={() => setIsPrintOpen(true)}
+                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
+                                        title="Print this document"
+                                    >
+                                        <Printer className="w-4 h-4" />
+                                        Print
+                                    </button>
+                                }
+                            >
                                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                                     {summaryFields.map(({ key, value }) =>
                                         key === 'account_head' ? (
@@ -574,6 +627,36 @@ const TopUpFellowshipDetails: React.FC = () => {
                 onClose={() => setIsLedgerOpen(false)}
                 projectName={projectCode}
                 budgetHeadList={budgetHeadList}
+            />
+
+            <div style={{ display: "none" }} ref={activityLogContainerRef}>
+                {docName && (
+                    <ActivityLog 
+                        doctype="Top Up Fellowship" 
+                        docname={docName} 
+                        fallbackOwner={formData.owner}
+                        fallbackCreation={formData.creation}
+                        fallbackOwnerName={fetchedOwnerName || formData.owner}
+                    />
+                )}
+            </div>
+
+            <P11PrintModal
+                title="Top Up Fellowship"
+                isOpen={isPrintOpen}
+                onClose={() => setIsPrintOpen(false)}
+                docName={docName || ""}
+                htmlContent={
+                    isPrintOpen ? generateTopUpFellowshipHtml(
+                        {
+                            ...resolveTopUpFellowshipPrintData(formData, linkOptions),
+                            resolved_owner_name: fetchedOwnerName || formData.owner
+                        },
+                        [],
+                        [],
+                        activityLogContainerRef.current
+                    ) : ""
+                }
             />
         </div>
     );

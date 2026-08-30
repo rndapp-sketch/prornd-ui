@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Disbursal of Honorarium</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Times New Roman", Times, serif;
+            background: #e0e0e0;
+        }
+
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 20px auto;
+            background: #fff;
+            position: relative;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .content {
+            position: relative;
+            z-index: 1;
+            padding: 10mm 12mm;
+        }
+
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.06;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .watermark img {
+            width: 350px;
+        }
+
+        .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 6px;
+        }
+
+        .logo-left img {
+            height: 85px;
+            width: auto;
+            display: block;
+        }
+
+        .header-center {
+            text-align: center;
+            flex: 1;
+            padding: 0 10px;
+        }
+
+        .header-hindi {
+            font-size: 11pt;
+            font-weight: bold;
+            line-height: 1.3;
+        }
+
+        .header-english {
+            font-size: 12pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            line-height: 1.3;
+        }
+
+        .header-sub {
+            font-size: 9.5pt;
+            line-height: 1.3;
+        }
+
+        /* ── DOC META ── */
+        .doc-ref-right {
+            text-align: right;
+            font-size: 8.5pt;
+            line-height: 1.5;
+            margin: 3px 0 2px 0;
+        }
+
+        .doc-ref-right .doc-ref-label { font-weight: bold; }
+
+        .form-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin: 4px 0 3px 0;
+            font-size: 9.5pt;
+        }
+
+        .form-type { font-weight: bold; font-size: 10pt; }
+
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-bottom: 15px;
+        }
+
+        .info-table td {
+            border: 1px solid #000;
+            padding: 6px 10px;
+            vertical-align: top;
+            line-height: 1.4;
+        }
+
+        .info-table td.label {
+            font-weight: bold;
+            width: 25%;
+            background-color: #f7f7f7;
+        }
+
+        table.item-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13.5px;
+            margin-bottom: 12px;
+        }
+
+        table.item-table th,
+        table.item-table td {
+            border: 1px solid #000;
+            padding: 8px 10px;
+            vertical-align: middle;
+            line-height: 1.3;
+            word-wrap: break-word;
+        }
+
+        table.item-table th {
+            text-align: center;
+            font-weight: bold;
+            background-color: #f0f0f0;
+        }
+
+        .center {
+            text-align: center;
+        }
+
+        .right {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .section-heading {
+            font-size: 14px;
+            font-weight: bold;
+            text-decoration: underline;
+            margin: 15px 0 8px 0;
+            text-transform: uppercase;
+        }
+
+        .activity-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+
+        .activity-table th,
+        .activity-table td {
+            border: 1px solid #ccc;
+            padding: 6px 10px;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        .activity-table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+            font-size: 13px;
+        }
+
+        .activity-table th:nth-child(1) { width: 30%; }
+        .activity-table th:nth-child(2) { width: 50%; }
+        .activity-table th:nth-child(3) { width: 20%; }
+
+        .activity-table .designation {
+            display: block;
+            font-size: 10px;
+            color: #555;
+            font-weight: normal;
+        }
+
+        table.layout-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: none;
+        }
+
+        table.layout-table > tbody > tr > td,
+        table.layout-table > tfoot > tr > td,
+        table.layout-table > thead > tr > td {
+            border: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        @page {
+            size: A4;
+            margin: 0mm 12mm 10mm 12mm;
+        }
+
+        @media print {
+            .watermark {
+                position: fixed !important;
+                top: 50% !important;
+                left: 50% !important;
+                transform: translate(-50%, -50%) !important;
+                z-index: 0 !important;
+                .print-footer {
+                display: flex !important;
+                justify-content: space-between;
+                align-items: center;
+                position: fixed;
+                bottom: 8mm;
+                right: 14mm;
+                left: 14mm;
+                font-size: 8pt;
+                color: #888;
+                border-top: 1px solid #ddd;
+                padding-top: 4px;
+                z-index: 100;
+            }
+        }
+
+            table.layout-table > tbody > tr,
+            table.layout-table > tbody > tr > td {
+                page-break-inside: auto !important;
+                break-inside: auto !important;
+            }
+
+            tr { page-break-inside: avoid; }
+            body {
+                margin: 0;
+                background: none;
+            }
+
+            .page {
+                margin: 0;
+                box-shadow: none;
+                background: none;
+                width: auto;
+                min-height: auto;
+                page-break-inside: auto;
+            }
+
+            .content { padding: 0 14mm; }
+
+            .activity-table {
+                page-break-inside: avoid;
+            }
+
+            .print-hide {
+                display: none !important;
+            }
+        }
+    
+        .print-footer {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+        
+
+        <div class="content">
+            <table class="layout-table">
+                <thead>
+                    <tr>
+                        <td><div style="height: 14mm;"></div></td>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            <!-- HEADER -->
+            <div class="header-row">
+                <div class="logo-left">
+                    <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG" onerror="this.style.display='none'">
+                </div>
+                <div class="header-center">
+                    <div class="header-hindi">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
+                    <div class="header-english">Indian Institute of Technology Guwahati</div>
+                    <div class="header-sub">Research and Development Section</div>
+                </div>
+            </div>
+
+            <!-- DOC META & FORM TYPE -->
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin: 4px 0 2px 0;">
+                <div class="form-type">Form Type: Top Up Fellowship</div>
+                <div class="doc-ref-right" style="margin: 0;">
+                    <span class="doc-ref-label">Doc Ref: </span><span>{{DOC_REF}}</span>
+                    &nbsp;&nbsp;
+                    <span class="doc-ref-label">Status: </span><span>{{WORKFLOW_STATE}}</span>
+                </div>
+            </div>
+            <!-- PROJECT LINE & DATE -->
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; font-size: 9.5pt;">
+                <div>
+                    <strong>Project No:</strong> {{PROJECT_NO}}
+                </div>
+                <div style="text-align: right;">
+                    <strong>Date:</strong> {{DATE}}
+                </div>
+            </div>
+            <!-- SUPERVISOR DETAILS -->
+            <div class="section-heading">Project &amp; Supervisor Details</div>
+            <table class="info-table">
+                <tr>
+                    <td class="label">Account Head</td>
+                    <td colspan="3">{{ACCOUNT_HEAD}}</td>
+                </tr>
+                <tr>
+                    <td class="label">Project Name</td>
+                    <td colspan="3">{{PROJECT_NAME}}</td>
+                </tr>
+                <tr>
+                    <td class="label">Supervisor / Faculty Adviser Webmail</td>
+                    <td>{{SUPERVISOR_WEBMAIL}}</td>
+                    <td class="label">Coordinating PI Webmail</td>
+                    <td>{{PI_WEBMAIL}}</td>
+                </tr>
+            </table>
+
+            <!-- FELLOWSHIP DETAILS -->
+            <div class="section-heading">Fellowship Details</div>
+            
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                {{ITEM_ROWS}}
+            </div>
+
+            <table class="info-table" style="margin-top: 15px;">
+                <tbody>
+                    <tr style="background-color: #f8fafc;">
+                        <td class="label" style="text-align: left; font-size: 14px;">Grand Total Amount per Month:</td>
+                        <td style="text-align: right; font-weight: bold; color: #000; font-size: 14px; width: 25%;">{{TOTAL_AMOUNT}}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- ACTIVITY LOG -->
+            {{ACTIVITY_LOG_SECTION}}
+
+            {{ATTACHMENTS_SECTION}}
+                        </td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td><div style="height: 5mm;"></div></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+<div class="watermark">
+            <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
+                onerror="this.style.display = 'none'" />
+        </div>
+</body>
+
+</html>
