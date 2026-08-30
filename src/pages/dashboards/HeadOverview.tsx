@@ -37,6 +37,8 @@ import {
     ChevronRight,
     X,
     Filter,
+    FileText,
+    TrendingUp,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2014,68 +2016,32 @@ export function HeadOverview() {
                                         )}
                                     </div>
                                     <div className="mt-3 pt-3 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-                                        <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] overflow-hidden divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
-                                            {/* Status totals */}
-                                            <div className="grid grid-cols-2 divide-x divide-[#E4E4E7] dark:divide-[#3F3F46]">
-                                                <div className="bg-[#FAFAF9] dark:bg-[#18181B] px-3 py-2">
-                                                    <div className="flex items-center justify-between gap-2">
-                                                        <span className="flex items-center gap-1.5">
-                                                            <span className="w-2 h-2 rounded-full bg-[#2563eb] shrink-0" />
-                                                            <span className="text-[10px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Submitted</span>
-                                                        </span>
-                                                        <span className="text-[22px] font-extrabold text-[#2563eb] leading-none">{chartYearSubmittedTotal}</span>
+                                        <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] overflow-hidden grid grid-cols-2 divide-x divide-[#E4E4E7] dark:divide-[#3F3F46]">
+                                            <div className="px-3.5 py-3">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 bg-blue-50 dark:bg-blue-950/30 text-[#2563eb]">
+                                                        <FileText size={12} strokeWidth={2.5} />
                                                     </div>
-                                                    <div className="text-[10px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-0.5">
-                                                        Pending Sanction
-                                                        <span className="text-[#A1A1AA] dark:text-[#71717A]"> (R {chartTypeBreakdown.researchSubmitted} · C {chartTypeBreakdown.consultancySubmitted}{chartTypeBreakdown.othersSubmitted > 0 ? ` · O ${chartTypeBreakdown.othersSubmitted}` : ""})</span>
-                                                    </div>
+                                                    <span className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider">Submitted</span>
                                                 </div>
-                                                <div className="bg-[#FAFAF9] dark:bg-[#18181B] px-3 py-2">
-                                                    <div className="flex items-center justify-between gap-2">
-                                                        <span className="flex items-center gap-1.5">
-                                                            <span className="w-2 h-2 rounded-full bg-[#7c3aed] shrink-0" />
-                                                            <span className="text-[10px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Ongoing</span>
-                                                        </span>
-                                                        <span className="text-[22px] font-extrabold text-[#7c3aed] leading-none">{chartYearOngoingTotal}</span>
-                                                    </div>
-                                                    <div className="text-[10px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-0.5">
-                                                        Sanction approved
-                                                        <span className="text-[#A1A1AA] dark:text-[#71717A]"> (R {chartTypeBreakdown.researchOngoing} · C {chartTypeBreakdown.consultancyOngoing}{chartTypeBreakdown.othersOngoing > 0 ? ` · O ${chartTypeBreakdown.othersOngoing}` : ""})</span>
-                                                    </div>
+                                                <div className="text-[24px] font-extrabold text-[#2563eb] leading-none tabular-nums mt-2">{chartYearSubmittedTotal}</div>
+                                                <div className="text-[10px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-1.5">Pending Sanction</div>
+                                                <div className="text-[10px] font-semibold text-[#A1A1AA] dark:text-[#71717A] mt-0.5 tabular-nums">
+                                                    R {chartTypeBreakdown.researchSubmitted} · C {chartTypeBreakdown.consultancySubmitted}{chartTypeBreakdown.othersSubmitted > 0 ? ` · O ${chartTypeBreakdown.othersSubmitted}` : ""}
                                                 </div>
                                             </div>
-
-                                            {/* Type breakdown */}
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 divide-x divide-[#E4E4E7] dark:divide-[#3F3F46]">
-                                                {[
-                                                    { label: "Research", ongoing: chartTypeBreakdown.researchOngoing, submitted: chartTypeBreakdown.researchSubmitted },
-                                                    { label: "Consultancy", ongoing: chartTypeBreakdown.consultancyOngoing, submitted: chartTypeBreakdown.consultancySubmitted },
-                                                    ...(chartTypeBreakdown.othersOngoing + chartTypeBreakdown.othersSubmitted > 0
-                                                        ? [{ label: "Others", ongoing: chartTypeBreakdown.othersOngoing, submitted: chartTypeBreakdown.othersSubmitted }]
-                                                        : []),
-                                                ].map((row) => (
-                                                    <div key={row.label} className="bg-[#FAFAF9] dark:bg-[#18181B] px-2.5 py-2">
-                                                        <div className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider mb-1">
-                                                            {row.label}
-                                                        </div>
-                                                        <div className="space-y-1">
-                                                            <div className="flex items-center justify-between gap-2">
-                                                                <span className="flex items-center gap-1.5 text-[10px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
-                                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                                                                    Ongoing
-                                                                </span>
-                                                                <span className="text-[13px] font-extrabold text-emerald-600 dark:text-emerald-400">{row.ongoing}</span>
-                                                            </div>
-                                                            <div className="flex items-center justify-between gap-2">
-                                                                <span className="flex items-center gap-1.5 text-[10px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
-                                                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-                                                                    Submitted
-                                                                </span>
-                                                                <span className="text-[13px] font-extrabold text-amber-600 dark:text-amber-400">{row.submitted}</span>
-                                                            </div>
-                                                        </div>
+                                            <div className="px-3.5 py-3">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 bg-violet-50 dark:bg-violet-950/30 text-[#7c3aed]">
+                                                        <TrendingUp size={12} strokeWidth={2.5} />
                                                     </div>
-                                                ))}
+                                                    <span className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider">Ongoing</span>
+                                                </div>
+                                                <div className="text-[24px] font-extrabold text-[#7c3aed] leading-none tabular-nums mt-2">{chartYearOngoingTotal}</div>
+                                                <div className="text-[10px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-1.5">Sanction approved</div>
+                                                <div className="text-[10px] font-semibold text-[#A1A1AA] dark:text-[#71717A] mt-0.5 tabular-nums">
+                                                    R {chartTypeBreakdown.researchOngoing} · C {chartTypeBreakdown.consultancyOngoing}{chartTypeBreakdown.othersOngoing > 0 ? ` · O ${chartTypeBreakdown.othersOngoing}` : ""}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
