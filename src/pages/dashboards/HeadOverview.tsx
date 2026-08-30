@@ -2017,8 +2017,8 @@ export function HeadOverview() {
                                     </div>
                                     <div className="mt-2.5 pt-2.5 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
                                         <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] overflow-hidden grid grid-cols-2 divide-x divide-[#E4E4E7] dark:divide-[#3F3F46]">
-                                            <div className="flex items-center justify-between gap-2 px-3 py-2">
-                                                <div className="flex items-center gap-2.5 min-w-0">
+                                            <div className="px-3 py-2">
+                                                <div className="flex items-center gap-2.5">
                                                     <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-blue-50 dark:bg-blue-950/30 text-[#2563eb]">
                                                         <FileText size={14} strokeWidth={2.5} />
                                                     </div>
@@ -2030,16 +2030,25 @@ export function HeadOverview() {
                                                         <div className="text-[10.5px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-0.5">Pending Sanction</div>
                                                     </div>
                                                 </div>
-                                                <div className="shrink-0 text-right text-[9px] font-semibold text-[#71717A] dark:text-[#A1A1AA] leading-tight space-y-0.5">
-                                                    <div>R <span className="font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">{chartTypeBreakdown.researchSubmitted}</span></div>
-                                                    <div>C <span className="font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">{chartTypeBreakdown.consultancySubmitted}</span></div>
+                                                <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-[#E4E4E7]/70 dark:border-[#3F3F46]/70">
+                                                    <div className="text-center">
+                                                        <div className="text-[8.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide leading-none">Research</div>
+                                                        <div className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums leading-none mt-1">{chartTypeBreakdown.researchSubmitted}</div>
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <div className="text-[8.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide leading-none">Consultancy</div>
+                                                        <div className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums leading-none mt-1">{chartTypeBreakdown.consultancySubmitted}</div>
+                                                    </div>
                                                     {chartTypeBreakdown.othersSubmitted > 0 && (
-                                                        <div>O <span className="font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">{chartTypeBreakdown.othersSubmitted}</span></div>
+                                                        <div className="text-center">
+                                                            <div className="text-[8.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide leading-none">Others</div>
+                                                            <div className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums leading-none mt-1">{chartTypeBreakdown.othersSubmitted}</div>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className="flex items-center justify-between gap-2 px-3 py-2">
-                                                <div className="flex items-center gap-2.5 min-w-0">
+                                            <div className="px-3 py-2">
+                                                <div className="flex items-center gap-2.5">
                                                     <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-violet-50 dark:bg-violet-950/30 text-[#7c3aed]">
                                                         <TrendingUp size={14} strokeWidth={2.5} />
                                                     </div>
@@ -2051,11 +2060,20 @@ export function HeadOverview() {
                                                         <div className="text-[10.5px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-0.5">Sanction approved</div>
                                                     </div>
                                                 </div>
-                                                <div className="shrink-0 text-right text-[9px] font-semibold text-[#71717A] dark:text-[#A1A1AA] leading-tight space-y-0.5">
-                                                    <div>R <span className="font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">{chartTypeBreakdown.researchOngoing}</span></div>
-                                                    <div>C <span className="font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">{chartTypeBreakdown.consultancyOngoing}</span></div>
+                                                <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-[#E4E4E7]/70 dark:border-[#3F3F46]/70">
+                                                    <div className="text-center">
+                                                        <div className="text-[8.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide leading-none">Research</div>
+                                                        <div className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums leading-none mt-1">{chartTypeBreakdown.researchOngoing}</div>
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <div className="text-[8.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide leading-none">Consultancy</div>
+                                                        <div className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums leading-none mt-1">{chartTypeBreakdown.consultancyOngoing}</div>
+                                                    </div>
                                                     {chartTypeBreakdown.othersOngoing > 0 && (
-                                                        <div>O <span className="font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">{chartTypeBreakdown.othersOngoing}</span></div>
+                                                        <div className="text-center">
+                                                            <div className="text-[8.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wide leading-none">Others</div>
+                                                            <div className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums leading-none mt-1">{chartTypeBreakdown.othersOngoing}</div>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>
