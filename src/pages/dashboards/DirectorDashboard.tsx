@@ -3207,9 +3207,9 @@ export function DirectorDashboard() {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans text-[14px] leading-relaxed text-[#3F3F46] dark:text-[#E4E4E7]">
-            <div className="px-6 md:px-8 pt-7 pb-10 max-w-[1600px] mx-auto">
+            <div className="px-6 md:px-8 pt-4 pb-10 max-w-[1600px] mx-auto">
                 {/* ── Header ── */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 w-full">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6 w-full">
                     <div className="relative">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-[#2563eb] rounded-xl flex items-center justify-center text-white shadow-sm border border-[#2563eb]/20">
@@ -3239,74 +3239,6 @@ export function DirectorDashboard() {
                             </div>
                         </div>
                     </div>
-                    {viewMode === "Director" && (
-                        <div className="relative w-full md:w-[320px] shrink-0">
-                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-zinc-400 dark:text-zinc-500">
-                                <Search className="w-4 h-4" />
-                            </span>
-                            <input
-                                type="text"
-                                placeholder="Search project title, no, PI, dept..."
-                                value={headerSearchText}
-                                onChange={(e) => setHeaderSearchText(e.target.value)}
-                                onFocus={() => setHeaderSearchFocused(true)}
-                                onBlur={() => setTimeout(() => setHeaderSearchFocused(false), 150)}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Escape") {
-                                        setHeaderSearchText("");
-                                        (e.target as HTMLInputElement).blur();
-                                    }
-                                }}
-                                className="w-full h-10 text-[13px] font-semibold pl-9 pr-8 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg outline-none focus:border-[#2563eb] text-[#3F3F46] dark:text-[#E4E4E7] placeholder-zinc-400 transition-colors shadow-sm"
-                            />
-                            {headerSearchText && (
-                                <button
-                                    onClick={() => setHeaderSearchText("")}
-                                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-[#71717A] hover:text-black dark:hover:text-white"
-                                    type="button"
-                                    tabIndex={-1}
-                                >
-                                    <X size={13} />
-                                </button>
-                            )}
-                            {headerSearchFocused && headerSearchText.trim() && (
-                                <div className="absolute z-50 mt-1.5 w-full max-h-[360px] overflow-y-auto bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg shadow-lg">
-                                    {headerSearchResults.length === 0 ? (
-                                        <div className="px-4 py-3 text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
-                                            No projects match &ldquo;{headerSearchText}&rdquo;
-                                        </div>
-                                    ) : (
-                                        headerSearchResults.map((p) => {
-                                            const piName = p.pi_webmail ? (emailToNameMap[p.pi_webmail.toLowerCase().trim()] || p.pi_webmail.split("@")[0]) : "";
-                                            return (
-                                                <div
-                                                    key={p.name}
-                                                    onClick={() => {
-                                                        setHeaderSearchText("");
-                                                        navigate(`/project-details-overview/${p.name}`, { state: { returnTo: location.pathname + location.search, ...getDashboardState() } });
-                                                    }}
-                                                    className="px-4 py-2.5 border-b last:border-b-0 border-[#F4F4F5] dark:border-[#3F3F46] cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
-                                                >
-                                                    <div className="text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">
-                                                        {p.project_title || p.name}
-                                                    </div>
-                                                    <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA] truncate">
-                                                        <span>{p.project_no || p.name}</span>
-                                                        {piName && (<><span>&middot;</span><span className="truncate">{piName}</span></>)}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })
-                                    )}
-                                    {headerSearchResults.length === HEADER_SEARCH_LIMIT && (
-                                        <div className="px-4 py-2 text-[10.5px] text-[#A1A1AA] dark:text-[#71717A] border-t border-[#F4F4F5] dark:border-[#3F3F46]">
-                                            Showing first {HEADER_SEARCH_LIMIT} matches — refine your search for more.
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    )}
                     <div className="flex items-center gap-2.5 flex-wrap">
                         <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold px-3 py-1.5 rounded-full tracking-widest uppercase">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -3336,8 +3268,76 @@ export function DirectorDashboard() {
 
                 {viewMode === "Director" && (
                     <div className="mb-8 border-t-2 border-[#4A6CF7]/35 pt-5 dark:border-[#818CF8]/35 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                        <div className="mb-3 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#71717A] dark:text-[#A1A1AA]">
-                            Project Type
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
+                            <div className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#71717A] dark:text-[#A1A1AA]">
+                                Project Type
+                            </div>
+                            <div className="relative w-full md:w-[320px] shrink-0">
+                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-zinc-400 dark:text-zinc-500">
+                                    <Search className="w-4 h-4" />
+                                </span>
+                                <input
+                                    type="text"
+                                    placeholder="Search project title, no, PI, dept..."
+                                    value={headerSearchText}
+                                    onChange={(e) => setHeaderSearchText(e.target.value)}
+                                    onFocus={() => setHeaderSearchFocused(true)}
+                                    onBlur={() => setTimeout(() => setHeaderSearchFocused(false), 150)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Escape") {
+                                            setHeaderSearchText("");
+                                            (e.target as HTMLInputElement).blur();
+                                        }
+                                    }}
+                                    className="w-full h-10 text-[13px] font-semibold pl-9 pr-8 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg outline-none focus:border-[#2563eb] text-[#3F3F46] dark:text-[#E4E4E7] placeholder-zinc-400 transition-colors shadow-sm"
+                                />
+                                {headerSearchText && (
+                                    <button
+                                        onClick={() => setHeaderSearchText("")}
+                                        className="absolute inset-y-0 right-0 flex items-center pr-3 text-[#71717A] hover:text-black dark:hover:text-white"
+                                        type="button"
+                                        tabIndex={-1}
+                                    >
+                                        <X size={13} />
+                                    </button>
+                                )}
+                                {headerSearchFocused && headerSearchText.trim() && (
+                                    <div className="absolute z-50 mt-1.5 w-full max-h-[360px] overflow-y-auto bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg shadow-lg">
+                                        {headerSearchResults.length === 0 ? (
+                                            <div className="px-4 py-3 text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
+                                                No projects match &ldquo;{headerSearchText}&rdquo;
+                                            </div>
+                                        ) : (
+                                            headerSearchResults.map((p) => {
+                                                const piName = p.pi_webmail ? (emailToNameMap[p.pi_webmail.toLowerCase().trim()] || p.pi_webmail.split("@")[0]) : "";
+                                                return (
+                                                    <div
+                                                        key={p.name}
+                                                        onClick={() => {
+                                                            setHeaderSearchText("");
+                                                            navigate(`/project-details-overview/${p.name}`, { state: { returnTo: location.pathname + location.search, ...getDashboardState() } });
+                                                        }}
+                                                        className="px-4 py-2.5 border-b last:border-b-0 border-[#F4F4F5] dark:border-[#3F3F46] cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
+                                                    >
+                                                        <div className="text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">
+                                                            {p.project_title || p.name}
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA] truncate">
+                                                            <span>{p.project_no || p.name}</span>
+                                                            {piName && (<><span>&middot;</span><span className="truncate">{piName}</span></>)}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                        {headerSearchResults.length === HEADER_SEARCH_LIMIT && (
+                                            <div className="px-4 py-2 text-[10.5px] text-[#A1A1AA] dark:text-[#71717A] border-t border-[#F4F4F5] dark:border-[#3F3F46]">
+                                                Showing first {HEADER_SEARCH_LIMIT} matches — refine your search for more.
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         <div className="flex items-center gap-2.5 overflow-x-auto pb-1">
                             <button
