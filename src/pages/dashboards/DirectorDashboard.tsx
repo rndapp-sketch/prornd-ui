@@ -4390,182 +4390,6 @@ export function DirectorDashboard() {
                                 </div>
                             </div>
 
-                            {/* Funding Sources Pie */}
-                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden">
-                                <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46]">
-                                    <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center justify-between w-full">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-violet-50 dark:bg-violet-950/20 text-[#7c3aed]">
-                                                <svg
-                                                    className="w-3.5 h-3.5"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    strokeWidth="2"
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
-                                                    <path d="M22 12A10 10 0 0 0 12 2v10z" />
-                                                </svg>
-                                            </div>
-                                            Funding Sources — Breakdown
-                                        </div>
-                                        <button
-                                            onClick={() => setShowAllFunding(!showAllFunding)}
-                                            className="text-[11px] font-bold text-[#2563eb] dark:text-blue-400 hover:underline whitespace-nowrap bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-md transition-colors"
-                                        >
-                                            {showAllFunding ? "Show Top 7" : "Show All"}
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="p-[18px] px-[22px] pb-5">
-                                    {isLoading ? (
-                                        <div className="h-[300px] flex items-center justify-center text-[#71717A] text-sm">
-                                            Loading chart...
-                                        </div>
-                                    ) : pieChartFundingData.length > 0 ? (
-                                        <div className="flex flex-col w-full h-full">
-                                            <div className="relative w-full shrink-0" style={{ height: "240px" }}>
-                                                <div
-                                                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition-transform z-10 w-28 h-28 rounded-full"
-                                                    onClick={() => {
-                                                        setKpiModal({ type: "total", title: `Funding: All Sources` });
-                                                        setKpiPage(1);
-                                                        setKpiTab("all");
-                                                        setKpiStatusFilter("all");
-                                                    }}
-                                                >
-                                                    <span className="text-3xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none">
-                                                        {pieChartFundingData.reduce((sum: number, d: any) => sum + d.value, 0)}
-                                                    </span>
-                                                    <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
-                                                        Total
-                                                    </span>
-                                                </div>
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <PieChart>
-                                                        <Pie
-                                                            data={pieChartFundingData}
-                                                            cx="50%"
-                                                            cy="50%"
-                                                            innerRadius="60%"
-                                                            outerRadius="80%"
-                                                            dataKey="value"
-                                                            nameKey="funding_agency"
-                                                            paddingAngle={3}
-                                                            isAnimationActive={false}
-                                                            onClick={(data: any) => {
-                                                                if (data && data.payload && data.payload.funding_agency) {
-                                                                    const clickedAgency = data.payload.funding_agency;
-
-                                                                    if (clickedAgency === "Others") {
-                                                                        const excludedAgencies = pieChartFundingData.slice(0, 7).map((d: any) => d.funding_agency);
-                                                                        setKpiModal({
-                                                                            type: "total",
-                                                                            title: `Funding: Others`,
-                                                                            fundingAgency: "Others",
-                                                                            excludedFundingAgencies: excludedAgencies
-                                                                        });
-                                                                    } else {
-                                                                        setKpiModal({ type: "total", title: `Funding: ${clickedAgency}`, fundingAgency: clickedAgency });
-                                                                    }
-
-                                                                    setKpiPage(1);
-                                                                    setKpiTab("all");
-                                                                    setKpiStatusFilter("all");
-                                                                    setKpiSchemeFilter([]);
-                                                                    setKpiAgeFilter("all");
-                                                                }
-                                                            }}
-                                                            style={{ cursor: "pointer" }}
-                                                        >
-                                                            {pieChartFundingData.map((_: any, i: number) => (
-                                                                <Cell
-                                                                    key={i}
-                                                                    fill={CHART_COLORS[i % CHART_COLORS.length]}
-                                                                    stroke="none"
-                                                                />
-                                                            ))}
-                                                        </Pie>
-                                                        <Tooltip
-                                                            contentStyle={{
-                                                                borderRadius: "0.5rem",
-                                                                border: "1px solid #1e293b",
-                                                                background: "#0f172a",
-                                                            }}
-                                                            labelStyle={{ color: "#f1f5f9", fontWeight: 700 }}
-                                                            itemStyle={{ color: "#94a3b8", fontSize: 11 }}
-                                                            formatter={(value: number, name: string) => [
-                                                                `${value} Projects`,
-                                                                name,
-                                                            ]}
-                                                        />
-                                                    </PieChart>
-                                                </ResponsiveContainer>
-                                            </div>
-                                            <div className="w-full mt-2">
-                                                <ul className={`grid grid-cols-1 sm:grid-cols-2 gap-x-20 gap-y-1 w-full ${showAllFunding ? "overflow-y-auto max-h-[160px] custom-scrollbar pr-2" : ""}`}>
-                                                    {pieChartFundingData.map((item: any, i: number) => (
-                                                        <li
-                                                            key={i}
-                                                            className="flex items-start justify-between min-w-0 text-[11px] group cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30 px-2 rounded-lg transition-colors gap-1.5 py-1"
-                                                            onClick={() => {
-                                                                const clickedAgency = item.funding_agency;
-
-                                                                if (clickedAgency === "Others") {
-                                                                    const excludedAgencies = pieChartFundingData.slice(0, 7).map((d: any) => d.funding_agency);
-                                                                    setKpiModal({
-                                                                        type: "total",
-                                                                        title: `Funding: Others`,
-                                                                        fundingAgency: "Others",
-                                                                        excludedFundingAgencies: excludedAgencies
-                                                                    });
-                                                                } else {
-                                                                    setKpiModal({ type: "total", title: `Funding: ${clickedAgency}`, fundingAgency: clickedAgency });
-                                                                }
-
-                                                                setKpiPage(1);
-                                                                setKpiTab("all");
-                                                                setKpiStatusFilter("all");
-                                                                setKpiSchemeFilter([]);
-                                                                setKpiAgeFilter("all");
-                                                            }}
-                                                        >
-                                                            <div className="flex items-start gap-2 pr-2">
-                                                                <span
-                                                                    className="w-2.5 h-2.5 rounded-sm shrink-0 mt-[2px]"
-                                                                    style={{
-                                                                        backgroundColor: CHART_COLORS[i % CHART_COLORS.length],
-                                                                    }}
-                                                                />
-                                                                <span
-                                                                    className="text-[#64748B] dark:text-[#A1A1AA] font-semibold break-words whitespace-normal flex-1 group-hover:text-[#3F3F46] dark:group-hover:text-[#E4E4E7] transition-colors leading-snug"
-                                                                    title={item.funding_agency}
-                                                                >
-                                                                    {item.funding_agency}
-                                                                </span>
-                                                            </div>
-                                                            <span className="font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] shrink-0 mt-[1px]">
-                                                                {item.value}
-                                                            </span>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="h-[300px] flex items-center justify-center text-[#71717A] text-sm">
-                                            No data available
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* ── Project Analytics & Distribution ── */}
-                        <SectionDivider title="Project Analytics & Distribution" />
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-[14px] mb-6">
                             {/* Financial Trends Line Chart */}
                             <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden flex flex-col">
                                 <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
@@ -4748,6 +4572,182 @@ export function DirectorDashboard() {
                                             */}
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* ── Project Analytics & Distribution ── */}
+                        <SectionDivider title="Project Analytics & Distribution" />
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-[14px] mb-6">
+                            {/* Funding Sources Pie */}
+                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden">
+                                <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                                    <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center justify-between w-full">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-violet-50 dark:bg-violet-950/20 text-[#7c3aed]">
+                                                <svg
+                                                    className="w-3.5 h-3.5"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth="2"
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
+                                                    <path d="M22 12A10 10 0 0 0 12 2v10z" />
+                                                </svg>
+                                            </div>
+                                            Funding Sources — Breakdown
+                                        </div>
+                                        <button
+                                            onClick={() => setShowAllFunding(!showAllFunding)}
+                                            className="text-[11px] font-bold text-[#2563eb] dark:text-blue-400 hover:underline whitespace-nowrap bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-md transition-colors"
+                                        >
+                                            {showAllFunding ? "Show Top 7" : "Show All"}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="p-[18px] px-[22px] pb-5">
+                                    {isLoading ? (
+                                        <div className="h-[300px] flex items-center justify-center text-[#71717A] text-sm">
+                                            Loading chart...
+                                        </div>
+                                    ) : pieChartFundingData.length > 0 ? (
+                                        <div className="flex flex-col w-full h-full">
+                                            <div className="relative w-full shrink-0" style={{ height: "240px" }}>
+                                                <div
+                                                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition-transform z-10 w-28 h-28 rounded-full"
+                                                    onClick={() => {
+                                                        setKpiModal({ type: "total", title: `Funding: All Sources` });
+                                                        setKpiPage(1);
+                                                        setKpiTab("all");
+                                                        setKpiStatusFilter("all");
+                                                    }}
+                                                >
+                                                    <span className="text-3xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none">
+                                                        {pieChartFundingData.reduce((sum: number, d: any) => sum + d.value, 0)}
+                                                    </span>
+                                                    <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
+                                                        Total
+                                                    </span>
+                                                </div>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <PieChart>
+                                                        <Pie
+                                                            data={pieChartFundingData}
+                                                            cx="50%"
+                                                            cy="50%"
+                                                            innerRadius="60%"
+                                                            outerRadius="80%"
+                                                            dataKey="value"
+                                                            nameKey="funding_agency"
+                                                            paddingAngle={3}
+                                                            isAnimationActive={false}
+                                                            onClick={(data: any) => {
+                                                                if (data && data.payload && data.payload.funding_agency) {
+                                                                    const clickedAgency = data.payload.funding_agency;
+
+                                                                    if (clickedAgency === "Others") {
+                                                                        const excludedAgencies = pieChartFundingData.slice(0, 7).map((d: any) => d.funding_agency);
+                                                                        setKpiModal({
+                                                                            type: "total",
+                                                                            title: `Funding: Others`,
+                                                                            fundingAgency: "Others",
+                                                                            excludedFundingAgencies: excludedAgencies
+                                                                        });
+                                                                    } else {
+                                                                        setKpiModal({ type: "total", title: `Funding: ${clickedAgency}`, fundingAgency: clickedAgency });
+                                                                    }
+
+                                                                    setKpiPage(1);
+                                                                    setKpiTab("all");
+                                                                    setKpiStatusFilter("all");
+                                                                    setKpiSchemeFilter([]);
+                                                                    setKpiAgeFilter("all");
+                                                                }
+                                                            }}
+                                                            style={{ cursor: "pointer" }}
+                                                        >
+                                                            {pieChartFundingData.map((_: any, i: number) => (
+                                                                <Cell
+                                                                    key={i}
+                                                                    fill={CHART_COLORS[i % CHART_COLORS.length]}
+                                                                    stroke="none"
+                                                                />
+                                                            ))}
+                                                        </Pie>
+                                                        <Tooltip
+                                                            contentStyle={{
+                                                                borderRadius: "0.5rem",
+                                                                border: "1px solid #1e293b",
+                                                                background: "#0f172a",
+                                                            }}
+                                                            labelStyle={{ color: "#f1f5f9", fontWeight: 700 }}
+                                                            itemStyle={{ color: "#94a3b8", fontSize: 11 }}
+                                                            formatter={(value: number, name: string) => [
+                                                                `${value} Projects`,
+                                                                name,
+                                                            ]}
+                                                        />
+                                                    </PieChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                            <div className="w-full mt-2">
+                                                <ul className={`grid grid-cols-1 sm:grid-cols-2 gap-x-20 gap-y-1 w-full ${showAllFunding ? "overflow-y-auto max-h-[160px] custom-scrollbar pr-2" : ""}`}>
+                                                    {pieChartFundingData.map((item: any, i: number) => (
+                                                        <li
+                                                            key={i}
+                                                            className="flex items-start justify-between min-w-0 text-[11px] group cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30 px-2 rounded-lg transition-colors gap-1.5 py-1"
+                                                            onClick={() => {
+                                                                const clickedAgency = item.funding_agency;
+
+                                                                if (clickedAgency === "Others") {
+                                                                    const excludedAgencies = pieChartFundingData.slice(0, 7).map((d: any) => d.funding_agency);
+                                                                    setKpiModal({
+                                                                        type: "total",
+                                                                        title: `Funding: Others`,
+                                                                        fundingAgency: "Others",
+                                                                        excludedFundingAgencies: excludedAgencies
+                                                                    });
+                                                                } else {
+                                                                    setKpiModal({ type: "total", title: `Funding: ${clickedAgency}`, fundingAgency: clickedAgency });
+                                                                }
+
+                                                                setKpiPage(1);
+                                                                setKpiTab("all");
+                                                                setKpiStatusFilter("all");
+                                                                setKpiSchemeFilter([]);
+                                                                setKpiAgeFilter("all");
+                                                            }}
+                                                        >
+                                                            <div className="flex items-start gap-2 pr-2">
+                                                                <span
+                                                                    className="w-2.5 h-2.5 rounded-sm shrink-0 mt-[2px]"
+                                                                    style={{
+                                                                        backgroundColor: CHART_COLORS[i % CHART_COLORS.length],
+                                                                    }}
+                                                                />
+                                                                <span
+                                                                    className="text-[#64748B] dark:text-[#A1A1AA] font-semibold break-words whitespace-normal flex-1 group-hover:text-[#3F3F46] dark:group-hover:text-[#E4E4E7] transition-colors leading-snug"
+                                                                    title={item.funding_agency}
+                                                                >
+                                                                    {item.funding_agency}
+                                                                </span>
+                                                            </div>
+                                                            <span className="font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] shrink-0 mt-[1px]">
+                                                                {item.value}
+                                                            </span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="h-[300px] flex items-center justify-center text-[#71717A] text-sm">
+                                            No data available
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
