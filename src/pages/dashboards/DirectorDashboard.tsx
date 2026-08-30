@@ -3209,7 +3209,7 @@ export function DirectorDashboard() {
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans text-[14px] leading-relaxed text-[#3F3F46] dark:text-[#E4E4E7]">
             <div className="px-6 md:px-8 pt-0 pb-10 max-w-[1600px] mx-auto">
                 {/* ── Header ── */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6 w-full">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-4 w-full">
                     <div className="relative">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-[#2563eb] rounded-xl flex items-center justify-center text-white shadow-sm border border-[#2563eb]/20">
@@ -3267,7 +3267,7 @@ export function DirectorDashboard() {
                 </div>
 
                 {viewMode === "Director" && (
-                    <div className="mb-8 border-t-2 border-[#4A6CF7]/35 pt-5 dark:border-[#818CF8]/35 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    <div className="mb-8 border-t-2 border-[#4A6CF7]/35 pt-3 dark:border-[#818CF8]/35 animate-in fade-in slide-in-from-bottom-2 duration-500">
                         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
                             <div className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#71717A] dark:text-[#A1A1AA]">
                                 Project Type
