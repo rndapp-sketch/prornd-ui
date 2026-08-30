@@ -3874,58 +3874,60 @@ export function DirectorDashboard() {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="mt-3 pt-3 border-t border-[#E4E4E7] dark:border-[#3F3F46] space-y-2">
-                                        {/* Status totals */}
-                                        <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] overflow-hidden grid grid-cols-2 divide-x divide-[#E4E4E7] dark:divide-[#3F3F46]">
-                                            <div className="bg-blue-50/60 dark:bg-blue-950/20 px-3 py-2">
-                                                <div className="flex items-center gap-1.5">
-                                                    <span className="w-2 h-2 rounded-full bg-[#2563eb] shrink-0" />
-                                                    <span className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Submitted</span>
+                                    <div className="mt-3 pt-3 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                                        <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] overflow-hidden divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
+                                            {/* Status totals */}
+                                            <div className="grid grid-cols-2 divide-x divide-[#E4E4E7] dark:divide-[#3F3F46]">
+                                                <div className="bg-blue-50/60 dark:bg-blue-950/20 px-3 py-2">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="w-2 h-2 rounded-full bg-[#2563eb] shrink-0" />
+                                                        <span className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Submitted</span>
+                                                    </div>
+                                                    <div className="text-[22px] font-extrabold text-[#2563eb] leading-none mt-0.5">{chartYearSubmittedTotal}</div>
+                                                    <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug">Pending Sanction</div>
                                                 </div>
-                                                <div className="text-[22px] font-extrabold text-[#2563eb] leading-none mt-0.5">{chartYearSubmittedTotal}</div>
-                                                <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug">Pending Sanction</div>
-                                            </div>
-                                            <div className="bg-purple-50/60 dark:bg-purple-950/20 px-3 py-2">
-                                                <div className="flex items-center gap-1.5">
-                                                    <span className="w-2 h-2 rounded-full bg-[#7c3aed] shrink-0" />
-                                                    <span className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Ongoing</span>
+                                                <div className="bg-purple-50/60 dark:bg-purple-950/20 px-3 py-2">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="w-2 h-2 rounded-full bg-[#7c3aed] shrink-0" />
+                                                        <span className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Ongoing</span>
+                                                    </div>
+                                                    <div className="text-[22px] font-extrabold text-[#7c3aed] leading-none mt-0.5">{chartYearOngoingTotal}</div>
+                                                    <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug">Sanction approved — fund received or pending</div>
                                                 </div>
-                                                <div className="text-[22px] font-extrabold text-[#7c3aed] leading-none mt-0.5">{chartYearOngoingTotal}</div>
-                                                <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug">Sanction approved — fund received or pending</div>
                                             </div>
-                                        </div>
 
-                                        {/* Type breakdown */}
-                                        <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] overflow-hidden grid grid-cols-2 sm:grid-cols-3 divide-x divide-[#E4E4E7] dark:divide-[#3F3F46]">
-                                            {[
-                                                { label: "Research", ongoing: chartTypeBreakdown.researchOngoing, submitted: chartTypeBreakdown.researchSubmitted },
-                                                { label: "Consultancy", ongoing: chartTypeBreakdown.consultancyOngoing, submitted: chartTypeBreakdown.consultancySubmitted },
-                                                ...(chartTypeBreakdown.othersOngoing + chartTypeBreakdown.othersSubmitted > 0
-                                                    ? [{ label: "Others", ongoing: chartTypeBreakdown.othersOngoing, submitted: chartTypeBreakdown.othersSubmitted }]
-                                                    : []),
-                                            ].map((row) => (
-                                                <div key={row.label} className="bg-[#FAFAF9] dark:bg-[#18181B] px-2.5 py-2">
-                                                    <div className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider mb-1">
-                                                        {row.label}
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <div className="flex items-center justify-between gap-2">
-                                                            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
-                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                                                                Ongoing
-                                                            </span>
-                                                            <span className="text-[13px] font-extrabold text-emerald-600 dark:text-emerald-400">{row.ongoing}</span>
+                                            {/* Type breakdown */}
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 divide-x divide-[#E4E4E7] dark:divide-[#3F3F46]">
+                                                {[
+                                                    { label: "Research", ongoing: chartTypeBreakdown.researchOngoing, submitted: chartTypeBreakdown.researchSubmitted },
+                                                    { label: "Consultancy", ongoing: chartTypeBreakdown.consultancyOngoing, submitted: chartTypeBreakdown.consultancySubmitted },
+                                                    ...(chartTypeBreakdown.othersOngoing + chartTypeBreakdown.othersSubmitted > 0
+                                                        ? [{ label: "Others", ongoing: chartTypeBreakdown.othersOngoing, submitted: chartTypeBreakdown.othersSubmitted }]
+                                                        : []),
+                                                ].map((row) => (
+                                                    <div key={row.label} className="bg-[#FAFAF9] dark:bg-[#18181B] px-2.5 py-2">
+                                                        <div className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider mb-1">
+                                                            {row.label}
                                                         </div>
-                                                        <div className="flex items-center justify-between gap-2">
-                                                            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
-                                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-                                                                Submitted
-                                                            </span>
-                                                            <span className="text-[13px] font-extrabold text-amber-600 dark:text-amber-400">{row.submitted}</span>
+                                                        <div className="space-y-1">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                                                    Ongoing
+                                                                </span>
+                                                                <span className="text-[13px] font-extrabold text-emerald-600 dark:text-emerald-400">{row.ongoing}</span>
+                                                            </div>
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                                                                    Submitted
+                                                                </span>
+                                                                <span className="text-[13px] font-extrabold text-amber-600 dark:text-amber-400">{row.submitted}</span>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            ))}
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
