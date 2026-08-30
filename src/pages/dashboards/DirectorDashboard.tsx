@@ -1617,6 +1617,34 @@ export function DirectorDashboard() {
         return list;
     }, [allProjectsList, ongoingIds, submittedIds, getEffectiveStartDate, chartProjectTypeFilter, chartYearFilter]);
 
+    // Research/Consultancy/Others split for the panel's legend area — respects the Year
+    // filter (for "at a glance" context matching what's charted) but always shows all
+    // three types regardless of the Type dropdown, so it stays a comparison reference.
+    const chartTypeBreakdown = React.useMemo(() => {
+        let ro = 0, rs = 0, co = 0, cs = 0, oo = 0, os = 0;
+        (allProjectsList ?? []).forEach((p: any) => {
+            const isOngoing = ongoingIds.has(p.name);
+            const isSubmitted = !isOngoing && submittedIds.has(p.name);
+            if (!isOngoing && !isSubmitted) return;
+
+            if (chartYearFilter !== "All Time") {
+                const dateStr = getEffectiveStartDate(p);
+                const yr = dateStr ? new Date(dateStr).getFullYear() : null;
+                if (String(yr) !== chartYearFilter) return;
+            }
+
+            const type = (p.project_type || "").toLowerCase();
+            if (type.includes("research") || type === "r&d project") {
+                if (isOngoing) ro++; else rs++;
+            } else if (type.includes("consult") || type === "testing") {
+                if (isOngoing) co++; else cs++;
+            } else {
+                if (isOngoing) oo++; else os++;
+            }
+        });
+        return { researchOngoing: ro, researchSubmitted: rs, consultancyOngoing: co, consultancySubmitted: cs, othersOngoing: oo, othersSubmitted: os };
+    }, [allProjectsList, ongoingIds, submittedIds, getEffectiveStartDate, chartYearFilter]);
+
     const chartYearSubmittedTotal = React.useMemo(() => {
         return chartDisplayData.reduce((s, d) => s + (Number(d.submitted) || 0), 0);
     }, [chartDisplayData]);
@@ -3848,28 +3876,46 @@ export function DirectorDashboard() {
                                     </div>
                                     <div className="mt-2.5 pt-2.5 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
                                         <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] overflow-hidden grid grid-cols-2 divide-x divide-[#E4E4E7] dark:divide-[#3F3F46]">
-                                            <div className="flex items-center gap-2.5 px-3 py-2">
-                                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-blue-50 dark:bg-blue-950/30 text-[#2563eb]">
-                                                    <FileText size={14} strokeWidth={2.5} />
-                                                </div>
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="flex items-baseline gap-1.5">
-                                                        <span className="text-[18px] font-extrabold text-[#2563eb] leading-none tabular-nums">{chartYearSubmittedTotal}</span>
-                                                        <span className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider">Submitted</span>
+                                            <div className="flex items-center justify-between gap-2 px-3 py-2">
+                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-blue-50 dark:bg-blue-950/30 text-[#2563eb]">
+                                                        <FileText size={14} strokeWidth={2.5} />
                                                     </div>
-                                                    <div className="text-[10.5px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-0.5">Pending Sanction</div>
+                                                    <div className="min-w-0">
+                                                        <div className="flex items-baseline gap-1.5">
+                                                            <span className="text-[18px] font-extrabold text-[#2563eb] leading-none tabular-nums">{chartYearSubmittedTotal}</span>
+                                                            <span className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider">Submitted</span>
+                                                        </div>
+                                                        <div className="text-[10.5px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-0.5">Pending Sanction</div>
+                                                    </div>
+                                                </div>
+                                                <div className="shrink-0 text-right text-[9px] font-semibold text-[#71717A] dark:text-[#A1A1AA] leading-tight space-y-0.5">
+                                                    <div>R <span className="font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">{chartTypeBreakdown.researchSubmitted}</span></div>
+                                                    <div>C <span className="font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">{chartTypeBreakdown.consultancySubmitted}</span></div>
+                                                    {chartTypeBreakdown.othersSubmitted > 0 && (
+                                                        <div>O <span className="font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">{chartTypeBreakdown.othersSubmitted}</span></div>
+                                                    )}
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-2.5 px-3 py-2">
-                                                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-violet-50 dark:bg-violet-950/30 text-[#7c3aed]">
-                                                    <TrendingUp size={14} strokeWidth={2.5} />
-                                                </div>
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="flex items-baseline gap-1.5">
-                                                        <span className="text-[18px] font-extrabold text-[#7c3aed] leading-none tabular-nums">{chartYearOngoingTotal}</span>
-                                                        <span className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider">Ongoing</span>
+                                            <div className="flex items-center justify-between gap-2 px-3 py-2">
+                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-violet-50 dark:bg-violet-950/30 text-[#7c3aed]">
+                                                        <TrendingUp size={14} strokeWidth={2.5} />
                                                     </div>
-                                                    <div className="text-[10.5px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-0.5">Sanction approved — fund received or pending</div>
+                                                    <div className="min-w-0">
+                                                        <div className="flex items-baseline gap-1.5">
+                                                            <span className="text-[18px] font-extrabold text-[#7c3aed] leading-none tabular-nums">{chartYearOngoingTotal}</span>
+                                                            <span className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider">Ongoing</span>
+                                                        </div>
+                                                        <div className="text-[10.5px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-0.5">Sanction approved</div>
+                                                    </div>
+                                                </div>
+                                                <div className="shrink-0 text-right text-[9px] font-semibold text-[#71717A] dark:text-[#A1A1AA] leading-tight space-y-0.5">
+                                                    <div>R <span className="font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">{chartTypeBreakdown.researchOngoing}</span></div>
+                                                    <div>C <span className="font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">{chartTypeBreakdown.consultancyOngoing}</span></div>
+                                                    {chartTypeBreakdown.othersOngoing > 0 && (
+                                                        <div>O <span className="font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">{chartTypeBreakdown.othersOngoing}</span></div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
