@@ -956,18 +956,6 @@ export function DirectorDashboard() {
         const idx = Math.min(Math.floor(total / 100), VOLUME_BUCKET_COLORS.length - 1);
         return VOLUME_BUCKET_COLORS[idx];
     };
-    const presentVolumeTiers = React.useMemo(() => {
-        const idxSet = new Set(sortedDoctypeCounts.map(r => Math.min(Math.floor(r.total / 100), VOLUME_BUCKET_COLORS.length - 1)));
-        return Array.from(idxSet).sort((a, b) => a - b).map(idx => {
-            const isTop = idx === VOLUME_BUCKET_COLORS.length - 1 && maxDoctypeTotal >= idx * 100 + 100;
-            return {
-                color: VOLUME_BUCKET_COLORS[idx],
-                label: isTop ? `${idx * 100 + 1}+` : `${idx * 100 + 1}-${idx * 100 + 100}`,
-            };
-        });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [sortedDoctypeCounts, maxDoctypeTotal]);
-
     const USAGE_TIER_METRICS = {
         total: { label: "Total (All Time)", getValue: (r: { today: number; this_week: number; this_month: number; total: number }) => r.total },
         daily: { label: "Daily", getValue: (r: { today: number; this_week: number; this_month: number; total: number }) => r.today },
@@ -4324,33 +4312,23 @@ export function DirectorDashboard() {
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-[14px] mb-6 items-start">
                         {/* Application-wise breakdown */}
                         <div className="lg:col-span-2 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden flex flex-col">
-                            <div className="p-[18px] px-[24px] pb-[16px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
+                            <div className="p-[14px] px-[20px] pb-[12px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
                                 <div>
-                                    <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2.5">
-                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-sm shadow-emerald-500/30">
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                    <div className="text-[14px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
+                                        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-sm shadow-emerald-500/30">
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                                                 <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M8 13h2" /><path d="M14 13h2" /><path d="M8 17h2" /><path d="M14 17h2" />
                                             </svg>
                                         </div>
                                         Application-wise Activity
                                     </div>
-                                    <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1 ml-[42px]">Ranked by total submissions, most active first</p>
+                                    <p className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1 ml-[38px]">Ranked by total submissions, most active first</p>
                                 </div>
-                                <div className="flex flex-col items-end gap-1.5 shrink-0">
-                                    <span className="text-[11px] font-bold text-[#059669] bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-full uppercase tracking-wider">
-                                        {showAllActivityApps ? sortedDoctypeCounts.length : Math.min(ACTIVITY_TOP_N, sortedDoctypeCounts.length)} of {sortedDoctypeCounts.length} apps
-                                    </span>
-                                    <div className="hidden md:flex items-center gap-2 flex-wrap justify-end max-w-[280px]">
-                                        {presentVolumeTiers.map((tier) => (
-                                            <div key={tier.label} className="flex items-center gap-1">
-                                                <span className="w-[7px] h-[7px] rounded-full shrink-0" style={{ backgroundColor: tier.color.to }} />
-                                                <span className="text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">{tier.label}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
+                                <span className="text-[11px] font-bold text-[#059669] bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-full uppercase tracking-wider shrink-0">
+                                    {showAllActivityApps ? sortedDoctypeCounts.length : Math.min(ACTIVITY_TOP_N, sortedDoctypeCounts.length)} of {sortedDoctypeCounts.length} apps
+                                </span>
                             </div>
-                            <div className="max-h-[560px] overflow-y-auto">
+                            <div className="max-h-[440px] overflow-y-auto">
                                 {isProcessCountsLoading ? (
                                     <div className="flex flex-col items-center justify-center text-[#71717A] text-sm gap-3 py-16">
                                         <div className="w-5 h-5 border-2 border-[#059669] border-t-transparent rounded-full animate-spin"></div>
@@ -4381,7 +4359,7 @@ export function DirectorDashboard() {
                                                 return (
                                                     <div key={row.doctype}>
                                                         <div
-                                                            className={`flex items-center gap-3 px-[22px] py-2.5 ${hasChildren ? "cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B]" : ""} transition-colors`}
+                                                            className={`flex items-center gap-3 px-[22px] py-2 ${hasChildren ? "cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B]" : ""} transition-colors`}
                                                             onClick={() => hasChildren && toggleActivityDoctype(row.doctype)}
                                                         >
                                                             <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-extrabold shrink-0 tabular-nums ${rankColors}`}>
