@@ -1281,6 +1281,30 @@ export function HeadOverview() {
     };
     const closeKpiModal = () => setKpiModal(null);
 
+    // For clicking a Research/Consultancy/Others column inside a compact breakdown
+    // grid — narrows the modal to that one project type instead of showing every
+    // project the whole card's own onClick would. Reuses kpiModalRows' existing
+    // "projectType"/"intl" filter branches (onlyOngoing scopes to ongoing-only cards
+    // — Allocation and Ongoing Projects — since Total Projects and Intl. Collaborators
+    // show both ongoing and submitted).
+    const openKpiModalForType = (
+        type: "total" | "allocation" | "ongoing" | "intl",
+        title: string,
+        projectTypeTab: "research" | "consultancy" | "others",
+    ) => {
+        if (type === "intl") {
+            setKpiModal({ type: "intl", title, projectType: projectTypeTab });
+        } else {
+            setKpiModal({
+                type: "projectType",
+                title,
+                projectType: projectTypeTab,
+                onlyOngoing: type === "allocation" || type === "ongoing",
+            });
+        }
+        setKpiPage(1);
+    };
+
     // ── Research/Consultancy/Others breakdown (unfiltered — mirrors Director's KPI card
     // detail panels) ─────────────────────────────────────────────────────────────
     const {
@@ -1344,7 +1368,10 @@ export function HeadOverview() {
     // detailed KPI modal).
     const projectBreakdownGrid = React.useMemo(() => (
         <div className={`grid ${allOthersProjects > 0 ? "grid-cols-3" : "grid-cols-2"} gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]`}>
-            <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
+            <div
+                className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer hover:opacity-75 transition-opacity"
+                onClick={(e) => { e.stopPropagation(); openKpiModalForType("total", "Projects: Research", "research"); }}
+            >
                 <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">
                     {allResearchProjects}
                 </div>
@@ -1356,7 +1383,10 @@ export function HeadOverview() {
                     {renderStatusBadge("submitted", allResearchSubmitted, allResearchProjects)}
                 </div>
             </div>
-            <div className={`flex flex-col items-center justify-start ${allOthersProjects > 0 ? "border-r border-[#E4E4E7] dark:border-[#3F3F46]" : ""}`}>
+            <div
+                className={`flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity ${allOthersProjects > 0 ? "border-r border-[#E4E4E7] dark:border-[#3F3F46]" : ""}`}
+                onClick={(e) => { e.stopPropagation(); openKpiModalForType("total", "Projects: Consultancy", "consultancy"); }}
+            >
                 <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">
                     {allConsultancyProjects}
                 </div>
@@ -1369,7 +1399,10 @@ export function HeadOverview() {
                 </div>
             </div>
             {allOthersProjects > 0 && (
-                <div className="flex flex-col items-center justify-start">
+                <div
+                    className="flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("total", "Projects: Others", "others"); }}
+                >
                     <div className="text-[14px] font-extrabold text-[#059669] leading-tight">
                         {allOthersProjects}
                     </div>
@@ -1440,7 +1473,10 @@ export function HeadOverview() {
         const showOthers = allOthersOngoing > 0;
         return (
             <div className={`grid ${showOthers ? "grid-cols-3" : "grid-cols-2"} gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]`}>
-                <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
+                <div
+                    className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer hover:opacity-75 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("allocation", "Projects by Allocation: Research", "research"); }}
+                >
                     <div className="text-[13px] font-extrabold text-[#2563eb] leading-tight">{formatCurrency(rAmt)}</div>
                     <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
                     <div className="flex flex-col gap-1 w-full px-1">
@@ -1448,7 +1484,10 @@ export function HeadOverview() {
                         {renderMoneyBadge("left", Math.max(0, rAmt - rUtil), isFundUtilDataReady)}
                     </div>
                 </div>
-                <div className={`flex flex-col items-center justify-start ${showOthers ? "border-r border-[#E4E4E7] dark:border-[#3F3F46]" : ""}`}>
+                <div
+                    className={`flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity ${showOthers ? "border-r border-[#E4E4E7] dark:border-[#3F3F46]" : ""}`}
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("allocation", "Projects by Allocation: Consultancy", "consultancy"); }}
+                >
                     <div className="text-[13px] font-extrabold text-[#7c3aed] leading-tight">{formatCurrency(cAmt)}</div>
                     <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
                     <div className="flex flex-col gap-1 w-full px-1">
@@ -1457,7 +1496,10 @@ export function HeadOverview() {
                     </div>
                 </div>
                 {showOthers && (
-                    <div className="flex flex-col items-center justify-start">
+                    <div
+                        className="flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity"
+                        onClick={(e) => { e.stopPropagation(); openKpiModalForType("allocation", "Projects by Allocation: Others", "others"); }}
+                    >
                         <div className="text-[13px] font-extrabold text-[#059669] leading-tight">{formatCurrency(oAmt)}</div>
                         <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Others</div>
                         <div className="flex flex-col gap-1 w-full px-1">
@@ -1545,7 +1587,10 @@ export function HeadOverview() {
         const ready = ongoingFundStatusBreakdown.checking === 0;
         return (
             <div className={`grid ${showOthers ? "grid-cols-3" : "grid-cols-2"} gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]`}>
-                <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
+                <div
+                    className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer hover:opacity-75 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("ongoing", "Ongoing Projects: Research", "research"); }}
+                >
                     <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">{allResearchOngoing}</div>
                     <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
                     <div className="flex flex-col gap-1 w-full px-1">
@@ -1553,7 +1598,10 @@ export function HeadOverview() {
                         {renderFundBadge("pending", ongoingByTypeFundStatus.Research.pending, allResearchOngoing, ready)}
                     </div>
                 </div>
-                <div className={`flex flex-col items-center justify-start ${showOthers ? "border-r border-[#E4E4E7] dark:border-[#3F3F46]" : ""}`}>
+                <div
+                    className={`flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity ${showOthers ? "border-r border-[#E4E4E7] dark:border-[#3F3F46]" : ""}`}
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("ongoing", "Ongoing Projects: Consultancy", "consultancy"); }}
+                >
                     <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">{allConsultancyOngoing}</div>
                     <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
                     <div className="flex flex-col gap-1 w-full px-1">
@@ -1562,7 +1610,10 @@ export function HeadOverview() {
                     </div>
                 </div>
                 {showOthers && (
-                    <div className="flex flex-col items-center justify-start">
+                    <div
+                        className="flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity"
+                        onClick={(e) => { e.stopPropagation(); openKpiModalForType("ongoing", "Ongoing Projects: Others", "others"); }}
+                    >
                         <div className="text-[14px] font-extrabold text-[#059669] leading-tight">{allOthersOngoing}</div>
                         <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Others</div>
                         <div className="flex flex-col gap-1 w-full px-1">
@@ -1594,7 +1645,10 @@ export function HeadOverview() {
 
         return (
             <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-                <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
+                <div
+                    className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer hover:opacity-75 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("intl", "International Collaborator Projects: Research", "research"); }}
+                >
                     <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">{rP}</div>
                     <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
                     <div className="flex flex-col gap-1 w-full px-1">
@@ -1602,7 +1656,10 @@ export function HeadOverview() {
                         {renderStatusBadge("submitted", rS, rP)}
                     </div>
                 </div>
-                <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
+                <div
+                    className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer hover:opacity-75 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("intl", "International Collaborator Projects: Consultancy", "consultancy"); }}
+                >
                     <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">{cP}</div>
                     <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
                     <div className="flex flex-col gap-1 w-full px-1">
@@ -1610,7 +1667,10 @@ export function HeadOverview() {
                         {renderStatusBadge("submitted", cS, cP)}
                     </div>
                 </div>
-                <div className="flex flex-col items-center justify-start">
+                <div
+                    className="flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("intl", "International Collaborator Projects: Others", "others"); }}
+                >
                     <div className="text-[14px] font-extrabold text-[#059669] leading-tight">{oP}</div>
                     <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Others</div>
                     <div className="flex flex-col gap-1 w-full px-1">
