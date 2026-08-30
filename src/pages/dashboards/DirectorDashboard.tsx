@@ -853,7 +853,7 @@ export function DirectorDashboard() {
     const [projectTableSearch, setProjectTableSearch] = React.useState<string>(location.state?.projectTableSearch || "");
     const [showAllFunding, setShowAllFunding] = React.useState(false);
     const [projectTablePage, setProjectTablePage] = React.useState(1);
-    const PROJECT_TABLE_PAGE_SIZE = 10;
+    const PROJECT_TABLE_PAGE_SIZE = 5;
 
     const [dashboardProjectTypeFilter, setDashboardProjectTypeFilter] = React.useState<"all" | "research" | "consultancy" | "others">("all");
     const [financialYearFilter, setFinancialYearFilter] = React.useState<string>("all");
@@ -5248,8 +5248,8 @@ export function DirectorDashboard() {
                                             active={!kpiModal}
                                         />
                                         {/* Header */}
-                                        <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between flex-wrap gap-3">
-                                            <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
+                                        <div className="p-[14px] px-[20px] pb-[12px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between flex-wrap gap-2.5">
+                                            <div className="text-[14px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
                                                 <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-emerald-50 dark:bg-emerald-950/20 text-[#059669]">
                                                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                                                         <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
