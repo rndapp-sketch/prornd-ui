@@ -354,6 +354,30 @@ const SalaryModule: React.FC = () => {
     const [processedEmployees, setProcessedEmployees] = useState<Set<string>>(new Set());
     const [stagingRecords, setStagingRecords] = useState<any[]>([]);
     const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+    const [dlqCheckResults, setDlqCheckResults] = useState<Record<number, { checking: boolean; errors: any[] }>>({});
+
+    const checkForDlqRejection = useCallback(async (rowIndex: number, rec: any) => {
+        setDlqCheckResults(prev => ({ ...prev, [rowIndex]: { checking: true, errors: prev[rowIndex]?.errors ?? [] } }));
+        try {
+            const response = await fetch(
+                "/api/method/rndopsapp.rndopsapp.commitPayment.get_account_head_payment_dlq_errors",
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Accept: "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({
+                        project_number: rec?.project_no || rec?.projectNumber,
+                        budget_head: rec?.budget_head || rec?.accountHeadId,
+                    }),
+                },
+            );
+            const result = await response.json();
+            const errors = result?.message?.status === "success" ? (result.message.data ?? []) : [];
+            setDlqCheckResults(prev => ({ ...prev, [rowIndex]: { checking: false, errors } }));
+        } catch {
+            setDlqCheckResults(prev => ({ ...prev, [rowIndex]: { checking: false, errors: [] } }));
+        }
+    }, []);
 
     // Reset tab when period changes
     useEffect(() => {
@@ -1926,10 +1950,29 @@ const SalaryModule: React.FC = () => {
                                                                 <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">{rec?.payment_particular ?? "—"}</td>
                                                                 <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{rec?.payment_date ?? "—"}</td>
                                                                 <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-center">
-                                                                    <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold", isPaid ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400")}>
-                                                                        {isPaid && <CheckCircle2 className="w-3 h-3" />}
-                                                                        {rec?.payment_status ?? "—"}
-                                                                    </span>
+                                                                    <div className="flex flex-col items-center gap-1">
+                                                                        <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold", isPaid ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400")}>
+                                                                            {isPaid && <CheckCircle2 className="w-3 h-3" />}
+                                                                            {rec?.payment_status ?? "—"}
+                                                                        </span>
+                                                                        {dlqCheckResults[i]?.errors?.length ? (
+                                                                            <span
+                                                                                title={dlqCheckResults[i].errors.map((e: any) => e.why || e.error_message).join("\n")}
+                                                                                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400"
+                                                                            >
+                                                                                <XCircle className="w-3 h-3" /> Rejected
+                                                                            </span>
+                                                                        ) : (
+                                                                            <button
+                                                                                onClick={() => checkForDlqRejection(i, rec)}
+                                                                                disabled={dlqCheckResults[i]?.checking}
+                                                                                title="Check if the ledger rejected this payment after acceptance"
+                                                                                className="text-[9px] font-semibold text-zinc-400 hover:text-[#D97757] dark:text-zinc-500 dark:hover:text-[#D97757] underline decoration-dotted disabled:opacity-50"
+                                                                            >
+                                                                                {dlqCheckResults[i]?.checking ? "Checking…" : "Check rejection"}
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
                                                                 </td>
                                                                 <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-center">
                                                                     <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{rec?.status ?? "—"}</span>

@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
-import { ArrowLeft, Save, Loader2, FileText, ArrowRight, Users, Upload, CheckCircle2, ShieldCheck, ClipboardList } from "lucide-react";
+import { ArrowLeft, Save, Loader2, FileText, ArrowRight, Users, Upload, CheckCircle2, ShieldCheck, ClipboardList, ChevronDown } from "lucide-react";
 import DynamicFormRenderer from "@/components/forms/DynamicFormRenderer";
 import {
     universalRegistrationAPI,
     prepareFormDataForApi,
 } from "@/services/apiService";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 interface UniversalRegistrationFormProps {
     isFundingAgency?: boolean;
@@ -66,7 +67,10 @@ export default function UniversalRegistrationForm({
     const prevNationality = useRef<string | undefined>(undefined);
     const { id } = useParams();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { currentUser } = useFrappeAuth();
+    const isViewMode = searchParams.get('view') === '1' && !!id;
+    const [forceEdit, setForceEdit] = useState(false);
 
     // Form State
     const [formData, setFormData] = useState<Record<string, any>>({});
@@ -77,12 +81,14 @@ export default function UniversalRegistrationForm({
     const [savedDocName, setSavedDocName] = useState<string | null>(id || null);
     const [step, setStep] = useState<'instructions' | 'form'>(id ? 'form' : 'instructions');
 
-    // Sync step/savedDocName when the URL id param changes (e.g. after "View My Registration" navigate)
+    // Sync step/savedDocName when the URL id param changes (e.g. after "View My Registration"
+    // navigate, or starting a fresh registration from an existing one via the shared
+    // /universal-registration/:id? route — the component instance is reused, so this must
+    // reset back to null/instructions when id disappears, not just react to it appearing).
     useEffect(() => {
-        if (id) {
-            setSavedDocName(id);
-            setStep('form');
-        }
+        setSavedDocName(id || null);
+        setStep(id ? 'form' : 'instructions');
+        setForceEdit(false);
     }, [id]);
 
     // API Hooks
@@ -91,34 +97,50 @@ export default function UniversalRegistrationForm({
     );
     const [myRegLoading, setMyRegLoading] = useState(false);
     const [myRegNotFound, setMyRegNotFound] = useState(false);
+    const [myRegError, setMyRegError] = useState(false);
+    const [myRegistrations, setMyRegistrations] = useState<any[] | null>(null);
+    const [myRegListCollapsed, setMyRegListCollapsed] = useState(false);
+    const { call: listRegistrationsCall } = useFrappePostCall<{ message: any }>(
+        universalRegistrationAPI.list,
+    );
+
+    const fetchMyRegistrations = useCallback(async (filters: Record<string, any>) => {
+        const res = await listRegistrationsCall({ filters: JSON.stringify(filters), limit: 20 });
+        if (res?.message?.status !== "success") {
+            throw new Error(res?.message?.message || "Lookup failed");
+        }
+        return (res.message.data ?? []) as any[];
+    }, [listRegistrationsCall]);
 
     const handleViewMyRegistration = useCallback(async () => {
         if (!currentUser) return;
         setMyRegLoading(true);
         setMyRegNotFound(false);
+        setMyRegError(false);
+        setMyRegistrations(null);
+        setMyRegListCollapsed(false);
         try {
-            const params = new URLSearchParams({
-                doctype: "Universal Registration__",
-                fields: JSON.stringify(["name"]),
-                filters: JSON.stringify([["owner", "=", currentUser]]),
-                limit_page_length: "1",
-            });
-            const res = await fetch(`/api/method/frappe.client.get_list?${params.toString()}`, {
-                credentials: "include",
-            });
-            const data = await res.json();
-            const docs: any[] = data?.message ?? [];
-            if (docs.length > 0) {
-                navigate(`/universal-registration/${docs[0].name}`);
+            // The record's `owner` may not be the logged-in account (e.g. it was
+            // filled out before the person had a login, or on their behalf), so
+            // also match on the email they registered with and merge results.
+            const [byOwner, byEmail] = await Promise.all([
+                fetchMyRegistrations({ owner: currentUser }),
+                fetchMyRegistrations({ email_address_u_r: currentUser }),
+            ]);
+            const merged = [...byOwner, ...byEmail].filter(
+                (doc, idx, arr) => arr.findIndex((d) => d.name === doc.name) === idx,
+            );
+            if (merged.length > 0) {
+                setMyRegistrations(merged);
             } else {
                 setMyRegNotFound(true);
             }
         } catch {
-            setMyRegNotFound(true);
+            setMyRegError(true);
         } finally {
             setMyRegLoading(false);
         }
-    }, [currentUser, navigate]);
+    }, [currentUser, fetchMyRegistrations]);
     const { call: saveCall } = useFrappePostCall<{ message: any }>(
         universalRegistrationAPI.save,
     );
@@ -607,17 +629,6 @@ export default function UniversalRegistrationForm({
                     initialData = { ...initialData, ...prefill_data };
                 }
 
-                // Restore from Draft if exists
-                const draftKey = savedDocName ? `universal_reg_draft_${savedDocName}` : 'universal_reg_draft_new';
-                const draftStr = localStorage.getItem(draftKey);
-                if (draftStr) {
-                    try {
-                        const parsedDraft = JSON.parse(draftStr);
-                        initialData = { ...initialData, ...parsedDraft };
-                    } catch (e) {
-                    }
-                }
-
                 // If initialData contains Frappe-style uploaded_documents_u_r rows, aggregate them into UI cards
                 if (Array.isArray(initialData.uploaded_documents_u_r) && initialData.uploaded_documents_u_r.length > 0) {
                     const firstDoc = initialData.uploaded_documents_u_r[0];
@@ -677,18 +688,6 @@ export default function UniversalRegistrationForm({
             mounted = false;
         };
     }, [fetchFormConfiguration]);
-
-    // Save draft to localStorage whenever formData changes
-    useEffect(() => {
-        if (!isLoadingFields && Object.keys(formData).length > 0 && formData.docstatus !== 1 && formData.docstatus !== 2) {
-            const draftKey = savedDocName ? `universal_reg_draft_${savedDocName}` : 'universal_reg_draft_new';
-            const replacer = (_key: string, value: any) => {
-                if (value instanceof File) return undefined;
-                return value;
-            };
-            localStorage.setItem(draftKey, JSON.stringify(formData, replacer));
-        }
-    }, [formData, savedDocName, isLoadingFields]);
 
     // WhatsApp auto-fill: sync WhatsApp number when "Same as mobile" is checked
     useEffect(() => {
@@ -1551,9 +1550,6 @@ export default function UniversalRegistrationForm({
                         : response.message;
 
                 if (message.status === "success") {
-                    const draftKey = savedDocName ? `universal_reg_draft_${savedDocName}` : 'universal_reg_draft_new';
-                    localStorage.removeItem(draftKey);
-
                     setSavedDocName(message.docname);
                     alert(
                         `Stakeholder Registration saved successfully. (ID: ${message.docname})`,
@@ -1584,12 +1580,13 @@ export default function UniversalRegistrationForm({
         }
     };
 
-    const isReadOnly = formData.docstatus === 1 || formData.docstatus === 2; // Submitted or Cancelled
+    const isLocked = formData.docstatus === 1 || formData.docstatus === 2; // Submitted or Cancelled
+    const isReadOnly = isLocked || (isViewMode && !forceEdit);
 
     if (isLoadingFields) {
         return (
             <div className="flex-1 w-full bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-                <div className="max-w-[1240px] px-6 md:px-8 py-8 md:py-10 mx-auto">
+                <div className="w-full px-6 md:px-10 py-8 md:py-10">
                     <div className="flex items-center gap-4 mb-8">
                         <Skeleton className="h-9 w-9 rounded-lg" />
                         <div className="space-y-2">
@@ -1637,26 +1634,70 @@ export default function UniversalRegistrationForm({
                     </div>
 
                     {/* My Registration banner */}
-                    <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-[#4A6CF7]/30 bg-[#EEF2FF] dark:bg-[#1E3A8A]/18 px-4 py-3">
-                        <div className="flex items-center gap-3">
-                            <ClipboardList className="h-5 w-5 shrink-0 text-[#4A6CF7]" />
-                            <div>
-                                <p className="text-[13px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE]">Already registered?</p>
-                                <p className="text-[11px] font-medium text-[#3730A3] dark:text-[#A5B4FC]">
-                                    {myRegNotFound
-                                        ? "No registration found for your account."
-                                        : "Load your existing registration to view or update it."}
-                                </p>
+                    <div className="mb-4 rounded-xl border border-[#4A6CF7]/30 bg-[#EEF2FF] dark:bg-[#1E3A8A]/18 px-4 py-3">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                                <ClipboardList className="h-5 w-5 shrink-0 text-[#4A6CF7]" />
+                                <div>
+                                    <p className="text-[13px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE]">Already registered?</p>
+                                    <p className="text-[11px] font-medium text-[#3730A3] dark:text-[#A5B4FC]">
+                                        {myRegError
+                                            ? "Couldn't check your registration right now. Please try again."
+                                            : myRegNotFound
+                                            ? "No registration found for your account."
+                                            : "Load your existing registration to view or update it."}
+                                    </p>
+                                </div>
                             </div>
+                            <button
+                                onClick={handleViewMyRegistration}
+                                disabled={myRegLoading}
+                                className="flex shrink-0 items-center gap-2 rounded-lg bg-[#4A6CF7] px-4 py-2 text-[12px] font-extrabold text-white shadow-sm hover:bg-[#3558E8] disabled:opacity-60 transition-colors"
+                            >
+                                {myRegLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ClipboardList className="h-3.5 w-3.5" />}
+                                {myRegLoading ? "Searching…" : "View My Registration"}
+                            </button>
                         </div>
-                        <button
-                            onClick={handleViewMyRegistration}
-                            disabled={myRegLoading}
-                            className="flex shrink-0 items-center gap-2 rounded-lg bg-[#4A6CF7] px-4 py-2 text-[12px] font-extrabold text-white shadow-sm hover:bg-[#3558E8] disabled:opacity-60 transition-colors"
-                        >
-                            {myRegLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ClipboardList className="h-3.5 w-3.5" />}
-                            {myRegLoading ? "Searching…" : "View My Registration"}
-                        </button>
+
+                        {myRegistrations && myRegistrations.length > 0 && (
+                          <>
+                            <button
+                                onClick={() => setMyRegListCollapsed((c) => !c)}
+                                className="mt-3 flex w-full items-center justify-between gap-2 text-[11px] font-bold text-[#3730A3] dark:text-[#A5B4FC] hover:text-[#1E3A8A] dark:hover:text-[#C7D2FE] transition-colors"
+                            >
+                                <span>
+                                    Found {myRegistrations.length} registration{myRegistrations.length > 1 ? "s" : ""} for your account
+                                </span>
+                                <ChevronDown
+                                    className={cn(
+                                        "h-3.5 w-3.5 shrink-0 transition-transform",
+                                        !myRegListCollapsed && "rotate-180",
+                                    )}
+                                />
+                            </button>
+                            {!myRegListCollapsed && (
+                            <div className="mt-2 divide-y divide-[#4A6CF7]/15 rounded-lg border border-[#4A6CF7]/20 bg-white dark:bg-[#18181B] overflow-hidden">
+                                {myRegistrations.map((reg) => (
+                                    <button
+                                        key={reg.name}
+                                        onClick={() => navigate(`/universal-registration/${reg.name}?view=1`)}
+                                        className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-[#EEF2FF] dark:hover:bg-[#1E3A8A]/25 transition-colors"
+                                    >
+                                        <div className="min-w-0">
+                                            <p className="text-[12px] font-bold text-[#18181B] dark:text-[#FAFAFA] truncate">
+                                                {reg.full_name_u_r || reg.org_name_u_r || reg.name}
+                                            </p>
+                                            <p className="text-[10.5px] text-[#71717A] dark:text-[#A1A1AA] truncate">
+                                                {reg.profile_type_u_r || "—"} · {reg.email_address_u_r || "—"} · {reg.name}
+                                            </p>
+                                        </div>
+                                        <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[#4A6CF7]" />
+                                    </button>
+                                ))}
+                            </div>
+                            )}
+                          </>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
@@ -1826,7 +1867,7 @@ export default function UniversalRegistrationForm({
                     {/* Floating CTA */}
                     <div className="fixed bottom-6 right-8 z-50">
                         <button
-                            onClick={() => setStep('form')}
+                            onClick={() => (savedDocName ? navigate('/universal-registration') : setStep('form'))}
                             disabled={isLoadingFields}
                             className="flex items-center gap-2 px-5 py-3 rounded-xl bg-[#4A6CF7] hover:bg-[#3558E8] text-white text-[13px] font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all disabled:opacity-50"
                         >
@@ -1851,7 +1892,7 @@ export default function UniversalRegistrationForm({
     // ── Step 2: The Registration Form ────────────────────────────────────────
     return (
         <div className="flex-1 w-full bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen text-[#3F3F46] dark:text-[#E4E4E7]">
-            <div className="max-w-[1240px] px-6 md:px-8 py-8 md:py-10 mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
+            <div className="w-full px-6 md:px-10 py-8 md:py-10 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
                 {/* --- Header Section --- */}
                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8 mt-4">
                     <div className="flex items-start gap-4">
@@ -1872,11 +1913,21 @@ export default function UniversalRegistrationForm({
                             </h1>
                             <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] font-medium max-w-2xl">
                                 {savedDocName
-                                    ? `Editing universal registration document ${savedDocName}`
+                                    ? isViewMode && !forceEdit
+                                        ? `Viewing registration details for ${savedDocName}`
+                                        : `Editing universal registration document ${savedDocName}`
                                     : "Select your profile type below, then fill in the required details."}
                             </p>
                         </div>
                     </div>
+                    {isViewMode && !forceEdit && !isLocked && (
+                        <button
+                            onClick={() => setForceEdit(true)}
+                            className="flex shrink-0 items-center gap-2 rounded-lg bg-[#4A6CF7] px-4 py-2 text-[12px] font-extrabold text-white shadow-sm hover:bg-[#3558E8] transition-colors"
+                        >
+                            Edit Registration
+                        </button>
+                    )}
                 </div>
 
                 {/* --- Main Application Form Card --- */}
@@ -1935,14 +1986,10 @@ export default function UniversalRegistrationForm({
                             <div className="form-action-bar">
                                 <div className="flex items-center gap-3">
                                     <button
-                                        onClick={() => {
-                                            const draftKey = savedDocName ? `universal_reg_draft_${savedDocName}` : 'universal_reg_draft_new';
-                                            localStorage.removeItem(draftKey);
-                                            navigate(-1);
-                                        }}
+                                        onClick={() => navigate(-1)}
                                         className="btn-neutral"
                                     >
-                                        Clear Draft
+                                        Cancel
                                     </button>
                                 </div>
                                 <button
