@@ -4460,7 +4460,7 @@ export function DirectorDashboard() {
                                     </div>
                                 ) : usageTierBreakdown.length > 0 ? (
                                     <>
-                                        <div className="shrink-0 relative" style={{ height: "240px" }}>
+                                        <div className="shrink-0 relative" style={{ height: "200px" }}>
                                             <ResponsiveContainer width="100%" height="100%">
                                                 <PieChart>
                                                     <Tooltip
