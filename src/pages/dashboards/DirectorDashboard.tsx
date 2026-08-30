@@ -3883,7 +3883,7 @@ export function DirectorDashboard() {
                                                     </div>
                                                     <div className="min-w-0 flex items-baseline gap-1.5 flex-wrap">
                                                         <span className="text-[18px] font-extrabold text-[#2563eb] leading-none tabular-nums">{chartYearSubmittedTotal}</span>
-                                                        <span className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider">Submitted</span>
+                                                        <span className="text-[10px] font-bold text-[#2563eb] uppercase tracking-wider">Submitted</span>
                                                         <span className="text-[10px] font-medium text-[#A1A1AA] dark:text-[#71717A]">(Pending Sanction)</span>
                                                     </div>
                                                 </div>
@@ -3911,7 +3911,7 @@ export function DirectorDashboard() {
                                                     </div>
                                                     <div className="min-w-0 flex items-baseline gap-1.5 flex-wrap">
                                                         <span className="text-[18px] font-extrabold text-[#7c3aed] leading-none tabular-nums">{chartYearOngoingTotal}</span>
-                                                        <span className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider">Ongoing</span>
+                                                        <span className="text-[10px] font-bold text-[#7c3aed] uppercase tracking-wider">Ongoing</span>
                                                         <span className="text-[10px] font-medium text-[#A1A1AA] dark:text-[#71717A]">(Sanction approved)</span>
                                                     </div>
                                                 </div>
