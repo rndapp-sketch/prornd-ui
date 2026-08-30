@@ -927,31 +927,6 @@ export function HeadOverview() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [deptProjects, deptOngoingIds, deptSubmittedIds, chartProjectTypeFilter, chartYearFilter]);
 
-    // Research/Consultancy/Others split for the panel's legend area — respects the Year
-    // filter but always shows all three types regardless of the Type dropdown, so it stays
-    // a comparison reference.
-    const chartTypeBreakdown = React.useMemo(() => {
-        let ro = 0, rs = 0, co = 0, cs = 0, oo = 0, os = 0;
-        deptProjects.forEach((p: any) => {
-            const isOngoing = deptOngoingIds.has(p.name);
-            const isSubmitted = !isOngoing && deptSubmittedIds.has(p.name);
-            if (!isOngoing && !isSubmitted) return;
-
-            if (chartYearFilter !== "All Time") {
-                const effDate = getEffectiveStartDate(p);
-                const yr = effDate ? new Date(effDate).getFullYear() : null;
-                if (String(yr) !== chartYearFilter) return;
-            }
-
-            const { isResearch, isConsultancy } = classifyProjectType(p);
-            if (isResearch) { if (isOngoing) ro++; else rs++; }
-            else if (isConsultancy) { if (isOngoing) co++; else cs++; }
-            else { if (isOngoing) oo++; else os++; }
-        });
-        return { researchOngoing: ro, researchSubmitted: rs, consultancyOngoing: co, consultancySubmitted: cs, othersOngoing: oo, othersSubmitted: os };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [deptProjects, deptOngoingIds, deptSubmittedIds, chartYearFilter]);
-
     const chartYearSubmittedTotal = React.useMemo(
         () => chartDisplayData.reduce((s, d) => s + (Number(d.submitted) || 0), 0),
         [chartDisplayData]
@@ -2018,30 +1993,28 @@ export function HeadOverview() {
                                     <div className="mt-3 pt-3 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
                                         <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] overflow-hidden grid grid-cols-2 divide-x divide-[#E4E4E7] dark:divide-[#3F3F46]">
                                             <div className="px-3.5 py-3">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 bg-blue-50 dark:bg-blue-950/30 text-[#2563eb]">
-                                                        <FileText size={12} strokeWidth={2.5} />
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 bg-blue-50 dark:bg-blue-950/30 text-[#2563eb]">
+                                                            <FileText size={12} strokeWidth={2.5} />
+                                                        </div>
+                                                        <span className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider">Submitted</span>
                                                     </div>
-                                                    <span className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider">Submitted</span>
+                                                    <span className="text-[22px] font-extrabold text-[#2563eb] leading-none tabular-nums">{chartYearSubmittedTotal}</span>
                                                 </div>
-                                                <div className="text-[24px] font-extrabold text-[#2563eb] leading-none tabular-nums mt-2">{chartYearSubmittedTotal}</div>
                                                 <div className="text-[10px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-1.5">Pending Sanction</div>
-                                                <div className="text-[10px] font-semibold text-[#A1A1AA] dark:text-[#71717A] mt-0.5 tabular-nums">
-                                                    R {chartTypeBreakdown.researchSubmitted} · C {chartTypeBreakdown.consultancySubmitted}{chartTypeBreakdown.othersSubmitted > 0 ? ` · O ${chartTypeBreakdown.othersSubmitted}` : ""}
-                                                </div>
                                             </div>
                                             <div className="px-3.5 py-3">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 bg-violet-50 dark:bg-violet-950/30 text-[#7c3aed]">
-                                                        <TrendingUp size={12} strokeWidth={2.5} />
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 bg-violet-50 dark:bg-violet-950/30 text-[#7c3aed]">
+                                                            <TrendingUp size={12} strokeWidth={2.5} />
+                                                        </div>
+                                                        <span className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider">Ongoing</span>
                                                     </div>
-                                                    <span className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider">Ongoing</span>
+                                                    <span className="text-[22px] font-extrabold text-[#7c3aed] leading-none tabular-nums">{chartYearOngoingTotal}</span>
                                                 </div>
-                                                <div className="text-[24px] font-extrabold text-[#7c3aed] leading-none tabular-nums mt-2">{chartYearOngoingTotal}</div>
                                                 <div className="text-[10px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-snug mt-1.5">Sanction approved</div>
-                                                <div className="text-[10px] font-semibold text-[#A1A1AA] dark:text-[#71717A] mt-0.5 tabular-nums">
-                                                    R {chartTypeBreakdown.researchOngoing} · C {chartTypeBreakdown.consultancyOngoing}{chartTypeBreakdown.othersOngoing > 0 ? ` · O ${chartTypeBreakdown.othersOngoing}` : ""}
-                                                </div>
                                             </div>
                                         </div>
                                     </div>
