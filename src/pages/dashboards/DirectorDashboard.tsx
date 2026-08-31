@@ -2321,40 +2321,7 @@ export function DirectorDashboard() {
         return Object.values(deptMap).sort((a, b) => b.project_count - a.project_count);
     }, [allProjectsList, ongoingIds, submittedIds]);
 
-    // Extract a consistent agency label from a project record.
-    // Priority: select_funding_agency → origin_of_funding_agency → funding_agency_other → schemes → "Missing Funding Agency Name"
-    // Reuses resolveAgencyName's canonical priority order (funding_agen link, then
-    // direct text fields, then scheme-keyword inference for ANRF/SERB/DST/DBT) instead
-    // of falling back to the raw scheme/proposal title text — that fallback was
-    // treating each project's specific scheme name (e.g. "NPTEL Postbac/Pre-Doc
-    // Fellowship") as if it were the funding agency, flooding the "Filter by Fund"
-    // dropdown with one-off scheme-name entries alongside real agencies.
-    // Matches raw Funding Agency doc-ID formats seen in this data — plain numbers
-    // ("2074") and short-prefix autonames ("FA-02529") — as opposed to a real
-    // agency/company name, which never looks like just an ID.
-    const looksLikeAgencyId = (s: string) => /^([A-Za-z]{1,4}-)?\d+$/.test(s);
-
-    const getProjectAgency = React.useCallback((proj: any): string => {
-        let resolved = (resolveAgencyName(proj) || "").trim();
-        // Some legacy records have select_funding_agency populated with the raw
-        // funding_agen link ID (e.g. "2074" or "FA-02529") instead of a resolved name.
-        // If it looks like an ID, try the map once more in case that exact ID happens
-        // to be covered (it's keyed by ID -> name) before giving up on it.
-        if (resolved && looksLikeAgencyId(resolved) && fundingAgencyMap[resolved]) {
-            resolved = fundingAgencyMap[resolved];
-        }
-        // fundingAgencyMap only covers whatever the search_link API returned, not
-        // every ID in the data — a raw ID is never a real agency name, so treat any
-        // that's still unresolved as unresolved rather than showing the ID as if it
-        // were one.
-        if (!resolved || looksLikeAgencyId(resolved)) return "Missing Funding Agency Name";
-        return resolved;
-    }, [resolveAgencyName, fundingAgencyMap]);
-
-    // Process strict funding data for Pie Chart from allProjectsList to guarantee modal sync.
-    // Reuses getProjectAgency (same resolver as the "Filter by Fund" dropdown) instead of
-    // its own narrow field chain, which was letting raw scheme names, numeric/FA- IDs, and
-    // the "Other Funding Agency" placeholder leak through as if they were real agency names.
+    // Process strict funding data for Pie Chart from allProjectsList to guarantee modal sync
     const pieChartFundingData = React.useMemo(() => {
         if (!allProjectsList || !overview) return [];
 
@@ -2362,7 +2329,9 @@ export function DirectorDashboard() {
 
         (allProjectsList as any[]).forEach((proj) => {
             if (ongoingIds.has(proj.name) || submittedIds.has(proj.name)) {
-                const key = getProjectAgency(proj);
+                // Same logic as kpiModalRows to ensure 1:1 match
+                const agency = proj.funding_agency || proj.funding_agency_name || proj.funding_agency_schemes || proj.scheme_name;
+                const key = agency ? agency.trim() : "Missing Funding Agency Name";
                 agencyCounts[key] = (agencyCounts[key] || 0) + 1;
             }
         });
@@ -2386,7 +2355,7 @@ export function DirectorDashboard() {
         }
 
         return chartData;
-    }, [allProjectsList, ongoingIds, submittedIds, overview, showAllFunding, getProjectAgency]);
+    }, [allProjectsList, ongoingIds, submittedIds, overview, showAllFunding]);
 
     // Process department-wise data
     const departmentData = React.useMemo(() => {
@@ -2505,6 +2474,36 @@ export function DirectorDashboard() {
     // SELF-CONSISTENT APPROACH: extract a single agency label from each project
     // using ONE function, then use that same label for BOTH the dropdown and the
     // filter — zero mismatch possible.
+
+    // Extract a consistent agency label from a project record.
+    // Priority: select_funding_agency → origin_of_funding_agency → funding_agency_other → schemes → "Missing Funding Agency Name"
+    // Reuses resolveAgencyName's canonical priority order (funding_agen link, then
+    // direct text fields, then scheme-keyword inference for ANRF/SERB/DST/DBT) instead
+    // of falling back to the raw scheme/proposal title text — that fallback was
+    // treating each project's specific scheme name (e.g. "NPTEL Postbac/Pre-Doc
+    // Fellowship") as if it were the funding agency, flooding the "Filter by Fund"
+    // dropdown with one-off scheme-name entries alongside real agencies.
+    // Matches raw Funding Agency doc-ID formats seen in this data — plain numbers
+    // ("2074") and short-prefix autonames ("FA-02529") — as opposed to a real
+    // agency/company name, which never looks like just an ID.
+    const looksLikeAgencyId = (s: string) => /^([A-Za-z]{1,4}-)?\d+$/.test(s);
+
+    const getProjectAgency = React.useCallback((proj: any): string => {
+        let resolved = (resolveAgencyName(proj) || "").trim();
+        // Some legacy records have select_funding_agency populated with the raw
+        // funding_agen link ID (e.g. "2074" or "FA-02529") instead of a resolved name.
+        // If it looks like an ID, try the map once more in case that exact ID happens
+        // to be covered (it's keyed by ID -> name) before giving up on it.
+        if (resolved && looksLikeAgencyId(resolved) && fundingAgencyMap[resolved]) {
+            resolved = fundingAgencyMap[resolved];
+        }
+        // fundingAgencyMap only covers whatever the search_link API returned, not
+        // every ID in the data — a raw ID is never a real agency name, so treat any
+        // that's still unresolved as unresolved rather than showing the ID as if it
+        // were one.
+        if (!resolved || looksLikeAgencyId(resolved)) return "Missing Funding Agency Name";
+        return resolved;
+    }, [resolveAgencyName, fundingAgencyMap]);
 
     // Build agency list for the PI workload filter dropdown, derived directly
     // from allProjectsList (same source used for filtering).
