@@ -47,6 +47,7 @@ import {
     Minus,
     Trophy,
     Zap,
+    Clock,
 } from "lucide-react";
 import { generateDirectorReportHtml } from "@/utils/directorReportHtml";
 
@@ -974,6 +975,14 @@ export function DirectorDashboard() {
     );
     const leaderboardData = leaderboardResp?.message;
 
+    // Not returned by the endpoint directly — the counterpart to "fastest" is
+    // just the leaderboard row with the highest avg_time.
+    const leaderboardSlowest = React.useMemo(() => {
+        const rows = leaderboardData?.leaderboard;
+        if (!rows || rows.length === 0) return null;
+        return rows.reduce((slowest, row) => (row.avg_time > (slowest?.avg_time ?? -Infinity) ? row : slowest), rows[0]);
+    }, [leaderboardData]);
+
     const LEADERBOARD_ROLE_OPTIONS = [
         "Director", "Dean, RnD", "Hos, RnD (Head of Section, RnD)", "head_approver_1", "Ado_RnD", "staff, RnD",
     ];
@@ -982,9 +991,9 @@ export function DirectorDashboard() {
     ];
 
     const leaderboardRankStyle = (rank: number) => {
-        if (rank === 1) return "bg-gradient-to-br from-amber-300 to-amber-500 text-white shadow-sm shadow-amber-500/40";
-        if (rank === 2) return "bg-gradient-to-br from-zinc-300 to-zinc-400 text-white shadow-sm shadow-zinc-400/40";
-        if (rank === 3) return "bg-gradient-to-br from-orange-300 to-orange-500 text-white shadow-sm shadow-orange-500/40";
+        if (rank === 1) return "bg-amber-400 dark:bg-amber-500 text-white"; // gold
+        if (rank === 2) return "bg-zinc-400 dark:bg-zinc-500 text-white"; // silver
+        if (rank === 3) return "bg-orange-600 dark:bg-orange-700 text-white"; // bronze
         return "bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] dark:text-[#A1A1AA]";
     };
 
@@ -5230,8 +5239,8 @@ export function DirectorDashboard() {
                                         </div>
 
                                         {/* Spotlight cards */}
-                                        {(leaderboardData.top_staff || leaderboardData.fastest) && (
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                                        {(leaderboardData.top_staff || leaderboardData.fastest || leaderboardSlowest) && (
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                                                 {leaderboardData.top_staff && (
                                                     <div className="relative overflow-hidden flex items-center gap-3 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-gradient-to-br from-amber-50 to-orange-50/50 dark:from-amber-950/20 dark:to-orange-950/10 px-3.5 py-3">
                                                         <div className="absolute -bottom-3 -right-3 w-16 h-16 rounded-full bg-amber-400 opacity-10" />
@@ -5256,6 +5265,19 @@ export function DirectorDashboard() {
                                                             <div className="text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{leaderboardData.fastest.full_name || leaderboardData.fastest.user}</div>
                                                         </div>
                                                         <div className="ml-auto text-[18px] font-extrabold text-sky-700 dark:text-sky-400 tabular-nums shrink-0 z-10">{leaderboardData.fastest.avg_time}h</div>
+                                                    </div>
+                                                )}
+                                                {leaderboardSlowest && (
+                                                    <div className="relative overflow-hidden flex items-center gap-3 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-gradient-to-br from-rose-50 to-red-50/50 dark:from-rose-950/20 dark:to-red-950/10 px-3.5 py-3">
+                                                        <div className="absolute -bottom-3 -right-3 w-16 h-16 rounded-full bg-rose-400 opacity-10" />
+                                                        <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-gradient-to-br from-rose-400 to-red-500 text-white shadow-sm shadow-rose-500/30 z-10">
+                                                            <Clock size={16} strokeWidth={2.5} />
+                                                        </div>
+                                                        <div className="min-w-0 z-10">
+                                                            <div className="text-[10px] font-bold text-rose-700/80 dark:text-rose-400/80 uppercase tracking-widest">Most Time Taking</div>
+                                                            <div className="text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{leaderboardSlowest.full_name || leaderboardSlowest.user}</div>
+                                                        </div>
+                                                        <div className="ml-auto text-[18px] font-extrabold text-rose-700 dark:text-rose-400 tabular-nums shrink-0 z-10">{leaderboardSlowest.avg_time}h</div>
                                                     </div>
                                                 )}
                                             </div>
