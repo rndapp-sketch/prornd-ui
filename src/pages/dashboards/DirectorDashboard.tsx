@@ -45,6 +45,8 @@ import {
     TrendingUp,
     TrendingDown,
     Minus,
+    Trophy,
+    Zap,
 } from "lucide-react";
 import { generateDirectorReportHtml } from "@/utils/directorReportHtml";
 
@@ -932,6 +934,59 @@ export function DirectorDashboard() {
             .filter(r => r.doctype !== "myProjects")
             .sort((a, b) => b.total - a.total);
     }, [processCounts]);
+
+    // ── Staff Leaderboard — another purely additive widget, independent of
+    // everything above. Ranks approvers by how many applications they've
+    // processed, filterable by period/role/category.
+    const [leaderboardPeriod, setLeaderboardPeriod] = React.useState<"today" | "week" | "month" | "quarter" | "all">("month");
+    const [leaderboardRole, setLeaderboardRole] = React.useState<string>("");
+    const [leaderboardCategory, setLeaderboardCategory] = React.useState<string>("");
+
+    const { data: leaderboardResp, isLoading: isLeaderboardLoading } = useFrappeGetCall<{
+        message: {
+            period: string;
+            period_label: string;
+            leaderboard: Array<{
+                user: string;
+                full_name: string;
+                total_processed: number;
+                approved: number;
+                rejected: number;
+                avg_time: number;
+                approval_rate: number;
+                rank: number;
+            }>;
+            total_processed: number;
+            total_approved: number;
+            total_rejected: number;
+            overall_rate: number;
+            top_staff: { user?: string; full_name?: string; total_processed?: number } | null;
+            fastest: { user?: string; full_name?: string; avg_time?: number } | null;
+            pending_by_role: Array<{ role: string; state: string; count: number }>;
+        };
+    }>(
+        "frappe.www.rndops_leaderboard.get_leaderboard_data",
+        {
+            period: leaderboardPeriod,
+            ...(leaderboardRole ? { role: leaderboardRole } : {}),
+            ...(leaderboardCategory ? { category: leaderboardCategory } : {}),
+        }
+    );
+    const leaderboardData = leaderboardResp?.message;
+
+    const LEADERBOARD_ROLE_OPTIONS = [
+        "Director", "Dean, RnD", "Hos, RnD (Head of Section, RnD)", "head_approver_1", "Ado_RnD", "staff, RnD",
+    ];
+    const LEADERBOARD_CATEGORY_OPTIONS = [
+        "Purchase", "Financial", "Project", "HR / Staff", "Deposits", "Travel", "IPR", "Other",
+    ];
+
+    const leaderboardRankStyle = (rank: number) => {
+        if (rank === 1) return "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400";
+        if (rank === 2) return "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300";
+        if (rank === 3) return "bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400";
+        return "bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] dark:text-[#A1A1AA]";
+    };
 
     const ACTIVITY_TOP_N = 10;
     const [showAllActivityApps, setShowAllActivityApps] = React.useState(false);
@@ -4056,6 +4111,200 @@ export function DirectorDashboard() {
                                 circleColor="#059669"
                             />
                         </div>
+
+                        {/* ── Staff Leaderboard ── */}
+                        <SectionDivider title="Staff Leaderboard" />
+                        <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden mb-6">
+                            <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between flex-wrap gap-3">
+                                <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-amber-50 dark:bg-amber-950/20 text-[#d97706]">
+                                        <Trophy size={14} strokeWidth={2.5} />
+                                    </div>
+                                    Staff Leaderboard
+                                    {leaderboardData?.period_label && (
+                                        <span className="text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA] normal-case">
+                                            — {leaderboardData.period_label}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <select
+                                        value={leaderboardCategory}
+                                        onChange={(e) => setLeaderboardCategory(e.target.value)}
+                                        className="bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2 py-1 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none focus:border-[#2563eb] cursor-pointer"
+                                    >
+                                        <option value="">All Categories</option>
+                                        {LEADERBOARD_CATEGORY_OPTIONS.map((c) => (
+                                            <option key={c} value={c}>{c}</option>
+                                        ))}
+                                    </select>
+                                    <select
+                                        value={leaderboardRole}
+                                        onChange={(e) => setLeaderboardRole(e.target.value)}
+                                        className="bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2 py-1 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] outline-none focus:border-[#2563eb] cursor-pointer"
+                                    >
+                                        <option value="">All Roles</option>
+                                        {LEADERBOARD_ROLE_OPTIONS.map((r) => (
+                                            <option key={r} value={r}>{r}</option>
+                                        ))}
+                                    </select>
+                                    <div className="relative">
+                                        <select
+                                            value={leaderboardPeriod}
+                                            onChange={(e) => setLeaderboardPeriod(e.target.value as typeof leaderboardPeriod)}
+                                            className="appearance-none pl-2.5 pr-7 py-1 text-[11px] font-bold bg-[#F4F4F5] dark:bg-[#3F3F46] border border-[#E4E4E7] dark:border-[#52525B] text-[#3F3F46] dark:text-[#E4E4E7] rounded-lg outline-none cursor-pointer hover:bg-[#E4E4E7] dark:hover:bg-[#52525B] transition-colors"
+                                        >
+                                            <option value="today">Today</option>
+                                            <option value="week">This Week</option>
+                                            <option value="month">This Month</option>
+                                            <option value="quarter">This Quarter</option>
+                                            <option value="all">All Time</option>
+                                        </select>
+                                        <ChevronDown className="w-3 h-3 absolute right-1.5 top-1/2 -translate-y-1/2 text-[#A1A1AA] pointer-events-none" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="p-[18px] px-[22px]">
+                                {isLeaderboardLoading ? (
+                                    <div className="h-[220px] flex flex-col items-center justify-center text-[#71717A] text-sm gap-3">
+                                        <div className="w-5 h-5 border-2 border-[#d97706] border-t-transparent rounded-full animate-spin"></div>
+                                        <span className="font-medium">Loading leaderboard…</span>
+                                    </div>
+                                ) : !leaderboardData || leaderboardData.leaderboard.length === 0 ? (
+                                    <div className="h-[160px] flex items-center justify-center text-[#71717A] text-sm">
+                                        No approvals recorded for this filter yet.
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* Summary strip */}
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
+                                            <div className="bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg px-3 py-2 shadow-sm border border-black/5 dark:border-white/5">
+                                                <div className="text-[10.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Processed</div>
+                                                <div className="text-[16px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">{leaderboardData.total_processed}</div>
+                                            </div>
+                                            <div className="bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg px-3 py-2 shadow-sm border border-black/5 dark:border-white/5">
+                                                <div className="text-[10.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Approved</div>
+                                                <div className="text-[16px] font-extrabold text-emerald-700 dark:text-emerald-400 tabular-nums">{leaderboardData.total_approved}</div>
+                                            </div>
+                                            <div className="bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg px-3 py-2 shadow-sm border border-black/5 dark:border-white/5">
+                                                <div className="text-[10.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Rejected</div>
+                                                <div className="text-[16px] font-extrabold text-red-600 dark:text-red-400 tabular-nums">{leaderboardData.total_rejected}</div>
+                                            </div>
+                                            <div className="bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg px-3 py-2 shadow-sm border border-black/5 dark:border-white/5">
+                                                <div className="text-[10.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Overall Rate</div>
+                                                <div className="text-[16px] font-extrabold text-[#2563eb] dark:text-blue-400 tabular-nums">{leaderboardData.overall_rate}%</div>
+                                            </div>
+                                        </div>
+
+                                        {/* Spotlight cards */}
+                                        {(leaderboardData.top_staff || leaderboardData.fastest) && (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                                                {leaderboardData.top_staff && (
+                                                    <div className="flex items-center gap-3 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-amber-50/50 dark:bg-amber-950/10 px-3.5 py-3">
+                                                        <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
+                                                            <Trophy size={16} strokeWidth={2.5} />
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <div className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Most Approvals</div>
+                                                            <div className="text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{leaderboardData.top_staff.full_name || leaderboardData.top_staff.user}</div>
+                                                        </div>
+                                                        <div className="ml-auto text-[18px] font-extrabold text-amber-700 dark:text-amber-400 tabular-nums shrink-0">{leaderboardData.top_staff.total_processed}</div>
+                                                    </div>
+                                                )}
+                                                {leaderboardData.fastest && (
+                                                    <div className="flex items-center gap-3 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-sky-50/50 dark:bg-sky-950/10 px-3.5 py-3">
+                                                        <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400">
+                                                            <Zap size={16} strokeWidth={2.5} />
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <div className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Fastest Turnaround</div>
+                                                            <div className="text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{leaderboardData.fastest.full_name || leaderboardData.fastest.user}</div>
+                                                        </div>
+                                                        <div className="ml-auto text-[18px] font-extrabold text-sky-700 dark:text-sky-400 tabular-nums shrink-0">{leaderboardData.fastest.avg_time}h</div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Ranked table */}
+                                        <div className="overflow-x-auto rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46]">
+                                            <table className="w-full border-collapse">
+                                                <thead>
+                                                    <tr className="border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
+                                                        {["Rank", "Staff", "Processed", "Approved", "Rejected", "Avg. Time", "Approval Rate"].map((h) => (
+                                                            <th key={h} className="p-2.5 px-3.5 text-[11px] font-bold text-[#52525B] dark:text-[#D4D4D8] uppercase tracking-widest text-left whitespace-nowrap">
+                                                                {h}
+                                                            </th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {leaderboardData.leaderboard.map((row) => (
+                                                        <tr
+                                                            key={row.user}
+                                                            className="border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
+                                                        >
+                                                            <td className="p-3 px-3.5 align-middle">
+                                                                <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-extrabold ${leaderboardRankStyle(row.rank)}`}>
+                                                                    {row.rank}
+                                                                </span>
+                                                            </td>
+                                                            <td className="p-3 px-3.5 align-middle text-[12.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
+                                                                {row.full_name || row.user}
+                                                            </td>
+                                                            <td className="p-3 px-3.5 align-middle text-[12.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">
+                                                                {row.total_processed}
+                                                            </td>
+                                                            <td className="p-3 px-3.5 align-middle text-[12.5px] font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">
+                                                                {row.approved}
+                                                            </td>
+                                                            <td className="p-3 px-3.5 align-middle text-[12.5px] font-bold text-red-600 dark:text-red-400 tabular-nums">
+                                                                {row.rejected}
+                                                            </td>
+                                                            <td className="p-3 px-3.5 align-middle text-[12.5px] font-semibold text-[#71717A] dark:text-[#A1A1AA] tabular-nums whitespace-nowrap">
+                                                                {row.avg_time}h
+                                                            </td>
+                                                            <td className="p-3 px-3.5 align-middle">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="w-16 h-1.5 rounded-full bg-[#E4E4E7] dark:bg-[#3F3F46] overflow-hidden shrink-0">
+                                                                        <div
+                                                                            className="h-full bg-emerald-500 rounded-full"
+                                                                            style={{ width: `${Math.max(0, Math.min(100, row.approval_rate))}%` }}
+                                                                        />
+                                                                    </div>
+                                                                    <span className="text-[11.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">{row.approval_rate}%</span>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        {/* Pending by role */}
+                                        {leaderboardData.pending_by_role && leaderboardData.pending_by_role.length > 0 && (
+                                            <div className="mt-4 pt-4 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                                                <div className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mb-2">
+                                                    Pending Approvals by Role
+                                                </div>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {leaderboardData.pending_by_role.map((p, i) => (
+                                                        <span
+                                                            key={`${p.role}-${p.state}-${i}`}
+                                                            className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"
+                                                        >
+                                                            {p.role} <span className="opacity-60">·</span> {p.state}
+                                                            <span className="ml-0.5 px-1.5 py-0.5 rounded bg-white/60 dark:bg-black/20">{p.count}</span>
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        </div>
+
                         {/* Trend chart — hidden per feedback: unclear what it shows; revisit once a
                             per-staff processing-time metric is available from the backend */}
                         {false && (
