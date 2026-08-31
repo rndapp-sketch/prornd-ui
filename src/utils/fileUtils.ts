@@ -56,16 +56,19 @@ export function getFileUrl(path: string | null | undefined): string {
         return `${MINIO_BASE}${path}`;
     }
 
-    // Standard Frappe file paths are already complete — serve as-is
+    // Standard Frappe file paths — made fully absolute (not left relative) because
+    // print previews render inside a P11PrintModal iframe loaded from a blob: URL,
+    // where a relative path like "/private/files/..." doesn't reliably resolve
+    // against the real page origin the way it does on a normal page.
     if (path.startsWith("/files/") || path.startsWith("/private/files/")) {
-        return path;
+        return `${window.location.origin}${path}`;
     }
 
     // Other path starting with "/" — avoid double slash
     if (path.startsWith("/")) {
-        return `/files${path}`;
+        return `${window.location.origin}/files${path}`;
     }
 
     // Plain path without leading slash
-    return `/files/${path}`;
+    return `${window.location.origin}/files/${path}`;
 }

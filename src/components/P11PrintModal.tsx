@@ -127,7 +127,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Printer, Download, X } from 'lucide-react';
+import { Printer, Download, X, Paperclip } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -136,12 +136,16 @@ export const P11PrintModal = ({
     onClose,
     htmlContent,
     docName,
+    title = "P-11 Form Preview",
+    attachments = [],
     onPrintAction,
 }: {
     isOpen: boolean;
     onClose: () => void;
     htmlContent: string;
     docName: string;
+    title?: string;
+    attachments?: { label: string; url: string }[];
     // Fired the moment the user triggers Print/Save-as-PDF (not on modal close) — used
     // to run side effects like "Mark Print Taken" that shouldn't wait for the user to
     // close the modal, since the native print dialog doesn't report back when it's done.
@@ -181,7 +185,7 @@ export const P11PrintModal = ({
     return createPortal(
         <div className="fixed inset-0 bg-black/70 flex flex-col z-[99999]">
             <div className="flex items-center justify-between px-6 py-3 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
-                <h3 className="font-bold text-zinc-900 dark:text-zinc-100">P-11 Form Preview — {docName}</h3>
+                <h3 className="font-bold text-zinc-900 dark:text-zinc-100">{title} — {docName}</h3>
                 <div className="flex items-center gap-3">
                     <button
                         onClick={handlePrint}
