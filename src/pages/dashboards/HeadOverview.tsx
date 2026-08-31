@@ -1516,6 +1516,19 @@ export function HeadOverview() {
         );
     };
 
+    // Second row of each Fund Allocation column: ongoing project count for that
+    // type, styled to match the "Utilized" money badge above it (same emerald
+    // treatment) rather than the amber "Left" badge previously shown here.
+    const renderOngoingCountBadge = (count: number) => (
+        <span className="flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
+            <div className="flex items-center gap-1">
+                <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
+                Ongoing
+            </div>
+            <span>{count}</span>
+        </span>
+    );
+
     // Total Fund Allocation card's own breakdown — allocated amount per type as the
     // headline, then Utilized/Left in money instead of Ongoing/Submitted project
     // counts, since this card is specifically about money, not project status.
@@ -1532,7 +1545,7 @@ export function HeadOverview() {
                     <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
                     <div className="flex flex-col gap-1 w-full px-1">
                         {renderMoneyBadge("utilized", rUtil, isFundUtilDataReady)}
-                        {renderMoneyBadge("left", Math.max(0, rAmt - rUtil), isFundUtilDataReady)}
+                        {renderOngoingCountBadge(allResearchOngoing)}
                     </div>
                 </div>
                 <div
@@ -1543,7 +1556,7 @@ export function HeadOverview() {
                     <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
                     <div className="flex flex-col gap-1 w-full px-1">
                         {renderMoneyBadge("utilized", cUtil, isFundUtilDataReady)}
-                        {renderMoneyBadge("left", Math.max(0, cAmt - cUtil), isFundUtilDataReady)}
+                        {renderOngoingCountBadge(allConsultancyOngoing)}
                     </div>
                 </div>
                 {showOthers && (
@@ -1555,13 +1568,13 @@ export function HeadOverview() {
                         <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Others</div>
                         <div className="flex flex-col gap-1 w-full px-1">
                             {renderMoneyBadge("utilized", oUtil, isFundUtilDataReady)}
-                            {renderMoneyBadge("left", Math.max(0, oAmt - oUtil), isFundUtilDataReady)}
+                            {renderOngoingCountBadge(allOthersOngoing)}
                         </div>
                     </div>
                 )}
             </div>
         );
-    }, [allocationByType, allOthersOngoing, isFundUtilDataReady]);
+    }, [allocationByType, allOthersOngoing, allResearchOngoing, allConsultancyOngoing, isFundUtilDataReady]);
 
     // Ongoing Projects card: split by fund-received status, not just project type —
     // "sanction approved" alone doesn't tell the Head whether a project is truly
