@@ -1066,13 +1066,19 @@ export function HeadOverview() {
     }, [piWiseProjects, userDept]);
 
     const getProjectAgency = React.useCallback((proj: any): string => {
-        return (
+        const resolved = (
             (fundingAgencyMap[proj.funding_agen] || "").trim() ||
             (proj.select_funding_agency || "").trim() ||
             (proj.funding_agency_other || "").trim() ||
-            (proj.origin_of_funding_agency || "").trim() ||
-            "Missing Funding Agency Name"
+            (proj.origin_of_funding_agency || "").trim()
         );
+        // Some legacy records have select_funding_agency populated with the raw
+        // funding_agen link ID (e.g. "2074") instead of a resolved name — fundingAgencyMap
+        // only covers whatever the search_link API returned, not every ID in the data.
+        // A bare number is never a real agency name, so treat it as unresolved rather
+        // than showing the ID as if it were one.
+        if (!resolved || /^\d+$/.test(resolved)) return "Missing Funding Agency Name";
+        return resolved;
     }, [fundingAgencyMap]);
 
     const piWorkloadAgencies = React.useMemo(() => {

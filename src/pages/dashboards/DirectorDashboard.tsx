@@ -2473,7 +2473,14 @@ export function DirectorDashboard() {
     // Fellowship") as if it were the funding agency, flooding the "Filter by Fund"
     // dropdown with one-off scheme-name entries alongside real agencies.
     const getProjectAgency = React.useCallback((proj: any): string => {
-        return resolveAgencyName(proj) || "Missing Funding Agency Name";
+        const resolved = (resolveAgencyName(proj) || "").trim();
+        // Some legacy records have select_funding_agency populated with the raw
+        // funding_agen link ID (e.g. "2074") instead of a resolved name — fundingAgencyMap
+        // only covers whatever the search_link API returned, not every ID in the data.
+        // A bare number is never a real agency name, so treat it as unresolved rather
+        // than showing the ID as if it were one.
+        if (!resolved || /^\d+$/.test(resolved)) return "Missing Funding Agency Name";
+        return resolved;
     }, [resolveAgencyName]);
 
     // Build agency list for the PI workload filter dropdown, derived directly
