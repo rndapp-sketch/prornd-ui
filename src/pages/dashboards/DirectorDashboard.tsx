@@ -162,7 +162,7 @@ function KpiCard({
                 className="absolute bottom-0 right-0 w-[90px] h-[90px] rounded-full translate-x-5 translate-y-5"
                 style={{ backgroundColor: circleColor, opacity: 0.07 }}
             />
-            <div className="flex items-start gap-3 mb-1.5">
+            <div className="flex items-start gap-3 mb-1.5 -mt-1.5">
                 <div
                     className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-transform"
                     style={{ backgroundColor: iconBg, color: circleColor }}
