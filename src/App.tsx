@@ -19,8 +19,10 @@ import {
   SunIcon,
   LogOutIcon,
   UserCircle,
+  Sparkles,
 } from "lucide-react";
 import { GlobalLoader } from "@/components/ui/global-loader";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { SWRConfig, useSWRConfig } from "swr";
 import { useRef, useEffect, useState } from "react";
 import CommandPalette, { useCommandPalette } from "@/components/CommandPalette";
@@ -226,6 +228,19 @@ function AppContent() {
                             ⌘K
                           </kbd>
                         </button>
+
+                        {/* What's New */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => navigate("/whats-new")}
+                              className="h-8 w-8 flex items-center justify-center text-[#71717A] hover:text-[#D97757] hover:bg-[#D97757]/10 dark:text-[#71717A] dark:hover:text-[#E88B6A] dark:hover:bg-[#D97757]/10 transition-all rounded-lg border border-transparent hover:border-[#D97757]/20"
+                            >
+                              <Sparkles className="h-4 w-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>What's New</TooltipContent>
+                        </Tooltip>
 
                         {/* Theme toggle */}
                         <ThemeToggle />
