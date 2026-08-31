@@ -47,6 +47,7 @@ import {
     Minus,
 } from "lucide-react";
 import { generateDirectorReportHtml } from "@/utils/directorReportHtml";
+import { StaffLeaderboardCard } from "@/components/StaffLeaderboardCard";
 
 
 const CHART_COLORS = [
@@ -156,40 +157,44 @@ function KpiCard({
     return (
         <div
             onClick={onClick}
-            className={`bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl p-6 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all flex flex-col h-full min-h-[160px]${onClick ? " cursor-pointer select-none" : ""}`}
+            className={`bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl p-5 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all flex flex-col justify-center h-full min-h-[136px]${onClick ? " cursor-pointer select-none" : ""}`}
         >
             <div
                 className="absolute bottom-0 right-0 w-[90px] h-[90px] rounded-full translate-x-5 translate-y-5"
                 style={{ backgroundColor: circleColor, opacity: 0.07 }}
             />
-            <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center mb-4 shrink-0 transition-transform"
-                style={{ backgroundColor: iconBg, color: circleColor }}
-            >
-                {icon}
-            </div>
-            <div className="text-[11.5px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide mb-0.5">
-                {label}
-            </div>
-            {description && (
-                <div className="text-[12px] text-[#52525B] dark:text-[#D4D4D8] font-semibold mb-1 leading-snug">
-                    {description}
-                </div>
-            )}
-            <div className="flex items-center gap-3 mb-2 flex-wrap">
+            <div className="flex items-start gap-3 mb-1.5 -mt-1.5">
                 <div
-                    className={`text-[32px] font-extrabold tracking-tight leading-none drop-shadow-sm ${valueColor}`}
+                    className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-transform"
+                    style={{ backgroundColor: iconBg, color: circleColor }}
                 >
-                    {isLoading ? (
-                        <span className="text-[13px] font-bold text-[#71717A] dark:text-[#A1A1AA] animate-pulse">Loading…</span>
-                    ) : (
-                        value
-                    )}
+                    {icon}
                 </div>
-                {valueAdornment}
+                <div className="min-w-0 flex-1">
+                    <div className="text-[11.5px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide mb-0.5">
+                        {label}
+                    </div>
+                    {description && (
+                        <div className="text-[12px] text-[#52525B] dark:text-[#D4D4D8] font-semibold mb-1 leading-snug">
+                            {description}
+                        </div>
+                    )}
+                    <div className="flex items-center gap-3 flex-wrap">
+                        <div
+                            className={`text-[26px] font-extrabold tracking-tight leading-none drop-shadow-sm ${valueColor}`}
+                        >
+                            {isLoading ? (
+                                <span className="text-[13px] font-bold text-[#71717A] dark:text-[#A1A1AA] animate-pulse">Loading…</span>
+                            ) : (
+                                value
+                            )}
+                        </div>
+                        {valueAdornment}
+                    </div>
+                </div>
             </div>
 
-            <div className="mt-auto pt-4 w-full">
+            <div className={`${customBottom ? "" : "mt-auto"} pt-3 w-full`}>
                 {customBottom ? (
                     customBottom
                 ) : badges && badges.length > 0 ? (
@@ -762,7 +767,11 @@ const PIStatCards: React.FC<{ piDetails: any; projects: any[]; getSanctionedAmou
     return (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
             <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
-                <div className="text-[18px] sm:text-[20px] font-extrabold text-[#2563eb] leading-tight">{piDetails.project_count}</div>
+                {/* projects.length (not piDetails.project_count) so this always matches the
+                    Project Timeline list below — piDetails.project_count comes from a
+                    separate role-assignment aggregate that can diverge from the actual
+                    pi_webmail-matched project list shown to the user. */}
+                <div className="text-[18px] sm:text-[20px] font-extrabold text-[#2563eb] leading-tight">{projects.length}</div>
                 <div className="text-[10px] sm:text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Projects</div>
             </div>
             <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
@@ -777,7 +786,7 @@ const PIStatCards: React.FC<{ piDetails: any; projects: any[]; getSanctionedAmou
                 <div className="text-[18px] sm:text-[20px] font-extrabold text-[#d97706] leading-tight">
                     {fundTotalLoading ? <span className="text-[12px] font-bold text-[#A1A1AA] animate-pulse">Loading…</span> : formattedLiveFund ?? "—"}
                 </div>
-                <div className="text-[10px] sm:text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Fund Rcvd</div>
+                <div className="text-[10px] sm:text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Fund Received</div>
             </div>
         </div>
     );
@@ -849,7 +858,7 @@ export function DirectorDashboard() {
     const [projectTableSearch, setProjectTableSearch] = React.useState<string>(location.state?.projectTableSearch || "");
     const [showAllFunding, setShowAllFunding] = React.useState(false);
     const [projectTablePage, setProjectTablePage] = React.useState(1);
-    const PROJECT_TABLE_PAGE_SIZE = 10;
+    const PROJECT_TABLE_PAGE_SIZE = 5;
 
     const [dashboardProjectTypeFilter, setDashboardProjectTypeFilter] = React.useState<"all" | "research" | "consultancy" | "others">("all");
     const [financialYearFilter, setFinancialYearFilter] = React.useState<string>("all");
@@ -952,18 +961,6 @@ export function DirectorDashboard() {
         const idx = Math.min(Math.floor(total / 100), VOLUME_BUCKET_COLORS.length - 1);
         return VOLUME_BUCKET_COLORS[idx];
     };
-    const presentVolumeTiers = React.useMemo(() => {
-        const idxSet = new Set(sortedDoctypeCounts.map(r => Math.min(Math.floor(r.total / 100), VOLUME_BUCKET_COLORS.length - 1)));
-        return Array.from(idxSet).sort((a, b) => a - b).map(idx => {
-            const isTop = idx === VOLUME_BUCKET_COLORS.length - 1 && maxDoctypeTotal >= idx * 100 + 100;
-            return {
-                color: VOLUME_BUCKET_COLORS[idx],
-                label: isTop ? `${idx * 100 + 1}+` : `${idx * 100 + 1}-${idx * 100 + 100}`,
-            };
-        });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [sortedDoctypeCounts, maxDoctypeTotal]);
-
     const USAGE_TIER_METRICS = {
         total: { label: "Total (All Time)", getValue: (r: { today: number; this_week: number; this_month: number; total: number }) => r.total },
         daily: { label: "Daily", getValue: (r: { today: number; this_week: number; this_month: number; total: number }) => r.today },
@@ -1366,6 +1363,13 @@ export function DirectorDashboard() {
     const resolveAgencyName = React.useCallback((p: any) => {
         let agency = fundingAgencyMap[p.funding_agen] || p.select_funding_agency || p["funding_agen.funding_agency_name"]
             || p.funding_agency_name || p.funding_agency || p.funding_agency_other || "";
+        // "Other"/"Others"/"Other Funding Agency" is the select field's own placeholder
+        // label, not a real agency name — the actual name only lives in
+        // funding_agency_other, which the priority chain above never reaches once one
+        // of the earlier fields matches this literal placeholder text.
+        if (/^other/i.test(agency.trim())) {
+            agency = p.funding_agency_other || "";
+        }
         if (!agency && (p.origin_of_funding_agency === "National" || p.origin_of_funding_agency === "International")) {
             agency = "";
         } else if (!agency) {
@@ -1648,6 +1652,8 @@ export function DirectorDashboard() {
     const chartYearOngoingTotal = React.useMemo(() => {
         return chartDisplayData.reduce((s, d) => s + (Number(d.ongoing) || 0), 0);
     }, [chartDisplayData]);
+
+    const chartDataLoading = isLoading || allProjectsList === undefined;
 
     const chartAvailableYears = React.useMemo(() => {
         const currentYear = new Date().getFullYear();
@@ -2015,24 +2021,13 @@ export function DirectorDashboard() {
         setKpiAgeFilter("all");
     };
 
-    // For clicking a Research/Consultancy/Others row inside a KPI card's breakdown —
-    // reuses openKpiModal's per-card-type status defaults (e.g. "allocation"/"ongoing"
-    // force kpiStatusFilter to "ongoing") and layers the project-type tab on top,
-    // rather than re-deriving status from a free-text tab string the way
-    // openKpiModalWithTab does (which can't express "this type AND ongoing" in one
-    // call — its tab-string parsing is one branch OR the other, never both).
+    // For clicking a Research/Consultancy/Others column inside a compact breakdown
+    // grid — narrows the modal to that one project type instead of showing every
+    // project the whole card's own onClick would (so clicking "Research" actually
+    // shows Research, not the same unfiltered list as clicking anywhere else).
     const openKpiModalForType = (type: string, title: string, projectTypeTab: "research" | "consultancy" | "others") => {
         openKpiModal(type, title);
         setKpiTab(projectTypeTab);
-    };
-
-    // Ongoing Projects card's Active/Pending Fund badges — openKpiModalWithTab can't
-    // express this distinction (it hardcodes kpiStatusFilter to "ongoing" whenever
-    // type === "ongoing"), so this calls openKpiModal's baseline setup and then
-    // overrides the status filter directly to the finer-grained value.
-    const openOngoingFundStatusModal = (status: "active" | "pending_fund", title: string) => {
-        openKpiModal("ongoing", title);
-        setKpiStatusFilter(status);
     };
 
     const openKpiModalWithYear = (year: string, status: string) => {
@@ -2203,7 +2198,6 @@ export function DirectorDashboard() {
 
     const fundUtilized = liveGlobalUtilized || 0;
     const fundRemaining = Math.max(0, fundAlloc - fundUtilized);
-    const fundUtilPercent = fundAlloc > 0 ? ((fundUtilized / fundAlloc) * 100).toFixed(1) : "0";
 
     const totalFundingSources = fundingTypeData.reduce(
         (sum: number, item: any) => sum + (item.value || 0),
@@ -2474,16 +2468,33 @@ export function DirectorDashboard() {
 
     // Extract a consistent agency label from a project record.
     // Priority: select_funding_agency → origin_of_funding_agency → funding_agency_other → schemes → "Missing Funding Agency Name"
+    // Reuses resolveAgencyName's canonical priority order (funding_agen link, then
+    // direct text fields, then scheme-keyword inference for ANRF/SERB/DST/DBT) instead
+    // of falling back to the raw scheme/proposal title text — that fallback was
+    // treating each project's specific scheme name (e.g. "NPTEL Postbac/Pre-Doc
+    // Fellowship") as if it were the funding agency, flooding the "Filter by Fund"
+    // dropdown with one-off scheme-name entries alongside real agencies.
+    // Matches raw Funding Agency doc-ID formats seen in this data — plain numbers
+    // ("2074") and short-prefix autonames ("FA-02529") — as opposed to a real
+    // agency/company name, which never looks like just an ID.
+    const looksLikeAgencyId = (s: string) => /^([A-Za-z]{1,4}-)?\d+$/.test(s);
+
     const getProjectAgency = React.useCallback((proj: any): string => {
-        return (
-            (proj.select_funding_agency || "").trim() ||
-            (proj.origin_of_funding_agency || "").trim() ||
-            (proj.funding_agency_other || "").trim() ||
-            (proj.funding_agency_schemes || "").trim() ||
-            (proj.scheme_name || "").trim() ||
-            "Missing Funding Agency Name"
-        );
-    }, []);
+        let resolved = (resolveAgencyName(proj) || "").trim();
+        // Some legacy records have select_funding_agency populated with the raw
+        // funding_agen link ID (e.g. "2074" or "FA-02529") instead of a resolved name.
+        // If it looks like an ID, try the map once more in case that exact ID happens
+        // to be covered (it's keyed by ID -> name) before giving up on it.
+        if (resolved && looksLikeAgencyId(resolved) && fundingAgencyMap[resolved]) {
+            resolved = fundingAgencyMap[resolved];
+        }
+        // fundingAgencyMap only covers whatever the search_link API returned, not
+        // every ID in the data — a raw ID is never a real agency name, so treat any
+        // that's still unresolved as unresolved rather than showing the ID as if it
+        // were one.
+        if (!resolved || looksLikeAgencyId(resolved)) return "Missing Funding Agency Name";
+        return resolved;
+    }, [resolveAgencyName, fundingAgencyMap]);
 
     // Build agency list for the PI workload filter dropdown, derived directly
     // from allProjectsList (same source used for filtering).
@@ -2571,12 +2582,31 @@ export function DirectorDashboard() {
         );
     }, [departmentData, deptSearch]);
 
+    // Per-PI search text (project numbers + types across all their projects), so the
+    // "Search PIs..." box can match on more than just the name — email, project
+    // number, or project type.
+    const piProjectSearchMap = React.useMemo(() => {
+        const map: Record<string, string> = {};
+        (allProjectsList || []).forEach((proj: any) => {
+            const email = (proj.pi_webmail || "").toLowerCase().trim();
+            if (!email) return;
+            const parts = [proj.project_no, proj.project_type].filter(Boolean).join(" ").toLowerCase();
+            map[email] = map[email] ? `${map[email]} ${parts}` : parts;
+        });
+        return map;
+    }, [allProjectsList]);
+
     const filteredPIs = React.useMemo(() => {
         const source = filteredPIsFromProjects !== null ? filteredPIsFromProjects : piData;
-        return source.filter((pi) =>
-            pi.user_name.toLowerCase().includes(piSearch.toLowerCase())
-        );
-    }, [piData, filteredPIsFromProjects, piSearch]);
+        const term = piSearch.toLowerCase().trim();
+        if (!term) return source;
+        return source.filter((pi) => {
+            if (pi.user_name.toLowerCase().includes(term)) return true;
+            if (pi.user_email.toLowerCase().includes(term)) return true;
+            const projectHaystack = piProjectSearchMap[pi.user_email.toLowerCase().trim()] || "";
+            return projectHaystack.includes(term);
+        });
+    }, [piData, filteredPIsFromProjects, piSearch, piProjectSearchMap]);
 
     const PAGE_SIZE = 10;
 
@@ -2805,73 +2835,95 @@ export function DirectorDashboard() {
             });
     }, [expandedPI, allProjectsList]);
 
-    // Shared row renderer for the "type → total, with Ongoing/Submitted context"
-    // breakdown shape — same visual language as the Total Allocation card's rows
-    // (label/dot + right-aligned headline value on top, muted detail + a pct pill
-    // below), applied wherever a card needs Research/Consultancy/Others × status
-    // detail (Total Projects, Intl. Collaborators). Zero counts are shown, not
-    // hidden — a 0 that's visibly present reads as "checked, none found," not
-    // "missing data."
-    const rowTabByLabel: Record<string, "research" | "consultancy" | "others"> = {
-        Research: "research",
-        Consultancy: "consultancy",
-        Others: "others",
+    // Percentage that n represents of total, rounded — used throughout the compact
+    // breakdown grids so "170 Ongoing" also reads as "170 (58%)" without a separate row.
+    const pctOf = (n: number, total: number): number => (total > 0 ? Math.round((n / total) * 100) : 0);
+
+    const renderStatusBadge = (status: "ongoing" | "submitted", count: number, total: number) => {
+        const isOngoing = status === "ongoing";
+        return (
+            <span
+                className={`flex flex-col w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 ${isOngoing
+                    ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400"
+                    : "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"
+                    }`}
+            >
+                <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-1">
+                        <span className={`w-1 h-1 rounded-full ${isOngoing ? "bg-emerald-500" : "bg-amber-400"}`}></span>
+                        {isOngoing ? "Ongoing" : "Submitted"}
+                    </div>
+                    <span>{count}</span>
+                </div>
+                <div className="text-right text-[8px] font-semibold opacity-70">{pctOf(count, total)}%</div>
+            </span>
+        );
     };
 
-    const renderStatusSplitRows = (
-        rows: Array<{ label: string; dotColor: string; total: number; ongoing: number; submitted: number }>,
-        onRowClick?: (tab: "research" | "consultancy" | "others") => void,
-    ) => (
-        <div className="flex flex-col divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]/60 pt-1 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-            {rows.map((r) => {
-                const ongoingPct = r.total > 0 ? Math.round((r.ongoing / r.total) * 100) : 0;
-                return (
-                    <div
-                        key={r.label}
-                        onClick={onRowClick ? (e) => { e.stopPropagation(); onRowClick(rowTabByLabel[r.label]); } : undefined}
-                        className={`flex flex-col gap-0.5 py-1.5 -mx-1.5 px-1.5 rounded-md${onRowClick ? " cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors" : ""}`}
-                    >
-                        <div className="flex items-center justify-between gap-2 text-[13px]">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${r.dotColor}`} />
-                                <span className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.label}</span>
-                            </div>
-                            <span className="font-extrabold text-[14px] text-[#3F3F46] dark:text-[#E4E4E7] shrink-0">{r.total}</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-2 pl-4 text-[12px]">
-                            <span className="text-[#52525B] dark:text-[#D4D4D8] font-semibold truncate">
-                                {r.ongoing} ongoing &middot; {r.submitted} submitted
-                            </span>
-                            <span
-                                className="shrink-0 font-bold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
-                                title={`${ongoingPct}% of ${r.label} projects are ongoing`}
-                            >
-                                {ongoingPct}% ongoing
-                            </span>
-                        </div>
+    // Compact Research/Consultancy/Others × Ongoing/Submitted breakdown — three
+    // columns side by side rather than a stacked list, so the card stays short.
+    // Shared by both Total Projects and Total Allocation (neither drills into a
+    // per-type click target here; the whole card's onClick already opens the
+    // detailed KPI modal).
+    const projectBreakdownGrid = React.useMemo(() => (
+        <div className={`grid ${othersProjects > 0 ? "grid-cols-3" : "grid-cols-2"} gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]`}>
+            <div
+                className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer hover:opacity-75 transition-opacity"
+                onClick={(e) => { e.stopPropagation(); openKpiModalForType("total", "Projects: Research", "research"); }}
+            >
+                <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">
+                    {researchProjects}
+                </div>
+                <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">
+                    Research
+                </div>
+                <div className="flex flex-col gap-1 w-full px-1">
+                    {renderStatusBadge("ongoing", researchOngoing, researchProjects)}
+                    {renderStatusBadge("submitted", researchSubmitted, researchProjects)}
+                </div>
+            </div>
+            <div
+                className={`flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity ${othersProjects > 0 ? "border-r border-[#E4E4E7] dark:border-[#3F3F46]" : ""}`}
+                onClick={(e) => { e.stopPropagation(); openKpiModalForType("total", "Projects: Consultancy", "consultancy"); }}
+            >
+                <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">
+                    {consultancyProjects}
+                </div>
+                <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">
+                    Consultancy
+                </div>
+                <div className="flex flex-col gap-1 w-full px-1">
+                    {renderStatusBadge("ongoing", consultancyOngoing, consultancyProjects)}
+                    {renderStatusBadge("submitted", consultancySubmitted, consultancyProjects)}
+                </div>
+            </div>
+            {othersProjects > 0 && (
+                <div
+                    className="flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("total", "Projects: Others", "others"); }}
+                >
+                    <div className="text-[14px] font-extrabold text-[#059669] leading-tight">
+                        {othersProjects}
                     </div>
-                );
-            })}
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">
+                        Others
+                    </div>
+                    <div className="flex flex-col gap-1 w-full px-1">
+                        {renderStatusBadge("ongoing", othersOngoing, othersProjects)}
+                        {renderStatusBadge("submitted", othersSubmitted, othersProjects)}
+                    </div>
+                </div>
+            )}
         </div>
-    );
-
-    const projectBreakdownList = React.useMemo(() => renderStatusSplitRows([
-        { label: "Research", dotColor: "bg-blue-500", total: researchProjects, ongoing: researchOngoing, submitted: researchSubmitted },
-        { label: "Consultancy", dotColor: "bg-purple-500", total: consultancyProjects, ongoing: consultancyOngoing, submitted: consultancySubmitted },
-        ...(othersProjects > 0 ? [{ label: "Others", dotColor: "bg-emerald-500", total: othersProjects, ongoing: othersOngoing, submitted: othersSubmitted }] : []),
-    ], (tab) => openKpiModalForType(
-        "total",
-        `Projects: ${tab === "research" ? "Research" : tab === "consultancy" ? "Consultancy" : "Others"} Projects`,
-        tab,
-    )), [
+    ), [
         researchProjects, researchOngoing, researchSubmitted,
         consultancyProjects, consultancyOngoing, consultancySubmitted,
         othersProjects, othersOngoing, othersSubmitted
     ]);
 
-    // Same Research/Consultancy/Others × Ongoing/Submitted detail as projectBreakdownList
-    // above, scoped to projects with an international funding agency.
-    const intlBreakdownList = React.useMemo(() => {
+    // Same compact grid as projectBreakdownGrid, scoped to projects with an
+    // international funding agency.
+    const intlBreakdownGrid = React.useMemo(() => {
         let rP = 0, rO = 0, rS = 0;
         let cP = 0, cO = 0, cS = 0;
         let oP = 0, oO = 0, oS = 0;
@@ -2898,15 +2950,43 @@ export function DirectorDashboard() {
             }
         });
 
-        return renderStatusSplitRows([
-            { label: "Research", dotColor: "bg-blue-500", total: rP, ongoing: rO, submitted: rS },
-            { label: "Consultancy", dotColor: "bg-purple-500", total: cP, ongoing: cO, submitted: cS },
-            { label: "Others", dotColor: "bg-emerald-500", total: oP, ongoing: oO, submitted: oS },
-        ], (tab) => openKpiModalForType(
-            "intl",
-            `International Collaborator Projects: ${tab === "research" ? "Research" : tab === "consultancy" ? "Consultancy" : "Others"}`,
-            tab,
-        ));
+        return (
+            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                <div
+                    className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer hover:opacity-75 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("intl", "International Collaborator Projects: Research", "research"); }}
+                >
+                    <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">{rP}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
+                    <div className="flex flex-col gap-1 w-full px-1">
+                        {renderStatusBadge("ongoing", rO, rP)}
+                        {renderStatusBadge("submitted", rS, rP)}
+                    </div>
+                </div>
+                <div
+                    className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer hover:opacity-75 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("intl", "International Collaborator Projects: Consultancy", "consultancy"); }}
+                >
+                    <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">{cP}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
+                    <div className="flex flex-col gap-1 w-full px-1">
+                        {renderStatusBadge("ongoing", cO, cP)}
+                        {renderStatusBadge("submitted", cS, cP)}
+                    </div>
+                </div>
+                <div
+                    className="flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("intl", "International Collaborator Projects: Others", "others"); }}
+                >
+                    <div className="text-[14px] font-extrabold text-[#059669] leading-tight">{oP}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Others</div>
+                    <div className="flex flex-col gap-1 w-full px-1">
+                        {renderStatusBadge("ongoing", oO, oP)}
+                        {renderStatusBadge("submitted", oS, oP)}
+                    </div>
+                </div>
+            </div>
+        );
     }, [allProjectsList, ongoingIds, submittedIds]);
 
     // ₹ allocation AND ₹ utilization split by project type, among ongoing
@@ -2940,172 +3020,71 @@ export function DirectorDashboard() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [allProjectsList, ongoingIds, fundUtilized, globalUtilizedLoading]);
 
-    // Responsive row layout (each type on its own full-width row) rather than
-    // horizontally-wrapping pills — three variable-width chips (short "Others" vs long
-    // "₹164.49Cr Research") wrap unevenly on a 2-column mobile grid, which is what
-    // reads as "odd" at narrow widths. A stacked row never wraps: it just gets taller.
-    const allocationBreakdownRows = React.useMemo(() => {
-        const pct = (util: number, amt: number) => amt > 0 ? ((util / amt) * 100).toFixed(1) : "0.0";
-        const build = (label: string, dotColor: string, count: number, amount: number, util: number) => ({
-            label, dotColor, count, amount,
-            util, remaining: Math.max(0, amount - util),
-            pct: pct(util, amount),
-        });
-        const rows = [
-            build("Research", "bg-blue-500", researchOngoing, allocationByType.rAmt, allocationByType.rUtil),
-            build("Consultancy", "bg-purple-500", consultancyOngoing, allocationByType.cAmt, allocationByType.cUtil),
-        ];
-        if (othersOngoing > 0) {
-            rows.push(build("Others", "bg-emerald-500", othersOngoing, allocationByType.oAmt, allocationByType.oUtil));
-        }
-        return rows;
-    }, [allocationByType, researchOngoing, consultancyOngoing, othersOngoing]);
-
-    // Ongoing Projects card: split by fund-received status, not just project type —
-    // "sanction approved" alone doesn't tell the Director whether a project is truly
-    // active (fund in hand) or still waiting on disbursal. Mirrors kpiGetStatus's
-    // ongoing/pending_fund classification so the card and the modal it opens agree.
-    const ongoingFundStatusBreakdown = React.useMemo(() => {
-        let active = 0, pendingFund = 0, checking = 0;
-        (allProjectsList ?? []).forEach((p: any) => {
-            if (!ongoingIds.has(p.name)) return;
-            if (!fundStatusMap.has(p.name)) { checking++; return; }
-            if (fundStatusMap.get(p.name) === true) active++;
-            else pendingFund++;
-        });
-        return { active, pendingFund, checking };
-    }, [allProjectsList, ongoingIds, fundStatusMap]);
-
-    // Same Active/Pending Fund split as ongoingFundStatusBreakdown, broken out per
-    // project type — so a Research-heavy pending-fund backlog isn't hidden inside an
-    // aggregate that looks healthy overall.
-    const ongoingByTypeFundStatus = React.useMemo(() => {
-        const counts: Record<"Research" | "Consultancy" | "Others", { active: number; pendingFund: number; checking: number }> = {
-            Research: { active: 0, pendingFund: 0, checking: 0 },
-            Consultancy: { active: 0, pendingFund: 0, checking: 0 },
-            Others: { active: 0, pendingFund: 0, checking: 0 },
-        };
-        (allProjectsList ?? []).forEach((p: any) => {
-            if (!ongoingIds.has(p.name)) return;
-            const type = (p.project_type || "").toLowerCase();
-            const bucket: "Research" | "Consultancy" | "Others" = type.includes("research") ? "Research" : type.includes("consult") ? "Consultancy" : "Others";
-            if (!fundStatusMap.has(p.name)) { counts[bucket].checking++; return; }
-            if (fundStatusMap.get(p.name) === true) counts[bucket].active++;
-            else counts[bucket].pendingFund++;
-        });
-        return counts;
-    }, [allProjectsList, ongoingIds, fundStatusMap]);
-
-    const ongoingBreakdownRows = React.useMemo(() => {
-        const pct = (n: number) => ongoingProjects > 0 ? ((n / ongoingProjects) * 100).toFixed(0) : "0";
-        const rows: Array<{
-            label: "Research" | "Consultancy" | "Others";
-            dotColor: string;
-            count: number;
-            pct: string;
-        }> = [
-            { label: "Research", dotColor: "bg-blue-500", count: researchOngoing, pct: pct(researchOngoing) },
-            { label: "Consultancy", dotColor: "bg-purple-500", count: consultancyOngoing, pct: pct(consultancyOngoing) },
-        ];
-        if (othersOngoing > 0) {
-            rows.push({ label: "Others", dotColor: "bg-emerald-500", count: othersOngoing, pct: pct(othersOngoing) });
-        }
-        return rows.map((r) => ({ ...r, fundStatus: ongoingByTypeFundStatus[r.label] }));
-    }, [researchOngoing, consultancyOngoing, othersOngoing, ongoingProjects, ongoingByTypeFundStatus]);
-
-    const isFundUtilDataReady = !globalUtilizedLoading && allocationByType.pending === 0;
-
-    const allocationBreakdownList = React.useMemo(() => (
-        <div className="flex flex-col divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]/60 pt-1 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-            {allocationBreakdownRows.map((r) => (
+    // Total Fund Allocation card's own breakdown — allocated amount per type.
+    const allocationBreakdownGrid = React.useMemo(() => {
+        const { rAmt, cAmt, oAmt } = allocationByType;
+        const showOthers = othersOngoing > 0;
+        return (
+            <div className={`grid ${showOthers ? "grid-cols-3" : "grid-cols-2"} gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]`}>
                 <div
-                    key={r.label}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        openKpiModalForType("allocation", `Projects by Allocation: ${r.label}`, rowTabByLabel[r.label]);
-                    }}
-                    className="flex flex-col gap-0.5 py-1.5 -mx-1.5 px-1.5 rounded-md cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
+                    className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer hover:opacity-75 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("allocation", "Projects by Allocation: Research", "research"); }}
                 >
-                    <div className="flex items-center justify-between gap-2 text-[13px]">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${r.dotColor}`} />
-                            <span className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.label}</span>
-                            <span className="text-[#71717A] dark:text-[#A1A1AA] font-semibold shrink-0">({r.count})</span>
-                        </div>
-                        <span className="font-extrabold text-[14px] text-[#3F3F46] dark:text-[#E4E4E7] shrink-0">{formatCurrency(r.amount)}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2 pl-4 text-[12px]">
-                        {!isFundUtilDataReady ? (
-                            <span className="text-[#52525B] dark:text-[#D4D4D8] font-semibold animate-pulse">Loading…</span>
-                        ) : (
-                            <>
-                                <span className="text-[#52525B] dark:text-[#D4D4D8] font-semibold truncate">
-                                    {formatCurrency(r.util)} utilized &middot; {formatCurrency(r.remaining)} left
-                                </span>
-                                <span
-                                    className="shrink-0 font-bold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
-                                    title={`${r.pct}% of ${r.label} allocation utilized`}
-                                >
-                                    {r.pct}%
-                                </span>
-                            </>
-                        )}
-                    </div>
+                    <div className="text-[13px] font-extrabold text-[#2563eb] leading-tight">{formatCurrency(rAmt)}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
                 </div>
-            ))}
-        </div>
-    ), [allocationBreakdownRows, isFundUtilDataReady]);
-
-    const ongoingBreakdownList = React.useMemo(() => (
-        <div className="flex flex-col divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]/60 pt-1 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-            {ongoingBreakdownRows.map((r) => {
-                const { active, pendingFund, checking } = r.fundStatus;
-                return (
+                <div
+                    className={`flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity ${showOthers ? "border-r border-[#E4E4E7] dark:border-[#3F3F46]" : ""}`}
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("allocation", "Projects by Allocation: Consultancy", "consultancy"); }}
+                >
+                    <div className="text-[13px] font-extrabold text-[#7c3aed] leading-tight">{formatCurrency(cAmt)}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
+                </div>
+                {showOthers && (
                     <div
-                        key={r.label}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            openKpiModalForType("ongoing", `Ongoing Projects: ${r.label}`, rowTabByLabel[r.label]);
-                        }}
-                        className="flex flex-col gap-0.5 py-1.5 -mx-1.5 px-1.5 rounded-md cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
+                        className="flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity"
+                        onClick={(e) => { e.stopPropagation(); openKpiModalForType("allocation", "Projects by Allocation: Others", "others"); }}
                     >
-                        <div className="flex items-center justify-between gap-2 text-[13px]">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${r.dotColor}`} />
-                                <span className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.label}</span>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                                <span className="font-extrabold text-[14px] text-[#3F3F46] dark:text-[#E4E4E7]">{r.count}</span>
-                                <span
-                                    className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
-                                    title={`${r.pct}% of ongoing projects are ${r.label}`}
-                                >
-                                    {r.pct}%
-                                </span>
-                            </div>
-                        </div>
-                        <div className="flex items-center justify-between gap-2 pl-4 text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
-                            {checking > 0 ? (
-                                // Fund-status is still resolving for some of this type's projects —
-                                // show a plain loading state for the whole row rather than partial,
-                                // steadily-increasing counts that look inconsistent mid-fetch. Final
-                                // numbers only appear once every project in this type has resolved.
-                                <span className="font-semibold text-zinc-400 dark:text-zinc-500 animate-pulse">Loading…</span>
-                            ) : (
-                                <span className="flex items-center gap-1 truncate">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                                    {active} active
-                                    <span className="text-[#D4D4D8] dark:text-[#3F3F46] mx-0.5">&middot;</span>
-                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-                                    {pendingFund} pending fund
-                                </span>
-                            )}
-                        </div>
+                        <div className="text-[13px] font-extrabold text-[#059669] leading-tight">{formatCurrency(oAmt)}</div>
+                        <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Others</div>
                     </div>
-                );
-            })}
-        </div>
-    ), [ongoingBreakdownRows]);
+                )}
+            </div>
+        );
+    }, [allocationByType, othersOngoing]);
+
+    // Same compact grid as projectBreakdownGrid/allocationBreakdownGrid — headline
+    // ongoing count per type.
+    const ongoingBreakdownGrid = React.useMemo(() => {
+        const showOthers = othersOngoing > 0;
+        return (
+            <div className={`grid ${showOthers ? "grid-cols-3" : "grid-cols-2"} gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]`}>
+                <div
+                    className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer hover:opacity-75 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("ongoing", "Ongoing Projects: Research", "research"); }}
+                >
+                    <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">{researchOngoing}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
+                </div>
+                <div
+                    className={`flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity ${showOthers ? "border-r border-[#E4E4E7] dark:border-[#3F3F46]" : ""}`}
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("ongoing", "Ongoing Projects: Consultancy", "consultancy"); }}
+                >
+                    <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">{consultancyOngoing}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
+                </div>
+                {showOthers && (
+                    <div
+                        className="flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity"
+                        onClick={(e) => { e.stopPropagation(); openKpiModalForType("ongoing", "Ongoing Projects: Others", "others"); }}
+                    >
+                        <div className="text-[14px] font-extrabold text-[#059669] leading-tight">{othersOngoing}</div>
+                        <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Others</div>
+                    </div>
+                )}
+            </div>
+        );
+    }, [researchOngoing, consultancyOngoing, othersOngoing]);
 
     // ── Dynamic Tab Counts for Modal ─────────────────────────────────────────
     const getDynamicTabCount = React.useCallback((tabKey: string) => {
@@ -3277,9 +3256,9 @@ export function DirectorDashboard() {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans text-[14px] leading-relaxed text-[#3F3F46] dark:text-[#E4E4E7]">
-            <div className="px-6 md:px-8 pt-7 pb-10 max-w-[1600px] mx-auto">
+            <div className="px-6 md:px-8 pt-0 pb-10 max-w-[1600px] mx-auto">
                 {/* ── Header ── */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 w-full">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-4 w-full">
                     <div className="relative">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-[#2563eb] rounded-xl flex items-center justify-center text-white shadow-sm border border-[#2563eb]/20">
@@ -3309,93 +3288,27 @@ export function DirectorDashboard() {
                             </div>
                         </div>
                     </div>
-                    {viewMode === "Director" && (
-                        <div className="relative w-full md:w-[320px] shrink-0">
-                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-zinc-400 dark:text-zinc-500">
-                                <Search className="w-4 h-4" />
-                            </span>
-                            <input
-                                type="text"
-                                placeholder="Search project title, no, PI, dept..."
-                                value={headerSearchText}
-                                onChange={(e) => setHeaderSearchText(e.target.value)}
-                                onFocus={() => setHeaderSearchFocused(true)}
-                                onBlur={() => setTimeout(() => setHeaderSearchFocused(false), 150)}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Escape") {
-                                        setHeaderSearchText("");
-                                        (e.target as HTMLInputElement).blur();
-                                    }
-                                }}
-                                className="w-full h-10 text-[13px] font-semibold pl-9 pr-8 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg outline-none focus:border-[#2563eb] text-[#3F3F46] dark:text-[#E4E4E7] placeholder-zinc-400 transition-colors shadow-sm"
-                            />
-                            {headerSearchText && (
-                                <button
-                                    onClick={() => setHeaderSearchText("")}
-                                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-[#71717A] hover:text-black dark:hover:text-white"
-                                    type="button"
-                                    tabIndex={-1}
-                                >
-                                    <X size={13} />
-                                </button>
-                            )}
-                            {headerSearchFocused && headerSearchText.trim() && (
-                                <div className="absolute z-50 mt-1.5 w-full max-h-[360px] overflow-y-auto bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg shadow-lg">
-                                    {headerSearchResults.length === 0 ? (
-                                        <div className="px-4 py-3 text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
-                                            No projects match &ldquo;{headerSearchText}&rdquo;
-                                        </div>
-                                    ) : (
-                                        headerSearchResults.map((p) => {
-                                            const piName = p.pi_webmail ? (emailToNameMap[p.pi_webmail.toLowerCase().trim()] || p.pi_webmail.split("@")[0]) : "";
-                                            return (
-                                                <div
-                                                    key={p.name}
-                                                    onClick={() => {
-                                                        setHeaderSearchText("");
-                                                        navigate(`/project-details-overview/${p.name}`, { state: { returnTo: location.pathname + location.search, ...getDashboardState() } });
-                                                    }}
-                                                    className="px-4 py-2.5 border-b last:border-b-0 border-[#F4F4F5] dark:border-[#3F3F46] cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
-                                                >
-                                                    <div className="text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">
-                                                        {p.project_title || p.name}
-                                                    </div>
-                                                    <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA] truncate">
-                                                        <span>{p.project_no || p.name}</span>
-                                                        {piName && (<><span>&middot;</span><span className="truncate">{piName}</span></>)}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })
-                                    )}
-                                    {headerSearchResults.length === HEADER_SEARCH_LIMIT && (
-                                        <div className="px-4 py-2 text-[10.5px] text-[#A1A1AA] dark:text-[#71717A] border-t border-[#F4F4F5] dark:border-[#3F3F46]">
-                                            Showing first {HEADER_SEARCH_LIMIT} matches — refine your search for more.
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                        <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold px-3 py-1.5 rounded-full tracking-widest uppercase">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            Live Data
-                        </div>
-                        <div className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] font-mono bg-white dark:bg-[#27272A] px-3 py-1.5 rounded-full border border-[#E4E4E7] dark:border-[#3F3F46]">
-                            {liveTime}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-wrap">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                            <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold px-3 py-1.5 rounded-full tracking-widest uppercase">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                Live Data
+                            </div>
+                            <div className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] font-mono bg-white dark:bg-[#27272A] px-3 py-1.5 rounded-full border border-[#E4E4E7] dark:border-[#3F3F46]">
+                                {liveTime}
+                            </div>
                         </div>
                         <button
                             onClick={handleDownloadClick}
                             disabled={isLoading || isWaitingForFunds}
-                            className="flex items-center gap-2 px-4 py-2 bg-[#D97757] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[12px] font-semibold rounded-lg shadow-sm transition-all"
+                            className="flex items-center justify-center gap-2 px-4 py-2 bg-[#D97757] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[12px] font-semibold rounded-lg shadow-sm transition-all shrink-0"
                         >
                             {isWaitingForFunds ? <Loader2 className="size-3.5 animate-spin" /> : <FileDown className="size-3.5" />}
                             {isWaitingForFunds ? "Generating Overview..." : "Download Director Overview Report"}
                         </button>
                         <button
                             onClick={() => navigate("/generate-report")}
-                            className="flex items-center gap-2 px-4 py-2 bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-[12px] font-semibold rounded-lg shadow-sm transition-all"
+                            className="flex items-center justify-center gap-2 px-4 py-2 bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-[12px] font-semibold rounded-lg shadow-sm transition-all shrink-0"
                         >
                             <FileText className="size-3.5" />
                             Genarate Detailed Report
@@ -3405,9 +3318,77 @@ export function DirectorDashboard() {
                 </div>
 
                 {viewMode === "Director" && (
-                    <div className="mb-8 border-t-2 border-[#4A6CF7]/35 pt-5 dark:border-[#818CF8]/35 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                        <div className="mb-3 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#71717A] dark:text-[#A1A1AA]">
-                            Project Type
+                    <div className="mb-8 border-t-2 border-[#4A6CF7]/35 pt-1.5 dark:border-[#818CF8]/35 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
+                            <div className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#71717A] dark:text-[#A1A1AA]">
+                                Project Type
+                            </div>
+                            <div className="relative w-full md:w-[420px] shrink-0">
+                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-zinc-400 dark:text-zinc-500">
+                                    <Search className="w-4 h-4" />
+                                </span>
+                                <input
+                                    type="text"
+                                    placeholder="Search project title, no, PI, dept..."
+                                    value={headerSearchText}
+                                    onChange={(e) => setHeaderSearchText(e.target.value)}
+                                    onFocus={() => setHeaderSearchFocused(true)}
+                                    onBlur={() => setTimeout(() => setHeaderSearchFocused(false), 150)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Escape") {
+                                            setHeaderSearchText("");
+                                            (e.target as HTMLInputElement).blur();
+                                        }
+                                    }}
+                                    className="w-full h-10 text-[13px] font-semibold pl-9 pr-8 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg outline-none focus:border-[#2563eb] text-[#3F3F46] dark:text-[#E4E4E7] placeholder-zinc-400 transition-colors shadow-sm"
+                                />
+                                {headerSearchText && (
+                                    <button
+                                        onClick={() => setHeaderSearchText("")}
+                                        className="absolute inset-y-0 right-0 flex items-center pr-3 text-[#71717A] hover:text-black dark:hover:text-white"
+                                        type="button"
+                                        tabIndex={-1}
+                                    >
+                                        <X size={13} />
+                                    </button>
+                                )}
+                                {headerSearchFocused && headerSearchText.trim() && (
+                                    <div className="absolute z-50 mt-1.5 w-full max-h-[360px] overflow-y-auto bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg shadow-lg">
+                                        {headerSearchResults.length === 0 ? (
+                                            <div className="px-4 py-3 text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
+                                                No projects match &ldquo;{headerSearchText}&rdquo;
+                                            </div>
+                                        ) : (
+                                            headerSearchResults.map((p) => {
+                                                const piName = p.pi_webmail ? (emailToNameMap[p.pi_webmail.toLowerCase().trim()] || p.pi_webmail.split("@")[0]) : "";
+                                                return (
+                                                    <div
+                                                        key={p.name}
+                                                        onClick={() => {
+                                                            setHeaderSearchText("");
+                                                            navigate(`/project-details-overview/${p.name}`, { state: { returnTo: location.pathname + location.search, ...getDashboardState() } });
+                                                        }}
+                                                        className="px-4 py-2.5 border-b last:border-b-0 border-[#F4F4F5] dark:border-[#3F3F46] cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
+                                                    >
+                                                        <div className="text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">
+                                                            {p.project_title || p.name}
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA] truncate">
+                                                            <span>{p.project_no || p.name}</span>
+                                                            {piName && (<><span>&middot;</span><span className="truncate">{piName}</span></>)}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                        {headerSearchResults.length === HEADER_SEARCH_LIMIT && (
+                                            <div className="px-4 py-2 text-[10.5px] text-[#A1A1AA] dark:text-[#71717A] border-t border-[#F4F4F5] dark:border-[#3F3F46]">
+                                                Showing first {HEADER_SEARCH_LIMIT} matches — refine your search for more.
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         <div className="flex items-center gap-2.5 overflow-x-auto pb-1">
                             <button
@@ -3500,7 +3481,7 @@ export function DirectorDashboard() {
                                 iconBg="#eff6ff"
                                 circleColor="#2563eb"
                                 onClick={() => openKpiModal("total", "All Projects")}
-                                customBottom={!isLoading && projectBreakdownList}
+                                customBottom={!isLoading && projectBreakdownGrid}
                                 valueAdornment={
                                     !isLoading && (
                                         <div className="flex items-center gap-2">
@@ -3524,21 +3505,35 @@ export function DirectorDashboard() {
                                 }
                             />
                             <KpiCard
-                                label="Total Fund Allocation for Ongoing Projects"
+                                label="Ongoing Projects"
+                                value={String(ongoingProjects)}
+                                isLoading={isLoading}
+                                subtext=""
+                                icon={
+                                    <svg
+                                        className="w-[18px] h-[18px]"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="M12 6v6l4 2" />
+                                    </svg>
+                                }
+                                valueColor="text-violet-700 dark:text-violet-400"
+                                iconBg="#f5f3ff"
+                                circleColor="#7c3aed"
+                                onClick={() => openKpiModal("ongoing", "Ongoing Projects")}
+                                customBottom={!isLoading && ongoingBreakdownGrid}
+                            />
+                            <KpiCard
+                                label="Fund Allocation for Ongoing Projects"
                                 value={formatCurrency(fundAlloc)}
                                 isLoading={isLoading}
                                 subtext=""
-                                valueAdornment={
-                                    !isLoading && (
-                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
-                                            {!isFundUtilDataReady ? (
-                                                <span className="animate-pulse">Loading…</span>
-                                            ) : (
-                                                `${fundUtilPercent}% utilized`
-                                            )}
-                                        </span>
-                                    )
-                                }
                                 icon={
                                     <svg
                                         className="w-[18px] h-[18px]"
@@ -3561,71 +3556,10 @@ export function DirectorDashboard() {
                                 onClick={() =>
                                     openKpiModal("allocation", "Projects by Allocation")
                                 }
-                                customBottom={!isLoading && allocationBreakdownList}
-                            />
-                            <KpiCard
-                                label="Ongoing Projects"
-                                description="Sanction-approved projects, by fund status"
-                                value={String(ongoingProjects)}
-                                isLoading={isLoading}
-                                subtext=""
-                                valueAdornment={
-                                    !isLoading && ongoingProjects > 0 && (
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            {ongoingFundStatusBreakdown.checking > 0 ? (
-                                                // Fund-status is still resolving for some ongoing projects —
-                                                // show a plain loading state rather than partial, steadily-
-                                                // increasing Active/Pending Fund counts that look inconsistent
-                                                // mid-fetch. Final numbers only appear once fully resolved.
-                                                <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 animate-pulse">
-                                                    Loading…
-                                                </span>
-                                            ) : (
-                                                <>
-                                                    <span
-                                                        className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 cursor-pointer hover:brightness-95 transition-all"
-                                                        title="Sanctioned and fund received"
-                                                        onClick={(e) => { e.stopPropagation(); openOngoingFundStatusModal("active", "Ongoing Projects: Active"); }}
-                                                    >
-                                                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                                        {ongoingFundStatusBreakdown.active} Active
-                                                    </span>
-                                                    <span
-                                                        className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 cursor-pointer hover:brightness-95 transition-all"
-                                                        title="Sanctioned but fund not yet received"
-                                                        onClick={(e) => { e.stopPropagation(); openOngoingFundStatusModal("pending_fund", "Ongoing Projects: Pending Fund Received"); }}
-                                                    >
-                                                        <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                                                        {ongoingFundStatusBreakdown.pendingFund} Pending Fund
-                                                    </span>
-                                                </>
-                                            )}
-                                        </div>
-                                    )
-                                }
-                                icon={
-                                    <svg
-                                        className="w-[18px] h-[18px]"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <circle cx="12" cy="12" r="10" />
-                                        <path d="M12 6v6l4 2" />
-                                    </svg>
-                                }
-                                valueColor="text-violet-700 dark:text-violet-400"
-                                iconBg="#f5f3ff"
-                                circleColor="#7c3aed"
-                                onClick={() => openKpiModal("ongoing", "Ongoing Projects")}
-                                customBottom={!isLoading && ongoingBreakdownList}
+                                customBottom={!isLoading && allocationBreakdownGrid}
                             />
                             <KpiCard
                                 label="International Collaborators"
-                                description="Projects with an international funding agency"
                                 value={String(intl.active_agencies || 0)}
                                 isLoading={isLoading}
                                 subtext=""
@@ -3648,467 +3582,8 @@ export function DirectorDashboard() {
                                 iconBg="#f0f9ff"
                                 circleColor="#0284c7"
                                 onClick={() => openKpiModal("intl", "International Collaborator Projects")}
-                                customBottom={!isLoading && intlBreakdownList}
+                                customBottom={!isLoading && intlBreakdownGrid}
                             />
-                        </div>
-
-                        {/* ── System Activity (forms processed across the app, all doctypes) ── */}
-                        <SectionDivider title="System Activity — Form Submissions" />
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-[14px] mb-[14px]">
-                            <KpiCard
-                                label="Today"
-                                value={String(processCounts?.totals.today ?? 0)}
-                                isLoading={isProcessCountsLoading}
-                                subtext={
-                                    isProcessCountsLoading || !processCounts?.totals.this_week
-                                        ? ""
-                                        : `${Math.round((processCounts.totals.today / processCounts.totals.this_week) * 100)}% of this week's volume`
-                                }
-                                icon={
-                                    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <polyline points="12 6 12 12 16 14" />
-                                    </svg>
-                                }
-                                valueColor="text-orange-700 dark:text-orange-400"
-                                iconBg="#fff7ed"
-                                circleColor="#ea580c"
-                            />
-                            <KpiCard
-                                label="This Week"
-                                value={String(processCounts?.totals.this_week ?? 0)}
-                                isLoading={isProcessCountsLoading}
-                                subtext={
-                                    isProcessCountsLoading || !processCounts?.totals.this_month
-                                        ? ""
-                                        : `${Math.round((processCounts.totals.this_week / processCounts.totals.this_month) * 100)}% of this month's volume`
-                                }
-                                icon={
-                                    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                                        <path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" />
-                                    </svg>
-                                }
-                                valueColor="text-blue-700 dark:text-blue-400"
-                                iconBg="#eff6ff"
-                                circleColor="#2563eb"
-                            />
-                            <KpiCard
-                                label="This Month"
-                                value={String(processCounts?.totals.this_month ?? 0)}
-                                isLoading={isProcessCountsLoading}
-                                subtext={
-                                    isProcessCountsLoading || !processCounts?.totals.total
-                                        ? ""
-                                        : `${Math.round((processCounts.totals.this_month / processCounts.totals.total) * 100)}% of all-time total`
-                                }
-                                icon={
-                                    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                                        <rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /><path d="M8 2v4" /><path d="M16 2v4" /><path d="M8 14h.01" /><path d="M12 14h.01" /><path d="M16 14h.01" />
-                                    </svg>
-                                }
-                                valueColor="text-violet-700 dark:text-violet-400"
-                                iconBg="#f5f3ff"
-                                circleColor="#7c3aed"
-                            />
-                            <KpiCard
-                                label="Total (All Time)"
-                                value={String(processCounts?.totals.total ?? 0)}
-                                isLoading={isProcessCountsLoading}
-                                subtext={
-                                    isProcessCountsLoading || sortedDoctypeCounts.length === 0
-                                        ? ""
-                                        : `Across ${sortedDoctypeCounts.length} application types`
-                                }
-                                icon={
-                                    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                                        <ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-                                    </svg>
-                                }
-                                valueColor="text-emerald-700 dark:text-emerald-400"
-                                iconBg="#ecfdf5"
-                                circleColor="#059669"
-                            />
-                        </div>
-                        {/* Trend chart */}
-                        <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden mb-[14px]">
-                            <div className="p-[18px] px-[24px] pb-[16px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
-                                <div>
-                                    <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2.5">
-                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-sm shadow-indigo-500/30">
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                                                <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /><polyline points="16 7 22 7 22 13" />
-                                            </svg>
-                                        </div>
-                                        Forms Processed Over Time
-                                    </div>
-                                    <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1 ml-[42px]">Daily volume with weekly &amp; monthly averages overlaid — last 30 days</p>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    {Object.values(TREND_SERIES_STYLE).map((s) => (
-                                        <div key={s.key} className="flex items-center gap-1.5">
-                                            <span className="w-[9px] h-[9px] rounded-full shrink-0" style={{ backgroundColor: s.stroke }} />
-                                            <span className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">{s.label}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="p-[18px] px-[22px] pb-6">
-                                {!isProcessCountsLoading && combinedTrendData.length > 0 && (
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
-                                        <div className={`rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] ${TREND_SERIES_STYLE.daily.chipBg} px-3.5 py-2.5`}>
-                                            <div className="text-[10.5px] font-bold text-[#52525B] dark:text-[#D4D4D8] uppercase tracking-wide mb-1">
-                                                Daily Avg (30D)
-                                            </div>
-                                            <div className="text-[17px] font-extrabold tabular-nums" style={{ color: TREND_SERIES_STYLE.daily.stroke }}>
-                                                {combinedTrendStats.dailyAvg.toLocaleString("en-IN")}
-                                            </div>
-                                        </div>
-                                        <div className={`rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] ${TREND_SERIES_STYLE.weeklyAvg.chipBg} px-3.5 py-2.5`}>
-                                            <div className="text-[10.5px] font-bold text-[#52525B] dark:text-[#D4D4D8] uppercase tracking-wide mb-1">
-                                                Weekly Avg/Day
-                                            </div>
-                                            <div className="text-[17px] font-extrabold tabular-nums" style={{ color: TREND_SERIES_STYLE.weeklyAvg.stroke }}>
-                                                {combinedTrendStats.weeklyAvg.toLocaleString("en-IN")}
-                                            </div>
-                                        </div>
-                                        <div className={`rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] ${TREND_SERIES_STYLE.monthlyAvg.chipBg} px-3.5 py-2.5`}>
-                                            <div className="text-[10.5px] font-bold text-[#52525B] dark:text-[#D4D4D8] uppercase tracking-wide mb-1">
-                                                Monthly Avg/Day
-                                            </div>
-                                            <div className="text-[17px] font-extrabold tabular-nums" style={{ color: TREND_SERIES_STYLE.monthlyAvg.stroke }}>
-                                                {combinedTrendStats.monthlyAvg.toLocaleString("en-IN")}
-                                            </div>
-                                        </div>
-                                        <div className={`rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] px-3.5 py-2.5 ${combinedTrendStats.trendDirection === "up" ? "bg-emerald-50 dark:bg-emerald-950/20" : combinedTrendStats.trendDirection === "down" ? "bg-red-50 dark:bg-red-950/20" : "bg-[#FAFAF9] dark:bg-[#18181B]"}`}>
-                                            <div className="text-[10.5px] font-bold text-[#52525B] dark:text-[#D4D4D8] uppercase tracking-wide mb-1">
-                                                Today vs Yesterday
-                                            </div>
-                                            <div className={`text-[17px] font-extrabold tabular-nums flex items-center gap-1 ${combinedTrendStats.trendDirection === "up" ? "text-emerald-600 dark:text-emerald-400" : combinedTrendStats.trendDirection === "down" ? "text-red-600 dark:text-red-400" : "text-[#3F3F46] dark:text-[#E4E4E7]"}`}>
-                                                {combinedTrendStats.trendDirection === "up" && <TrendingUp size={15} />}
-                                                {combinedTrendStats.trendDirection === "down" && <TrendingDown size={15} />}
-                                                {combinedTrendStats.trendDirection === "flat" && <Minus size={15} />}
-                                                {combinedTrendStats.trendPct > 0 ? "+" : ""}{combinedTrendStats.trendPct}%
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                                <div className="h-[300px]">
-                                    {isProcessCountsLoading ? (
-                                        <div className="w-full h-full flex flex-col items-center justify-center text-[#71717A] text-sm gap-3">
-                                            <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                                            <span className="font-medium">Loading activity...</span>
-                                        </div>
-                                    ) : combinedTrendData.length > 0 ? (
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <ComposedChart data={combinedTrendData} margin={{ top: 20, right: 12, left: -18, bottom: 0 }}>
-                                                <defs>
-                                                    <linearGradient id={TREND_SERIES_STYLE.daily.gradientId} x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="0%" stopColor={TREND_SERIES_STYLE.daily.stroke} stopOpacity={0.28} />
-                                                        <stop offset="100%" stopColor={TREND_SERIES_STYLE.daily.stroke} stopOpacity={0.02} />
-                                                    </linearGradient>
-                                                </defs>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="#E4E4E7" vertical={false} />
-                                                <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#71717A", fontWeight: 600 }} axisLine={false} tickLine={false} dy={8} interval={4} />
-                                                <YAxis tick={{ fontSize: 12, fill: "#71717A" }} axisLine={false} tickLine={false} />
-                                                <Tooltip
-                                                    contentStyle={{ borderRadius: "0.75rem", border: "1px solid #27272A", background: "#18181B", boxShadow: "0 8px 24px rgba(0,0,0,0.25)" }}
-                                                    labelStyle={{ color: "#f4f4f5", fontWeight: 700, fontSize: 12, marginBottom: 4 }}
-                                                    itemStyle={{ fontSize: 12, fontWeight: 600 }}
-                                                    cursor={{ stroke: "#A1A1AA", strokeWidth: 1, strokeDasharray: "4 4" }}
-                                                />
-                                                <Area
-                                                    type="monotone"
-                                                    dataKey="daily"
-                                                    name={TREND_SERIES_STYLE.daily.label}
-                                                    stroke={TREND_SERIES_STYLE.daily.stroke}
-                                                    strokeWidth={2.5}
-                                                    fill={`url(#${TREND_SERIES_STYLE.daily.gradientId})`}
-                                                    dot={false}
-                                                    activeDot={{ r: 5, fill: TREND_SERIES_STYLE.daily.stroke, strokeWidth: 2, stroke: "#fff" }}
-                                                    isAnimationActive={false}
-                                                />
-                                                <Line
-                                                    type="monotone"
-                                                    dataKey="weeklyAvg"
-                                                    name={TREND_SERIES_STYLE.weeklyAvg.label}
-                                                    stroke={TREND_SERIES_STYLE.weeklyAvg.stroke}
-                                                    strokeWidth={2.5}
-                                                    strokeDasharray="5 3"
-                                                    dot={false}
-                                                    activeDot={{ r: 4.5, fill: TREND_SERIES_STYLE.weeklyAvg.stroke, strokeWidth: 2, stroke: "#fff" }}
-                                                    isAnimationActive={false}
-                                                />
-                                                <Line
-                                                    type="monotone"
-                                                    dataKey="monthlyAvg"
-                                                    name={TREND_SERIES_STYLE.monthlyAvg.label}
-                                                    stroke={TREND_SERIES_STYLE.monthlyAvg.stroke}
-                                                    strokeWidth={2.5}
-                                                    strokeDasharray="2 2"
-                                                    dot={false}
-                                                    activeDot={{ r: 4.5, fill: TREND_SERIES_STYLE.monthlyAvg.stroke, strokeWidth: 2, stroke: "#fff" }}
-                                                    isAnimationActive={false}
-                                                />
-                                            </ComposedChart>
-                                        </ResponsiveContainer>
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">
-                                            No data available
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-[14px] mb-6 items-start">
-                        {/* Application-wise breakdown */}
-                        <div className="lg:col-span-2 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden flex flex-col">
-                            <div className="p-[18px] px-[24px] pb-[16px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
-                                <div>
-                                    <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2.5">
-                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-sm shadow-emerald-500/30">
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                                                <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M8 13h2" /><path d="M14 13h2" /><path d="M8 17h2" /><path d="M14 17h2" />
-                                            </svg>
-                                        </div>
-                                        Application-wise Activity
-                                    </div>
-                                    <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1 ml-[42px]">Ranked by total submissions, most active first</p>
-                                </div>
-                                <div className="flex flex-col items-end gap-1.5 shrink-0">
-                                    <span className="text-[11px] font-bold text-[#059669] bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-full uppercase tracking-wider">
-                                        {showAllActivityApps ? sortedDoctypeCounts.length : Math.min(ACTIVITY_TOP_N, sortedDoctypeCounts.length)} of {sortedDoctypeCounts.length} apps
-                                    </span>
-                                    <div className="hidden md:flex items-center gap-2 flex-wrap justify-end max-w-[280px]">
-                                        {presentVolumeTiers.map((tier) => (
-                                            <div key={tier.label} className="flex items-center gap-1">
-                                                <span className="w-[7px] h-[7px] rounded-full shrink-0" style={{ backgroundColor: tier.color.to }} />
-                                                <span className="text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">{tier.label}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="max-h-[560px] overflow-y-auto">
-                                {isProcessCountsLoading ? (
-                                    <div className="flex flex-col items-center justify-center text-[#71717A] text-sm gap-3 py-16">
-                                        <div className="w-5 h-5 border-2 border-[#059669] border-t-transparent rounded-full animate-spin"></div>
-                                        <span className="font-medium">Loading applications...</span>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div className="hidden sm:flex items-center gap-3 px-[22px] py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] text-[10.5px] font-bold uppercase tracking-widest text-[#52525B] dark:text-[#D4D4D8]">
-                                            <span className="w-6 shrink-0" />
-                                            <span className="w-[220px] shrink-0">Application</span>
-                                            <span className="flex-1">Volume</span>
-                                            <span className="w-[168px] shrink-0 text-right">Today &nbsp;·&nbsp; Week &nbsp;·&nbsp; Month</span>
-                                            <span className="w-[54px] shrink-0 text-right">Total</span>
-                                        </div>
-                                        <div className="divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]">
-                                            {visibleDoctypeCounts.map((row, idx) => {
-                                                const isExpanded = expandedActivityDoctypes.has(row.doctype);
-                                                const hasChildren = row.children.length > 0;
-                                                const pct = Math.max(3, Math.round((row.total / maxDoctypeTotal) * 100));
-                                                const volumeColor = getVolumeBucketColor(row.total);
-                                                const rankColors = idx === 0
-                                                    ? "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
-                                                    : idx === 1
-                                                        ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-                                                        : idx === 2
-                                                            ? "bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400"
-                                                            : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B] dark:text-[#A1A1AA]";
-                                                return (
-                                                    <div key={row.doctype}>
-                                                        <div
-                                                            className={`flex items-center gap-3 px-[22px] py-2.5 ${hasChildren ? "cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B]" : ""} transition-colors`}
-                                                            onClick={() => hasChildren && toggleActivityDoctype(row.doctype)}
-                                                        >
-                                                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-extrabold shrink-0 tabular-nums ${rankColors}`}>
-                                                                {idx + 1}
-                                                            </span>
-                                                            <div className="w-[220px] shrink-0 flex items-center gap-1.5 min-w-0">
-                                                                {hasChildren ? (
-                                                                    <ChevronDown size={12} className={`text-[#A1A1AA] shrink-0 transition-transform ${isExpanded ? "" : "-rotate-90"}`} />
-                                                                ) : (
-                                                                    <span className="w-3 shrink-0" />
-                                                                )}
-                                                                <span className="text-[12.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">
-                                                                    {row.doctype}
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex-1 h-[7px] rounded-full bg-[#F4F4F5] dark:bg-[#3F3F46] overflow-hidden">
-                                                                <div
-                                                                    className="h-full rounded-full"
-                                                                    style={{ width: `${pct}%`, background: `linear-gradient(to right, ${volumeColor.from}, ${volumeColor.to})` }}
-                                                                />
-                                                            </div>
-                                                            <div className="hidden sm:flex w-[168px] shrink-0 items-center justify-end gap-2 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">
-                                                                <span className="w-[38px] text-right">{row.today}</span>
-                                                                <span className="text-[#A1A1AA] dark:text-[#71717A]">·</span>
-                                                                <span className="w-[38px] text-right">{row.this_week}</span>
-                                                                <span className="text-[#A1A1AA] dark:text-[#71717A]">·</span>
-                                                                <span className="w-[38px] text-right">{row.this_month}</span>
-                                                            </div>
-                                                            <span className={`w-[54px] shrink-0 text-right text-[13.5px] font-extrabold tabular-nums ${volumeColor.text}`}>
-                                                                {row.total}
-                                                            </span>
-                                                        </div>
-                                                        {isExpanded && hasChildren && (
-                                                            <div className="bg-[#FAFAF9] dark:bg-[#18181B] px-[22px] py-1.5 space-y-1">
-                                                                {row.children.map((child) => (
-                                                                    <div key={`${row.doctype}-${child.fieldname}`} className="flex items-center gap-3 pl-9">
-                                                                        <span className="text-[11.5px] text-[#52525B] dark:text-[#D4D4D8] truncate flex-1">
-                                                                            ↳ {child.doctype}
-                                                                        </span>
-                                                                        <span className="hidden sm:inline text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums w-[168px] text-right">
-                                                                            {child.today} · {child.this_week} · {child.this_month}
-                                                                        </span>
-                                                                        <span className="text-[10.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums w-[54px] text-right">
-                                                                            {child.total}
-                                                                        </span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                            {!isProcessCountsLoading && sortedDoctypeCounts.length > ACTIVITY_TOP_N && (
-                                <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] p-2.5 shrink-0">
-                                    <button
-                                        onClick={() => setShowAllActivityApps((v) => !v)}
-                                        className="w-full py-2 rounded-lg text-[11.5px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors"
-                                    >
-                                        {showAllActivityApps ? "Show Top 10" : `Show All (${sortedDoctypeCounts.length})`}
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Usage tier distribution */}
-                        <div className="lg:col-span-1 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden flex flex-col h-full">
-                            <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between gap-2">
-                                <div>
-                                    <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2.5">
-                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-rose-500 to-orange-500 text-white shadow-sm shadow-rose-500/30">
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                                                <path d="M21.21 15.89A10 10 0 1 1 8 2.83" /><path d="M22 12A10 10 0 0 0 12 2v10z" />
-                                            </svg>
-                                        </div>
-                                        Usage Distribution
-                                    </div>
-                                    <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1 ml-[42px]">Apps grouped into 3 tiers · click a tier for details</p>
-                                </div>
-                                <select
-                                    value={usageTierMetric}
-                                    onChange={(e) => { setUsageTierMetric(e.target.value as keyof typeof USAGE_TIER_METRICS); setExpandedUsageTier(null); }}
-                                    className="shrink-0 appearance-none bg-[#F4F4F5] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2.5 py-1 text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] outline-none cursor-pointer hover:bg-[#E4E4E7] dark:hover:bg-[#3F3F46] transition-colors"
-                                >
-                                    {Object.entries(USAGE_TIER_METRICS).map(([key, m]) => (
-                                        <option key={key} value={key}>{m.label}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="p-[18px] px-[22px] flex-1 flex flex-col">
-                                {isProcessCountsLoading ? (
-                                    <div className="flex-1 flex flex-col items-center justify-center text-[#71717A] text-sm gap-3 py-10">
-                                        <div className="w-5 h-5 border-2 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
-                                        <span className="font-medium">Loading...</span>
-                                    </div>
-                                ) : usageTierBreakdown.length > 0 ? (
-                                    <>
-                                        <div className="shrink-0 relative" style={{ height: "240px" }}>
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <PieChart>
-                                                    <Tooltip
-                                                        contentStyle={{ borderRadius: "0.75rem", border: "1px solid #27272A", background: "#18181B", boxShadow: "0 8px 24px rgba(0,0,0,0.25)" }}
-                                                        labelStyle={{ color: "#f4f4f5", fontWeight: 700, fontSize: 12, marginBottom: 2 }}
-                                                        itemStyle={{ color: "#e4e4e7", fontSize: 12, fontWeight: 600 }}
-                                                        formatter={(_value: number, name: string, props: { payload?: { value: number; appCount: number } }) => {
-                                                            const real = props.payload?.value ?? 0;
-                                                            const suffix = usageTierMetric === "weekly_avg" || usageTierMetric === "monthly_avg" ? "/day" : "";
-                                                            return [`${real.toLocaleString("en-IN")}${suffix} · ${props.payload?.appCount ?? 0} apps`, name];
-                                                        }}
-                                                    />
-                                                    <Pie
-                                                        data={usageTierPieData}
-                                                        dataKey="pieValue"
-                                                        nameKey="name"
-                                                        cx="50%"
-                                                        cy="50%"
-                                                        innerRadius="60%"
-                                                        outerRadius="80%"
-                                                        paddingAngle={3}
-                                                        isAnimationActive={false}
-                                                        onClick={(t: { name: string }) => setExpandedUsageTier(prev => prev === t.name ? null : t.name)}
-                                                        style={{ cursor: "pointer" }}
-                                                    >
-                                                        {usageTierPieData.map((t) => (
-                                                            <Cell key={t.name} fill={t.color} stroke={expandedUsageTier === t.name ? "#3F3F46" : "none"} strokeWidth={expandedUsageTier === t.name ? 2 : 0} />
-                                                        ))}
-                                                    </Pie>
-                                                </PieChart>
-                                            </ResponsiveContainer>
-                                            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center z-10 w-28 h-28 rounded-full pointer-events-none">
-                                                <span className="text-3xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none tabular-nums">
-                                                    {usageTierTotal.toLocaleString("en-IN")}
-                                                </span>
-                                                <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
-                                                    Total
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div className="space-y-2 mt-2 flex-1">
-                                            {usageTierBreakdown.map((t) => {
-                                                const sharePct = usageTierTotal > 0 ? Math.round((t.value / usageTierTotal) * 100) : 0;
-                                                const isOpen = expandedUsageTier === t.name;
-                                                return (
-                                                    <div key={t.name} className="rounded-lg bg-[#FAFAF9] dark:bg-[#18181B] overflow-hidden">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setExpandedUsageTier(prev => prev === t.name ? null : t.name)}
-                                                            className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left hover:bg-white dark:hover:bg-[#27272A] transition-colors"
-                                                        >
-                                                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
-                                                            <div className="min-w-0 flex-1">
-                                                                <div className="text-[11.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{t.name}</div>
-                                                                <div className="text-[10.5px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">{t.appCount} app{t.appCount === 1 ? "" : "s"}</div>
-                                                            </div>
-                                                            <div className="text-right shrink-0">
-                                                                <div className="text-[13px] font-extrabold tabular-nums" style={{ color: t.color }}>{sharePct}%</div>
-                                                                <div className="text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8] tabular-nums">{t.value.toLocaleString("en-IN")}</div>
-                                                            </div>
-                                                            <ChevronDown size={13} className={`text-[#71717A] dark:text-[#A1A1AA] shrink-0 transition-transform ${isOpen ? "" : "-rotate-90"}`} />
-                                                        </button>
-                                                        {isOpen && (
-                                                            <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] px-2.5 py-1.5 max-h-[220px] overflow-y-auto space-y-0.5">
-                                                                {t.rows.map((r, i) => (
-                                                                    <div key={r.doctype} className="flex items-center gap-2 py-1">
-                                                                        <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] w-4 text-right shrink-0 tabular-nums">{i + 1}</span>
-                                                                        <span className="text-[11.5px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] truncate flex-1">{r.doctype}</span>
-                                                                        <span className="text-[10.5px] font-extrabold tabular-nums shrink-0" style={{ color: t.color }}>
-                                                                            {usageTierGetValue(r).toLocaleString("en-IN")}
-                                                                        </span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div className="flex-1 flex items-center justify-center text-[#71717A] text-sm py-10">
-                                        No data available
-                                    </div>
-                                )}
-                            </div>
-                        </div>
                         </div>
 
                         {/* ── Project Analytics ── */}
@@ -4269,58 +3744,64 @@ export function DirectorDashboard() {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="mt-4 pt-4 border-t border-[#E4E4E7] dark:border-[#3F3F46] space-y-3.5">
-                                        {/* Status totals */}
-                                        <div className="flex items-stretch gap-3 flex-wrap">
-                                            <div className="flex-1 min-w-[150px] rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-blue-50/60 dark:bg-blue-950/20 px-4 py-3">
-                                                <div className="flex items-center gap-1.5 mb-1">
-                                                    <span className="w-2 h-2 rounded-full bg-[#2563eb] shrink-0" />
-                                                    <span className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Submitted</span>
-                                                </div>
-                                                <div className="text-[22px] font-extrabold text-[#2563eb] leading-none">{chartYearSubmittedTotal}</div>
-                                                <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1.5 leading-snug">Pending Sanction</div>
-                                            </div>
-                                            <div className="flex-1 min-w-[150px] rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-purple-50/60 dark:bg-purple-950/20 px-4 py-3">
-                                                <div className="flex items-center gap-1.5 mb-1">
-                                                    <span className="w-2 h-2 rounded-full bg-[#7c3aed] shrink-0" />
-                                                    <span className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Ongoing</span>
-                                                </div>
-                                                <div className="text-[22px] font-extrabold text-[#7c3aed] leading-none">{chartYearOngoingTotal}</div>
-                                                <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1.5 leading-snug">Sanction approved — fund received or pending</div>
-                                            </div>
-                                        </div>
-
-                                        {/* Type breakdown */}
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                                            {[
-                                                { label: "Research", ongoing: chartTypeBreakdown.researchOngoing, submitted: chartTypeBreakdown.researchSubmitted },
-                                                { label: "Consultancy", ongoing: chartTypeBreakdown.consultancyOngoing, submitted: chartTypeBreakdown.consultancySubmitted },
-                                                ...(chartTypeBreakdown.othersOngoing + chartTypeBreakdown.othersSubmitted > 0
-                                                    ? [{ label: "Others", ongoing: chartTypeBreakdown.othersOngoing, submitted: chartTypeBreakdown.othersSubmitted }]
-                                                    : []),
-                                            ].map((row) => (
-                                                <div key={row.label} className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] px-3 py-2.5">
-                                                    <div className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider mb-2">
-                                                        {row.label}
+                                    <div className="mt-2.5 pt-2.5 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                                        <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] overflow-hidden grid grid-cols-2 divide-x divide-[#E4E4E7] dark:divide-[#3F3F46]">
+                                            <div className="px-3 py-2">
+                                                <div className="flex items-center gap-2.5">
+                                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-blue-50 dark:bg-blue-950/30 text-[#2563eb]">
+                                                        <FileText size={14} strokeWidth={2.5} />
                                                     </div>
-                                                    <div className="space-y-1.5">
-                                                        <div className="flex items-center justify-between gap-2">
-                                                            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
-                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                                                                Ongoing
-                                                            </span>
-                                                            <span className="text-[13px] font-extrabold text-emerald-600 dark:text-emerald-400">{row.ongoing}</span>
-                                                        </div>
-                                                        <div className="flex items-center justify-between gap-2">
-                                                            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
-                                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-                                                                Submitted
-                                                            </span>
-                                                            <span className="text-[13px] font-extrabold text-amber-600 dark:text-amber-400">{row.submitted}</span>
-                                                        </div>
+                                                    <div className="min-w-0 flex items-baseline gap-1.5 flex-wrap">
+                                                        <span className="text-[18px] font-extrabold text-[#2563eb] leading-none tabular-nums">{chartDataLoading ? "Loading…" : chartYearSubmittedTotal}</span>
+                                                        <span className="text-[10px] font-bold text-[#2563eb] uppercase tracking-wider">Submitted</span>
+                                                        <span className="text-[10px] font-medium text-[#A1A1AA] dark:text-[#71717A]">(Pending Sanction)</span>
                                                     </div>
                                                 </div>
-                                            ))}
+                                                <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-[#E4E4E7]/70 dark:border-[#3F3F46]/70">
+                                                    <div className="text-center">
+                                                        <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Research</div>
+                                                        <div className="text-[12px] font-extrabold text-[#2563eb] tabular-nums leading-none mt-1">{chartDataLoading ? "Loading…" : chartTypeBreakdown.researchSubmitted}</div>
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Consultancy</div>
+                                                        <div className="text-[12px] font-extrabold text-[#2563eb] tabular-nums leading-none mt-1">{chartDataLoading ? "Loading…" : chartTypeBreakdown.consultancySubmitted}</div>
+                                                    </div>
+                                                    {(chartDataLoading || chartTypeBreakdown.othersSubmitted > 0) && (
+                                                        <div className="text-center">
+                                                            <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Others</div>
+                                                            <div className="text-[12px] font-extrabold text-[#2563eb] tabular-nums leading-none mt-1">{chartDataLoading ? "Loading…" : chartTypeBreakdown.othersSubmitted}</div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="px-3 py-2">
+                                                <div className="flex items-center gap-2.5">
+                                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-violet-50 dark:bg-violet-950/30 text-[#7c3aed]">
+                                                        <TrendingUp size={14} strokeWidth={2.5} />
+                                                    </div>
+                                                    <div className="min-w-0 flex items-baseline gap-1.5 flex-wrap">
+                                                        <span className="text-[18px] font-extrabold text-[#7c3aed] leading-none tabular-nums">{chartDataLoading ? "Loading…" : chartYearOngoingTotal}</span>
+                                                        <span className="text-[10px] font-bold text-[#7c3aed] uppercase tracking-wider">Ongoing</span>
+                                                        <span className="text-[10px] font-medium text-[#A1A1AA] dark:text-[#71717A]">(Sanction approved)</span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-[#E4E4E7]/70 dark:border-[#3F3F46]/70">
+                                                    <div className="text-center">
+                                                        <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Research</div>
+                                                        <div className="text-[12px] font-extrabold text-[#7c3aed] tabular-nums leading-none mt-1">{chartDataLoading ? "Loading…" : chartTypeBreakdown.researchOngoing}</div>
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Consultancy</div>
+                                                        <div className="text-[12px] font-extrabold text-[#7c3aed] tabular-nums leading-none mt-1">{chartDataLoading ? "Loading…" : chartTypeBreakdown.consultancyOngoing}</div>
+                                                    </div>
+                                                    {(chartDataLoading || chartTypeBreakdown.othersOngoing > 0) && (
+                                                        <div className="text-center">
+                                                            <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Others</div>
+                                                            <div className="text-[12px] font-extrabold text-[#7c3aed] tabular-nums leading-none mt-1">{chartDataLoading ? "Loading…" : chartTypeBreakdown.othersOngoing}</div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -4362,7 +3843,7 @@ export function DirectorDashboard() {
                                         </div>
                                     ) : pieChartFundingData.length > 0 ? (
                                         <div className="flex flex-col w-full h-full">
-                                            <div className="relative w-full shrink-0" style={{ height: "240px" }}>
+                                            <div className="relative w-full shrink-0" style={{ height: "200px" }}>
                                                 <div
                                                     className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition-transform z-10 w-28 h-28 rounded-full"
                                                     onClick={() => {
@@ -4440,7 +3921,7 @@ export function DirectorDashboard() {
                                                     </PieChart>
                                                 </ResponsiveContainer>
                                             </div>
-                                            <div className="w-full mt-2">
+                                            <div className="w-full mt-0.5">
                                                 <ul className={`grid grid-cols-1 sm:grid-cols-2 gap-x-20 gap-y-1 w-full ${showAllFunding ? "overflow-y-auto max-h-[160px] custom-scrollbar pr-2" : ""}`}>
                                                     {pieChartFundingData.map((item: any, i: number) => (
                                                         <li
@@ -4499,6 +3980,218 @@ export function DirectorDashboard() {
                             </div>
                         </div>
 
+                        {/* ── System Activity (forms processed across the app, all doctypes) ── */}
+                        <SectionDivider title="System Activity — Form Submissions" />
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-[14px] mb-[14px]">
+                            <KpiCard
+                                label="Today"
+                                value={String(processCounts?.totals.today ?? 0)}
+                                isLoading={isProcessCountsLoading}
+                                subtext={
+                                    isProcessCountsLoading || !processCounts?.totals.this_week
+                                        ? ""
+                                        : `${Math.round((processCounts.totals.today / processCounts.totals.this_week) * 100)}% of this week's volume`
+                                }
+                                icon={
+                                    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <polyline points="12 6 12 12 16 14" />
+                                    </svg>
+                                }
+                                valueColor="text-orange-700 dark:text-orange-400"
+                                iconBg="#fff7ed"
+                                circleColor="#ea580c"
+                            />
+                            <KpiCard
+                                label="This Week"
+                                value={String(processCounts?.totals.this_week ?? 0)}
+                                isLoading={isProcessCountsLoading}
+                                subtext={
+                                    isProcessCountsLoading || !processCounts?.totals.this_month
+                                        ? ""
+                                        : `${Math.round((processCounts.totals.this_week / processCounts.totals.this_month) * 100)}% of this month's volume`
+                                }
+                                icon={
+                                    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                        <path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" />
+                                    </svg>
+                                }
+                                valueColor="text-blue-700 dark:text-blue-400"
+                                iconBg="#eff6ff"
+                                circleColor="#2563eb"
+                            />
+                            <KpiCard
+                                label="This Month"
+                                value={String(processCounts?.totals.this_month ?? 0)}
+                                isLoading={isProcessCountsLoading}
+                                subtext={
+                                    isProcessCountsLoading || !processCounts?.totals.total
+                                        ? ""
+                                        : `${Math.round((processCounts.totals.this_month / processCounts.totals.total) * 100)}% of all-time total`
+                                }
+                                icon={
+                                    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                        <rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /><path d="M8 2v4" /><path d="M16 2v4" /><path d="M8 14h.01" /><path d="M12 14h.01" /><path d="M16 14h.01" />
+                                    </svg>
+                                }
+                                valueColor="text-violet-700 dark:text-violet-400"
+                                iconBg="#f5f3ff"
+                                circleColor="#7c3aed"
+                            />
+                            <KpiCard
+                                label="Total (All Time)"
+                                value={String(processCounts?.totals.total ?? 0)}
+                                isLoading={isProcessCountsLoading}
+                                subtext={
+                                    isProcessCountsLoading || sortedDoctypeCounts.length === 0
+                                        ? ""
+                                        : `Across ${sortedDoctypeCounts.length} application types`
+                                }
+                                icon={
+                                    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                        <ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+                                    </svg>
+                                }
+                                valueColor="text-emerald-700 dark:text-emerald-400"
+                                iconBg="#ecfdf5"
+                                circleColor="#059669"
+                            />
+                        </div>
+
+                        {/* Trend chart — hidden per feedback: unclear what it shows; revisit once a
+                            per-staff processing-time metric is available from the backend */}
+                        {false && (
+                        <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden mb-[14px]">
+                            <div className="p-[18px] px-[24px] pb-[16px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
+                                <div>
+                                    <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-sm shadow-indigo-500/30">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                                <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /><polyline points="16 7 22 7 22 13" />
+                                            </svg>
+                                        </div>
+                                        Forms Processed Over Time
+                                    </div>
+                                    <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1 ml-[42px]">Daily volume with weekly &amp; monthly averages overlaid — last 30 days</p>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    {Object.values(TREND_SERIES_STYLE).map((s) => (
+                                        <div key={s.key} className="flex items-center gap-1.5">
+                                            <span className="w-[9px] h-[9px] rounded-full shrink-0" style={{ backgroundColor: s.stroke }} />
+                                            <span className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">{s.label}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="p-[18px] px-[22px] pb-6">
+                                {!isProcessCountsLoading && combinedTrendData.length > 0 && (
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
+                                        <div className={`rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] ${TREND_SERIES_STYLE.daily.chipBg} px-3.5 py-2.5`}>
+                                            <div className="text-[10.5px] font-bold text-[#52525B] dark:text-[#D4D4D8] uppercase tracking-wide mb-1">
+                                                Daily Avg (30D)
+                                            </div>
+                                            <div className="text-[17px] font-extrabold tabular-nums" style={{ color: TREND_SERIES_STYLE.daily.stroke }}>
+                                                {combinedTrendStats.dailyAvg.toLocaleString("en-IN")}
+                                            </div>
+                                        </div>
+                                        <div className={`rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] ${TREND_SERIES_STYLE.weeklyAvg.chipBg} px-3.5 py-2.5`}>
+                                            <div className="text-[10.5px] font-bold text-[#52525B] dark:text-[#D4D4D8] uppercase tracking-wide mb-1">
+                                                Weekly Avg/Day
+                                            </div>
+                                            <div className="text-[17px] font-extrabold tabular-nums" style={{ color: TREND_SERIES_STYLE.weeklyAvg.stroke }}>
+                                                {combinedTrendStats.weeklyAvg.toLocaleString("en-IN")}
+                                            </div>
+                                        </div>
+                                        <div className={`rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] ${TREND_SERIES_STYLE.monthlyAvg.chipBg} px-3.5 py-2.5`}>
+                                            <div className="text-[10.5px] font-bold text-[#52525B] dark:text-[#D4D4D8] uppercase tracking-wide mb-1">
+                                                Monthly Avg/Day
+                                            </div>
+                                            <div className="text-[17px] font-extrabold tabular-nums" style={{ color: TREND_SERIES_STYLE.monthlyAvg.stroke }}>
+                                                {combinedTrendStats.monthlyAvg.toLocaleString("en-IN")}
+                                            </div>
+                                        </div>
+                                        <div className={`rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] px-3.5 py-2.5 ${combinedTrendStats.trendDirection === "up" ? "bg-emerald-50 dark:bg-emerald-950/20" : combinedTrendStats.trendDirection === "down" ? "bg-red-50 dark:bg-red-950/20" : "bg-[#FAFAF9] dark:bg-[#18181B]"}`}>
+                                            <div className="text-[10.5px] font-bold text-[#52525B] dark:text-[#D4D4D8] uppercase tracking-wide mb-1">
+                                                Today vs Yesterday
+                                            </div>
+                                            <div className={`text-[17px] font-extrabold tabular-nums flex items-center gap-1 ${combinedTrendStats.trendDirection === "up" ? "text-emerald-600 dark:text-emerald-400" : combinedTrendStats.trendDirection === "down" ? "text-red-600 dark:text-red-400" : "text-[#3F3F46] dark:text-[#E4E4E7]"}`}>
+                                                {combinedTrendStats.trendDirection === "up" && <TrendingUp size={15} />}
+                                                {combinedTrendStats.trendDirection === "down" && <TrendingDown size={15} />}
+                                                {combinedTrendStats.trendDirection === "flat" && <Minus size={15} />}
+                                                {combinedTrendStats.trendPct > 0 ? "+" : ""}{combinedTrendStats.trendPct}%
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="h-[300px]">
+                                    {isProcessCountsLoading ? (
+                                        <div className="w-full h-full flex flex-col items-center justify-center text-[#71717A] text-sm gap-3">
+                                            <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                                            <span className="font-medium">Loading activity...</span>
+                                        </div>
+                                    ) : combinedTrendData.length > 0 ? (
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <ComposedChart data={combinedTrendData} margin={{ top: 20, right: 12, left: -18, bottom: 0 }}>
+                                                <defs>
+                                                    <linearGradient id={TREND_SERIES_STYLE.daily.gradientId} x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="0%" stopColor={TREND_SERIES_STYLE.daily.stroke} stopOpacity={0.28} />
+                                                        <stop offset="100%" stopColor={TREND_SERIES_STYLE.daily.stroke} stopOpacity={0.02} />
+                                                    </linearGradient>
+                                                </defs>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="#E4E4E7" vertical={false} />
+                                                <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#71717A", fontWeight: 600 }} axisLine={false} tickLine={false} dy={8} interval={4} />
+                                                <YAxis tick={{ fontSize: 12, fill: "#71717A" }} axisLine={false} tickLine={false} />
+                                                <Tooltip
+                                                    contentStyle={{ borderRadius: "0.75rem", border: "1px solid #27272A", background: "#18181B", boxShadow: "0 8px 24px rgba(0,0,0,0.25)" }}
+                                                    labelStyle={{ color: "#f4f4f5", fontWeight: 700, fontSize: 12, marginBottom: 4 }}
+                                                    itemStyle={{ fontSize: 12, fontWeight: 600 }}
+                                                    cursor={{ stroke: "#A1A1AA", strokeWidth: 1, strokeDasharray: "4 4" }}
+                                                />
+                                                <Area
+                                                    type="monotone"
+                                                    dataKey="daily"
+                                                    name={TREND_SERIES_STYLE.daily.label}
+                                                    stroke={TREND_SERIES_STYLE.daily.stroke}
+                                                    strokeWidth={2.5}
+                                                    fill={`url(#${TREND_SERIES_STYLE.daily.gradientId})`}
+                                                    dot={false}
+                                                    activeDot={{ r: 5, fill: TREND_SERIES_STYLE.daily.stroke, strokeWidth: 2, stroke: "#fff" }}
+                                                    isAnimationActive={false}
+                                                />
+                                                <Line
+                                                    type="monotone"
+                                                    dataKey="weeklyAvg"
+                                                    name={TREND_SERIES_STYLE.weeklyAvg.label}
+                                                    stroke={TREND_SERIES_STYLE.weeklyAvg.stroke}
+                                                    strokeWidth={2.5}
+                                                    strokeDasharray="5 3"
+                                                    dot={false}
+                                                    activeDot={{ r: 4.5, fill: TREND_SERIES_STYLE.weeklyAvg.stroke, strokeWidth: 2, stroke: "#fff" }}
+                                                    isAnimationActive={false}
+                                                />
+                                                <Line
+                                                    type="monotone"
+                                                    dataKey="monthlyAvg"
+                                                    name={TREND_SERIES_STYLE.monthlyAvg.label}
+                                                    stroke={TREND_SERIES_STYLE.monthlyAvg.stroke}
+                                                    strokeWidth={2.5}
+                                                    strokeDasharray="2 2"
+                                                    dot={false}
+                                                    activeDot={{ r: 4.5, fill: TREND_SERIES_STYLE.monthlyAvg.stroke, strokeWidth: 2, stroke: "#fff" }}
+                                                    isAnimationActive={false}
+                                                />
+                                            </ComposedChart>
+                                        </ResponsiveContainer>
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">
+                                            No data available
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        )}
+
                         {/* ── Project Analytics & Distribution ── */}
                         <SectionDivider title="Project Analytics & Distribution" />
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-[14px] mb-6">
@@ -4541,34 +4234,34 @@ export function DirectorDashboard() {
                                     </div>
                                 </div>
                                 <div className="p-[18px] px-[22px] flex-1 flex flex-col">
-                                    <div className="flex gap-4 mb-5">
+                                    <div className="flex gap-2.5 mb-3">
                                         <div
-                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-xl p-3.5 text-center shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
+                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg px-3 py-2 flex items-center justify-between gap-2 shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
                                             onClick={() => openKpiModalWithTab("total", "Projects: Total Sanctioned", "ongoing")}
                                         >
-                                            <div className="text-[20px] font-extrabold tracking-[-0.03em] text-[#2563eb]">
-                                                {isLoading ? "—" : formatCurrency(fundAlloc)}
-                                            </div>
-                                            <div className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
+                                            <span className="text-[10.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">
                                                 Total Sanctioned
-                                            </div>
+                                            </span>
+                                            <span className="text-[15px] font-extrabold tracking-[-0.02em] text-[#2563eb] tabular-nums">
+                                                {isLoading ? "—" : formatCurrency(fundAlloc)}
+                                            </span>
                                         </div>
                                         <div
-                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-xl p-3.5 text-center shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
+                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg px-3 py-2 flex items-center justify-between gap-2 shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
                                             onClick={() => openKpiModalWithTab("total", "Projects: Utilized", "ongoing")}
                                         >
-                                            <div className="text-[20px] font-extrabold tracking-[-0.03em] text-[#059669]">
-                                                {isLoading ? "—" : globalUtilizedLoading ? (
-                                                    <span className="text-[13px] font-bold text-[#71717A] dark:text-[#A1A1AA] animate-pulse">Loading…</span>
-                                                ) : formatCurrency(fundUtilized)}
-                                            </div>
-                                            <div className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
+                                            <span className="text-[10.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">
                                                 Utilized
-                                            </div>
+                                            </span>
+                                            <span className="text-[15px] font-extrabold tracking-[-0.02em] text-[#059669] tabular-nums">
+                                                {isLoading ? "—" : globalUtilizedLoading ? (
+                                                    <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] animate-pulse">Loading…</span>
+                                                ) : formatCurrency(fundUtilized)}
+                                            </span>
                                         </div>
                                     </div>
 
-                                    <div className="h-[220px] w-full mt-2">
+                                    <div className="h-[170px] w-full mt-1">
                                         <ResponsiveContainer width="100%" height="100%">
                                             <BarChart
                                                 data={[
@@ -4638,10 +4331,10 @@ export function DirectorDashboard() {
                                         </ResponsiveContainer>
                                     </div>
 
-                                    <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-4 mt-auto">
-                                        <div className="space-y-1">
+                                    <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-2 mt-auto">
+                                        <div>
                                             <div
-                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                className="flex items-center justify-between py-1.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
                                                 onClick={() => openKpiModalWithTab("total", "Projects: Total Sanctioned", "ongoing")}
                                             >
                                                 <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Total Sanctioned</span>
@@ -4650,7 +4343,7 @@ export function DirectorDashboard() {
                                                 </span>
                                             </div>
                                             <div
-                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                className="flex items-center justify-between py-1.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
                                                 onClick={() => openKpiModalWithTab("total", "Projects: Utilized", "ongoing")}
                                             >
                                                 <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Utilized</span>
@@ -4661,7 +4354,7 @@ export function DirectorDashboard() {
                                                 </span>
                                             </div>
                                             <div
-                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                className="flex items-center justify-between py-1.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
                                                 onClick={() => openKpiModalWithTab("total", "Projects: Remaining Balance", "ongoing")}
                                             >
                                                 <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Remaining Balance</span>
@@ -4707,7 +4400,7 @@ export function DirectorDashboard() {
                                     )}
                                 </div>
                                 <div className="p-[18px] px-[22px] pb-5">
-                                    <div className="transition-all duration-300 w-full min-h-[340px]">
+                                    <div className="transition-all duration-300 w-full min-h-[300px]">
                                         {isLoading ? (
                                             <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">
                                                 Loading chart...
@@ -4740,7 +4433,7 @@ export function DirectorDashboard() {
 
                                                 return (
                                                     <div className="flex flex-col w-full h-full">
-                                                        <div className="relative w-full shrink-0" style={{ height: "240px" }}>
+                                                        <div className="relative w-full shrink-0" style={{ height: "200px" }}>
                                                             <div
                                                                 className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition-transform z-10 w-28 h-28 rounded-full"
                                                                 onClick={() => {
@@ -4810,7 +4503,7 @@ export function DirectorDashboard() {
                                                             </ResponsiveContainer>
                                                         </div>
 
-                                                        <div className="w-full mt-2">
+                                                        <div className="w-full mt-0.5">
                                                             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-20 gap-y-1 w-full">
                                                                 {pieData.map((entry: any, index: number) => (
                                                                     <li
@@ -5099,6 +4792,249 @@ export function DirectorDashboard() {
                             )}
                         </div>
 
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-[14px] mb-6 items-start">
+                        {/* Application-wise breakdown */}
+                        <div className="lg:col-span-2 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden flex flex-col">
+                            <div className="p-[14px] px-[20px] pb-[12px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
+                                <div>
+                                    <div className="text-[14px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
+                                        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-sm shadow-emerald-500/30">
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                                <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M8 13h2" /><path d="M14 13h2" /><path d="M8 17h2" /><path d="M14 17h2" />
+                                            </svg>
+                                        </div>
+                                        Application-wise Activity
+                                    </div>
+                                    <p className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1 ml-[38px]">Ranked by total submissions, most active first</p>
+                                </div>
+                                <span className="text-[11px] font-bold text-[#059669] bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-full uppercase tracking-wider shrink-0">
+                                    {showAllActivityApps ? sortedDoctypeCounts.length : Math.min(ACTIVITY_TOP_N, sortedDoctypeCounts.length)} of {sortedDoctypeCounts.length} apps
+                                </span>
+                            </div>
+                            <div className="max-h-[440px] overflow-y-auto">
+                                {isProcessCountsLoading ? (
+                                    <div className="flex flex-col items-center justify-center text-[#71717A] text-sm gap-3 py-16">
+                                        <div className="w-5 h-5 border-2 border-[#059669] border-t-transparent rounded-full animate-spin"></div>
+                                        <span className="font-medium">Loading applications...</span>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="hidden sm:flex items-center gap-3 px-[22px] py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] text-[10.5px] font-bold uppercase tracking-widest text-[#52525B] dark:text-[#D4D4D8]">
+                                            <span className="w-6 shrink-0" />
+                                            <span className="w-[220px] shrink-0">Application</span>
+                                            <span className="flex-1">Volume</span>
+                                            <span className="w-[168px] shrink-0 text-right">Today &nbsp;·&nbsp; Week &nbsp;·&nbsp; Month</span>
+                                            <span className="w-[54px] shrink-0 text-right">Total</span>
+                                        </div>
+                                        <div className="divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]">
+                                            {visibleDoctypeCounts.map((row, idx) => {
+                                                const isExpanded = expandedActivityDoctypes.has(row.doctype);
+                                                const hasChildren = row.children.length > 0;
+                                                const pct = Math.max(3, Math.round((row.total / maxDoctypeTotal) * 100));
+                                                const volumeColor = getVolumeBucketColor(row.total);
+                                                const rankColors = idx === 0
+                                                    ? "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
+                                                    : idx === 1
+                                                        ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                                                        : idx === 2
+                                                            ? "bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400"
+                                                            : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B] dark:text-[#A1A1AA]";
+                                                return (
+                                                    <div key={row.doctype}>
+                                                        <div
+                                                            className={`flex items-center gap-3 px-[22px] py-2 ${hasChildren ? "cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B]" : ""} transition-colors`}
+                                                            onClick={() => hasChildren && toggleActivityDoctype(row.doctype)}
+                                                        >
+                                                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-extrabold shrink-0 tabular-nums ${rankColors}`}>
+                                                                {idx + 1}
+                                                            </span>
+                                                            <div className="w-[220px] shrink-0 flex items-center gap-1.5 min-w-0">
+                                                                {hasChildren ? (
+                                                                    <ChevronDown size={12} className={`text-[#A1A1AA] shrink-0 transition-transform ${isExpanded ? "" : "-rotate-90"}`} />
+                                                                ) : (
+                                                                    <span className="w-3 shrink-0" />
+                                                                )}
+                                                                <span className="text-[12.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">
+                                                                    {row.doctype}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex-1 h-[7px] rounded-full bg-[#F4F4F5] dark:bg-[#3F3F46] overflow-hidden">
+                                                                <div
+                                                                    className="h-full rounded-full"
+                                                                    style={{ width: `${pct}%`, background: `linear-gradient(to right, ${volumeColor.from}, ${volumeColor.to})` }}
+                                                                />
+                                                            </div>
+                                                            <div className="hidden sm:flex w-[168px] shrink-0 items-center justify-end gap-2 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">
+                                                                <span className="w-[38px] text-right">{row.today}</span>
+                                                                <span className="text-[#A1A1AA] dark:text-[#71717A]">·</span>
+                                                                <span className="w-[38px] text-right">{row.this_week}</span>
+                                                                <span className="text-[#A1A1AA] dark:text-[#71717A]">·</span>
+                                                                <span className="w-[38px] text-right">{row.this_month}</span>
+                                                            </div>
+                                                            <span className={`w-[54px] shrink-0 text-right text-[13.5px] font-extrabold tabular-nums ${volumeColor.text}`}>
+                                                                {row.total}
+                                                            </span>
+                                                        </div>
+                                                        {isExpanded && hasChildren && (
+                                                            <div className="bg-[#FAFAF9] dark:bg-[#18181B] px-[22px] py-1.5 space-y-1">
+                                                                {row.children.map((child) => (
+                                                                    <div key={`${row.doctype}-${child.fieldname}`} className="flex items-center gap-3 pl-9">
+                                                                        <span className="text-[11.5px] text-[#52525B] dark:text-[#D4D4D8] truncate flex-1">
+                                                                            ↳ {child.doctype}
+                                                                        </span>
+                                                                        <span className="hidden sm:inline text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums w-[168px] text-right">
+                                                                            {child.today} · {child.this_week} · {child.this_month}
+                                                                        </span>
+                                                                        <span className="text-[10.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums w-[54px] text-right">
+                                                                            {child.total}
+                                                                        </span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                            {!isProcessCountsLoading && sortedDoctypeCounts.length > ACTIVITY_TOP_N && (
+                                <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] p-2.5 shrink-0">
+                                    <button
+                                        onClick={() => setShowAllActivityApps((v) => !v)}
+                                        className="w-full py-2 rounded-lg text-[11.5px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors"
+                                    >
+                                        {showAllActivityApps ? "Show Top 10" : `Show All (${sortedDoctypeCounts.length})`}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Usage tier distribution */}
+                        <div className="lg:col-span-1 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden flex flex-col h-full">
+                            <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between gap-2">
+                                <div>
+                                    <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-rose-500 to-orange-500 text-white shadow-sm shadow-rose-500/30">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                                <path d="M21.21 15.89A10 10 0 1 1 8 2.83" /><path d="M22 12A10 10 0 0 0 12 2v10z" />
+                                            </svg>
+                                        </div>
+                                        Usage Distribution
+                                    </div>
+                                    <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1 ml-[42px]">Apps grouped into 3 tiers · click a tier for details</p>
+                                </div>
+                                <select
+                                    value={usageTierMetric}
+                                    onChange={(e) => { setUsageTierMetric(e.target.value as keyof typeof USAGE_TIER_METRICS); setExpandedUsageTier(null); }}
+                                    className="shrink-0 appearance-none bg-[#F4F4F5] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-2.5 py-1 text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] outline-none cursor-pointer hover:bg-[#E4E4E7] dark:hover:bg-[#3F3F46] transition-colors"
+                                >
+                                    {Object.entries(USAGE_TIER_METRICS).map(([key, m]) => (
+                                        <option key={key} value={key}>{m.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="p-[18px] px-[22px] flex-1 flex flex-col">
+                                {isProcessCountsLoading ? (
+                                    <div className="flex-1 flex flex-col items-center justify-center text-[#71717A] text-sm gap-3 py-10">
+                                        <div className="w-5 h-5 border-2 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
+                                        <span className="font-medium">Loading...</span>
+                                    </div>
+                                ) : usageTierBreakdown.length > 0 ? (
+                                    <>
+                                        <div className="shrink-0 relative" style={{ height: "200px" }}>
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <PieChart>
+                                                    <Tooltip
+                                                        contentStyle={{ borderRadius: "0.75rem", border: "1px solid #27272A", background: "#18181B", boxShadow: "0 8px 24px rgba(0,0,0,0.25)" }}
+                                                        labelStyle={{ color: "#f4f4f5", fontWeight: 700, fontSize: 12, marginBottom: 2 }}
+                                                        itemStyle={{ color: "#e4e4e7", fontSize: 12, fontWeight: 600 }}
+                                                        formatter={(_value: number, name: string, props: { payload?: { value: number; appCount: number } }) => {
+                                                            const real = props.payload?.value ?? 0;
+                                                            const suffix = usageTierMetric === "weekly_avg" || usageTierMetric === "monthly_avg" ? "/day" : "";
+                                                            return [`${real.toLocaleString("en-IN")}${suffix} · ${props.payload?.appCount ?? 0} apps`, name];
+                                                        }}
+                                                    />
+                                                    <Pie
+                                                        data={usageTierPieData}
+                                                        dataKey="pieValue"
+                                                        nameKey="name"
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius="60%"
+                                                        outerRadius="80%"
+                                                        paddingAngle={3}
+                                                        isAnimationActive={false}
+                                                        onClick={(t: { name: string }) => setExpandedUsageTier(prev => prev === t.name ? null : t.name)}
+                                                        style={{ cursor: "pointer" }}
+                                                    >
+                                                        {usageTierPieData.map((t) => (
+                                                            <Cell key={t.name} fill={t.color} stroke={expandedUsageTier === t.name ? "#3F3F46" : "none"} strokeWidth={expandedUsageTier === t.name ? 2 : 0} />
+                                                        ))}
+                                                    </Pie>
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center z-10 w-28 h-28 rounded-full pointer-events-none">
+                                                <span className="text-3xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none tabular-nums">
+                                                    {usageTierTotal.toLocaleString("en-IN")}
+                                                </span>
+                                                <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
+                                                    Total
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2 mt-2 flex-1">
+                                            {usageTierBreakdown.map((t) => {
+                                                const sharePct = usageTierTotal > 0 ? Math.round((t.value / usageTierTotal) * 100) : 0;
+                                                const isOpen = expandedUsageTier === t.name;
+                                                return (
+                                                    <div key={t.name} className="rounded-lg bg-[#FAFAF9] dark:bg-[#18181B] overflow-hidden">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setExpandedUsageTier(prev => prev === t.name ? null : t.name)}
+                                                            className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left hover:bg-white dark:hover:bg-[#27272A] transition-colors"
+                                                        >
+                                                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
+                                                            <div className="min-w-0 flex-1">
+                                                                <div className="text-[11.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{t.name}</div>
+                                                                <div className="text-[10.5px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">{t.appCount} app{t.appCount === 1 ? "" : "s"}</div>
+                                                            </div>
+                                                            <div className="text-right shrink-0">
+                                                                <div className="text-[13px] font-extrabold tabular-nums" style={{ color: t.color }}>{sharePct}%</div>
+                                                                <div className="text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8] tabular-nums">{t.value.toLocaleString("en-IN")}</div>
+                                                            </div>
+                                                            <ChevronDown size={13} className={`text-[#71717A] dark:text-[#A1A1AA] shrink-0 transition-transform ${isOpen ? "" : "-rotate-90"}`} />
+                                                        </button>
+                                                        {isOpen && (
+                                                            <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] px-2.5 py-1.5 max-h-[220px] overflow-y-auto space-y-0.5">
+                                                                {t.rows.map((r, i) => (
+                                                                    <div key={r.doctype} className="flex items-center gap-2 py-1">
+                                                                        <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] w-4 text-right shrink-0 tabular-nums">{i + 1}</span>
+                                                                        <span className="text-[11.5px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] truncate flex-1">{r.doctype}</span>
+                                                                        <span className="text-[10.5px] font-extrabold tabular-nums shrink-0" style={{ color: t.color }}>
+                                                                            {usageTierGetValue(r).toLocaleString("en-IN")}
+                                                                        </span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="flex-1 flex items-center justify-center text-[#71717A] text-sm py-10">
+                                        No data available
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        </div>
+
+                        {!isDirectorOnly && <StaffLeaderboardCard />}
+
                         {/* ── Financial Intelligence ── */}
                         <SectionDivider title="Financial" />
                         <div className="mb-6">
@@ -5197,8 +5133,8 @@ export function DirectorDashboard() {
                                             active={!kpiModal}
                                         />
                                         {/* Header */}
-                                        <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between flex-wrap gap-3">
-                                            <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
+                                        <div className="p-[14px] px-[20px] pb-[12px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between flex-wrap gap-2.5">
+                                            <div className="text-[14px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
                                                 <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-emerald-50 dark:bg-emerald-950/20 text-[#059669]">
                                                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                                                         <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
@@ -5841,10 +5777,10 @@ export function DirectorDashboard() {
                                         />
                                         <input
                                             type="text"
-                                            placeholder="Search PIs..."
+                                            placeholder="Search name, email, project no, type..."
                                             value={piSearch}
                                             onChange={(e) => setPiSearch(e.target.value)}
-                                            className="pl-9 pr-4 py-2 bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] outline-none w-56 transition-all focus:border-[#2563eb]"
+                                            className="pl-9 pr-4 py-2 bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] outline-none w-64 transition-all focus:border-[#2563eb]"
                                         />
                                     </div>
 
@@ -6473,12 +6409,12 @@ export function DirectorDashboard() {
                                                                     <div className="text-[11px] font-bold text-[#A1A1AA] uppercase tracking-widest mb-1">
                                                                         Funding Agency
                                                                     </div>
-                                                                    {proj.select_funding_agency === "Other" ? (
+                                                                    {/^other/i.test(resolveAgencyName(proj)) ? (
                                                                         <div
                                                                             className="text-[11px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight line-clamp-2"
-                                                                            title={proj.funding_agency_other}
+                                                                            title={proj.funding_agency_other || "—"}
                                                                         >
-                                                                            {proj.funding_agency_other}
+                                                                            {proj.funding_agency_other || "—"}
                                                                         </div>
                                                                     ) : (
                                                                         <FundingAgencyNameDisplay
