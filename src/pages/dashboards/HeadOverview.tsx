@@ -1028,7 +1028,6 @@ export function HeadOverview() {
     const { total: liveFundUtilized, loading: fundUtilizedLoading } = usePIFundReceivedTotal(ongoingProjectsListForFunds);
     const fundUtilized = liveFundUtilized || 0;
     const fundRemaining = Math.max(0, fundAlloc - fundUtilized);
-    const fundUtilPercent = fundAlloc > 0 ? ((fundUtilized / fundAlloc) * 100).toFixed(1) : "0";
 
     // ── Funding sources pie (dept-scoped) ───────────────────────────────────
     const pieChartFundingData = React.useMemo(() => {
@@ -1849,17 +1848,6 @@ export function HeadOverview() {
                                 value={formatCurrency(fundAnalytics.total_allocation || stats.totalAlloc)}
                                 isLoading={isPageLoading}
                                 subtext=""
-                                valueAdornment={
-                                    !isPageLoading && (
-                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
-                                            {fundUtilizedLoading ? (
-                                                <span className="animate-pulse">Loading…</span>
-                                            ) : (
-                                                `${fundUtilPercent}% utilized`
-                                            )}
-                                        </span>
-                                    )
-                                }
                                 icon={
                                     <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                                         <line x1="6" y1="5" x2="18" y2="5" />

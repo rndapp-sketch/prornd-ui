@@ -2206,7 +2206,6 @@ export function DirectorDashboard() {
 
     const fundUtilized = liveGlobalUtilized || 0;
     const fundRemaining = Math.max(0, fundAlloc - fundUtilized);
-    const fundUtilPercent = fundAlloc > 0 ? ((fundUtilized / fundAlloc) * 100).toFixed(1) : "0";
 
     const totalFundingSources = fundingTypeData.reduce(
         (sum: number, item: any) => sum + (item.value || 0),
@@ -3044,8 +3043,6 @@ export function DirectorDashboard() {
         return { active, pendingFund, checking };
     }, [allProjectsList, ongoingIds, fundStatusMap]);
 
-    const isFundUtilDataReady = !globalUtilizedLoading && allocationByType.pending === 0;
-
     // Total Fund Allocation card's own breakdown — allocated amount per type.
     const allocationBreakdownGrid = React.useMemo(() => {
         const { rAmt, cAmt, oAmt } = allocationByType;
@@ -3602,17 +3599,6 @@ export function DirectorDashboard() {
                                 value={formatCurrency(fundAlloc)}
                                 isLoading={isLoading}
                                 subtext=""
-                                valueAdornment={
-                                    !isLoading && (
-                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
-                                            {!isFundUtilDataReady ? (
-                                                <span className="animate-pulse">Loading…</span>
-                                            ) : (
-                                                `${fundUtilPercent}% utilized`
-                                            )}
-                                        </span>
-                                    )
-                                }
                                 icon={
                                     <svg
                                         className="w-[18px] h-[18px]"
