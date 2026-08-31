@@ -2466,16 +2466,15 @@ export function DirectorDashboard() {
 
     // Extract a consistent agency label from a project record.
     // Priority: select_funding_agency → origin_of_funding_agency → funding_agency_other → schemes → "Missing Funding Agency Name"
+    // Reuses resolveAgencyName's canonical priority order (funding_agen link, then
+    // direct text fields, then scheme-keyword inference for ANRF/SERB/DST/DBT) instead
+    // of falling back to the raw scheme/proposal title text — that fallback was
+    // treating each project's specific scheme name (e.g. "NPTEL Postbac/Pre-Doc
+    // Fellowship") as if it were the funding agency, flooding the "Filter by Fund"
+    // dropdown with one-off scheme-name entries alongside real agencies.
     const getProjectAgency = React.useCallback((proj: any): string => {
-        return (
-            (proj.select_funding_agency || "").trim() ||
-            (proj.origin_of_funding_agency || "").trim() ||
-            (proj.funding_agency_other || "").trim() ||
-            (proj.funding_agency_schemes || "").trim() ||
-            (proj.scheme_name || "").trim() ||
-            "Missing Funding Agency Name"
-        );
-    }, []);
+        return resolveAgencyName(proj) || "Missing Funding Agency Name";
+    }, [resolveAgencyName]);
 
     // Build agency list for the PI workload filter dropdown, derived directly
     // from allProjectsList (same source used for filtering).
