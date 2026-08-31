@@ -1,8 +1,31 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useFrappeAuth, useFrappeGetCall } from 'frappe-react-sdk';
+import { useFrappeAuth } from 'frappe-react-sdk';
 import { useUserRoles } from './UserRole';
 import { GlobalLoader } from '@/components/ui/global-loader';
+
+type StudentProfileCheck = { is_student: boolean; is_complete: boolean } | null;
+
+// AuthRouteWrapper mounts fresh on every protected-route navigation, and a
+// plain useFrappeGetCall re-hits the endpoint on each of those mounts once
+// enough time has passed (SWR's dedupingInterval is only ~2s) — visible as a
+// flicker while browsing, especially since this endpoint can be slow/erroring.
+// Cache the result at module scope so it's fetched at most once per user per
+// session, not once per navigation.
+let studentProfileCache: { user: string; promise: Promise<StudentProfileCheck> } | null = null;
+
+function checkStudentProfileOnce(user: string): Promise<StudentProfileCheck> {
+  if (studentProfileCache?.user === user) return studentProfileCache.promise;
+  const promise = fetch(
+    '/api/method/rndopsapp.rndopsapp.user_api.student_api.get_my_student_profile',
+    { credentials: 'include' },
+  )
+    .then((res) => (res.ok ? res.json() : null))
+    .then((json) => json?.message ?? null)
+    .catch(() => null);
+  studentProfileCache = { user, promise };
+  return promise;
+}
 
 // Type definition remains the same
 type AllowedRole =
@@ -37,30 +60,36 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, blocke
 
   // A student added by a PI can log in straight away, but must complete their
   // own details before using the portal. This is the single gate for that —
-  // every protected route goes through AuthRouteWrapper.
-  const {
-    data: studentProfile,
-    error: studentProfileError,
-    isLoading: isStudentProfileLoading,
-  } = useFrappeGetCall<{
-    message: { is_student: boolean; is_complete: boolean };
-  }>(
-    'rndopsapp.rndopsapp.user_api.student_api.get_my_student_profile',
-    {},
-    currentUser ? undefined : null,
-  );
+  // every protected route goes through AuthRouteWrapper. Checked at most once
+  // per session (see checkStudentProfileOnce) rather than on every mount.
+  const [studentProfile, setStudentProfile] = useState<StudentProfileCheck>(null);
+  const [isStudentProfileLoading, setIsStudentProfileLoading] = useState(true);
+
+  useEffect(() => {
+    if (!currentUser) {
+      setIsStudentProfileLoading(false);
+      return;
+    }
+    let cancelled = false;
+    checkStudentProfileOnce(currentUser).then((result) => {
+      if (cancelled) return;
+      setStudentProfile(result);
+      setIsStudentProfileLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser]);
 
   // A user carrying the "Student" role is the authoritative signal that they
-  // need a completed profile — don't rely solely on the profile lookup
-  // succeeding. If no Student Details record exists for them yet, the
-  // backend call errors out instead of returning is_complete: false, and
-  // without this fallback that silently skipped the gate entirely instead
-  // of sending them to fill it in.
+  // need a completed profile. If the lookup failed (endpoint error) we fail
+  // open — only an explicit is_complete: false forces the redirect — so a
+  // backend outage doesn't lock every student out of the whole portal.
   const isStudentRole = !!roles?.includes('Student');
   const mustCompleteProfile =
     !isStudentProfileLoading &&
     isStudentRole &&
-    (studentProfileError || !studentProfile?.message?.is_complete);
+    studentProfile?.is_complete === false;
 
   useEffect(() => {
     if (!mustCompleteProfile) return;
