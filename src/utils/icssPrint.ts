@@ -92,15 +92,20 @@ const ORDERED_FIELDS = [
     "icss_applying_for", "icss_indent_type", "icss_account_head", "total_estimate"
 ];
 
-const fmtLabel = (key: string): string =>
+// Real on-screen label for a field, scraped straight from its <label for="fieldname">
+// element (see extractLabelMap below) — this is what the user actually sees on the
+// form, so it always wins over the guessed fallback ("Value Type" for amc_value_type
+// instead of the real "Value Of The AMC Is In").
+const fmtLabel = (key: string, domLabelMap: Record<string, string> = {}): string =>
+    domLabelMap[key] ||
     FIELD_LABELS[key] ||
     key.replace(/^(sp_|icss_|dp_|pp_|rr_|amc_|rate_contract_)/, "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-const fmtValue = (key: string, val: any, data: Record<string, any> = {}, domMap: Record<string, string> = {}, linkOpts: Record<string, any[]> = {}): string => {
+const fmtValue = (key: string, val: any, data: Record<string, any> = {}, domMap: Record<string, string> = {}, linkOpts: Record<string, any[]> = {}, domLabelMap: Record<string, string> = {}): string => {
     if (BOOL_FIELDS.has(key)) return yesNo(val);
     if (AMOUNT_FIELDS.has(key) && !isNaN(Number(val)))
         return "₹ " + fmtNum(val);
-    
+
     if (linkOpts[key]) {
         const match = linkOpts[key].find((o: any) => o.value === String(val));
         if (match && match.label && match.label !== String(val)) return match.label;
@@ -110,7 +115,7 @@ const fmtValue = (key: string, val: any, data: Record<string, any> = {}, domMap:
         if (match && match.label && match.label !== String(val)) return match.label;
     }
 
-    const label = fmtLabel(key).toLowerCase();
+    const label = fmtLabel(key, domLabelMap).toLowerCase();
     if (domMap[label] && domMap[label] !== String(val)) return domMap[label];
     if (key === "department" && domMap["applicant department / centre / section"] && domMap["applicant department / centre / section"] !== String(val)) {
         return domMap["applicant department / centre / section"];
@@ -135,7 +140,7 @@ export function generateIcssHtml(
 ): string {
 
     const domDisplayMap: Record<string, string> = {};
-    
+
     const extractFromEl = (el: HTMLElement | null) => {
         if (!el) return;
         el.querySelectorAll(".truncate, label span, .text-\\[10px\\] span").forEach((labelEl) => {
@@ -152,9 +157,31 @@ export function generateIcssHtml(
             }
         });
     };
-    
+
     extractFromEl(detailsEl);
     extractFromEl(subDetailsEl);
+
+    // Real field labels, keyed by fieldname via each field's own <label for="fieldname">
+    // element — lets the print show "Value Of The AMC Is In" instead of a guessed
+    // "Value Type", and (below) lets us tell which data keys the on-screen form
+    // actually renders a field for at all, vs. hidden backend-only companion values.
+    const extractLabelMap = (el: HTMLElement | null): Record<string, string> => {
+        const map: Record<string, string> = {};
+        if (!el) return map;
+        el.querySelectorAll("label[for]").forEach((labelEl) => {
+            const forAttr = labelEl.getAttribute("for");
+            if (!forAttr) return;
+            const clone = labelEl.cloneNode(true) as HTMLElement;
+            clone.querySelectorAll(".text-red-500, .ml-1").forEach((n) => n.remove());
+            const text = clone.textContent?.trim();
+            if (text) map[forAttr] = text;
+        });
+        return map;
+    };
+    const domLabelMap: Record<string, string> = {
+        ...extractLabelMap(detailsEl),
+        ...extractLabelMap(subDetailsEl),
+    };
 
     const seen = new Set<string>();
 
@@ -181,6 +208,10 @@ export function generateIcssHtml(
             if (k.startsWith("_")) return false;
             if (k.endsWith("_name") && data[k.slice(0, -5)] !== undefined) return false;
             if (k.includes("declaration") || k.includes("checkbox") || k.includes("accept") || k.startsWith("certify_") || k === "rate_contract_packing" || /dec_\d$/.test(k)) return false;
+            // AMC's "value or percentage" toggle — only the mode actually chosen is
+            // meaningful; the other one sits at 0 and shouldn't print as real data.
+            if (k === "amc_value_percentage" && data.amc_value_type === "Value") return false;
+            if (k === "amc_value" && data.amc_value_type === "Percentage") return false;
             const v = data[k];
             if (Array.isArray(v) || typeof v === "object" || v === null || v === undefined || v === "") return false;
             return true;
@@ -188,18 +219,40 @@ export function generateIcssHtml(
         .map((k) => [k, data[k]]);
 
 
+    // A label this long (a full question, e.g. "Whether The Services Rendered During
+    // The Previous Year Have Been Satisfactory Or Not") wraps across many lines when
+    // squeezed into the 20%-wide label column, making that one row tall enough that
+    // page-break-inside:avoid pushes it whole onto the next page — leaving a large
+    // blank gap at the bottom of the previous one. Long-label fields get their own
+    // full-width row (label above value) instead of being paired into two columns.
+    const LONG_LABEL_THRESHOLD = 60;
+    const isLongLabelField = (k: string): boolean => fmtLabel(k, domLabelMap).length > LONG_LABEL_THRESHOLD;
+
     let infoRows = "";
-    for (let i = 0; i < infoEntries.length; i += 2) {
+    let i = 0;
+    while (i < infoEntries.length) {
         const [k1, v1] = infoEntries[i];
-        const pair = infoEntries[i + 1];
+        if (isLongLabelField(k1)) {
+            infoRows += `<tr>
+                <td class="lbl" colspan="4">
+                    <div>${fmtLabel(k1, domLabelMap)}</div>
+                    <div style="font-weight:normal;margin-top:3px;">${fmtValue(k1, v1, data, domDisplayMap, linkOptions, domLabelMap)}</div>
+                </td>
+            </tr>\n`;
+            i += 1;
+            continue;
+        }
+
+        const pair = infoEntries[i + 1] && !isLongLabelField(infoEntries[i + 1][0]) ? infoEntries[i + 1] : null;
         infoRows += `<tr>
-            <td class="lbl">${fmtLabel(k1)}</td>
-            <td class="val">${fmtValue(k1, v1, data, domDisplayMap, linkOptions)}</td>
+            <td class="lbl">${fmtLabel(k1, domLabelMap)}</td>
+            <td class="val">${fmtValue(k1, v1, data, domDisplayMap, linkOptions, domLabelMap)}</td>
             ${pair
-                ? `<td class="lbl">${fmtLabel(pair[0])}</td><td class="val">${fmtValue(pair[0], pair[1], data, domDisplayMap, linkOptions)}</td>`
+                ? `<td class="lbl">${fmtLabel(pair[0], domLabelMap)}</td><td class="val">${fmtValue(pair[0], pair[1], data, domDisplayMap, linkOptions, domLabelMap)}</td>`
                 : `<td></td><td></td>`
             }
         </tr>\n`;
+        i += pair ? 2 : 1;
     }
 
     const itemsTableField = Object.keys(data).find(k => Array.isArray(data[k]) && data[k].length > 0 && typeof data[k][0] === "object" && (k.startsWith("table_") || ["details_of_items_to_be_purchased", "items", "icss_items", "rate_contract_items"].includes(k)));

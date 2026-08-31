@@ -112,15 +112,20 @@
             margin: 3px 0 4px 0;
         }
 
-        .doc-ref-right .doc-ref-label {
+        .doc-ref-label {
             font-weight: bold;
             font-size: 8.5pt;
             display: inline;
         }
 
-        .doc-ref-right .doc-ref-value {
+        .doc-ref-value {
             font-size: 8.5pt;
             display: inline;
+        }
+
+        .form-type-ref {
+            font-weight: normal;
+            margin-top: 2px;
         }
 
         .form-line {
@@ -376,14 +381,17 @@
                             </div>
 
                             <!-- DOC META & FORM TYPE -->
-                            <div style="display: flex; justify-content: space-between; align-items: baseline; margin: 4px 0 2px 0;">
-                                <div class="form-type">Form Type: P_11 Form</div>
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin: 4px 0 2px 0;">
+                                <div class="form-type">
+                                    Form Type: P_11 Form
+                                    <div class="form-type-ref">
+                                        <span class="doc-ref-label">Direct Purchase Ref: </span><span class="doc-ref-value">{{DIRECT_PURCHASE_REF}}</span>
+                                    </div>
+                                </div>
                                 <div class="doc-ref-right" style="margin: 0;">
                                     <span class="doc-ref-label">P_11 Ref: </span><span class="doc-ref-value">{{DOC_REF}}</span>
                                     &nbsp;&nbsp;
                                     <span class="doc-ref-label">Status: </span><span>{{WORKFLOW_STATE}}</span>
-                                    <br>
-                                    <span class="doc-ref-label">Direct Purchase Ref: </span><span class="doc-ref-value">{{DIRECT_PURCHASE_REF}}</span>
                                 </div>
                             </div>
                             <div style="text-align: right; font-size: 9.5pt; margin-bottom: 10px;">
