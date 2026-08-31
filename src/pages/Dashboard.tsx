@@ -85,10 +85,13 @@ const Dashboard = () => {
       } else if (isRndStaff) {
         // RnD staff before project staff as they have broader scope
         navigate('/rnd-staff-dashboard');
+      } else if (isStudent) {
+        // Student before project staff — a student tied to a project can also
+        // carry the "project staff" role, but should still land on their own
+        // dashboard, not the project staff one.
+        navigate('/student-dashboard');
       } else if (isProjectStaff) {
         navigate('/project-staff-dashboard');
-      } else if (isStudent) {
-        navigate('/student-dashboard');
       } else if (isInspiredFaculty || isIndependentResearcher) {
         navigate('/home');
       } else if (isPermanentEmployee) {

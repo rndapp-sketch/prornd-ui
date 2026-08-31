@@ -64,15 +64,28 @@ export default function StudentProfile() {
     const [error, setError] = React.useState("");
     const [saved, setSaved] = React.useState(false);
 
-    // Seed the form once the existing values arrive.
+    // useFrappeGetCall's isLoading flips true on every background revalidation,
+    // not just the true initial load (same quirk worked around in useUserRoles).
+    // Using it raw below would swap the whole form out for a full-screen spinner
+    // on every revalidation blip — visible as a flicker, even though the
+    // underlying `form` state is untouched and the data you typed is still there.
+    const hasEverLoadedRef = React.useRef(false);
+    if (data !== undefined) hasEverLoadedRef.current = true;
+    const showInitialLoader = isLoading && !hasEverLoadedRef.current;
+
+    // Seed the form once the existing values arrive. Guarded by a ref rather
+    // than checking Object.keys(prev).length — when the student has no
+    // existing record yet, `existing` is `{}`, so a keys-length check never
+    // "locks in" and re-seeds (with a fresh object reference) on every
+    // render where `data` isn't referentially stable, causing a flicker loop.
+    const seededRef = React.useRef(false);
     React.useEffect(() => {
         const existing = data?.message?.data;
-        if (existing) {
-            setForm((prev) =>
-                Object.keys(prev).length ? prev : Object.fromEntries(
-                    Object.entries(existing).map(([k, v]) => [k, v ?? ""]),
-                ),
-            );
+        if (existing && !seededRef.current) {
+            seededRef.current = true;
+            setForm(Object.fromEntries(
+                Object.entries(existing).map(([k, v]) => [k, v ?? ""]),
+            ));
         }
     }, [data]);
 
@@ -98,7 +111,7 @@ export default function StudentProfile() {
         }
     };
 
-    if (isLoading) {
+    if (showInitialLoader) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-[#FAFAF9] dark:bg-[#18181B]">
                 <Loader2 className="h-6 w-6 animate-spin text-[#D97757]" />
