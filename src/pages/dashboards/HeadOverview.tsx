@@ -456,7 +456,11 @@ const PIStatCardsHead: React.FC<{ piDetails: any; projects: any[] }> = ({ piDeta
     return (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
             <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
-                <div className="text-[18px] sm:text-[20px] font-extrabold text-[#2563eb] leading-tight">{piDetails.project_count}</div>
+                {/* projects.length (not piDetails.project_count) so this always matches the
+                    Project Timeline list below — piDetails.project_count comes from a
+                    separate role-assignment aggregate that can diverge from the actual
+                    pi_webmail-matched project list shown to the user. */}
+                <div className="text-[18px] sm:text-[20px] font-extrabold text-[#2563eb] leading-tight">{projects.length}</div>
                 <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Projects</div>
             </div>
             <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
