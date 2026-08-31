@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetDoc, useFrappeGetCall } from "frappe-react-sdk";
 // import { AppSidebar } from "../../components/RndSidebar";
 import { AnalyticsCard, CurrentTime } from "../../components/DashboardCards";
-import { StaffLeaderboardCard } from "../../components/StaffLeaderboardCard";
 import { cn } from "@/lib/utils";
 import {
   ClipboardCheck, Users, Layers,
@@ -282,8 +281,6 @@ export function DorndDashboard() {
               </div>
             </section>
           )}
-
-          <StaffLeaderboardCard />
 
           <footer className="text-center text-[#71717A] dark:text-[#A1A1AA] mt-6 pb-4">
             <div className="flex items-center justify-center space-x-2 text-xs">
