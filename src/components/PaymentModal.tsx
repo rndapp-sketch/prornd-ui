@@ -86,6 +86,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             if (result.exc || result.exception) {
                 throw new Error(result.exc || result.exception);
             }
+            if (result.message?.status === "error") {
+                throw new Error(result.message?.message || "Payment submission failed");
+            }
             onSuccess?.();
             onClose();
             alert('Payment submitted successfully!');

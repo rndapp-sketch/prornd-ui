@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useFrappeAuth } from 'frappe-react-sdk';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useFrappeAuth, useFrappeGetCall } from 'frappe-react-sdk';
 import { useUserRoles } from './UserRole';
 import { GlobalLoader } from '@/components/ui/global-loader';
 
@@ -31,8 +31,42 @@ const AUTH_STORAGE_KEY = 'prornd_last_user';
 
 const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, blockedRole, children }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentUser, isLoading: isAuthLoading } = useFrappeAuth();
   const { roles, isLoading: isRolesLoading, error: rolesError } = useUserRoles(currentUser ?? null);
+
+  // A student added by a PI can log in straight away, but must complete their
+  // own details before using the portal. This is the single gate for that —
+  // every protected route goes through AuthRouteWrapper.
+  const {
+    data: studentProfile,
+    error: studentProfileError,
+    isLoading: isStudentProfileLoading,
+  } = useFrappeGetCall<{
+    message: { is_student: boolean; is_complete: boolean };
+  }>(
+    'rndopsapp.rndopsapp.user_api.student_api.get_my_student_profile',
+    {},
+    currentUser ? undefined : null,
+  );
+
+  // A user carrying the "Student" role is the authoritative signal that they
+  // need a completed profile — don't rely solely on the profile lookup
+  // succeeding. If no Student Details record exists for them yet, the
+  // backend call errors out instead of returning is_complete: false, and
+  // without this fallback that silently skipped the gate entirely instead
+  // of sending them to fill it in.
+  const isStudentRole = !!roles?.includes('Student');
+  const mustCompleteProfile =
+    !isStudentProfileLoading &&
+    isStudentRole &&
+    (studentProfileError || !studentProfile?.message?.is_complete);
+
+  useEffect(() => {
+    if (!mustCompleteProfile) return;
+    if (location.pathname === '/student-profile') return;
+    navigate('/student-profile', { replace: true });
+  }, [mustCompleteProfile, location.pathname, navigate]);
 
   // Track if we've ever loaded - don't block rendering after initial load
   const hasInitialized = useRef(false);

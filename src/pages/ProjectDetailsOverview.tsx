@@ -1906,14 +1906,14 @@ const QuickActions = ({
             newParams.delete("app");
             setApplicationData([]);
         }
-        if (!embedded) setSearchParams(newParams, { state: location.state });
+        if (!embedded) setSearchParams(newParams, { state: location.state, replace: true });
     };
 
     const handleApplicationClick = (item: string) => {
         setSelectedApplication(item);
         const newParams = new URLSearchParams(searchParams);
         newParams.set("app", item);
-        if (!embedded) setSearchParams(newParams, { state: location.state });
+        if (!embedded) setSearchParams(newParams, { state: location.state, replace: true });
     };
 
     const handleBack = () => {
@@ -1926,7 +1926,7 @@ const QuickActions = ({
         setApplicationData([]);
         const newParams = new URLSearchParams(searchParams);
         newParams.delete("app");
-        if (!embedded) setSearchParams(newParams, { state: location.state });
+        if (!embedded) setSearchParams(newParams, { state: location.state, replace: true });
     };
 
     const handleApplyNew = () => {
@@ -3736,6 +3736,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             if (result.exc || result.exception) {
                 throw new Error(result.exc || result.exception);
             }
+            if (result.message?.status === "error") {
+                throw new Error(result.message?.message || "Payment submission failed");
+            }
             // Success - close modal and refresh ledger
             setPaymentModalOpen(false);
             setSelectedCommitmentForPayment(null);
@@ -3939,7 +3942,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         const nextParams = new URLSearchParams(searchParams);
         nextParams.set("tab", tabId);
         if (isCoProjectView) nextParams.set("coProject", "1");
-        setSearchParams(nextParams, { state: location.state });
+        setSearchParams(nextParams, { state: location.state, replace: true });
     };
 
     useEffect(() => {

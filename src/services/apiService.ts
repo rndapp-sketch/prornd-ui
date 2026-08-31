@@ -107,6 +107,8 @@ export const directPurchaseAPI = {
     generateP11Form: `${API_BASE}.direct_purchase.direct_purchase.generate_p11_form`,
     generateSanctionSheet: `${API_BASE}.direct_purchase.direct_purchase.generate_sanction_sheet`,
     generatePurchaseOrder: `${API_BASE}.direct_purchase.direct_purchase.generate_purchase_order`,
+    getPiProjects: `${API_BASE}.direct_purchase.direct_purchase.get_direct_purchase_pi_projects`,
+    getProjectAccountHeads: `${API_BASE}.direct_purchase.direct_purchase.get_direct_purchase_project_account_heads`,
 };
 
 // Direct Purchase PO (dp_po) API endpoints — Stage 4
@@ -229,6 +231,7 @@ export const universalRegistrationAPI = {
     save: `${API_BASE}.universal_registration__.universal_registration__.save_universal_registration___data`,
     checkDuplicates: `${API_BASE}.universal_registration__.universal_registration__.check_duplicate_registration`,
     checkEmailAvailability: `${API_BASE}.universal_registration__.universal_registration__.check_email_availability`,
+    list: `${API_BASE}.universal_registration__.universal_registration__.get_universal_registration___list`,
 };
 
 // Disbursal of Consultancy API endpoints
@@ -389,6 +392,16 @@ export const leaveModuleAPI = {
     getPendingApprovals: `${API_BASE}.leave_module.leave_module.get_pending_approvals`,
     getDetail: `${API_BASE}.leave_module.leave_module.get_leave_detail`,
     getLeaveBalance: `${API_BASE}.leave_module.leave_module.get_leave_balance`,
+};
+
+// Student Dashboard (PI-side "Add Student") API endpoints
+export const studentAPI = {
+    getByEmail: `rndopsapp.rndopsapp.user_api.student_api.get_student_by_email`,
+    getPiProjects: `rndopsapp.rndopsapp.user_api.student_api.get_pi_projects`,
+    addStudent: `rndopsapp.rndopsapp.user_api.student_api.add_student`,
+    // Student self-service profile (must be completed before using the portal)
+    getMyProfile: `rndopsapp.rndopsapp.user_api.student_api.get_my_student_profile`,
+    saveMyProfile: `rndopsapp.rndopsapp.user_api.student_api.save_my_student_profile`,
 };
 
 // Helper to prepare form data with file conversions for API submission

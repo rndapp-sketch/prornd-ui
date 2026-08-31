@@ -6,6 +6,8 @@ import {
     MessageSquareIcon,
     ActivityIcon,
     RefreshCwIcon,
+    InfoIcon,
+    BanIcon,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -87,6 +89,20 @@ function typeConfig(type: string) {
                 dot: "bg-[#D97757] border-orange-200",
                 iconColor: "text-[#D97757]",
                 badge: "bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-orange-200 dark:border-orange-800",
+            };
+        case "info":
+            return {
+                Icon: InfoIcon,
+                dot: "bg-sky-500 border-sky-200",
+                iconColor: "text-sky-600 dark:text-sky-400",
+                badge: "bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400 border-sky-200 dark:border-sky-800",
+            };
+        case "cancellation":
+            return {
+                Icon: BanIcon,
+                dot: "bg-red-500 border-red-200",
+                iconColor: "text-red-600 dark:text-red-400",
+                badge: "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800",
             };
         default:
             return {

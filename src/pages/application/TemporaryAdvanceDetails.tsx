@@ -38,6 +38,7 @@ import { temporaryAdvanceAPI } from "@/services/apiService";
 import { resolveDepartmentLabel } from "@/utils/resolveDepartmentLabel";
 import { ErrorModal } from "../../components/ErrorModal";
 import { parseFrappeError } from "../../utils/errorUtils";
+import { CancellationStatusBanner } from "../../components/CancellationStatusBanner";
 
 const toWords = new ToWords({ localeCode: "en-IN", converterOptions: { ignoreDecimal: false } });
 
@@ -694,13 +695,11 @@ const TemporaryAdvanceDetails: React.FC = () => {
                 </PageHeader>
 
                 {/* Cancellation warning */}
-                {cancellationStatus?.message?.has_pending && (
-                    <div className="mb-6 p-4 rounded-xl border border-red-200 dark:border-red-800/40 bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-300 flex items-center gap-3 shadow-sm">
-                        <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
-                        <div className="text-sm font-medium">
-                            This application has a pending cancellation request. No further workflow actions can be performed.
-                        </div>
-                    </div>
+                {cancellationStatus?.message?.has_cancellation && (
+                    <CancellationStatusBanner
+                        requests={cancellationStatus?.message?.cancellation_requests}
+                        currentUser={currentUser}
+                    />
                 )}
 
                 {/* Content Grid */}

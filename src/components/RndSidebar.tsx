@@ -31,6 +31,7 @@ import {
     HelpCircle,
     Search,
     Share2 as Share2Icon,
+    GraduationCap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -49,6 +50,7 @@ import { selectionCommitteeReportAPI } from "@/services/apiService";
 import { useAppwriteSession } from "@/hooks/useAppwriteSession";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
 import { HelpModule } from "./HelpModule";
+import { AddStudentModal } from "./AddStudentModal";
 
 // --- LOGIC: Interfaces (Unchanged) ---
 interface SubMenuItem {
@@ -75,6 +77,7 @@ export function AppSidebar() {
     const [openSubMenus, setOpenSubMenus] = useState<string[]>([]);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [isHelpOpen, setIsHelpOpen] = useState(false);
+    const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
     const { mutate } = useSWRConfig();
     const appwriteSession = useAppwriteSession();
     const { unreadCount } = useUnreadCount(appwriteSession.user?.$id ?? null);
@@ -316,6 +319,11 @@ export function AppSidebar() {
             },
         },
         {
+            label: "Add Student",
+            icon: GraduationCap,
+            action: () => setIsAddStudentOpen(true),
+        },
+        {
             label: "Salary Module",
             icon: IndianRupee,
             path: "/salary-module",
@@ -400,6 +408,9 @@ export function AppSidebar() {
             return roles && allowedRoles.some((role) => roles.includes(role));
         }
         if (item.label === "Project Staff") {
+            return roles?.includes("Permanent Employee") ?? false;
+        }
+        if (item.label === "Add Student") {
             return roles?.includes("Permanent Employee") ?? false;
         }
         if (item.label === "Stakeholder Registration") {
@@ -798,6 +809,7 @@ export function AppSidebar() {
                 </SidebarFooter>
             </Sidebar>
             <HelpModule isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
+            <AddStudentModal isOpen={isAddStudentOpen} onClose={() => setIsAddStudentOpen(false)} />
         </>
     );
 }

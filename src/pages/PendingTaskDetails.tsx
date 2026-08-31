@@ -73,6 +73,7 @@ import { DeclarationFields } from "@/components/DeclarationFields";
 import { AutocompleteEmail } from "@/components/AutocompleteEmail";
 import { getFileUrl } from "@/utils/fileUtils";
 import { resolveBudgetHeadLabel } from "@/utils/resolveBudgetHeadLabel";
+import { CancellationStatusBanner } from "../components/CancellationStatusBanner";
 
 // Fields to hide from the overview
 const HIDDEN_FIELDS = [
@@ -242,9 +243,6 @@ const ReimbursementWorkflowActions = ({
                 });
             }
             await performAction(payload);
-            if (comment.trim()) {
-                addComment({ doctype: "Reimbursement", docname, content: comment.trim() }).catch(() => {});
-            }
             setModalOpen(false);
             onActionComplete();
         } catch (error) {
@@ -442,9 +440,6 @@ const FundSanctionWorkflowActions = ({
     const handleConfirmAction = async (comment: string) => {
         try {
             await performAction({ docname, action: selectedAction, comment });
-            if (comment.trim()) {
-                addComment({ doctype: "Fund Sanction", docname, content: comment.trim() }).catch(() => {});
-            }
             setModalOpen(false);
             onActionComplete();
         } catch (error) {
@@ -608,9 +603,6 @@ const TravelWorkflowActions = ({
     const handleConfirmAction = async (comment: string) => {
         try {
             await performAction({ docname, action: selectedAction, comment });
-            if (comment.trim()) {
-                addComment({ doctype: "Travel", docname, content: comment.trim() }).catch(() => {});
-            }
             setModalOpen(false);
             onActionComplete();
         } catch (error) {
@@ -889,9 +881,6 @@ const TopUpFellowshipWorkflowActions = ({
                     message: parseFrappeError({ message: res.message.message || `Action "${selectedTufAction}" failed.` }, res?.message),
                 });
                 return;
-            }
-            if (comment?.trim()) {
-                addComment({ doctype: "Top Up Fellowship", docname, content: comment.trim() }).catch(() => {});
             }
             setActionModalOpen(false);
             onActionComplete();
@@ -1177,9 +1166,6 @@ const RecruitmentAdhocContractualWorkflowActions = ({
     const handleConfirmAction = async (comment: string) => {
         try {
             await performAction({ docname, action: selectedAction, comment });
-            if (comment.trim()) {
-                addComment({ doctype: "Recruitment Adhoc Contractual", docname, content: comment.trim() }).catch(() => {});
-            }
             setModalOpen(false);
             onActionComplete();
         } catch (error) {
@@ -3754,13 +3740,11 @@ const PendingTaskDetails: React.FC = () => {
             <AppSidebar />
 
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-                {cancellationStatus?.message?.has_pending && (
-                    <div className="mb-6 p-4 rounded-xl border border-red-200 dark:border-red-800/40 bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-300 flex items-center gap-3 shadow-sm">
-                        <AlertTriangleIcon className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
-                        <div className="text-sm font-medium">
-                            This application has a pending cancellation request. No further workflow actions can be performed on it.
-                        </div>
-                    </div>
+                {cancellationStatus?.message?.has_cancellation && (
+                    <CancellationStatusBanner
+                        requests={cancellationStatus?.message?.cancellation_requests}
+                        currentUser={currentUser}
+                    />
                 )}
                 <PageHeader
                     title={name || ''}
