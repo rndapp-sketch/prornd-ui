@@ -5213,37 +5213,29 @@ export function DirectorDashboard() {
                                     <>
                                         {/* Summary strip */}
                                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
-                                            <div className="flex items-center gap-2.5 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg pl-2.5 pr-3 py-2 border-l-4 border-blue-500 shadow-sm border-y border-r border-black/5 dark:border-white/5">
-                                                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-blue-50 dark:bg-blue-950/30 text-[#2563eb]">
-                                                    <BarChart3 size={13} strokeWidth={2.5} />
-                                                </div>
+                                            <div className="flex items-center gap-2 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg px-3 py-2 shadow-sm border border-black/5 dark:border-white/5">
+                                                <BarChart3 size={14} strokeWidth={2.5} className="text-[#2563eb] shrink-0" />
                                                 <div className="min-w-0">
                                                     <div className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Processed</div>
                                                     <div className="text-[16px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums leading-tight">{leaderboardData.total_processed}</div>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-2.5 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg pl-2.5 pr-3 py-2 border-l-4 border-emerald-500 shadow-sm border-y border-r border-black/5 dark:border-white/5">
-                                                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400">
-                                                    <CheckCircle size={13} strokeWidth={2.5} />
-                                                </div>
+                                            <div className="flex items-center gap-2 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg px-3 py-2 shadow-sm border border-black/5 dark:border-white/5">
+                                                <CheckCircle size={14} strokeWidth={2.5} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
                                                 <div className="min-w-0">
                                                     <div className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Approved</div>
                                                     <div className="text-[16px] font-extrabold text-emerald-700 dark:text-emerald-400 tabular-nums leading-tight">{leaderboardData.total_approved}</div>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-2.5 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg pl-2.5 pr-3 py-2 border-l-4 border-red-500 shadow-sm border-y border-r border-black/5 dark:border-white/5">
-                                                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400">
-                                                    <X size={13} strokeWidth={2.5} />
-                                                </div>
+                                            <div className="flex items-center gap-2 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg px-3 py-2 shadow-sm border border-black/5 dark:border-white/5">
+                                                <X size={14} strokeWidth={2.5} className="text-red-600 dark:text-red-400 shrink-0" />
                                                 <div className="min-w-0">
                                                     <div className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Rejected</div>
                                                     <div className="text-[16px] font-extrabold text-red-600 dark:text-red-400 tabular-nums leading-tight">{leaderboardData.total_rejected}</div>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-2.5 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg pl-2.5 pr-3 py-2 border-l-4 border-violet-500 shadow-sm border-y border-r border-black/5 dark:border-white/5">
-                                                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-violet-50 dark:bg-violet-950/30 text-violet-600 dark:text-violet-400">
-                                                    <TrendingUp size={13} strokeWidth={2.5} />
-                                                </div>
+                                            <div className="flex items-center gap-2 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg px-3 py-2 shadow-sm border border-black/5 dark:border-white/5">
+                                                <TrendingUp size={14} strokeWidth={2.5} className="text-violet-600 dark:text-violet-400 shrink-0" />
                                                 <div className="min-w-0">
                                                     <div className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Overall Rate</div>
                                                     <div className="text-[16px] font-extrabold text-violet-700 dark:text-violet-400 tabular-nums leading-tight">{leaderboardData.overall_rate}%</div>
@@ -5410,10 +5402,15 @@ export function DirectorDashboard() {
                                                     {leaderboardData.pending_by_role.map((p, i) => (
                                                         <span
                                                             key={`${p.role}-${p.state}-${i}`}
-                                                            className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-md shadow-sm border border-black/5 dark:border-white/5 ${LEADERBOARD_CHIP_PALETTE[i % LEADERBOARD_CHIP_PALETTE.length]}`}
+                                                            className="inline-flex items-center rounded-md shadow-sm border border-black/5 dark:border-white/5 overflow-hidden text-[11px] font-bold"
                                                         >
-                                                            {p.role} <span className="opacity-60">·</span> {p.state}
-                                                            <span className="ml-0.5 px-1.5 py-0.5 rounded bg-white/60 dark:bg-black/20">{p.count}</span>
+                                                            <span className={`px-2.5 py-1.5 ${LEADERBOARD_CHIP_PALETTE[i % LEADERBOARD_CHIP_PALETTE.length]}`}>
+                                                                {p.role}
+                                                            </span>
+                                                            <span className="flex items-center gap-1.5 px-2.5 py-1.5 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400">
+                                                                {p.state}
+                                                                <span className="px-1.5 py-0.5 rounded bg-white/60 dark:bg-black/20">{p.count}</span>
+                                                            </span>
                                                         </span>
                                                     ))}
                                                 </div>
