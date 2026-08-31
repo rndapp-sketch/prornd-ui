@@ -1528,26 +1528,6 @@ export function HeadOverview() {
         );
     }, [allocationByType, allOthersOngoing]);
 
-    // Ongoing Projects card: split by fund-received status, not just project type —
-    // "sanction approved" alone doesn't tell the Head whether a project is truly
-    // active (fund in hand) or still waiting on disbursal. Mirrors DirectorDashboard's
-    // ongoingFundStatusBreakdown, scoped to deptProjects/deptOngoingIds.
-    const ongoingFundStatusBreakdown = React.useMemo(() => {
-        let active = 0, pendingFund = 0, checking = 0;
-        deptProjects.forEach((p: any) => {
-            if (!deptOngoingIds.has(p.name)) return;
-            if (!fundStatusMap.has(p.name)) { checking++; return; }
-            if (fundStatusMap.get(p.name) === true) active++;
-            else pendingFund++;
-        });
-        return { active, pendingFund, checking };
-    }, [deptProjects, deptOngoingIds, fundStatusMap]);
-
-    const openOngoingFundStatusModal = (status: "active" | "pending_fund", title: string) => {
-        setKpiModal({ type: "ongoing", title, fundStatus: status });
-        setKpiPage(1);
-    };
-
     // Same compact grid as projectBreakdownGrid/allocationBreakdownGrid — headline
     // ongoing count per type.
     const ongoingBreakdownGrid = React.useMemo(() => {
@@ -1784,32 +1764,6 @@ export function HeadOverview() {
                                 value={String(projectOverview.ongoing_projects || stats.ongoing)}
                                 isLoading={isPageLoading}
                                 subtext=""
-                                valueAdornment={
-                                    !isPageLoading && (projectOverview.ongoing_projects || stats.ongoing) > 0 && (
-                                        <div className="flex items-center gap-2">
-                                            {ongoingFundStatusBreakdown.checking > 0 ? null : (
-                                                <>
-                                                    <span
-                                                        className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 cursor-pointer hover:brightness-95 transition-all"
-                                                        title="Sanctioned and fund received"
-                                                        onClick={(e) => { e.stopPropagation(); openOngoingFundStatusModal("active", "Ongoing Projects: Received Fund"); }}
-                                                    >
-                                                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                                        {ongoingFundStatusBreakdown.active} Received
-                                                    </span>
-                                                    <span
-                                                        className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 cursor-pointer hover:brightness-95 transition-all"
-                                                        title="Sanctioned but fund not yet received"
-                                                        onClick={(e) => { e.stopPropagation(); openOngoingFundStatusModal("pending_fund", "Ongoing Projects: Pending Fund Received"); }}
-                                                    >
-                                                        <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                                                        {ongoingFundStatusBreakdown.pendingFund} Pending
-                                                    </span>
-                                                </>
-                                            )}
-                                        </div>
-                                    )
-                                }
                                 icon={
                                     <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                                         <circle cx="12" cy="12" r="10" />

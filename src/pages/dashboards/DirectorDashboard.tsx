@@ -2020,15 +2020,6 @@ export function DirectorDashboard() {
         setKpiAgeFilter("all");
     };
 
-    // Ongoing Projects card's Active/Pending Fund badges — openKpiModalWithTab can't
-    // express this distinction (it hardcodes kpiStatusFilter to "ongoing" whenever
-    // type === "ongoing"), so this calls openKpiModal's baseline setup and then
-    // overrides the status filter directly to the finer-grained value.
-    const openOngoingFundStatusModal = (status: "active" | "pending_fund", title: string) => {
-        openKpiModal("ongoing", title);
-        setKpiStatusFilter(status);
-    };
-
     // For clicking a Research/Consultancy/Others column inside a compact breakdown
     // grid — narrows the modal to that one project type instead of showing every
     // project the whole card's own onClick would (so clicking "Research" actually
@@ -3028,21 +3019,6 @@ export function DirectorDashboard() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [allProjectsList, ongoingIds, fundUtilized, globalUtilizedLoading]);
 
-    // Ongoing Projects card: split by fund-received status, not just project type —
-    // "sanction approved" alone doesn't tell the Director whether a project is truly
-    // active (fund in hand) or still waiting on disbursal. Mirrors kpiGetStatus's
-    // ongoing/pending_fund classification so the card and the modal it opens agree.
-    const ongoingFundStatusBreakdown = React.useMemo(() => {
-        let active = 0, pendingFund = 0, checking = 0;
-        (allProjectsList ?? []).forEach((p: any) => {
-            if (!ongoingIds.has(p.name)) return;
-            if (!fundStatusMap.has(p.name)) { checking++; return; }
-            if (fundStatusMap.get(p.name) === true) active++;
-            else pendingFund++;
-        });
-        return { active, pendingFund, checking };
-    }, [allProjectsList, ongoingIds, fundStatusMap]);
-
     // Total Fund Allocation card's own breakdown — allocated amount per type.
     const allocationBreakdownGrid = React.useMemo(() => {
         const { rAmt, cAmt, oAmt } = allocationByType;
@@ -3532,32 +3508,6 @@ export function DirectorDashboard() {
                                 value={String(ongoingProjects)}
                                 isLoading={isLoading}
                                 subtext=""
-                                valueAdornment={
-                                    !isLoading && ongoingProjects > 0 && (
-                                        <div className="flex items-center gap-2">
-                                            {ongoingFundStatusBreakdown.checking > 0 ? null : (
-                                                <>
-                                                    <span
-                                                        className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 cursor-pointer hover:brightness-95 transition-all"
-                                                        title="Sanctioned and fund received"
-                                                        onClick={(e) => { e.stopPropagation(); openOngoingFundStatusModal("active", "Ongoing Projects: Received Fund"); }}
-                                                    >
-                                                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                                        {ongoingFundStatusBreakdown.active} Received
-                                                    </span>
-                                                    <span
-                                                        className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 cursor-pointer hover:brightness-95 transition-all"
-                                                        title="Sanctioned but fund not yet received"
-                                                        onClick={(e) => { e.stopPropagation(); openOngoingFundStatusModal("pending_fund", "Ongoing Projects: Pending Fund Received"); }}
-                                                    >
-                                                        <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                                                        {ongoingFundStatusBreakdown.pendingFund} Pending
-                                                    </span>
-                                                </>
-                                            )}
-                                        </div>
-                                    )
-                                }
                                 icon={
                                     <svg
                                         className="w-[18px] h-[18px]"
