@@ -2068,17 +2068,13 @@ export function HeadOverview() {
                                     </div>
                                 </div>
                                 <div className="p-[18px] px-[22px] pb-5">
-                                    <div className="h-[260px] relative">
-                                        {isPageLoading ? (
-                                            <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">Loading chart...</div>
-                                        ) : ((projectOverview.ongoing_projects || stats.ongoing) + (projectOverview.submitted_projects || stats.submitted)) === 0 ? (
-                                            <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">No data available</div>
-                                        ) : (
-                                            <>
-                                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
-                                                    <span className="text-3xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none">{stats.researchProjects + stats.consultancyProjects}</span>
-                                                    <span className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">Total</span>
-                                                </div>
+                                    {isPageLoading ? (
+                                        <div className="h-[200px] flex items-center justify-center text-[#71717A] text-sm">Loading chart...</div>
+                                    ) : ((projectOverview.ongoing_projects || stats.ongoing) + (projectOverview.submitted_projects || stats.submitted)) === 0 ? (
+                                        <div className="h-[200px] flex items-center justify-center text-[#71717A] text-sm">No data available</div>
+                                    ) : (
+                                        <div className="flex items-center justify-center">
+                                            <div className="relative flex items-center justify-center w-[200px] h-[200px] shrink-0">
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <PieChart>
                                                         <Pie
@@ -2086,7 +2082,7 @@ export function HeadOverview() {
                                                                 { name: "Research", value: stats.researchProjects, color: "#2563eb" },
                                                                 { name: "Consultancy", value: stats.consultancyProjects, color: "#7c3aed" },
                                                             ]}
-                                                            cx="50%" cy="50%" innerRadius="60%" outerRadius="80%" dataKey="value" nameKey="name" paddingAngle={5} isAnimationActive={false}
+                                                            cx="50%" cy="50%" innerRadius={65} outerRadius={88} dataKey="value" nameKey="name" paddingAngle={5} isAnimationActive={false}
                                                             onClick={(entry: any) => {
                                                                 const t = entry?.name === "Research" ? "research" : "consultancy";
                                                                 setKpiModal({ type: "projectType", title: `Projects: ${entry?.name}`, projectType: t });
@@ -2097,47 +2093,37 @@ export function HeadOverview() {
                                                             <Cell fill="#2563eb" stroke="none" />
                                                             <Cell fill="#7c3aed" stroke="none" />
                                                         </Pie>
-                                                        <Tooltip contentStyle={{ borderRadius: "0.75rem", border: "1px solid #1e293b", background: "#0f172a" }} labelStyle={{ color: "#f1f5f9", fontWeight: 700, fontSize: 12 }} itemStyle={{ color: "#94a3b8", fontSize: 11 }} formatter={(value: number, name: string) => [`${value} Projects`, name]} />
+                                                        <Tooltip contentStyle={{ borderRadius: "0.5rem", border: "1px solid #1e293b", background: "#0f172a" }} labelStyle={{ color: "#f1f5f9", fontWeight: 700 }} itemStyle={{ color: "#94a3b8", fontSize: 11 }} formatter={(value: number, name: string) => [`${value} Projects`, name]} />
                                                     </PieChart>
                                                 </ResponsiveContainer>
-                                            </>
-                                        )}
-                                    </div>
-                                    <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-3 mt-3">
-                                        <div className="grid grid-cols-2 gap-3 pt-1">
-                                            <div
-                                                className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] rounded-lg transition-colors py-1"
-                                                onClick={() => { setKpiModal({ type: "projectType", title: "Projects: Research", projectType: "research" }); setKpiPage(1); }}
-                                            >
-                                                <div className="text-[22px] font-extrabold text-[#2563eb] leading-tight">{stats.researchProjects}</div>
-                                                <div className="text-[11px] font-bold text-[#71717A] uppercase tracking-widest mb-2">Research</div>
-                                                <div className="flex flex-col gap-1.5 w-full px-2 lg:px-4">
-                                                    <span className="inline-flex items-center justify-between w-full text-[10px] sm:text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 cursor-default">
-                                                        <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Ongoing</div>
-                                                        <span>{stats.researchOngoing}</span>
-                                                    </span>
-                                                    <span className="inline-flex items-center justify-between w-full text-[10px] sm:text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 cursor-default">
-                                                        <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>Submitted</div>
-                                                        <span>{stats.researchSubmitted}</span>
-                                                    </span>
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                                    <span className="text-[24px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none">{stats.researchProjects + stats.consultancyProjects}</span>
+                                                    <span className="text-[11px] font-bold text-[#71717A] uppercase tracking-widest mt-0.5">Total</span>
                                                 </div>
                                             </div>
-                                            <div
-                                                className="flex flex-col items-center justify-start cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] rounded-lg transition-colors py-1"
-                                                onClick={() => { setKpiModal({ type: "projectType", title: "Projects: Consultancy", projectType: "consultancy" }); setKpiPage(1); }}
-                                            >
-                                                <div className="text-[22px] font-extrabold text-[#7c3aed] leading-tight">{projectOverview.consultancy_projects || stats.consultancyProjects}</div>
-                                                <div className="text-[11px] font-bold text-[#71717A] uppercase tracking-widest mb-2">Consultancy</div>
-                                                <div className="flex flex-col gap-1.5 w-full px-2 lg:px-4">
-                                                    <span className="inline-flex items-center justify-between w-full text-[10px] sm:text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 cursor-default">
-                                                        <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Ongoing</div>
-                                                        <span>{stats.consultancyOngoing}</span>
-                                                    </span>
-                                                    <span className="inline-flex items-center justify-between w-full text-[10px] sm:text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 cursor-default">
-                                                        <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>Submitted</div>
-                                                        <span>{stats.consultancySubmitted}</span>
-                                                    </span>
-                                                </div>
+                                        </div>
+                                    )}
+                                    <div className="grid grid-cols-2 gap-2 pt-2 mt-3 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                                        <div
+                                            className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer hover:opacity-75 transition-opacity"
+                                            onClick={() => { setKpiModal({ type: "projectType", title: "Projects: Research", projectType: "research" }); setKpiPage(1); }}
+                                        >
+                                            <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">{stats.researchProjects}</div>
+                                            <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
+                                            <div className="flex flex-col gap-1 w-full px-1">
+                                                {renderStatusBadge("ongoing", stats.researchOngoing, stats.researchProjects)}
+                                                {renderStatusBadge("submitted", stats.researchSubmitted, stats.researchProjects)}
+                                            </div>
+                                        </div>
+                                        <div
+                                            className="flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity"
+                                            onClick={() => { setKpiModal({ type: "projectType", title: "Projects: Consultancy", projectType: "consultancy" }); setKpiPage(1); }}
+                                        >
+                                            <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">{projectOverview.consultancy_projects || stats.consultancyProjects}</div>
+                                            <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
+                                            <div className="flex flex-col gap-1 w-full px-1">
+                                                {renderStatusBadge("ongoing", stats.consultancyOngoing, stats.consultancyProjects)}
+                                                {renderStatusBadge("submitted", stats.consultancySubmitted, stats.consultancyProjects)}
                                             </div>
                                         </div>
                                     </div>
