@@ -544,7 +544,7 @@ export function HeadOverview() {
     const [financialProjectTypeFilter, setFinancialProjectTypeFilter] = React.useState<string>("all");
 
     const KPI_PAGE_SIZE = 10;
-    const PROJECT_TABLE_PAGE_SIZE = 10;
+    const PROJECT_TABLE_PAGE_SIZE = 5;
     const PI_PROJECTS_PAGE_SIZE = 2;
     const PAGE_SIZE = 10;
 
@@ -2155,7 +2155,7 @@ export function HeadOverview() {
                                         </div>
                                         <div>
                                             <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Financial Trends</div>
-                                            <div className="text-[10px] font-medium text-[#A1A1AA] dark:text-[#71717A] leading-tight">Ongoing (sanction-approved) projects only</div>
+                                            <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-tight">Ongoing (sanction-approved) projects only</div>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -2183,32 +2183,32 @@ export function HeadOverview() {
                                     </div>
                                 </div>
                                 <div className="p-[18px] px-[22px] flex-1 flex flex-col">
-                                    <div className="flex gap-4 mb-5">
+                                    <div className="flex gap-2.5 mb-3">
                                         <div
-                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-xl p-3.5 text-center shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
+                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg px-3 py-2 flex items-center justify-between gap-2 shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
                                             onClick={() => openKpiModalWithTab("total", "Projects: Total Sanctioned", "ongoing")}
                                         >
-                                            <div className="text-[20px] font-extrabold tracking-[-0.03em] text-[#2563eb]">
-                                                {isPageLoading ? "—" : formatCurrency(fundAlloc)}
-                                            </div>
-                                            <div className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">
+                                            <span className="text-[10.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">
                                                 Total Sanctioned
-                                            </div>
+                                            </span>
+                                            <span className="text-[15px] font-extrabold tracking-[-0.02em] text-[#2563eb] tabular-nums">
+                                                {isPageLoading ? "—" : formatCurrency(fundAlloc)}
+                                            </span>
                                         </div>
                                         <div
-                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-xl p-3.5 text-center shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
+                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg px-3 py-2 flex items-center justify-between gap-2 shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
                                             onClick={() => openKpiModalWithTab("total", "Projects: Utilized", "ongoing")}
                                         >
-                                            <div className="text-[20px] font-extrabold tracking-[-0.03em] text-[#059669]">
-                                                {isPageLoading || fundUtilizedLoading ? "—" : formatCurrency(fundUtilized)}
-                                            </div>
-                                            <div className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">
+                                            <span className="text-[10.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">
                                                 Utilized
-                                            </div>
+                                            </span>
+                                            <span className="text-[15px] font-extrabold tracking-[-0.02em] text-[#059669] tabular-nums">
+                                                {isPageLoading || fundUtilizedLoading ? "—" : formatCurrency(fundUtilized)}
+                                            </span>
                                         </div>
                                     </div>
 
-                                    <div className="h-[220px] w-full mt-2">
+                                    <div className="h-[170px] w-full mt-1">
                                         <ResponsiveContainer width="100%" height="100%">
                                             <BarChart
                                                 data={[
@@ -2276,10 +2276,10 @@ export function HeadOverview() {
                                         </ResponsiveContainer>
                                     </div>
 
-                                    <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-4 mt-auto">
-                                        <div className="space-y-1">
+                                    <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-2 mt-auto">
+                                        <div>
                                             <div
-                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                className="flex items-center justify-between py-1.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
                                                 onClick={() => openKpiModalWithTab("total", "Projects: Total Sanctioned", "ongoing")}
                                             >
                                                 <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Total Sanctioned</span>
@@ -2288,7 +2288,7 @@ export function HeadOverview() {
                                                 </span>
                                             </div>
                                             <div
-                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                className="flex items-center justify-between py-1.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
                                                 onClick={() => openKpiModalWithTab("total", "Projects: Utilized", "ongoing")}
                                             >
                                                 <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Utilized</span>
@@ -2297,7 +2297,7 @@ export function HeadOverview() {
                                                 </span>
                                             </div>
                                             <div
-                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                className="flex items-center justify-between py-1.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
                                                 onClick={() => openKpiModalWithTab("total", "Projects: Remaining Balance", "ongoing")}
                                             >
                                                 <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Remaining Balance</span>
