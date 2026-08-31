@@ -5033,7 +5033,7 @@ export function DirectorDashboard() {
                         </div>
                         </div>
 
-                        <StaffLeaderboardCard />
+                        {!isDirectorOnly && <StaffLeaderboardCard />}
 
                         {/* ── Financial Intelligence ── */}
                         <SectionDivider title="Financial" />
