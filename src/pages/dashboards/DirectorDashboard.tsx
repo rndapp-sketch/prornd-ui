@@ -47,7 +47,6 @@ import {
     Minus,
 } from "lucide-react";
 import { generateDirectorReportHtml } from "@/utils/directorReportHtml";
-import { StaffLeaderboardCard } from "@/components/StaffLeaderboardCard";
 
 
 const CHART_COLORS = [
@@ -5032,8 +5031,6 @@ export function DirectorDashboard() {
                             </div>
                         </div>
                         </div>
-
-                        <StaffLeaderboardCard />
 
                         {/* ── Financial Intelligence ── */}
                         <SectionDivider title="Financial" />
