@@ -988,6 +988,12 @@ export function DirectorDashboard() {
         return "bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] dark:text-[#A1A1AA]";
     };
 
+    const LEADERBOARD_PAGE_SIZE = 10;
+    const [leaderboardPage, setLeaderboardPage] = React.useState(1);
+    React.useEffect(() => {
+        setLeaderboardPage(1);
+    }, [leaderboardPeriod, leaderboardRole, leaderboardCategory]);
+
     const ACTIVITY_TOP_N = 10;
     const [showAllActivityApps, setShowAllActivityApps] = React.useState(false);
     const visibleDoctypeCounts = showAllActivityApps ? sortedDoctypeCounts : sortedDoctypeCounts.slice(0, ACTIVITY_TOP_N);
@@ -4239,47 +4245,100 @@ export function DirectorDashboard() {
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {leaderboardData.leaderboard.map((row) => (
-                                                        <tr
-                                                            key={row.user}
-                                                            className="border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
-                                                        >
-                                                            <td className="p-3 px-3.5 align-middle">
-                                                                <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-extrabold ${leaderboardRankStyle(row.rank)}`}>
-                                                                    {row.rank}
-                                                                </span>
-                                                            </td>
-                                                            <td className="p-3 px-3.5 align-middle text-[12.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
-                                                                {row.full_name || row.user}
-                                                            </td>
-                                                            <td className="p-3 px-3.5 align-middle text-[12.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">
-                                                                {row.total_processed}
-                                                            </td>
-                                                            <td className="p-3 px-3.5 align-middle text-[12.5px] font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">
-                                                                {row.approved}
-                                                            </td>
-                                                            <td className="p-3 px-3.5 align-middle text-[12.5px] font-bold text-red-600 dark:text-red-400 tabular-nums">
-                                                                {row.rejected}
-                                                            </td>
-                                                            <td className="p-3 px-3.5 align-middle text-[12.5px] font-semibold text-[#71717A] dark:text-[#A1A1AA] tabular-nums whitespace-nowrap">
-                                                                {row.avg_time}h
-                                                            </td>
-                                                            <td className="p-3 px-3.5 align-middle">
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className="w-16 h-1.5 rounded-full bg-[#E4E4E7] dark:bg-[#3F3F46] overflow-hidden shrink-0">
-                                                                        <div
-                                                                            className="h-full bg-emerald-500 rounded-full"
-                                                                            style={{ width: `${Math.max(0, Math.min(100, row.approval_rate))}%` }}
-                                                                        />
+                                                    {(() => {
+                                                        const totalLbPages = Math.max(1, Math.ceil(leaderboardData.leaderboard.length / LEADERBOARD_PAGE_SIZE));
+                                                        const safeLbPage = Math.min(leaderboardPage, totalLbPages);
+                                                        const lbPageSlice = leaderboardData.leaderboard.slice(
+                                                            (safeLbPage - 1) * LEADERBOARD_PAGE_SIZE,
+                                                            safeLbPage * LEADERBOARD_PAGE_SIZE
+                                                        );
+                                                        return lbPageSlice.map((row) => (
+                                                            <tr
+                                                                key={row.user}
+                                                                className="border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
+                                                            >
+                                                                <td className="p-3 px-3.5 align-middle">
+                                                                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-extrabold ${leaderboardRankStyle(row.rank)}`}>
+                                                                        {row.rank}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="p-3 px-3.5 align-middle text-[12.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
+                                                                    {row.full_name || row.user}
+                                                                </td>
+                                                                <td className="p-3 px-3.5 align-middle text-[12.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">
+                                                                    {row.total_processed}
+                                                                </td>
+                                                                <td className="p-3 px-3.5 align-middle text-[12.5px] font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">
+                                                                    {row.approved}
+                                                                </td>
+                                                                <td className="p-3 px-3.5 align-middle text-[12.5px] font-bold text-red-600 dark:text-red-400 tabular-nums">
+                                                                    {row.rejected}
+                                                                </td>
+                                                                <td className="p-3 px-3.5 align-middle text-[12.5px] font-semibold text-[#71717A] dark:text-[#A1A1AA] tabular-nums whitespace-nowrap">
+                                                                    {row.avg_time}h
+                                                                </td>
+                                                                <td className="p-3 px-3.5 align-middle">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="w-16 h-1.5 rounded-full bg-[#E4E4E7] dark:bg-[#3F3F46] overflow-hidden shrink-0">
+                                                                            <div
+                                                                                className="h-full bg-emerald-500 rounded-full"
+                                                                                style={{ width: `${Math.max(0, Math.min(100, row.approval_rate))}%` }}
+                                                                            />
+                                                                        </div>
+                                                                        <span className="text-[11.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">{row.approval_rate}%</span>
                                                                     </div>
-                                                                    <span className="text-[11.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">{row.approval_rate}%</span>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
+                                                                </td>
+                                                            </tr>
+                                                        ));
+                                                    })()}
                                                 </tbody>
                                             </table>
                                         </div>
+
+                                        {/* Leaderboard pagination */}
+                                        {leaderboardData.leaderboard.length > LEADERBOARD_PAGE_SIZE && (() => {
+                                            const totalLbPages = Math.max(1, Math.ceil(leaderboardData.leaderboard.length / LEADERBOARD_PAGE_SIZE));
+                                            const safeLbPage = Math.min(leaderboardPage, totalLbPages);
+                                            return (
+                                                <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                                                    <span className="text-[12px] text-[#52525B] dark:text-[#D4D4D8] font-semibold">
+                                                        Showing {(safeLbPage - 1) * LEADERBOARD_PAGE_SIZE + 1}–{Math.min(safeLbPage * LEADERBOARD_PAGE_SIZE, leaderboardData.leaderboard.length)} of {leaderboardData.leaderboard.length} staff
+                                                    </span>
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            onClick={() => setLeaderboardPage((p) => Math.max(1, p - 1))}
+                                                            disabled={safeLbPage === 1}
+                                                            className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] disabled:opacity-40 hover:bg-[#E4E4E7] dark:hover:bg-[#3F3F46] transition-colors"
+                                                        >
+                                                            ‹ Prev
+                                                        </button>
+                                                        {Array.from({ length: Math.min(5, totalLbPages) }, (_, i) => {
+                                                            const start = Math.max(1, Math.min(safeLbPage - 2, totalLbPages - 4));
+                                                            const page = start + i;
+                                                            return (
+                                                                <button
+                                                                    key={page}
+                                                                    onClick={() => setLeaderboardPage(page)}
+                                                                    className={`w-7 h-7 rounded-lg text-[11px] font-bold transition-colors ${page === safeLbPage
+                                                                        ? "bg-[#2563eb] text-white"
+                                                                        : "border border-[#E4E4E7] dark:border-[#3F3F46] text-[#71717A] dark:text-[#A1A1AA] hover:bg-[#E4E4E7] dark:hover:bg-[#3F3F46]"
+                                                                        }`}
+                                                                >
+                                                                    {page}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                        <button
+                                                            onClick={() => setLeaderboardPage((p) => Math.min(totalLbPages, p + 1))}
+                                                            disabled={safeLbPage === totalLbPages}
+                                                            className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] disabled:opacity-40 hover:bg-[#E4E4E7] dark:hover:bg-[#3F3F46] transition-colors"
+                                                        >
+                                                            Next ›
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
 
                                         {/* Pending by role */}
                                         {leaderboardData.pending_by_role && leaderboardData.pending_by_role.length > 0 && (
