@@ -232,7 +232,7 @@ export function StaffLeaderboardCard() {
                                                 <Zap size={16} strokeWidth={2.5} />
                                             </div>
                                             <div className="min-w-0 z-10">
-                                                <div className="text-[10px] font-bold text-sky-700/80 dark:text-sky-400/80 uppercase tracking-widest">Fastest Time Taking</div>
+                                                <div className="text-[10px] font-bold text-sky-700/80 dark:text-sky-400/80 uppercase tracking-widest">Least Time Taking</div>
                                                 <div className="text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{leaderboardData.fastest.full_name || leaderboardData.fastest.user}</div>
                                             </div>
                                             <div className="ml-auto text-[18px] font-extrabold text-sky-700 dark:text-sky-400 tabular-nums shrink-0 z-10">{leaderboardData.fastest.avg_time}h</div>
