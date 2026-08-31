@@ -1496,44 +1496,9 @@ export function HeadOverview() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [deptProjects, deptOngoingIds, fundUtilized, fundUtilizedLoading]);
 
-    const isFundUtilDataReady = !fundUtilizedLoading && allocationByType.pending === 0;
-
-    const renderMoneyBadge = (kind: "utilized" | "left", amount: number, ready: boolean) => {
-        const isUtilized = kind === "utilized";
-        return (
-            <span
-                className={`flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 ${isUtilized
-                    ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400"
-                    : "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"
-                    }`}
-            >
-                <div className="flex items-center gap-1">
-                    <span className={`w-1 h-1 rounded-full ${isUtilized ? "bg-emerald-500" : "bg-amber-400"}`}></span>
-                    {isUtilized ? "Utilized" : "Left"}
-                </div>
-                <span>{ready ? formatCurrency(amount) : "Loading…"}</span>
-            </span>
-        );
-    };
-
-    // Second row of each Fund Allocation column: ongoing project count for that
-    // type, styled to match the "Utilized" money badge above it (same emerald
-    // treatment) rather than the amber "Left" badge previously shown here.
-    const renderOngoingCountBadge = (count: number) => (
-        <span className="flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-            <div className="flex items-center gap-1">
-                <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
-                Ongoing
-            </div>
-            <span>{count}</span>
-        </span>
-    );
-
-    // Total Fund Allocation card's own breakdown — allocated amount per type as the
-    // headline, then Utilized/Left in money instead of Ongoing/Submitted project
-    // counts, since this card is specifically about money, not project status.
+    // Total Fund Allocation card's own breakdown — allocated amount per type.
     const allocationBreakdownGrid = React.useMemo(() => {
-        const { rAmt, cAmt, oAmt, rUtil, cUtil, oUtil } = allocationByType;
+        const { rAmt, cAmt, oAmt } = allocationByType;
         const showOthers = allOthersOngoing > 0;
         return (
             <div className={`grid ${showOthers ? "grid-cols-3" : "grid-cols-2"} gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]`}>
@@ -1543,10 +1508,6 @@ export function HeadOverview() {
                 >
                     <div className="text-[13px] font-extrabold text-[#2563eb] leading-tight">{formatCurrency(rAmt)}</div>
                     <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
-                    <div className="flex flex-col gap-1 w-full px-1">
-                        {renderMoneyBadge("utilized", rUtil, isFundUtilDataReady)}
-                        {renderOngoingCountBadge(allResearchOngoing)}
-                    </div>
                 </div>
                 <div
                     className={`flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity ${showOthers ? "border-r border-[#E4E4E7] dark:border-[#3F3F46]" : ""}`}
@@ -1554,10 +1515,6 @@ export function HeadOverview() {
                 >
                     <div className="text-[13px] font-extrabold text-[#7c3aed] leading-tight">{formatCurrency(cAmt)}</div>
                     <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
-                    <div className="flex flex-col gap-1 w-full px-1">
-                        {renderMoneyBadge("utilized", cUtil, isFundUtilDataReady)}
-                        {renderOngoingCountBadge(allConsultancyOngoing)}
-                    </div>
                 </div>
                 {showOthers && (
                     <div
@@ -1566,15 +1523,11 @@ export function HeadOverview() {
                     >
                         <div className="text-[13px] font-extrabold text-[#059669] leading-tight">{formatCurrency(oAmt)}</div>
                         <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Others</div>
-                        <div className="flex flex-col gap-1 w-full px-1">
-                            {renderMoneyBadge("utilized", oUtil, isFundUtilDataReady)}
-                            {renderOngoingCountBadge(allOthersOngoing)}
-                        </div>
                     </div>
                 )}
             </div>
         );
-    }, [allocationByType, allOthersOngoing, allResearchOngoing, allConsultancyOngoing, isFundUtilDataReady]);
+    }, [allocationByType, allOthersOngoing]);
 
     // Ongoing Projects card: split by fund-received status, not just project type —
     // "sanction approved" alone doesn't tell the Head whether a project is truly
