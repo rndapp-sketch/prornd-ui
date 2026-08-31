@@ -1,3 +1,6 @@
+
+// -=-=--=-=-=-=-=-=-=-=-=-=
+
 // import React, { useState, useEffect, useCallback } from 'react';
 // import { useNavigate, useSearchParams } from 'react-router-dom';
 // // import { AppSidebar } from '@/components/RndSidebar';
@@ -117,8 +120,6 @@
 
 //                 setFields(enhancedFields);
 //                 setLinkOptions(link_options || {});
-//                 console.log("link_options keys:", Object.keys(link_options || {}));
-//                 console.log("link_options:", link_options);
 //                 let initialData = { ...prefill_data };
 
 //                 // If editing, fetch existing document data
@@ -133,7 +134,6 @@
 //                             initialData = { ...initialData, ...existingDoc.message };
 //                         }
 //                     } catch (err) {
-//                         console.error('Error fetching existing document:', err);
 //                         alert('Failed to load document for editing');
 //                     }
 //                 }
@@ -158,19 +158,18 @@
 //                             if (projectTitleFromUrl) setProjectTitle(projectTitleFromUrl);
 //                         }
 //                     } catch (err) {
-//                         console.warn('Could not fetch project details for auto-fill:', err);
 //                         initialData.project_name = projectFromUrl;
 //                         initialData.project_number = projectFromUrl;
 //                         if (projectTitleFromUrl) setProjectTitle(projectTitleFromUrl);
 //                     }
 //                 }
 
-//                 // Set defaults for any missing fields
-//                 enhancedFields.forEach((field: FormField) => {
-//                     if (initialData[field.fieldname] === undefined && field.default !== undefined) {
-//                         initialData[field.fieldname] = field.default;
-//                     }
-//                 });
+//                 // If launched from Other PI tab, default self_other to "Other" and clear project fields
+//                 if (searchParams.get("other_pi") === "1") {
+//                     initialData.self_other = "Other";
+//                     initialData.project_name = "";
+//                     initialData.project_number = "";
+//                 }
 
 //                 // Default applicant_webmail to current logged-in user if not already set
 //                 if (!initialData.applicant_webmail && !editDocName && currentUser) {
@@ -187,7 +186,6 @@
 //                             initialData.applicant_department = details.applicant_department || "";
 //                         }
 //                     } catch (err) {
-//                         console.warn('Could not fetch applicant details:', err);
 //                     }
 //                 }
 
@@ -196,7 +194,6 @@
 //                 setLoading(false);
 //             }
 //             if (formDataError) {
-//                 console.error("Failed to load form data:", formDataError);
 //                 alert("Error: Could not load the reimbursement form.");
 //                 setLoading(false);
 //             }
@@ -240,7 +237,7 @@
 //                     });
 //                 }
 //             }
-//         }).catch(() => {});
+//         }).catch(() => { });
 //         // eslint-disable-next-line react-hooks/exhaustive-deps
 //     }, [dataLoaded, formData.project_name, projectTitle]);
 
@@ -332,7 +329,6 @@
 //                             }
 //                         }
 //                     } catch (err) {
-//                         console.warn('Could not fetch project details for auto-fill:', err);
 //                     }
 //                 } else {
 //                     setProjectTitle('');
@@ -340,7 +336,6 @@
 //             }
 
 //         } catch (error) {
-//             console.error(`Error handling field change for ${fieldname}:`, error);
 //         }
 //     }, [handleChange, fetchPiDetails, fetchProjectDetails]);
 
@@ -417,7 +412,6 @@
 //                 throw new Error(res?.message?.message || "Save failed");
 //             }
 //         } catch (err: any) {
-//             console.error(effectiveDocName ? editError : saveError || err);
 //             setErrorMsg(parseFrappeError(err.message || "Unknown error", fields));
 //         } finally {
 //             setIsSubmitting(false);
@@ -455,7 +449,6 @@
 //                 throw new Error(submitRes?.message?.message || "Submission failed");
 //             }
 //         } catch (err: any) {
-//             console.error(submitError || err);
 //             setErrorMsg(parseFrappeError(err.message || "Please check the console for details.", fields));
 //         } finally {
 //             setIsSubmitting(false);
@@ -539,7 +532,8 @@
 
 
 
-// -=-=--=-=-=-=-=-=-=-=-=-=
+// ============================================sumit
+
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -607,7 +601,7 @@ const parseFrappeError = (errMsg: string, fieldsList: FormField[]): string => {
 };
 
 // --- MAIN REIMBURSEMENT COMPONENT ---
-const AUTOCOMPLETE_FIELDS = ['applicant_webmail', 'reimbursement_for_id'];
+const AUTOCOMPLETE_FIELDS = ['applicant_webmail', 'reimbursement_for_id', 'reimb_applying_for_mail'];
 
 const Reimbursement: React.FC = () => {
     const navigate = useNavigate();
@@ -660,6 +654,8 @@ const Reimbursement: React.FC = () => {
 
                 setFields(enhancedFields);
                 setLinkOptions(link_options || {});
+                console.log("link_options keys:", Object.keys(link_options || {}));
+                console.log("link_options:", link_options);
                 let initialData = { ...prefill_data };
 
                 // If editing, fetch existing document data
@@ -674,6 +670,7 @@ const Reimbursement: React.FC = () => {
                             initialData = { ...initialData, ...existingDoc.message };
                         }
                     } catch (err) {
+                        console.error('Error fetching existing document:', err);
                         alert('Failed to load document for editing');
                     }
                 }
@@ -698,6 +695,7 @@ const Reimbursement: React.FC = () => {
                             if (projectTitleFromUrl) setProjectTitle(projectTitleFromUrl);
                         }
                     } catch (err) {
+                        console.warn('Could not fetch project details for auto-fill:', err);
                         initialData.project_name = projectFromUrl;
                         initialData.project_number = projectFromUrl;
                         if (projectTitleFromUrl) setProjectTitle(projectTitleFromUrl);
@@ -726,6 +724,7 @@ const Reimbursement: React.FC = () => {
                             initialData.applicant_department = details.applicant_department || "";
                         }
                     } catch (err) {
+                        console.warn('Could not fetch applicant details:', err);
                     }
                 }
 
@@ -734,6 +733,7 @@ const Reimbursement: React.FC = () => {
                 setLoading(false);
             }
             if (formDataError) {
+                console.error("Failed to load form data:", formDataError);
                 alert("Error: Could not load the reimbursement form.");
                 setLoading(false);
             }
@@ -814,6 +814,31 @@ const Reimbursement: React.FC = () => {
                 setFormData(prev => ({ ...prev, reimbursement_for_id: "", reimbursement_for_designation: "", reimbursement_for_department: "" }));
             }
 
+            // Applying-for beneficiary. The doctype declares fetch_from for these,
+            // but that only resolves server-side on save — the form fills linked
+            // details explicitly, the same way applicant_webmail does above.
+            if (fieldname === 'reimb_applying_for_mail' && value) {
+                const result = await fetchPiDetails({ user_email: value });
+                if (result?.message) {
+                    const details = result.message;
+                    setFormData(prev => ({
+                        ...prev,
+                        reimb_applying_for_mail: value,
+                        reimb_applying_for_name: details.principal_investigator_name || "",
+                        reimb_applying_for_designation: details.designation || "",
+                        reimb_applying_for_department: details.applicant_department || "",
+                    }));
+                }
+            } else if (fieldname === 'reimb_applying_for_mail' && !value) {
+                setFormData(prev => ({
+                    ...prev,
+                    reimb_applying_for_mail: "",
+                    reimb_applying_for_name: "",
+                    reimb_applying_for_designation: "",
+                    reimb_applying_for_department: "",
+                }));
+            }
+
             if (fieldname === 'applicant_webmail' && value) {
                 const result = await fetchPiDetails({ user_email: value });
                 if (result?.message) {
@@ -869,6 +894,7 @@ const Reimbursement: React.FC = () => {
                             }
                         }
                     } catch (err) {
+                        console.warn('Could not fetch project details for auto-fill:', err);
                     }
                 } else {
                     setProjectTitle('');
@@ -876,6 +902,7 @@ const Reimbursement: React.FC = () => {
             }
 
         } catch (error) {
+            console.error(`Error handling field change for ${fieldname}:`, error);
         }
     }, [handleChange, fetchPiDetails, fetchProjectDetails]);
 
@@ -952,6 +979,7 @@ const Reimbursement: React.FC = () => {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
+            console.error(effectiveDocName ? editError : saveError || err);
             setErrorMsg(parseFrappeError(err.message || "Unknown error", fields));
         } finally {
             setIsSubmitting(false);
@@ -989,6 +1017,7 @@ const Reimbursement: React.FC = () => {
                 throw new Error(submitRes?.message?.message || "Submission failed");
             }
         } catch (err: any) {
+            console.error(submitError || err);
             setErrorMsg(parseFrappeError(err.message || "Please check the console for details.", fields));
         } finally {
             setIsSubmitting(false);

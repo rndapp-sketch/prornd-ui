@@ -120,8 +120,8 @@ export default function StudentProfile() {
     }
 
     return (
-        <div className="min-h-screen bg-[#FAFAF9] px-4 py-10 dark:bg-[#18181B]">
-            <div className="mx-auto max-w-3xl">
+        <div className="min-h-screen bg-[#FAFAF9] px-6 py-10 dark:bg-[#18181B]">
+            <div className="w-full">
                 <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
                     <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
                     <div className="flex items-start gap-3 px-6 py-5">
@@ -158,11 +158,11 @@ export default function StudentProfile() {
                     onSubmit={handleSubmit}
                     className="mt-4 rounded-2xl border border-[#E4E4E7] bg-white p-6 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]"
                 >
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                         {FIELDS.map((field) => (
                             <div
                                 key={field.name}
-                                className={field.type === "textarea" ? "sm:col-span-2" : ""}
+                                className={field.type === "textarea" ? "sm:col-span-2 xl:col-span-3" : ""}
                             >
                                 <label className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-[#71717A] dark:text-[#A1A1AA]">
                                     {field.label} <span className="text-[#D97757]">*</span>
