@@ -1028,20 +1028,6 @@ export function DirectorDashboard() {
         return (parts[0][0] + (parts[1]?.[0] || "")).toUpperCase();
     };
 
-    // Cycled per-role chip colors for "Pending Approvals by Role" — a dozen-plus
-    // roles all in the same amber tint reads as one indistinct block; cycling a
-    // palette lets each role be picked out at a glance.
-    const LEADERBOARD_CHIP_PALETTE = [
-        "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400",
-        "bg-sky-50 dark:bg-sky-950/30 text-sky-700 dark:text-sky-400",
-        "bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400",
-        "bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400",
-        "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400",
-        "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400",
-        "bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400",
-        "bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-400",
-    ];
-
     const LEADERBOARD_PAGE_SIZE = 10;
     const [leaderboardPage, setLeaderboardPage] = React.useState(1);
     React.useEffect(() => {
@@ -5398,21 +5384,27 @@ export function DirectorDashboard() {
                                                 <div className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mb-2">
                                                     Pending Approvals by Role
                                                 </div>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {leaderboardData.pending_by_role.map((p, i) => (
-                                                        <span
-                                                            key={`${p.role}-${p.state}-${i}`}
-                                                            className="inline-flex items-center rounded-md shadow-sm border border-black/5 dark:border-white/5 overflow-hidden text-[11px] font-bold"
-                                                        >
-                                                            <span className={`px-2.5 py-1.5 ${LEADERBOARD_CHIP_PALETTE[i % LEADERBOARD_CHIP_PALETTE.length]}`}>
-                                                                {p.role}
-                                                            </span>
-                                                            <span className="flex items-center gap-1.5 px-2.5 py-1.5 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400">
-                                                                {p.state}
-                                                                <span className="px-1.5 py-0.5 rounded bg-white/60 dark:bg-black/20">{p.count}</span>
-                                                            </span>
-                                                        </span>
-                                                    ))}
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                                    {leaderboardData.pending_by_role.map((p, i) => {
+                                                        // Role and state are often the same text for doctypes with no
+                                                        // distinct approver role — showing it twice just reads as a
+                                                        // stutter, so collapse to one label when they match.
+                                                        const sameText = p.role && p.state && p.role.trim().toLowerCase() === p.state.trim().toLowerCase();
+                                                        const label = sameText ? p.role : [p.role, p.state].filter(Boolean).join(" · ");
+                                                        return (
+                                                            <div
+                                                                key={`${p.role}-${p.state}-${i}`}
+                                                                className="flex items-center justify-between gap-2 bg-[#FAFAF9] dark:bg-[#18181B] border border-black/5 dark:border-white/5 rounded-lg px-3 py-2"
+                                                            >
+                                                                <span className="text-[11.5px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] truncate" title={label}>
+                                                                    {label}
+                                                                </span>
+                                                                <span className="shrink-0 text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 tabular-nums">
+                                                                    {p.count}
+                                                                </span>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
                                         )}
