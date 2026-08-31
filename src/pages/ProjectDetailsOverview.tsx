@@ -3057,6 +3057,16 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         },
     );
     const fundingAgencyData = fundingAgencyResult?.message;
+    // Some records link funding_agen to a generic "Other Funding Agency" master
+    // record (a catch-all placeholder), so its own name/initials aren't the real
+    // agency — the actual name only lives in the project's own funding_agency_other
+    // free-text field. Detect that placeholder and show the real name instead.
+    const isOtherFundingAgency =
+        /^other/i.test((data?.select_funding_agency || "").trim()) ||
+        /^other/i.test((fundingAgencyData?.funding_agency_name || "").trim());
+    const displayFundingAgencyName = isOtherFundingAgency
+        ? (data?.funding_agency_other || fundingAgencyData?.funding_agency_name)
+        : fundingAgencyData?.funding_agency_name;
     const { call: triggerWorkflowAction, loading: isActionLoading } =
         useFrappePostCall("rndopsapp.rndopsapp.api.handle_workflow_action");
     const { call: submitProjectRegistration } = useFrappePostCall(
@@ -4828,9 +4838,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 divide-y md:divide-y-0">
                                             <FieldDisplay
                                                 label="Agency Name"
-                                                value={
-                                                    fundingAgencyData?.funding_agency_name
-                                                }
+                                                value={displayFundingAgencyName}
                                                 icon={BuildingIcon}
                                             />
                                             <FieldDisplay
@@ -4843,7 +4851,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                             <FieldDisplay
                                                 label="Initials"
                                                 value={
-                                                    fundingAgencyData?.funding_agency_initials
+                                                    isOtherFundingAgency
+                                                        ? undefined
+                                                        : fundingAgencyData?.funding_agency_initials
                                                 }
                                                 icon={FileTextIcon}
                                             />

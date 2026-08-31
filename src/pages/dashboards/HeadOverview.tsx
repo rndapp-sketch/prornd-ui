@@ -37,6 +37,8 @@ import {
     ChevronRight,
     X,
     Filter,
+    FileText,
+    TrendingUp,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -173,6 +175,7 @@ function KpiCard({
         textClass: string;
         title?: string;
         originalState?: string;
+        sublabel?: string;
     }>;
     onBadgeClick?: (badgeLabel: string) => void;
     valueAdornment?: React.ReactNode;
@@ -182,37 +185,41 @@ function KpiCard({
     return (
         <div
             onClick={onClick}
-            className={`bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl p-6 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all flex flex-col h-full min-h-[160px]${onClick ? " cursor-pointer select-none" : ""}`}
+            className={`bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl p-5 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all flex flex-col justify-center h-full min-h-[136px]${onClick ? " cursor-pointer select-none" : ""}`}
         >
             <div
                 className="absolute bottom-0 right-0 w-[90px] h-[90px] rounded-full translate-x-5 translate-y-5"
                 style={{ backgroundColor: circleColor, opacity: 0.07 }}
             />
-            <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center mb-4 shrink-0"
-                style={{ backgroundColor: iconBg, color: circleColor }}
-            >
-                {icon}
-            </div>
-            <div className="text-[11.5px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide mb-0.5">
-                {label}
-            </div>
-            {description && (
-                <div className="text-[12px] text-[#52525B] dark:text-[#D4D4D8] font-semibold mb-1 leading-snug">
-                    {description}
+            <div className="flex items-start gap-3 mb-1.5 -mt-1.5">
+                <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: iconBg, color: circleColor }}
+                >
+                    {icon}
                 </div>
-            )}
-            <div className="flex items-center gap-3 mb-2 flex-wrap">
-                <div className={`text-[32px] font-extrabold tracking-tight leading-none drop-shadow-sm ${valueColor}`}>
-                    {isLoading ? (
-                        <span className="text-[13px] font-bold text-[#A1A1AA] dark:text-[#71717A] animate-pulse">Loading…</span>
-                    ) : (
-                        value
+                <div className="min-w-0 flex-1">
+                    <div className="text-[11.5px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide mb-0.5">
+                        {label}
+                    </div>
+                    {description && (
+                        <div className="text-[12px] text-[#52525B] dark:text-[#D4D4D8] font-semibold mb-1 leading-snug">
+                            {description}
+                        </div>
                     )}
+                    <div className="flex items-center gap-3 flex-wrap">
+                        <div className={`text-[26px] font-extrabold tracking-tight leading-none drop-shadow-sm ${valueColor}`}>
+                            {isLoading ? (
+                                <span className="text-[13px] font-bold text-[#A1A1AA] dark:text-[#71717A] animate-pulse">Loading…</span>
+                            ) : (
+                                value
+                            )}
+                        </div>
+                        {valueAdornment}
+                    </div>
                 </div>
-                {valueAdornment}
             </div>
-            <div className="mt-auto pt-4 w-full">
+            <div className={`${customBottom ? "" : "mt-auto"} pt-3 w-full`}>
                 {customBottom ? (
                     customBottom
                 ) : badges && badges.length > 0 ? (
@@ -228,11 +235,16 @@ function KpiCard({
                                         }
                                         : undefined
                                 }
-                                className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 ${b.bgClass} ${b.textClass}${onBadgeClick ? " cursor-pointer hover:brightness-95 transition-all" : ""}`}
+                                className={`inline-flex items-start gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 ${b.bgClass} ${b.textClass}${onBadgeClick ? " cursor-pointer hover:brightness-95 transition-all" : ""}`}
                                 title={b.title}
                             >
-                                <span className={`w-2 h-2 rounded-full ${b.dotColor}`} />
-                                {b.count} {b.label}
+                                <span className={`w-2 h-2 rounded-full ${b.dotColor} mt-1 shrink-0`} />
+                                <span className="flex flex-col leading-tight">
+                                    <span>{b.count} {b.label}</span>
+                                    {b.sublabel && (
+                                        <span className="text-[10px] font-semibold opacity-70">{b.sublabel}</span>
+                                    )}
+                                </span>
                             </span>
                         ))}
                     </div>
@@ -444,7 +456,11 @@ const PIStatCardsHead: React.FC<{ piDetails: any; projects: any[] }> = ({ piDeta
     return (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
             <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
-                <div className="text-[18px] sm:text-[20px] font-extrabold text-[#2563eb] leading-tight">{piDetails.project_count}</div>
+                {/* projects.length (not piDetails.project_count) so this always matches the
+                    Project Timeline list below — piDetails.project_count comes from a
+                    separate role-assignment aggregate that can diverge from the actual
+                    pi_webmail-matched project list shown to the user. */}
+                <div className="text-[18px] sm:text-[20px] font-extrabold text-[#2563eb] leading-tight">{projects.length}</div>
                 <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Projects</div>
             </div>
             <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
@@ -459,7 +475,7 @@ const PIStatCardsHead: React.FC<{ piDetails: any; projects: any[] }> = ({ piDeta
                 <div className="text-[18px] sm:text-[20px] font-extrabold text-[#d97706] leading-tight">
                     {fundTotalLoading ? <span className="text-[12px] font-bold text-[#A1A1AA] animate-pulse">Loading…</span> : formattedLiveFund ?? "—"}
                 </div>
-                <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Fund Rcvd</div>
+                <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Fund Received</div>
             </div>
         </div>
     );
@@ -528,7 +544,7 @@ export function HeadOverview() {
     const [financialProjectTypeFilter, setFinancialProjectTypeFilter] = React.useState<string>("all");
 
     const KPI_PAGE_SIZE = 10;
-    const PROJECT_TABLE_PAGE_SIZE = 10;
+    const PROJECT_TABLE_PAGE_SIZE = 5;
     const PI_PROJECTS_PAGE_SIZE = 2;
     const PAGE_SIZE = 10;
 
@@ -1012,35 +1028,6 @@ export function HeadOverview() {
     const { total: liveFundUtilized, loading: fundUtilizedLoading } = usePIFundReceivedTotal(ongoingProjectsListForFunds);
     const fundUtilized = liveFundUtilized || 0;
     const fundRemaining = Math.max(0, fundAlloc - fundUtilized);
-    const fundUtilPercent = fundAlloc > 0 ? ((fundUtilized / fundAlloc) * 100).toFixed(1) : "0";
-
-    // ₹ allocation AND ₹ utilization split by project type, among ongoing (sanction-
-    // approved) projects only — matches DirectorDashboard's Total Allocation card.
-    // Utilized reads fundReceivedValueCache (populated by the same
-    // usePIFundReceivedTotal(ongoingProjectsListForFunds) call above), so it's
-    // recomputed once that background fetch resolves via the fundUtilized/
-    // fundUtilizedLoading deps below. pending tracks how many ongoing projects don't
-    // yet have a cache entry — used to show "Loading…" instead of a false "₹0" if the
-    // loading flag has already flipped false but the cache isn't fully populated yet.
-    const allocationByType = React.useMemo(() => {
-        let rAmt = 0, cAmt = 0, oAmt = 0;
-        let rUtil = 0, cUtil = 0, oUtil = 0;
-        let pending = 0;
-        deptProjects.forEach((p: any) => {
-            if (!deptOngoingIds.has(p.name)) return;
-            const { isResearch, isConsultancy } = classifyProjectType(p);
-            const amt = p.total_budget_amount || p.grand_total_proposal || 0;
-            if (!Object.prototype.hasOwnProperty.call(fundReceivedValueCache, p.name)) pending++;
-            const util = fundReceivedValueCache[p.name] || 0;
-            if (isResearch) { rAmt += amt; rUtil += util; }
-            else if (isConsultancy) { cAmt += amt; cUtil += util; }
-            else { oAmt += amt; oUtil += util; }
-        });
-        return { rAmt, cAmt, oAmt, rUtil, cUtil, oUtil, pending };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [deptProjects, deptOngoingIds, fundUtilized, fundUtilizedLoading]);
-
-    const isFundUtilDataReady = !fundUtilizedLoading && allocationByType.pending === 0;
 
     // ── Funding sources pie (dept-scoped) ───────────────────────────────────
     const pieChartFundingData = React.useMemo(() => {
@@ -1051,12 +1038,17 @@ export function HeadOverview() {
             const isOngoing = useApiStatus ? p._api_status === "ongoing" : deptOngoingIds.has(p.name);
             const isSubmitted = useApiStatus ? p._api_status === "submitted" : deptSubmittedIds.has(p.name);
             if (!isOngoing && !isSubmitted) return;
-            const agency =
+            let agency =
                 (fundingAgencyMap[p.funding_agen] || "").trim() ||
                 (p.select_funding_agency || "").trim() ||
                 (p.funding_agency_other || "").trim() ||
                 (p.origin_of_funding_agency || "").trim() ||
                 "Missing Funding Agency Name";
+            // "Other"/"Others"/"Other Funding Agency" is the select field's own
+            // placeholder label, not a real agency name — defer to funding_agency_other.
+            if (/^other/i.test(agency)) {
+                agency = (p.funding_agency_other || "").trim() || "Missing Funding Agency Name";
+            }
             agencyMap[agency] = (agencyMap[agency] || 0) + 1;
         });
         const arr = Object.entries(agencyMap)
@@ -1081,14 +1073,36 @@ export function HeadOverview() {
         })).sort((a: any, b: any) => b.project_count - a.project_count);
     }, [piWiseProjects, userDept]);
 
+    // Matches raw Funding Agency doc-ID formats seen in this data — plain numbers
+    // ("2074") and short-prefix autonames ("FA-02529") — as opposed to a real
+    // agency/company name, which never looks like just an ID.
+    const looksLikeAgencyId = (s: string) => /^([A-Za-z]{1,4}-)?\d+$/.test(s);
+
     const getProjectAgency = React.useCallback((proj: any): string => {
-        return (
+        let resolved = (
             (fundingAgencyMap[proj.funding_agen] || "").trim() ||
             (proj.select_funding_agency || "").trim() ||
             (proj.funding_agency_other || "").trim() ||
-            (proj.origin_of_funding_agency || "").trim() ||
-            "Missing Funding Agency Name"
+            (proj.origin_of_funding_agency || "").trim()
         );
+        // "Other"/"Others"/"Other Funding Agency" is the select field's own placeholder
+        // label, not a real agency name — defer to funding_agency_other instead.
+        if (/^other/i.test(resolved)) {
+            resolved = (proj.funding_agency_other || "").trim();
+        }
+        // Some legacy records have select_funding_agency populated with the raw
+        // funding_agen link ID (e.g. "2074" or "FA-02529") instead of a resolved name.
+        // If it looks like an ID, try the map once more in case that exact ID happens
+        // to be covered (it's keyed by ID -> name) before giving up on it.
+        if (resolved && looksLikeAgencyId(resolved) && fundingAgencyMap[resolved]) {
+            resolved = fundingAgencyMap[resolved];
+        }
+        // fundingAgencyMap only covers whatever the search_link API returned, not
+        // every ID in the data — a raw ID is never a real agency name, so treat any
+        // that's still unresolved as unresolved rather than showing the ID as if it
+        // were one.
+        if (!resolved || looksLikeAgencyId(resolved)) return "Missing Funding Agency Name";
+        return resolved;
     }, [fundingAgencyMap]);
 
     const piWorkloadAgencies = React.useMemo(() => {
@@ -1155,13 +1169,31 @@ export function HeadOverview() {
         return Object.values(piMap).sort((a, b) => b.project_count - a.project_count);
     }, [deptProjects, piFundingFilter, getProjectAgency, deptOngoingIds, deptSubmittedIds, piNameMap, userDept]);
 
+    // Per-PI search text (project numbers + types across all their projects), so the
+    // "Search PIs..." box can match on more than just name/email — project number or
+    // project type too.
+    const piProjectSearchMap = React.useMemo(() => {
+        const map: Record<string, string> = {};
+        deptProjects.forEach((proj: any) => {
+            const email = (proj.pi_webmail || "").toLowerCase().trim();
+            if (!email) return;
+            const parts = [proj.project_no, proj.project_type].filter(Boolean).join(" ").toLowerCase();
+            map[email] = map[email] ? `${map[email]} ${parts}` : parts;
+        });
+        return map;
+    }, [deptProjects]);
+
     const filteredPIs = React.useMemo(() => {
         const source = filteredPIsFromProjects !== null ? filteredPIsFromProjects : piData;
-        return source.filter((pi: any) =>
-            pi.user_name.toLowerCase().includes(piSearch.toLowerCase()) ||
-            pi.user_email.toLowerCase().includes(piSearch.toLowerCase())
-        );
-    }, [piData, filteredPIsFromProjects, piSearch]);
+        const term = piSearch.toLowerCase().trim();
+        if (!term) return source;
+        return source.filter((pi: any) => {
+            if (pi.user_name.toLowerCase().includes(term)) return true;
+            if (pi.user_email.toLowerCase().includes(term)) return true;
+            const projectHaystack = piProjectSearchMap[pi.user_email.toLowerCase().trim()] || "";
+            return projectHaystack.includes(term);
+        });
+    }, [piData, filteredPIsFromProjects, piSearch, piProjectSearchMap]);
 
     const paginatedPIs = React.useMemo(() => {
         const start = (piPage - 1) * PAGE_SIZE;
@@ -1299,6 +1331,30 @@ export function HeadOverview() {
     };
     const closeKpiModal = () => setKpiModal(null);
 
+    // For clicking a Research/Consultancy/Others column inside a compact breakdown
+    // grid — narrows the modal to that one project type instead of showing every
+    // project the whole card's own onClick would. Reuses kpiModalRows' existing
+    // "projectType"/"intl" filter branches (onlyOngoing scopes to ongoing-only cards
+    // — Allocation and Ongoing Projects — since Total Projects and Intl. Collaborators
+    // show both ongoing and submitted).
+    const openKpiModalForType = (
+        type: "total" | "allocation" | "ongoing" | "intl",
+        title: string,
+        projectTypeTab: "research" | "consultancy" | "others",
+    ) => {
+        if (type === "intl") {
+            setKpiModal({ type: "intl", title, projectType: projectTypeTab });
+        } else {
+            setKpiModal({
+                type: "projectType",
+                title,
+                projectType: projectTypeTab,
+                onlyOngoing: type === "allocation" || type === "ongoing",
+            });
+        }
+        setKpiPage(1);
+    };
+
     // ── Research/Consultancy/Others breakdown (unfiltered — mirrors Director's KPI card
     // detail panels) ─────────────────────────────────────────────────────────────
     const {
@@ -1330,240 +1386,183 @@ export function HeadOverview() {
         };
     }, [deptProjects, deptOngoingIds, deptSubmittedIds]);
 
-    // Shared row renderer for the "type → total, with Ongoing/Submitted context"
-    // breakdown shape — dot/label + right-aligned total on top, muted ongoing/submitted
-    // detail + a pct pill below. Same visual language across every KPI card that shows
-    // a Research/Consultancy/Others split, so a reader recognizes the pattern at a
-    // glance instead of parsing a different layout per card. Zero counts are shown,
-    // not hidden, so a 0 reads as "checked, none found," not "missing data."
-    const rowTabByLabel: Record<string, "research" | "consultancy" | "others"> = {
-        Research: "research",
-        Consultancy: "consultancy",
-        Others: "others",
+    // Percentage that n represents of total, rounded — used throughout the compact
+    // breakdown grids so "170 Ongoing" also reads as "170 (58%)" without a separate row.
+    const pctOf = (n: number, total: number): number => (total > 0 ? Math.round((n / total) * 100) : 0);
+
+    const renderStatusBadge = (status: "ongoing" | "submitted", count: number, total: number) => {
+        const isOngoing = status === "ongoing";
+        return (
+            <span
+                className={`flex flex-col w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 ${isOngoing
+                    ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400"
+                    : "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"
+                    }`}
+            >
+                <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-1">
+                        <span className={`w-1 h-1 rounded-full ${isOngoing ? "bg-emerald-500" : "bg-amber-400"}`}></span>
+                        {isOngoing ? "Ongoing" : "Submitted"}
+                    </div>
+                    <span>{count}</span>
+                </div>
+                <div className="text-right text-[8px] font-semibold opacity-70">{pctOf(count, total)}%</div>
+            </span>
+        );
     };
 
-    const renderTypeSplitRows = (
-        rows: Array<{ label: string; dotColor: string; total: number; ongoing: number; submitted: number }>,
-        onRowClick?: (tab: "research" | "consultancy" | "others") => void,
-    ) => (
-        <div className="flex flex-col divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]/60 pt-1 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-            {rows.map((r) => {
-                const ongoingPct = r.total > 0 ? Math.round((r.ongoing / r.total) * 100) : 0;
-                return (
-                    <div
-                        key={r.label}
-                        onClick={onRowClick ? (e) => { e.stopPropagation(); onRowClick(rowTabByLabel[r.label]); } : undefined}
-                        className={`flex flex-col gap-0.5 py-1.5 -mx-1.5 px-1.5 rounded-md${onRowClick ? " cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors" : ""}`}
-                    >
-                        <div className="flex items-center justify-between gap-2 text-[13px]">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${r.dotColor}`} />
-                                <span className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.label}</span>
-                            </div>
-                            <span className="font-extrabold text-[14px] text-[#3F3F46] dark:text-[#E4E4E7] shrink-0">{r.total}</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-2 pl-4 text-[12px]">
-                            <span className="text-[#52525B] dark:text-[#D4D4D8] font-semibold truncate">
-                                {r.ongoing} ongoing &middot; {r.submitted} submitted
-                            </span>
-                            <span
-                                className="shrink-0 font-bold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
-                                title={`${ongoingPct}% of ${r.label} projects are ongoing`}
-                            >
-                                {ongoingPct}% ongoing
-                            </span>
-                        </div>
+    // Compact Research/Consultancy/Others × Ongoing/Submitted breakdown — three
+    // columns side by side rather than a stacked list, so the card stays short.
+    // Shared by both Total Projects and Total Allocation (neither drills into a
+    // per-type click target here; the whole card's onClick already opens the
+    // detailed KPI modal).
+    const projectBreakdownGrid = React.useMemo(() => (
+        <div className={`grid ${allOthersProjects > 0 ? "grid-cols-3" : "grid-cols-2"} gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]`}>
+            <div
+                className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer hover:opacity-75 transition-opacity"
+                onClick={(e) => { e.stopPropagation(); openKpiModalForType("total", "Projects: Research", "research"); }}
+            >
+                <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">
+                    {allResearchProjects}
+                </div>
+                <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">
+                    Research
+                </div>
+                <div className="flex flex-col gap-1 w-full px-1">
+                    {renderStatusBadge("ongoing", allResearchOngoing, allResearchProjects)}
+                    {renderStatusBadge("submitted", allResearchSubmitted, allResearchProjects)}
+                </div>
+            </div>
+            <div
+                className={`flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity ${allOthersProjects > 0 ? "border-r border-[#E4E4E7] dark:border-[#3F3F46]" : ""}`}
+                onClick={(e) => { e.stopPropagation(); openKpiModalForType("total", "Projects: Consultancy", "consultancy"); }}
+            >
+                <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">
+                    {allConsultancyProjects}
+                </div>
+                <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">
+                    Consultancy
+                </div>
+                <div className="flex flex-col gap-1 w-full px-1">
+                    {renderStatusBadge("ongoing", allConsultancyOngoing, allConsultancyProjects)}
+                    {renderStatusBadge("submitted", allConsultancySubmitted, allConsultancyProjects)}
+                </div>
+            </div>
+            {allOthersProjects > 0 && (
+                <div
+                    className="flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("total", "Projects: Others", "others"); }}
+                >
+                    <div className="text-[14px] font-extrabold text-[#059669] leading-tight">
+                        {allOthersProjects}
                     </div>
-                );
-            })}
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">
+                        Others
+                    </div>
+                    <div className="flex flex-col gap-1 w-full px-1">
+                        {renderStatusBadge("ongoing", allOthersOngoing, allOthersProjects)}
+                        {renderStatusBadge("submitted", allOthersSubmitted, allOthersProjects)}
+                    </div>
+                </div>
+            )}
         </div>
-    );
-
-    const projectBreakdownGrid = React.useMemo(() => renderTypeSplitRows([
-        { label: "Research", dotColor: "bg-blue-500", total: allResearchProjects, ongoing: allResearchOngoing, submitted: allResearchSubmitted },
-        { label: "Consultancy", dotColor: "bg-purple-500", total: allConsultancyProjects, ongoing: allConsultancyOngoing, submitted: allConsultancySubmitted },
-        ...(allOthersProjects > 0 ? [{ label: "Others", dotColor: "bg-emerald-500", total: allOthersProjects, ongoing: allOthersOngoing, submitted: allOthersSubmitted }] : []),
-    ], (tab) => {
-        setKpiModal({
-            type: "projectType",
-            title: `Projects: ${tab === "research" ? "Research" : tab === "consultancy" ? "Consultancy" : "Others"}`,
-            projectType: tab,
-        });
-        setKpiPage(1);
-    }), [
+    ), [
         allResearchProjects, allResearchOngoing, allResearchSubmitted,
         allConsultancyProjects, allConsultancyOngoing, allConsultancySubmitted,
         allOthersProjects, allOthersOngoing, allOthersSubmitted,
     ]);
 
-    const allocationBreakdownRows = React.useMemo(() => {
-        const pct = (util: number, amt: number) => amt > 0 ? ((util / amt) * 100).toFixed(1) : "0.0";
-        const build = (label: string, dotColor: string, count: number, amount: number, util: number) => ({
-            label, dotColor, count, amount,
-            util, remaining: Math.max(0, amount - util),
-            pct: pct(util, amount),
-        });
-        const rows = [
-            build("Research", "bg-blue-500", allResearchOngoing, allocationByType.rAmt, allocationByType.rUtil),
-            build("Consultancy", "bg-purple-500", allConsultancyOngoing, allocationByType.cAmt, allocationByType.cUtil),
-        ];
-        if (allOthersOngoing > 0) {
-            rows.push(build("Others", "bg-emerald-500", allOthersOngoing, allocationByType.oAmt, allocationByType.oUtil));
-        }
-        return rows;
-    }, [allocationByType, allResearchOngoing, allConsultancyOngoing, allOthersOngoing]);
-
-    const allocationBreakdownList = React.useMemo(() => (
-        <div className="flex flex-col divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]/60 pt-1 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-            {allocationBreakdownRows.map((r) => (
-                <div
-                    key={r.label}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setKpiModal({
-                            type: "projectType",
-                            title: `Projects by Allocation: ${r.label}`,
-                            projectType: rowTabByLabel[r.label],
-                            onlyOngoing: true,
-                        });
-                        setKpiPage(1);
-                    }}
-                    className="flex flex-col gap-0.5 py-1.5 -mx-1.5 px-1.5 rounded-md cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
-                >
-                    <div className="flex items-center justify-between gap-2 text-[13px]">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${r.dotColor}`} />
-                            <span className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.label}</span>
-                            <span className="text-[#71717A] dark:text-[#A1A1AA] font-semibold shrink-0">({r.count})</span>
-                        </div>
-                        <span className="font-extrabold text-[14px] text-[#3F3F46] dark:text-[#E4E4E7] shrink-0">{formatCurrency(r.amount)}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2 pl-4 text-[12px]">
-                        {!isFundUtilDataReady ? (
-                            <span className="text-[#52525B] dark:text-[#D4D4D8] font-semibold animate-pulse">Loading…</span>
-                        ) : (
-                            <>
-                                <span className="text-[#52525B] dark:text-[#D4D4D8] font-semibold truncate">
-                                    {formatCurrency(r.util)} utilized &middot; {formatCurrency(r.remaining)} left
-                                </span>
-                                <span
-                                    className="shrink-0 font-bold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
-                                    title={`${r.pct}% of ${r.label} allocation utilized`}
-                                >
-                                    {r.pct}%
-                                </span>
-                            </>
-                        )}
-                    </div>
-                </div>
-            ))}
-        </div>
-    ), [allocationBreakdownRows, isFundUtilDataReady]);
-
-    // Ongoing Projects card: split by fund-received status, not just project type —
-    // "sanction approved" alone doesn't tell the Head whether a project is truly
-    // active (fund in hand) or still waiting on disbursal. Mirrors DirectorDashboard's
-    // ongoingFundStatusBreakdown, scoped to deptProjects/deptOngoingIds.
-    const ongoingFundStatusBreakdown = React.useMemo(() => {
-        let active = 0, pendingFund = 0, checking = 0;
-        deptProjects.forEach((p: any) => {
-            if (!deptOngoingIds.has(p.name)) return;
-            if (!fundStatusMap.has(p.name)) { checking++; return; }
-            if (fundStatusMap.get(p.name) === true) active++;
-            else pendingFund++;
-        });
-        return { active, pendingFund, checking };
-    }, [deptProjects, deptOngoingIds, fundStatusMap]);
-
-    // Same split, broken out per project type — so a Research-heavy pending-fund
-    // backlog isn't hidden inside an aggregate that looks healthy overall.
-    const ongoingByTypeFundStatus = React.useMemo(() => {
-        const counts: Record<"Research" | "Consultancy" | "Others", { active: number; pendingFund: number; checking: number }> = {
-            Research: { active: 0, pendingFund: 0, checking: 0 },
-            Consultancy: { active: 0, pendingFund: 0, checking: 0 },
-            Others: { active: 0, pendingFund: 0, checking: 0 },
-        };
+    // ₹ allocation AND ₹ utilization split by project type, among ongoing (sanction-
+    // approved) projects only — matches DirectorDashboard's Total Allocation card.
+    // pending tracks how many ongoing projects don't yet have a fundReceivedValueCache
+    // entry — used to show "Loading…" instead of a false "₹0" if the loading flag has
+    // already flipped false but the cache isn't fully populated yet.
+    const allocationByType = React.useMemo(() => {
+        let rAmt = 0, cAmt = 0, oAmt = 0;
+        let rUtil = 0, cUtil = 0, oUtil = 0;
+        let pending = 0;
         deptProjects.forEach((p: any) => {
             if (!deptOngoingIds.has(p.name)) return;
             const { isResearch, isConsultancy } = classifyProjectType(p);
-            const bucket: "Research" | "Consultancy" | "Others" = isResearch ? "Research" : isConsultancy ? "Consultancy" : "Others";
-            if (!fundStatusMap.has(p.name)) { counts[bucket].checking++; return; }
-            if (fundStatusMap.get(p.name) === true) counts[bucket].active++;
-            else counts[bucket].pendingFund++;
+            const amt = p.total_budget_amount || p.grand_total_proposal || 0;
+            if (!Object.prototype.hasOwnProperty.call(fundReceivedValueCache, p.name)) pending++;
+            const util = fundReceivedValueCache[p.name] || 0;
+            if (isResearch) { rAmt += amt; rUtil += util; }
+            else if (isConsultancy) { cAmt += amt; cUtil += util; }
+            else { oAmt += amt; oUtil += util; }
         });
-        return counts;
-    }, [deptProjects, deptOngoingIds, fundStatusMap]);
+        return { rAmt, cAmt, oAmt, rUtil, cUtil, oUtil, pending };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [deptProjects, deptOngoingIds, fundUtilized, fundUtilizedLoading]);
 
-    const openOngoingFundStatusModal = (status: "active" | "pending_fund", title: string) => {
-        setKpiModal({ type: "ongoing", title, fundStatus: status });
-        setKpiPage(1);
-    };
-
-    const ongoingBreakdownList = React.useMemo(() => {
-        const totalOngoing = allResearchOngoing + allConsultancyOngoing + allOthersOngoing;
-        const pct = (n: number) => totalOngoing > 0 ? Math.round((n / totalOngoing) * 100) : 0;
-        const rows: Array<{ label: "Research" | "Consultancy" | "Others"; dotColor: string; count: number }> = [
-            { label: "Research", dotColor: "bg-blue-500", count: allResearchOngoing },
-            { label: "Consultancy", dotColor: "bg-purple-500", count: allConsultancyOngoing },
-            ...(allOthersOngoing > 0 ? [{ label: "Others" as const, dotColor: "bg-emerald-500", count: allOthersOngoing }] : []),
-        ];
+    // Total Fund Allocation card's own breakdown — allocated amount per type.
+    const allocationBreakdownGrid = React.useMemo(() => {
+        const { rAmt, cAmt, oAmt } = allocationByType;
+        const showOthers = allOthersOngoing > 0;
         return (
-            <div className="flex flex-col divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]/60 pt-1 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-                {rows.map((r) => {
-                    const { active, pendingFund, checking } = ongoingByTypeFundStatus[r.label];
-                    return (
-                        <div
-                            key={r.label}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setKpiModal({
-                                    type: "projectType",
-                                    title: `Ongoing Projects: ${r.label}`,
-                                    projectType: rowTabByLabel[r.label],
-                                    onlyOngoing: true,
-                                });
-                                setKpiPage(1);
-                            }}
-                            className="flex flex-col gap-0.5 py-1.5 -mx-1.5 px-1.5 rounded-md cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
-                        >
-                            <div className="flex items-center justify-between gap-2 text-[13px]">
-                                <div className="flex items-center gap-1.5 min-w-0">
-                                    <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${r.dotColor}`} />
-                                    <span className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.label}</span>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                    <span className="font-extrabold text-[14px] text-[#3F3F46] dark:text-[#E4E4E7]">{r.count}</span>
-                                    <span
-                                        className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
-                                        title={`${pct(r.count)}% of ongoing projects are ${r.label}`}
-                                    >
-                                        {pct(r.count)}%
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="flex items-center justify-between gap-2 pl-4 text-[11px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
-                                {checking > 0 ? (
-                                    // Fund-status is still resolving for some of this type's projects —
-                                    // show a plain loading state for the whole row rather than partial,
-                                    // steadily-increasing counts that look inconsistent mid-fetch.
-                                    <span className="font-semibold text-zinc-400 dark:text-zinc-500 animate-pulse">Loading…</span>
-                                ) : (
-                                    <span className="flex items-center gap-1 truncate">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                                        {active} active
-                                        <span className="text-[#D4D4D8] dark:text-[#3F3F46] mx-0.5">&middot;</span>
-                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-                                        {pendingFund} pending fund
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    );
-                })}
+            <div className={`grid ${showOthers ? "grid-cols-3" : "grid-cols-2"} gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]`}>
+                <div
+                    className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer hover:opacity-75 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("allocation", "Projects by Allocation: Research", "research"); }}
+                >
+                    <div className="text-[13px] font-extrabold text-[#2563eb] leading-tight">{formatCurrency(rAmt)}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
+                </div>
+                <div
+                    className={`flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity ${showOthers ? "border-r border-[#E4E4E7] dark:border-[#3F3F46]" : ""}`}
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("allocation", "Projects by Allocation: Consultancy", "consultancy"); }}
+                >
+                    <div className="text-[13px] font-extrabold text-[#7c3aed] leading-tight">{formatCurrency(cAmt)}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
+                </div>
+                {showOthers && (
+                    <div
+                        className="flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity"
+                        onClick={(e) => { e.stopPropagation(); openKpiModalForType("allocation", "Projects by Allocation: Others", "others"); }}
+                    >
+                        <div className="text-[13px] font-extrabold text-[#059669] leading-tight">{formatCurrency(oAmt)}</div>
+                        <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Others</div>
+                    </div>
+                )}
             </div>
         );
-    }, [allResearchOngoing, allConsultancyOngoing, allOthersOngoing, ongoingByTypeFundStatus, rowTabByLabel]);
+    }, [allocationByType, allOthersOngoing]);
 
+    // Same compact grid as projectBreakdownGrid/allocationBreakdownGrid — headline
+    // ongoing count per type.
+    const ongoingBreakdownGrid = React.useMemo(() => {
+        const showOthers = allOthersOngoing > 0;
+        return (
+            <div className={`grid ${showOthers ? "grid-cols-3" : "grid-cols-2"} gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]`}>
+                <div
+                    className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer hover:opacity-75 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("ongoing", "Ongoing Projects: Research", "research"); }}
+                >
+                    <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">{allResearchOngoing}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
+                </div>
+                <div
+                    className={`flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity ${showOthers ? "border-r border-[#E4E4E7] dark:border-[#3F3F46]" : ""}`}
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("ongoing", "Ongoing Projects: Consultancy", "consultancy"); }}
+                >
+                    <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">{allConsultancyOngoing}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
+                </div>
+                {showOthers && (
+                    <div
+                        className="flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity"
+                        onClick={(e) => { e.stopPropagation(); openKpiModalForType("ongoing", "Ongoing Projects: Others", "others"); }}
+                    >
+                        <div className="text-[14px] font-extrabold text-[#059669] leading-tight">{allOthersOngoing}</div>
+                        <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Others</div>
+                    </div>
+                )}
+            </div>
+        );
+    }, [allResearchOngoing, allConsultancyOngoing, allOthersOngoing]);
+
+    // Same compact grid as projectBreakdownGrid, scoped to projects with an
+    // international funding agency.
     const intlBreakdownGrid = React.useMemo(() => {
         let rP = 0, rO = 0, rS = 0;
         let cP = 0, cO = 0, cS = 0;
@@ -1579,18 +1578,43 @@ export function HeadOverview() {
             else { oP++; if (isOngoing) oO++; if (isSubmitted) oS++; }
         });
 
-        return renderTypeSplitRows([
-            { label: "Research", dotColor: "bg-blue-500", total: rP, ongoing: rO, submitted: rS },
-            { label: "Consultancy", dotColor: "bg-purple-500", total: cP, ongoing: cO, submitted: cS },
-            { label: "Others", dotColor: "bg-emerald-500", total: oP, ongoing: oO, submitted: oS },
-        ], (tab) => {
-            setKpiModal({
-                type: "intl",
-                title: `International Collaborator Projects: ${tab === "research" ? "Research" : tab === "consultancy" ? "Consultancy" : "Others"}`,
-                projectType: tab,
-            });
-            setKpiPage(1);
-        });
+        return (
+            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                <div
+                    className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer hover:opacity-75 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("intl", "International Collaborator Projects: Research", "research"); }}
+                >
+                    <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">{rP}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
+                    <div className="flex flex-col gap-1 w-full px-1">
+                        {renderStatusBadge("ongoing", rO, rP)}
+                        {renderStatusBadge("submitted", rS, rP)}
+                    </div>
+                </div>
+                <div
+                    className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer hover:opacity-75 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("intl", "International Collaborator Projects: Consultancy", "consultancy"); }}
+                >
+                    <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">{cP}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
+                    <div className="flex flex-col gap-1 w-full px-1">
+                        {renderStatusBadge("ongoing", cO, cP)}
+                        {renderStatusBadge("submitted", cS, cP)}
+                    </div>
+                </div>
+                <div
+                    className="flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); openKpiModalForType("intl", "International Collaborator Projects: Others", "others"); }}
+                >
+                    <div className="text-[14px] font-extrabold text-[#059669] leading-tight">{oP}</div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Others</div>
+                    <div className="flex flex-col gap-1 w-full px-1">
+                        {renderStatusBadge("ongoing", oO, oP)}
+                        {renderStatusBadge("submitted", oS, oP)}
+                    </div>
+                </div>
+            </div>
+        );
     }, [deptProjects, deptOngoingIds, deptSubmittedIds]);
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -1736,21 +1760,27 @@ export function HeadOverview() {
                                 }
                             />
                             <KpiCard
-                                label="Total Fund Allocation for Ongoing Projects"
+                                label="Ongoing Projects"
+                                value={String(projectOverview.ongoing_projects || stats.ongoing)}
+                                isLoading={isPageLoading}
+                                subtext=""
+                                icon={
+                                    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="M12 6v6l4 2" />
+                                    </svg>
+                                }
+                                valueColor="text-violet-700 dark:text-violet-400"
+                                iconBg="#f5f3ff"
+                                circleColor="#7c3aed"
+                                onClick={() => openKpiModal("ongoing", "Ongoing Projects")}
+                                customBottom={!isPageLoading && ongoingBreakdownGrid}
+                            />
+                            <KpiCard
+                                label="Fund Allocation for Ongoing Projects"
                                 value={formatCurrency(fundAnalytics.total_allocation || stats.totalAlloc)}
                                 isLoading={isPageLoading}
                                 subtext=""
-                                valueAdornment={
-                                    !isPageLoading && (
-                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
-                                            {fundUtilizedLoading ? (
-                                                <span className="animate-pulse">Loading…</span>
-                                            ) : (
-                                                `${fundUtilPercent}% utilized`
-                                            )}
-                                        </span>
-                                    )
-                                }
                                 icon={
                                     <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                                         <line x1="6" y1="5" x2="18" y2="5" />
@@ -1763,63 +1793,10 @@ export function HeadOverview() {
                                 iconBg="#ecfdf5"
                                 circleColor="#059669"
                                 onClick={() => openKpiModal("allocation", "Projects by Allocation")}
-                                customBottom={!isLoading && !isHeadDataLoading && allocationBreakdownList}
-                            />
-                            <KpiCard
-                                label="Ongoing Projects"
-                                description="Sanction-approved projects, by fund status"
-                                value={String(projectOverview.ongoing_projects || stats.ongoing)}
-                                isLoading={isPageLoading}
-                                subtext=""
-                                valueAdornment={
-                                    !isPageLoading && (projectOverview.ongoing_projects || stats.ongoing) > 0 && (
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            {ongoingFundStatusBreakdown.checking > 0 ? (
-                                                // Fund-status is still resolving for some ongoing projects —
-                                                // show a plain loading state rather than partial, steadily-
-                                                // increasing Active/Pending Fund counts that look inconsistent
-                                                // mid-fetch. Final numbers only appear once fully resolved.
-                                                <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 animate-pulse">
-                                                    Loading…
-                                                </span>
-                                            ) : (
-                                                <>
-                                                    <span
-                                                        className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 cursor-pointer hover:brightness-95 transition-all"
-                                                        title="Sanctioned and fund received"
-                                                        onClick={(e) => { e.stopPropagation(); openOngoingFundStatusModal("active", "Ongoing Projects: Active"); }}
-                                                    >
-                                                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                                        {ongoingFundStatusBreakdown.active} Active
-                                                    </span>
-                                                    <span
-                                                        className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 cursor-pointer hover:brightness-95 transition-all"
-                                                        title="Sanctioned but fund not yet received"
-                                                        onClick={(e) => { e.stopPropagation(); openOngoingFundStatusModal("pending_fund", "Ongoing Projects: Pending Fund Received"); }}
-                                                    >
-                                                        <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                                                        {ongoingFundStatusBreakdown.pendingFund} Pending Fund
-                                                    </span>
-                                                </>
-                                            )}
-                                        </div>
-                                    )
-                                }
-                                icon={
-                                    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <path d="M12 6v6l4 2" />
-                                    </svg>
-                                }
-                                valueColor="text-violet-700 dark:text-violet-400"
-                                iconBg="#f5f3ff"
-                                circleColor="#7c3aed"
-                                onClick={() => openKpiModal("ongoing", "Ongoing Projects")}
-                                customBottom={!isPageLoading && ongoingBreakdownList}
+                                customBottom={!isLoading && !isHeadDataLoading && allocationBreakdownGrid}
                             />
                             <KpiCard
                                 label="International Collaborators"
-                                description="Projects with an international funding agency"
                                 value={String(stats.intlCount)}
                                 isLoading={isPageLoading}
                                 subtext=""
@@ -1926,58 +1903,64 @@ export function HeadOverview() {
                                             <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">No data available</div>
                                         )}
                                     </div>
-                                    <div className="mt-4 pt-4 border-t border-[#E4E4E7] dark:border-[#3F3F46] space-y-3.5">
-                                        {/* Status totals */}
-                                        <div className="flex items-stretch gap-3 flex-wrap">
-                                            <div className="flex-1 min-w-[150px] rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-blue-50/60 dark:bg-blue-950/20 px-4 py-3">
-                                                <div className="flex items-center gap-1.5 mb-1">
-                                                    <span className="w-2 h-2 rounded-full bg-[#2563eb] shrink-0" />
-                                                    <span className="text-[10px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Submitted</span>
-                                                </div>
-                                                <div className="text-[22px] font-extrabold text-[#2563eb] leading-none">{chartYearSubmittedTotal}</div>
-                                                <div className="text-[10px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1.5 leading-snug">Pending Sanction</div>
-                                            </div>
-                                            <div className="flex-1 min-w-[150px] rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-purple-50/60 dark:bg-purple-950/20 px-4 py-3">
-                                                <div className="flex items-center gap-1.5 mb-1">
-                                                    <span className="w-2 h-2 rounded-full bg-[#7c3aed] shrink-0" />
-                                                    <span className="text-[10px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wider">Ongoing</span>
-                                                </div>
-                                                <div className="text-[22px] font-extrabold text-[#7c3aed] leading-none">{chartYearOngoingTotal}</div>
-                                                <div className="text-[10px] font-medium text-[#71717A] dark:text-[#A1A1AA] mt-1.5 leading-snug">Sanction approved</div>
-                                            </div>
-                                        </div>
-
-                                        {/* Type breakdown */}
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                                            {[
-                                                { label: "Research", ongoing: chartTypeBreakdown.researchOngoing, submitted: chartTypeBreakdown.researchSubmitted },
-                                                { label: "Consultancy", ongoing: chartTypeBreakdown.consultancyOngoing, submitted: chartTypeBreakdown.consultancySubmitted },
-                                                ...(chartTypeBreakdown.othersOngoing + chartTypeBreakdown.othersSubmitted > 0
-                                                    ? [{ label: "Others", ongoing: chartTypeBreakdown.othersOngoing, submitted: chartTypeBreakdown.othersSubmitted }]
-                                                    : []),
-                                            ].map((row) => (
-                                                <div key={row.label} className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] px-3 py-2.5">
-                                                    <div className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider mb-2">
-                                                        {row.label}
+                                    <div className="mt-2.5 pt-2.5 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                                        <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] overflow-hidden grid grid-cols-2 divide-x divide-[#E4E4E7] dark:divide-[#3F3F46]">
+                                            <div className="px-3 py-2">
+                                                <div className="flex items-center gap-2.5">
+                                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-blue-50 dark:bg-blue-950/30 text-[#2563eb]">
+                                                        <FileText size={14} strokeWidth={2.5} />
                                                     </div>
-                                                    <div className="space-y-1.5">
-                                                        <div className="flex items-center justify-between gap-2">
-                                                            <span className="flex items-center gap-1.5 text-[10px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
-                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                                                                Ongoing
-                                                            </span>
-                                                            <span className="text-[13px] font-extrabold text-emerald-600 dark:text-emerald-400">{row.ongoing}</span>
-                                                        </div>
-                                                        <div className="flex items-center justify-between gap-2">
-                                                            <span className="flex items-center gap-1.5 text-[10px] font-semibold text-[#52525B] dark:text-[#D4D4D8]">
-                                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-                                                                Submitted
-                                                            </span>
-                                                            <span className="text-[13px] font-extrabold text-amber-600 dark:text-amber-400">{row.submitted}</span>
-                                                        </div>
+                                                    <div className="min-w-0 flex items-baseline gap-1.5 flex-wrap">
+                                                        <span className="text-[18px] font-extrabold text-[#2563eb] leading-none tabular-nums">{isPageLoading ? "Loading…" : chartYearSubmittedTotal}</span>
+                                                        <span className="text-[10px] font-bold text-[#2563eb] uppercase tracking-wider">Submitted</span>
+                                                        <span className="text-[10px] font-medium text-[#A1A1AA] dark:text-[#71717A]">(Pending Sanction)</span>
                                                     </div>
                                                 </div>
-                                            ))}
+                                                <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-[#E4E4E7]/70 dark:border-[#3F3F46]/70">
+                                                    <div className="text-center">
+                                                        <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Research</div>
+                                                        <div className="text-[12px] font-extrabold text-[#2563eb] tabular-nums leading-none mt-1">{isPageLoading ? "Loading…" : chartTypeBreakdown.researchSubmitted}</div>
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Consultancy</div>
+                                                        <div className="text-[12px] font-extrabold text-[#2563eb] tabular-nums leading-none mt-1">{isPageLoading ? "Loading…" : chartTypeBreakdown.consultancySubmitted}</div>
+                                                    </div>
+                                                    {(isPageLoading || chartTypeBreakdown.othersSubmitted > 0) && (
+                                                        <div className="text-center">
+                                                            <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Others</div>
+                                                            <div className="text-[12px] font-extrabold text-[#2563eb] tabular-nums leading-none mt-1">{isPageLoading ? "Loading…" : chartTypeBreakdown.othersSubmitted}</div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="px-3 py-2">
+                                                <div className="flex items-center gap-2.5">
+                                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-violet-50 dark:bg-violet-950/30 text-[#7c3aed]">
+                                                        <TrendingUp size={14} strokeWidth={2.5} />
+                                                    </div>
+                                                    <div className="min-w-0 flex items-baseline gap-1.5 flex-wrap">
+                                                        <span className="text-[18px] font-extrabold text-[#7c3aed] leading-none tabular-nums">{isPageLoading ? "Loading…" : chartYearOngoingTotal}</span>
+                                                        <span className="text-[10px] font-bold text-[#7c3aed] uppercase tracking-wider">Ongoing</span>
+                                                        <span className="text-[10px] font-medium text-[#A1A1AA] dark:text-[#71717A]">(Sanction approved)</span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-[#E4E4E7]/70 dark:border-[#3F3F46]/70">
+                                                    <div className="text-center">
+                                                        <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Research</div>
+                                                        <div className="text-[12px] font-extrabold text-[#7c3aed] tabular-nums leading-none mt-1">{isPageLoading ? "Loading…" : chartTypeBreakdown.researchOngoing}</div>
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Consultancy</div>
+                                                        <div className="text-[12px] font-extrabold text-[#7c3aed] tabular-nums leading-none mt-1">{isPageLoading ? "Loading…" : chartTypeBreakdown.consultancyOngoing}</div>
+                                                    </div>
+                                                    {(isPageLoading || chartTypeBreakdown.othersOngoing > 0) && (
+                                                        <div className="text-center">
+                                                            <div className="text-[9px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-wide leading-none">Others</div>
+                                                            <div className="text-[12px] font-extrabold text-[#7c3aed] tabular-nums leading-none mt-1">{isPageLoading ? "Loading…" : chartTypeBreakdown.othersOngoing}</div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -2085,17 +2068,13 @@ export function HeadOverview() {
                                     </div>
                                 </div>
                                 <div className="p-[18px] px-[22px] pb-5">
-                                    <div className="h-[260px] relative">
-                                        {isPageLoading ? (
-                                            <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">Loading chart...</div>
-                                        ) : ((projectOverview.ongoing_projects || stats.ongoing) + (projectOverview.submitted_projects || stats.submitted)) === 0 ? (
-                                            <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">No data available</div>
-                                        ) : (
-                                            <>
-                                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
-                                                    <span className="text-3xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none">{stats.researchProjects + stats.consultancyProjects}</span>
-                                                    <span className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">Total</span>
-                                                </div>
+                                    {isPageLoading ? (
+                                        <div className="h-[200px] flex items-center justify-center text-[#71717A] text-sm">Loading chart...</div>
+                                    ) : ((projectOverview.ongoing_projects || stats.ongoing) + (projectOverview.submitted_projects || stats.submitted)) === 0 ? (
+                                        <div className="h-[200px] flex items-center justify-center text-[#71717A] text-sm">No data available</div>
+                                    ) : (
+                                        <div className="flex items-center justify-center">
+                                            <div className="relative flex items-center justify-center w-[200px] h-[200px] shrink-0">
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <PieChart>
                                                         <Pie
@@ -2103,7 +2082,7 @@ export function HeadOverview() {
                                                                 { name: "Research", value: stats.researchProjects, color: "#2563eb" },
                                                                 { name: "Consultancy", value: stats.consultancyProjects, color: "#7c3aed" },
                                                             ]}
-                                                            cx="50%" cy="50%" innerRadius="60%" outerRadius="80%" dataKey="value" nameKey="name" paddingAngle={5} isAnimationActive={false}
+                                                            cx="50%" cy="50%" innerRadius={65} outerRadius={88} dataKey="value" nameKey="name" paddingAngle={5} isAnimationActive={false}
                                                             onClick={(entry: any) => {
                                                                 const t = entry?.name === "Research" ? "research" : "consultancy";
                                                                 setKpiModal({ type: "projectType", title: `Projects: ${entry?.name}`, projectType: t });
@@ -2114,47 +2093,37 @@ export function HeadOverview() {
                                                             <Cell fill="#2563eb" stroke="none" />
                                                             <Cell fill="#7c3aed" stroke="none" />
                                                         </Pie>
-                                                        <Tooltip contentStyle={{ borderRadius: "0.75rem", border: "1px solid #1e293b", background: "#0f172a" }} labelStyle={{ color: "#f1f5f9", fontWeight: 700, fontSize: 12 }} itemStyle={{ color: "#94a3b8", fontSize: 11 }} formatter={(value: number, name: string) => [`${value} Projects`, name]} />
+                                                        <Tooltip contentStyle={{ borderRadius: "0.5rem", border: "1px solid #1e293b", background: "#0f172a" }} labelStyle={{ color: "#f1f5f9", fontWeight: 700 }} itemStyle={{ color: "#94a3b8", fontSize: 11 }} formatter={(value: number, name: string) => [`${value} Projects`, name]} />
                                                     </PieChart>
                                                 </ResponsiveContainer>
-                                            </>
-                                        )}
-                                    </div>
-                                    <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-3 mt-3">
-                                        <div className="grid grid-cols-2 gap-3 pt-1">
-                                            <div
-                                                className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] rounded-lg transition-colors py-1"
-                                                onClick={() => { setKpiModal({ type: "projectType", title: "Projects: Research", projectType: "research" }); setKpiPage(1); }}
-                                            >
-                                                <div className="text-[22px] font-extrabold text-[#2563eb] leading-tight">{stats.researchProjects}</div>
-                                                <div className="text-[11px] font-bold text-[#71717A] uppercase tracking-widest mb-2">Research</div>
-                                                <div className="flex flex-col gap-1.5 w-full px-2 lg:px-4">
-                                                    <span className="inline-flex items-center justify-between w-full text-[10px] sm:text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 cursor-default">
-                                                        <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Ongoing</div>
-                                                        <span>{stats.researchOngoing}</span>
-                                                    </span>
-                                                    <span className="inline-flex items-center justify-between w-full text-[10px] sm:text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 cursor-default">
-                                                        <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>Submitted</div>
-                                                        <span>{stats.researchSubmitted}</span>
-                                                    </span>
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                                    <span className="text-[24px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none">{stats.researchProjects + stats.consultancyProjects}</span>
+                                                    <span className="text-[11px] font-bold text-[#71717A] uppercase tracking-widest mt-0.5">Total</span>
                                                 </div>
                                             </div>
-                                            <div
-                                                className="flex flex-col items-center justify-start cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] rounded-lg transition-colors py-1"
-                                                onClick={() => { setKpiModal({ type: "projectType", title: "Projects: Consultancy", projectType: "consultancy" }); setKpiPage(1); }}
-                                            >
-                                                <div className="text-[22px] font-extrabold text-[#7c3aed] leading-tight">{projectOverview.consultancy_projects || stats.consultancyProjects}</div>
-                                                <div className="text-[11px] font-bold text-[#71717A] uppercase tracking-widest mb-2">Consultancy</div>
-                                                <div className="flex flex-col gap-1.5 w-full px-2 lg:px-4">
-                                                    <span className="inline-flex items-center justify-between w-full text-[10px] sm:text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 cursor-default">
-                                                        <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Ongoing</div>
-                                                        <span>{stats.consultancyOngoing}</span>
-                                                    </span>
-                                                    <span className="inline-flex items-center justify-between w-full text-[10px] sm:text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 cursor-default">
-                                                        <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>Submitted</div>
-                                                        <span>{stats.consultancySubmitted}</span>
-                                                    </span>
-                                                </div>
+                                        </div>
+                                    )}
+                                    <div className="grid grid-cols-2 gap-2 pt-2 mt-3 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                                        <div
+                                            className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer hover:opacity-75 transition-opacity"
+                                            onClick={() => { setKpiModal({ type: "projectType", title: "Projects: Research", projectType: "research" }); setKpiPage(1); }}
+                                        >
+                                            <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">{stats.researchProjects}</div>
+                                            <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Research</div>
+                                            <div className="flex flex-col gap-1 w-full px-1">
+                                                {renderStatusBadge("ongoing", stats.researchOngoing, stats.researchProjects)}
+                                                {renderStatusBadge("submitted", stats.researchSubmitted, stats.researchProjects)}
+                                            </div>
+                                        </div>
+                                        <div
+                                            className="flex flex-col items-center justify-start cursor-pointer hover:opacity-75 transition-opacity"
+                                            onClick={() => { setKpiModal({ type: "projectType", title: "Projects: Consultancy", projectType: "consultancy" }); setKpiPage(1); }}
+                                        >
+                                            <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">{projectOverview.consultancy_projects || stats.consultancyProjects}</div>
+                                            <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">Consultancy</div>
+                                            <div className="flex flex-col gap-1 w-full px-1">
+                                                {renderStatusBadge("ongoing", stats.consultancyOngoing, stats.consultancyProjects)}
+                                                {renderStatusBadge("submitted", stats.consultancySubmitted, stats.consultancyProjects)}
                                             </div>
                                         </div>
                                     </div>
@@ -2172,7 +2141,7 @@ export function HeadOverview() {
                                         </div>
                                         <div>
                                             <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Financial Trends</div>
-                                            <div className="text-[10px] font-medium text-[#A1A1AA] dark:text-[#71717A] leading-tight">Ongoing (sanction-approved) projects only</div>
+                                            <div className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA] leading-tight">Ongoing (sanction-approved) projects only</div>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -2200,32 +2169,32 @@ export function HeadOverview() {
                                     </div>
                                 </div>
                                 <div className="p-[18px] px-[22px] flex-1 flex flex-col">
-                                    <div className="flex gap-4 mb-5">
+                                    <div className="flex gap-2.5 mb-3">
                                         <div
-                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-xl p-3.5 text-center shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
+                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg px-3 py-2 flex items-center justify-between gap-2 shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
                                             onClick={() => openKpiModalWithTab("total", "Projects: Total Sanctioned", "ongoing")}
                                         >
-                                            <div className="text-[20px] font-extrabold tracking-[-0.03em] text-[#2563eb]">
-                                                {isPageLoading ? "—" : formatCurrency(fundAlloc)}
-                                            </div>
-                                            <div className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">
+                                            <span className="text-[10.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">
                                                 Total Sanctioned
-                                            </div>
+                                            </span>
+                                            <span className="text-[15px] font-extrabold tracking-[-0.02em] text-[#2563eb] tabular-nums">
+                                                {isPageLoading ? "—" : formatCurrency(fundAlloc)}
+                                            </span>
                                         </div>
                                         <div
-                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-xl p-3.5 text-center shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
+                                            className="flex-1 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg px-3 py-2 flex items-center justify-between gap-2 shadow-sm border border-black/5 dark:border-white/5 cursor-pointer hover:scale-[1.02] transition-transform"
                                             onClick={() => openKpiModalWithTab("total", "Projects: Utilized", "ongoing")}
                                         >
-                                            <div className="text-[20px] font-extrabold tracking-[-0.03em] text-[#059669]">
-                                                {isPageLoading || fundUtilizedLoading ? "—" : formatCurrency(fundUtilized)}
-                                            </div>
-                                            <div className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">
+                                            <span className="text-[10.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">
                                                 Utilized
-                                            </div>
+                                            </span>
+                                            <span className="text-[15px] font-extrabold tracking-[-0.02em] text-[#059669] tabular-nums">
+                                                {isPageLoading || fundUtilizedLoading ? "—" : formatCurrency(fundUtilized)}
+                                            </span>
                                         </div>
                                     </div>
 
-                                    <div className="h-[220px] w-full mt-2">
+                                    <div className="h-[170px] w-full mt-1">
                                         <ResponsiveContainer width="100%" height="100%">
                                             <BarChart
                                                 data={[
@@ -2293,10 +2262,10 @@ export function HeadOverview() {
                                         </ResponsiveContainer>
                                     </div>
 
-                                    <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-4 mt-auto">
-                                        <div className="space-y-1">
+                                    <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-2 mt-auto">
+                                        <div>
                                             <div
-                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                className="flex items-center justify-between py-1.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
                                                 onClick={() => openKpiModalWithTab("total", "Projects: Total Sanctioned", "ongoing")}
                                             >
                                                 <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Total Sanctioned</span>
@@ -2305,7 +2274,7 @@ export function HeadOverview() {
                                                 </span>
                                             </div>
                                             <div
-                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                className="flex items-center justify-between py-1.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
                                                 onClick={() => openKpiModalWithTab("total", "Projects: Utilized", "ongoing")}
                                             >
                                                 <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Utilized</span>
@@ -2314,7 +2283,7 @@ export function HeadOverview() {
                                                 </span>
                                             </div>
                                             <div
-                                                className="flex items-center justify-between py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
+                                                className="flex items-center justify-between py-1.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-2 -mx-2 rounded transition-colors"
                                                 onClick={() => openKpiModalWithTab("total", "Projects: Remaining Balance", "ongoing")}
                                             >
                                                 <span className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">Remaining Balance</span>
