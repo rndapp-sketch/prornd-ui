@@ -982,11 +982,65 @@ export function DirectorDashboard() {
     ];
 
     const leaderboardRankStyle = (rank: number) => {
-        if (rank === 1) return "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400";
-        if (rank === 2) return "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300";
-        if (rank === 3) return "bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400";
+        if (rank === 1) return "bg-gradient-to-br from-amber-300 to-amber-500 text-white shadow-sm shadow-amber-500/40";
+        if (rank === 2) return "bg-gradient-to-br from-zinc-300 to-zinc-400 text-white shadow-sm shadow-zinc-400/40";
+        if (rank === 3) return "bg-gradient-to-br from-orange-300 to-orange-500 text-white shadow-sm shadow-orange-500/40";
         return "bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] dark:text-[#A1A1AA]";
     };
+
+    // Subtle row wash for the top 3, so they pop without relying on the rank
+    // badge alone to signal "this is the podium."
+    const leaderboardRowStyle = (rank: number) => {
+        if (rank === 1) return "bg-amber-50/60 dark:bg-amber-950/10";
+        if (rank === 2) return "bg-zinc-50 dark:bg-zinc-800/20";
+        if (rank === 3) return "bg-orange-50/60 dark:bg-orange-950/10";
+        return "";
+    };
+
+    // Approval rate is a health signal, not just a number — color it like one
+    // instead of a flat emerald bar regardless of how low it actually is.
+    const leaderboardRateColor = (rate: number) => {
+        if (rate >= 90) return { bar: "bg-emerald-500", text: "text-emerald-700 dark:text-emerald-400" };
+        if (rate >= 70) return { bar: "bg-amber-400", text: "text-amber-700 dark:text-amber-400" };
+        return { bar: "bg-red-500", text: "text-red-600 dark:text-red-400" };
+    };
+
+    // Deterministic avatar color per staff, cycling a palette by name hash —
+    // gives every row a distinct identity chip instead of a wall of plain text.
+    const LEADERBOARD_AVATAR_PALETTE = [
+        "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400",
+        "bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400",
+        "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400",
+        "bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400",
+        "bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400",
+        "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400",
+        "bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400",
+        "bg-fuchsia-100 dark:bg-fuchsia-900/30 text-fuchsia-700 dark:text-fuchsia-400",
+    ];
+    const leaderboardAvatarStyle = (name: string) => {
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+        return LEADERBOARD_AVATAR_PALETTE[hash % LEADERBOARD_AVATAR_PALETTE.length];
+    };
+    const leaderboardInitials = (name: string) => {
+        const parts = name.trim().split(/\s+/).filter(Boolean);
+        if (parts.length === 0) return "?";
+        return (parts[0][0] + (parts[1]?.[0] || "")).toUpperCase();
+    };
+
+    // Cycled per-role chip colors for "Pending Approvals by Role" — a dozen-plus
+    // roles all in the same amber tint reads as one indistinct block; cycling a
+    // palette lets each role be picked out at a glance.
+    const LEADERBOARD_CHIP_PALETTE = [
+        "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400",
+        "bg-sky-50 dark:bg-sky-950/30 text-sky-700 dark:text-sky-400",
+        "bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400",
+        "bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400",
+        "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400",
+        "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400",
+        "bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400",
+        "bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-400",
+    ];
 
     const LEADERBOARD_PAGE_SIZE = 10;
     const [leaderboardPage, setLeaderboardPage] = React.useState(1);
@@ -5097,14 +5151,14 @@ export function DirectorDashboard() {
                         <SectionDivider title="Staff Leaderboard" />
                         <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden mb-6">
                             <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between flex-wrap gap-3">
-                                <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
-                                    <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-amber-50 dark:bg-amber-950/20 text-[#d97706]">
-                                        <Trophy size={14} strokeWidth={2.5} />
+                                <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm shadow-amber-500/30">
+                                        <Trophy size={15} strokeWidth={2.5} />
                                     </div>
                                     Staff Leaderboard
                                     {leaderboardData?.period_label && (
-                                        <span className="text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA] normal-case">
-                                            — {leaderboardData.period_label}
+                                        <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 normal-case tracking-normal">
+                                            {leaderboardData.period_label}
                                         </span>
                                     )}
                                 </div>
@@ -5159,21 +5213,41 @@ export function DirectorDashboard() {
                                     <>
                                         {/* Summary strip */}
                                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
-                                            <div className="bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg px-3 py-2 shadow-sm border border-black/5 dark:border-white/5">
-                                                <div className="text-[10.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Processed</div>
-                                                <div className="text-[16px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">{leaderboardData.total_processed}</div>
+                                            <div className="flex items-center gap-2.5 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg pl-2.5 pr-3 py-2 border-l-4 border-blue-500 shadow-sm border-y border-r border-black/5 dark:border-white/5">
+                                                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-blue-50 dark:bg-blue-950/30 text-[#2563eb]">
+                                                    <BarChart3 size={13} strokeWidth={2.5} />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Processed</div>
+                                                    <div className="text-[16px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums leading-tight">{leaderboardData.total_processed}</div>
+                                                </div>
                                             </div>
-                                            <div className="bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg px-3 py-2 shadow-sm border border-black/5 dark:border-white/5">
-                                                <div className="text-[10.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Approved</div>
-                                                <div className="text-[16px] font-extrabold text-emerald-700 dark:text-emerald-400 tabular-nums">{leaderboardData.total_approved}</div>
+                                            <div className="flex items-center gap-2.5 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg pl-2.5 pr-3 py-2 border-l-4 border-emerald-500 shadow-sm border-y border-r border-black/5 dark:border-white/5">
+                                                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400">
+                                                    <CheckCircle size={13} strokeWidth={2.5} />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Approved</div>
+                                                    <div className="text-[16px] font-extrabold text-emerald-700 dark:text-emerald-400 tabular-nums leading-tight">{leaderboardData.total_approved}</div>
+                                                </div>
                                             </div>
-                                            <div className="bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg px-3 py-2 shadow-sm border border-black/5 dark:border-white/5">
-                                                <div className="text-[10.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Rejected</div>
-                                                <div className="text-[16px] font-extrabold text-red-600 dark:text-red-400 tabular-nums">{leaderboardData.total_rejected}</div>
+                                            <div className="flex items-center gap-2.5 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg pl-2.5 pr-3 py-2 border-l-4 border-red-500 shadow-sm border-y border-r border-black/5 dark:border-white/5">
+                                                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400">
+                                                    <X size={13} strokeWidth={2.5} />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Rejected</div>
+                                                    <div className="text-[16px] font-extrabold text-red-600 dark:text-red-400 tabular-nums leading-tight">{leaderboardData.total_rejected}</div>
+                                                </div>
                                             </div>
-                                            <div className="bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg px-3 py-2 shadow-sm border border-black/5 dark:border-white/5">
-                                                <div className="text-[10.5px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Overall Rate</div>
-                                                <div className="text-[16px] font-extrabold text-[#2563eb] dark:text-blue-400 tabular-nums">{leaderboardData.overall_rate}%</div>
+                                            <div className="flex items-center gap-2.5 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg pl-2.5 pr-3 py-2 border-l-4 border-violet-500 shadow-sm border-y border-r border-black/5 dark:border-white/5">
+                                                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-violet-50 dark:bg-violet-950/30 text-violet-600 dark:text-violet-400">
+                                                    <TrendingUp size={13} strokeWidth={2.5} />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Overall Rate</div>
+                                                    <div className="text-[16px] font-extrabold text-violet-700 dark:text-violet-400 tabular-nums leading-tight">{leaderboardData.overall_rate}%</div>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -5181,27 +5255,29 @@ export function DirectorDashboard() {
                                         {(leaderboardData.top_staff || leaderboardData.fastest) && (
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                                                 {leaderboardData.top_staff && (
-                                                    <div className="flex items-center gap-3 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-amber-50/50 dark:bg-amber-950/10 px-3.5 py-3">
-                                                        <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
+                                                    <div className="relative overflow-hidden flex items-center gap-3 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-gradient-to-br from-amber-50 to-orange-50/50 dark:from-amber-950/20 dark:to-orange-950/10 px-3.5 py-3">
+                                                        <div className="absolute -bottom-3 -right-3 w-16 h-16 rounded-full bg-amber-400 opacity-10" />
+                                                        <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm shadow-amber-500/30 z-10">
                                                             <Trophy size={16} strokeWidth={2.5} />
                                                         </div>
-                                                        <div className="min-w-0">
-                                                            <div className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Most Approvals</div>
+                                                        <div className="min-w-0 z-10">
+                                                            <div className="text-[10px] font-bold text-amber-700/80 dark:text-amber-400/80 uppercase tracking-widest">Most Approvals</div>
                                                             <div className="text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{leaderboardData.top_staff.full_name || leaderboardData.top_staff.user}</div>
                                                         </div>
-                                                        <div className="ml-auto text-[18px] font-extrabold text-amber-700 dark:text-amber-400 tabular-nums shrink-0">{leaderboardData.top_staff.total_processed}</div>
+                                                        <div className="ml-auto text-[18px] font-extrabold text-amber-700 dark:text-amber-400 tabular-nums shrink-0 z-10">{leaderboardData.top_staff.total_processed}</div>
                                                     </div>
                                                 )}
                                                 {leaderboardData.fastest && (
-                                                    <div className="flex items-center gap-3 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-sky-50/50 dark:bg-sky-950/10 px-3.5 py-3">
-                                                        <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400">
+                                                    <div className="relative overflow-hidden flex items-center gap-3 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-gradient-to-br from-sky-50 to-blue-50/50 dark:from-sky-950/20 dark:to-blue-950/10 px-3.5 py-3">
+                                                        <div className="absolute -bottom-3 -right-3 w-16 h-16 rounded-full bg-sky-400 opacity-10" />
+                                                        <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-gradient-to-br from-sky-400 to-blue-500 text-white shadow-sm shadow-sky-500/30 z-10">
                                                             <Zap size={16} strokeWidth={2.5} />
                                                         </div>
-                                                        <div className="min-w-0">
-                                                            <div className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Fastest Turnaround</div>
+                                                        <div className="min-w-0 z-10">
+                                                            <div className="text-[10px] font-bold text-sky-700/80 dark:text-sky-400/80 uppercase tracking-widest">Fastest Turnaround</div>
                                                             <div className="text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{leaderboardData.fastest.full_name || leaderboardData.fastest.user}</div>
                                                         </div>
-                                                        <div className="ml-auto text-[18px] font-extrabold text-sky-700 dark:text-sky-400 tabular-nums shrink-0">{leaderboardData.fastest.avg_time}h</div>
+                                                        <div className="ml-auto text-[18px] font-extrabold text-sky-700 dark:text-sky-400 tabular-nums shrink-0 z-10">{leaderboardData.fastest.avg_time}h</div>
                                                     </div>
                                                 )}
                                             </div>
@@ -5227,44 +5303,53 @@ export function DirectorDashboard() {
                                                             (safeLbPage - 1) * LEADERBOARD_PAGE_SIZE,
                                                             safeLbPage * LEADERBOARD_PAGE_SIZE
                                                         );
-                                                        return lbPageSlice.map((row) => (
-                                                            <tr
-                                                                key={row.user}
-                                                                className="border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
-                                                            >
-                                                                <td className="p-3 px-3.5 align-middle">
-                                                                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-extrabold ${leaderboardRankStyle(row.rank)}`}>
-                                                                        {row.rank}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="p-3 px-3.5 align-middle text-[12.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
-                                                                    {row.full_name || row.user}
-                                                                </td>
-                                                                <td className="p-3 px-3.5 align-middle text-[12.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">
-                                                                    {row.total_processed}
-                                                                </td>
-                                                                <td className="p-3 px-3.5 align-middle text-[12.5px] font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">
-                                                                    {row.approved}
-                                                                </td>
-                                                                <td className="p-3 px-3.5 align-middle text-[12.5px] font-bold text-red-600 dark:text-red-400 tabular-nums">
-                                                                    {row.rejected}
-                                                                </td>
-                                                                <td className="p-3 px-3.5 align-middle text-[12.5px] font-semibold text-[#71717A] dark:text-[#A1A1AA] tabular-nums whitespace-nowrap">
-                                                                    {row.avg_time}h
-                                                                </td>
-                                                                <td className="p-3 px-3.5 align-middle">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div className="w-16 h-1.5 rounded-full bg-[#E4E4E7] dark:bg-[#3F3F46] overflow-hidden shrink-0">
-                                                                            <div
-                                                                                className="h-full bg-emerald-500 rounded-full"
-                                                                                style={{ width: `${Math.max(0, Math.min(100, row.approval_rate))}%` }}
-                                                                            />
+                                                        return lbPageSlice.map((row) => {
+                                                            const staffName = row.full_name || row.user;
+                                                            const rate = leaderboardRateColor(row.approval_rate);
+                                                            return (
+                                                                <tr
+                                                                    key={row.user}
+                                                                    className={`border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors ${leaderboardRowStyle(row.rank)}`}
+                                                                >
+                                                                    <td className="p-3 px-3.5 align-middle">
+                                                                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-extrabold ${leaderboardRankStyle(row.rank)}`}>
+                                                                            {row.rank}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="p-3 px-3.5 align-middle text-[12.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[9.5px] font-extrabold shrink-0 ${leaderboardAvatarStyle(staffName)}`}>
+                                                                                {leaderboardInitials(staffName)}
+                                                                            </span>
+                                                                            {staffName}
                                                                         </div>
-                                                                        <span className="text-[11.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">{row.approval_rate}%</span>
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                        ));
+                                                                    </td>
+                                                                    <td className="p-3 px-3.5 align-middle text-[12.5px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] tabular-nums">
+                                                                        {row.total_processed}
+                                                                    </td>
+                                                                    <td className="p-3 px-3.5 align-middle text-[12.5px] font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">
+                                                                        {row.approved}
+                                                                    </td>
+                                                                    <td className="p-3 px-3.5 align-middle text-[12.5px] font-bold text-red-600 dark:text-red-400 tabular-nums">
+                                                                        {row.rejected}
+                                                                    </td>
+                                                                    <td className="p-3 px-3.5 align-middle text-[12.5px] font-semibold text-[#71717A] dark:text-[#A1A1AA] tabular-nums whitespace-nowrap">
+                                                                        {row.avg_time}h
+                                                                    </td>
+                                                                    <td className="p-3 px-3.5 align-middle">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="w-16 h-1.5 rounded-full bg-[#E4E4E7] dark:bg-[#3F3F46] overflow-hidden shrink-0">
+                                                                                <div
+                                                                                    className={`h-full rounded-full ${rate.bar}`}
+                                                                                    style={{ width: `${Math.max(0, Math.min(100, row.approval_rate))}%` }}
+                                                                                />
+                                                                            </div>
+                                                                            <span className={`text-[11.5px] font-bold tabular-nums ${rate.text}`}>{row.approval_rate}%</span>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        });
                                                     })()}
                                                 </tbody>
                                             </table>
@@ -5325,7 +5410,7 @@ export function DirectorDashboard() {
                                                     {leaderboardData.pending_by_role.map((p, i) => (
                                                         <span
                                                             key={`${p.role}-${p.state}-${i}`}
-                                                            className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"
+                                                            className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-md shadow-sm border border-black/5 dark:border-white/5 ${LEADERBOARD_CHIP_PALETTE[i % LEADERBOARD_CHIP_PALETTE.length]}`}
                                                         >
                                                             {p.role} <span className="opacity-60">·</span> {p.state}
                                                             <span className="ml-0.5 px-1.5 py-0.5 rounded bg-white/60 dark:bg-black/20">{p.count}</span>
