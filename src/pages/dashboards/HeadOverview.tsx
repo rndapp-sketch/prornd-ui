@@ -1030,50 +1030,6 @@ export function HeadOverview() {
     const fundRemaining = Math.max(0, fundAlloc - fundUtilized);
     const fundUtilPercent = fundAlloc > 0 ? ((fundUtilized / fundAlloc) * 100).toFixed(1) : "0";
 
-    // ── Funding sources pie (dept-scoped) ───────────────────────────────────
-    const pieChartFundingData = React.useMemo(() => {
-        const source = deptProjects.length > 0 ? deptProjects : apiProjectsFlat;
-        const useApiStatus = deptProjects.length === 0;
-        const agencyMap: Record<string, number> = {};
-        source.forEach((p: any) => {
-            const isOngoing = useApiStatus ? p._api_status === "ongoing" : deptOngoingIds.has(p.name);
-            const isSubmitted = useApiStatus ? p._api_status === "submitted" : deptSubmittedIds.has(p.name);
-            if (!isOngoing && !isSubmitted) return;
-            let agency =
-                (fundingAgencyMap[p.funding_agen] || "").trim() ||
-                (p.select_funding_agency || "").trim() ||
-                (p.funding_agency_other || "").trim() ||
-                (p.origin_of_funding_agency || "").trim() ||
-                "Missing Funding Agency Name";
-            // "Other"/"Others"/"Other Funding Agency" is the select field's own
-            // placeholder label, not a real agency name — defer to funding_agency_other.
-            if (/^other/i.test(agency)) {
-                agency = (p.funding_agency_other || "").trim() || "Missing Funding Agency Name";
-            }
-            agencyMap[agency] = (agencyMap[agency] || 0) + 1;
-        });
-        const arr = Object.entries(agencyMap)
-            .map(([funding_agency, value]) => ({ funding_agency, value }))
-            .sort((a, b) => b.value - a.value);
-        if (arr.length > 6) {
-            const top5 = arr.slice(0, 5);
-            const othersCount = arr.slice(5).reduce((s, d) => s + d.value, 0);
-            return [...top5, { funding_agency: "Others", value: othersCount }];
-        }
-        return arr;
-    }, [deptProjects, apiProjectsFlat, deptOngoingIds, deptSubmittedIds, fundingAgencyMap]);
-
-    // ── PI workload (dept-scoped) directly from Head API ──────────────────────
-    const piData = React.useMemo(() => {
-        return piWiseProjects.map((pi: any) => ({
-            user_email: pi.pi_email,
-            user_name: pi.pi_name,
-            project_count: pi.project_count,
-            departments: [userDept],
-            projects: pi.projects
-        })).sort((a: any, b: any) => b.project_count - a.project_count);
-    }, [piWiseProjects, userDept]);
-
     // Matches raw Funding Agency doc-ID formats seen in this data — plain numbers
     // ("2074") and short-prefix autonames ("FA-02529") — as opposed to a real
     // agency/company name, which never looks like just an ID.
@@ -1105,6 +1061,43 @@ export function HeadOverview() {
         if (!resolved || looksLikeAgencyId(resolved)) return "Missing Funding Agency Name";
         return resolved;
     }, [fundingAgencyMap]);
+
+    // ── Funding sources pie (dept-scoped) ───────────────────────────────────
+    // Reuses getProjectAgency (same resolver as the "Filter by Fund" dropdown) instead of
+    // its own narrow inline chain, which was letting raw numeric/FA- IDs leak through as
+    // if they were real agency names.
+    const pieChartFundingData = React.useMemo(() => {
+        const source = deptProjects.length > 0 ? deptProjects : apiProjectsFlat;
+        const useApiStatus = deptProjects.length === 0;
+        const agencyMap: Record<string, number> = {};
+        source.forEach((p: any) => {
+            const isOngoing = useApiStatus ? p._api_status === "ongoing" : deptOngoingIds.has(p.name);
+            const isSubmitted = useApiStatus ? p._api_status === "submitted" : deptSubmittedIds.has(p.name);
+            if (!isOngoing && !isSubmitted) return;
+            const agency = getProjectAgency(p);
+            agencyMap[agency] = (agencyMap[agency] || 0) + 1;
+        });
+        const arr = Object.entries(agencyMap)
+            .map(([funding_agency, value]) => ({ funding_agency, value }))
+            .sort((a, b) => b.value - a.value);
+        if (arr.length > 6) {
+            const top5 = arr.slice(0, 5);
+            const othersCount = arr.slice(5).reduce((s, d) => s + d.value, 0);
+            return [...top5, { funding_agency: "Others", value: othersCount }];
+        }
+        return arr;
+    }, [deptProjects, apiProjectsFlat, deptOngoingIds, deptSubmittedIds, getProjectAgency]);
+
+    // ── PI workload (dept-scoped) directly from Head API ──────────────────────
+    const piData = React.useMemo(() => {
+        return piWiseProjects.map((pi: any) => ({
+            user_email: pi.pi_email,
+            user_name: pi.pi_name,
+            project_count: pi.project_count,
+            departments: [userDept],
+            projects: pi.projects
+        })).sort((a: any, b: any) => b.project_count - a.project_count);
+    }, [piWiseProjects, userDept]);
 
     const piWorkloadAgencies = React.useMemo(() => {
         const agencyMap: Record<string, { agency_name: string; piEmails: Set<string>; project_count: number }> = {};
