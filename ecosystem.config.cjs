@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: "prod",
+      name: "pragati_v0.03",
       script: "./deploy-prod.sh",
       // Resolved relative to this config file's own location, so it works
       // regardless of which machine/user path this repo is checked out to
