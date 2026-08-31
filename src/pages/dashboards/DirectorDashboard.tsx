@@ -2587,12 +2587,31 @@ export function DirectorDashboard() {
         );
     }, [departmentData, deptSearch]);
 
+    // Per-PI search text (project numbers + types across all their projects), so the
+    // "Search PIs..." box can match on more than just the name — email, project
+    // number, or project type.
+    const piProjectSearchMap = React.useMemo(() => {
+        const map: Record<string, string> = {};
+        (allProjectsList || []).forEach((proj: any) => {
+            const email = (proj.pi_webmail || "").toLowerCase().trim();
+            if (!email) return;
+            const parts = [proj.project_no, proj.project_type].filter(Boolean).join(" ").toLowerCase();
+            map[email] = map[email] ? `${map[email]} ${parts}` : parts;
+        });
+        return map;
+    }, [allProjectsList]);
+
     const filteredPIs = React.useMemo(() => {
         const source = filteredPIsFromProjects !== null ? filteredPIsFromProjects : piData;
-        return source.filter((pi) =>
-            pi.user_name.toLowerCase().includes(piSearch.toLowerCase())
-        );
-    }, [piData, filteredPIsFromProjects, piSearch]);
+        const term = piSearch.toLowerCase().trim();
+        if (!term) return source;
+        return source.filter((pi) => {
+            if (pi.user_name.toLowerCase().includes(term)) return true;
+            if (pi.user_email.toLowerCase().includes(term)) return true;
+            const projectHaystack = piProjectSearchMap[pi.user_email.toLowerCase().trim()] || "";
+            return projectHaystack.includes(term);
+        });
+    }, [piData, filteredPIsFromProjects, piSearch, piProjectSearchMap]);
 
     const PAGE_SIZE = 10;
 
@@ -5921,10 +5940,10 @@ export function DirectorDashboard() {
                                         />
                                         <input
                                             type="text"
-                                            placeholder="Search PIs..."
+                                            placeholder="Search name, email, project no, type..."
                                             value={piSearch}
                                             onChange={(e) => setPiSearch(e.target.value)}
-                                            className="pl-9 pr-4 py-2 bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] outline-none w-56 transition-all focus:border-[#2563eb]"
+                                            className="pl-9 pr-4 py-2 bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] outline-none w-64 transition-all focus:border-[#2563eb]"
                                         />
                                     </div>
 

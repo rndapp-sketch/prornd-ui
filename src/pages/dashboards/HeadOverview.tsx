@@ -1166,13 +1166,31 @@ export function HeadOverview() {
         return Object.values(piMap).sort((a, b) => b.project_count - a.project_count);
     }, [deptProjects, piFundingFilter, getProjectAgency, deptOngoingIds, deptSubmittedIds, piNameMap, userDept]);
 
+    // Per-PI search text (project numbers + types across all their projects), so the
+    // "Search PIs..." box can match on more than just name/email — project number or
+    // project type too.
+    const piProjectSearchMap = React.useMemo(() => {
+        const map: Record<string, string> = {};
+        deptProjects.forEach((proj: any) => {
+            const email = (proj.pi_webmail || "").toLowerCase().trim();
+            if (!email) return;
+            const parts = [proj.project_no, proj.project_type].filter(Boolean).join(" ").toLowerCase();
+            map[email] = map[email] ? `${map[email]} ${parts}` : parts;
+        });
+        return map;
+    }, [deptProjects]);
+
     const filteredPIs = React.useMemo(() => {
         const source = filteredPIsFromProjects !== null ? filteredPIsFromProjects : piData;
-        return source.filter((pi: any) =>
-            pi.user_name.toLowerCase().includes(piSearch.toLowerCase()) ||
-            pi.user_email.toLowerCase().includes(piSearch.toLowerCase())
-        );
-    }, [piData, filteredPIsFromProjects, piSearch]);
+        const term = piSearch.toLowerCase().trim();
+        if (!term) return source;
+        return source.filter((pi: any) => {
+            if (pi.user_name.toLowerCase().includes(term)) return true;
+            if (pi.user_email.toLowerCase().includes(term)) return true;
+            const projectHaystack = piProjectSearchMap[pi.user_email.toLowerCase().trim()] || "";
+            return projectHaystack.includes(term);
+        });
+    }, [piData, filteredPIsFromProjects, piSearch, piProjectSearchMap]);
 
     const paginatedPIs = React.useMemo(() => {
         const start = (piPage - 1) * PAGE_SIZE;
