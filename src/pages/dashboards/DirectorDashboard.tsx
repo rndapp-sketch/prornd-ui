@@ -1358,6 +1358,13 @@ export function DirectorDashboard() {
     const resolveAgencyName = React.useCallback((p: any) => {
         let agency = fundingAgencyMap[p.funding_agen] || p.select_funding_agency || p["funding_agen.funding_agency_name"]
             || p.funding_agency_name || p.funding_agency || p.funding_agency_other || "";
+        // "Other"/"Others"/"Other Funding Agency" is the select field's own placeholder
+        // label, not a real agency name — the actual name only lives in
+        // funding_agency_other, which the priority chain above never reaches once one
+        // of the earlier fields matches this literal placeholder text.
+        if (/^other/i.test(agency.trim())) {
+            agency = p.funding_agency_other || "";
+        }
         if (!agency && (p.origin_of_funding_agency === "National" || p.origin_of_funding_agency === "International")) {
             agency = "";
         } else if (!agency) {
@@ -6546,12 +6553,12 @@ export function DirectorDashboard() {
                                                                     <div className="text-[11px] font-bold text-[#A1A1AA] uppercase tracking-widest mb-1">
                                                                         Funding Agency
                                                                     </div>
-                                                                    {proj.select_funding_agency === "Other" ? (
+                                                                    {/^other/i.test((proj.select_funding_agency || "").trim()) ? (
                                                                         <div
                                                                             className="text-[11px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight line-clamp-2"
-                                                                            title={proj.funding_agency_other}
+                                                                            title={proj.funding_agency_other || "—"}
                                                                         >
-                                                                            {proj.funding_agency_other}
+                                                                            {proj.funding_agency_other || "—"}
                                                                         </div>
                                                                     ) : (
                                                                         <FundingAgencyNameDisplay

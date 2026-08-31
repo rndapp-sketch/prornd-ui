@@ -1035,12 +1035,17 @@ export function HeadOverview() {
             const isOngoing = useApiStatus ? p._api_status === "ongoing" : deptOngoingIds.has(p.name);
             const isSubmitted = useApiStatus ? p._api_status === "submitted" : deptSubmittedIds.has(p.name);
             if (!isOngoing && !isSubmitted) return;
-            const agency =
+            let agency =
                 (fundingAgencyMap[p.funding_agen] || "").trim() ||
                 (p.select_funding_agency || "").trim() ||
                 (p.funding_agency_other || "").trim() ||
                 (p.origin_of_funding_agency || "").trim() ||
                 "Missing Funding Agency Name";
+            // "Other"/"Others"/"Other Funding Agency" is the select field's own
+            // placeholder label, not a real agency name — defer to funding_agency_other.
+            if (/^other/i.test(agency)) {
+                agency = (p.funding_agency_other || "").trim() || "Missing Funding Agency Name";
+            }
             agencyMap[agency] = (agencyMap[agency] || 0) + 1;
         });
         const arr = Object.entries(agencyMap)
@@ -1077,6 +1082,11 @@ export function HeadOverview() {
             (proj.funding_agency_other || "").trim() ||
             (proj.origin_of_funding_agency || "").trim()
         );
+        // "Other"/"Others"/"Other Funding Agency" is the select field's own placeholder
+        // label, not a real agency name — defer to funding_agency_other instead.
+        if (/^other/i.test(resolved)) {
+            resolved = (proj.funding_agency_other || "").trim();
+        }
         // Some legacy records have select_funding_agency populated with the raw
         // funding_agen link ID (e.g. "2074" or "FA-02529") instead of a resolved name.
         // If it looks like an ID, try the map once more in case that exact ID happens
