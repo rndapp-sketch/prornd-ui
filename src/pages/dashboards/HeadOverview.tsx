@@ -1065,19 +1065,30 @@ export function HeadOverview() {
         })).sort((a: any, b: any) => b.project_count - a.project_count);
     }, [piWiseProjects, userDept]);
 
+    // Matches raw Funding Agency doc-ID formats seen in this data — plain numbers
+    // ("2074") and short-prefix autonames ("FA-02529") — as opposed to a real
+    // agency/company name, which never looks like just an ID.
+    const looksLikeAgencyId = (s: string) => /^([A-Za-z]{1,4}-)?\d+$/.test(s);
+
     const getProjectAgency = React.useCallback((proj: any): string => {
-        const resolved = (
+        let resolved = (
             (fundingAgencyMap[proj.funding_agen] || "").trim() ||
             (proj.select_funding_agency || "").trim() ||
             (proj.funding_agency_other || "").trim() ||
             (proj.origin_of_funding_agency || "").trim()
         );
         // Some legacy records have select_funding_agency populated with the raw
-        // funding_agen link ID (e.g. "2074") instead of a resolved name — fundingAgencyMap
-        // only covers whatever the search_link API returned, not every ID in the data.
-        // A bare number is never a real agency name, so treat it as unresolved rather
-        // than showing the ID as if it were one.
-        if (!resolved || /^\d+$/.test(resolved)) return "Missing Funding Agency Name";
+        // funding_agen link ID (e.g. "2074" or "FA-02529") instead of a resolved name.
+        // If it looks like an ID, try the map once more in case that exact ID happens
+        // to be covered (it's keyed by ID -> name) before giving up on it.
+        if (resolved && looksLikeAgencyId(resolved) && fundingAgencyMap[resolved]) {
+            resolved = fundingAgencyMap[resolved];
+        }
+        // fundingAgencyMap only covers whatever the search_link API returned, not
+        // every ID in the data — a raw ID is never a real agency name, so treat any
+        // that's still unresolved as unresolved rather than showing the ID as if it
+        // were one.
+        if (!resolved || looksLikeAgencyId(resolved)) return "Missing Funding Agency Name";
         return resolved;
     }, [fundingAgencyMap]);
 
