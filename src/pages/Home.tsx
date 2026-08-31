@@ -155,6 +155,7 @@ export function Home() {
     // Replicate full role-based redirect logic from Dashboard.tsx
     const isDirector = roles.includes('Director');
     const isDean = roles.includes('Dean, RnD');
+    const isAdoRnd = roles.includes('Ado_RnD');
     const isHosRnd = roles.includes('Hos, RnD (Head of Section, RnD)');
     const isHead = roles.includes('head_approver_1');
     const isInspiredFaculty = roles.includes('Inspired Faculty');
@@ -162,23 +163,32 @@ export function Home() {
     const isPermanentEmployee = roles.includes('Permanent Employee');
     const isProjectStaff = roles.includes('project staff');
     const isRndStaff = roles.includes('staff, RnD');
+    const isStudent = roles.includes('Student');
 
     if (isDirector) {
       navigate('/director-dashboard');
     } else if (isDean) {
       navigate('/dean-dashboard');
+    } else if (isAdoRnd) {
+      navigate('/ado-rnd-dashboard');
     } else if (isHosRnd) {
       navigate('/hos-rnd-dashboard');
     } else if (isHead) {
       navigate('/head-dashboard');
+    } else if (isRndStaff) {
+      // RnD staff before project staff as they have broader scope
+      navigate('/rnd-staff-dashboard');
+    } else if (isStudent) {
+      // Student before project staff — a student tied to a project can also
+      // carry the "project staff" role, but should still land on their own
+      // dashboard, not the project staff one.
+      navigate('/student-dashboard');
+    } else if (isProjectStaff) {
+      navigate('/project-staff-dashboard');
     } else if (isInspiredFaculty || isIndependentResearcher) {
       // These roles stay on /home — do nothing
     } else if (isPermanentEmployee) {
       navigate('/pihomepage');
-    } else if (isProjectStaff) {
-      navigate('/project-staff-dashboard');
-    } else if (isRndStaff) {
-      navigate('/rnd-staff-dashboard');
     }
   }, [roles, isRolesLoading, navigate]);
 

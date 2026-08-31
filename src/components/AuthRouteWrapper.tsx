@@ -38,7 +38,11 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, blocke
   // A student added by a PI can log in straight away, but must complete their
   // own details before using the portal. This is the single gate for that —
   // every protected route goes through AuthRouteWrapper.
-  const { data: studentProfile } = useFrappeGetCall<{
+  const {
+    data: studentProfile,
+    error: studentProfileError,
+    isLoading: isStudentProfileLoading,
+  } = useFrappeGetCall<{
     message: { is_student: boolean; is_complete: boolean };
   }>(
     'rndopsapp.rndopsapp.user_api.student_api.get_my_student_profile',
@@ -46,8 +50,17 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, blocke
     currentUser ? undefined : null,
   );
 
+  // A user carrying the "Student" role is the authoritative signal that they
+  // need a completed profile — don't rely solely on the profile lookup
+  // succeeding. If no Student Details record exists for them yet, the
+  // backend call errors out instead of returning is_complete: false, and
+  // without this fallback that silently skipped the gate entirely instead
+  // of sending them to fill it in.
+  const isStudentRole = !!roles?.includes('Student');
   const mustCompleteProfile =
-    !!studentProfile?.message?.is_student && !studentProfile.message.is_complete;
+    !isStudentProfileLoading &&
+    isStudentRole &&
+    (studentProfileError || !studentProfile?.message?.is_complete);
 
   useEffect(() => {
     if (!mustCompleteProfile) return;
