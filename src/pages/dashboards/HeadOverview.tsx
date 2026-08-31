@@ -185,7 +185,7 @@ function KpiCard({
     return (
         <div
             onClick={onClick}
-            className={`bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl p-5 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all flex flex-col h-full min-h-[136px]${onClick ? " cursor-pointer select-none" : ""}`}
+            className={`bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl p-5 relative overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all flex flex-col justify-center h-full min-h-[136px]${onClick ? " cursor-pointer select-none" : ""}`}
         >
             <div
                 className="absolute bottom-0 right-0 w-[90px] h-[90px] rounded-full translate-x-5 translate-y-5"
@@ -1780,25 +1780,6 @@ export function HeadOverview() {
                                 }
                             />
                             <KpiCard
-                                label="Fund Allocation for Ongoing Projects"
-                                value={formatCurrency(fundAnalytics.total_allocation || stats.totalAlloc)}
-                                isLoading={isPageLoading}
-                                subtext=""
-                                icon={
-                                    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                                        <line x1="6" y1="5" x2="18" y2="5" />
-                                        <line x1="6" y1="10" x2="18" y2="10" />
-                                        <path d="M6 5h5a4 4 0 0 1 0 8H6" />
-                                        <path d="M9 13L15 21" />
-                                    </svg>
-                                }
-                                valueColor="text-emerald-700 dark:text-emerald-400"
-                                iconBg="#ecfdf5"
-                                circleColor="#059669"
-                                onClick={() => openKpiModal("allocation", "Projects by Allocation")}
-                                customBottom={!isLoading && !isHeadDataLoading && allocationBreakdownGrid}
-                            />
-                            <KpiCard
                                 label="Ongoing Projects"
                                 value={String(projectOverview.ongoing_projects || stats.ongoing)}
                                 isLoading={isPageLoading}
@@ -1840,6 +1821,25 @@ export function HeadOverview() {
                                 circleColor="#7c3aed"
                                 onClick={() => openKpiModal("ongoing", "Ongoing Projects")}
                                 customBottom={!isPageLoading && ongoingBreakdownGrid}
+                            />
+                            <KpiCard
+                                label="Fund Allocation for Ongoing Projects"
+                                value={formatCurrency(fundAnalytics.total_allocation || stats.totalAlloc)}
+                                isLoading={isPageLoading}
+                                subtext=""
+                                icon={
+                                    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                        <line x1="6" y1="5" x2="18" y2="5" />
+                                        <line x1="6" y1="10" x2="18" y2="10" />
+                                        <path d="M6 5h5a4 4 0 0 1 0 8H6" />
+                                        <path d="M9 13L15 21" />
+                                    </svg>
+                                }
+                                valueColor="text-emerald-700 dark:text-emerald-400"
+                                iconBg="#ecfdf5"
+                                circleColor="#059669"
+                                onClick={() => openKpiModal("allocation", "Projects by Allocation")}
+                                customBottom={!isLoading && !isHeadDataLoading && allocationBreakdownGrid}
                             />
                             <KpiCard
                                 label="International Collaborators"
