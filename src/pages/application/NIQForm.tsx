@@ -1647,9 +1647,26 @@ const NIQPage: React.FC = () => {
                                             {department && <span style={{ display: 'block', marginTop: '3px' }}>{department}</span>}
                                         </div>
 
-                                        {/* Date and NIQ No – aligned right */}
-                                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '35px', marginTop: '15px' }}>
-                                            <div style={{ width: '35%', paddingLeft: '10px' }}>
+                                        {/* Vendor Details and Date/NIQ Row */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '20px', marginBottom: '35px' }}>
+                                            {/* Vendor Details (Editable) */}
+                                            <div style={{ paddingRight: '10px', width: '55%' }}>
+                                                <strong style={{ fontSize: '12.5px' }}>To,</strong>
+                                                <div
+                                                    contentEditable
+                                                    suppressContentEditableWarning
+                                                    onPaste={(e) => {
+                                                        e.preventDefault();
+                                                        document.execCommand("insertText", false, e.clipboardData.getData("text/plain"));
+                                                    }}
+                                                    className="niq-field-editable"
+                                                    style={{ display: 'block', minHeight: '80px', marginTop: '8px', whiteSpace: 'pre-wrap', padding: '5px', border: '1px dashed #ef4444', background: '#fee2e2', borderRadius: '4px', fontSize: '11.5px', lineHeight: '1.5' }}
+                                                    data-placeholder="1. Vendor Name&#10;Address Line 1&#10;Ph: +91-XXXXXXXXXX&#10;Email: vendor@example.com"
+                                                ></div>
+                                            </div>
+
+                                            {/* Date and NIQ No – aligned right */}
+                                            <div style={{ width: '40%', paddingLeft: '10px', marginTop: '5px' }}>
                                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
                                                     <tbody>
                                                         <tr><td style={{ fontWeight: 'bold', whiteSpace: 'nowrap', paddingRight: '4px', width: '68px' }}>Date</td><td style={{ whiteSpace: 'nowrap', width: '8px' }}>:</td><td><strong>{today}</strong></td></tr>

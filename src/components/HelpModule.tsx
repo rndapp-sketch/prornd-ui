@@ -73,7 +73,7 @@ export const HelpModule: React.FC<HelpModuleProps> = ({ isOpen, onClose }) => {
             <div className="fixed inset-0 bg-zinc-950/50 dark:bg-black/70 backdrop-blur-sm" onClick={closeManual} />
 
             {/* Single Card Container */}
-            <div className="relative w-full max-w-5xl max-h-[90vh] bg-white dark:bg-zinc-950 rounded-2xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col border border-slate-200 dark:border-zinc-800 animate-in zoom-in-95 duration-200">
+            <div className="relative w-full max-w-7xl max-h-[95vh] bg-white dark:bg-zinc-950 rounded-2xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col border border-slate-200 dark:border-zinc-800 animate-in zoom-in-95 duration-200">
 
                 {/* Card Header - Title + Close */}
                 <div className="px-6 sm:px-8 py-5 border-b border-slate-200 dark:border-zinc-800 bg-gradient-to-r from-slate-800 to-slate-900 dark:from-zinc-900 dark:to-zinc-950 flex items-center justify-between shrink-0">
@@ -303,7 +303,7 @@ export const HelpModule: React.FC<HelpModuleProps> = ({ isOpen, onClose }) => {
                         </div>
                     </div>
                 ) : currentView === 'scribe' ? (
-                    <div className="flex-1 w-full bg-slate-50 dark:bg-zinc-900 overflow-hidden relative min-h-[500px]">
+                    <div className="flex-1 w-full bg-slate-50 dark:bg-zinc-900 overflow-hidden relative min-h-[650px]">
                         {isLoadingIframe && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50/80 dark:bg-zinc-900/80 backdrop-blur-sm z-10">
                                 <div className="relative flex items-center justify-center mb-6">

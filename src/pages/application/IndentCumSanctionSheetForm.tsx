@@ -37,7 +37,9 @@ import {
   ExternalLink,
   Pencil,
   ChevronDown,
+  Printer,
 } from "lucide-react";
+import { generateIcssHtml } from "@/utils/icssPrint";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -49,6 +51,9 @@ import { CommitPayment } from "@/components/CommitPayment";
 import { POEditor } from "@/components/POEditor";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import { getFileUrl } from "@/utils/fileUtils";
+import { P11PrintModal as PrintModal } from "@/components/P11PrintModal";
+import { ActivityLog } from "@/components/ActivityLog";
+import { commonAPI } from "@/services/apiService";
 import { ErrorModal } from "../../components/ErrorModal";
 import { parseFrappeError } from "../../utils/errorUtils";
 import {
@@ -1102,7 +1107,7 @@ const WorkflowTimeline = ({
 
   return (
     <FrappeCard>
-      <div className="p-4">
+      <div className="p-4" id="icss-workflow-progress">
         {/* Header row */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -1756,6 +1761,22 @@ const IndentCumSanctionSheetForm: React.FC = () => {
   const [computationRules, setComputationRules] = useState<any>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [linkOptions, setLinkOptions] = useState<Record<string, any[]>>({});
+  
+  const { call: fetchUserDetails } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
+  const [fetchedOwnerName, setFetchedOwnerName] = useState<string>("");
+
+  useEffect(() => {
+    if (formData?.owner) {
+      fetchUserDetails({ user_email: formData.owner })
+        .then(res => {
+          if (res?.message?.full_name) {
+            setFetchedOwnerName(res.message.full_name);
+          }
+        })
+        .catch(err => console.warn("Could not fetch owner details for ICSS print log", err));
+    }
+  }, [formData?.owner, fetchUserDetails]);
+
   const displayLinkOptions = React.useMemo(() => {
     const baseUserOptions =
       linkOptions.User ||
@@ -1881,6 +1902,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
   );
   const [hasSavedPoDraft, setHasSavedPoDraft] = useState(false);
   const [isPoDraftDirty, setIsPoDraftDirty] = useState(false);
+  const [isIcssPrintModalOpen, setIsIcssPrintModalOpen] = useState(false);
   const [isFetchingSavedPoDraft, setIsFetchingSavedPoDraft] = useState(false);
   const [savedPoDraftLoadError, setSavedPoDraftLoadError] = useState("");
   const [savedIcssPoDocName, setSavedIcssPoDocName] = useState("");
@@ -3101,29 +3123,19 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       if (
         [
           "basic_value_bv_of_the_po",
-          "amc_value_type",
           "amc_value",
-          "amc_value_percentage",
-          "amc_computed_value",
           "amc_other_charges",
           "amc_gst",
           "amc_grand_total",
         ].some((fieldname) => fieldname in next)
       ) {
         const basicValue = toNumber(next.basic_value_bv_of_the_po);
-        const isPercentage = next.amc_value_type === "Percentage";
-        const computedValue = roundCurrency(
-          isPercentage
-            ? (basicValue * toNumber(next.amc_value_percentage)) / 100
-            : toNumber(next.amc_value),
-        );
-        const grandTotal = roundCurrency(
-          computedValue +
-          toNumber(next.amc_other_charges) +
-          toNumber(next.amc_gst),
-        );
+        const amcPercent = toNumber(next.amc_value);
+        const amcValueAmount = (basicValue * amcPercent) / 100;
+        const subtotal = amcValueAmount + toNumber(next.amc_other_charges);
+        const gstAmount = (subtotal * toNumber(next.amc_gst)) / 100;
+        const grandTotal = roundCurrency(subtotal + gstAmount);
 
-        next.amc_computed_value = computedValue;
         next.amc_grand_total = grandTotal;
         next.grand_total_in_words = convertAmountToWords(grandTotal);
         next.amount_in_words = convertAmountToWords(grandTotal);
@@ -5622,6 +5634,10 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     );
   };
 
+  const handlePrint = useCallback(() => {
+    setIsIcssPrintModalOpen(true);
+  }, []);
+
   if (isLoadingFields) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
@@ -6057,7 +6073,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                         "bg-slate-600 dark:bg-slate-400",
                       )}
                     />
-                    <div>
+                    <div className="flex-1">
                       <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-700 dark:text-zinc-300">
                         Indent Cum Sanction Sheet
                       </h2>
@@ -6068,8 +6084,18 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                         </p>
                       )}
                     </div>
+                    {id && (
+                      <button 
+                        onClick={() => setIsIcssPrintModalOpen(true)}
+                        disabled={!!formData.owner && !fetchedOwnerName}
+                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[12px] font-bold text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Printer className="h-3.5 w-3.5" aria-hidden="true" /> 
+                        Print / PDF
+                      </button>
+                    )}
                   </div>
-                  <div className="p-8">
+                  <div className="p-8" id="icss-printable-details">
                     <DynamicFormRenderer
                       fields={displayBaseFields}
                       formData={formData}
@@ -6087,6 +6113,35 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                       autocompleteFields={["icss_other_pi_id"]}
                     />
                   </div>
+                  <div id="icss-activity-log" className="hidden">
+                    {id && (
+                      <ActivityLog 
+                        doctype="Indent Cum Sanction Sheet" 
+                        docname={id}
+                        fallbackOwner={formData.owner}
+                        fallbackCreation={formData.creation}
+                        fallbackOwnerName={fetchedOwnerName || formData.owner}
+                      />
+                    )}
+                  </div>
+                  <PrintModal
+                    title="Indent Cum Sanction Sheet Preview"
+                    isOpen={isIcssPrintModalOpen}
+                    onClose={() => setIsIcssPrintModalOpen(false)}
+                    htmlContent={
+                      isIcssPrintModalOpen
+                        ? generateIcssHtml(
+                            formData,
+                            document.getElementById("icss-activity-log"),
+                            document.getElementById("icss-printable-details"),
+                            document.getElementById("icss-subform-printable-details"),
+                            document.getElementById("icss-workflow-progress"),
+                            displayLinkOptions
+                          )
+                        : ""
+                    }
+                    docName={formData.name || "ICSS"}
+                  />
                 </FrappeCard>
 
                 {/* Sub-Doctype Form — shown only when indent type is selected and fields exist (or loading) */}
@@ -6132,7 +6187,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      <div className="p-8">
+                      <div className="p-8" id="icss-subform-printable-details">
                         {isLoadingSubForm ? (
                           <div className="flex flex-col items-center justify-center py-12 gap-3">
                             <Loader2 className="w-6 h-6 animate-spin text-[#D97757]" />

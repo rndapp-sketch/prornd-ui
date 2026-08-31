@@ -342,7 +342,7 @@ function AppContent() {
               </header>
 
               {/* Main Content Area */}
-              <main className="flex-1 px-5 py-6 lg:px-7 lg:py-7">
+              <main className="flex-1 px-5 py-3 lg:px-7 lg:py-4">
                 <div className="mx-auto w-full max-w-[1600px] animate-in fade-in slide-in-from-bottom-2 duration-500">
                   <Outlet />
                 </div>

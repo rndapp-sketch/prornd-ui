@@ -189,6 +189,7 @@ export function generateP11Html(formData: Record<string, any>): string {
   return p11Template
     .replace(/http:\/\/172\.16\.117\.39:8000/g, `http://${ASSET_HOST}:${ASSET_PORT}`)
     .replace("{{DOC_REF}}", formData.name || "")
+    .replace("{{WORKFLOW_STATE}}", formData.workflow_state || "Draft")
     .replace("{{DIRECT_PURCHASE_REF}}", formData.app_id || "")
     .replace("{{CURRENT_TIME}}", currentTime)
     .replace("{{DATE}}", creation)
