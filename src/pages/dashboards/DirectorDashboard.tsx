@@ -193,7 +193,7 @@ function KpiCard({
                 </div>
             </div>
 
-            <div className="mt-auto pt-3 w-full">
+            <div className={`${customBottom ? "" : "mt-auto"} pt-3 w-full`}>
                 {customBottom ? (
                     customBottom
                 ) : badges && badges.length > 0 ? (
