@@ -475,7 +475,7 @@ const PIStatCardsHead: React.FC<{ piDetails: any; projects: any[] }> = ({ piDeta
                 <div className="text-[18px] sm:text-[20px] font-extrabold text-[#d97706] leading-tight">
                     {fundTotalLoading ? <span className="text-[12px] font-bold text-[#A1A1AA] animate-pulse">Loading…</span> : formattedLiveFund ?? "—"}
                 </div>
-                <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Fund Rcvd</div>
+                <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Fund Received</div>
             </div>
         </div>
     );
