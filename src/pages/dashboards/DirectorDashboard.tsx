@@ -3099,7 +3099,7 @@ export function DirectorDashboard() {
                 <div className="flex items-center justify-between w-full">
                     <div className="flex items-center gap-1">
                         <span className={`w-1 h-1 rounded-full ${isReceived ? "bg-emerald-500" : "bg-amber-400"}`}></span>
-                        {isReceived ? "Received" : "Pending"}
+                        {isReceived ? "Fund Received" : "Fund Pending"}
                     </div>
                     <span>{ready ? count : "Loading…"}</span>
                 </div>
