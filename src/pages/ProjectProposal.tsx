@@ -92,13 +92,13 @@ const MemoizedGenericTable = memo(({ tableName, columns, newRow, tableData, onRo
 
 const MemoizedCollaboratorTable = memo(({ tableName, title, tableData, piOptions, onCollaboratorChange, onRowChange, onAddRow, onDeleteRow }: any) => {
     const prefix = tableName === 'co_investigator_table' ? 'copi' : 'pi';
-    const newRow = { [`${prefix}_name`]: '', [`${prefix}_email`]: '', [`${prefix}_designation`]: '', [`${prefix}_address`]: '', [`${prefix}_contact`]: '' };
+    const newRow = { [`${prefix}_name`]: '', [`${prefix}_email`]: '', [`${prefix}_designation`]: '', [`${prefix}_department`]: '', [`${prefix}_address`]: '', [`${prefix}_contact`]: '' };
     return (
         <div>
             <h3 className="text-2xl font-bold  text-zinc-900 dark:text-zinc-100 mb-4">{title}</h3>
             <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl">
                 <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
-                    <thead className="bg-zinc-50 dark:bg-zinc-800/50"><tr className="divide-x divide-zinc-200 dark:divide-zinc-800">{["Name*", "Email ID*", "Designation*", "Address*", "Contact*", "Actions"].map(h => (<th key={h} className="p-3 font-semibold text-zinc-700 dark:text-zinc-300 text-sm text-left">{h}</th>))}</tr></thead>
+                    <thead className="bg-zinc-50 dark:bg-zinc-800/50"><tr className="divide-x divide-zinc-200 dark:divide-zinc-800">{["Name*", "Email ID*", "Designation*", "Department", "Address*", "Contact*", "Actions"].map(h => (<th key={h} className="p-3 font-semibold text-zinc-700 dark:text-zinc-300 text-sm text-left">{h}</th>))}</tr></thead>
                     <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
                         {(tableData || []).map((row: any, i: number) => (
                             <tr key={row.id} className="divide-x divide-zinc-200 dark:divide-zinc-800">
@@ -112,6 +112,7 @@ const MemoizedCollaboratorTable = memo(({ tableName, title, tableData, piOptions
                                 </td>
                                 <td className="p-2"><input type="email" readOnly className={`${inputClasses} !h-11 bg-zinc-200 dark:bg-zinc-700`} value={row[`${prefix}_email`] || ''} /></td>
                                 <td className="p-2"><input type="text" readOnly className={`${inputClasses} !h-11 bg-zinc-200 dark:bg-zinc-700`} value={row[`${prefix}_designation`] || ''} /></td>
+                                <td className="p-2"><input type="text" readOnly className={`${inputClasses} !h-11 bg-zinc-200 dark:bg-zinc-700`} value={row[`${prefix}_department`] || ''} /></td>
                                 <td className="p-2">
                                     <input type="text" placeholder="Institute/Address" maxLength={140} className={`${inputClasses} !h-11`} value={row[`${prefix}_address`] || ''} onChange={e => onRowChange(tableName, i, `${prefix}_address`, e.target.value)} />
                                     <CharLimitAlert value={row[`${prefix}_address`]} maxLength={140} className="mt-1 text-[10px]" />
@@ -310,6 +311,7 @@ const ProjectProposal: React.FC = () => {
             const user = (linkOptions["pi_webmail"] || []).find(c => c.value === selectedUserEmail);
             const prefix = tableName === "co_investigator_table" ? "copi" : "pi";
             let designation = user?.designation || "";
+            let department = "";
             let address = "";
             let contact = "";
             if (selectedUserEmail) {
@@ -319,7 +321,8 @@ const ProjectProposal: React.FC = () => {
                     if (!designation) {
                         designation = details?.designation_name || details?.designation || "";
                     }
-                    address = details?.inst_name_address || details?.copi_address || details?.address || details?.department_name || details?.applicant_department || "";
+                    department = details?.department_name || details?.applicant_department || "";
+                    address = details?.inst_name_address || details?.copi_address || details?.address || "";
                     contact = details?.mobile_no || details?.copi_contact || details?.contact_number || details?.cell_phone_number || "";
                 } catch (err) {  }
             }
@@ -330,6 +333,7 @@ const ProjectProposal: React.FC = () => {
                     [`${prefix}_name`]: user?.label || "",
                     [`${prefix}_email`]: user?.value || "",
                     [`${prefix}_designation`]: designation,
+                    [`${prefix}_department`]: department,
                     [`${prefix}_address`]: address,
                     [`${prefix}_contact`]: contact
                 };

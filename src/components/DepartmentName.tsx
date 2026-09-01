@@ -17,6 +17,7 @@ const DeptByDocName = ({ name }: { name: string }) => {
     const { data, isLoading } = useFrappeGetDoc<{ dept_name: string }>(
         "Department_prornd",
         name,
+        undefined,
         { revalidateOnFocus: false }
     );
     if (isLoading) return <span>…</span>;
