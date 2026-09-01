@@ -39,6 +39,21 @@ interface StaffRecord {
     ps_hostel?: string | number;
 }
 
+interface SalaryGapRange {
+    from: string;
+    to: string;
+    days: number;
+}
+
+interface SalaryGap {
+    has_gap: true;
+    gap_days: number;
+    gap_ranges: SalaryGapRange[];
+    total_days_in_month: number;
+    payable_days: number;
+    prorated_basic_salary: number;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type BuildCommitResult = { ok: true; commit: any } | { ok: false; reason: string };
 
@@ -548,7 +563,7 @@ const SalaryModule: React.FC = () => {
                     commitDate: commitFromApi.commitDate,
                     commitParticular: `Salary payment for ${r.first_name} (${r.employee_id}) - ${MONTHS[selectedMonth].label} ${selectedYear}`,
                     refDetails: String(commitFromApi.transactionCommitNumber),
-                    commitAmount: Math.round(netPay),
+                    commitAmount: Math.round(grossPay),
                     transactionCommitNumber: commitFromApi.transactionCommitNumber,
                     salary_year_month,
                     salary_user_details,
@@ -557,6 +572,7 @@ const SalaryModule: React.FC = () => {
                         project_no: projectNo,
                         scr_id: commitFromApi.frapAppId,
                     },
+                    salary_gap: commitFromApi.salary_gap ?? null,
                 },
             };
         }
@@ -590,7 +606,7 @@ const SalaryModule: React.FC = () => {
                         ok: true,
                         commit: {
                             ...match,
-                            commitAmount: Math.round(netPay),
+                            commitAmount: Math.round(grossPay),
                             commitParticular: `Salary payment for ${r.first_name} (${r.employee_id}) - ${MONTHS[selectedMonth].label} ${selectedYear}`,
                             salary_year_month,
                             salary_user_details,
@@ -2940,18 +2956,42 @@ const SalaryModule: React.FC = () => {
                                     const hraDed = inputs.hraDeduction;
                                     const totalDed = hraDed + inputs.medicalDeduction + calcPTax(inputs.basic) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
                                     const netPay = grossPay - totalDed;
+                                    const salaryGap: SalaryGap | null = pendingBulkCommits[r.employee_id]?.salary_gap ?? null;
                                     return (
-                                        <div key={r.employee_id} className="flex items-center justify-between rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] px-3 py-2">
-                                            <div className="flex items-center gap-2.5 min-w-0">
-                                                <span className="shrink-0 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/30 text-[9px] font-bold text-emerald-700 dark:text-emerald-400">{idx + 1}</span>
-                                                <div className="min-w-0">
-                                                    <p className="text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.first_name}</p>
-                                                    <p className="text-[10px] font-mono text-[#71717A] dark:text-[#A1A1AA]">{r.employee_id}</p>
+                                        <div key={r.employee_id} className="rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] px-3 py-2">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                    <span className="shrink-0 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/30 text-[9px] font-bold text-emerald-700 dark:text-emerald-400">{idx + 1}</span>
+                                                    <div className="min-w-0">
+                                                        <p className="text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{r.first_name}</p>
+                                                        <p className="text-[10px] font-mono text-[#71717A] dark:text-[#A1A1AA]">{r.employee_id}</p>
+                                                    </div>
                                                 </div>
+                                                <span className="shrink-0 text-[12px] font-bold tabular-nums text-amber-700 dark:text-amber-400">
+                                                    {fmt(netPay)}
+                                                </span>
                                             </div>
-                                            <span className="shrink-0 text-[12px] font-bold tabular-nums text-amber-700 dark:text-amber-400">
-                                                {fmt(netPay)}
-                                            </span>
+                                            {salaryGap && (
+                                                <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-200/60 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-950/10 px-2.5 py-2">
+                                                    <Info className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                                                    <div className="min-w-0 text-[11px] text-[#52525B] dark:text-[#A1A1AA]">
+                                                        <p>
+                                                            <span className="font-bold text-amber-700 dark:text-amber-400">Tenure gap:</span>{" "}
+                                                            {salaryGap.gap_ranges.map((g, gi) => (
+                                                                <span key={gi}>
+                                                                    {gi > 0 && ", "}
+                                                                    {fmtDate(g.from)} – {fmtDate(g.to)} ({g.days}d)
+                                                                </span>
+                                                            ))}
+                                                            {" "}unpaid this month. Payable {salaryGap.payable_days}/{salaryGap.total_days_in_month} days.
+                                                        </p>
+                                                        <p className="mt-1">
+                                                            <span className="font-bold text-amber-700 dark:text-amber-400">Prorated basic (reference):</span>{" "}
+                                                            {fmt(salaryGap.prorated_basic_salary)} — cross-check against the commit amount above before submitting.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })}
