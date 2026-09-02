@@ -322,7 +322,9 @@ const SalaryModule: React.FC = () => {
     const [desigFilter, setDesigFilter] = useState<string>("All");
     const [projectFilter, setProjectFilter] = useState<string>("All");
     const [schemeFilter, setSchemeFilter] = useState<string>("All");
-    const [projectTypeFilter, setProjectTypeFilter] = useState<string>("All");
+    // Primary staff-type tab — Research vs Consultancy staff are shown in entirely separate tabs
+    // rather than an optional filter, so the two payrolls can never bleed into each other.
+    const [staffTypeTab, setStaffTypeTab] = useState<"Research" | "Consultancy">("Research");
     const [departmentLabels, setDepartmentLabels] = useState<Record<string, string>>({});
     const [schemeMap, setSchemeMap] = useState<Record<string, string>>({});
     const [projectTypeMap, setProjectTypeMap] = useState<Record<string, string>>();
@@ -1182,11 +1184,11 @@ const SalaryModule: React.FC = () => {
                 return s === schemeFilter;
             });
         }
-        if (projectTypeFilter !== "All" && projectTypeMap) {
+        if (projectTypeMap) {
             list = list.filter(r => {
                 const pNo = (r.project_no || "").trim();
                 const t = pNo && projectTypeMap[pNo] ? projectTypeMap[pNo].trim() : "";
-                return t.toLowerCase() === projectTypeFilter.toLowerCase();
+                return t.toLowerCase() === staffTypeTab.toLowerCase();
             });
         }
 
@@ -1207,7 +1209,25 @@ const SalaryModule: React.FC = () => {
             }
             return sortDir === "asc" ? cmp : -cmp;
         });
-    }, [records, search, deptFilter, desigFilter, projectFilter, schemeFilter, projectTypeFilter, projectTypeMap, schemeMap, sortKey, sortDir, selectedMonth, selectedYear, departmentLabels]);
+    }, [records, search, deptFilter, desigFilter, projectFilter, schemeFilter, staffTypeTab, projectTypeMap, schemeMap, sortKey, sortDir, selectedMonth, selectedYear, departmentLabels]);
+
+    // Staff active in the selected period, before any type/search/dept/etc. filtering —
+    // used to decide whether to show the toolbar/table at all (a "no search results" state
+    // should never hide the search box itself; see activeStaffCount below).
+    const activeStaffRecords = useMemo(() =>
+        records.filter(r => calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth) > 0),
+        [records, selectedYear, selectedMonth]);
+
+    // Total active staff per type (for the Research/Consultancy main-tab badges) — independent
+    // of which tab is currently selected, and ignores the secondary dept/designation/scheme/search filters.
+    const staffCountByType = useMemo(() => {
+        const countOf = (type: "Research" | "Consultancy") => activeStaffRecords.filter(r => {
+            const pNo = (r.project_no || "").trim();
+            const t = pNo && projectTypeMap?.[pNo] ? projectTypeMap[pNo].trim() : "";
+            return t.toLowerCase() === type.toLowerCase();
+        }).length;
+        return { Research: countOf("Research"), Consultancy: countOf("Consultancy") };
+    }, [activeStaffRecords, projectTypeMap]);
 
     // Term-ending / expired records — from ALL records (ignore processedEmployees filter)
     // Includes staff whose term_completion_date is in the selected month/year
@@ -1241,6 +1261,23 @@ const SalaryModule: React.FC = () => {
         [filtered, processedEmployees]);
 
     const displayedRecords = activeTab === "pending" ? pendingRecords : activeTab === "processed" ? processedRecords : termEndingRecords;
+
+    // stagingRecords is fetched independently (raw payment history for the period) and
+    // isn't run through the search/dept/designation/scheme/project-type filters that
+    // `filtered` applies. Cross-reference against processedRecords (which already has
+    // those filters applied) by employee id so the "Salary Processed" table respects
+    // the same filters as the rest of the page — e.g. selecting "Consultancy" must not
+    // leak Research staff into the processed register.
+    const processedFilterEmpIds = useMemo(() =>
+        new Set(processedRecords.map(r => r.employee_id)),
+        [processedRecords]);
+
+    const filteredStagingRecords = useMemo(() =>
+        stagingRecords.filter(rec => {
+            const empId = rec?.salary_backend_details?.ps_emp_id || rec?.salary_user_details?.employee_id;
+            return !!empId && processedFilterEmpIds.has(empId);
+        }),
+        [stagingRecords, processedFilterEmpIds]);
 
     const handleSort = (k: SortKey) => {
         if (sortKey === k) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -1384,7 +1421,7 @@ const SalaryModule: React.FC = () => {
             "Commit Amount", "Payment Amount", "Payment Particular", "Payment Date",
             "BMR", "Frap App ID", "Comment", "Remarks"
         ];
-        const rows = stagingRecords.map((rec, i) => {
+        const rows = filteredStagingRecords.map((rec, i) => {
             const ud = rec?.salary_user_details ?? {};
             const totalDed = (ud.hra_deduction ?? 0) + (ud.medical_deduction ?? 0) + (ud.p_tax ?? 0);
             return [
@@ -1572,7 +1609,7 @@ const SalaryModule: React.FC = () => {
                                         </button>
                                         <button
                                             onClick={() => { exportStagingCSV(); setShowExportDropdown(false); }}
-                                            disabled={stagingRecords.length === 0}
+                                            disabled={filteredStagingRecords.length === 0}
                                             className="flex w-full items-center gap-3 px-4 py-3 text-left text-[13px] font-medium text-[#3F3F46] hover:bg-[#FAFAF9] dark:text-[#E4E4E7] dark:hover:bg-[#3F3F46] disabled:opacity-40 disabled:cursor-not-allowed transition-colors border-t border-[#E4E4E7] dark:border-[#3F3F46]"
                                         >
                                             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-50 dark:bg-emerald-950/20">
@@ -1580,7 +1617,7 @@ const SalaryModule: React.FC = () => {
                                             </div>
                                             <div>
                                                 <p className="font-bold">Processed Records</p>
-                                                <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA]">{stagingRecords.length} records from Salary Staging</p>
+                                                <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA]">{filteredStagingRecords.length} records from Salary Staging</p>
                                             </div>
                                         </button>
                                     </div>
@@ -1590,8 +1627,54 @@ const SalaryModule: React.FC = () => {
                     </div>
                 </header>
 
+                {/* Main Tabs — Research vs Consultancy are fully separate payrolls (month/year, register, exports all scope to whichever is active) */}
+                <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+                    <div className="flex">
+                        <button
+                            onClick={() => setStaffTypeTab("Research")}
+                            className={cn(
+                                "flex flex-1 items-center justify-center gap-2.5 px-5 py-4 text-[15px] font-extrabold transition-all border-b-[3px]",
+                                staffTypeTab === "Research"
+                                    ? "text-[#4A6CF7] border-[#4A6CF7] bg-[#EEF2FF]/50 dark:bg-[#4A6CF7]/10"
+                                    : "text-[#71717A] border-transparent hover:text-[#3F3F46] hover:bg-[#FAFAF9] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] dark:hover:bg-[#3F3F46]/50"
+                            )}
+                        >
+                            <Briefcase className="h-5 w-5" />
+                            Research
+                            <span className={cn(
+                                "inline-flex h-6 min-w-[24px] items-center justify-center rounded-full px-1.5 text-[11px] font-bold",
+                                staffTypeTab === "Research"
+                                    ? "bg-[#4A6CF7] text-white"
+                                    : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                            )}>
+                                {staffCountByType.Research}
+                            </span>
+                        </button>
+                        <button
+                            onClick={() => setStaffTypeTab("Consultancy")}
+                            className={cn(
+                                "flex flex-1 items-center justify-center gap-2.5 px-5 py-4 text-[15px] font-extrabold transition-all border-b-[3px]",
+                                staffTypeTab === "Consultancy"
+                                    ? "text-[#D97757] border-[#D97757] bg-[#D97757]/5"
+                                    : "text-[#71717A] border-transparent hover:text-[#3F3F46] hover:bg-[#FAFAF9] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] dark:hover:bg-[#3F3F46]/50"
+                            )}
+                        >
+                            <Briefcase className="h-5 w-5" />
+                            Consultancy
+                            <span className={cn(
+                                "inline-flex h-6 min-w-[24px] items-center justify-center rounded-full px-1.5 text-[11px] font-bold",
+                                staffTypeTab === "Consultancy"
+                                    ? "bg-[#D97757] text-white"
+                                    : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                            )}>
+                                {staffCountByType.Consultancy}
+                            </span>
+                        </button>
+                    </div>
+                </div>
+
                 {/* KPI Cards */}
-                {!isLoading && !error && filtered.length > 0 && isPrepared && (
+                {!isLoading && !error && activeStaffRecords.length > 0 && isPrepared && (
                     <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
                         {[
                             {
@@ -1663,7 +1746,7 @@ const SalaryModule: React.FC = () => {
                 )}
 
                 {/* Filter Toolbar & Main Table (Conditional on isPrepared) */}
-                {!isLoading && !error && filtered.length > 0 && isPrepared && (
+                {!isLoading && !error && activeStaffRecords.length > 0 && isPrepared && (
                     <>
                         {/* Tab Switcher & Progress Bar */}
                         <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
@@ -1731,20 +1814,6 @@ const SalaryModule: React.FC = () => {
                                     </button>
                                 </div>
                                 <div className="flex items-center gap-3 px-4">
-                                    {/* Project Type Filter */}
-                                    <div className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 transition-all border-[#4A6CF7] bg-[#EEF2FF] dark:border-[#4A6CF7]/60 dark:bg-[#4A6CF7]/10 ring-2 ring-[#4A6CF7]/10">
-                                        <Briefcase className="h-3.5 w-3.5 shrink-0 text-[#4A6CF7]" />
-                                        <select
-                                            value={projectTypeFilter}
-                                            onChange={e => setProjectTypeFilter(e.target.value)}
-                                            className="bg-transparent text-[11px] font-bold outline-none pr-1 cursor-pointer text-[#4A6CF7]"
-                                        >
-                                            <option value="All" className="dark:bg-[#27272A]">Select Project Type</option>
-                                            <option value="Research" className="dark:bg-[#27272A]">Research</option>
-                                            <option value="Consultancy" className="dark:bg-[#27272A]">Consultancy</option>
-                                        </select>
-                                    </div>
-
                                     {isCheckingStatus && (
                                         <span className="flex items-center gap-1.5 text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
                                             <Loader2 className="h-3 w-3 animate-spin" />
@@ -1842,11 +1911,11 @@ const SalaryModule: React.FC = () => {
 
                             {/* Clear button with filter count */}
                             {(() => {
-                                const activeCount = [search, deptFilter !== "All", desigFilter !== "All", projectFilter !== "All", schemeFilter !== "All", projectTypeFilter !== "All"].filter(Boolean).length;
+                                const activeCount = [search, deptFilter !== "All", desigFilter !== "All", projectFilter !== "All", schemeFilter !== "All"].filter(Boolean).length;
                                 if (activeCount === 0) return null;
                                 return (
                                     <button
-                                        onClick={() => { setSearch(""); setDeptFilter("All"); setDesigFilter("All"); setProjectFilter("All"); setSchemeFilter("All"); setProjectTypeFilter("All"); }}
+                                        onClick={() => { setSearch(""); setDeptFilter("All"); setDesigFilter("All"); setProjectFilter("All"); setSchemeFilter("All"); }}
                                         className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 text-[12px] font-bold text-red-700 transition-all hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400 dark:hover:bg-red-950/30"
                                     >
                                         <X className="h-3.5 w-3.5" />
@@ -1866,7 +1935,7 @@ const SalaryModule: React.FC = () => {
                                     </div>
                                     Salary Register
                                     <span className="ml-1 inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/30 px-2.5 py-0.5 text-[11px] font-bold text-blue-700 dark:text-blue-300">
-                                        {activeTab === "processed" ? stagingRecords.length : displayedRecords.length} {(activeTab === "processed" ? stagingRecords.length : displayedRecords.length) === 1 ? 'record' : 'records'}
+                                        {activeTab === "processed" ? filteredStagingRecords.length : displayedRecords.length} {(activeTab === "processed" ? filteredStagingRecords.length : displayedRecords.length) === 1 ? 'record' : 'records'}
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -1898,7 +1967,7 @@ const SalaryModule: React.FC = () => {
                                         <button onClick={fetchData} className="mt-5 text-sm text-[#D97757] hover:underline font-bold">Try again</button>
                                     </div>
                                 ) : activeTab === "processed" ? (
-                                    stagingRecords.length === 0 ? (
+                                    filteredStagingRecords.length === 0 ? (
                                         <div className="py-24 text-center">
                                             <CheckCircle2 className="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
                                             <p className="text-base font-bold text-zinc-900 dark:text-white mb-1">No processed salaries yet</p>
@@ -1957,7 +2026,7 @@ const SalaryModule: React.FC = () => {
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/80 text-[12px]">
-                                                    {stagingRecords.map((rec, i) => {
+                                                    {filteredStagingRecords.map((rec, i) => {
                                                         const ud = rec?.salary_user_details ?? {};
                                                         const isPaid = (rec?.payment_status ?? "").toLowerCase() === "paid";
                                                         const totalDed = (ud.hra_deduction ?? 0) + (ud.medical_deduction ?? 0) + (ud.p_tax ?? 0);
@@ -2048,25 +2117,25 @@ const SalaryModule: React.FC = () => {
                                                 </tbody>
                                                 <tfoot className="sticky bottom-0 z-20 bg-zinc-50 dark:bg-zinc-950 border-t-2 border-zinc-200 dark:border-zinc-700 text-[11px] font-bold uppercase tracking-wide">
                                                     <tr>
-                                                        <td colSpan={9} className="px-3 py-3 sticky left-0 bg-zinc-50 dark:bg-zinc-950 text-zinc-500 dark:text-zinc-400">{stagingRecords.length} payments</td>
+                                                        <td colSpan={9} className="px-3 py-3 sticky left-0 bg-zinc-50 dark:bg-zinc-950 text-zinc-500 dark:text-zinc-400">{filteredStagingRecords.length} payments</td>
                                                         {/* Earnings totals */}
-                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-800 dark:text-emerald-300 bg-emerald-50/10 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.basic_salary ?? 0), 0))}</td>
-                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.hra ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-800 dark:text-emerald-300 bg-emerald-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.basic_salary ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.hra ?? 0), 0))}</td>
                                                         <td className="px-3 py-3 bg-emerald-50/10"></td>
-                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.pro_rata_basic ?? 0), 0))}</td>
-                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.pro_rata_hra ?? 0), 0))}</td>
-                                                        <td className="px-3 py-3 text-right tabular-nums text-orange-600 dark:text-orange-400 bg-emerald-50/15 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.arrear ?? 0), 0))}</td>
-                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-900 dark:text-emerald-300 bg-emerald-100/40 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.gross_pay ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.pro_rata_basic ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.pro_rata_hra ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-orange-600 dark:text-orange-400 bg-emerald-50/15 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.arrear ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-900 dark:text-emerald-300 bg-emerald-100/40 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.gross_pay ?? 0), 0))}</td>
                                                         {/* Deductions totals */}
-                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.hra_deduction ?? 0), 0))}</td>
-                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.medical_deduction ?? 0), 0))}</td>
-                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.p_tax ?? 0), 0))}</td>
-                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-900 dark:text-rose-300 bg-rose-100/30 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + ((r?.salary_user_details?.hra_deduction ?? 0) + (r?.salary_user_details?.medical_deduction ?? 0) + (r?.salary_user_details?.p_tax ?? 0)), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.hra_deduction ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.medical_deduction ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.p_tax ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-900 dark:text-rose-300 bg-rose-100/30 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + ((r?.salary_user_details?.hra_deduction ?? 0) + (r?.salary_user_details?.medical_deduction ?? 0) + (r?.salary_user_details?.p_tax ?? 0)), 0))}</td>
                                                         {/* Net total */}
-                                                        <td className="px-3 py-3 text-right tabular-nums text-amber-900 dark:text-amber-300 bg-amber-50/30 border-l border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.salary_user_details?.net_pay ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-amber-900 dark:text-amber-300 bg-amber-50/30 border-l border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.net_pay ?? 0), 0))}</td>
                                                         {/* Payment totals */}
-                                                        <td className="px-3 py-3 text-right tabular-nums text-zinc-700 dark:text-zinc-300 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.commitAmount ?? 0), 0))}</td>
-                                                        <td className="px-3 py-3 text-right tabular-nums text-zinc-700 dark:text-zinc-300 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(stagingRecords.reduce((s, r) => s + (r?.payment_amount ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-zinc-700 dark:text-zinc-300 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.commitAmount ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-zinc-700 dark:text-zinc-300 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.payment_amount ?? 0), 0))}</td>
                                                         <td colSpan={8} className="px-3 py-3 bg-zinc-50 dark:bg-zinc-950"></td>
                                                     </tr>
                                                 </tfoot>
