@@ -1,0 +1,22 @@
+import React from 'react';
+import Editor from '../components/Editor';
+
+import UserRoleCheck from "../components/UserRoleCheck"; // Import UserRoleCheck
+
+const Endorsement: React.FC = () => {
+  const isPermanentEmployee = UserRoleCheck() ?? false; // Use the UserRoleCheck component and provide a default value
+
+  return (
+    <div >
+
+
+      {/* Main Content */}
+      <div >
+        <h1 className="text-2xl font-bold mb-4">Endorsement</h1>
+        <Editor />
+      </div>
+    </div>
+  );
+};
+
+export default Endorsement;

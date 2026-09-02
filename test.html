@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Budget Dashboard</title>
+    <style>
+        /* --- Basic Setup & Fonts --- */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;700&display=swap');
+
+        :root {
+            --font-sans: 'Inter', sans-serif;
+            --font-mono: 'IBM Plex Mono', monospace;
+            --background-color: #fdfcec;
+            --card-background: #ffffff;
+            --border-color: #000000;
+            --shadow-color: rgba(0, 0, 0, 1);
+            --primary-accent: #a5d6a7;
+            --secondary-accent: #90a4ae;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--background-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* --- Main Layout: Sidebar + Content --- */
+        .sidebar {
+            width: 240px;
+            background-color: var(--card-background);
+            border-right: 2px solid var(--border-color);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .content-area {
+            flex-grow: 1;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .main-content-wrapper {
+            display: flex;
+            gap: 24px;
+            flex-grow: 1;
+        }
+
+        .primary-content {
+            flex-grow: 1;
+        }
+
+        .right-column {
+            width: 320px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* --- Neo-Brutalism Base Styles --- */
+        .neo-card {
+            background-color: var(--card-background);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 4px 4px 0px var(--shadow-color);
+            padding: 16px;
+        }
+
+        .neo-button {
+            padding: 8px 16px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            font-weight: 600;
+            background-color: var(--card-background);
+            box-shadow: 2px 2px 0px var(--shadow-color);
+            cursor: pointer;
+            transition: all 0.1s ease-in-out;
+        }
+
+        .neo-button:hover {
+            transform: translate(1px, 1px);
+            box-shadow: 1px 1px 0px var(--shadow-color);
+        }
+
+        .neo-button:active {
+            transform: translate(2px, 2px);
+            box-shadow: none;
+        }
+
+        .neo-button.primary {
+            background-color: var(--primary-accent);
+        }
+
+        .neo-input,
+        .neo-select,
+        .neo-textarea {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            box-sizing: border-box;
+        }
+
+        /* --- Component Specific Styling --- */
+        .sidebar-logo {
+            text-align: center;
+            font-weight: 800;
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+        }
+
+        .sidebar nav {
+            flex-grow: 1;
+        }
+
+        .sidebar-link {
+            display: block;
+            padding: 12px;
+            text-decoration: none;
+            color: var(--border-color);
+            font-weight: 600;
+            border-radius: 6px;
+        }
+
+        .sidebar-link:hover,
+        .sidebar-link.active {
+            background-color: #f0f0f0;
+        }
+
+        .project-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 20px;
+        }
+
+        .project-header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            font-weight: 800;
+        }
+
+        .project-header p {
+            margin: 4px 0 0;
+            font-family: var(--font-mono);
+            color: #555;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .project-tabs {
+            display: flex;
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 24px;
+        }
+
+        .tab-button {
+            padding: 12px 20px;
+            border: none;
+            background-color: transparent;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-button.active {
+            border-bottom-color: var(--border-color);
+        }
+
+        .widget-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 8px;
+            margin-bottom: 16px;
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            font-family: var(--font-mono);
+            padding: 4px 0;
+        }
+
+        .summary-item .label {
+            font-weight: 500;
+        }
+
+        .summary-item .value {
+            font-weight: 700;
+        }
+
+        .commit-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        /* --- Modal Styling --- */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: none;
+            /* Hidden by default */
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal {
+            width: 95%;
+            max-width: 1400px;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        .close-button {
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+            background: none;
+            border: none;
+        }
+
+        .modal-body {
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .budget-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .budget-table th,
+        .budget-table td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .budget-table thead {
+            background-color: #e0e0e0;
+            position: sticky;
+            top: 0;
+        }
+
+        .budget-table td.number,
+        .budget-table th.number {
+            text-align: right;
+            font-family: var(--font-mono);
+        }
+
+        .budget-table .committed-cell {
+            background-color: #ffdddd;
+            color: #c00;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+    <aside class="sidebar">
+        <div class="sidebar-logo">R&D Portal</div>
+        <nav>
+            <a href="#" class="sidebar-link">Home</a>
+            <a href="#" class="sidebar-link active">Projects</a>
+            <a href="#" class="sidebar-link">HR Portal</a>
+            <a href="#" class="sidebar-link">Reimbursement</a>
+        </nav>
+        <div class="sidebar-user">
+            <!-- User Info -->
+        </div>
+    </aside>
+
+    <div class="content-area">
+        <header class="neo-card project-header">
+            <div>
+                <h1>test 1111111111111</h1>
+                <p>ID: 2025110801MeiTy000085 | Status: <strong>Pending Head Approval</strong></p>
+            </div>
+            <div class="header-actions">
+                <button class="neo-button primary">+ Add Funds</button>
+                <button class="neo-button primary">+ Add Sanction</button>
+            </div>
+        </header>
+
+        <nav class="project-tabs">
+            <button class="tab-button active">Overview</button>
+            <button class="tab-button">Investigators</button>
+            <button class="tab-button">Funding & Budget</button>
+            <button class="tab-button">Clearance</button>
+            <button class="tab-button">Activity Log</button>
+        </nav>
+
+        <div class="main-content-wrapper">
+            <section class="primary-content neo-card">
+                <h2>Overview Content</h2>
+                <p>This area would display the project overview details as shown in the screenshot...</p>
+            </section>
+
+            <aside class="right-column">
+                <!-- Section 1: Budget Head Summary -->
+                <div class="widget neo-card">
+                    <h3 class="widget-title">Budget Summary</h3>
+                    <div class="summary-item">
+                        <span class="label">Actual Balance:</span>
+                        <span class="value" id="summary-actual-balance">₹ 0.00</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="label">Commitable Balance:</span>
+                        <span class="value" id="summary-commitable-balance">₹ 0.00</span>
+                    </div>
+                    <button id="view-budget-btn" class="neo-button" style="width: 100%; margin-top: 16px;">View
+                        Ledger</button>
+                </div>
+
+                <!-- Section 2: Commits -->
+                <div class="widget neo-card">
+                    <h3 class="widget-title">Make a Commitment</h3>
+                    <label for="commit-head" style="font-weight: 500;">Budget Head</label>
+                    <select id="commit-head" class="neo-select" style="margin-top: 4px;">
+                        <option value="Travel">Travel</option>
+                        <option value="Contingency">Contingency</option>
+                        <option value="Overhead">Overhead</option>
+                        <option value="Equipment">Equipment</option>
+                    </select>
+                    <label for="commit-amount" style="margin-top: 10px; font-weight: 500;">Amount (₹)</label>
+                    <input type="number" id="commit-amount" class="neo-input" placeholder="e.g., 5000"
+                        style="margin-top: 4px;">
+                    <div class="commit-actions">
+                        <button id="commit-btn" class="neo-button primary" style="flex-grow: 1;">Commit</button>
+                        <button id="remove-commit-btn" class="neo-button" style="background-color: #f7baba;">Remove
+                            Last</button>
+                    </div>
+                </div>
+
+                <!-- Section 3: Comments -->
+                <div class="widget neo-card">
+                    <h3 class="widget-title">Add Comment</h3>
+                    <textarea id="comment-box" class="neo-textarea" rows="4"
+                        placeholder="Type your comment here..."></textarea>
+                    <button id="submit-comment-btn" class="neo-button" style="width: 100%; margin-top: 10px;">Submit
+                        Comment</button>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Modal for Budget Ledger -->
+    <div id="modal-backdrop" class="modal-backdrop">
+        <div id="budget-modal" class="neo-card modal">
+            <header class="modal-header">
+                <h2>Project Budget Ledger</h2>
+                <button id="close-modal-btn" class="close-button">&times;</button>
+            </header>
+            <div class="modal-body">
+                <table class="budget-table">
+                    <thead>
+                        <tr>
+                            <th>SL. NO</th>
+                            <th>DATE</th>
+                            <th>PARTICULARS</th>
+                            <th>REF.</th>
+                            <th class="number">RECEIVED</th>
+                            <th class="number">COMMITTED</th>
+                            <th class="number">COMMITABLE BALANCE</th>
+                            <th>BMR. NO</th>
+                            <th class="number">PAYMENT</th>
+                            <th class="number">ACTUAL BALANCE</th>
+                        </tr>
+                    </thead>
+                    <tbody id="budget-table-body">
+                        <!-- Rows will be injected here by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // --- 1. INITIAL DATA & STATE ---
+
+            // This data mimics the structure of your Excel sheet.
+            // A 'type' property is added to distinguish original entries from new commitments.
+            let budgetData = [
+                { sl: 1, date: '30.12.21', particulars: 'Received from National Health Mission (NHM) vide ECS dated 13.12.2021', ref: '', received: 2065000.00, committed: 0, bmr: 'IM0680', payment: 0, type: 'original' },
+                { sl: 2, date: '30.12.21', particulars: 'CGST', ref: '', received: 0, committed: 157500.00, bmr: 'IM0680', payment: 157500.00, type: 'original' },
+                { sl: 3, date: '30.12.21', particulars: 'SGST', ref: '', received: 0, committed: 157500.00, bmr: 'IM0680', payment: 157500.00, type: 'original' },
+                { sl: 4, date: '30.12.21', particulars: 'Overhead', ref: '', received: 0, committed: 525000.00, bmr: 'IM0680', payment: 525000.00, type: 'original' },
+                { sl: 5, date: '16.03.2022', particulars: 'Reimbursement to Prof. Rajib Kr. Bhattacharjya towards travel expenses during visit to Diphu Medical College for consultancy work (30.12.2021)', ref: '', received: 0, committed: 11318.00, bmr: 'IM1037', payment: 11318.00, type: 'original' },
+                { sl: 6, date: '02.05.22', particulars: 'Direct Purchase of Topographic survey of Diphu Medical College Campus (22S262)', ref: '', received: 0, committed: 0, bmr: '', payment: 0, type: 'original' },
+                { sl: 7, date: '25.05.22', particulars: 'PO 2011 to M/s Reliant foundation pvt ltd, ghy', ref: 'Sl no 6', received: 0, committed: 225144.00, bmr: '', payment: 0, type: 'original' },
+                { sl: 8, date: '12.07.22', particulars: 'Payment against PO 2011', ref: 'SL no 7', received: 0, committed: 0, bmr: 'IP0044', payment: 225144.00, type: 'original' },
+                { sl: 9, date: '19.10.2022', particulars: 'Travel of Prof. Rajib Kumar Bhattacharjya to Diphu Medical College, Diphu. Assam From: 21 Oct, 2022 To: 21 Oct, 2022 To present the draft report of the project', ref: '', received: 0, committed: 16000.00, bmr: '', payment: 0, type: 'original' },
+                { sl: 10, date: '20.10.2022', particulars: 'Travel of Prof. SURESH ARVINDAKSHAN KARTHA to Diphu Medical College, Diphu. Assam From: 21 Oct, 2022 To: 21 Oct, 2022', ref: '', received: 0, committed: 0, bmr: '', payment: 0, type: 'original' },
+            ];
+
+            // --- 2. DOM ELEMENT REFERENCES ---
+            const viewBudgetBtn = document.getElementById('view-budget-btn');
+            const modalBackdrop = document.getElementById('modal-backdrop');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+            const budgetTableBody = document.getElementById('budget-table-body');
+
+            const commitHeadSelect = document.getElementById('commit-head');
+            const commitAmountInput = document.getElementById('commit-amount');
+            const commitBtn = document.getElementById('commit-btn');
+            const removeCommitBtn = document.getElementById('remove-commit-btn');
+
+            const summaryActualBalanceEl = document.getElementById('summary-actual-balance');
+            const summaryCommitableBalanceEl = document.getElementById('summary-commitable-balance');
+
+            const submitCommentBtn = document.getElementById('submit-comment-btn');
+
+            // --- 3. CORE FUNCTIONS ---
+
+            // Function to format numbers as Indian Rupees
+            const formatCurrency = (num) => num.toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
+
+            /**
+             * The main function to render the budget table.
+             * It clears the table, loops through the data, calculates running balances, and builds the HTML.
+             */
+            function renderTable() {
+                // Clear the existing table body
+                budgetTableBody.innerHTML = '';
+
+                let runningCommitableBalance = 0;
+                let runningActualBalance = 0;
+
+                budgetData.forEach(item => {
+                    // Calculate running balances for the current row
+                    runningCommitableBalance += (item.received || 0) - (item.committed || 0);
+                    runningActualBalance += (item.received || 0) - (item.payment || 0);
+
+                    const row = document.createElement('tr');
+
+                    // Add a special class for newly committed items
+                    if (item.type === 'commitment') {
+                        row.style.backgroundColor = '#e3f2fd';
+                    }
+
+                    row.innerHTML = `
+                        <td>${item.sl}</td>
+                        <td>${item.date}</td>
+                        <td>${item.particulars}</td>
+                        <td>${item.ref || ''}</td>
+                        <td class="number">${(item.received || 0) > 0 ? formatCurrency(item.received) : ''}</td>
+                        <td class="number ${item.committed > 0 && item.particulars.toLowerCase().includes('travel') ? 'committed-cell' : ''}">${(item.committed || 0) > 0 ? formatCurrency(item.committed) : ''}</td>
+                        <td class="number"><strong>${formatCurrency(runningCommitableBalance)}</strong></td>
+                        <td>${item.bmr || ''}</td>
+                        <td class="number">${(item.payment || 0) > 0 ? formatCurrency(item.payment) : ''}</td>
+                        <td class="number"><strong>${formatCurrency(runningActualBalance)}</strong></td>
+                    `;
+                    budgetTableBody.appendChild(row);
+                });
+
+                // Update the summary widgets on the right sidebar
+                summaryActualBalanceEl.textContent = formatCurrency(runningActualBalance);
+                summaryCommitableBalanceEl.textContent = formatCurrency(runningCommitableBalance);
+            }
+
+            // --- 4. EVENT LISTENERS ---
+
+            // Open the modal
+            viewBudgetBtn.addEventListener('click', () => {
+                renderTable(); // Ensure table is up-to-date before showing
+                modalBackdrop.style.display = 'flex';
+            });
+
+            // Close the modal
+            closeModalBtn.addEventListener('click', () => {
+                modalBackdrop.style.display = 'none';
+            });
+            modalBackdrop.addEventListener('click', (event) => {
+                if (event.target === modalBackdrop) {
+                    modalBackdrop.style.display = 'none';
+                }
+            });
+
+            // Handle "Commit" button click
+            commitBtn.addEventListener('click', () => {
+                const head = commitHeadSelect.value;
+                const amount = parseFloat(commitAmountInput.value);
+
+                if (!head || !amount || amount <= 0) {
+                    alert('Please select a budget head and enter a valid positive amount.');
+                    return;
+                }
+
+                // Create a new data object for the commitment
+                const newCommitment = {
+                    sl: budgetData.length + 1,
+                    date: new Date().toLocaleDateString('en-GB').replace(/\//g, '.'), // DD.MM.YY format
+                    particulars: `Commitment for ${head}`,
+                    ref: '',
+                    received: 0,
+                    committed: amount,
+                    bmr: '',
+                    payment: 0,
+                    type: 'commitment' // Mark this as a new commitment
+                };
+
+                // Add the new commitment to our data array
+                budgetData.push(newCommitment);
+
+                // Re-render the table to show the new row and updated balances
+                renderTable();
+
+                // Clear the input for the next entry
+                commitAmountInput.value = '';
+            });
+
+            // Handle "Remove Last Commit" button click
+            removeCommitBtn.addEventListener('click', () => {
+                // Find the index of the last item that is a 'commitment'
+                let lastCommitIndex = -1;
+                for (let i = budgetData.length - 1; i >= 0; i--) {
+                    if (budgetData[i].type === 'commitment') {
+                        lastCommitIndex = i;
+                        break;
+                    }
+                }
+
+                if (lastCommitIndex !== -1) {
+                    // Remove that item from the array
+                    budgetData.splice(lastCommitIndex, 1);
+                    // Re-render the table
+                    renderTable();
+                } else {
+                    alert('No new commitments to remove.');
+                }
+            });
+
+            submitCommentBtn.addEventListener('click', () => {
+                const commentBox = document.getElementById('comment-box');
+                if (commentBox.value.trim()) {
+                    alert(`Comment Submitted: "${commentBox.value}"`);
+                    commentBox.value = '';
+                } else {
+                    alert('Please enter a comment before submitting.');
+                }
+            });
+
+            // --- 5. INITIAL RENDER ---
+            // Perform an initial calculation and render to get the summary values right
+            renderTable();
+        });
+    </script>
+</body>
+
+</html>
