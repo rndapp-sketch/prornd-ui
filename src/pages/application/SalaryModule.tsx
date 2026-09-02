@@ -3022,9 +3022,6 @@ const SalaryModule: React.FC = () => {
                                     const proRataHRA = Math.round((currentHRA / dim) * wd);
                                     const proRataMedical = Math.round((r.medical_allowance / dim) * wd);
                                     const grossPay = prb + proRataHRA + proRataMedical + inputs.arrear;
-                                    const hraDed = inputs.hraDeduction;
-                                    const totalDed = hraDed + inputs.medicalDeduction + calcPTax(inputs.basic) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
-                                    const netPay = grossPay - totalDed;
                                     const salaryGap: SalaryGap | null = pendingBulkCommits[r.employee_id]?.salary_gap ?? null;
                                     return (
                                         <div key={r.employee_id} className="rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] px-3 py-2">
@@ -3037,7 +3034,7 @@ const SalaryModule: React.FC = () => {
                                                     </div>
                                                 </div>
                                                 <span className="shrink-0 text-[12px] font-bold tabular-nums text-amber-700 dark:text-amber-400">
-                                                    {fmt(netPay)}
+                                                    {fmt(grossPay)}
                                                 </span>
                                             </div>
                                             {salaryGap && (
@@ -3076,13 +3073,11 @@ const SalaryModule: React.FC = () => {
                                     const proRataHRA = Math.round((currentHRA / dim) * wd);
                                     const proRataMedical = Math.round((r.medical_allowance / dim) * wd);
                                     const grossPay = prb + proRataHRA + proRataMedical + inputs.arrear;
-                                    const hraDed = inputs.hraDeduction;
-                                    const totalDed = hraDed + inputs.medicalDeduction + calcPTax(inputs.basic) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
-                                    return sum + (grossPay - totalDed);
+                                    return sum + grossPay;
                                 }, 0);
                                 return (
                                     <div className="mx-6 flex items-center justify-between rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/40 px-4 py-2.5">
-                                        <span className="text-[12px] font-bold text-emerald-800 dark:text-emerald-400">Total Net Payout</span>
+                                        <span className="text-[12px] font-bold text-emerald-800 dark:text-emerald-400">Total Gross Payout</span>
                                         <span className="text-[15px] font-extrabold tabular-nums text-emerald-900 dark:text-emerald-300">
                                             {fmt(selectedTotal)}
                                         </span>
