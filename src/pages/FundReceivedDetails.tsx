@@ -561,6 +561,7 @@ const FundReceivedWorkflowActions = ({ docname, onActionComplete, onBeforeAction
     // Args produced by onBeforeAction (deposit slip payload, chosen source
     // heads, …). Captured on click, replayed on confirm.
     const [pendingArgs, setPendingArgs] = useState<{ [key: string]: any }>({});
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Action Failed", message: "" });
 
     // onBeforeAction runs FIRST, on the button click — so any prerequisite it
     // raises (e.g. the Overhead/GST budget head allocation modal) is resolved
@@ -592,12 +593,26 @@ const FundReceivedWorkflowActions = ({ docname, onActionComplete, onBeforeAction
     const handleConfirmAction = async (comment: string) => {
         try {
             const actionResult = await performAction({ docname, action: selectedAction, ...pendingArgs });
+            // perform_fund_received_action never lets failures reach us as a
+            // rejected request — it always catches internally and *returns*
+            // {"status": "error", "message": "..."} with a normal 200, so a
+            // failed action must be detected from the resolved payload, not
+            // from a thrown error.
+            const payload = (actionResult as any)?.message ?? actionResult;
+            if (payload && typeof payload === "object" && payload.status === "error") {
+                setModalOpen(false);
+                setErrorModal({ open: true, title: "Action Failed", message: payload.message || "Failed to perform action. Please try again." });
+                return;
+            }
             if (comment?.trim()) {
                 try { await addComment({ doctype: "Fund Received", docname, content: `[${selectedAction}] ${comment.trim()}` }); } catch {}
             }
             setModalOpen(false); setPendingArgs({});
             onActionComplete(actionResult as Record<string, any> | undefined);
-        } catch { alert("Failed to perform action. Please try again."); }
+        } catch (err) {
+            setModalOpen(false);
+            setErrorModal({ open: true, title: "Action Failed", message: parseFrappeError(err) });
+        }
     };
 
     if (actionsLoading || !data?.message?.length) return null;
@@ -616,6 +631,7 @@ const FundReceivedWorkflowActions = ({ docname, onActionComplete, onBeforeAction
                     {action}
                 </button>
                 <CommentModal isOpen={modalOpen} onClose={() => setModalOpen(false)} onSubmit={handleConfirmAction} action={selectedAction} isLoading={actionLoading} />
+                <ErrorModal open={errorModal.open} title={errorModal.title} message={errorModal.message} onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))} />
             </>
         );
     }
@@ -643,6 +659,7 @@ const FundReceivedWorkflowActions = ({ docname, onActionComplete, onBeforeAction
                 </DropdownMenuContent>
             </DropdownMenu>
             <CommentModal isOpen={modalOpen} onClose={() => setModalOpen(false)} onSubmit={handleConfirmAction} action={selectedAction} isLoading={actionLoading} />
+            <ErrorModal open={errorModal.open} title={errorModal.title} message={errorModal.message} onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))} />
         </>
     );
 };
