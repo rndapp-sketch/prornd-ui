@@ -3,6 +3,8 @@ import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
 import { ArrowRight, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import { ErrorModal } from "@/components/ErrorModal";
+import { parseFrappeError } from "@/utils/errorUtils";
 
 type FundDoc = any;
 
@@ -106,6 +108,7 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
     // Modal state
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedFundName, setSelectedFundName] = useState("");
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Action Failed", message: "" });
 
     const { data: sdkResponse, isLoading: sdkLoading, error: sdkError } = useFrappeGetCall(
         "rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg",
@@ -130,7 +133,18 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
 
     const handleConfirmSubmit = async (comment: string) => {
         try {
-            await performAction({ docname: selectedFundName, action: "Submit" });
+            const actionResult = await performAction({ docname: selectedFundName, action: "Submit" });
+            // perform_fund_received_action never lets failures reach us as a
+            // rejected request — it always catches internally and *returns*
+            // {"status": "error", "message": "..."} with a normal 200, so a
+            // failed action must be detected from the resolved payload, not
+            // from a thrown error.
+            const payload = (actionResult as any)?.message ?? actionResult;
+            if (payload && typeof payload === "object" && payload.status === "error") {
+                setModalOpen(false);
+                setErrorModal({ open: true, title: "Submission Failed", message: payload.message || "Failed to submit fund received entry." });
+                return;
+            }
 
             if (comment && comment.trim()) {
                 try {
@@ -146,7 +160,8 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
             setModalOpen(false);
             window.location.reload();
         } catch (error) {
-            alert("Failed to submit fund received entry.");
+            setModalOpen(false);
+            setErrorModal({ open: true, title: "Submission Failed", message: parseFrappeError(error) });
         }
     };
 
@@ -308,6 +323,12 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
                 onSubmit={handleConfirmSubmit}
                 action="Submit Fund Received"
                 isLoading={actionLoading}
+            />
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
             />
         </div>
     );
