@@ -832,6 +832,11 @@ const FundReceivedDetails = () => {
                 }
             } catch {}
             if (cancelled) return;
+            // Known naming-template bug: some deposit slips were created with `fund_received_ref`
+            // literally storing "<real ref>-prjreg_refnum" — the `prjreg_refnum` token was never
+            // substituted (e.g. "REC_0108262318-prjreg_refnum" instead of "REC_0108262318"). Add
+            // this exact suffix as a candidate so those slips are still found.
+            refCandidates = [...new Set([...refCandidates, ...refCandidates.map((c) => `${c}-prjreg_refnum`)])];
 
             for (const doctype of doctypes) {
                 try {

@@ -386,7 +386,12 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
             setSlipError(null);
 
             const csrfToken = (window as any).csrf_token || "";
-            const refCandidates = [...new Set([fundReceivedName, fundReceived?.fund_received_ref_number].filter(Boolean))];
+            const baseCandidates = [...new Set([fundReceivedName, fundReceived?.fund_received_ref_number].filter(Boolean))];
+            // Known naming-template bug: some deposit slips were created with `fund_received_ref`
+            // literally storing "<real ref>-prjreg_refnum" — the `prjreg_refnum` token was never
+            // substituted (e.g. "REC_0108262318-prjreg_refnum" instead of "REC_0108262318"). Add
+            // this exact suffix as a candidate so those slips are still found.
+            const refCandidates = [...new Set([...baseCandidates, ...baseCandidates.map((c) => `${c}-prjreg_refnum`)])];
 
             // Tries one filter against one doctype; on a hit, fetches the full doc,
             // sets state, and returns true so the caller can stop searching.

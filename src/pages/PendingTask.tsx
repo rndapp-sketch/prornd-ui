@@ -731,10 +731,15 @@ const PendingTask: React.FC = () => {
                     if (noMap.size > 0) setFrProjectNos(noMap);
                 }
 
-                // Resolve any linked deposit slip via fund_received_ref (FR docname or ref number)
-                const refCandidates = [...new Set(
+                // Resolve any linked deposit slip via fund_received_ref (FR docname or ref number).
+                // Known naming-template bug: some deposit slips were created with `fund_received_ref`
+                // literally storing "<real ref>-prjreg_refnum" — the `prjreg_refnum` token was never
+                // substituted (e.g. "REC_0108262318-prjreg_refnum" instead of "REC_0108262318"). Add
+                // this exact suffix as a candidate so those slips are still found.
+                const baseRefCandidates = [...new Set(
                     docs.flatMap((d: any) => [d.name, d.fund_received_ref_number].filter(Boolean))
                 )];
+                const refCandidates = [...new Set([...baseRefCandidates, ...baseRefCandidates.map((c) => `${c}-prjreg_refnum`)])];
                 if (!refCandidates.length) return;
 
                 const slipByRef = new Map<string, string>();
@@ -757,7 +762,11 @@ const PendingTask: React.FC = () => {
 
                 const depositMap = new Map<string, string>();
                 docs.forEach((d: any) => {
-                    const slip = slipByRef.get(d.name) || (d.fund_received_ref_number ? slipByRef.get(d.fund_received_ref_number) : undefined);
+                    const docCandidates = [d.name, d.fund_received_ref_number].filter(Boolean) as string[];
+                    const slip = docCandidates
+                        .flatMap((c) => [c, `${c}-prjreg_refnum`])
+                        .map((c) => slipByRef.get(c))
+                        .find(Boolean);
                     if (slip) depositMap.set(d.name, slip);
                 });
                 if (depositMap.size > 0) setFrDepositSlips(depositMap);
