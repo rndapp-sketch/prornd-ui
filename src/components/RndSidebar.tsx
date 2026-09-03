@@ -273,7 +273,7 @@ export function AppSidebar() {
             icon: ListTodo,
             path: "/pending-task",
         },
-        ...(isPermanentEmployee ? [{
+        ...(isPermanentEmployee || isHeadApprover ? [{
             label: "Pending Application",
             icon: ClipboardCheck,
             path: "/pending-application",
