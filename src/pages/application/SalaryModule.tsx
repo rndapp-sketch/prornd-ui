@@ -469,6 +469,7 @@ const SalaryModule: React.FC = () => {
             email_id: r.email_id,
             department: r.department,
             designation: r.designation,
+            bank_account_number: r.bank_account_number || "",
             joining_date: r.joining_date,
             term_completion_date: r.term_completion_date,
             basic_salary: Math.round(inputs.basic),
@@ -1066,8 +1067,24 @@ const SalaryModule: React.FC = () => {
         return ["All", ...Array.from(set)].sort();
     }, [records]);
 
+    // IDs to resolve to human-readable department names. Pulled from both the
+    // pending-staff list (records) and the payment-history list (stagingRecords)
+    // — the "Salary Processed" tab and its export read department off the
+    // staged commit's snapshot (salary_user_details.department), which is a
+    // separate value never covered by departmentsList (built from records
+    // alone), so those raw Department_prornd IDs were showing unresolved.
+    const departmentIdsToResolve = useMemo(() => {
+        const set = new Set<string>();
+        records.forEach(r => { if (r.department && r.department !== "—") set.add(r.department); });
+        stagingRecords.forEach(rec => {
+            const d = rec?.salary_user_details?.department;
+            if (d) set.add(d);
+        });
+        return Array.from(set);
+    }, [records, stagingRecords]);
+
     useEffect(() => {
-        const departmentIds = departmentsList.filter((d) => d !== "All");
+        const departmentIds = departmentIdsToResolve;
         if (departmentIds.length === 0) {
             setDepartmentLabels({});
             return;
@@ -1100,7 +1117,7 @@ const SalaryModule: React.FC = () => {
         return () => {
             cancelled = true;
         };
-    }, [departmentsList, getList]);
+    }, [departmentIdsToResolve, getList]);
 
     const departmentOptions = useMemo(
         () =>
@@ -1394,7 +1411,7 @@ const SalaryModule: React.FC = () => {
                 return (raw === "0" || raw === "no" || raw === "false" || raw === "") ? "No" : "Yes";
             })();
             return [
-                i + 1, r.employee_id, r.first_name, r.email_id, r.department,
+                i + 1, r.employee_id, r.first_name, r.email_id, departmentLabels[r.department] || r.department,
                 r.designation, r.project_no || "—", (r.project_no && schemeNumberMap[r.project_no.trim()] ? schemeNumberMap[r.project_no.trim()].trim() : "") || "—", r.bank_account_number || "—", hostelStatus, r.joining_date, r.term_completion_date,
                 inputs.basic, currentHRA, `${r.hra_percent}%`, workingDays, proRataBasic,
                 proRataHRA, proRataMedical, inputs.arrear, grossPay,
@@ -1415,8 +1432,8 @@ const SalaryModule: React.FC = () => {
         const monthLabel = MONTHS.find(m => m.value === selectedMonth)?.label || "Month";
         const headers = [
             "Sl.No", "Employee ID", "Name", "Email ID", "Department", "Designation",
-            "Joining Date", "Project No", "Period",
-            "Basic Salary", "HRA", "Working Days", "Pro Rata Basic", "Pro Rata HRA", "Arrear", "Gross Pay",
+            "Joining Date", "Project No", "Period", "Bank Account Number",
+            "Basic Salary", "HRA", "Working Days", "Pro Rata Basic", "Pro Rata HRA", "Pro Rata Medical", "Arrear", "Gross Pay",
             "HRA Deduction", "Medical Deduction", "P-Tax", "Total Deduction", "Net Pay",
             "Commit Amount", "Payment Amount", "Payment Particular", "Payment Date",
             "BMR", "Frap App ID", "Comment", "Remarks"
@@ -1427,10 +1444,10 @@ const SalaryModule: React.FC = () => {
             return [
                 i + 1,
                 ud.employee_id ?? "", ud.first_name ?? "", ud.email_id ?? "",
-                ud.department ?? "", ud.designation ?? "", ud.joining_date ?? "",
-                rec?.project_no || rec?.projectNumber || "", rec?.salary_year_month ?? "",
+                (departmentLabels[ud.department] || ud.department) ?? "", ud.designation ?? "", ud.joining_date ?? "",
+                rec?.project_no || rec?.projectNumber || "", rec?.salary_year_month ?? "", ud.bank_account_number ?? "",
                 ud.basic_salary ?? 0, ud.hra ?? 0, ud.working_days ?? 0,
-                ud.pro_rata_basic ?? 0, ud.pro_rata_hra ?? 0, ud.arrear ?? 0, ud.gross_pay ?? 0,
+                ud.pro_rata_basic ?? 0, ud.pro_rata_hra ?? 0, ud.pro_rata_medical ?? 0, ud.arrear ?? 0, ud.gross_pay ?? 0,
                 ud.hra_deduction ?? 0, ud.medical_deduction ?? 0, ud.p_tax ?? 0, totalDed, ud.net_pay ?? 0,
                 rec?.commitAmount ?? 0, rec?.payment_amount ?? 0,
                 rec?.payment_particular ?? "", rec?.payment_date ?? "",
@@ -1977,7 +1994,7 @@ const SalaryModule: React.FC = () => {
                                         </div>
                                     ) : (
                                         <div className="overflow-x-auto max-h-[calc(100vh-280px)] overflow-y-auto scroll-smooth">
-                                            <table className="min-w-[3800px] table-auto border-collapse divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
+                                            <table className="min-w-[4030px] table-auto border-collapse divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
                                                 <thead className="sticky top-0 z-20 bg-emerald-50 text-[10px] font-extrabold uppercase tracking-wider text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
                                                     <tr className="border-b border-emerald-200 dark:border-emerald-900/40">
                                                         {/* Fixed identity columns */}
@@ -1990,8 +2007,9 @@ const SalaryModule: React.FC = () => {
                                                         <th rowSpan={2} className="px-3 py-3 text-left min-w-[100px] border-r border-emerald-200 dark:border-emerald-900/40">Joining Date</th>
                                                         <th rowSpan={2} className="px-3 py-3 text-left min-w-[110px] border-r border-emerald-200 dark:border-emerald-900/40">Project No</th>
                                                         <th rowSpan={2} className="px-3 py-3 text-left min-w-[80px] border-r border-emerald-200 dark:border-emerald-900/40">Period</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[130px] border-r border-emerald-200 dark:border-emerald-900/40">Bank A/C No</th>
                                                         {/* Earnings group */}
-                                                        <th colSpan={7} className="px-3 py-2 text-center bg-emerald-100/60 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-400 border-b border-emerald-200 dark:border-emerald-900/40">Earnings (₹)</th>
+                                                        <th colSpan={8} className="px-3 py-2 text-center bg-emerald-100/60 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-400 border-b border-emerald-200 dark:border-emerald-900/40">Earnings (₹)</th>
                                                         {/* Deductions group */}
                                                         <th colSpan={4} className="px-3 py-2 text-center bg-rose-50/60 dark:bg-rose-950/20 text-rose-800 dark:text-rose-400 border-b border-emerald-200 dark:border-emerald-900/40">Deductions (₹)</th>
                                                         {/* Net */}
@@ -2016,6 +2034,7 @@ const SalaryModule: React.FC = () => {
                                                         <th className="px-3 py-2 text-center min-w-[70px] bg-emerald-100/40 dark:bg-emerald-900/15 text-emerald-600 dark:text-emerald-500">Days</th>
                                                         <th className="px-3 py-2 text-right min-w-[100px] bg-emerald-100/40 dark:bg-emerald-900/15 text-emerald-700 dark:text-emerald-400">Pro Rata Basic</th>
                                                         <th className="px-3 py-2 text-right min-w-[100px] bg-emerald-100/40 dark:bg-emerald-900/15 text-emerald-700 dark:text-emerald-400">Pro Rata HRA</th>
+                                                        <th className="px-3 py-2 text-right min-w-[100px] bg-emerald-100/40 dark:bg-emerald-900/15 text-emerald-700 dark:text-emerald-400">Pro Rata Medical</th>
                                                         <th className="px-3 py-2 text-right min-w-[90px] bg-emerald-100/60 dark:bg-emerald-900/20 text-orange-600 dark:text-orange-400">Arrear</th>
                                                         <th className="px-3 py-2 text-right min-w-[100px] bg-emerald-100/80 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 font-bold border-r border-emerald-200 dark:border-emerald-900/40">Gross</th>
                                                         {/* Deductions sub-headers */}
@@ -2037,17 +2056,19 @@ const SalaryModule: React.FC = () => {
                                                                 <td className={cn("sticky left-[48px] z-10 px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 font-mono text-xs text-[#4A6CF7] dark:text-[#A5B4FC] w-[120px] min-w-[120px] whitespace-nowrap", rowBg)}>{ud.employee_id ?? "—"}</td>
                                                                 <td className={cn("sticky left-[168px] z-10 px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 font-semibold text-zinc-900 dark:text-white w-[190px] min-w-[190px] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.05)] whitespace-nowrap", rowBg)}>{ud.first_name ?? "—"}</td>
                                                                 <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{ud.email_id ?? "—"}</td>
-                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{ud.department ?? "—"}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{ud.department ? <DepartmentName name={ud.department} /> : "—"}</td>
                                                                 <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{ud.designation ?? "—"}</td>
                                                                 <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{ud.joining_date ?? "—"}</td>
                                                                 <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 font-mono text-xs text-[#4A6CF7] dark:text-[#A5B4FC] whitespace-nowrap">{rec?.project_no || rec?.projectNumber || "—"}</td>
                                                                 <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{(rec?.salary_year_month ?? "").replace("_", " ")}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 font-mono text-xs text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{ud.bank_account_number || "—"}</td>
                                                                 {/* Earnings */}
                                                                 <td className="px-3 py-2.5 text-right tabular-nums text-emerald-800 dark:text-emerald-300 bg-emerald-50/10 dark:bg-emerald-950/10 whitespace-nowrap">{fmt(ud.basic_salary ?? 0)}</td>
                                                                 <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 dark:bg-emerald-950/10 whitespace-nowrap">{fmt(ud.hra ?? 0)}</td>
                                                                 <td className="px-3 py-2.5 text-center tabular-nums text-zinc-600 dark:text-zinc-400 bg-emerald-50/10 dark:bg-emerald-950/10">{ud.working_days ?? "—"}</td>
                                                                 <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 dark:bg-emerald-950/10 whitespace-nowrap">{fmt(ud.pro_rata_basic ?? 0)}</td>
                                                                 <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 dark:bg-emerald-950/10 whitespace-nowrap">{fmt(ud.pro_rata_hra ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 dark:bg-emerald-950/10 whitespace-nowrap">{fmt(ud.pro_rata_medical ?? 0)}</td>
                                                                 <td className="px-3 py-2.5 text-right tabular-nums text-orange-600 dark:text-orange-400 bg-emerald-50/15 dark:bg-emerald-950/15 whitespace-nowrap">{fmt(ud.arrear ?? 0)}</td>
                                                                 <td className="px-3 py-2.5 text-right tabular-nums font-bold text-emerald-900 dark:text-emerald-300 bg-emerald-100/40 dark:bg-emerald-900/20 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(ud.gross_pay ?? 0)}</td>
                                                                 {/* Deductions */}
@@ -2117,13 +2138,14 @@ const SalaryModule: React.FC = () => {
                                                 </tbody>
                                                 <tfoot className="sticky bottom-0 z-20 bg-zinc-50 dark:bg-zinc-950 border-t-2 border-zinc-200 dark:border-zinc-700 text-[11px] font-bold uppercase tracking-wide">
                                                     <tr>
-                                                        <td colSpan={9} className="px-3 py-3 sticky left-0 bg-zinc-50 dark:bg-zinc-950 text-zinc-500 dark:text-zinc-400">{filteredStagingRecords.length} payments</td>
+                                                        <td colSpan={10} className="px-3 py-3 sticky left-0 bg-zinc-50 dark:bg-zinc-950 text-zinc-500 dark:text-zinc-400">{filteredStagingRecords.length} payments</td>
                                                         {/* Earnings totals */}
                                                         <td className="px-3 py-3 text-right tabular-nums text-emerald-800 dark:text-emerald-300 bg-emerald-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.basic_salary ?? 0), 0))}</td>
                                                         <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.hra ?? 0), 0))}</td>
                                                         <td className="px-3 py-3 bg-emerald-50/10"></td>
                                                         <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.pro_rata_basic ?? 0), 0))}</td>
                                                         <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.pro_rata_hra ?? 0), 0))}</td>
+                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.pro_rata_medical ?? 0), 0))}</td>
                                                         <td className="px-3 py-3 text-right tabular-nums text-orange-600 dark:text-orange-400 bg-emerald-50/15 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.arrear ?? 0), 0))}</td>
                                                         <td className="px-3 py-3 text-right tabular-nums text-emerald-900 dark:text-emerald-300 bg-emerald-100/40 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.gross_pay ?? 0), 0))}</td>
                                                         {/* Deductions totals */}
