@@ -1387,14 +1387,12 @@ const SalaryModule: React.FC = () => {
     const exportCSV = () => {
         const monthLabel = MONTHS.find(m => m.value === selectedMonth)?.label || "Month";
         const headers = [
-            "Sl.No", "Employee Id", "First Name", "Email Id", "Department",
-            "Designation", "Project No", "Scheme", "Bank Account Number", "Hostel", "Joining Date", "Term Completion Date",
-            "Basic Salary", "HRA", "HRA (%)", "Total Working Days", "Amount (Working Days)",
-            "HRA amt (W.Days)", "Medical amt (W.Days)", "Arrear", "Gross Pay",
-            "HRA Ded", "Medical Ded.", "P-Tax", "TA", "ID Card Charge", "Electricity Bill", "Other Deduction",
-            "Total Deduction", "Net Pay", "Comment", "Remarks"
+            "Emp ID", "Name", "Email ID", "Department", "Designation", "Joining Date", "Term Completion Date", "Project No",
+            "Basic", "HRA", "MA", "Arrear", "Gross",
+            "HRA Ded", "Medical Ded", "P-Tax", "TA", "ID Card", "Electricity", "Other Ded", "Total Ded", "Net Pay",
+            "Bank A/C No", "Payment Date", "BMR", "Comment", "Remarks"
         ];
-        const rows = pendingRecords.map((r, i) => {
+        const rows = pendingRecords.map((r) => {
             const { inputs, currentHRA } = getRowInputs(r.docName);
             const workingDays = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
             const proRataBasic = calcProRataBasic(inputs.basic, workingDays, daysInMonth);
@@ -1405,18 +1403,13 @@ const SalaryModule: React.FC = () => {
             const hraDed = inputs.hraDeduction;
             const deductions = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
             const netPay = grossPay - deductions;
-            const hostelStatus = (() => {
-                if (!r.ps_hostel) return "No";
-                const raw = String(r.ps_hostel).trim().toLowerCase();
-                return (raw === "0" || raw === "no" || raw === "false" || raw === "") ? "No" : "Yes";
-            })();
             return [
-                i + 1, r.employee_id, r.first_name, r.email_id, departmentLabels[r.department] || r.department,
-                r.designation, r.project_no || "—", (r.project_no && schemeNumberMap[r.project_no.trim()] ? schemeNumberMap[r.project_no.trim()].trim() : "") || "—", r.bank_account_number || "—", hostelStatus, r.joining_date, r.term_completion_date,
-                inputs.basic, currentHRA, `${r.hra_percent}%`, workingDays, proRataBasic,
-                proRataHRA, proRataMedical, inputs.arrear, grossPay,
+                r.employee_id, r.first_name, r.email_id, departmentLabels[r.department] || r.department, r.designation,
+                r.joining_date, r.term_completion_date, r.project_no || "—",
+                proRataBasic, proRataHRA, proRataMedical, inputs.arrear, grossPay,
                 hraDed, inputs.medicalDeduction, pTax, inputs.ta, inputs.idCardCharge, inputs.electricityBill, inputs.otherDeduction,
-                deductions, netPay, inputs.comment, inputs.remarks
+                deductions, netPay,
+                r.bank_account_number || "—", "—", "—", inputs.comment, inputs.remarks
             ];
         });
         const csv = [headers, ...rows].map(row =>
@@ -1431,27 +1424,22 @@ const SalaryModule: React.FC = () => {
     const exportStagingCSV = () => {
         const monthLabel = MONTHS.find(m => m.value === selectedMonth)?.label || "Month";
         const headers = [
-            "Sl.No", "Employee ID", "Name", "Email ID", "Department", "Designation",
-            "Joining Date", "Project No", "Period", "Bank Account Number",
-            "Basic Salary", "HRA", "Working Days", "Pro Rata Basic", "Pro Rata HRA", "Pro Rata Medical", "Arrear", "Gross Pay",
-            "HRA Deduction", "Medical Deduction", "P-Tax", "Total Deduction", "Net Pay",
-            "Commit Amount", "Payment Amount", "Payment Particular", "Payment Date",
-            "BMR", "Frap App ID", "Comment", "Remarks"
+            "Emp ID", "Name", "Email ID", "Department", "Designation", "Joining Date", "Term Completion Date", "Project No",
+            "Basic", "HRA", "MA", "Arrear", "Gross",
+            "HRA Ded", "Medical Ded", "P-Tax", "TA", "ID Card", "Electricity", "Other Ded", "Total Ded", "Net Pay",
+            "Bank A/C No", "Payment Date", "BMR", "Comment", "Remarks"
         ];
-        const rows = filteredStagingRecords.map((rec, i) => {
+        const rows = filteredStagingRecords.map((rec) => {
             const ud = rec?.salary_user_details ?? {};
-            const totalDed = (ud.hra_deduction ?? 0) + (ud.medical_deduction ?? 0) + (ud.p_tax ?? 0);
+            const totalDed = ud.total_deduction ?? ((ud.hra_deduction ?? 0) + (ud.medical_deduction ?? 0) + (ud.p_tax ?? 0) + (ud.ta ?? 0) + (ud.id_card_charge ?? 0) + (ud.electricity_bill ?? 0) + (ud.other_deduction ?? 0));
             return [
-                i + 1,
                 ud.employee_id ?? "", ud.first_name ?? "", ud.email_id ?? "",
-                (departmentLabels[ud.department] || ud.department) ?? "", ud.designation ?? "", ud.joining_date ?? "",
-                rec?.project_no || rec?.projectNumber || "", rec?.salary_year_month ?? "", ud.bank_account_number ?? "",
-                ud.basic_salary ?? 0, ud.hra ?? 0, ud.working_days ?? 0,
+                (departmentLabels[ud.department] || ud.department) ?? "", ud.designation ?? "",
+                ud.joining_date ?? "", ud.term_completion_date ?? "", rec?.project_no || rec?.projectNumber || "",
                 ud.pro_rata_basic ?? 0, ud.pro_rata_hra ?? 0, ud.pro_rata_medical ?? 0, ud.arrear ?? 0, ud.gross_pay ?? 0,
-                ud.hra_deduction ?? 0, ud.medical_deduction ?? 0, ud.p_tax ?? 0, totalDed, ud.net_pay ?? 0,
-                rec?.commitAmount ?? 0, rec?.payment_amount ?? 0,
-                rec?.payment_particular ?? "", rec?.payment_date ?? "",
-                rec?.bmr ?? "", rec?.frapAppId ?? "", ud.comment ?? "", ud.remarks ?? ""
+                ud.hra_deduction ?? 0, ud.medical_deduction ?? 0, ud.p_tax ?? 0, ud.ta ?? 0, ud.id_card_charge ?? 0, ud.electricity_bill ?? 0, ud.other_deduction ?? 0,
+                totalDed, ud.net_pay ?? 0,
+                ud.bank_account_number ?? "", rec?.payment_date ?? "", rec?.bmr ?? "", ud.comment ?? "", ud.remarks ?? ""
             ];
         });
         const csv = [headers, ...rows].map(row =>
