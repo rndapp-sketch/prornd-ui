@@ -1571,7 +1571,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/common/PageHeader';
-import { directPurchaseAPI } from '@/services/apiService';
+import { directPurchaseAPI, prepareFormDataForApi } from '@/services/apiService';
 import { CommentModal } from '@/components/CommentModal';
 import { Plus, Trash2 } from 'lucide-react';
 import { DepartmentName } from "@/components/DepartmentName";
@@ -1876,6 +1876,7 @@ const MemoizedFormField = memo(({
                         name={field.fieldname}
                         className={`${inputClasses} py-2`}
                         disabled={field.read_only === 1}
+                        onChange={(e) => onChange(field.fieldname, e.target.files?.[0] || null)}
                     />
                 );
             case "Data":
@@ -2596,7 +2597,7 @@ const DirectPurchase: React.FC = () => {
         setIsSavingDraft(true);
 
         try {
-            const dataToSubmit = buildPayload();
+            const dataToSubmit = await prepareFormDataForApi(buildPayload());
             // If already saved, include the doc name for update
             if (savedDocName) {
                 dataToSubmit.name = savedDocName;
