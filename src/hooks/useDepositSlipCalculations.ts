@@ -511,6 +511,9 @@ function calculateDConsultancy(formData: FormData): FormData {
   if (amountInclGst <= 0) {
     return {
       igst_18_on_consultancy: 0,
+      income_tax_tds: 0,
+      gst_tds: 0,
+      amount_actually_received: 0,
       amount_after_gst_tds: 0,
       total_cost_x: 0,
       consultancy_charge_y: 0,
@@ -535,9 +538,14 @@ function calculateDConsultancy(formData: FormData): FormData {
   // === GST CALCULATIONS ===
   const taxableAmount = flt(amountInclGst / 1.18);
   const igstAmount = flt(taxableAmount * 0.18);
-  const tdsAmount = Math.round(taxableAmount * 0.02);
+  const tdsAmount = flt(taxableAmount * 0.02);
   const amountAfterTds = flt(amountInclGst - tdsAmount);
   const totalCostX = flt(amountAfterTds - igstAmount);
+
+  // === ACTUAL TDS DEDUCTED (manually entered, separate from the flat 2% assumption above) ===
+  const incomeTaxTds = flt(formData.income_tax_tds);
+  const gstTds = flt(formData.gst_tds);
+  const amountActuallyReceived = flt(amountInclGst - incomeTaxTds - gstTds);
 
   // === Y AND Z SPLIT ===
   const chargeY = flt(totalCostX * 0.30);
@@ -587,6 +595,9 @@ function calculateDConsultancy(formData: FormData): FormData {
 
   return {
     igst_18_on_consultancy: igstAmount,
+    income_tax_tds: incomeTaxTds,
+    gst_tds: gstTds,
+    amount_actually_received: amountActuallyReceived,
     amount_after_gst_tds: amountAfterTds,
     total_cost_x: totalCostX,
     consultancy_charge_y: chargeY,

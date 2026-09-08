@@ -97,9 +97,15 @@ export const computeDConsultancy = (depositSlip: any) => {
 
     const taxableAmount = round2(amountInclGst / 1.18);
     const igstAmount = round2(taxableAmount * 0.18);
-    const tdsAmount = Math.round(taxableAmount * 0.02);
+    const tdsAmount = round2(taxableAmount * 0.02);
     const amountAfterTds = round2(amountInclGst - tdsAmount);
     const totalCostX = round2(amountAfterTds - igstAmount);
+
+    // IT TDS / GST TDS — manually entered actual deduction figures (may differ from the flat 2%
+    // assumption above), used only to derive "Amount Actually Received"; they don't feed X/Y/Z.
+    const incomeTaxTds = flt(depositSlip.income_tax_tds);
+    const gstTds = flt(depositSlip.gst_tds);
+    const amountActuallyReceived = round2(amountInclGst - incomeTaxTds - gstTds);
 
     // CGST/SGST — informational, editable fields (same pattern as E Non Routine): mutually
     // exclusive with IGST. IGST above always drives Total Cost X and is left untouched; when it
@@ -155,6 +161,7 @@ export const computeDConsultancy = (depositSlip: any) => {
         overheadFromY, overheadFromZ, totalOverhead, instituteShare, totalOverheadAndShare,
         idfPercentage, idfAmount, staffWelfareAmount, studentWelfareAmount, dpfAmount,
         balanceConsultancyFee, balanceOperationCharge, totalGst, totalAmount,
+        incomeTaxTds, gstTds, amountActuallyReceived,
     };
 };
 
@@ -615,6 +622,39 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                     {editable
                                         ? <EditableCell value={depositSlip.igst_18 ?? depositSlip.igst_amount ?? depositSlip.igst} field="igst_18" editable onChange={onFieldChange} numeric align="right" />
                                         : formatCurrency(depositSlip.igst_18 ?? depositSlip.igst_amount ?? depositSlip.igst)}
+                                </td>
+                            </tr>
+                        </>
+                    )}
+
+                    {/* D Consultancy only: IT TDS, GST TDS, Amount Actually Received — manually
+                        entered actual TDS deducted by the client, separate from the flat 2%
+                        assumption used to derive Total Cost X below. */}
+                    {type === 'consultancy_d' && dc && (
+                        <>
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1">IT TDS</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">
+                                    {editable
+                                        ? <EditableCell value={depositSlip.income_tax_tds} field="income_tax_tds" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrency(depositSlip.income_tax_tds)}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1">GST TDS</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">
+                                    {editable
+                                        ? <EditableCell value={depositSlip.gst_tds} field="gst_tds" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrency(depositSlip.gst_tds)}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1">Amount Actually Received</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">
+                                    {formatCurrency(dVal(depositSlip.amount_actually_received, dc.amountActuallyReceived))}
                                 </td>
                             </tr>
                         </>
