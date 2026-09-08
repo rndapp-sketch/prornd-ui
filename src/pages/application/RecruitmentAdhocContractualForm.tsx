@@ -447,10 +447,10 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                         );
                     }
 
-                    // Fallback: if chairperson_webmail_id was never saved, try to fetch from applicant's HOD (piheadmentor_user_id)
+                    // Fallback: if chairperson_webmail_id or head was never saved, try to fetch from applicant's HOD (piheadmentor_user_id)
                     if (
                         existingData.webmail_id &&
-                        !existingData.chairperson_webmail_id
+                        (!existingData.chairperson_webmail_id || !existingData.head)
                     ) {
                         try {
                             const headRes = await fetchFrappeValue({
@@ -459,7 +459,12 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                                 fieldname: "piheadmentor_user_id",
                             });
                             if (headRes?.message?.piheadmentor_user_id) {
-                                existingData.chairperson_webmail_id = headRes.message.piheadmentor_user_id;
+                                if (!existingData.chairperson_webmail_id) {
+                                    existingData.chairperson_webmail_id = headRes.message.piheadmentor_user_id;
+                                }
+                                if (!existingData.head) {
+                                    existingData.head = headRes.message.piheadmentor_user_id;
+                                }
                             }
                         } catch (e) {
                         }
