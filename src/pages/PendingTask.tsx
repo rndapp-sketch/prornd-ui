@@ -181,6 +181,17 @@ const getCandidateWorkflow = (
     };
 };
 
+// Splits a list of ids into fixed-size batches so a `name in [...]` filter can't grow into a
+// query string long enough for the server/proxy to reject the request outright (returning an
+// HTML error page instead of JSON) — a real failure mode once task volume/id length grows, e.g.
+// Fund Received's occasional "-prjreg_refnum" autoname bug roughly doubling typical id length.
+const ID_BATCH_SIZE = 40;
+const chunk = <T,>(items: T[], size: number): T[][] => {
+    const batches: T[][] = [];
+    for (let i = 0; i < items.length; i += size) batches.push(items.slice(i, i + size));
+    return batches;
+};
+
 const PROJECT_TYPE_TABS: ProjectTypeTab[] = ['Research', 'Consultancy', 'Others'];
 const HIDDEN_OTHERS_DOCTYPES = new Set(['Kafka Commit Staging', 'Project Number Generation']);
 
@@ -361,17 +372,37 @@ const PendingTask: React.FC = () => {
         }
     };
 
+    // Explicit, distinct SWR keys on both "Project Registration" list calls below — without
+    // this, any two calls to the same doctype are one accidental refactor away from resolving
+    // to the same cache entry (e.g. if a default/auto key ever collapses fields+filters), and
+    // whichever one wins silently starves prNameToType/prNoToType (see allProjectRegistrations).
     const { data: headApproverProjects } = useFrappeGetDocList("Project Registration", {
         filters: [["head_approver", "=", currentUser ?? ""]],
         fields: ["name"],
         limit: 500,
-    }, isHeadApprover && !!currentUser ? undefined : null);
+    }, isHeadApprover && !!currentUser ? `project-registration-head-approver:${currentUser}` : null);
 
-    // Fetch all projects for project_type lookup (single source of truth)
-    const { data: allProjectRegistrations } = useFrappeGetDocList("Project Registration", {
+    // Fetch all projects for project_type lookup (single source of truth). Must never share a
+    // cache entry with headApproverProjects above — that would starve prNameToType/prNoToType
+    // down to the head-approver-filtered subset, silently miscategorizing most Fund Received /
+    // other doctype tasks into "Others" even though resolveProjectCategory itself is correct.
+    // `limit: 0` (not a hardcoded page size) — this doctype has grown well past any fixed cap
+    // over the institute's history, so a fixed `limit: 1000` silently drops older/less-recently-
+    // modified Project Registrations from this map, and every task linked to one of those falls
+    // back to "Others" even though its project_type is correct server-side. Same "fetch everything"
+    // idiom already used for `allFundingAgencies` below.
+    const { data: allProjectRegistrations, error: allProjectRegistrationsError } = useFrappeGetDocList("Project Registration", {
         fields: ["name", "project_no", "project_type", "funding_agen"],
-        limit: 1000,
-    });
+        limit: 0,
+    }, "project-registration-all-for-type-lookup");
+
+    React.useEffect(() => {
+        if (allProjectRegistrationsError) {
+            // Task categorization silently falls back to "Others" whenever this list is empty,
+            // so a failed fetch (e.g. permission error) is otherwise invisible — surface it.
+            console.error("Failed to load full Project Registration list for task categorization:", allProjectRegistrationsError);
+        }
+    }, [allProjectRegistrationsError]);
 
     // Funding Agency id -> display name, same bulk-map pattern used by ProjectsView.tsx's "My Projects" list
     const { data: allFundingAgencies } = useFrappeGetDocList("fundingagency_", {
@@ -491,7 +522,13 @@ const PendingTask: React.FC = () => {
                     // (the "Pro Inv" action is gated to project_type === "Consultancy"),
                     // and the doctype is read-restricted so the generic type-resolution
                     // can't fetch it — categorize it directly.
-                    project_type: group.doctype === "Proforma_Invoice"
+                    // Disbursal of Consultancy has no genuine link back to Project Registration at
+                    // all — its DOCTYPE_PR_LINKS field `disbursal_project_number` is actually a
+                    // Select with fixed options "Select"/"PDF" (verified against the doctype's own
+                    // field definitions), not a project reference, so resolveProjectCategory can
+                    // never match it. The doctype name itself guarantees the category, same as
+                    // Proforma_Invoice above.
+                    project_type: (group.doctype === "Proforma_Invoice" || group.doctype === "Disbursal of Consultancy")
                         ? 'Consultancy'
                         : resolveProjectCategory(
                             record as unknown as Record<string, unknown>,
@@ -515,6 +552,11 @@ const PendingTask: React.FC = () => {
 
         const byDoctype = new Map<string, string[]>();
         allTasks.forEach(task => {
+            // Disbursal of Consultancy is hardcoded to 'Consultancy' above (its DOCTYPE_PR_LINKS
+            // field doesn't actually reference a project — see the comment at that assignment) —
+            // it must be skipped here too, or this generic resolution would run anyway, resolve
+            // to 'Others' via the bogus field, and clobber that hardcoded value in resolvedTasks.
+            if (task.doctype === "Disbursal of Consultancy") return;
             const mapping = DOCTYPE_PR_LINKS[task.doctype];
             if (!mapping || mapping.primary.type === 'self') return;
             if (!byDoctype.has(task.doctype)) byDoctype.set(task.doctype, []);
@@ -533,29 +575,37 @@ const PendingTask: React.FC = () => {
             addField(mapping.primary);
             if (mapping.fallback) addField(mapping.fallback);
 
-            // Frappe v1 list API:
-            //   filters  → JSON array of [field, op, value] triples
-            //   fields   → JSON array of field names
-            //   in-filter value must be a comma-separated string, NOT a nested array
-            const filterValue = ids.join(',');
-            const params = new URLSearchParams({
-                filters: JSON.stringify([['name', 'in', filterValue]]),
-                fields: JSON.stringify([...fields]),
-                limit: String(ids.length),
-            });
+            chunk(ids, ID_BATCH_SIZE).forEach((batch) => {
+                // Frappe v1 list API:
+                //   filters  → JSON array of [field, op, value] triples
+                //   fields   → JSON array of field names
+                //   in-filter value must be a comma-separated string, NOT a nested array
+                const filterValue = batch.join(',');
+                const params = new URLSearchParams({
+                    filters: JSON.stringify([['name', 'in', filterValue]]),
+                    fields: JSON.stringify([...fields]),
+                    limit: String(batch.length),
+                });
 
-            const p = fetch(`/api/resource/${encodeURIComponent(doctype)}?${params}`)
-                .then(r => r.json())
-                .then(result => {
-                    // Frappe v1 returns { data: [...] }
-                    (result?.data ?? result?.message ?? []).forEach((rec: Record<string, unknown>) => {
-                        const cat = resolveProjectCategory(rec, doctype, prNameToType, prNoToType);
-                        newMap.set(rec['name'] as string, cat);
+                const p = fetch(`/api/resource/${encodeURIComponent(doctype)}?${params}`, { credentials: "include" })
+                    .then(r => r.json())
+                    .then(result => {
+                        // Frappe v1 returns { data: [...] }
+                        (result?.data ?? result?.message ?? []).forEach((rec: Record<string, unknown>) => {
+                            const cat = resolveProjectCategory(rec, doctype, prNameToType, prNoToType);
+                            newMap.set(rec['name'] as string, cat);
+                        });
+                    })
+                    .catch((err) => {
+                        // Was previously silent — this fetch resolving is the only thing that
+                        // overrides Phase-1's default "Others" categorization, so a swallowed
+                        // failure here means every task of that doctype gets stuck in Others
+                        // with no visible signal.
+                        console.error(`Failed to resolve project_type for doctype "${doctype}" (batch: ${batch[0]}..):`, err);
                     });
-                })
-                .catch(() => { /* silently skip on auth/network errors */ });
 
-            promises.push(p);
+                promises.push(p);
+            });
         });
 
         Promise.all(promises).then(() => {
@@ -697,32 +747,41 @@ const PendingTask: React.FC = () => {
             .map(t => t.id);
         if (!frIds.length) return;
 
-        const params = new URLSearchParams({
-            fields: JSON.stringify(["name", "prjreg_title", "fund_received_ref_number"]),
-            filters: JSON.stringify([["name", "in", frIds.join(",")]]),
-            limit: String(frIds.length),
-        });
-
-        fetch(`/api/resource/Fund%20Received?${params}`, { credentials: "include" })
-            .then(r => r.json())
-            .then(async (result) => {
-                const docs: any[] = result?.data ?? [];
+        // Batched: a giant `name in [...]` filter over every pending Fund Received id (and, below,
+        // every doubled ref candidate × 6 deposit-slip doctypes) can build a query string long
+        // enough that the server/proxy rejects it outright and returns an HTML error page instead
+        // of JSON — same failure mode as the Phase-2 fetch above, fixed the same way.
+        (async () => {
+            try {
+                const docBatches = await Promise.all(chunk(frIds, ID_BATCH_SIZE).map(async (idBatch) => {
+                    const params = new URLSearchParams({
+                        fields: JSON.stringify(["name", "prjreg_title", "fund_received_ref_number"]),
+                        filters: JSON.stringify([["name", "in", idBatch.join(",")]]),
+                        limit: String(idBatch.length),
+                    });
+                    const res = await fetch(`/api/resource/Fund%20Received?${params}`, { credentials: "include" });
+                    const result = await res.json();
+                    return (result?.data ?? []) as any[];
+                }));
+                const docs: any[] = docBatches.flat();
                 if (!docs.length) return;
 
                 // Resolve real project_no via prjreg_title (Project Registration docname)
                 const prNames = [...new Set(docs.map((d: any) => d.prjreg_title).filter(Boolean))];
                 if (prNames.length) {
-                    const prParams = new URLSearchParams({
-                        fields: JSON.stringify(["name", "project_no"]),
-                        filters: JSON.stringify([["name", "in", prNames.join(",")]]),
-                        limit: String(prNames.length),
-                    });
-                    const prRes = await fetch(`/api/resource/Project%20Registration?${prParams}`, { credentials: "include" });
-                    const prResult = await prRes.json();
                     const noByPrName = new Map<string, string>();
-                    (prResult?.data ?? []).forEach((pr: any) => {
-                        if (pr.name && pr.project_no) noByPrName.set(pr.name, pr.project_no);
-                    });
+                    await Promise.all(chunk(prNames, ID_BATCH_SIZE).map(async (prNameBatch) => {
+                        const prParams = new URLSearchParams({
+                            fields: JSON.stringify(["name", "project_no"]),
+                            filters: JSON.stringify([["name", "in", prNameBatch.join(",")]]),
+                            limit: String(prNameBatch.length),
+                        });
+                        const prRes = await fetch(`/api/resource/Project%20Registration?${prParams}`, { credentials: "include" });
+                        const prResult = await prRes.json();
+                        (prResult?.data ?? []).forEach((pr: any) => {
+                            if (pr.name && pr.project_no) noByPrName.set(pr.name, pr.project_no);
+                        });
+                    }));
                     const noMap = new Map<string, string>();
                     docs.forEach((d: any) => {
                         const no = d.prjreg_title ? noByPrName.get(d.prjreg_title) : undefined;
@@ -743,22 +802,25 @@ const PendingTask: React.FC = () => {
                 if (!refCandidates.length) return;
 
                 const slipByRef = new Map<string, string>();
-                await Promise.all(FR_DEPOSIT_SLIP_DOCTYPES.map(async (doctype) => {
-                    try {
-                        const slipParams = new URLSearchParams({
-                            fields: JSON.stringify(["name", "fund_received_ref"]),
-                            filters: JSON.stringify([["fund_received_ref", "in", refCandidates.join(",")]]),
-                            limit: String(refCandidates.length),
-                        });
-                        const res = await fetch(`/api/resource/${encodeURIComponent(doctype)}?${slipParams}`, { credentials: "include" });
-                        const json = await res.json();
-                        (json?.data ?? []).forEach((slip: any) => {
-                            if (slip.fund_received_ref) slipByRef.set(slip.fund_received_ref, slip.name);
-                        });
-                    } catch {
-                        /* skip doctype on error */
-                    }
-                }));
+                const refBatches = chunk(refCandidates, ID_BATCH_SIZE);
+                await Promise.all(FR_DEPOSIT_SLIP_DOCTYPES.flatMap((doctype) =>
+                    refBatches.map(async (refBatch) => {
+                        try {
+                            const slipParams = new URLSearchParams({
+                                fields: JSON.stringify(["name", "fund_received_ref"]),
+                                filters: JSON.stringify([["fund_received_ref", "in", refBatch.join(",")]]),
+                                limit: String(refBatch.length),
+                            });
+                            const res = await fetch(`/api/resource/${encodeURIComponent(doctype)}?${slipParams}`, { credentials: "include" });
+                            const json = await res.json();
+                            (json?.data ?? []).forEach((slip: any) => {
+                                if (slip.fund_received_ref) slipByRef.set(slip.fund_received_ref, slip.name);
+                            });
+                        } catch {
+                            /* skip batch on error */
+                        }
+                    })
+                ));
 
                 const depositMap = new Map<string, string>();
                 docs.forEach((d: any) => {
@@ -770,8 +832,10 @@ const PendingTask: React.FC = () => {
                     if (slip) depositMap.set(d.name, slip);
                 });
                 if (depositMap.size > 0) setFrDepositSlips(depositMap);
-            })
-            .catch(() => {});
+            } catch {
+                /* non-critical: project_no/deposit-slip display only */
+            }
+        })();
     }, [allTasks]);
 
     // Phase-3: fetch director_signed_pdf for all doctypes that support Director Approval flow
