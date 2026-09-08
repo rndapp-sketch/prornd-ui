@@ -2748,7 +2748,7 @@ const DirectPurchaseDetails: React.FC = () => {
     // Commit Payment state
     const [resolvedProjectNo, setResolvedProjectNo] = useState<string>("");
     const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
-    const { call: fetchDocument } = useFrappePostCall<{ message: any }>('frappe.client.get');
+    const { call: fetchProjectByNo } = useFrappePostCall<{ message: { name: string; project_no?: string }[] }>('frappe.client.get_list');
     const directPurchaseProject =
         data?.project_name || data?.project_no || data?.project || "";
 
@@ -2759,9 +2759,14 @@ const DirectPurchaseDetails: React.FC = () => {
             setResolvedProjectNo("");
             return;
         }
-        fetchDocument({ doctype: "Project Registration", name: linkedName })
+        fetchProjectByNo({
+            doctype: "Project Registration",
+            filters: JSON.stringify([["project_no", "=", linkedName]]),
+            fields: JSON.stringify(["name", "project_no"]),
+            limit: 1,
+        })
             .then((res) => {
-                const projectDoc = res?.message;
+                const projectDoc = res?.message?.[0];
                 if (projectDoc?.project_no) {
                     setResolvedProjectNo(projectDoc.project_no);
                 } else {
@@ -2771,7 +2776,7 @@ const DirectPurchaseDetails: React.FC = () => {
             .catch(() => {
                 setResolvedProjectNo(linkedName);
             });
-    }, [directPurchaseProject, fetchDocument]);
+    }, [directPurchaseProject, fetchProjectByNo]);
 
     const [poRefDetailsId, setPoRefDetailsId] = useState<string | null>(null);
 
