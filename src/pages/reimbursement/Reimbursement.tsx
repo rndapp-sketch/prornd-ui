@@ -545,6 +545,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { isFieldVisible } from '@/utils/evalExpression';
 import { prepareFormDataForApi } from '@/services/apiService';
+import { ErrorModal } from '@/components/ErrorModal';
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -621,6 +622,9 @@ const Reimbursement: React.FC = () => {
     const [dataLoaded, setDataLoaded] = useState(false);
     const [projectTitle, setProjectTitle] = useState<string>('');
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>(
+        { open: false, title: '', message: '' }
+    );
 
     // --- API HOOKS ---
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall<FormDataResponse>('rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_reimbursement_fields');
@@ -671,7 +675,11 @@ const Reimbursement: React.FC = () => {
                         }
                     } catch (err) {
                         console.error('Error fetching existing document:', err);
-                        alert('Failed to load document for editing');
+                        setErrorModal({
+                            open: true,
+                            title: 'Could Not Load Document',
+                            message: 'We could not load this reimbursement application for editing. Please try again or contact support if the issue persists.',
+                        });
                     }
                 }
 
@@ -693,12 +701,22 @@ const Reimbursement: React.FC = () => {
                             initialData.project_name = projectFromUrl;
                             initialData.project_number = projectFromUrl;
                             if (projectTitleFromUrl) setProjectTitle(projectTitleFromUrl);
+                            setErrorModal({
+                                open: true,
+                                title: 'Project Not Found',
+                                message: `We could not find a project matching "${projectFromUrl}". Please select the project manually in the form below.`,
+                            });
                         }
                     } catch (err) {
                         console.warn('Could not fetch project details for auto-fill:', err);
                         initialData.project_name = projectFromUrl;
                         initialData.project_number = projectFromUrl;
                         if (projectTitleFromUrl) setProjectTitle(projectTitleFromUrl);
+                        setErrorModal({
+                            open: true,
+                            title: 'Project Not Found',
+                            message: `We could not find a project matching "${projectFromUrl}". Please select the project manually in the form below.`,
+                        });
                     }
                 }
 
@@ -734,7 +752,11 @@ const Reimbursement: React.FC = () => {
             }
             if (formDataError) {
                 console.error("Failed to load form data:", formDataError);
-                alert("Error: Could not load the reimbursement form.");
+                setErrorModal({
+                    open: true,
+                    title: 'Could Not Load Form',
+                    message: 'We could not load the reimbursement form. Please try again or contact support if the issue persists.',
+                });
                 setLoading(false);
             }
         };
@@ -980,7 +1002,11 @@ const Reimbursement: React.FC = () => {
             }
         } catch (err: any) {
             console.error(effectiveDocName ? editError : saveError || err);
-            setErrorMsg(parseFrappeError(err.message || "Unknown error", fields));
+            setErrorModal({
+                open: true,
+                title: 'Submission Failed',
+                message: parseFrappeError(err.message || "Unknown error", fields),
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -1018,7 +1044,11 @@ const Reimbursement: React.FC = () => {
             }
         } catch (err: any) {
             console.error(submitError || err);
-            setErrorMsg(parseFrappeError(err.message || "Please check the console for details.", fields));
+            setErrorModal({
+                open: true,
+                title: 'Submission Failed',
+                message: parseFrappeError(err.message || "Please check the console for details.", fields),
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -1092,6 +1122,13 @@ const Reimbursement: React.FC = () => {
                     )}
                 </form>
             </main>
+
+            <ErrorModal
+                open={errorModal.open}
+                title={errorModal.title}
+                message={errorModal.message}
+                onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
         </div>
     );
 };

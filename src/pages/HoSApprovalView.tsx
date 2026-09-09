@@ -169,15 +169,25 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
     // Edit mode for the deposit slip print format
     const [isEditingSlip, setIsEditingSlip] = useState(false);
     const [editedFields, setEditedFields] = useState<Record<string, string>>({});
+    // Manual overrides for individual credit_distribution row amounts, keyed by the row's own
+    // doc name — DepositSlipDocument encodes these as "credit_distribution.<name>.amount" since
+    // they target one child-table row rather than a flat field on the parent doc.
+    const [editedCreditRows, setEditedCreditRows] = useState<Record<string, string>>({});
     const [saveError, setSaveError] = useState<string | null>(null);
     const [savingSlip, setSavingSlip] = useState(false);
 
     const handleFieldChange = (field: string, value: string) => {
+        const childRowMatch = field.match(/^credit_distribution\.(.+)\.amount$/);
+        if (childRowMatch) {
+            setEditedCreditRows((prev) => ({ ...prev, [childRowMatch[1]]: value }));
+            return;
+        }
         setEditedFields((prev) => ({ ...prev, [field]: value }));
     };
 
     const handleCancelEdit = () => {
         setEditedFields({});
+        setEditedCreditRows({});
         setSaveError(null);
         setIsEditingSlip(false);
     };
@@ -202,7 +212,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
     const handleSaveSlip = async () => {
         const updateMethod = UPDATE_METHOD_BY_DOCTYPE[depositSlipDoctype];
         if (!depositSlip?.name || !updateMethod) return;
-        if (Object.keys(editedFields).length === 0) {
+        if (Object.keys(editedFields).length === 0 && Object.keys(editedCreditRows).length === 0) {
             setIsEditingSlip(false);
             return;
         }
@@ -287,6 +297,29 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                 }
             }
 
+            // Manual per-row overrides always win over the auto-recomputed amount, whether or not
+            // the driver fields changed this save — merge them into whatever credit_distribution
+            // entry exists already (or create one if the row edits are the only change).
+            if (
+                depositSlipDoctype === "E Non Routine Deposit Slip" &&
+                Object.keys(editedCreditRows).length > 0
+            ) {
+                let creditEntry = childTableChanges.find((c) => c.fieldname === "credit_distribution");
+                if (!creditEntry) {
+                    creditEntry = { fieldname: "credit_distribution", updated: [] };
+                    childTableChanges.push(creditEntry);
+                }
+                for (const [rowName, rawAmount] of Object.entries(editedCreditRows)) {
+                    const amount = parseFloat(rawAmount) || 0;
+                    const existingRow = creditEntry.updated.find((r) => r.name === rowName);
+                    if (existingRow) {
+                        existingRow.changes = { ...existingRow.changes, amount };
+                    } else {
+                        creditEntry.updated.push({ name: rowName, changes: { amount } });
+                    }
+                }
+            }
+
             const csrfToken = (window as any).csrf_token || "";
             const res = await fetch(`/api/method/${updateMethod}`, {
                 method: "POST",
@@ -312,6 +345,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
             }
             setDepositSlip((prev: any) => ({ ...prev, ...changes }));
             setEditedFields({});
+            setEditedCreditRows({});
             setIsEditingSlip(false);
         } catch (err: any) {
             setSaveError(err?.message || "Failed to save changes");
@@ -565,6 +599,17 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
         ...depositSlip,
         ...editedFields,
         project_no: depositSlip.project_no || prjregProjectNo || depositSlip.project_registration,
+        // Reflect in-progress credit_distribution row edits (keyed by row name) so the input
+        // shows what was just typed instead of snapping back to the stored amount every render.
+        ...(Object.keys(editedCreditRows).length > 0 && Array.isArray(depositSlip.credit_distribution)
+            ? {
+                credit_distribution: depositSlip.credit_distribution.map((row: any) =>
+                    row.name && row.name in editedCreditRows
+                        ? { ...row, amount: editedCreditRows[row.name] }
+                        : row,
+                ),
+            }
+            : {}),
     };
 
     return (

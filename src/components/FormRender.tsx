@@ -4,6 +4,23 @@ import React, { useState, useEffect, useCallback, memo, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { AutocompleteEmail } from "@/components/AutocompleteEmail";
 
+// Keeps free-form typing (partial "-", trailing ".") while capping to 2 decimal places.
+const sanitizeDecimalInput = (raw: string): string => {
+    let v = raw.replace(/[^0-9.-]/g, "");
+    const negative = v.startsWith("-");
+    v = v.replace(/-/g, "");
+    if (negative) v = "-" + v;
+    const firstDot = v.indexOf(".");
+    if (firstDot !== -1) {
+        v = v.slice(0, firstDot + 1) + v.slice(firstDot + 1).replace(/\./g, "");
+    }
+    const dotIdx = v.indexOf(".");
+    if (dotIdx !== -1 && v.length - dotIdx - 1 > 2) {
+        v = v.slice(0, dotIdx + 3);
+    }
+    return v;
+};
+
 // --- TYPE DEFINITIONS ---
 interface Field {
     fieldname: string;
@@ -301,6 +318,20 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
                         }
                     />
                 );
+            case "Currency":
+            case "Float":
+                return (
+                    <input
+                        type="text"
+                        inputMode="decimal"
+                        {...commonProps}
+                        value={value ?? ""}
+                        onChange={(e) =>
+                            onChange(field.fieldname, sanitizeDecimalInput(e.target.value))
+                        }
+                        placeholder="0.00"
+                    />
+                );
             default:
                 return (
                     <input
@@ -399,12 +430,22 @@ const MemoizedGenericTable = memo(
                 );
             }
 
-            const type =
-                col.type === "Currency" ||
-                col.type === "Float" ||
-                col.type === "Int"
-                    ? "number"
-                    : "text";
+            if (col.type === "Currency" || col.type === "Float") {
+                return (
+                    <input
+                        type="text"
+                        inputMode="decimal"
+                        className={`${inputClasses} !h-8 text-xs`}
+                        value={row[col.key] ?? ""}
+                        onChange={(e) =>
+                            onRowChange(tableName, i, col.key, sanitizeDecimalInput(e.target.value))
+                        }
+                        placeholder="0.00"
+                    />
+                );
+            }
+
+            const type = col.type === "Int" ? "number" : "text";
             return (
                 <input
                     type={type}
