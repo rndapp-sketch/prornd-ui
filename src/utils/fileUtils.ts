@@ -6,13 +6,13 @@
  *   /Project_Registration/2026031901MeiTy000636/indent_general_form/.../file.pdf
  *
  * These must be served from MinIO directly:
- *   http://172.16.135.118:9000/prod-rnd-files/Project_Registration/...
+ *   http://172.16.134.179:9000/prod-rnd-files/Project_Registration/...
  *
  * Standard Frappe-managed files use `/files/...` or `/private/files/...`
  * paths and are served from the Frappe backend.
  */
 
-const MINIO_HOST = import.meta.env.VITE_MINIO_HOST || "172.16.135.118";
+const MINIO_HOST = import.meta.env.VITE_MINIO_HOST || "172.16.134.179";
 const MINIO_PORT = import.meta.env.VITE_MINIO_PORT || "9000";
 const MINIO_ALT_PORT = import.meta.env.VITE_MINIO_ALT_PORT || "8081";
 const MINIO_BASE = `http://${MINIO_HOST}:${MINIO_PORT}/prod-rnd-files`;

@@ -1588,7 +1588,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
         }
     };
 
-    const MINIO_BASE = `http://${import.meta.env.VITE_MINIO_HOST || "172.16.135.118"}:${import.meta.env.VITE_MINIO_PORT || "9000"}`;
+    const MINIO_BASE = `http://${import.meta.env.VITE_MINIO_HOST || "172.16.134.179"}:${import.meta.env.VITE_MINIO_PORT || "9000"}`;
     const attachmentsPath = `${MINIO_BASE}/prod-rnd-files/Project_Registration/${projectName}/attachments`;
 
     const { data: frappeFiles } = useFrappeGetDocList("File", {

@@ -453,7 +453,7 @@ const MemoizedGenericTable = memo(
                                             {row[col.key] && typeof row[col.key] === "string" && (
                                                 <div className="flex items-center gap-1.5">
                                                     <a
-                                                        href={row[col.key].startsWith("http") ? row[col.key] : `http://${import.meta.env.VITE_MINIO_HOST || "172.16.135.118"}:${import.meta.env.VITE_MINIO_PORT || "9000"}/prod-rnd-files${row[col.key]}`}
+                                                        href={row[col.key].startsWith("http") ? row[col.key] : `http://${import.meta.env.VITE_MINIO_HOST || "172.16.134.179"}:${import.meta.env.VITE_MINIO_PORT || "9000"}/prod-rnd-files${row[col.key]}`}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         className="text-[10px] text-[#D97757] underline truncate max-w-[160px]"
