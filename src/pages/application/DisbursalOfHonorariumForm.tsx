@@ -239,6 +239,12 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                         });
                         return { ...field, child_fields: processedChildFields };
                     }
+                    // Force webmail_id_for (the "other" person's email when
+                    // "Applying For" = Other) to be a Link field so it renders
+                    // as a searchable dropdown.
+                    if (field.fieldname === 'webmail_id_for') {
+                        return { ...field, fieldtype: 'Link', options: 'User' };
+                    }
                     return field;
                 });
 
@@ -298,6 +304,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                             label: user.full_name ? `${user.full_name} (${user.name})` : user.name
                         }));
                         baseLinkOptions['web_mail_id'] = userOpts;
+                        baseLinkOptions['webmail_id_for'] = userOpts;
                         baseLinkOptions['User'] = userOpts;
                     }
                 } catch (err) {
@@ -655,6 +662,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                             onTableLinkChange={handleTableLinkChange}
                             readOnly={formData.docstatus === 1}
                             asyncSearchFnsForTables={tableAsyncSearch}
+                            autocompleteFields={['webmail_id_for']}
                         />
                     </FrappeCard>
 
