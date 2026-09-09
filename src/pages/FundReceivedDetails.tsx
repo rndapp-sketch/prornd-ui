@@ -100,18 +100,18 @@ const DEPOSIT_SLIP_STATIC_FIELDS: Record<string, any[]> = {
         { fieldname: "amount_inclusive_of_gst", label: "Amount Inclusive of GST", fieldtype: "Currency", mandatory: true, read_only: false, hidden: false },
         { fieldname: "income_tax_tds", label: "Income Tax TDS", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false },
         { fieldname: "gst_tds_2", label: "GST TDS", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false },
-        { fieldname: "amount_actually_received", label: "Amount Actually Received", fieldtype: "Currency", mandatory: false, read_only: true, hidden: false, description: "Amount Inclusive of GST − Income Tax TDS − GST TDS" },
+        { fieldname: "amount_actually_received", label: "Amount Actually Received", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false, description: "Amount Inclusive of GST − Income Tax TDS − GST TDS" },
         { fieldname: "cgst_9", label: "CGST @9%", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false },
         { fieldname: "sgst_9", label: "SGST @9%", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false },
         { fieldname: "igst_18", label: "IGST @18%", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false },
-        { fieldname: "consultancy_fee_x", label: "Consultancy Fee X", fieldtype: "Currency", mandatory: false, read_only: true, hidden: false, description: "Amount Actually Received − GST (CGST+SGST or IGST)" },
+        { fieldname: "consultancy_fee_x", label: "Consultancy Fee X", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false, description: "Amount Actually Received − GST (CGST+SGST or IGST)" },
         { fieldname: "overhead_multiplier", label: "Overhead Multiplier", fieldtype: "Float", mandatory: false, read_only: false, hidden: false, default: "0.3", description: "Default: 0.3 (30%)" },
-        { fieldname: "overhead_amount", label: "Overhead Amount", fieldtype: "Currency", read_only: true, hidden: false, description: "Overhead Multiplier × Consultancy Fee X" },
+        { fieldname: "overhead_amount", label: "Overhead Amount", fieldtype: "Currency", read_only: false, hidden: false, description: "Overhead Multiplier × Consultancy Fee X" },
         { fieldname: "credit_distribution_section", label: "Credit Distribution", fieldtype: "Section Break" },
         { fieldname: "credit_distribution", label: "Credit Distribution", fieldtype: "Table", read_only: false, hidden: false },
         { fieldname: "totals_section", label: "Totals", fieldtype: "Section Break" },
         { fieldname: "total_gst", label: "Total GST", fieldtype: "Currency", read_only: false, hidden: false },
-        { fieldname: "total_budget", label: "Total Budget", fieldtype: "Currency", read_only: true, hidden: false },
+        { fieldname: "total_budget", label: "Total Budget", fieldtype: "Currency", read_only: false, hidden: false },
     ],
     t_testing: [
         { fieldname: "project_title", label: "Project Title", fieldtype: "Link", options: "Project Registration", mandatory: true, read_only: false, hidden: false },
@@ -122,13 +122,13 @@ const DEPOSIT_SLIP_STATIC_FIELDS: Record<string, any[]> = {
         { fieldname: "bank", label: "Bank", fieldtype: "Data", mandatory: false, read_only: false, hidden: false },
         { fieldname: "calculations_section", label: "Calculations", fieldtype: "Section Break" },
         { fieldname: "amount_inclusive_of_gst", label: "Amount Inclusive of GST", fieldtype: "Currency", mandatory: true, read_only: false, hidden: false },
-        { fieldname: "cgst_9", label: "CGST @9%", fieldtype: "Currency", read_only: true, hidden: false },
-        { fieldname: "sgst_9", label: "SGST @9%", fieldtype: "Currency", read_only: true, hidden: false },
-        { fieldname: "consultancy_fee_x", label: "Consultancy Fee X", fieldtype: "Currency", read_only: true, hidden: false },
-        { fieldname: "overhead_amount", label: "Overhead Amount", fieldtype: "Currency", read_only: true, hidden: false },
+        { fieldname: "cgst_9", label: "CGST @9%", fieldtype: "Currency", read_only: false, hidden: false },
+        { fieldname: "sgst_9", label: "SGST @9%", fieldtype: "Currency", read_only: false, hidden: false },
+        { fieldname: "consultancy_fee_x", label: "Consultancy Fee X", fieldtype: "Currency", read_only: false, hidden: false },
+        { fieldname: "overhead_amount", label: "Overhead Amount", fieldtype: "Currency", read_only: false, hidden: false },
         { fieldname: "totals_section", label: "Totals", fieldtype: "Section Break" },
         { fieldname: "total_gst", label: "Total GST", fieldtype: "Currency", read_only: false, hidden: false },
-        { fieldname: "total_budget", label: "Total Budget", fieldtype: "Currency", read_only: true, hidden: false },
+        { fieldname: "total_budget", label: "Total Budget", fieldtype: "Currency", read_only: false, hidden: false },
     ],
     d_consultancy: [
         { fieldname: "primary_details", label: "Primary Details", fieldtype: "Section Break" },
@@ -145,27 +145,27 @@ const DEPOSIT_SLIP_STATIC_FIELDS: Record<string, any[]> = {
         { fieldname: "amount_inclusive_of_gst", label: "Amount Inclusive of GST", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false },
         { fieldname: "income_tax_tds", label: "IT TDS", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false },
         { fieldname: "gst_tds", label: "GST TDS", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false },
-        { fieldname: "amount_actually_received", label: "Amount Actually Received", fieldtype: "Currency", read_only: true, hidden: false, description: "Amount Inclusive of GST − IT TDS − GST TDS" },
+        { fieldname: "amount_actually_received", label: "Amount Actually Received", fieldtype: "Currency", read_only: false, hidden: false, description: "Amount Inclusive of GST − IT TDS − GST TDS" },
         { fieldname: "igst_18_on_consultancy", label: "IGST @18% on Consultancy Fee", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false },
         { fieldname: "amount_after_gst_tds", label: "Amount after GST TDS @ 2%", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false },
         { fieldname: "total_cost_x", label: "Total Cost X", fieldtype: "Currency", read_only: false, hidden: false, description: "Total Cost X (Balance after GST Deduction)" },
         { fieldname: "consultancy_charge_y", label: "Consultancy Charge (Y)", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false },
         { fieldname: "operational_charge_z", label: "Operational Charge (Z)", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false },
-        { fieldname: "overhead_from_y_amount", label: "Overhead from Y (10% * Y) Amount", fieldtype: "Currency", read_only: true, hidden: false },
-        { fieldname: "overhead_from_z_amount", label: "Overhead from Z (10% * Z) Amount", fieldtype: "Currency", read_only: true, hidden: false },
-        { fieldname: "total_overhead_amount", label: "Total Overhead ((10% * Y) + (10% * Z)) Amount", fieldtype: "Currency", read_only: true, hidden: false },
-        { fieldname: "institute_share_amount", label: "Institute Share (20% * Y) Amount", fieldtype: "Currency", read_only: true, hidden: false },
-        { fieldname: "total_overhead_institute_share", label: "Overhead + Institute Share", fieldtype: "Currency", read_only: true, hidden: false },
+        { fieldname: "overhead_from_y_amount", label: "Overhead from Y (10% * Y) Amount", fieldtype: "Currency", read_only: false, hidden: false },
+        { fieldname: "overhead_from_z_amount", label: "Overhead from Z (10% * Z) Amount", fieldtype: "Currency", read_only: false, hidden: false },
+        { fieldname: "total_overhead_amount", label: "Total Overhead ((10% * Y) + (10% * Z)) Amount", fieldtype: "Currency", read_only: false, hidden: false },
+        { fieldname: "institute_share_amount", label: "Institute Share (20% * Y) Amount", fieldtype: "Currency", read_only: false, hidden: false },
+        { fieldname: "total_overhead_institute_share", label: "Overhead + Institute Share", fieldtype: "Currency", read_only: false, hidden: false },
         { fieldname: "credit_distribution_section", label: "Credit Distribution", fieldtype: "Section Break" },
         { fieldname: "idf_amount", label: "IDF", fieldtype: "Currency", read_only: false, hidden: false, description: "(40% of Overhead + Institute Share)" },
         { fieldname: "dpf_amount", label: "DPF/CE", fieldtype: "Currency", read_only: false, hidden: false, description: "(50% of Overhead + Institute Share)" },
         { fieldname: "staff_welfare_amount", label: "Staff welfare Amount", fieldtype: "Currency", read_only: false, hidden: false, description: "(5% of Overhead + Institute Share)" },
         { fieldname: "student_welfare_amount", label: "Student welfare Amount", fieldtype: "Currency", read_only: false, hidden: false, description: "(5% of Overhead + Institute Share)" },
         { fieldname: "final_totals", label: "Final Totals", fieldtype: "Section Break" },
-        { fieldname: "balance_consultancy_fee", label: "Balance Consultancy Fee", fieldtype: "Currency", read_only: true, hidden: false },
-        { fieldname: "balance_operation_charge", label: "Balance Operation Charge", fieldtype: "Currency", read_only: true, hidden: false },
+        { fieldname: "balance_consultancy_fee", label: "Balance Consultancy Fee", fieldtype: "Currency", read_only: false, hidden: false },
+        { fieldname: "balance_operation_charge", label: "Balance Operation Charge", fieldtype: "Currency", read_only: false, hidden: false },
         { fieldname: "total_gst", label: "Total GST", fieldtype: "Currency", read_only: false, hidden: false },
-        { fieldname: "total_amount", label: "Total Amount", fieldtype: "Currency", read_only: true, hidden: false },
+        { fieldname: "total_amount", label: "Total Amount", fieldtype: "Currency", read_only: false, hidden: false },
     ],
 };
 
@@ -1204,7 +1204,7 @@ const FundReceivedDetails = () => {
                             fields: [
                                 { fieldname: "label", label: "Account", fieldtype: "Data", read_only: false },
                                 { fieldname: "percentage_of_overhead", label: "Percentage (%)", fieldtype: "Float", read_only: false },
-                                { fieldname: "amount", label: "Amount", fieldtype: "Currency", read_only: true },
+                                { fieldname: "amount", label: "Amount", fieldtype: "Currency", read_only: false },
                             ],
                         },
                     }));
@@ -1224,7 +1224,8 @@ const FundReceivedDetails = () => {
         if (resolvedFields.length > 0) {
             const processedFields = resolvedFields.map((field: any) => {
                 if (field.fieldtype === "Section Break" || field.fieldtype === "SectionBreak") return field;
-                return { ...field, mandatory: !!field.mandatory, hidden: !!field.hidden, read_only: !!field.read_only, ...(prefill_data && prefill_data[field.fieldname] !== undefined ? { default: prefill_data[field.fieldname] } : {}) };
+                const isValueField = field.fieldtype === "Currency" || field.fieldtype === "Float";
+                return { ...field, mandatory: !!field.mandatory, hidden: !!field.hidden, read_only: isValueField ? false : !!field.read_only, ...(prefill_data && prefill_data[field.fieldname] !== undefined ? { default: prefill_data[field.fieldname] } : {}) };
             });
             setFields(processedFields);
             const initialData: FormData = {};

@@ -1,17 +1,16 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
-import { AppSidebar } from "@/components/RndSidebar";
 import { CommitPayment } from "@/components/CommitPayment";
 import { useUserRoles } from "@/components/UserRole";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { resignationAPI } from "@/services/apiService";
-import { getActionButtonStyle } from "@/utils/workflowUtils";
+import { PageHeader } from "@/components/common/PageHeader";
+import ResignationActionButtons from "@/components/ResignationActionButtons";
 import {
   User as UserIcon, IdCard, Mail, Building2, Briefcase,
   FolderOpen, CalendarDays, FileText, AlertCircle, CheckCircle2,
-  ChevronLeft, Loader2, MessageSquare,
-  ArrowRightCircle, CheckCircle, XCircle,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
@@ -55,6 +54,73 @@ interface WorkflowActionsResponse {
   };
 }
 
+// ── Shared card/button primitives (mirrors TravelDetails / other application forms) ────
+
+const FrappeCard = ({
+  title,
+  icon,
+  hint,
+  children,
+  className = "",
+}: {
+  title?: string;
+  icon?: React.ReactNode;
+  hint?: string;
+  children: React.ReactNode;
+  className?: string;
+}) => (
+  <div
+    className={cn(
+      "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm",
+      className,
+    )}
+  >
+    {title && (
+      <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-2">
+        {icon && <div className="p-1.5 bg-[#4A6CF7]/10 rounded-lg">{icon}</div>}
+        <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+          {title}
+        </h3>
+        {hint && <span className="ml-auto text-[10px] text-[#A1A1AA] italic">{hint}</span>}
+      </div>
+    )}
+    <div className="p-6">{children}</div>
+  </div>
+);
+
+const FrappeButton = ({
+  children,
+  onClick,
+  disabled,
+  className,
+  variant = "ghost",
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  className?: string;
+  variant?: "primary" | "ghost" | "outline";
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    className={cn(
+      "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-150",
+      "focus:outline-none focus:ring-2 focus:ring-zinc-400 disabled:opacity-50 disabled:cursor-not-allowed",
+      variant === "primary" &&
+        "bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-md border border-[#C66A4E]",
+      variant === "ghost" &&
+        "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-700",
+      variant === "outline" &&
+        "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800",
+      className,
+    )}
+  >
+    {children}
+  </button>
+);
+
 // ── Workflow state definitions ────────────────────────────────────────────────
 // Order matches the typical resignation approval chain.
 const WORKFLOW_STAGES = [
@@ -88,21 +154,6 @@ const InfoRow = ({ icon, label, value }: { icon: React.ReactNode; label: string;
     </div>
   </div>
 );
-
-const stateBadgeClass = (state: string) => {
-  const s = state.toLowerCase();
-  if (s === "approved") return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
-  if (s === "rejected" || s === "cancelled") return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-  if (s === "draft") return "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400";
-  return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
-};
-
-const actionIcon = (action: string) => {
-  const a = action.toLowerCase();
-  if (a.includes("approve") || a.includes("submit")) return <CheckCircle className="h-4 w-4" />;
-  if (a.includes("reject") || a.includes("cancel")) return <XCircle className="h-4 w-4" />;
-  return <ArrowRightCircle className="h-4 w-4" />;
-};
 
 const getErrorText = (error: unknown, fallback = "") => {
   if (typeof error === "string") return error;
@@ -183,7 +234,6 @@ const ProjectStaffResignationForm: React.FC = () => {
   const [loadedResignation, setLoadedResignation] = useState<ResignationDoc | null>(null);
   const [availableActions, setAvailableActions] = useState<string[]>([]);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
-  const [workflowComment, setWorkflowComment] = useState("");
   const [isBusy, setIsBusy] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
   const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
@@ -234,10 +284,6 @@ const ProjectStaffResignationForm: React.FC = () => {
       return isMine && r.docstatus === 0 && (r.workflow_state === "Draft" || !r.workflow_state);
     });
   }, [listResp, basic, currentUser]);
-
-  useEffect(() => {
-    if (editDocName) return;
-  }, [editDocName]);
 
   useEffect(() => {
     if (!editDocName) return;
@@ -406,8 +452,6 @@ const ProjectStaffResignationForm: React.FC = () => {
 
       if (!succeeded) {
         showToast("error", "Action failed. Please try again.");
-      } else {
-        setWorkflowComment("");
       }
     } catch (e: unknown) {
       showToast("error", getErrorText(e, "Action failed."));
@@ -417,12 +461,7 @@ const ProjectStaffResignationForm: React.FC = () => {
     }
   };
 
-  const handleWorkflowAction = async (action: string) => {
-    const comment = workflowComment.trim();
-    if (!comment) {
-      showToast("error", "Please enter a comment before performing this action.");
-      return;
-    }
+  const handleWorkflowAction = async (action: string, comment: string) => {
     setPendingAction(action);
     await handleActionConfirm(comment, action);
   };
@@ -482,10 +521,10 @@ const ProjectStaffResignationForm: React.FC = () => {
   const canUserActOnCurrentState = Boolean(
     !isFromRegistry &&
     !isTerminal &&
-      ((workflowState === "Draft" && isEditable) ||
-        isPIActor ||
-        isStaffActor ||
-        isOtherActor)
+    ((workflowState === "Draft" && isEditable) ||
+      isPIActor ||
+      isStaffActor ||
+      isOtherActor)
   );
 
   const workflowActions = canUserActOnCurrentState
@@ -504,77 +543,55 @@ const ProjectStaffResignationForm: React.FC = () => {
   if (!editDocName && !isCreatingNew && !listLoading && userDrafts.length > 0) {
     return (
       <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
-        <AppSidebar />
         <main className="flex-1 p-4 md:p-8">
           <div className="w-full max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <button
-                  onClick={() => navigate("/project-staff-dashboard")}
-                  className="flex items-center gap-1.5 text-sm text-[#71717A] hover:text-[#3F3F46] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] mb-2 transition-colors"
-                >
-                  <ChevronLeft className="h-4 w-4" /> Back to Dashboard
-                </button>
-                <h1 className="text-2xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
-                  Project Staff Resignation — Draft Applications
-                </h1>
-                <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] mt-1">
-                  You have saved draft applications. Click <strong>Edit</strong> to open a draft, or create a new application.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsCreatingNew(true)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold text-white bg-[#4A6CF7] hover:bg-[#3b5cf6] transition-all shadow-sm"
-              >
+            <PageHeader
+              title="Resignation — Draft Applications"
+              status="Draft"
+            >
+              <FrappeButton variant="primary" onClick={() => setIsCreatingNew(true)}>
                 + Create New Application
-              </button>
-            </div>
+              </FrappeButton>
+            </PageHeader>
 
-            {/* Draft List Table */}
-            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden">
-              <div className="p-5 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-[#4A6CF7]/10 rounded-lg">
-                    <FileText className="h-4 w-4 text-[#4A6CF7]" />
-                  </div>
-                  <h2 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-sm uppercase tracking-wide">
-                    Saved Drafts ({userDrafts.length})
-                  </h2>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto">
+            <FrappeCard
+              title={`Saved Drafts (${userDrafts.length})`}
+              icon={<FileText className="h-4 w-4 text-[#4A6CF7]" />}
+              className="overflow-hidden"
+            >
+              <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] -mt-2 mb-4">
+                You have saved draft applications. Click <strong>Edit</strong> to open a draft, or create a new application.
+              </p>
+              <div className="overflow-x-auto -mx-6">
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-zinc-50 dark:bg-zinc-900/50 text-xs font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider border-b border-zinc-200 dark:border-zinc-700">
+                  <thead className="bg-zinc-50 dark:bg-zinc-900/50 text-xs font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider border-y border-zinc-200 dark:border-zinc-700">
                     <tr>
-                      <th className="px-5 py-3.5">Application ID</th>
-                      <th className="px-5 py-3.5">Project No</th>
-                      <th className="px-5 py-3.5">Resignation Date</th>
-                      <th className="px-5 py-3.5">Workflow State</th>
-                      <th className="px-5 py-3.5">Last Saved</th>
-                      <th className="px-5 py-3.5 text-right">Action</th>
+                      <th className="px-6 py-3.5">Application ID</th>
+                      <th className="px-6 py-3.5">Project No</th>
+                      <th className="px-6 py-3.5">Resignation Date</th>
+                      <th className="px-6 py-3.5">Workflow State</th>
+                      <th className="px-6 py-3.5">Last Saved</th>
+                      <th className="px-6 py-3.5 text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
                     {userDrafts.map((draft) => (
                       <tr key={draft.name} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-700/30 transition-colors">
-                        <td className="px-5 py-4 font-semibold text-[#27272A] dark:text-[#E4E4E7]">
+                        <td className="px-6 py-4 font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                           {draft.name}
                         </td>
-                        <td className="px-5 py-4 text-[#71717A] dark:text-[#A1A1AA]">
+                        <td className="px-6 py-4 text-[#71717A] dark:text-[#A1A1AA]">
                           {draft.applicant_prj_num || projectNo || "—"}
                         </td>
-                        <td className="px-5 py-4 text-[#71717A] dark:text-[#A1A1AA]">
+                        <td className="px-6 py-4 text-[#71717A] dark:text-[#A1A1AA]">
                           {draft.resignation_date || "—"}
                         </td>
-                        <td className="px-5 py-4">
+                        <td className="px-6 py-4">
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300">
                             Draft
                           </span>
                         </td>
-                        <td className="px-5 py-4 text-[#71717A] dark:text-[#A1A1AA] text-xs">
+                        <td className="px-6 py-4 text-[#71717A] dark:text-[#A1A1AA] text-xs">
                           {new Date((draft as any).modified || (draft as any).creation || Date.now()).toLocaleDateString("en-IN", {
                             day: "2-digit",
                             month: "short",
@@ -583,21 +600,21 @@ const ProjectStaffResignationForm: React.FC = () => {
                             minute: "2-digit",
                           })}
                         </td>
-                        <td className="px-5 py-4 text-right">
-                          <button
-                            type="button"
+                        <td className="px-6 py-4 text-right">
+                          <FrappeButton
+                            variant="primary"
+                            className="!px-4 !py-1.5 !text-xs"
                             onClick={() => navigate(`/project-staff-resignation?edit=${draft.name}`)}
-                            className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#4A6CF7] hover:bg-[#3b5cf6] transition-all shadow-sm"
                           >
                             Edit
-                          </button>
+                          </FrappeButton>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </div>
+            </FrappeCard>
           </div>
         </main>
       </div>
@@ -606,37 +623,39 @@ const ProjectStaffResignationForm: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
-      <AppSidebar />
       <main className="flex-1 p-4 md:p-8">
         <div className="w-full max-w-9xl mx-auto">
 
-          {/* Back + Header */}
-          <div className="mb-6">
-            <button
-              onClick={() => navigate("/project-staff-dashboard")}
-              className="flex items-center gap-1.5 text-sm text-[#71717A] hover:text-[#3F3F46] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] mb-3 transition-colors"
-            >
-              <ChevronLeft className="h-4 w-4" /> Back to Dashboard
-            </button>
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div>
-                <h1 className="text-2xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
-                  Resignation Form
-                </h1>
-                <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] mt-0.5">
-                  Project Staff Resignation Application
-                </p>
-              </div>
-              {workflowState && (
-                <span className={cn(
-                  "px-3 py-1 rounded-full text-xs font-semibold",
-                  stateBadgeClass(workflowState),
-                )}>
-                  {workflowState}
-                </span>
-              )}
-            </div>
-          </div>
+          <PageHeader
+            title="Resignation Form"
+            status={workflowState}
+            projectNumber={projectNo}
+          >
+            {(!isTerminal && !isFromRegistry) && (
+              <>
+                {isEditable && !isEditing && (
+                  <FrappeButton variant="outline" onClick={() => setIsEditing(true)} disabled={isBusy}>
+                    Edit
+                  </FrappeButton>
+                )}
+                {canEdit && (
+                  <FrappeButton variant="outline" onClick={handleSave} disabled={isBusy}>
+                    {isBusy && !pendingAction && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Save Draft
+                  </FrappeButton>
+                )}
+                {workflowActions.length > 0 && (
+                  <ResignationActionButtons
+                    actions={workflowActions}
+                    onAction={handleWorkflowAction}
+                    isBusy={isBusy}
+                    commitRequired={commitRequired}
+                    commitBlockedMessage="A commitment must be submitted before forwarding this application."
+                  />
+                )}
+              </>
+            )}
+          </PageHeader>
 
           {/* Toast */}
           {toast && (
@@ -658,7 +677,7 @@ const ProjectStaffResignationForm: React.FC = () => {
               <Loader2 className="h-6 w-6 animate-spin text-[#4A6CF7]" />
             </div>
           ) : !hasFormData ? (
-            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-8 text-center">
+            <FrappeCard className="p-8 text-center">
               <AlertCircle className="h-8 w-8 mx-auto mb-2 text-amber-400" />
               <p className="text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
                 {isEditMode
@@ -668,32 +687,24 @@ const ProjectStaffResignationForm: React.FC = () => {
               <p className="text-xs text-[#71717A] dark:text-[#A1A1AA] mt-1">
                 Contact your administrator if this is incorrect.
               </p>
-            </div>
+            </FrappeCard>
           ) : (
             <div className={cn(showCommitSection ? "grid grid-cols-1 lg:grid-cols-4 gap-6" : "space-y-5")}>
               <div className={cn("space-y-5", showCommitSection && "lg:col-span-3")}>
 
                 {/* Workflow Timeline */}
                 {docName && (
-                  <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-5">
-                    <h2 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-sm uppercase tracking-wide mb-4">
-                      Approval Status
-                    </h2>
+                  <FrappeCard title="Approval Status">
                     <WorkflowTimeline currentState={workflowState} />
-                  </div>
+                  </FrappeCard>
                 )}
 
                 {/* Applicant Details — read-only, prefilled */}
-                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-5">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="p-1.5 bg-[#4A6CF7]/10 rounded-lg">
-                      <UserIcon className="h-4 w-4 text-[#4A6CF7]" />
-                    </div>
-                    <h2 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-sm uppercase tracking-wide">
-                      Applicant Details
-                    </h2>
-                    <span className="ml-auto text-[10px] text-[#A1A1AA] italic">Auto-filled from your profile</span>
-                  </div>
+                <FrappeCard
+                  title="Applicant Details"
+                  icon={<UserIcon className="h-4 w-4 text-[#4A6CF7]" />}
+                  hint="Auto-filled from your profile"
+                >
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <InfoRow icon={<UserIcon className="h-4 w-4" />} label="Full Name" value={fullName} />
                     <InfoRow icon={<Mail className="h-4 w-4" />} label="ERP Email" value={applicantEmail} />
@@ -706,19 +717,13 @@ const ProjectStaffResignationForm: React.FC = () => {
                       value={applicantDepartment}
                     />
                   </div>
-                </div>
+                </FrappeCard>
 
                 {/* Resignation Details — editable in Draft only */}
-                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-5">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="p-1.5 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                      <FileText className="h-4 w-4 text-red-500 dark:text-red-400" />
-                    </div>
-                    <h2 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-sm uppercase tracking-wide">
-                      Resignation Details
-                    </h2>
-                  </div>
-
+                <FrappeCard
+                  title="Resignation Details"
+                  icon={<FileText className="h-4 w-4 text-red-500 dark:text-red-400" />}
+                >
                   <div className="space-y-5">
                     <div>
                       <label className="flex items-center gap-1.5 text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
@@ -778,7 +783,7 @@ const ProjectStaffResignationForm: React.FC = () => {
                       )}
                     </div>
                   </div>
-                </div>
+                </FrappeCard>
 
                 {/* Terminal state notice */}
                 {isTerminal && (
@@ -794,143 +799,6 @@ const ProjectStaffResignationForm: React.FC = () => {
                     {workflowState === "Approved"
                       ? "Your resignation has been approved."
                       : `Your resignation has been ${workflowState.toLowerCase()}. No further actions are available.`}
-                  </div>
-                )}
-
-                {/* Action Row — Save Draft (editable only) + Workflow actions */}
-                {(!isTerminal && !isFromRegistry) && (
-                  <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-5">
-                    <h2 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-sm uppercase tracking-wide mb-4">
-                      Actions
-                    </h2>
-                    <div className="flex flex-wrap items-center gap-3">
-                      {/* Edit — switch from read-only to edit mode while in Draft */}
-                      {isEditable && !isEditing && (
-                        <button
-                          type="button"
-                          onClick={() => setIsEditing(true)}
-                          disabled={isBusy}
-                          className={cn(
-                            "inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all",
-                            "bg-[#4A6CF7] text-white hover:bg-[#3b5cf6] shadow-sm",
-                            "disabled:opacity-50 disabled:cursor-not-allowed",
-                          )}
-                        >
-                          Edit
-                        </button>
-                      )}
-
-                      {/* Save Draft — only while actively editing */}
-                      {canEdit && (
-                        <button
-                          type="button"
-                          onClick={handleSave}
-                          disabled={isBusy}
-                          className={cn(
-                            "inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all",
-                            "bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600",
-                            "text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-600",
-                            "disabled:opacity-50 disabled:cursor-not-allowed",
-                          )}
-                        >
-                          {isBusy && !pendingAction && <Loader2 className="h-4 w-4 animate-spin" />}
-                          Save Draft
-                        </button>
-                      )}
-
-                      {workflowActions.length > 0 && (
-                        <div className="basis-full">
-                          <label className="flex items-center gap-1.5 text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
-                            <MessageSquare className="h-4 w-4 text-[#A1A1AA]" />
-                            Workflow Comment
-                            <span className="text-red-500 ml-0.5">*</span>
-                          </label>
-                          <textarea
-                            value={workflowComment}
-                            onChange={(e) => setWorkflowComment(e.target.value)}
-                            disabled={isBusy}
-                            rows={3}
-                            placeholder="Add a comment for the workflow audit trail..."
-                            maxLength={FIELD_CHAR_LIMITS.Text}
-                            className={cn(
-                              "w-full px-3 py-2 text-sm rounded-lg border transition-colors resize-none",
-                              "bg-white dark:bg-zinc-900 text-[#27272A] dark:text-[#E4E4E7]",
-                              "border-zinc-200 dark:border-zinc-700 placeholder:text-[#A1A1AA]",
-                              "focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]",
-                              "disabled:opacity-60 disabled:cursor-not-allowed",
-                            )}
-                          />
-                          <CharLimitAlert value={workflowComment} maxLength={FIELD_CHAR_LIMITS.Text} className="mt-1" />
-                        </div>
-                      )}
-
-                      {/* Workflow action buttons — every actor must provide a comment */}
-                      {workflowActions.map((action) => (
-                        <button
-                          key={action}
-                          type="button"
-                          onClick={() => handleWorkflowAction(action)}
-                          disabled={isBusy || commitRequired || !workflowComment.trim()}
-                          title={
-                            commitRequired
-                              ? "Submit a commitment first"
-                              : !workflowComment.trim()
-                                ? "Enter a workflow comment first"
-                                : undefined
-                          }
-                          className={cn(
-                            "inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all shadow-sm",
-                            getActionButtonStyle(action),
-                            "disabled:opacity-50 disabled:cursor-not-allowed",
-                          )}
-                        >
-                          {actionIcon(action)}
-                          {action}
-                        </button>
-                      ))}
-
-                      {/*
-                        Fallback Submit — shown when the doc is saved in Draft state but
-                        the workflow endpoint hasn't returned a "Submit"-like action yet
-                        (e.g. bench not yet restarted, or workflow not configured).
-                      */}
-                      {docName && isEditable && !availableActions.some(
-                        (a) => a.toLowerCase().includes("submit") || a.toLowerCase().includes("forward"),
-                      ) && (
-                          <button
-                            type="button"
-                            onClick={() => setPendingAction("Submit")}
-                            disabled={isBusy}
-                            className={cn(
-                              "inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all shadow-sm",
-                              "bg-[#4A6CF7] hover:bg-[#3b5cf6] text-white",
-                              "disabled:opacity-50 disabled:cursor-not-allowed",
-                            )}
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                            Submit
-                          </button>
-                        )}
-
-                      {workflowActions.length === 0 && !isEditable && (
-                        <p className="text-sm text-[#71717A] dark:text-[#A1A1AA]">
-                          No actions available for your role in this state.
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Helper note */}
-                    {commitRequired && (
-                      <p className="mt-3 text-[11px] font-medium text-amber-700 dark:text-amber-300">
-                        A commitment must be submitted before forwarding this application.
-                      </p>
-                    )}
-                    {workflowActions.length > 0 && (
-                      <p className="mt-3 text-[11px] text-[#A1A1AA] flex items-center gap-1.5">
-                        <MessageSquare className="h-3 w-3" />
-                        A comment is required for every workflow action to maintain an audit trail.
-                      </p>
-                    )}
                   </div>
                 )}
               </div>

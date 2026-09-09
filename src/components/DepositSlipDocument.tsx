@@ -27,6 +27,23 @@ interface DepositSlipDocumentProps {
     onFieldChange?: (field: string, value: string) => void;
 }
 
+// Keeps free-form typing (partial "-", trailing ".") while capping to 2 decimal places.
+const sanitizeDecimalInput = (raw: string): string => {
+    let v = raw.replace(/[^0-9.-]/g, '');
+    const negative = v.startsWith('-');
+    v = v.replace(/-/g, '');
+    if (negative) v = '-' + v;
+    const firstDot = v.indexOf('.');
+    if (firstDot !== -1) {
+        v = v.slice(0, firstDot + 1) + v.slice(firstDot + 1).replace(/\./g, '');
+    }
+    const dotIdx = v.indexOf('.');
+    if (dotIdx !== -1 && v.length - dotIdx - 1 > 2) {
+        v = v.slice(0, dotIdx + 3);
+    }
+    return v;
+};
+
 // Inline editable cell — falls back to plain text when not in edit mode
 const EditableCell: React.FC<{
     value: any;
@@ -39,10 +56,10 @@ const EditableCell: React.FC<{
     if (!editable) return <>{(value === undefined || value === null || value === '') ? '-' : value}</>;
     return (
         <input
-            type={numeric ? 'number' : 'text'}
-            step={numeric ? '0.01' : undefined}
+            type="text"
+            inputMode={numeric ? 'decimal' : undefined}
             value={value ?? ''}
-            onChange={(e) => onChange?.(field, e.target.value)}
+            onChange={(e) => onChange?.(field, numeric ? sanitizeDecimalInput(e.target.value) : e.target.value)}
             // A focused <input type="number"> lets the mouse/trackpad scroll wheel silently
             // increment/decrement its value in Chrome/Firefox — blur on wheel so scrolling the
             // page never mutates the field.
@@ -254,7 +271,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
 
     // Render credit distribution items with letters
     const renderCreditItems = () => {
-        const items: { label: string; amount: number; whole?: boolean }[] = [];
+        const items: { label: string; amount: number; whole?: boolean; editableField?: string }[] = [];
 
         // IDF
         if (dc) {
@@ -311,10 +328,22 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                 const displayLabel = recipient && recipient !== label && !isDateString
                     ? `${label} / ${recipient} (${pct}% of Overhead Amount)`
                     : `${label} (${pct}% of Overhead Amount)`;
-                // For E Non Routine, keep each row's amount in sync with the live-recomputed
-                // overhead (see computeENonRoutine) instead of the possibly-stale stored value.
-                const amount = enr ? enr.overheadAmount * (pct / 100) : parseFloat(item.amount) || 0;
-                items.push({ label: displayLabel, amount });
+                // Read-only view: always show the live overhead-based formula, ignoring a
+                // possibly-stale stored amount (see computeENonRoutine). Edit mode: show the
+                // row's current amount (stored, or the user's own in-progress edit merged in by
+                // HoSApprovalView) so a direct edit to this cell is never overwritten by the
+                // formula while typing; only fall back to the formula if the row has no amount.
+                const liveAmount = enr ? enr.overheadAmount * (pct / 100) : 0;
+                const amount = enr
+                    ? (editable
+                        ? (item.amount !== undefined && item.amount !== null && item.amount !== '' ? flt(item.amount) : liveAmount)
+                        : liveAmount)
+                    : (parseFloat(item.amount) || 0);
+                items.push({
+                    label: displayLabel,
+                    amount,
+                    editableField: enr && item.name ? `credit_distribution.${item.name}.amount` : undefined,
+                });
             });
         }
 
@@ -383,7 +412,11 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
             <tr key={idx}>
                 <td className="border border-black p-1 text-center">({String.fromCharCode(97 + idx)})</td>
                 <td className="border border-black p-1">{item.label}</td>
-                <td colSpan={2} className="border border-black p-1 text-right">{item.whole ? formatCurrencyWhole(item.amount) : formatCurrency(item.amount)}</td>
+                <td colSpan={2} className="border border-black p-1 text-right">
+                    {editable && item.editableField
+                        ? <EditableCell value={item.amount} field={item.editableField} editable onChange={onFieldChange} numeric align="right" />
+                        : (item.whole ? formatCurrencyWhole(item.amount) : formatCurrency(item.amount))}
+                </td>
             </tr>
         ));
     };
@@ -594,7 +627,9 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
                                 <td className="border border-black p-1">Amount Actually Received In Bank A/C</td>
                                 <td colSpan={2} className="border border-black p-1 text-right">
-                                    {formatCurrency(enr!.amountActuallyReceived)}
+                                    {editable
+                                        ? <EditableCell value={depositSlip.amount_actually_received ?? enr!.amountActuallyReceived} field="amount_actually_received" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrency(enr!.amountActuallyReceived)}
                                 </td>
                             </tr>
                             <tr>
@@ -670,10 +705,9 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                             </td>
                             <td colSpan={2} className="border border-black p-1 text-right">
                                 {type === 'consultancy_e'
-                                    // Derived from Amount Inclusive of GST, TDS and CGST/SGST/IGST above —
-                                    // always computed live rather than edited directly, so it can't drift
-                                    // out of sync with those inputs (see computeENonRoutine).
-                                    ? formatCurrency(enr!.consultancyFeeX)
+                                    ? (editable
+                                        ? <EditableCell value={depositSlip.consultancy_fee_x ?? enr!.consultancyFeeX} field="consultancy_fee_x" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrency(enr!.consultancyFeeX))
                                     : editable
                                         ? <EditableCell
                                             value={depositSlip.consultancy_fee_x ?? depositSlip.balance_after_gst}
@@ -798,7 +832,9 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                             </td>
                             <td colSpan={2} className="border border-black p-1 text-right">
                                 {type === 'consultancy_e'
-                                    ? formatCurrency(enr!.overheadAmount)
+                                    ? (editable
+                                        ? <EditableCell value={depositSlip.overhead_amount ?? enr!.overheadAmount} field="overhead_amount" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrency(enr!.overheadAmount))
                                     : editable
                                         ? <EditableCell value={depositSlip.overhead_amount} field="overhead_amount" editable onChange={onFieldChange} numeric align="right" />
                                         : formatCurrency(depositSlip.overhead_amount)}
@@ -826,7 +862,11 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                         <tr>
                             <td className="border border-black p-1 text-center">{getRowNum()}</td>
                             <td className="border border-black p-1 font-bold">Balance In Project</td>
-                            <td colSpan={2} className="border border-black p-1 text-right font-bold">{formatCurrency(enr!.balanceInProject)}</td>
+                            <td colSpan={2} className="border border-black p-1 text-right font-bold">
+                                {editable
+                                    ? <EditableCell value={depositSlip.balance_in_project ?? enr!.balanceInProject} field="balance_in_project" editable onChange={onFieldChange} numeric align="right" />
+                                    : formatCurrency(enr!.balanceInProject)}
+                            </td>
                         </tr>
                     )}
 
@@ -869,12 +909,26 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                             <th colSpan={2} className="border border-black p-1 text-center bg-zinc-100 dark:bg-zinc-800 font-bold">Total</th>
                             <th colSpan={2} className="border border-black p-1 text-right bg-zinc-100 dark:bg-zinc-800 font-bold">
                                 {enr
-                                    ? formatCurrency(
-                                        (depositSlip.credit_distribution || []).reduce(
-                                            (s: number, r: any) => s + enr.overheadAmount * ((r.percentage_of_overhead || r.percentage || 0) / 100),
-                                            0,
-                                        ) + enr.gstComponent + enr.balanceInProject,
-                                    )
+                                    ? (editable
+                                        ? <EditableCell
+                                            value={depositSlip.total_budget ?? (
+                                                (depositSlip.credit_distribution || []).reduce(
+                                                    (s: number, r: any) => s + enr.overheadAmount * ((r.percentage_of_overhead || r.percentage || 0) / 100),
+                                                    0,
+                                                ) + enr.gstComponent + enr.balanceInProject
+                                            )}
+                                            field="total_budget"
+                                            editable
+                                            onChange={onFieldChange}
+                                            numeric
+                                            align="right"
+                                        />
+                                        : formatCurrency(
+                                            (depositSlip.credit_distribution || []).reduce(
+                                                (s: number, r: any) => s + enr.overheadAmount * ((r.percentage_of_overhead || r.percentage || 0) / 100),
+                                                0,
+                                            ) + enr.gstComponent + enr.balanceInProject,
+                                        ))
                                     : formatCurrency(
                                         depositSlip.total_budget ||
                                         depositSlip.grand_total ||
