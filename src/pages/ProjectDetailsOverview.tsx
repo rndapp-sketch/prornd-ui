@@ -4532,7 +4532,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                         </p>
                                                     </div>
                                                     <a
-                                                        href={`http://${import.meta.env.VITE_MINIO_HOST || "172.16.135.118"}:${import.meta.env.VITE_MINIO_PORT || "9000"}/prod-rnd-files/Project_Registration/${projectName}/attachments/${data.upload_proj_prop.split("/").pop()}`}
+                                                        href={`http://${import.meta.env.VITE_MINIO_HOST || "172.16.134.179"}:${import.meta.env.VITE_MINIO_PORT || "9000"}/prod-rnd-files/Project_Registration/${projectName}/attachments/${data.upload_proj_prop.split("/").pop()}`}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         className="text-sm font-medium text-[#D97757] hover:underline flex items-center gap-1"
@@ -4589,7 +4589,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                 filePath;
                                                                             const fileUrl =
                                                                                 filePath
-                                                                                    ? `http://${import.meta.env.VITE_MINIO_HOST || "172.16.135.118"}:${import.meta.env.VITE_MINIO_PORT || "9000"}/prod-rnd-files/Project_Registration/${projectName}/attachments/${filePath.split("/").pop()}`
+                                                                                    ? `http://${import.meta.env.VITE_MINIO_HOST || "172.16.134.179"}:${import.meta.env.VITE_MINIO_PORT || "9000"}/prod-rnd-files/Project_Registration/${projectName}/attachments/${filePath.split("/").pop()}`
                                                                                     : null;
                                                                             return (
                                                                                 <tr

@@ -28,7 +28,7 @@ import { generateSanctionSheetHtml } from '@/utils/sanctionSheetPrint';
 import { DOCTYPE_PR_LINKS } from '@/utils/projectTypeMapping';
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
-const MINIO_HOST = import.meta.env.VITE_MINIO_HOST || '172.16.135.118';
+const MINIO_HOST = import.meta.env.VITE_MINIO_HOST || '172.16.134.179';
 const MINIO_ALT_PORT = import.meta.env.VITE_MINIO_ALT_PORT || '8081';
 const isFilePath = (value: string) => {
     if (typeof value !== 'string') return false;
