@@ -349,7 +349,7 @@ const MemoizedGenericTable = memo(
                         value={row[col.key] || ""}
                         onChange={(val) => onRowChange(tableName, i, col.key, val)}
                         options={col.options || []}
-                        placeholder="Search by name or email..."
+                        placeholder={col.placeholder || "Search by name or email..."}
                         searchByLabel
                         showAllOnFocus
                         combineLabelValue={!!col.combineEmailInValue}

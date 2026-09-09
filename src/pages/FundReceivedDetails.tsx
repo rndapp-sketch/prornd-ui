@@ -1333,6 +1333,20 @@ const FundReceivedDetails = () => {
             }
         }
 
+        // Step 4b: dedicated searchable options for the "Project Number" child-table column —
+        // label carries both title and project_no in brackets so users can search by either.
+        try {
+            const prjListResp = await fetch("/api/method/frappe.client.get_list", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: "Project Registration", fields: ["name", "project_title", "project_no"], limit_page_length: 0 }) });
+            const prjListJson = await prjListResp.json();
+            if (prjListJson.message) {
+                const prjOpts = prjListJson.message.map((d: any) => {
+                    const title = d.project_title || d.name;
+                    return { label: d.project_no ? `${title} (${d.project_no})` : title, value: d.name };
+                });
+                setLinkOptions(prev => ({ ...prev, project_number: prjOpts }));
+            }
+        } catch {}
+
         setDepositFormLoading(false);
     };
 
@@ -1799,12 +1813,13 @@ const FundReceivedDetails = () => {
                                                     let tableConfig: any = null;
                                                     if (meta?.fields) {
                                                         const columns = meta.fields.filter((f: any) => !["Section Break","Column Break","SectionBreak","ColumnBreak"].includes(f.fieldtype)).map((f: any) => {
-                                                            let opts: any[] = [], type = f.fieldtype, combineEmailInValue = false;
+                                                            let opts: any[] = [], type = f.fieldtype, combineEmailInValue = false, placeholder: string | undefined;
                                                             if (f.fieldname === "select_copi_id") { opts = linkOptions["select_copi_id"] || linkOptions["principal_investigator"] || linkOptions["User"] || []; type = "UserAutocomplete"; }
                                                             if (f.fieldname === "label" && meta.doctype === "Deposit Slip Credit Distribution") { opts = linkOptions["label"] || linkOptions["User"] || []; type = "UserAutocomplete"; combineEmailInValue = true; }
                                                             if (["account_head","budget_head","head"].includes(f.fieldname)) { opts = linkOptions["Budget Head"] || linkOptions["budget_head"] || []; if (opts.length > 0) type = "Link"; }
+                                                            if (["project_number","project_no","project","project_title"].includes(f.fieldname)) { opts = linkOptions["project_number"] || linkOptions["project_title"] || linkOptions["Project Registration"] || []; if (opts.length > 0) { type = "UserAutocomplete"; placeholder = "Search by project title or number..."; } }
                                                             if (opts.length === 0) { if (f.fieldtype === "Select" && typeof f.options === "string") opts = f.options.split("\n").filter((o: string) => o.trim()).map((o: string) => ({ label: o, value: o })); else if (f.options) opts = linkOptions[f.fieldname] || linkOptions[f.options] || []; }
-                                                            return { key: f.fieldname, label: f.label || f.fieldname, type, options: opts, combineEmailInValue };
+                                                            return { key: f.fieldname, label: f.label || f.fieldname, type, options: opts, combineEmailInValue, placeholder };
                                                         });
                                                         const newRowTemplate: Record<string, any> = { doctype: meta.doctype, name: `new-${Date.now()}` };
                                                         meta.fields.forEach((f: any) => {
