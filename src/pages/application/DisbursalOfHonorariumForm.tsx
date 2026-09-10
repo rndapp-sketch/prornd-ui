@@ -730,8 +730,8 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                 }
                 docName={formData.name || id || ""}
                 attachments={[
-                    ...(formData.attached_approvals ? [{ label: "Merged Approvals", url: getFileUrl(formData.attached_approvals) }] : []),
-                    ...(formData.additional_documents ? [{ label: "Additional Documents", url: getFileUrl(formData.additional_documents) }] : [])
+                    ...(typeof formData.attached_approvals === "string" && formData.attached_approvals ? [{ label: "Merged Approvals", url: getFileUrl(formData.attached_approvals) }] : []),
+                    ...(typeof formData.additional_documents === "string" && formData.additional_documents ? [{ label: "Additional Documents", url: getFileUrl(formData.additional_documents) }] : [])
                 ]}
             />
             <ErrorModal

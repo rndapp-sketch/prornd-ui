@@ -728,8 +728,8 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                 }
                 docName={formData.name || id || ""}
                 attachments={[
-                    ...(formData.please_attach_a_copy_of_completion_report ? [{ label: "Completion Report", url: getFileUrl(formData.please_attach_a_copy_of_completion_report) }] : []),
-                    ...(formData.disbursal_additional_documents ? [{ label: "Additional Documents", url: getFileUrl(formData.disbursal_additional_documents) }] : [])
+                    ...(typeof formData.please_attach_a_copy_of_completion_report === "string" && formData.please_attach_a_copy_of_completion_report ? [{ label: "Completion Report", url: getFileUrl(formData.please_attach_a_copy_of_completion_report) }] : []),
+                    ...(typeof formData.disbursal_additional_documents === "string" && formData.disbursal_additional_documents ? [{ label: "Additional Documents", url: getFileUrl(formData.disbursal_additional_documents) }] : [])
                 ]}
             />
 

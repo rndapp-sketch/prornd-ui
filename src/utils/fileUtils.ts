@@ -28,7 +28,7 @@ const MINIO_PATH_PREFIXES = [
 ];
 
 export function getFileUrl(path: string | null | undefined): string {
-    if (!path) return "";
+    if (!path || typeof path !== "string") return "";
 
     // Port-8081 URL that already contains the bucket — serve as-is
     if (path.startsWith(`${MINIO_HOST_8081}${MINIO_BUCKET}/`)) {
