@@ -284,13 +284,14 @@ const D_CONSULTANCY_FIELDS = [
     { fieldname: "section_break_mqkq", label: "GST and Fee Calculations", fieldtype: "Section Break" },
     { fieldname: "amount_inclusive_of_gst", label: "Amount Inclusive of GST", fieldtype: "Currency", mandatory: 1, read_only: 0, hidden: 0, description: "Enter the total amount inclusive of 18% GST" },
     { fieldname: "income_tax_tds", label: "IT TDS", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0, description: "Actual Income Tax TDS deducted by the client" },
-    { fieldname: "gst_tds", label: "GST TDS", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0, description: "Actual GST TDS deducted by the client" },
-    { fieldname: "amount_actually_received", label: "Amount Actually Received", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Amount Inclusive of GST − IT TDS − GST TDS" },
+    { fieldname: "gst_tds__2", label: "GST TDS", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0, description: "Actual GST TDS deducted by the client" },
+    { fieldname: "other_deductions", label: "Other Deductions", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0, description: "Any other amount deducted by the client before remittance" },
+    { fieldname: "amount_actually_received", label: "Amount Actually Received", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Amount Inclusive of GST − IT TDS − GST TDS − Other Deductions" },
     { fieldname: "igst_18_on_consultancy", label: "IGST @18% on Consultancy Fee", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Taxable Amount × 0.18 (where Taxable Amount = Amount ÷ 1.18)" },
     { fieldname: "amount_after_gst_tds", label: "Amount after GST TDS @ 2%", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Amount Inclusive - TDS Amount (2% of Taxable Amount, rounded)" },
     { fieldname: "total_cost_x", label: "Total Cost X", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Amount after TDS - IGST (Balance after GST deduction from amount received)" },
-    { fieldname: "consultancy_charge_y", label: "Consultancy Charge (Y)", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0, description: "Auto-filled as 30% of Total Cost X. Can be manually adjusted; Z will recalculate as X - Y" },
-    { fieldname: "operational_charge_z", label: "Operational Charge (Z)", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0, description: "Calculated as: Total Cost X - Consultancy Charge (Y)" },
+    { fieldname: "consultancy_charge_y", label: "Consultancy Charge (Y)", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0, description: "Auto-filled as 30% of Total Cost X. Can be manually adjusted independently of Z." },
+    { fieldname: "operational_charge_z", label: "Operational Charge (Z)", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0, description: "Auto-filled as 70% of Total Cost X (X - Y). Can be manually adjusted independently of Y." },
     { fieldname: "overhead_from_y_amount", label: "Overhead from Y (10% * Y)", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Consultancy Charge (Y) × 0.10" },
     { fieldname: "overhead_from_z_amount", label: "Overhead from Z (10% * Z)", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Operational Charge (Z) × 0.10" },
     { fieldname: "total_overhead_amount", label: "Total Overhead", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Overhead from Y + Overhead from Z" },
@@ -395,42 +396,53 @@ const DepositSlipForm: React.FC = () => {
     // Run auto-calculations based on deposit slip type
     useDepositSlipCalculations(formValues, setFormValues, selectedType);
 
-    // Handle manual edits to Consultancy Charge (Y) - recalculate Z and downstream
+    // Recalculate overhead / institute-share whenever Consultancy Charge (Y)
+    // or Operational Charge (Z) are edited — independently or together.
+    // Each contributes its own overhead (10%) regardless of the other; only
+    // Y contributes Institute Share (20%). Previously this only reacted to Y
+    // changes (and re-derived Z as X - Y), so editing Z alone never updated
+    // overhead_from_z_amount/total_overhead_amount, and editing both in the
+    // same tick raced against the initial X-based auto-split, leaving the
+    // totals stuck at stale/zero values.
     useEffect(() => {
-        if (selectedType === "d_consultancy") {
-            const totalCostX = parseNumericValue(formValues.total_cost_x || 0);
-            const chargeY = parseNumericValue(formValues.consultancy_charge_y || 0);
+        if (selectedType !== "d_consultancy") return;
 
-            // If Y was manually edited (and differs from default 30% of X)
-            if (chargeY > 0 && Math.abs(chargeY - totalCostX * 0.30) > 0.01) {
-                // User manually changed Y, so recalculate Z and downstream
-                const chargeZ = roundToTwo(totalCostX - chargeY);
+        const chargeY = parseNumericValue(formValues.consultancy_charge_y || 0);
+        const chargeZ = parseNumericValue(formValues.operational_charge_z || 0);
 
-                // Recalculate overheads and distributions with the new Z
-                const ohY = roundToTwo(chargeY * 0.10);
-                const ohZ = roundToTwo(chargeZ * 0.10);
-                const totalOh = roundToTwo(ohY + ohZ);
-                const instShare = roundToTwo(chargeY * 0.20);
-                const totalOhShare = roundToTwo(totalOh + instShare);
+        const ohY = roundToTwo(chargeY * 0.10);
+        const ohZ = roundToTwo(chargeZ * 0.10);
+        const totalOh = roundToTwo(ohY + ohZ);
+        const instShare = roundToTwo(chargeY * 0.20);
+        const totalOhShare = roundToTwo(totalOh + instShare);
 
-                setFormValues((prev) => ({
-                    ...prev,
-                    operational_charge_z: chargeZ,
-                    overhead_from_y_amount: ohY,
-                    overhead_from_z_amount: ohZ,
-                    total_overhead_amount: totalOh,
-                    institute_share_amount: instShare,
-                    total_overhead_institute_share: totalOhShare,
-                    idf_amount: roundToTwo(totalOhShare * 0.40),
-                    dpf_amount: roundToTwo(totalOhShare * 0.50),
-                    staff_welfare_amount: roundToTwo(totalOhShare * 0.05),
-                    student_welfare_amount: roundToTwo(totalOhShare * 0.05),
-                    balance_consultancy_fee: roundToTwo(chargeY - ohY - instShare),
-                    balance_operation_charge: roundToTwo(chargeZ - ohZ),
-                }));
+        setFormValues((prev) => {
+            if (
+                parseNumericValue(prev.overhead_from_y_amount || 0) === ohY &&
+                parseNumericValue(prev.overhead_from_z_amount || 0) === ohZ &&
+                parseNumericValue(prev.total_overhead_amount || 0) === totalOh &&
+                parseNumericValue(prev.institute_share_amount || 0) === instShare &&
+                parseNumericValue(prev.total_overhead_institute_share || 0) === totalOhShare
+            ) {
+                return prev;
             }
-        }
-    }, [formValues.consultancy_charge_y, formValues.total_cost_x, selectedType]);
+
+            return {
+                ...prev,
+                overhead_from_y_amount: ohY,
+                overhead_from_z_amount: ohZ,
+                total_overhead_amount: totalOh,
+                institute_share_amount: instShare,
+                total_overhead_institute_share: totalOhShare,
+                idf_amount: roundToTwo(totalOhShare * 0.40),
+                dpf_amount: roundToTwo(totalOhShare * 0.50),
+                staff_welfare_amount: roundToTwo(totalOhShare * 0.05),
+                student_welfare_amount: roundToTwo(totalOhShare * 0.05),
+                balance_consultancy_fee: roundToTwo(chargeY - ohY - instShare),
+                balance_operation_charge: roundToTwo(chargeZ - ohZ),
+            };
+        });
+    }, [formValues.consultancy_charge_y, formValues.operational_charge_z, selectedType]);
 
     // Sync DPF row amounts based on user-entered dpf_percentage
     // Formula: dpf_amount = total_overhead_institute_share × (dpf_percentage / 100)

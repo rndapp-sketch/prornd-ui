@@ -166,21 +166,43 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
 
     const { isRndStaff } = useUserRoleChecks();
 
-    // Edit mode for the deposit slip print format
+    // Edit mode for the deposit slip print format — normal edit still auto-calculates derived
+    // fields from the driver inputs (Y, Z, GST, etc.), same as before. Force edit disables all
+    // auto-calculation: every field (including totals) becomes independently editable and is
+    // saved exactly as typed, with no formula recompute overriding it.
     const [isEditingSlip, setIsEditingSlip] = useState(false);
+    const [isForceEditingSlip, setIsForceEditingSlip] = useState(false);
     const [editedFields, setEditedFields] = useState<Record<string, string>>({});
     // Manual overrides for individual credit_distribution row amounts, keyed by the row's own
     // doc name — DepositSlipDocument encodes these as "credit_distribution.<name>.amount" since
     // they target one child-table row rather than a flat field on the parent doc.
     const [editedCreditRows, setEditedCreditRows] = useState<Record<string, string>>({});
+    // Manual overrides for individual D Consultancy DPF row amounts, keyed by the row's own
+    // doc name — mirrors editedCreditRows above but for dpf_credit_distributions.
+    const [editedDpfRows, setEditedDpfRows] = useState<Record<string, string>>({});
+    // Force-edit-only: manual overrides for pdf_credit_distribution / additional_project_credits
+    // rows (Research / D Consultancy PDF split, Other Event project credits).
+    const [editedPdfRows, setEditedPdfRows] = useState<Record<string, string>>({});
+    const [editedAdditionalCreditRows, setEditedAdditionalCreditRows] = useState<Record<string, string>>({});
     const [saveError, setSaveError] = useState<string | null>(null);
     const [savingSlip, setSavingSlip] = useState(false);
 
+    // Child-table cells are encoded by DepositSlipDocument as "<fieldname>.<row name>.<column>"
+    // since they target one row of a child table rather than a flat field on the parent doc.
+    const CHILD_ROW_PATTERNS: { regex: RegExp; setter: React.Dispatch<React.SetStateAction<Record<string, string>>> }[] = [
+        { regex: /^credit_distribution\.(.+)\.amount$/, setter: setEditedCreditRows },
+        { regex: /^dpf_credit_distributions\.(.+)\.dpf_amount$/, setter: setEditedDpfRows },
+        { regex: /^pdf_credit_distribution\.(.+)\.pdf_amount$/, setter: setEditedPdfRows },
+        { regex: /^additional_project_credits\.(.+)\.amount$/, setter: setEditedAdditionalCreditRows },
+    ];
+
     const handleFieldChange = (field: string, value: string) => {
-        const childRowMatch = field.match(/^credit_distribution\.(.+)\.amount$/);
-        if (childRowMatch) {
-            setEditedCreditRows((prev) => ({ ...prev, [childRowMatch[1]]: value }));
-            return;
+        for (const { regex, setter } of CHILD_ROW_PATTERNS) {
+            const match = field.match(regex);
+            if (match) {
+                setter((prev) => ({ ...prev, [match[1]]: value }));
+                return;
+            }
         }
         setEditedFields((prev) => ({ ...prev, [field]: value }));
     };
@@ -188,8 +210,12 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
     const handleCancelEdit = () => {
         setEditedFields({});
         setEditedCreditRows({});
+        setEditedDpfRows({});
+        setEditedPdfRows({});
+        setEditedAdditionalCreditRows({});
         setSaveError(null);
         setIsEditingSlip(false);
+        setIsForceEditingSlip(false);
     };
 
     // Note: intentionally a raw fetch (not useFrappePostCall) — that hook memoizes its
@@ -207,13 +233,20 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
     // cgst_9/sgst_9/igst_18_on_consultancy must be included: editing IGST alone (e.g. reverting
     // it back to 0) previously skipped this whole block, so total_gst/total_amount never got
     // included in that save's payload and were left stale in the doc.
-    const DC_DRIVER_FIELDS = ["amount_inclusive_of_gst", "consultancy_charge_y", "operational_charge_z", "idf_percentage", "cgst_9", "sgst_9", "igst_18_on_consultancy", "income_tax_tds", "gst_tds"];
+    const DC_DRIVER_FIELDS = ["amount_inclusive_of_gst", "consultancy_charge_y", "operational_charge_z", "idf_percentage", "cgst_9", "sgst_9", "igst_18_on_consultancy", "income_tax_tds", "gst_tds__2", "other_deductions"];
 
     const handleSaveSlip = async () => {
         const updateMethod = UPDATE_METHOD_BY_DOCTYPE[depositSlipDoctype];
         if (!depositSlip?.name || !updateMethod) return;
-        if (Object.keys(editedFields).length === 0 && Object.keys(editedCreditRows).length === 0) {
+        if (
+            Object.keys(editedFields).length === 0 &&
+            Object.keys(editedCreditRows).length === 0 &&
+            Object.keys(editedDpfRows).length === 0 &&
+            Object.keys(editedPdfRows).length === 0 &&
+            Object.keys(editedAdditionalCreditRows).length === 0
+        ) {
             setIsEditingSlip(false);
+            setIsForceEditingSlip(false);
             return;
         }
         setSaveError(null);
@@ -223,6 +256,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
             const childTableChanges: Array<{ fieldname: string; updated: { name: string; changes: Record<string, unknown> }[] }> = [];
 
             if (
+                !isForceEditingSlip &&
                 depositSlipDoctype === "E Non Routine Deposit Slip" &&
                 ENR_DRIVER_FIELDS.some((f) => f in editedFields)
             ) {
@@ -251,35 +285,44 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                 }
             }
 
-            if (
+            const dcRecomputeNeeded =
+                !isForceEditingSlip &&
                 depositSlipDoctype === "D Consultancy Deposit Slip" &&
-                DC_DRIVER_FIELDS.some((f) => f in editedFields)
-            ) {
+                DC_DRIVER_FIELDS.some((f) => f in editedFields);
+
+            if (dcRecomputeNeeded) {
                 const merged = { ...depositSlip, ...editedFields };
                 const dc = computeDConsultancy(merged);
+                // A field the user typed into directly always wins over the formula-recomputed
+                // value for that same field — otherwise editing a driver (e.g. Y) alongside a
+                // manual override of a derived total (e.g. Total Overhead) in the same save would
+                // silently clobber the override with the formula result.
+                const pick = (field: string, computed: number) =>
+                    field in editedFields ? (parseFloat(editedFields[field]) || 0) : computed;
+
                 // dc.igstAmount is the untouched 18% formula (drives Total Cost X); the row can be
                 // overridden independently (e.g. set to 0), so persist dc.igstDisplay — what the
                 // print view actually shows — not the formula value, or a manual override gets
                 // silently clobbered back on the very next save.
-                changes.igst_18_on_consultancy = dc.igstDisplay;
-                changes.amount_actually_received = dc.amountActuallyReceived;
-                changes.amount_after_gst_tds = dc.amountAfterTds;
-                changes.total_cost_x = dc.totalCostX;
-                changes.consultancy_charge_y = dc.chargeY;
-                changes.operational_charge_z = dc.chargeZ;
-                changes.overhead_from_y_amount = dc.overheadFromY;
-                changes.overhead_from_z_amount = dc.overheadFromZ;
-                changes.total_overhead_amount = dc.totalOverhead;
-                changes.institute_share_amount = dc.instituteShare;
-                changes.total_overhead_institute_share = dc.totalOverheadAndShare;
-                changes.idf_percentage = dc.idfPercentage;
-                changes.idf_amount = dc.idfAmount;
-                changes.staff_welfare_amount = dc.staffWelfareAmount;
-                changes.student_welfare_amount = dc.studentWelfareAmount;
-                changes.balance_consultancy_fee = dc.balanceConsultancyFee;
-                changes.balance_operation_charge = dc.balanceOperationCharge;
-                changes.total_gst = dc.totalGst;
-                changes.total_amount = dc.totalAmount;
+                changes.igst_18_on_consultancy = pick("igst_18_on_consultancy", dc.igstDisplay);
+                changes.amount_actually_received = pick("amount_actually_received", dc.amountActuallyReceived);
+                changes.amount_after_gst_tds = pick("amount_after_gst_tds", dc.amountAfterTds);
+                changes.total_cost_x = pick("total_cost_x", dc.totalCostX);
+                changes.consultancy_charge_y = pick("consultancy_charge_y", dc.chargeY);
+                changes.operational_charge_z = pick("operational_charge_z", dc.chargeZ);
+                changes.overhead_from_y_amount = pick("overhead_from_y_amount", dc.overheadFromY);
+                changes.overhead_from_z_amount = pick("overhead_from_z_amount", dc.overheadFromZ);
+                changes.total_overhead_amount = pick("total_overhead_amount", dc.totalOverhead);
+                changes.institute_share_amount = pick("institute_share_amount", dc.instituteShare);
+                changes.total_overhead_institute_share = pick("total_overhead_institute_share", dc.totalOverheadAndShare);
+                changes.idf_percentage = pick("idf_percentage", dc.idfPercentage);
+                changes.idf_amount = pick("idf_amount", dc.idfAmount);
+                changes.staff_welfare_amount = pick("staff_welfare_amount", dc.staffWelfareAmount);
+                changes.student_welfare_amount = pick("student_welfare_amount", dc.studentWelfareAmount);
+                changes.balance_consultancy_fee = pick("balance_consultancy_fee", dc.balanceConsultancyFee);
+                changes.balance_operation_charge = pick("balance_operation_charge", dc.balanceOperationCharge);
+                changes.total_gst = pick("total_gst", dc.totalGst);
+                changes.total_amount = pick("total_amount", dc.totalAmount);
 
                 const dpfRows: any[] = Array.isArray(merged.dpf_credit_distributions) ? merged.dpf_credit_distributions : [];
                 if (dpfRows.length > 0) {
@@ -289,6 +332,11 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                         updated: dpfRows
                             .filter((r) => r.name)
                             .map((r) => {
+                                // A direct edit to this row's amount (editedDpfRows) wins over the
+                                // formula-recomputed share of the DPF pool.
+                                if (r.name in editedDpfRows) {
+                                    return { name: r.name, changes: { dpf_amount: parseFloat(editedDpfRows[r.name]) || 0 } };
+                                }
                                 const pct = parseFloat(r.dpf_percentage) || parseFloat(r.percentage) || 0;
                                 const amount = dpfSumPct > 0 ? dc.dpfAmount * (pct / dpfSumPct) : dc.dpfAmount / dpfRows.length;
                                 return { name: r.name, changes: { dpf_amount: amount } };
@@ -297,13 +345,28 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                 }
             }
 
+            // DPF row edits made without the recompute block running (force-edit mode, or no
+            // driver field touched) still need to reach the payload — merge them in directly.
+            if (
+                depositSlipDoctype === "D Consultancy Deposit Slip" &&
+                !dcRecomputeNeeded &&
+                Object.keys(editedDpfRows).length > 0
+            ) {
+                childTableChanges.push({
+                    fieldname: "dpf_credit_distributions",
+                    updated: Object.entries(editedDpfRows).map(([rowName, rawAmount]) => ({
+                        name: rowName,
+                        changes: { dpf_amount: parseFloat(rawAmount) || 0 },
+                    })),
+                });
+            }
+
             // Manual per-row overrides always win over the auto-recomputed amount, whether or not
             // the driver fields changed this save — merge them into whatever credit_distribution
-            // entry exists already (or create one if the row edits are the only change).
-            if (
-                depositSlipDoctype === "E Non Routine Deposit Slip" &&
-                Object.keys(editedCreditRows).length > 0
-            ) {
+            // entry exists already (or create one if the row edits are the only change). No longer
+            // restricted to E Non Routine: force-edit mode allows direct row edits on any type that
+            // uses this table (e.g. T Testing).
+            if (Object.keys(editedCreditRows).length > 0) {
                 let creditEntry = childTableChanges.find((c) => c.fieldname === "credit_distribution");
                 if (!creditEntry) {
                     creditEntry = { fieldname: "credit_distribution", updated: [] };
@@ -318,6 +381,28 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                         creditEntry.updated.push({ name: rowName, changes: { amount } });
                     }
                 }
+            }
+
+            // Force-edit-only child tables: pdf_credit_distribution / additional_project_credits.
+            // These have no auto-calc concept in any deposit slip type, so a manual row edit is
+            // simply merged straight into the payload.
+            if (Object.keys(editedPdfRows).length > 0) {
+                childTableChanges.push({
+                    fieldname: "pdf_credit_distribution",
+                    updated: Object.entries(editedPdfRows).map(([rowName, rawAmount]) => ({
+                        name: rowName,
+                        changes: { pdf_amount: parseFloat(rawAmount) || 0 },
+                    })),
+                });
+            }
+            if (Object.keys(editedAdditionalCreditRows).length > 0) {
+                childTableChanges.push({
+                    fieldname: "additional_project_credits",
+                    updated: Object.entries(editedAdditionalCreditRows).map(([rowName, rawAmount]) => ({
+                        name: rowName,
+                        changes: { amount: parseFloat(rawAmount) || 0 },
+                    })),
+                });
             }
 
             const csrfToken = (window as any).csrf_token || "";
@@ -343,10 +428,32 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                 setSaveError(json.message.message || "Failed to save changes");
                 return;
             }
-            setDepositSlip((prev: any) => ({ ...prev, ...changes }));
+            setDepositSlip((prev: any) => ({
+                ...prev,
+                ...changes,
+                dpf_credit_distributions: Array.isArray(prev?.dpf_credit_distributions)
+                    ? prev.dpf_credit_distributions.map((r: any) =>
+                        r.name in editedDpfRows ? { ...r, dpf_amount: parseFloat(editedDpfRows[r.name]) || 0 } : r,
+                    )
+                    : prev?.dpf_credit_distributions,
+                pdf_credit_distribution: Array.isArray(prev?.pdf_credit_distribution)
+                    ? prev.pdf_credit_distribution.map((r: any) =>
+                        r.name in editedPdfRows ? { ...r, pdf_amount: parseFloat(editedPdfRows[r.name]) || 0 } : r,
+                    )
+                    : prev?.pdf_credit_distribution,
+                additional_project_credits: Array.isArray(prev?.additional_project_credits)
+                    ? prev.additional_project_credits.map((r: any) =>
+                        r.name in editedAdditionalCreditRows ? { ...r, amount: parseFloat(editedAdditionalCreditRows[r.name]) || 0 } : r,
+                    )
+                    : prev?.additional_project_credits,
+            }));
             setEditedFields({});
             setEditedCreditRows({});
+            setEditedDpfRows({});
+            setEditedPdfRows({});
+            setEditedAdditionalCreditRows({});
             setIsEditingSlip(false);
+            setIsForceEditingSlip(false);
         } catch (err: any) {
             setSaveError(err?.message || "Failed to save changes");
         } finally {
@@ -610,6 +717,35 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                 ),
             }
             : {}),
+        // Same, for in-progress D Consultancy DPF row edits.
+        ...(Object.keys(editedDpfRows).length > 0 && Array.isArray(depositSlip.dpf_credit_distributions)
+            ? {
+                dpf_credit_distributions: depositSlip.dpf_credit_distributions.map((row: any) =>
+                    row.name && row.name in editedDpfRows
+                        ? { ...row, dpf_amount: editedDpfRows[row.name] }
+                        : row,
+                ),
+            }
+            : {}),
+        // Same, for in-progress force-edit-only pdf_credit_distribution / additional_project_credits edits.
+        ...(Object.keys(editedPdfRows).length > 0 && Array.isArray(depositSlip.pdf_credit_distribution)
+            ? {
+                pdf_credit_distribution: depositSlip.pdf_credit_distribution.map((row: any) =>
+                    row.name && row.name in editedPdfRows
+                        ? { ...row, pdf_amount: editedPdfRows[row.name] }
+                        : row,
+                ),
+            }
+            : {}),
+        ...(Object.keys(editedAdditionalCreditRows).length > 0 && Array.isArray(depositSlip.additional_project_credits)
+            ? {
+                additional_project_credits: depositSlip.additional_project_credits.map((row: any) =>
+                    row.name && row.name in editedAdditionalCreditRows
+                        ? { ...row, amount: editedAdditionalCreditRows[row.name] }
+                        : row,
+                ),
+            }
+            : {}),
     };
 
     return (
@@ -727,8 +863,13 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                             {depositSlip.name}
                         </span>
                         <div className="ml-auto flex items-center gap-2">
-                            {isEditingSlip ? (
+                            {isEditingSlip || isForceEditingSlip ? (
                                 <>
+                                    {isForceEditingSlip && (
+                                        <span className="text-[10px] font-bold uppercase tracking-wide text-[#D97757] px-2 py-1 rounded bg-[#D97757]/10 border border-[#D97757]/30">
+                                            Force Edit — auto-calc off
+                                        </span>
+                                    )}
                                     <button
                                         type="button"
                                         onClick={handleCancelEdit}
@@ -751,14 +892,25 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                             ) : (
                                 <>
                                     {isRndStaff && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsEditingSlip(true)}
-                                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 text-[11px] font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-300 shadow-sm transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                                        >
-                                            <Pencil className="h-3.5 w-3.5" />
-                                            Edit
-                                        </button>
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsEditingSlip(true)}
+                                                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 text-[11px] font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-300 shadow-sm transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                                            >
+                                                <Pencil className="h-3.5 w-3.5" />
+                                                Edit
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsForceEditingSlip(true)}
+                                                title="Edit every field manually — auto-calculation is disabled"
+                                                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#D97757]/40 px-3 text-[11px] font-bold uppercase tracking-wide text-[#D97757] shadow-sm transition-all hover:bg-[#D97757]/10"
+                                            >
+                                                <Pencil className="h-3.5 w-3.5" />
+                                                Force Edit
+                                            </button>
+                                        </>
                                     )}
                                     <button
                                         type="button"
@@ -782,7 +934,8 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                     {/* Deposit Slip Document */}
                     <div className="deposit-slip-print-area">
                         <DepositSlipDocument
-                            editable={isEditingSlip}
+                            editable={isEditingSlip || isForceEditingSlip}
+                            forceEdit={isForceEditingSlip}
                             onFieldChange={handleFieldChange}
                             depositSlip={mergedDepositSlip}
                             type={depositType}

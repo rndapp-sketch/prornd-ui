@@ -512,7 +512,8 @@ function calculateDConsultancy(formData: FormData): FormData {
     return {
       igst_18_on_consultancy: 0,
       income_tax_tds: 0,
-      gst_tds: 0,
+      gst_tds__2: 0,
+      other_deductions: 0,
       amount_actually_received: 0,
       amount_after_gst_tds: 0,
       total_cost_x: 0,
@@ -544,8 +545,12 @@ function calculateDConsultancy(formData: FormData): FormData {
 
   // === ACTUAL TDS DEDUCTED (manually entered, separate from the flat 2% assumption above) ===
   const incomeTaxTds = flt(formData.income_tax_tds);
-  const gstTds = flt(formData.gst_tds);
-  const amountActuallyReceived = flt(amountInclGst - incomeTaxTds - gstTds);
+  // Real doctype field is gst_tds__2 (double underscore) — gst_tds does not exist on the D
+  // Consultancy Deposit Slip doctype, so writing to it was silently dropped by the generic
+  // post-submit save endpoint, which filters against real DB fieldnames.
+  const gstTds = flt(formData.gst_tds__2);
+  const otherDeductions = flt(formData.other_deductions);
+  const amountActuallyReceived = flt(amountInclGst - incomeTaxTds - gstTds - otherDeductions);
 
   // === Y AND Z SPLIT ===
   const chargeY = flt(totalCostX * 0.30);
@@ -596,7 +601,8 @@ function calculateDConsultancy(formData: FormData): FormData {
   return {
     igst_18_on_consultancy: igstAmount,
     income_tax_tds: incomeTaxTds,
-    gst_tds: gstTds,
+    gst_tds__2: gstTds,
+    other_deductions: otherDeductions,
     amount_actually_received: amountActuallyReceived,
     amount_after_gst_tds: amountAfterTds,
     total_cost_x: totalCostX,
