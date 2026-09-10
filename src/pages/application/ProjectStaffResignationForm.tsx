@@ -377,6 +377,7 @@ const ProjectStaffResignationForm: React.FC = () => {
         setDocName(newName);
         setDocstatus(0);
         setWorkflowState("Draft");
+        setIsEditing(false);
         await refreshActions(newName);
         showToast("success", docName ? "Draft updated successfully." : "Draft saved successfully.");
       } else {
@@ -391,7 +392,12 @@ const ProjectStaffResignationForm: React.FC = () => {
 
   const handleActionConfirm = async (comment: string, actionOverride?: string) => {
     const actionToRun = actionOverride || pendingAction;
-    if (!actionToRun || !docName) return;
+    if (!actionToRun) return;
+    if (!docName) {
+      showToast("error", "Please save the draft before performing this action.");
+      setPendingAction(null);
+      return;
+    }
     if (workflowState === "Draft" && !reason.trim()) {
       showToast("error", "Please enter the reason for resignation before submitting.");
       setPendingAction(null);
@@ -521,7 +527,7 @@ const ProjectStaffResignationForm: React.FC = () => {
   const canUserActOnCurrentState = Boolean(
     !isFromRegistry &&
     !isTerminal &&
-    ((workflowState === "Draft" && isEditable) ||
+    ((workflowState === "Draft" && isEditable && !isEditing && !!docName) ||
       isPIActor ||
       isStaffActor ||
       isOtherActor)
