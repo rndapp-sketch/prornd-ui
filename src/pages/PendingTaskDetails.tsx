@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { ErrorModal } from "../components/ErrorModal";
 import { parseFrappeError } from "../utils/errorUtils";
 import { AppSidebar } from '@/components/RndSidebar';
+import { ApplicantLeaveBalance } from '@/components/ApplicantLeaveBalance';
 import { PageHeader } from "@/components/common/PageHeader";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import { FrappeButton } from "@/components/ui/neo-brutalism";
@@ -3909,6 +3910,9 @@ const PendingTaskDetails: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                     {/* Left Column: Main Detail View */}
                     <div className="lg:col-span-3 space-y-6">
+                        {doctype === "Leave Module" && name && (
+                            <ApplicantLeaveBalance docname={name} />
+                        )}
                         {doctype === "Travel" ? (
                             isTravelLoading ? (
                                 <div className="flex h-64 items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">

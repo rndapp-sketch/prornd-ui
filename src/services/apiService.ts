@@ -390,6 +390,9 @@ export const leaveModuleAPI = {
     performAction: `${API_BASE}.leave_module.leave_module.perform_leave_module_action`,
     getMyLeaves: `${API_BASE}.leave_module.leave_module.get_my_leaves`,
     getPendingApprovals: `${API_BASE}.leave_module.leave_module.get_pending_approvals`,
+    // Balance of the APPLICANT (not the viewer), with the effect of one
+    // application — so every approver can see before / applied / after.
+    getApplicantBalance: `${API_BASE}.leave_module.leave_module.get_applicant_leave_balance`,
     getDetail: `${API_BASE}.leave_module.leave_module.get_leave_detail`,
     getLeaveBalance: `${API_BASE}.leave_module.leave_module.get_leave_balance`,
 };
