@@ -51,6 +51,7 @@ const fallbackFields: FormField[] = [
     { fieldname: "ps_pan", label: "PAN", fieldtype: "Data" },
     { fieldname: "ps_aadhar_number", label: "Aadhar Number", fieldtype: "Data" },
     { fieldname: "bank_account_number", label: "Bank Account Number", fieldtype: "Data" },
+    { fieldname: "ifsc_code", label: "IFSC Code", fieldtype: "Data" },
     { fieldname: "salary_details_section", label: "Salary Details", fieldtype: "Section Break" },
     { fieldname: "ps_basic_salary", label: "Basic Salary", fieldtype: "Currency" },
     { fieldname: "ps_hra", label: "HRA", fieldtype: "Data" },
@@ -72,6 +73,7 @@ const fallbackFields: FormField[] = [
             { fieldname: "pstd_joining_number", label: "Joining Number", fieldtype: "Data" },
             { fieldname: "pstd_pi_extension_sought", label: "PI Extension Sought", fieldtype: "Data" },
             { fieldname: "pstd_staff_extension_sought", label: "Staff Extension Sought", fieldtype: "Data" },
+            { fieldname: "pstd_scr_id", label: "Selection Committee Report ID", fieldtype: "Data" },
             { fieldname: "pstd_tentative_joining_date", label: "Tentative Joining Date", fieldtype: "Date" },
         ],
     },
@@ -664,7 +666,7 @@ const ProjectStaffJoiningForm: React.FC = () => {
 
                         <GroupCard label="Identity Documents">
                             <DynamicFormRenderer
-                                fields={section(["identity_documents_section", "ps_pan", "ps_aadhar_number", "bank_account_number"])}
+                                fields={section(["identity_documents_section", "ps_pan", "ps_aadhar_number", "bank_account_number", "ifsc_code"])}
                                 {...commonRendererProps}
                             />
                         </GroupCard>

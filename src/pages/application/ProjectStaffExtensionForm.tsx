@@ -73,6 +73,7 @@ interface ExtensionDoc {
   ex_period_staff?: string;
   increment_by_pi?: string;
   increment_by_staff?: string;
+  ex_scr_id?: string;
   ex_computed_new_joining_date?: string | null;
   ex_computed_new_completion_date?: string | null;
   ex_final_new_joining_date?: string | null;
@@ -224,11 +225,13 @@ const ProjectStaffExtensionForm: React.FC = () => {
   const [extensionPeriodStaff, setExtensionPeriodStaff] = useState("");
   const [incrementPI, setIncrementPI] = useState("");
   const [incrementStaff, setIncrementStaff] = useState("");
+  const [committeeId, setCommitteeId] = useState("");
 
   const [savedPIPeriod, setSavedPIPeriod] = useState("");
   const [savedPIIncrement, setSavedPIIncrement] = useState("");
   const [savedStaffPeriod, setSavedStaffPeriod] = useState("");
   const [savedStaffIncrement, setSavedStaffIncrement] = useState("");
+  const [savedCommitteeId, setSavedCommitteeId] = useState("");
 
   // New-tenure computation — system-suggested (read-only) vs the editable
   // final override that wins at approval time if the staff user sets it.
@@ -365,10 +368,12 @@ const ProjectStaffExtensionForm: React.FC = () => {
         setExtensionPeriodStaff(doc.ex_period_staff ?? "");
         setIncrementPI(doc.increment_by_pi ?? "");
         setIncrementStaff(doc.increment_by_staff ?? "");
+        setCommitteeId(doc.ex_scr_id ?? "");
         setSavedPIPeriod(doc.ex_period_pi ?? "");
         setSavedPIIncrement(doc.increment_by_pi ?? "");
         setSavedStaffPeriod(doc.ex_period_staff ?? "");
         setSavedStaffIncrement(doc.increment_by_staff ?? "");
+        setSavedCommitteeId(doc.ex_scr_id ?? "");
         setComputedNewJoiningDate(doc.ex_computed_new_joining_date ?? "");
         setComputedNewCompletionDate(doc.ex_computed_new_completion_date ?? "");
         setFinalNewJoiningDate(doc.ex_final_new_joining_date ?? doc.ex_computed_new_joining_date ?? "");
@@ -514,6 +519,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
     ex_period_staff: extensionPeriodStaff,
     increment_by_pi: incrementPI,
     increment_by_staff: incrementStaff,
+    ex_scr_id: committeeId,
     ...(canEditStaffFields
       ? {
         ex_final_new_joining_date: finalNewJoiningDate || null,
@@ -552,6 +558,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
         setSavedPIIncrement(incrementPI);
         setSavedStaffPeriod(extensionPeriodStaff);
         setSavedStaffIncrement(incrementStaff);
+        setSavedCommitteeId(committeeId);
         setIsEditing(false);
         showToast("success", "Extension saved successfully as Draft.");
         await refreshActions(newName);
@@ -826,7 +833,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
 
   const hasUnsavedEvaluationChanges =
     (canEditPIFields && (extensionPeriodPI !== savedPIPeriod || incrementPI !== savedPIIncrement)) ||
-    (canEditStaffFields && (extensionPeriodStaff !== savedStaffPeriod || incrementStaff !== savedStaffIncrement));
+    (canEditStaffFields && (extensionPeriodStaff !== savedStaffPeriod || incrementStaff !== savedStaffIncrement || committeeId !== savedCommitteeId));
 
   // Live preview of the new tenure (start/end date, new basic) as the staff user
   // enters/edits the period and increment — debounced so it doesn't fire on
@@ -1692,6 +1699,37 @@ const ProjectStaffExtensionForm: React.FC = () => {
                         )}
                         {canEditStaffFields && (
                           <CharLimitAlert value={incrementStaff} maxLength={CURRENCY_MAX_LENGTH} className="mt-1" />
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
+                          New Selection Committee Report ID
+                        </label>
+                        {canEditStaffFields ? (
+                          <input
+                            type="text"
+                            value={committeeId}
+                            onChange={(e) => setCommitteeId(e.target.value)}
+                            disabled={isBusy}
+                            placeholder="e.g. SCR-2026-00123"
+                            className={cn(
+                              "w-full px-3 py-2 text-sm rounded-lg border transition-colors",
+                              "bg-white dark:bg-zinc-900 text-[#27272A] dark:text-[#E4E4E7]",
+                              "border-zinc-200 dark:border-zinc-700",
+                              "focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]",
+                              "disabled:opacity-60 disabled:cursor-not-allowed",
+                            )}
+                          />
+                        ) : (
+                          <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                            {committeeId || "—"}
+                          </p>
+                        )}
+                        {canEditStaffFields && (
+                          <p className="mt-1.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
+                            The committee that authorized this extension — recorded on the staff record once approved.
+                          </p>
                         )}
                       </div>
                     </div>
