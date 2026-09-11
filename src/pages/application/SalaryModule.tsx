@@ -36,6 +36,7 @@ interface StaffRecord {
     workflow_state: string;
     project_no?: string;
     bank_account_number?: string;
+    ifsc_code?: string;
     ps_hostel?: string | number;
 }
 
@@ -43,6 +44,12 @@ interface SalaryGapRange {
     from: string;
     to: string;
     days: number;
+}
+
+interface TenureSummary {
+    total_months_worked: number;
+    total_gap_days: number;
+    gap_ranges: SalaryGapRange[];
 }
 
 interface SalaryGap {
@@ -159,6 +166,23 @@ const calcWorkingDaysForPeriod = (joiningDate: string, termCompletionDate: strin
     } catch {
         return daysInMonth;
     }
+};
+
+/** Whole months + leftover days worked between joining and term-completion (or today, if still active). */
+const calcMonthsWorked = (joiningDate: string, termCompletionDate: string): { months: number; days: number } | null => {
+    if (!joiningDate) return null;
+    const start = new Date(joiningDate);
+    const end = termCompletionDate ? new Date(termCompletionDate) : new Date();
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return null;
+    let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+    let days = end.getDate() - start.getDate();
+    if (days < 0) {
+        months -= 1;
+        const daysInPrevMonth = new Date(end.getFullYear(), end.getMonth(), 0).getDate();
+        days += daysInPrevMonth;
+    }
+    if (months < 0) return null;
+    return { months, days };
 };
 
 /** Pro-rata basic amount = round((basic / daysInMonth) * workingDays) */
@@ -290,6 +314,7 @@ const mapRow = (row: any): StaffRecord => {
         workflow_state: row.workflow_state || "Approved",
         project_no: (row.project_no ? String(row.project_no).trim() : "") || "—",
         bank_account_number: row.bank_account_number || "—",
+        ifsc_code: row.ifsc_code || "—",
         ps_hostel: row.ps_hostel !== undefined ? row.ps_hostel : "",
     };
 };
@@ -328,6 +353,7 @@ const SalaryModule: React.FC = () => {
     const [schemeMap, setSchemeMap] = useState<Record<string, string>>({});
     const [projectTypeMap, setProjectTypeMap] = useState<Record<string, string>>();
     const [schemeNumberMap, setSchemeNumberMap] = useState<Record<string, string>>({});
+    const [tenureSummaryMap, setTenureSummaryMap] = useState<Record<string, TenureSummary>>({});
 
     // Pay slip modal state
     const [selectedSlipRecord, setSelectedSlipRecord] = useState<StaffRecord | null>(null);
@@ -422,6 +448,7 @@ const SalaryModule: React.FC = () => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { call: getList } = useFrappePostCall<{ message: any[] }>("frappe.client.get_list");
+    const { call: getStaffTenureSummary } = useFrappePostCall<{ message: Record<string, TenureSummary> }>("rndopsapp.rndopsapp.commitPayment.get_staff_tenure_summary");
 
     // ── Build commit payload for a single staff record (shared by single-pay & bulk-pay) ──
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -476,6 +503,7 @@ const SalaryModule: React.FC = () => {
             department: r.department,
             designation: r.designation,
             bank_account_number: r.bank_account_number || "",
+            ifsc_code: r.ifsc_code || "",
             joining_date: r.joining_date,
             term_completion_date: r.term_completion_date,
             project_no: r.project_no || "",
@@ -1069,6 +1097,25 @@ const SalaryModule: React.FC = () => {
         if (records.length > 0) fetchSchemeMap();
     }, [records, fetchSchemeMap]);
 
+    // Fetch cumulative months-worked / gap-period summary for the staff currently on screen
+    const fetchTenureSummary = useCallback(async () => {
+        const empIds = Array.from(new Set(records.map(r => r.employee_id).filter(Boolean)));
+        if (empIds.length === 0) {
+            setTenureSummaryMap({});
+            return;
+        }
+        try {
+            const res = await getStaffTenureSummary({ ps_emp_ids: JSON.stringify(empIds) });
+            setTenureSummaryMap(res?.message || {});
+        } catch {
+            setTenureSummaryMap({});
+        }
+    }, [records, getStaffTenureSummary]);
+
+    useEffect(() => {
+        if (records.length > 0) fetchTenureSummary();
+    }, [records, fetchTenureSummary]);
+
 
     // Unique Departments & Designations for dropdown filters
     const departmentsList = useMemo(() => {
@@ -1397,10 +1444,10 @@ const SalaryModule: React.FC = () => {
     const exportCSV = () => {
         const monthLabel = MONTHS.find(m => m.value === selectedMonth)?.label || "Month";
         const headers = [
-            "Emp ID", "Name", "Email ID", "Department", "Designation", "Joining Date", "Term Completion Date", "Project No",
+            "Emp ID", "Name", "Email ID", "Department", "Designation", "Joining Date", "Term Completion Date", "Project No", "Scheme",
             "Basic", "HRA", "MA", "Arrear", "Gross",
             "HRA Ded", "Medical Ded", "P-Tax", "TA", "ID Card", "Electricity", "Other Ded", "Total Ded", "Net Pay",
-            "Bank A/C No", "Payment Date", "BMR", "Comment", "Remarks"
+            "Bank A/C No", "IFSC Code", "Payment Date", "BMR", "Comment", "Remarks"
         ];
         const rows = pendingRecords.map((r) => {
             const { inputs, currentHRA } = getRowInputs(r.docName);
@@ -1413,13 +1460,15 @@ const SalaryModule: React.FC = () => {
             const hraDed = inputs.hraDeduction;
             const deductions = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
             const netPay = grossPay - deductions;
+            const pNo = (r.project_no || "").trim();
+            const scheme = (pNo && schemeNumberMap[pNo] ? schemeNumberMap[pNo].trim() : "") || "";
             return [
                 r.employee_id, r.first_name, r.email_id, departmentLabels[r.department] || r.department, r.designation,
-                r.joining_date, r.term_completion_date, r.project_no || "—",
+                r.joining_date, r.term_completion_date, r.project_no || "—", scheme || "—",
                 proRataBasic, proRataHRA, proRataMedical, inputs.arrear, grossPay,
                 hraDed, inputs.medicalDeduction, pTax, inputs.ta, inputs.idCardCharge, inputs.electricityBill, inputs.otherDeduction,
                 deductions, netPay,
-                r.bank_account_number || "—", "—", "—", inputs.comment, inputs.remarks
+                r.bank_account_number || "—", r.ifsc_code || "—", "—", "—", inputs.comment, inputs.remarks
             ];
         });
         const csv = [headers, ...rows].map(row =>
@@ -1434,10 +1483,10 @@ const SalaryModule: React.FC = () => {
     const exportStagingCSV = () => {
         const monthLabel = MONTHS.find(m => m.value === selectedMonth)?.label || "Month";
         const headers = [
-            "Emp ID", "Name", "Email ID", "Department", "Designation", "Joining Date", "Term Completion Date", "Project No",
+            "Emp ID", "Name", "Email ID", "Department", "Designation", "Joining Date", "Term Completion Date", "Project No", "Scheme",
             "Basic", "HRA", "MA", "Arrear", "Gross",
             "HRA Ded", "Medical Ded", "P-Tax", "TA", "ID Card", "Electricity", "Other Ded", "Total Ded", "Net Pay",
-            "Bank A/C No", "Payment Date", "BMR", "Comment", "Remarks"
+            "Bank A/C No", "IFSC Code", "Payment Date", "BMR", "Comment", "Remarks"
         ];
         const rows = filteredStagingRecords.map((rec) => {
             const ud = rec?.salary_user_details ?? {};
@@ -1445,11 +1494,11 @@ const SalaryModule: React.FC = () => {
             return [
                 ud.employee_id ?? "", ud.first_name ?? "", ud.email_id ?? "",
                 (departmentLabels[ud.department] || ud.department) ?? "", ud.designation ?? "",
-                ud.joining_date ?? "", ud.term_completion_date ?? "", rec?.project_no || rec?.projectNumber || "",
+                ud.joining_date ?? "", ud.term_completion_date ?? "", rec?.project_no || rec?.projectNumber || "", ud.scheme ?? "",
                 ud.pro_rata_basic ?? 0, ud.pro_rata_hra ?? 0, ud.pro_rata_medical ?? 0, ud.arrear ?? 0, ud.gross_pay ?? 0,
                 ud.hra_deduction ?? 0, ud.medical_deduction ?? 0, ud.p_tax ?? 0, ud.ta ?? 0, ud.id_card_charge ?? 0, ud.electricity_bill ?? 0, ud.other_deduction ?? 0,
                 totalDed, ud.net_pay ?? 0,
-                ud.bank_account_number ?? "", rec?.payment_date ?? "", rec?.bmr ?? "", ud.comment ?? "", ud.remarks ?? ""
+                ud.bank_account_number ?? "", ud.ifsc_code ?? "", rec?.payment_date ?? "", rec?.bmr ?? "", ud.comment ?? "", ud.remarks ?? ""
             ];
         });
         const csv = [headers, ...rows].map(row =>
@@ -2008,6 +2057,7 @@ const SalaryModule: React.FC = () => {
                                                         <th rowSpan={2} className="px-3 py-3 text-left min-w-[110px] border-r border-emerald-200 dark:border-emerald-900/40">Scheme</th>
                                                         <th rowSpan={2} className="px-3 py-3 text-left min-w-[80px] border-r border-emerald-200 dark:border-emerald-900/40">Period</th>
                                                         <th rowSpan={2} className="px-3 py-3 text-left min-w-[130px] border-r border-emerald-200 dark:border-emerald-900/40">Bank A/C No</th>
+                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[110px] border-r border-emerald-200 dark:border-emerald-900/40">IFSC Code</th>
                                                         <th rowSpan={2} className="px-3 py-3 text-center min-w-[70px] border-r border-emerald-200 dark:border-emerald-900/40">Hostel</th>
                                                         {/* Earnings group */}
                                                         <th colSpan={9} className="px-3 py-2 text-center bg-emerald-100/60 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-400 border-b border-emerald-200 dark:border-emerald-900/40">Earnings (₹)</th>
@@ -2066,10 +2116,11 @@ const SalaryModule: React.FC = () => {
                                                                 <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{ud.designation ?? "—"}</td>
                                                                 <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{ud.joining_date ?? "—"}</td>
                                                                 <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{ud.term_completion_date ?? "—"}</td>
-                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 font-mono text-xs text-[#4A6CF7] dark:text-[#A5B4FC] whitespace-nowrap">{ud.project_no || rec?.project_no || rec?.projectNumber || "—"}</td>
+                                                                <td className={cn("px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 font-mono text-xs whitespace-nowrap", isPaid ? "font-bold text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-950/30" : "text-[#4A6CF7] dark:text-[#A5B4FC]")}>{ud.project_no || rec?.project_no || rec?.projectNumber || "—"}</td>
                                                                 <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{ud.scheme || "—"}</td>
                                                                 <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{(rec?.salary_year_month ?? "").replace("_", " ")}</td>
                                                                 <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 font-mono text-xs text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{ud.bank_account_number || "—"}</td>
+                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 font-mono text-xs text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{ud.ifsc_code || "—"}</td>
                                                                 <td className="px-3 py-2.5 text-center border-r border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{ud.hostel ?? "—"}</td>
                                                                 {/* Earnings */}
                                                                 <td className="px-3 py-2.5 text-right tabular-nums text-emerald-800 dark:text-emerald-300 bg-emerald-50/10 dark:bg-emerald-950/10 whitespace-nowrap">{fmt(ud.basic_salary ?? 0)}</td>
@@ -2239,6 +2290,8 @@ const SalaryModule: React.FC = () => {
                                                     <th rowSpan={2} className="px-3 py-4 text-left">Project No</th>
                                                     <th rowSpan={2} className="px-3 py-4 text-left">Scheme</th>
                                                     <th rowSpan={2} className="px-3 py-4 text-left">Bank A/C No</th>
+                                                    <th rowSpan={2} className="px-3 py-4 text-left">IFSC Code</th>
+                                                    <th rowSpan={2} className="px-3 py-4 text-left">Gap Period</th>
                                                     <th rowSpan={2} className="px-3 py-4 text-center">Hostel</th>
 
                                                     {/* Earnings section */}
@@ -2376,6 +2429,40 @@ const SalaryModule: React.FC = () => {
                                                                 })()}
                                                             </td>
                                                             <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.bank_account_number || "—"}</td>
+                                                            <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.ifsc_code || "—"}</td>
+                                                            <td className="px-3 py-3 text-xs whitespace-nowrap">
+                                                                {(() => {
+                                                                    const summary = tenureSummaryMap[r.employee_id];
+                                                                    const monthGap: SalaryGap | null = pendingBulkCommits[r.employee_id]?.salary_gap ?? null;
+                                                                    const worked = summary ? null : calcMonthsWorked(r.joining_date, r.term_completion_date);
+                                                                    return (
+                                                                        <div className="flex flex-col gap-0.5">
+                                                                            {summary && summary.total_gap_days > 0 ? (
+                                                                                <span
+                                                                                    title={summary.gap_ranges.map(g => `${g.from} to ${g.to} (${g.days}d)`).join(", ")}
+                                                                                    className="text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200/50 dark:border-amber-900/40 px-2 py-0.5 rounded-full w-fit"
+                                                                                >
+                                                                                    {summary.total_gap_days}d gap
+                                                                                </span>
+                                                                            ) : monthGap ? (
+                                                                                <span
+                                                                                    title={monthGap.gap_ranges.map(g => `${g.from} to ${g.to} (${g.days}d)`).join(", ")}
+                                                                                    className="text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200/50 dark:border-amber-900/40 px-2 py-0.5 rounded-full w-fit"
+                                                                                >
+                                                                                    {monthGap.gap_days}d gap this month
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span className="text-zinc-400">No gap</span>
+                                                                            )}
+                                                                            {summary ? (
+                                                                                <span className="text-zinc-500 dark:text-zinc-400">{summary.total_months_worked}m worked</span>
+                                                                            ) : worked && (
+                                                                                <span className="text-zinc-500 dark:text-zinc-400">{worked.months}m {worked.days}d worked</span>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })()}
+                                                            </td>
                                                             <td className="px-3 py-3 text-center whitespace-nowrap">
                                                                 {(() => {
                                                                     if (!r.ps_hostel) return <span className="text-[10px] font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-zinc-200/50 dark:border-zinc-700/50 px-2 py-0.5 rounded-full">No</span>;
