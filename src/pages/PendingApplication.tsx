@@ -27,6 +27,8 @@ const getAppRoute = (app: PendingApplicationRecord) => {
     switch (getAppDoctype(app)) {
         case "Project Staff Extension":
             return `/project-staff-extension?edit=${encodeURIComponent(app.name)}`;
+        case "Project Staff Resignation":
+            return `/project-staff-resignation?edit=${encodeURIComponent(app.name)}`;
         // Other-PI forms: open the module's own detail page, where the PI
         // selects their project/account head and forwards.
         case "Travel":

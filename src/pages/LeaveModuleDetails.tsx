@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFrappePostCall } from 'frappe-react-sdk';
+import { ApplicantLeaveBalance } from '@/components/ApplicantLeaveBalance';
 import {
     EditIcon, Trash2Icon, CalendarIcon, UserIcon, FileTextIcon,
     PhoneIcon, MapPinIcon, MessageSquareIcon, CheckCircle2, Clock, XCircle,
@@ -278,6 +279,9 @@ const LeaveModuleDetails = () => {
                                 <InfoRow icon={UserIcon} label="Name" value={doc.username} />
                                 <InfoRow icon={UserIcon} label="Email" value={doc.email} />
                                 <InfoRow icon={UserIcon} label="PI / Mentor" value={doc.pi} className="sm:col-span-2" />
+                            </div>
+                            <div className="mt-4">
+                                <ApplicantLeaveBalance docname={id} />
                             </div>
                         </GroupCard>
 
