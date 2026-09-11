@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { AppSidebar } from "@/components/RndSidebar";
+
 import { cn } from "@/lib/utils";
 import { Plus, ArrowLeftIcon } from "lucide-react";
 import { GlobalLoader } from "@/components/ui/global-loader";
@@ -62,7 +62,7 @@ const DisbursalOfHonorarium: React.FC = () => {
 
   return (
     <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-      <AppSidebar />
+
       <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
         {/* Header */}
         <header className="mb-6 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
@@ -171,22 +171,22 @@ const DisbursalOfHonorarium: React.FC = () => {
                         className={cn(
                           "inline-flex px-2 py-1 text-xs font-medium rounded-full",
                           item.workflow_state === "Approved" &&
-                            "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                          "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
                           item.workflow_state === "Rejected" &&
-                            "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                          "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
                           item.workflow_state === "Draft" &&
-                            "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
+                          "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
                           (item.workflow_state?.startsWith("Pending") ||
                             false) &&
-                            "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+                          "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
                           !["Approved", "Rejected", "Draft"].includes(
                             item.workflow_state || "",
                           ) &&
-                            !(
-                              item.workflow_state?.startsWith("Pending") ||
-                              false
-                            ) &&
-                            "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+                          !(
+                            item.workflow_state?.startsWith("Pending") ||
+                            false
+                          ) &&
+                          "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
                         )}
                       >
                         {item.workflow_state || "Draft"}
