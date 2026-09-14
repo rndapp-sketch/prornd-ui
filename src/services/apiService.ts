@@ -286,6 +286,31 @@ export const loanRequestAPI = {
 };
 
 // Loan Settlement API endpoints (settling a project loan out of an incoming Fund Received)
+// Overhead funds surfaced as projects — PDF (per employee) and DPF (per department).
+// Lives outside the doctype namespace: overhead_fund is a plain module, not a doctype
+// controller. Every entry is a whitelisted Frappe method; there is deliberately no
+// /ledger-api entry, because that proxy is unauthenticated and these balances are
+// personal or departmental (see docs/pdf-project-implementation.md §5.6d).
+const APP_BASE = 'rndopsapp.rndopsapp';
+
+export const overheadFundAPI = {
+    /** Mints whatever overhead projects the caller is entitled to, in one round trip. */
+    ensureProjects: `${APP_BASE}.overhead_fund.ensure_overhead_projects`,
+    getBalance: `${APP_BASE}.overhead_fund.get_overhead_balance`,
+    getLedger: `${APP_BASE}.overhead_fund.get_overhead_ledger`,
+    /** Commits awaiting payment, for the staff-facing Payments queue. */
+    getCommits: `${APP_BASE}.overhead_fund.get_overhead_commits`,
+    /** Payments already raised against overhead commits — what flips Pay to Payment Pending. */
+    getPayments: `${APP_BASE}.overhead_fund.get_overhead_payments`,
+};
+
+/** @deprecated use overheadFundAPI — the PDF-only endpoints still work but only see PDF. */
+export const pdfFundAPI = {
+    ensureProject: `${APP_BASE}.pdf_fund.ensure_pdf_project`,
+    getBalance: `${APP_BASE}.pdf_fund.get_pdf_balance`,
+    getLedger: `${APP_BASE}.pdf_fund.get_pdf_ledger`,
+};
+
 export const loanSettlementAPI = {
     getActiveLoansForProject: `${API_BASE}.loan_settlement.loan_settlement.get_active_loan_for_project`,
     saveRequests: `${API_BASE}.loan_settlement.loan_settlement.save_loan_settlement_requests`,

@@ -8,6 +8,11 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { ToWords } from 'to-words';
 import { CharLimitAlert } from '@/components/CharLimitAlert';
 import { getFieldMaxLength, CURRENCY_MAX_LENGTH } from '@/utils/fieldLimits';
+import {
+    useIsOverheadProject,
+    budgetHeadFieldnamesOf,
+    overheadHeadUpdates,
+} from '@/hooks/useIsOverheadProject';
 import { ErrorModal } from "../components/ErrorModal";
 import { parseFrappeError } from "../utils/errorUtils";
 
@@ -337,6 +342,23 @@ const TemporaryAdvance: React.FC = () => {
     const [fields, setFields] = useState<Field[]>([]);
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [formData, setFormData] = useState<Record<string, any>>({});
+    // --- OVERHEAD FUNDS: the account head is fixed, not chosen ---
+    // This page renders its own field loop rather than using DynamicFormRenderer, so the
+    // rule is applied here too — from the same shared helpers, so it cannot drift from the
+    // renderer's version. Temporary Advance declares account_head as Data, so it takes the head's name.
+    // Ordinary projects are untouched: every branch is gated on isOverheadProject.
+    const isOverheadProject = useIsOverheadProject(formData.project_code || projectName);
+    const overheadHeadFields = React.useMemo(
+        () => (isOverheadProject ? budgetHeadFieldnamesOf(fields, linkOptions) : []),
+        [isOverheadProject, fields, linkOptions],
+    );
+    React.useEffect(() => {
+        if (!isOverheadProject) return;
+        // Only pending changes come back, so this settles instead of looping.
+        const updates = overheadHeadUpdates(fields, linkOptions, formData);
+        if (Object.keys(updates).length === 0) return;
+        setFormData(prev => ({ ...prev, ...updates }));
+    }, [isOverheadProject, fields, linkOptions, formData]);
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [dataLoaded, setDataLoaded] = useState(false);
@@ -781,6 +803,8 @@ const msg = saveResult?.message;
 
                                         // Evaluate read_only dependencies
                                         let isReadOnly = field.read_only === 1;
+                                        // An overhead fund has no other head to pick.
+                                        if (overheadHeadFields.includes(field.fieldname)) isReadOnly = true;
                                         if (field.read_only_depends_on || field.read_only_depends_on_eval) {
                                             const roExpr = field.read_only_depends_on_eval || field.read_only_depends_on;
                                             if (evaluateDependsOn(roExpr, formData)) {

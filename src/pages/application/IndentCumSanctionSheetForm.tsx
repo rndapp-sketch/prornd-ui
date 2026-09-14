@@ -49,6 +49,7 @@ import { CommitPayment } from "@/components/CommitPayment";
 import { POEditor } from "@/components/POEditor";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import { getFileUrl } from "@/utils/fileUtils";
+import { useIsOverheadProject } from '@/hooks/useIsOverheadProject';
 import { ErrorModal } from "../../components/ErrorModal";
 import { parseFrappeError } from "../../utils/errorUtils";
 import {
@@ -1755,6 +1756,10 @@ const IndentCumSanctionSheetForm: React.FC = () => {
   }, [baseFields, isEditMode]);
   const [computationRules, setComputationRules] = useState<any>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
+  // An overhead fund (PDF / DPF / IDF / SWF / STWF) is a single pool with no head
+  // dimension — every spend books to "Overhead". This fixes and locks every Budget
+  // Head selector on the form. Ordinary projects are untouched.
+  const isOverheadProject = useIsOverheadProject(formData.project_ref || formData.project_no);
   const [linkOptions, setLinkOptions] = useState<Record<string, any[]>>({});
   const displayLinkOptions = React.useMemo(() => {
     const baseUserOptions =
@@ -6071,6 +6076,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                   </div>
                   <div className="p-8">
                     <DynamicFormRenderer
+                                            overheadFund={isOverheadProject}
                       fields={displayBaseFields}
                       formData={formData}
                       linkOptions={displayLinkOptions}

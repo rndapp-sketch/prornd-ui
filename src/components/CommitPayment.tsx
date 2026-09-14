@@ -58,6 +58,8 @@ export interface CommitPaymentProps {
     defaultBudgetHead?: string;
     /** Optional: map of budget head label -> ledger Budget Head id, used to query the ledger API (accountHeadId expects the id, not the label) */
     budgetHeadIds?: Record<string, string | number>;
+    /** Fix the budget head (PDF projects book everything to a single "Overhead" pool). */
+    lockBudgetHead?: boolean;
     /** Optional: custom reference_name/name for Kafka Commit Staging checks and submit payload */
     stagingReferenceName?: string;
     /** Optional: application id to keep in the payload when stagingReferenceName is different */
@@ -402,6 +404,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     parentAppId,
     defaultBudgetHead,
     budgetHeadIds,
+    lockBudgetHead = false,
     stagingReferenceName,
     frapAppId,
     forcedRefDetails,
@@ -807,7 +810,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                     <select
                         value={commitHead}
                         onChange={(e) => setCommitHead(e.target.value)}
-                        disabled={disabled || budgetHeads.length === 0}
+                        disabled={disabled || lockBudgetHead || budgetHeads.length === 0}
                         className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                     >
                         {budgetHeads.length === 0 ? (

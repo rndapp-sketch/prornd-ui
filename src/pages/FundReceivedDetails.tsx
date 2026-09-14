@@ -1815,7 +1815,15 @@ const FundReceivedDetails = () => {
                 {!showDepositSlip && (
                     <div className="space-y-4">
 
-                        {/* ── Loan Settlement(s) requested from this fund receipt (read-only) ── */}
+                        {/* ── Loan Settlement(s) requested from this fund receipt ── */}
+                        {/* Shown to everyone who can open the receipt, because these are the
+                            PI's *own* submission: the loan-settlement modal in AddFundReceived
+                            creates these documents at the moment the PI chooses to settle,
+                            before the Fund Received itself is submitted. They see what they
+                            sent. It renders only when there are settlements — a receipt
+                            submitted without any shows no panel at all.
+                            The staff-only part is *processing* them: the mode/remarks inputs
+                            and the Forward action below are gated on canProcessLoanSettlements. */}
                         {loanSettlements.length > 0 && (
                             <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden shadow-sm">
                                 <div className="flex items-center gap-2 px-5 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">

@@ -14,6 +14,10 @@ import { getFileUrl } from "@/utils/fileUtils";
 import { CountrySelect } from "@/components/CountrySelect";
 import { getFieldMaxLength, getWarnableMaxLength, INT_MAX_LENGTH, CURRENCY_MAX_LENGTH, PERCENT_MAX_LENGTH } from "@/utils/fieldLimits";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
+import {
+  budgetHeadFieldnamesOf,
+  overheadHeadUpdates,
+} from '@/hooks/useIsOverheadProject';
 
 // --- TYPE DEFINITIONS ---
 export interface FormField {
@@ -86,6 +90,19 @@ export interface DynamicFormRendererProps {
   hideSectionHeaders?: boolean;
   /** Hide child table field labels when the surrounding card already provides the title */
   hideTableLabels?: boolean;
+  /**
+   * The application is being raised against an overhead fund (PDF / DPF / IDF / SWF / STWF).
+   *
+   * Such a fund is a single pool with no head dimension — every spend books to "Overhead".
+   * So every Budget Head selector on the form is set to Overhead and locked, instead of
+   * offering heads the fund does not have. The field is found by its *metadata*
+   * (`fieldtype: "Link"`, `options: "Budget Head"`), not by name, because the fieldname
+   * differs per doctype — `account_head` on Reimbursement, Travel and Direct Purchase,
+   * `icss_account_head` on Indent Cum Sanction Sheet, `budget_head` on Miscellaneous Commit.
+   *
+   * Has no effect unless true, so ordinary projects are untouched.
+   */
+  overheadFund?: boolean;
 }
 
 // --- STYLES ---
@@ -997,7 +1014,24 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   fieldMessages,
   hideSectionHeaders = false,
   hideTableLabels = false,
+  overheadFund = false,
 }) => {
+  // --- OVERHEAD FUNDS: every Budget Head selector is fixed to "Overhead" ---
+  // Detection and value both live in @/hooks/useIsOverheadProject, shared with the
+  // hand-rolled field loops in TemporaryAdvance and DirectPurchase so the rule is
+  // identical in all three renderers.
+  const budgetHeadFieldnames = React.useMemo(
+    () => (overheadFund ? budgetHeadFieldnamesOf(fields, linkOptions) : []),
+    [overheadFund, fields, linkOptions],
+  );
+
+  React.useEffect(() => {
+    if (!overheadFund) return;
+    // Only pending changes come back, so this settles instead of looping.
+    const updates = overheadHeadUpdates(fields, linkOptions, formData);
+    for (const [fieldname, value] of Object.entries(updates)) onChange(fieldname, value);
+  }, [overheadFund, fields, linkOptions, formData, onChange]);
+
   // Group fields by sections
   const groupFieldsBySection = useCallback((): FormSection[] => {
     const sections: FormSection[] = [];
@@ -1057,7 +1091,11 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     }
 
     const isMandatory = isFieldMandatory(field, formData);
-    const fieldIsReadOnly = readOnly || checkFieldReadOnly(field, formData);
+    const fieldIsReadOnly =
+      readOnly ||
+      checkFieldReadOnly(field, formData) ||
+      // Locked, not merely defaulted: an overhead fund has no other head to pick.
+      (overheadFund && budgetHeadFieldnames.includes(field.fieldname));
 
     // Handle JSON fields — render as a read-only display table
     if (field.fieldtype === "JSON") {

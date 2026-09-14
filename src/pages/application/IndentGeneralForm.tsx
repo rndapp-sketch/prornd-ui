@@ -56,6 +56,7 @@ const SubmitConfirmModal: React.FC<{
     </div>
 );
 import { GlobalLoader } from "@/components/ui/global-loader";
+import { useIsOverheadProject } from '@/hooks/useIsOverheadProject';
 
 // --- UI Helpers ---
 const GroupCard = ({
@@ -124,6 +125,10 @@ const IndentGeneralForm: React.FC = () => {
 
     const [fields, setFields] = useState<FormField[]>([]);
     const [formData, setFormData] = useState<Record<string, any>>({});
+    // An overhead fund (PDF / DPF / IDF / SWF / STWF) is a single pool with no head
+    // dimension. IGF rewrites igf_account_head into a Link on Budget Head before
+    // rendering, so the shared rule picks it up once this flag is set.
+    const isOverheadProject = useIsOverheadProject(projectNoParam || projectNameParam);
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -654,6 +659,7 @@ const IndentGeneralForm: React.FC = () => {
                     {/* Indenter & Project Details */}
                     <GroupCard label="Purchase General Form — Indenter &amp; Project Details">
                         <DynamicFormRenderer
+                            overheadFund={isOverheadProject}
                             fields={effectiveFields.filter((f) =>
                                 [
                                     "igf_purchase_general_form",
@@ -681,6 +687,7 @@ const IndentGeneralForm: React.FC = () => {
                     {/* Items Table */}
                     <GroupCard label="Details of Items to be Purchased">
                         <DynamicFormRenderer
+                            overheadFund={isOverheadProject}
                             fields={effectiveFields.filter((f) =>
                                 [
                                     "details_of_items_to_be_purchased_section",
@@ -702,6 +709,7 @@ const IndentGeneralForm: React.FC = () => {
                     ) && (
                             <GroupCard label="Details of Vendors">
                                 <DynamicFormRenderer
+                                    overheadFund={isOverheadProject}
                                     fields={effectiveFields.filter((f) =>
                                         [
                                             "igf_details_of_vendors",
@@ -716,6 +724,7 @@ const IndentGeneralForm: React.FC = () => {
                     {/* Purchase Committee */}
                     <GroupCard label="Purchase Committee (Minimum 3 Members)">
                         <DynamicFormRenderer
+                            overheadFund={isOverheadProject}
                             fields={effectiveFields.filter((f) =>
                                 [
                                     "igf_purchase_committee",
@@ -734,6 +743,7 @@ const IndentGeneralForm: React.FC = () => {
                     {/* Tender Details */}
                     <GroupCard label="Tender Details">
                         <DynamicFormRenderer
+                            overheadFund={isOverheadProject}
                             fields={effectiveFields.filter((f) =>
                                 [
                                     "igf_tender_details",
@@ -748,6 +758,7 @@ const IndentGeneralForm: React.FC = () => {
                     {/* File Upload */}
                     <GroupCard label="File Upload Section">
                         <DynamicFormRenderer
+                            overheadFund={isOverheadProject}
                             fields={effectiveFields.filter((f) =>
                                 [
                                     "igf_file_upload_section",
@@ -769,6 +780,7 @@ const IndentGeneralForm: React.FC = () => {
                                 </p>
                             </div>
                             <DynamicFormRenderer
+                                overheadFund={isOverheadProject}
                                 fields={effectiveFields.filter((f) =>
                                     [
                                         "igf_declaration_section",
