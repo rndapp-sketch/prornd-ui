@@ -419,15 +419,15 @@ const HRIDCardManagement: React.FC = () => {
 
             if (frontEl && backEl) {
                 const imgFront = await toPng(frontEl, options);
-                pdf.addImage(imgFront, 'PNG', 0, 0, 85.6, 53.98, undefined, 'FAST');
+                pdf.addImage(imgFront, 'PNG', 0, 0, 85.6, 53.98, undefined, 'SLOW');
 
                 pdf.addPage([85.6, 53.98], 'landscape');
 
                 const imgBack = await toPng(backEl, options);
-                pdf.addImage(imgBack, 'PNG', 0, 0, 85.6, 53.98, undefined, 'FAST');
+                pdf.addImage(imgBack, 'PNG', 0, 0, 85.6, 53.98, undefined, 'SLOW');
             } else {
                 const imgData = await toPng(printRef.current, options);
-                pdf.addImage(imgData, 'PNG', 0, 0, 85.6, 53.98, undefined, 'FAST');
+                pdf.addImage(imgData, 'PNG', 0, 0, 85.6, 53.98, undefined, 'SLOW');
             }
 
             const { folderName } = getFolderNameAndDate(selectedCard, 'PDF');
@@ -1109,7 +1109,7 @@ const HRIDCardManagement: React.FC = () => {
             {/* Print Preview Modal */}
             {showPrintPreview && selectedCard && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                    <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl max-w-lg w-full">
+                    <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl max-w-2xl w-full">
                         <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
                             <h3 className="font-bold text-[#27272A] dark:text-[#E4E4E7]">ID Card Preview</h3>
                             <button onClick={handleClosePrintPreview} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg">

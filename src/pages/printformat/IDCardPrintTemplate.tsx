@@ -63,10 +63,15 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
       className="card-side"
       style={{
         width: "508px",
+        minWidth: "508px",
+        maxWidth: "508px",
         height: "320px",
+        minHeight: "320px",
+        maxHeight: "320px",
         backgroundColor: "#FFFFFF",
         color: "#000000",
-        fontFamily: "Arial, 'Segoe UI', sans-serif",
+        fontFamily:
+          "'Noto Sans Devanagari', 'Noto Sans', Arial, 'Segoe UI', sans-serif",
         border: "2px solid #000000",
         borderRadius: "10px",
         boxSizing: "border-box",
@@ -75,6 +80,9 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
+        flexShrink: 0,
+        textRendering: "geometricPrecision",
+        WebkitFontSmoothing: "antialiased",
       }}
     >
       {/* Background Watermark Logo */}
@@ -84,7 +92,7 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
           top: "60%",
           left: "50%",
           transform: "translate(-50%, -50%)",
-          opacity: 0.15,
+          opacity: 0.45,
           pointerEvents: "none",
           zIndex: 0,
           width: "240px",
@@ -99,6 +107,7 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
             height: "auto",
             display: "block",
             margin: "0 auto",
+            filter: "contrast(1.15) saturate(1.25)",
           }}
           crossOrigin="anonymous"
         />
@@ -131,6 +140,7 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
                 height: "85px",
                 width: "auto",
                 display: "block",
+                filter: "contrast(1.18) saturate(1.25) brightness(0.95)",
               }}
               crossOrigin="anonymous"
             />
@@ -140,6 +150,7 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
           <div
             style={{
               flex: 1,
+              minWidth: 0,
               paddingLeft: "10px",
               display: "flex",
               flexDirection: "column",
@@ -148,36 +159,42 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
           >
             <div
               style={{
-                fontSize: "20px",
-                fontWeight: "bold",
-                color: "#B91C1C",
+                fontSize: "19px",
+                fontWeight: 800,
+                color: "#8A0000",
+                WebkitTextStroke: "0.2px #8A0000",
                 lineHeight: "1.2",
                 margin: 0,
-                letterSpacing: ".5px",
-                wordSpacing: "4px",
+                letterSpacing: "0.3px",
+                whiteSpace: "nowrap",
               }}
             >
               भारतीय प्रौद्योगिकी संस्थान गुवाहाटी
             </div>
             <div
               style={{
-                fontSize: "16.1px",
-                fontWeight: "900",
-                color: "#B91C1C",
+                fontSize: "15.5px",
+                fontWeight: 900,
+                color: "#8A0000",
+                WebkitTextStroke: "0.2px #8A0000",
                 lineHeight: "1.2",
                 margin: "2px 0",
+                letterSpacing: "-0.1px",
+                whiteSpace: "nowrap",
               }}
             >
               INDIAN INSTITUTE OF TECHNOLOGY GUWAHATI
             </div>
             <div
               style={{
-                fontSize: "15px",
-                fontWeight: "bold",
-                color: "#B91C1C",
-                letterSpacing: ".6px",
+                fontSize: "14.5px",
+                fontWeight: 800,
+                color: "#8A0000",
+                WebkitTextStroke: "0.2px #8A0000",
+                letterSpacing: "0.5px",
                 lineHeight: "1.2",
                 margin: 0,
+                whiteSpace: "nowrap",
               }}
             >
               RESEARCH AND DEVELOPMENT CELL
@@ -185,11 +202,13 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
             <div
               style={{
                 fontSize: "8.5px",
-                fontWeight: "bold",
-                color: "#B91C1C",
-                letterSpacing: "0.4px",
+                fontWeight: 800,
+                color: "#8A0000",
+                WebkitTextStroke: "0.15px #8A0000",
+                letterSpacing: "0.3px",
                 lineHeight: "1.2",
                 margin: 0,
+                whiteSpace: "nowrap",
               }}
             >
               (An autonomous Institution of National Importance under MoE, GOI)
@@ -204,10 +223,12 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            borderBottom: "1px solid #777777",
+            borderBottom: "1.5px solid #000000",
             fontSize: "12px",
-            fontWeight: "bold",
+            fontWeight: 800,
             color: "#000000",
+            WebkitTextStroke: "0.15px #000000",
+            whiteSpace: "nowrap",
           }}
         >
           <div>ID No: {data.emp_id__ || "—"}</div>
@@ -241,14 +262,20 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
               <img
                 src={data.photo_path__}
                 alt="Holder Photo"
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  filter: "contrast(1.1) saturate(1.12) brightness(0.96)",
+                }}
                 crossOrigin="anonymous"
               />
             ) : (
               <div
                 style={{
                   fontSize: "10px",
-                  color: "#9CA3AF",
+                  fontWeight: 700,
+                  color: "#6B7280",
                   textAlign: "center",
                 }}
               >
@@ -261,15 +288,24 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
           <div
             style={{
               flex: 1,
+              minWidth: 0,
               lineHeight: "1.5",
               color: "#000000",
+              WebkitTextStroke: "0.15px #000000",
             }}
           >
-            <div>
+            <div
+              style={{
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
               <span
                 style={{
                   fontSize: "14px",
-                  fontWeight: "600",
+                  fontWeight: 700,
+                  color: "#000000",
                 }}
               >
                 Name:
@@ -277,56 +313,77 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
               <span
                 style={{
                   fontSize: "15px",
-                  fontWeight: "bold",
+                  fontWeight: 800,
                   color: "#000000",
                 }}
               >
                 {data.full_name__ || "—"}
               </span>
             </div>
-            <div>
+            <div
+              style={{
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
               <span
                 style={{
                   fontSize: "14px",
-                  fontWeight: "600",
+                  fontWeight: 700,
+                  color: "#000000",
                 }}
               >
                 Date Of Birth:
               </span>{" "}
               <span
                 style={{
-                  fontSize: "14.5px",
-                  fontWeight: "bold",
+                  fontSize: "14px",
+                  fontWeight: 800,
                   color: "#000000",
                 }}
               >
                 {formatDateSlash(data.dob__)}
               </span>
             </div>
-            <div>
+            <div
+              style={{
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
               <span
                 style={{
                   fontSize: "14px",
-                  fontWeight: "600",
+                  fontWeight: 700,
+                  color: "#000000",
                 }}
               >
                 Designation:
               </span>{" "}
               <span
                 style={{
-                  fontSize: "14.5px",
-                  fontWeight: "bold",
+                  fontSize: "14px",
+                  fontWeight: 800,
                   color: "#000000",
                 }}
               >
                 {data.designation__ || "—"}
               </span>
             </div>
-            <div>
+            <div
+              style={{
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
               <span
                 style={{
                   fontSize: "14px",
-                  fontWeight: "600",
+                  fontWeight: 700,
+                  color: "#000000",
                 }}
               >
                 Dept./Centre:
@@ -334,7 +391,7 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
               <span
                 style={{
                   fontSize: "14px",
-                  fontWeight: "bold",
+                  fontWeight: 800,
                   color: "#000000",
                 }}
               >
@@ -354,6 +411,8 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "flex-end",
+          color: "#000000",
+          WebkitTextStroke: "0.15px #000000",
         }}
       >
         {/* Holder Signature */}
@@ -374,6 +433,8 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
                   maxHeight: "30px",
                   maxWidth: "130px",
                   objectFit: "contain",
+                  filter:
+                    "contrast(1.6) brightness(0.7) drop-shadow(0 0 0.2px #000000)",
                 }}
                 crossOrigin="anonymous"
               />
@@ -381,10 +442,11 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
           </div>
           <div
             style={{
-              fontSize: "11px",
-              fontWeight: "bold",
+              fontSize: "11.5px",
+              fontWeight: 800,
               marginTop: "2px",
               color: "#000000",
+              whiteSpace: "nowrap",
             }}
           >
             Holder's Signature
@@ -396,18 +458,21 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
           <div
             style={{
               fontSize: "11px",
-              fontWeight: "600",
+              fontWeight: 700,
               marginBottom: "1px",
+              color: "#000000",
+              whiteSpace: "nowrap",
             }}
           >
             Valid Upto:
           </div>
           <div
             style={{
-              fontSize: "13.5px",
-              fontWeight: "bold",
+              fontSize: "14px",
+              fontWeight: 900,
               color: "#000000",
               lineHeight: "1.2",
+              whiteSpace: "nowrap",
             }}
           >
             {formatDateSlash(data.valid_upto__)}
@@ -431,16 +496,18 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
                 maxHeight: "32px",
                 maxWidth: "150px",
                 objectFit: "contain",
+                filter: "contrast(1.4) brightness(0.75) saturate(1.3)",
               }}
               crossOrigin="anonymous"
             />
           </div>
           <div
             style={{
-              fontSize: "11px",
-              fontWeight: "bold",
+              fontSize: "11.5px",
+              fontWeight: 800,
               marginTop: "2px",
               color: "#000000",
+              whiteSpace: "nowrap",
             }}
           >
             Associate Dean (R&D)
@@ -458,10 +525,15 @@ export const BackIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
       className="card-side"
       style={{
         width: "508px",
+        minWidth: "508px",
+        maxWidth: "508px",
         height: "320px",
+        minHeight: "320px",
+        maxHeight: "320px",
         backgroundColor: "#FFFFFF",
         color: "#000000",
-        fontFamily: "Arial, 'Segoe UI', sans-serif",
+        fontFamily:
+          "'Noto Sans Devanagari', 'Noto Sans', Arial, 'Segoe UI', sans-serif",
         border: "2px solid #000000",
         borderRadius: "10px",
         boxSizing: "border-box",
@@ -470,6 +542,9 @@ export const BackIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
+        flexShrink: 0,
+        textRendering: "geometricPrecision",
+        WebkitFontSmoothing: "antialiased",
       }}
     >
       {/* Background Watermark Logo */}
@@ -479,7 +554,7 @@ export const BackIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
           top: "46%",
           left: "50%",
           transform: "translate(-50%, -50%)",
-          opacity: 0.15,
+          opacity: 0.45,
           pointerEvents: "none",
           zIndex: 0,
           width: "240px",
@@ -494,6 +569,7 @@ export const BackIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
             height: "auto",
             display: "block",
             margin: "0 auto",
+            filter: "contrast(1.15) saturate(1.25)",
           }}
           crossOrigin="anonymous"
         />
@@ -521,15 +597,16 @@ export const BackIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
               justifyContent: "space-between",
               alignItems: "center",
               color: "#000000",
-              borderBottom: "1px solid #000000",
+              borderBottom: "1.5px solid #000000",
               backgroundColor: "transparent",
+              WebkitTextStroke: "0.15px #000000",
             }}
           >
-            <div>
+            <div style={{ whiteSpace: "nowrap" }}>
               <span
                 style={{
                   fontSize: "11.5px",
-                  fontWeight: "600",
+                  fontWeight: 700,
                 }}
               >
                 Emergency No:
@@ -537,18 +614,18 @@ export const BackIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
               <span
                 style={{
                   fontSize: "12.5px",
-                  fontWeight: "bold",
+                  fontWeight: 800,
                   color: "#000000",
                 }}
               >
                 {data.emergency_phone__ || "—"}
               </span>
             </div>
-            <div>
+            <div style={{ whiteSpace: "nowrap" }}>
               <span
                 style={{
                   fontSize: "11.5px",
-                  fontWeight: "600",
+                  fontWeight: 700,
                 }}
               >
                 Date of Issue:
@@ -556,7 +633,7 @@ export const BackIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
               <span
                 style={{
                   fontSize: "12.5px",
-                  fontWeight: "bold",
+                  fontWeight: 800,
                   color: "#000000",
                 }}
               >
@@ -570,12 +647,13 @@ export const BackIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
                 gap: "4px",
                 color: "#000000",
                 backgroundColor: "transparent",
+                whiteSpace: "nowrap",
               }}
             >
               <span
                 style={{
                   fontSize: "11.5px",
-                  fontWeight: "600",
+                  fontWeight: 700,
                 }}
               >
                 Blood Group:
@@ -583,7 +661,7 @@ export const BackIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
               <span
                 style={{
                   fontSize: "12.5px",
-                  fontWeight: "bold",
+                  fontWeight: 800,
                   color: "#000000",
                 }}
               >
@@ -593,9 +671,10 @@ export const BackIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
                 width="14"
                 height="14"
                 viewBox="0 0 24 24"
-                fill="#DC2626"
-                stroke="#991B1B"
-                strokeWidth="1"
+                fill="#B90000"
+                stroke="#800000"
+                strokeWidth="1.2"
+                style={{ filter: "contrast(1.2)" }}
               >
                 <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
               </svg>
@@ -626,6 +705,7 @@ export const BackIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
             <table
               style={{
                 width: "100%",
+                tableLayout: "fixed",
                 borderCollapse: "collapse",
                 fontSize: "11px",
                 backgroundColor: "transparent",
@@ -641,25 +721,29 @@ export const BackIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
                   <td
                     style={{
                       width: "32%",
-                      padding: "10px 12px",
-                      fontWeight: "bold",
+                      padding: "8px 10px",
+                      fontWeight: 800,
                       borderRight: "2px solid #000000",
                       verticalAlign: "middle",
                       color: "#000000",
                       backgroundColor: "transparent",
+                      whiteSpace: "nowrap",
+                      WebkitTextStroke: "0.15px #000000",
                     }}
                   >
                     Permanent Address
                   </td>
                   <td
                     style={{
-                      padding: "10px 12px",
-                      fontSize: "13px",
-                      fontWeight: "bold",
+                      padding: "8px 10px",
+                      fontSize: "12.5px",
+                      fontWeight: 800,
                       verticalAlign: "middle",
-                      lineHeight: "1.4",
+                      lineHeight: "1.35",
                       color: "#000000",
                       backgroundColor: "transparent",
+                      wordBreak: "break-word",
+                      WebkitTextStroke: "0.15px #000000",
                     }}
                   >
                     {data.permanent_address__ || "—"}
@@ -669,25 +753,29 @@ export const BackIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
                   <td
                     style={{
                       width: "32%",
-                      padding: "10px 12px",
-                      fontWeight: "bold",
+                      padding: "8px 10px",
+                      fontWeight: 800,
                       borderRight: "2px solid #000000",
                       verticalAlign: "middle",
                       color: "#000000",
                       backgroundColor: "transparent",
+                      whiteSpace: "nowrap",
+                      WebkitTextStroke: "0.15px #000000",
                     }}
                   >
                     Present Address
                   </td>
                   <td
                     style={{
-                      padding: "10px 12px",
-                      fontSize: "13px",
-                      fontWeight: "bold",
+                      padding: "8px 10px",
+                      fontSize: "12.5px",
+                      fontWeight: 800,
                       verticalAlign: "middle",
-                      lineHeight: "1.4",
+                      lineHeight: "1.35",
                       color: "#000000",
                       backgroundColor: "transparent",
+                      wordBreak: "break-word",
+                      WebkitTextStroke: "0.15px #000000",
                     }}
                   >
                     {data.present_address__ || "—"}
@@ -698,28 +786,29 @@ export const BackIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
           </div>
         </div>
 
-        {/* Bottom Center Notice (Larger & Bolder) */}
+        {/* Bottom Center Notice */}
         <div
           style={{
-            padding: "0 15px 12px 15px",
+            padding: "0 15px 10px 15px",
             textAlign: "center",
-            fontSize: "11px",
+            fontSize: "10.5px",
             fontWeight: 800,
             color: "#000000",
-            lineHeight: "1.4",
+            lineHeight: "1.35",
             backgroundColor: "transparent",
+            WebkitTextStroke: "0.15px #000000",
           }}
         >
           <div style={{ backgroundColor: "transparent" }}>
             This card is not transferable, if found or in case of any
             information, please contact Registrar, Indian Institute of
-            technology Guwahati, Guwahati-781039 Assam, India
+            Technology Guwahati, Guwahati-781039 Assam, India
           </div>
           <div
             style={{
-              marginTop: "4px",
+              marginTop: "3px",
               backgroundColor: "transparent",
-              fontSize: "12.5px",
+              fontSize: "12px",
               fontWeight: 900,
             }}
           >
