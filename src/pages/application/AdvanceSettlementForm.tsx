@@ -7,6 +7,7 @@ import { AlertCircle, Wallet } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { advanceSettlementAPI, prepareFormDataForApi } from '@/services/apiService';
+import { useIsOverheadProject } from '@/hooks/useIsOverheadProject';
 import { ErrorModal } from '../../components/ErrorModal';
 import { parseFrappeError } from '../../utils/errorUtils';
 
@@ -60,6 +61,13 @@ const AdvanceSettlementForm: React.FC = () => {
     const [fields, setFields] = useState<FormField[]>([]);
     const [formData, setFormData] = useState<Record<string, any>>({});
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
+
+    // An overhead fund (PDF / DPF / IDF / SWF / STWF) is a single pool with no head
+    // dimension — every spend books to "Overhead". Passed to DynamicFormRenderer as
+    // `overheadFund`, which fixes and locks every Budget Head selector on the form.
+    // Ordinary projects are untouched: the flag is false for them.
+    const isOverheadProject = useIsOverheadProject(formData.project_code);
+
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [dataLoaded, setDataLoaded] = useState(false);
@@ -508,6 +516,7 @@ const AdvanceSettlementForm: React.FC = () => {
                         <div className="lg:col-span-3">
                             <FrappeCard className="space-y-8">
                                 <DynamicFormRenderer
+                                                                        overheadFund={isOverheadProject}
                                     fields={visibleFields}
                                     formData={formData}
                                     linkOptions={combinedLinkOptions}

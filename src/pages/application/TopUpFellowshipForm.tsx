@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { isFieldVisible } from '@/utils/evalExpression';
 import { prepareFormDataForApi } from '@/services/apiService';
+import { useIsOverheadProject } from '@/hooks/useIsOverheadProject';
 import {
     HelpCircle, X, BookOpen, IndianRupee, Clock, CheckCircle2,
     ChevronLeft, ChevronRight,
@@ -191,6 +192,11 @@ const TopUpFellowshipForm: React.FC = () => {
     const [fields, setFields] = useState<FormField[]>([]);
     const [formData, setFormData] = useState<Record<string, any>>({});
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    // An overhead fund (PDF / DPF / IDF / SWF / STWF) is a single pool with no head
+    // dimension — every spend books to "Overhead". This fixes and locks every Budget
+    // Head selector on the form. Ordinary projects are untouched.
+    const isOverheadProject = useIsOverheadProject(formData.project_no);
+
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
@@ -758,6 +764,7 @@ const TopUpFellowshipForm: React.FC = () => {
                             </div>
                         )}
                         <DynamicFormRenderer
+                                                        overheadFund={isOverheadProject}
                             fields={fields}
                             formData={formData}
                             linkOptions={linkOptions}

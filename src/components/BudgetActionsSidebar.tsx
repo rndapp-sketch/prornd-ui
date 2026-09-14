@@ -7,6 +7,7 @@ import { CreditCardIcon, CheckCircle2, BookOpen as BookOpenIcon } from 'lucide-r
 import { useUserRoles } from './UserRole';
 import { CommitPayment } from './CommitPayment';
 import { useProjectBudget } from '@/hooks/useProjectBudget';
+import { isOverheadProjectNo, OVERHEAD_BUDGET_HEAD } from '@/services/overheadLedger';
 
 interface BudgetActionsSidebarProps {
     projectName: string;
@@ -79,7 +80,16 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
         fetchBudgetHeads();
     }, []);
 
-    const budgetHeadNames = useMemo(() => budgetHeadList.map(h => h.name), [budgetHeadList]);
+    // An overhead fund (PDF / DPF / IDF / SWF / STWF) is a single pool with no head
+    // dimension — every spend books to "Overhead". Offering the full master list here was
+    // wrong twice over: budgetHeadList is the *whole* Budget Head table, so `budgetHeads[0]`
+    // (what CommitPayment defaults to) was whichever head happened to sort first, and
+    // lockBudgetHead then disabled the dropdown on that wrong value.
+    const isOverheadProject = isOverheadProjectNo(projectName);
+    const budgetHeadNames = useMemo(
+        () => (isOverheadProject ? [OVERHEAD_BUDGET_HEAD] : budgetHeadList.map(h => h.name)),
+        [isOverheadProject, budgetHeadList],
+    );
     const budgetHeadIds = useMemo(
         () => Object.fromEntries(budgetHeadList.map(h => [h.name, h.id])),
         [budgetHeadList],
@@ -116,6 +126,11 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
                     docName={docName || ""}
                     projectName={projectName}
                     budgetHeads={budgetHeadNames}
+                    // An overhead project books everything to the single "Overhead" pool —
+                    // it has no budget head dimension to choose from. budgetHeads is
+                    // already narrowed to just that head above, so this locks the selector
+                    // onto the right value rather than merely freezing it.
+                    lockBudgetHead={isOverheadProject}
                     budgetHeadIds={budgetHeadIds}
                     actualBalance={actualBalance}
                     commitableBalance={commitableBalance}

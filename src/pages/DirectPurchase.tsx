@@ -12,6 +12,11 @@ import DirectPurchaseHelpGuide from "@/components/DirectPurchaseHelpGuide";
 import { AutocompleteEmail } from "@/components/AutocompleteEmail";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
 import { getFieldMaxLength } from "@/utils/fieldLimits";
+import {
+    useIsOverheadProject,
+    budgetHeadFieldnamesOf,
+    overheadHeadUpdates,
+} from '@/hooks/useIsOverheadProject';
 import { ErrorModal } from "../components/ErrorModal";
 import { parseFrappeError } from "../utils/errorUtils";
 
@@ -764,6 +769,23 @@ const DirectPurchase: React.FC = () => {
     const [fields, setFields] = useState<Field[]>([]);
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [formData, setFormData] = useState<Record<string, any>>({});
+    // --- OVERHEAD FUNDS: the account head is fixed, not chosen ---
+    // This page renders its own field loop rather than using DynamicFormRenderer, so the
+    // rule is applied here too — from the same shared helpers, so it cannot drift from the
+    // renderer's version. Direct Purchase declares account_head as a Link on Budget Head, so it takes the docname.
+    // Ordinary projects are untouched: every branch is gated on isOverheadProject.
+    const isOverheadProject = useIsOverheadProject(formData.project_no || formData.project_name || projectName);
+    const overheadHeadFields = React.useMemo(
+        () => (isOverheadProject ? budgetHeadFieldnamesOf(fields, linkOptions) : []),
+        [isOverheadProject, fields, linkOptions],
+    );
+    React.useEffect(() => {
+        if (!isOverheadProject) return;
+        // Only pending changes come back, so this settles instead of looping.
+        const updates = overheadHeadUpdates(fields, linkOptions, formData);
+        if (Object.keys(updates).length === 0) return;
+        setFormData(prev => ({ ...prev, ...updates }));
+    }, [isOverheadProject, fields, linkOptions, formData]);
     const [childTableData, setChildTableData] = useState<Record<string, any[]>>({});
     const [computationRules, setComputationRules] = useState<ComputationRules>({});
     const [loading, setLoading] = useState(true);
@@ -1360,6 +1382,8 @@ const DirectPurchase: React.FC = () => {
 
                                         // Evaluate read_only dependencies
                                         let isReadOnly = field.read_only === 1;
+                                        // An overhead fund has no other head to pick.
+                                        if (overheadHeadFields.includes(field.fieldname)) isReadOnly = true;
                                         if (field.read_only_depends_on || field.read_only_depends_on_eval) {
                                             const roExpr = field.read_only_depends_on_eval || field.read_only_depends_on;
                                             if (evaluateDependsOn(roExpr, effectiveFormData)) {

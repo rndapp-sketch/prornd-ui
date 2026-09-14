@@ -32,6 +32,25 @@ export interface HeadBalance {
   id: number;
 }
 
+/**
+ * The single budget head an overhead spend is booked against. These funds have no head
+ * dimension — the balance is one pool — but an overhead commit still carries a real
+ * account head. Budget Head id 1 is "Overhead".
+ */
+export const PDF_BUDGET_HEAD = "Overhead";
+export const PDF_BUDGET_HEAD_ID = 1;
+
+/**
+ * Project number prefixes for the overhead funds surfaced as projects: `PDF{employee_id}`
+ * and `DPF{dept_id}`.
+ *
+ * Declared here rather than imported from `@/services/overheadLedger` because that module
+ * imports the budget-head constants above — going the other way would be a cycle.
+ */
+const OVERHEAD_PREFIXES = ["PDF", "DPF"];
+const isOverheadProjectCode = (code: string) =>
+  OVERHEAD_PREFIXES.some((p) => code.startsWith(p));
+
 export const useProjectBudget = (projectCode: string) => {
   const [budgetData, setBudgetData] = useState<BudgetEntry[]>([]);
   const [heads, setHeads] = useState<string[]>([]);
@@ -53,6 +72,42 @@ export const useProjectBudget = (projectCode: string) => {
       setIsLoading(true);
       setError(null);
       try {
+        // An overhead fund project (PDF per employee, DPF per department) is a single pool
+        // with no head dimension, and its data lives behind a whitelisted Frappe method —
+        // never /ledger-api, which is an unauthenticated proxy and would expose one
+        // employee's earnings, or one department's fund, to anybody
+        // (see docs/pdf-project-implementation.md §5.6d). Handled first so the per-head
+        // fan-out below never runs for an overhead fund.
+        if (isOverheadProjectCode(projectCode)) {
+          const res = await fetch(
+            `/api/method/rndopsapp.rndopsapp.overhead_fund.get_overhead_balance?project_number=${encodeURIComponent(projectCode)}`,
+            { credentials: "include", headers: { Accept: "application/json" } },
+          );
+          const payload = await res.json();
+          const d = payload?.message?.data;
+          if (!d) throw new Error(payload?.message?.message || "Could not load overhead fund balance");
+
+          const commitable = Number(d.availableCommitAmount) || 0;
+          const actual = Number(d.availablePaymentAmount) || 0;
+
+          setHeads([PDF_BUDGET_HEAD]);
+          setHeadBalances({
+            [PDF_BUDGET_HEAD]: {
+              received: Number(d.totalFundReceived) || 0,
+              committed: Number(d.totalCommitted) || 0,
+              payment: Number(d.totalPaid) || 0,
+              actual,
+              commitable,
+              id: PDF_BUDGET_HEAD_ID,
+            },
+          });
+          setActualBalance(actual);
+          setCommitableBalance(commitable);
+          setBudgetData([]);
+          setIsLoading(false);
+          return;
+        }
+
         // 1. Fetch Budget Heads
         const headRes = await fetch(
           '/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0',

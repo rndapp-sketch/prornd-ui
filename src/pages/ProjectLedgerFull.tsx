@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { fetchOverheadLedger, isOverheadProjectNo, OVERHEAD_BUDGET_HEAD_ID } from "@/services/overheadLedger";
 
 // Interface for Ledger Transaction
 interface LedgerTransaction {
@@ -107,6 +108,15 @@ const ProjectLedgerFull = () => {
             setIsCheckingHeads(true);
             const headsSet = new Set<number>();
 
+            // A PDF fund is one pool with no head dimension, and its data must not go
+            // through /ledger-api (see services/overheadLedger).
+            if (isOverheadProjectNo(projectName)) {
+                headsSet.add(OVERHEAD_BUDGET_HEAD_ID);
+                setHeadsWithData(headsSet);
+                setIsCheckingHeads(false);
+                return;
+            }
+
             try {
                 const promises = budgetHeadList.map(async (head) => {
                     try {
@@ -158,6 +168,15 @@ const ProjectLedgerFull = () => {
     const fetchLedgerData = async (headId: string | number) => {
         setIsLoading(true);
         try {
+            if (isOverheadProjectNo(projectName)) {
+                const rows = await fetchOverheadLedger(String(projectName));
+                // Accounts' own balances — the running total below ignores loans.
+                setLedgerTransactions(
+                    rows.map((txn: any) => ({ ...txn, paymentBalance: txn.balance ?? 0 })),
+                );
+                return;
+            }
+
             const url = `/ledger-api/commit-payment-transactions?projectNumber=${projectName}&accountHeadId=${headId}`;
             const response = await fetch(url);
 

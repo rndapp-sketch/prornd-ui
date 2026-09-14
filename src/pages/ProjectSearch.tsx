@@ -9,6 +9,7 @@ import {
   Calendar, User, Hash, Tag, FileSpreadsheet,
   ArrowUpDown, Layers, AlertCircle, FolderOpen,
 } from "lucide-react";
+import { fetchOverheadLedger, isOverheadProjectNo, OVERHEAD_BUDGET_HEAD_ID } from "@/services/overheadLedger";
 
 // ─── Full-page project detail modal ─────────────────────────────────────────
 
@@ -155,6 +156,16 @@ function ProjectLedgerPanel({ projectNo }: { projectNo: string }) {
     if (headsLoading || budgetHeads.length === 0 || !projectNo) return;
     setCheckingHeads(true);
     const found = new Set<number>();
+
+    // A PDF fund is one pool with no head dimension, and must not go through
+    // /ledger-api (see services/overheadLedger).
+    if (isOverheadProjectNo(projectNo)) {
+      found.add(OVERHEAD_BUDGET_HEAD_ID);
+      setHeadsWithData(found);
+      setCheckingHeads(false);
+      return;
+    }
+
     Promise.all(
       budgetHeads.map(async h => {
         try {
@@ -184,6 +195,15 @@ function ProjectLedgerPanel({ projectNo }: { projectNo: string }) {
     setTxnLoading(true);
     setTxnError(null);
     try {
+      if (isOverheadProjectNo(projectNo)) {
+        const rows = await fetchOverheadLedger(projectNo);
+        // Accounts' own balances — the running total below ignores loans.
+        setTransactions(
+          rows.map(t => ({ ...t, paymentBalance: t.balance ?? 0 })) as LedgerTransaction[],
+        );
+        return;
+      }
+
       const r = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectNo)}&accountHeadId=${headId}`);
       if (!r.ok) throw new Error(r.statusText);
       const raw: LedgerTransaction[] = await r.json();

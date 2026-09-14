@@ -14,6 +14,7 @@ import { ActivityLog } from "@/components/ActivityLog";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import { generateDisbursalOfHonorariumHtml, resolveHonorariumPrintData } from '@/utils/disbursalOfHonorariumPrint';
 import { getFileUrl } from '@/utils/fileUtils';
+import { useIsOverheadProject } from '@/hooks/useIsOverheadProject';
 import { ErrorModal } from '../../components/ErrorModal';
 import { parseFrappeError } from '../../utils/errorUtils';
 
@@ -152,6 +153,13 @@ const DisbursalOfHonorariumForm: React.FC = () => {
     const [fields, setFields] = useState<FormField[]>([]);
     const [formData, setFormData] = useState<Record<string, any>>({});
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
+
+    // An overhead fund (PDF / DPF / IDF / SWF / STWF) is a single pool with no head
+    // dimension — every spend books to "Overhead". Passed to DynamicFormRenderer as
+    // `overheadFund`, which fixes and locks every Budget Head selector on the form.
+    // Ordinary projects are untouched: the flag is false for them.
+    const isOverheadProject = useIsOverheadProject(formData.project_no || formData.project_number);
+
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
@@ -643,6 +651,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                 <form onSubmit={handleSubmit}>
                     <FrappeCard className="space-y-12">
                         <DynamicFormRenderer
+                                                        overheadFund={isOverheadProject}
                             fields={fields}
                             formData={formData}
                             linkOptions={linkOptions}
