@@ -729,8 +729,7 @@ const TopUpFellowshipForm: React.FC = () => {
                         <button
                             type="button"
                             onClick={() => setIsPrintOpen(true)}
-                            disabled={!!formData.owner && !fetchedOwnerName}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
                             title="Print this document"
                         >
                             <Printer className="w-4 h-4" />
