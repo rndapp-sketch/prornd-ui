@@ -1,6 +1,6 @@
 // Shared warning shown under a manually-typed input once it hits the
 // character limit derived from the underlying Frappe column type.
-// See data_type_character_limit.md / src/utils/fieldLimits.ts.
+// See docs/misc/data_type_character_limit.md / src/utils/fieldLimits.ts.
 export const CharLimitAlert = ({
   value,
   maxLength,

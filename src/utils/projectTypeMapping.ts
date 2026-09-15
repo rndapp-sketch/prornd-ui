@@ -1,6 +1,6 @@
 /**
  * Describes how each DocType links back to Project Registration.
- * Source: project_registration_links.md
+ * Source: docs/misc/project_registration_links.md
  *
  * Strategies:
  *   self          – the record itself IS a Project Registration
