@@ -1771,7 +1771,9 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                     setModalOpen(false);
                     window.location.reload();
                 })
-                .catch(() => {});
+                .catch((err: any) => {
+                    setErrorModal({ open: true, title: `${action} Failed`, message: parseFrappeError(err) });
+                });
         },
         [
             triggerWorkflowAction,

@@ -6,47 +6,34 @@ import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { useFrappeGetCall, useFrappeGetDocList } from 'frappe-react-sdk';
 import { GlobalLoader } from '@/components/ui/global-loader';
+import { ModuleFilterSelect } from '@/components/ModuleFilterSelect';
 import { ActivityLog } from '@/components/ActivityLog';
 import { XIcon, ActivityIcon } from 'lucide-react';
-import {
-    resolveProjectCategory,
-    DOCTYPE_PR_LINKS,
-    type PRLinkStrategy,
-    type ProjectCategory,
-} from '@/utils/projectTypeMapping';
+import { resolveProjectCategory, type ProjectCategory } from '@/utils/projectTypeMapping';
 // import { debounce } from 'lodash';
 
-// Define interfaces for the API response
-interface TaskRecord {
-    name: string;
-    title: string;
+// Row shape returned by get_categorized_task_registry, already bucketed into
+// research/consultancy/others and resolved server-side via DOCTYPE_PR_LINKS
+// (see rndopsapp/project_type_links.py, the backend's single source of truth).
+// mod_vis is always null here — get_task_registry has no such concept.
+interface CategorizedTaskRow {
     status: string;
-    creation: string;
-    modified: string;
+    module: string;
+    title: string;
+    project_no: string;
+    date: string;
     owner: string;
-    [key: string]: unknown;
-}
-
-interface TaskResult {
     doctype: string;
-    records: TaskRecord[];
+    name: string;
+    mod_vis: number | null;
+    deposit_slip?: string;
 }
 
-interface PaginationData {
-    page: number;
-    page_size: number;
-    total_pages: number;
-    total_count: number;
-}
-
-interface TaskRegistryResponse {
+interface CategorizedTaskRegistryResponse {
     message: {
-        results: TaskResult[];
-        pagination: PaginationData;
-        filters: {
-            search: string;
-            doctype_filter: string[];
-        };
+        research: CategorizedTaskRow[];
+        consultancy: CategorizedTaskRow[];
+        others: CategorizedTaskRow[];
     };
 }
 
@@ -56,10 +43,15 @@ interface FlattenedTask {
     title: string;
     status: string;
     creation: string;
-    modified: string;
+    // Only populated for the client-merged Recruitment Adhoc Contractual rows below —
+    // get_categorized_task_registry doesn't return `modified`, so the Modified column
+    // falls back to "-" for every other row.
+    modified?: string;
     owner: string;
     doctype: string;
     project_type: ProjectCategory;
+    projectNo: string;
+    depositSlip?: string;
 }
 
 type ProjectTypeTab = ProjectCategory;
@@ -120,15 +112,14 @@ const TaskRegistry: React.FC = () => {
         return () => clearTimeout(timer);
     }, [searchQuery]);
 
-    // Fetch processed/forwarded documents
-    const { data, isLoading, error } = useFrappeGetCall<TaskRegistryResponse>(
-        "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_task_registry",
-        {
-            page_name: "task-registry",
-            debug: 1,
-        }
+    // Fetch processed/forwarded documents, already categorized into research/consultancy/others
+    const { data, isLoading, error } = useFrappeGetCall<CategorizedTaskRegistryResponse>(
+        "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_categorized_task_registry",
+        { debug: 1 }
     );
 
+    // Only needed to categorize the client-merged Recruitment Adhoc Contractual rows below —
+    // every other doctype's project_type comes pre-resolved from get_categorized_task_registry.
     const { data: allProjectRegistrations } = useFrappeGetDocList("Project Registration", {
         fields: ["name", "project_no", "project_type"],
         limit: 1000,
@@ -172,29 +163,26 @@ const TaskRegistry: React.FC = () => {
         const existingIds = new Set<string>();
         const tasks: FlattenedTask[] = [];
 
-        if (data?.message?.results) {
-            data.message.results.forEach((group) => {
-                if (group.records && Array.isArray(group.records)) {
-                    group.records.forEach((record) => {
-                        existingIds.add(record.name);
-                        tasks.push({
-                            id: record.name,
-                            title: record.title,
-                            status: record.status,
-                            creation: record.creation,
-                            modified: record.modified,
-                            owner: record.owner,
-                            doctype: group.doctype,
-                            project_type: resolveProjectCategory(
-                                record as unknown as Record<string, unknown>,
-                                group.doctype,
-                                prNameToType,
-                                prNoToType,
-                            ),
-                        });
-                    });
-                }
-            });
+        if (data?.message) {
+            const buckets: [ProjectCategory, CategorizedTaskRow[]][] = [
+                ['Research', data.message.research ?? []],
+                ['Consultancy', data.message.consultancy ?? []],
+                ['Others', data.message.others ?? []],
+            ];
+            buckets.forEach(([project_type, rows]) => rows.forEach((record) => {
+                existingIds.add(record.name);
+                tasks.push({
+                    id: record.name,
+                    title: record.title,
+                    status: record.status,
+                    creation: record.date,
+                    owner: record.owner,
+                    doctype: record.doctype,
+                    project_type,
+                    projectNo: record.project_no || "",
+                    depositSlip: record.deposit_slip,
+                });
+            }));
         }
 
         // Merge Recruitment Adhoc Contractual records not already in the registry response
@@ -215,6 +203,7 @@ const TaskRegistry: React.FC = () => {
                             prNameToType,
                             prNoToType,
                         ),
+                        projectNo: rec.upfa_project_code || "",
                     });
                 }
             });
@@ -223,163 +212,9 @@ const TaskRegistry: React.FC = () => {
         return tasks;
     }, [data, recData, prNameToType, prNoToType]);
 
-    const [resolvedProjectTypes, setResolvedProjectTypes] = React.useState<Map<string, ProjectCategory>>(new Map());
-
-    React.useEffect(() => {
-        if (!allTasks.length) return;
-
-        const byDoctype = new Map<string, string[]>();
-        allTasks.forEach(task => {
-            const mapping = DOCTYPE_PR_LINKS[task.doctype];
-            if (!mapping || mapping.primary.type === 'self') return;
-            if (!byDoctype.has(task.doctype)) byDoctype.set(task.doctype, []);
-            byDoctype.get(task.doctype)!.push(task.id);
-        });
-
-        if (!byDoctype.size) return;
-
-        const newMap = new Map<string, ProjectCategory>();
-        const promises: Promise<void>[] = [];
-
-        byDoctype.forEach((ids, doctype) => {
-            const mapping = DOCTYPE_PR_LINKS[doctype]!;
-            const fields = new Set<string>(['name']);
-            const addField = (s: PRLinkStrategy) => { if (s.type !== 'self') fields.add(s.field); };
-            addField(mapping.primary);
-            if (mapping.fallback) addField(mapping.fallback);
-
-            const params = new URLSearchParams({
-                filters: JSON.stringify([['name', 'in', ids.join(',')]]),
-                fields: JSON.stringify([...fields]),
-                limit: String(ids.length),
-            });
-
-            const p = fetch(`/api/resource/${encodeURIComponent(doctype)}?${params}`)
-                .then(r => r.json())
-                .then(result => {
-                    (result?.data ?? result?.message ?? []).forEach((rec: Record<string, unknown>) => {
-                        const cat = resolveProjectCategory(rec, doctype, prNameToType, prNoToType);
-                        newMap.set(rec['name'] as string, cat);
-                    });
-                })
-                .catch(() => { /* keep inferred type if lookup fails */ });
-
-            promises.push(p);
-        });
-
-        Promise.all(promises).then(() => {
-            if (newMap.size > 0) setResolvedProjectTypes(new Map(newMap));
-        });
-    }, [allTasks, prNameToType, prNoToType]);
-
-    // Fund Received rows — the task-registry API's document id isn't a project
-    // number, so resolve the real project_no via prjreg_title → Project Registration,
-    // and separately look up any deposit slip already linked to the Fund Received
-    // record (fund_received_ref match across all deposit slip doctypes, same lookup
-    // used in PendingTask/HoSApprovalView/FundReceivedDetails).
-    const FR_DEPOSIT_SLIP_DOCTYPES = [
-        "Research Consultancy Deposit Slip",
-        "D Consultancy Deposit Slip",
-        "E Non Routine Deposit Slip",
-        "T Testing Deposit Slip",
-        "Other Event Deposit Slip",
-        "Research Deposit Slip",
-    ];
-    const [frProjectNos, setFrProjectNos] = React.useState<Map<string, string>>(new Map());
-    const [frDepositSlips, setFrDepositSlips] = React.useState<Map<string, string>>(new Map());
-    React.useEffect(() => {
-        const frIds = allTasks
-            .filter(t => t.doctype === "Fund Received")
-            .map(t => t.id);
-        if (!frIds.length) return;
-
-        const params = new URLSearchParams({
-            fields: JSON.stringify(["name", "prjreg_title", "fund_received_ref_number"]),
-            filters: JSON.stringify([["name", "in", frIds.join(",")]]),
-            limit: String(frIds.length),
-        });
-
-        fetch(`/api/resource/Fund%20Received?${params}`, { credentials: "include" })
-            .then(r => r.json())
-            .then(async (result) => {
-                const docs: any[] = result?.data ?? [];
-                if (!docs.length) return;
-
-                // Resolve real project_no via prjreg_title (Project Registration docname)
-                const prNames = [...new Set(docs.map((d: any) => d.prjreg_title).filter(Boolean))];
-                if (prNames.length) {
-                    const prParams = new URLSearchParams({
-                        fields: JSON.stringify(["name", "project_no"]),
-                        filters: JSON.stringify([["name", "in", prNames.join(",")]]),
-                        limit: String(prNames.length),
-                    });
-                    const prRes = await fetch(`/api/resource/Project%20Registration?${prParams}`, { credentials: "include" });
-                    const prResult = await prRes.json();
-                    const noByPrName = new Map<string, string>();
-                    (prResult?.data ?? []).forEach((pr: any) => {
-                        if (pr.name && pr.project_no) noByPrName.set(pr.name, pr.project_no);
-                    });
-                    const noMap = new Map<string, string>();
-                    docs.forEach((d: any) => {
-                        const no = d.prjreg_title ? noByPrName.get(d.prjreg_title) : undefined;
-                        if (no) noMap.set(d.name, no);
-                    });
-                    if (noMap.size > 0) setFrProjectNos(noMap);
-                }
-
-                // Resolve any linked deposit slip via fund_received_ref (FR docname or ref number).
-                // Known naming-template bug: some deposit slips were created with `fund_received_ref`
-                // literally storing "<real ref>-prjreg_refnum" — the `prjreg_refnum` token was never
-                // substituted (e.g. "REC_0108262318-prjreg_refnum" instead of "REC_0108262318"). Add
-                // this exact suffix as a candidate so those slips are still found.
-                const baseRefCandidates = [...new Set(
-                    docs.flatMap((d: any) => [d.name, d.fund_received_ref_number].filter(Boolean))
-                )];
-                const refCandidates = [...new Set([...baseRefCandidates, ...baseRefCandidates.map((c) => `${c}-prjreg_refnum`)])];
-                if (!refCandidates.length) return;
-
-                const slipByRef = new Map<string, string>();
-                await Promise.all(FR_DEPOSIT_SLIP_DOCTYPES.map(async (doctype) => {
-                    try {
-                        const slipParams = new URLSearchParams({
-                            fields: JSON.stringify(["name", "fund_received_ref"]),
-                            filters: JSON.stringify([["fund_received_ref", "in", refCandidates.join(",")]]),
-                            limit: String(refCandidates.length),
-                        });
-                        const res = await fetch(`/api/resource/${encodeURIComponent(doctype)}?${slipParams}`, { credentials: "include" });
-                        const json = await res.json();
-                        (json?.data ?? []).forEach((slip: any) => {
-                            if (slip.fund_received_ref) slipByRef.set(slip.fund_received_ref, slip.name);
-                        });
-                    } catch {
-                        /* skip doctype on error */
-                    }
-                }));
-
-                const depositMap = new Map<string, string>();
-                docs.forEach((d: any) => {
-                    const docCandidates = [d.name, d.fund_received_ref_number].filter(Boolean) as string[];
-                    const slip = docCandidates
-                        .flatMap((c) => [c, `${c}-prjreg_refnum`])
-                        .map((c) => slipByRef.get(c))
-                        .find(Boolean);
-                    if (slip) depositMap.set(d.name, slip);
-                });
-                if (depositMap.size > 0) setFrDepositSlips(depositMap);
-            })
-            .catch(() => {});
-    }, [allTasks]);
-
-    const resolvedTasks = React.useMemo(() =>
-        allTasks.map(task => {
-            const resolved = resolvedProjectTypes.get(task.id);
-            return resolved ? { ...task, project_type: resolved } : task;
-        }),
-        [allTasks, resolvedProjectTypes]);
-
     const visibleTasks = React.useMemo(() =>
-        resolvedTasks.filter(task => !(task.project_type === 'Others' && HIDDEN_OTHERS_DOCTYPES.has(task.doctype))),
-        [resolvedTasks]);
+        allTasks.filter(task => !(task.project_type === 'Others' && HIDDEN_OTHERS_DOCTYPES.has(task.doctype))),
+        [allTasks]);
 
     const tabCounts = React.useMemo(() => ({
         Research: visibleTasks.filter(t => t.project_type === 'Research').length,
@@ -390,6 +225,13 @@ const TaskRegistry: React.FC = () => {
     const moduleNames = React.useMemo(() => {
         const baseTasks = visibleTasks.filter(t => t.project_type === selectedProjectType);
         return Array.from(new Set(baseTasks.map(task => task.doctype))).sort();
+    }, [visibleTasks, selectedProjectType]);
+
+    const moduleCounts = React.useMemo(() => {
+        const baseTasks = visibleTasks.filter(t => t.project_type === selectedProjectType);
+        const counts: Record<string, number> = {};
+        baseTasks.forEach(task => { counts[task.doctype] = (counts[task.doctype] ?? 0) + 1; });
+        return counts;
     }, [visibleTasks, selectedProjectType]);
 
     // Client-side filtering
@@ -588,22 +430,17 @@ const TaskRegistry: React.FC = () => {
 
                                     {/* Module Filter */}
                                     <div className="flex items-center gap-2">
-                                        <label htmlFor="module-filter" className="font-bold text-zinc-900 dark:text-zinc-100 uppercase text-sm whitespace-nowrap hidden md:block">
+                                        <label className="font-bold text-zinc-900 dark:text-zinc-100 uppercase text-sm whitespace-nowrap hidden md:block">
                                             Filter:
                                         </label>
-                                        <select
-                                            id="module-filter"
+                                        <ModuleFilterSelect
                                             value={selectedModule}
-                                            onChange={(e) => handleModuleChange(e.target.value)}
-                                            className="h-9 px-3 bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg font-bold text-[12px] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7]"
-                                        >
-                                            <option value="">All Modules</option>
-                                            {moduleNames.map((module) => (
-                                                <option key={module} value={module}>
-                                                    {module}
-                                                </option>
-                                            ))}
-                                        </select>
+                                            onChange={handleModuleChange}
+                                            modules={moduleNames}
+                                            counts={moduleCounts}
+                                            totalCount={visibleTasks.filter(t => t.project_type === selectedProjectType).length}
+                                            allValue=""
+                                        />
                                         {selectedModule && (
                                             <FrappeButton
                                                 onClick={() => handleModuleChange('')}
@@ -630,7 +467,7 @@ const TaskRegistry: React.FC = () => {
                                     <tr>
                                         <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
                                         <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Module</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Title</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Title/Document ID</th>
                                         <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Document ID</th>
                                         <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Created</th>
                                         <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Modified</th>
@@ -702,10 +539,10 @@ const TaskRegistry: React.FC = () => {
                                                 <td className="p-3 font-mono text-zinc-900 dark:text-zinc-100">
                                                     {task.doctype === "Fund Received" ? (
                                                         <div className="flex flex-col gap-0.5">
-                                                            <span>{frProjectNos.get(task.id) || (task.id.length > 25 ? `${task.id.substring(0, 25)}...` : task.id)}</span>
-                                                            {frDepositSlips.get(task.id) && (
+                                                            <span>{task.projectNo || (task.id.length > 25 ? `${task.id.substring(0, 25)}...` : task.id)}</span>
+                                                            {task.depositSlip && (
                                                                 <span className="text-[10px] text-[#D97757] font-semibold">
-                                                                    Deposit: {frDepositSlips.get(task.id)}
+                                                                    Deposit: {task.depositSlip}
                                                                 </span>
                                                             )}
                                                         </div>

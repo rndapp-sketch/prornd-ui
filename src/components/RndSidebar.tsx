@@ -124,9 +124,13 @@ export function AppSidebar() {
 
     // Fetch pending task count
     const { data: pendingTaskData } = useFrappeGetCall<{
-        message: { results: Array<{ doctype: string; records: any[]; mod_vis?: number }> };
+        message: {
+            research: Array<{ status: string; doctype: string; name: string; mod_vis: number | null }>;
+            consultancy: Array<{ status: string; doctype: string; name: string; mod_vis: number | null }>;
+            others: Array<{ status: string; doctype: string; name: string; mod_vis: number | null }>;
+        };
     }>(
-        "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_pending_task",
+        "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_categorized_pending_task",
         { page_name: "pending-task" },
         currentUser ? undefined : null,
     );
@@ -142,24 +146,27 @@ export function AppSidebar() {
     // Calculate count matching PendingTask.tsx filter logic exactly
     const SIDEBAR_HIDDEN_DOCTYPES = new Set(["Kafka Commit Staging", "Project Number Generation"]);
     const pendingTaskCount = React.useMemo(() => {
-        if (!pendingTaskData?.message?.results) return 0;
+        if (!pendingTaskData?.message) return 0;
+        const records = [
+            ...pendingTaskData.message.research,
+            ...pendingTaskData.message.consultancy,
+            ...pendingTaskData.message.others,
+        ];
         let count = 0;
-        pendingTaskData.message.results.forEach((group) => {
-            if (SIDEBAR_HIDDEN_DOCTYPES.has(group.doctype)) return;
-            const shouldIncludeGroup = group.mod_vis || group.doctype === "Advance Settlement";
-            group.records.forEach((record) => {
-                const isHosPending = record.status === "Pending HoS Approval";
-                if (!shouldIncludeGroup && !(isHosRnd && isHosPending)) return;
-                if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name) && !(isHosRnd && isHosPending)) return;
-                if (isPermanentEmployee && group.doctype === "Leave Module" && allowedLeaveNames) {
-                    if (record.status === "Pending PI Approval" && !allowedLeaveNames.has(record.name)) return;
-                }
-                if (record.status === "Endorsement Approved") return;
-                if (record.status === "Sanction Approved" && group.doctype !== "Direct Purchase") return;
-                if (isHosRnd && !isAdoRnd && record.status === "Pending Associate Dean") return;
-                if (isAdoRnd && !isHosRnd && record.status === "Pending HoS Approval") return;
-                count++;
-            });
+        records.forEach((record) => {
+            if (SIDEBAR_HIDDEN_DOCTYPES.has(record.doctype)) return;
+            const shouldIncludeGroup = !!record.mod_vis || record.doctype === "Advance Settlement";
+            const isHosPending = record.status === "Pending HoS Approval";
+            if (!shouldIncludeGroup && !(isHosRnd && isHosPending)) return;
+            if (isHeadApprover && record.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name) && !(isHosRnd && isHosPending)) return;
+            if (isPermanentEmployee && record.doctype === "Leave Module" && allowedLeaveNames) {
+                if (record.status === "Pending PI Approval" && !allowedLeaveNames.has(record.name)) return;
+            }
+            if (record.status === "Endorsement Approved") return;
+            if (record.status === "Sanction Approved" && record.doctype !== "Direct Purchase") return;
+            if (isHosRnd && !isAdoRnd && record.status === "Pending Associate Dean") return;
+            if (isAdoRnd && !isHosRnd && record.status === "Pending HoS Approval") return;
+            count++;
         });
         return count;
     }, [pendingTaskData, isHeadApprover, allowedProjectNames, isPermanentEmployee, allowedLeaveNames, isHosRnd, isAdoRnd]);
