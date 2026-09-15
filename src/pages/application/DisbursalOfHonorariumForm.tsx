@@ -253,7 +253,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                 // Initialize link options from backend (create a new object to ensure React detects the state change)
                 let baseLinkOptions = link_options ? { ...link_options } : {};
 
-                // Fetch Account Heads from 'Budget Head' doctype (fields.md source of truth)
+                // Fetch Account Heads from 'Budget Head' doctype (docs/misc/fields.md source of truth)
                 try {
                     const headsRes = await fetchAccountHeads({
                         doctype: 'Budget Head',

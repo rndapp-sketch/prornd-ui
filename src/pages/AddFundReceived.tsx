@@ -640,7 +640,7 @@ const HelpFloating: React.FC = () => {
 // Shown when the project has one or more loans that aren't fully settled. The user
 // either settles them (saved to the Loan Settlement doctype straight away, before
 // this Fund Received is even submitted) or defers. See
-// docs/loan-settlement-implementation.md.
+// docs/misc/loan-settlement-implementation.md.
 
 /** A budget head the loan was drawn against, as the Accounts service reports it. */
 interface LoanBudgetHead {
@@ -1425,7 +1425,7 @@ const AddFundReceived: React.FC = () => {
 
     // Fails open by design (a broken loan lookup must never block Fund Received),
     // but a silent failure here is indistinguishable from "no loans" — so at least
-    // log it, per docs/loan-settlement-implementation.md §5.1.
+    // log it, per docs/misc/loan-settlement-implementation.md §5.1.
     useEffect(() => {
         if (activeLoansError) {
             console.error("Loan settlement check failed:", activeLoansError);

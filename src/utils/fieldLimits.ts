@@ -1,5 +1,5 @@
 // Character limits derived from Frappe's underlying database column types.
-// See data_type_character_limit.md for the full field-type reference.
+// See docs/misc/data_type_character_limit.md for the full field-type reference.
 export const FIELD_CHAR_LIMITS: Record<string, number> = {
   Data: 140,
   Link: 140,
@@ -12,7 +12,7 @@ export const FIELD_CHAR_LIMITS: Record<string, number> = {
   Password: 65535,
   "Small Text": 65535,
   Text: 65535,
-  // LONGTEXT — see data_type_character_limit.md
+  // LONGTEXT — see docs/misc/data_type_character_limit.md
   "Text Editor": 4294967295,
 };
 
