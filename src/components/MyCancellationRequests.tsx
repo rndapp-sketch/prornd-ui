@@ -1,12 +1,15 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { useFrappeGetCall } from "frappe-react-sdk";
 import { Ban, CheckCircle2, Clock, FileText, XCircle } from "lucide-react";
 import { awaitingLabel } from "@/utils/cancellationLabels";
+import { cn } from "@/lib/utils";
 
-interface CancellationRequestRow {
+export interface CancellationRequestRow {
     name: string;
     reference_doctype: string;
+    /** The referenced document's own docname (not its display title) — used to look up full
+     * cancellation details when hasDetails is false. */
+    reference_docname?: string;
     reference_name: string;
     cancellation_reason?: string;
     status?: string;
@@ -15,14 +18,17 @@ interface CancellationRequestRow {
     creation?: string;
     modified?: string;
     reference_state?: string | null;
+    /** False when the backend flagged a pending cancellation without a linked doc name yet — row isn't clickable. */
+    hasDetails?: boolean;
 }
 
-interface Response {
-    message: {
-        success: boolean;
-        count: number;
-        requests: CancellationRequestRow[];
-    };
+interface EnrichedInfo {
+    name?: string;
+    status?: string;
+    workflow_state?: string;
+    request_date?: string;
+    creation?: string;
+    cancellation_reason?: string;
 }
 
 const formatDate = (value?: string) => {
@@ -39,22 +45,67 @@ const outcomeOf = (row: CancellationRequestRow) => {
     return "pending" as const;
 };
 
-export const MyCancellationRequests: React.FC = () => {
+/**
+ * Rows come from the parent's already-fetched get_my_applications data (each
+ * application record's own `cancellation` sub-object), not a separate backend
+ * call — cancellation_api.get_my_cancellation_requests returned empty even
+ * for users with a visibly pending cancellation on the Applications tab, so
+ * this tab now derives from the same data source that tab already gets right.
+ *
+ * Some of those rows come through with has_pending_cancellation=true but no
+ * cancellation doc name (hasDetails=false) — get_my_applications just doesn't
+ * always populate that sub-object. Each such row's own detail page can still
+ * show full cancellation info via cancellation_api.get_cancellation_status
+ * (see CancellationStatusBanner's usage in PendingTaskDetails.tsx), so we
+ * batch that same per-document lookup here to fill in the gap and make the
+ * row clickable/viewable once it resolves.
+ */
+export const MyCancellationRequests: React.FC<{ rows: CancellationRequestRow[] }> = ({ rows }) => {
     const navigate = useNavigate();
-    const { data, isLoading } = useFrappeGetCall<Response>(
-        "rndopsapp.rndopsapp.cancellation_api.get_my_cancellation_requests",
-        {},
-    );
+    const [enrichment, setEnrichment] = React.useState<Record<string, EnrichedInfo>>({});
 
-    const rows = data?.message?.requests || [];
-
-    if (isLoading) {
-        return (
-            <div className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-16 text-center text-[13px] text-[#71717A] dark:text-[#A1A1AA]">
-                Loading cancellation requests…
-            </div>
+    React.useEffect(() => {
+        const toFetch = rows.filter(
+            (r) => r.hasDetails === false && r.reference_docname && !enrichment[r.name],
         );
-    }
+        if (!toFetch.length) return;
+        let cancelled = false;
+
+        Promise.all(
+            toFetch.map(async (r) => {
+                try {
+                    const params = new URLSearchParams({
+                        reference_doctype: r.reference_doctype,
+                        reference_name: r.reference_docname!,
+                    });
+                    const res = await fetch(
+                        `/api/method/rndopsapp.rndopsapp.cancellation_api.get_cancellation_status?${params}`,
+                        { credentials: "include" },
+                    ).then((res) => res.json());
+                    const list: EnrichedInfo[] = res?.message?.cancellation_requests || [];
+                    const match = list.find((x) => (x.status || "").toLowerCase() === "pending") || list[0];
+                    if (!match) return null;
+                    return [r.name, {
+                        name: match.name,
+                        status: match.status,
+                        workflow_state: match.workflow_state,
+                        request_date: match.request_date,
+                        creation: match.creation,
+                        cancellation_reason: match.cancellation_reason,
+                    } as EnrichedInfo] as const;
+                } catch {
+                    return null;
+                }
+            }),
+        ).then((results) => {
+            if (cancelled) return;
+            const next: Record<string, EnrichedInfo> = {};
+            results.forEach((r) => { if (r) next[r[0]] = r[1]; });
+            if (Object.keys(next).length) setEnrichment((prev) => ({ ...prev, ...next }));
+        });
+
+        return () => { cancelled = true; };
+    }, [rows, enrichment]);
 
     if (!rows.length) {
         return (
@@ -89,18 +140,30 @@ export const MyCancellationRequests: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {rows.map((row) => {
+                        {rows.map((baseRow) => {
+                            const info = enrichment[baseRow.name];
+                            const row = info ? { ...baseRow, ...info, hasDetails: true } : baseRow;
                             const outcome = outcomeOf(row);
                             const awaiting = awaitingLabel(row.workflow_state);
+                            const clickable = row.hasDetails !== false;
                             return (
                                 <tr
-                                    key={row.name}
-                                    onClick={() =>
-                                        navigate(
-                                            `/pending-tasks/${encodeURIComponent("Cancellation Request")}/${row.name}`,
-                                        )
+                                    key={baseRow.name}
+                                    onClick={
+                                        clickable
+                                            ? () =>
+                                                navigate(
+                                                    `/pending-tasks/${encodeURIComponent("Cancellation Request")}/${row.name}`,
+                                                )
+                                            : undefined
                                     }
-                                    className="cursor-pointer border-b border-[#F4F4F5] dark:border-[#3F3F46]/60 last:border-0 hover:bg-[#FAFAF9] dark:hover:bg-[#18181B]/60 transition-colors"
+                                    title={clickable ? undefined : "Cancellation submitted — resolving details…"}
+                                    className={cn(
+                                        "border-b border-[#F4F4F5] dark:border-[#3F3F46]/60 last:border-0 transition-colors",
+                                        clickable
+                                            ? "cursor-pointer hover:bg-[#FAFAF9] dark:hover:bg-[#18181B]/60"
+                                            : "cursor-default opacity-70",
+                                    )}
                                 >
                                     <td className="p-3 align-middle">
                                         {outcome === "approved" ? (
@@ -128,7 +191,7 @@ export const MyCancellationRequests: React.FC = () => {
                                             {row.reference_name}
                                         </div>
                                         <div className="text-[10px] text-[#A1A1AA]">
-                                            {row.name}
+                                            {row.hasDetails ? row.name : "Syncing…"}
                                             {row.reference_state ? ` · form is ${row.reference_state}` : ""}
                                         </div>
                                     </td>

@@ -82,6 +82,7 @@ import { useUserRoles } from "@/components/UserRole";
 import { DeclarationFields } from "@/components/DeclarationFields";
 import { ErrorModal } from "../components/ErrorModal";
 import { parseFrappeError } from "../utils/errorUtils";
+import { CancellationStatusBanner } from "../components/CancellationStatusBanner";
 
 // --- Interfaces (Unchanged) ---
 interface ActivityItem {
@@ -1140,6 +1141,7 @@ const WorkflowActions = ({
     status,
     isStaffRnD,
     accountDetails,
+    blockedByCancellation,
 }: {
     docname: string;
     onAction: (action: string) => void;
@@ -1154,6 +1156,8 @@ const WorkflowActions = ({
         account_number?: string;
         bank_name?: string;
     };
+    /** A pending Cancellation Request blocks all further workflow actions on this document. */
+    blockedByCancellation?: boolean;
 }) => {
     // All hooks must be declared before any early returns
     const {
@@ -1252,7 +1256,8 @@ const WorkflowActions = ({
             <button
                 ref={toggleBtnRef}
                 onClick={handleToggleDropdown}
-                disabled={isLoading}
+                disabled={isLoading || blockedByCancellation}
+                title={blockedByCancellation ? "A pending cancellation request blocks further workflow actions" : undefined}
                 className={cn(
                     "inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg shadow-sm transition-all disabled:opacity-50",
                     dropdownOpen
@@ -1518,6 +1523,38 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     const { currentUser } = useFrappeAuth();
     const { roles, isLoading: isRolesLoading } = useUserRoles(currentUser ?? null);
     const isRnDStaff = roles.some(r => r === "staff, RnD");
+
+    // Project Registration is special-cased out of PendingTaskDetails.tsx's generic rendering
+    // (see its `if (doctype === "Project Registration") return <ProjectDetailsView .../>`),
+    // which is where this same lookup + CancellationStatusBanner normally live — so a project
+    // reached via "View Original Document" from a Cancellation Request never showed the banner.
+    const { data: cancellationStatus } = useFrappeGetCall<{
+        message: {
+            has_pending: boolean;
+            has_cancellation: boolean;
+            cancellation_requests: any[];
+        };
+    }>(
+        "rndopsapp.rndopsapp.cancellation_api.get_cancellation_status",
+        {
+            reference_doctype: "Project Registration",
+            reference_name: projectName,
+        },
+        projectName ? undefined : null,
+    );
+    const pendingCancellationName = cancellationStatus?.message?.cancellation_requests?.find(
+        (r) => (r.status || "").toLowerCase() === "pending",
+    )?.name;
+
+    // Same "am I allowed to act right now" check the Cancellation Request's own page uses
+    // (CancellationRequestWorkflowActions) — drives whether "Open Cancellation Request" below
+    // is a live link or a disabled one for people who aren't the current approver.
+    const { data: cancellationActionsData } = useFrappeGetCall<{ message: string[] }>(
+        "rndopsapp.workflow_pipeline.get_available_workflow_actions",
+        { docname: pendingCancellationName, doctype: "Cancellation Request" },
+        pendingCancellationName ? undefined : null,
+    );
+    const canActOnCancellation = (cancellationActionsData?.message?.length ?? 0) > 0;
 
     // --- Proposed Budget Breakup edit state (RnD Staff only) ---
     type BudgetRow = {
@@ -1910,6 +1947,32 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
 
         return (
             <>
+                {cancellationStatus?.message?.has_cancellation && (
+                    <CancellationStatusBanner
+                        requests={cancellationStatus?.message?.cancellation_requests}
+                        currentUser={currentUser}
+                        action={
+                            pendingCancellationName && (
+                                <button
+                                    onClick={() =>
+                                        canActOnCancellation &&
+                                        navigate(`/pending-tasks/${encodeURIComponent("Cancellation Request")}/${pendingCancellationName}`)
+                                    }
+                                    disabled={!canActOnCancellation}
+                                    title={
+                                        canActOnCancellation
+                                            ? undefined
+                                            : "Only the approver this request is currently awaiting can open it"
+                                    }
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-colors disabled:cursor-not-allowed disabled:opacity-50 border-current bg-white/60 dark:bg-black/20 hover:bg-white dark:hover:bg-black/30"
+                                >
+                                    <ExternalLinkIcon className="h-3 w-3" />
+                                    Open Cancellation Request
+                                </button>
+                            )
+                        }
+                    />
+                )}
                 <header className="mb-5 overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
                     <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
                     <div className="p-5">
@@ -1953,6 +2016,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                 projectNo={data?.project_no}
                                 status={data?.workflow_state}
                                 isStaffRnD={isRnDStaff}
+                                blockedByCancellation={!!cancellationStatus?.message?.has_cancellation}
                                 accountDetails={{
                                     is_the_account_type_pfms: data?.is_the_account_type_pfms,
                                     scheme_name: data?.scheme_name,

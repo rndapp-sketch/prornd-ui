@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { AlertTriangle, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { awaitingLabel } from "@/utils/cancellationLabels";
 
@@ -26,13 +27,15 @@ interface Props {
     requests?: CancellationRequestInfo[];
     /** Frappe user id of the person viewing the page. */
     currentUser?: string | null;
+    /** Optional slot for a caller-supplied action, e.g. a link to open the cancellation request itself. */
+    action?: ReactNode;
 }
 
 /**
  * Tells the requester where their cancellation request currently sits, instead
  * of only that one exists. Renders nothing when there is no request to show.
  */
-export function CancellationStatusBanner({ requests, currentUser }: Props) {
+export function CancellationStatusBanner({ requests, currentUser, action }: Props) {
     const list = requests || [];
     const req =
         list.find((r) => (r.status || "").toLowerCase() === "pending") || list[0];
@@ -94,6 +97,8 @@ export function CancellationStatusBanner({ requests, currentUser }: Props) {
                         Reason: {req.cancellation_reason}
                     </div>
                 ) : null}
+
+                {action && <div className="mt-2.5">{action}</div>}
             </div>
         </div>
     );
