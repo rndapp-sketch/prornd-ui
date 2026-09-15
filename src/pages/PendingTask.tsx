@@ -478,6 +478,14 @@ const PendingTask: React.FC = () => {
                 if (isPermanentEmployee && group.doctype === "Leave Module" && record.status === "Pending PI Approval" && allowedLeaveNames && !allowedLeaveNames.has(record.name)) {
                     return;
                 }
+                // Disbursal of Consultancy is filed by the PI themselves (the doc `owner`
+                // is the PI), so a record in "Pending PI Approval" is only actionable by
+                // that specific PI — mod_vis makes the whole doctype group visible to
+                // other roles (Dean/RnD staff/etc.) for its other workflow states, but
+                // this particular status should never surface for anyone but its own PI.
+                if (group.doctype === "Disbursal of Consultancy" && record.status === "Pending PI Approval" && record.owner !== currentUser) {
+                    return;
+                }
                 if (record.status === "Endorsement Approved") {
                     return;
                 }
@@ -540,7 +548,7 @@ const PendingTask: React.FC = () => {
             });
         });
         return tasks;
-    }, [data, isHeadApprover, allowedProjectNames, prNameToType, prNoToType, isPermanentEmployee, allowedLeaveNames, isHosRnd, isAdoRnd]);
+    }, [data, isHeadApprover, allowedProjectNames, prNameToType, prNoToType, isPermanentEmployee, allowedLeaveNames, isHosRnd, isAdoRnd, currentUser]);
 
     // Phase-2: secondary fetch to resolve project_type from each doctype's actual link fields.
     // The pending-task API only returns basic fields (name, title, status…), so link fields
