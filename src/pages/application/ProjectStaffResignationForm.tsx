@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
 import { CommitPayment } from "@/components/CommitPayment";
+import { DepartmentName } from "@/components/DepartmentName";
 import { useUserRoles } from "@/components/UserRole";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { resignationAPI } from "@/services/apiService";
@@ -145,7 +146,7 @@ const getStageStatus = (stageName: string, currentState: string) => {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const InfoRow = ({ icon, label, value }: { icon: React.ReactNode; label: string; value?: string }) => (
+const InfoRow = ({ icon, label, value }: { icon: React.ReactNode; label: string; value?: React.ReactNode }) => (
   <div className="flex items-start gap-3">
     <div className="mt-0.5 flex-shrink-0 text-[#A1A1AA]">{icon}</div>
     <div className="min-w-0">
@@ -479,9 +480,13 @@ const ProjectStaffResignationForm: React.FC = () => {
   const applicantEmail = basic?.erp_mail || loadedResignation?.applicant_email_id || currentUser || "";
   const applicantEmpId = basic?.ps_emp_id || loadedResignation?.applicant_emp_id || "";
   const applicantDesignation = basic?.ps_designation || loadedResignation?.applicant_designation || "";
-  const applicantDepartment =
-    basic?.ps_department_name ||
+  // `ps_department`/`ps_department_name` may come back from the backend as the raw
+  // department code/docname rather than the human-readable label — resolve it the
+  // same way the rest of the app does (see DepartmentName) instead of displaying
+  // whatever raw value the API happened to send.
+  const applicantDepartmentRaw =
     basic?.ps_department ||
+    basic?.ps_department_name ||
     loadedResignation?.applicant_department ||
     "";
   const isTerminal = workflowState === "Approved" || workflowState === "Rejected" || workflowState === "Cancelled";
@@ -720,7 +725,7 @@ const ProjectStaffResignationForm: React.FC = () => {
                     <InfoRow
                       icon={<Building2 className="h-4 w-4" />}
                       label="Department"
-                      value={applicantDepartment}
+                      value={applicantDepartmentRaw ? <DepartmentName name={applicantDepartmentRaw} /> : undefined}
                     />
                   </div>
                 </FrappeCard>

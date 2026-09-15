@@ -20,6 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { resignationAPI, extensionAPI } from "@/services/apiService";
+import { DepartmentName } from "@/components/DepartmentName";
 
 // --- Interfaces ---
 interface TaskRecord {
@@ -681,7 +682,9 @@ export function ProjectStaffDashboard() {
                     <div>
                       <dt className="text-[#71717A] dark:text-[#A1A1AA]">Department</dt>
                       <dd className="font-medium text-[#27272A] dark:text-[#E4E4E7]">
-                        {basic.ps_department_name || basic.ps_department || "—"}
+                        {basic.ps_department || basic.ps_department_name ? (
+                          <DepartmentName name={basic.ps_department || basic.ps_department_name || ""} />
+                        ) : "—"}
                       </dd>
                     </div>
                     <div>

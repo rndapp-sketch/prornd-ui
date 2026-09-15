@@ -2883,6 +2883,7 @@ const PendingTaskDetails: React.FC = () => {
         Record<string, LinkOption[]>
     >({});
     const [isRecruitmentLoading, setIsRecruitmentLoading] = useState(false);
+    const [recruitmentFieldsError, setRecruitmentFieldsError] = useState<string | null>(null);
     // Chairperson inline-edit state (DoRnD only)
     const [chairpersonEditMode, setChairpersonEditMode] = useState(false);
     const [editChairpersonEmail, setEditChairpersonEmail] = useState("");
@@ -3375,6 +3376,7 @@ const PendingTaskDetails: React.FC = () => {
     useEffect(() => {
         if (doctype === "Recruitment Adhoc Contractual" && name) {
             setIsRecruitmentLoading(true);
+            setRecruitmentFieldsError(null);
             fetchRecruitmentFields({ doc_name: name })
                 .then((res) => {
                     if (res?.message) {
@@ -3409,7 +3411,13 @@ const PendingTaskDetails: React.FC = () => {
                         );
                     }
                 })
-                .catch(() => {})
+                .catch((err) => {
+                    // Previously silently swallowed, so a failure here (e.g. a backend
+                    // exception building field/child-table metadata for this specific
+                    // record) fell through to the generic fallback view with zero
+                    // indication anything had gone wrong — surface it instead.
+                    setRecruitmentFieldsError(parseFrappeError(err));
+                })
                 .finally(() => setIsRecruitmentLoading(false));
         }
     }, [doctype, name, fetchRecruitmentFields]);
@@ -4214,6 +4222,13 @@ const PendingTaskDetails: React.FC = () => {
                                         </div>
                                     )}
 
+                                    {recruitmentFieldsError && (
+                                        <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 rounded-xl shadow-sm p-4 text-sm text-red-700 dark:text-red-400">
+                                            <p className="font-semibold mb-1">Couldn&rsquo;t load the full form</p>
+                                            <p>{recruitmentFieldsError}</p>
+                                            <p className="mt-1 text-red-600/80 dark:text-red-500/80">Showing a basic field-by-field view below instead.</p>
+                                        </div>
+                                    )}
                                     {recruitmentFields.length > 0 ? (
                                         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-6">
                                             <DynamicFormRenderer
