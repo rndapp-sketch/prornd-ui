@@ -25,7 +25,7 @@ import ProjectDetailsOverview from "./ProjectDetailsOverview";
 import { generateTemporaryAdvanceHtml } from '@/utils/temporaryAdvancePrint';
 import { generateDisbursalOfHonorariumHtml, resolveHonorariumPrintData, type ActivityItem } from '@/utils/disbursalOfHonorariumPrint';
 import { generateSanctionSheetHtml } from '@/utils/sanctionSheetPrint';
-import { DOCTYPE_PR_LINKS } from '@/utils/projectTypeMapping';
+import { DOCTYPE_PR_LINKS, type PRLinkStrategy } from '@/utils/projectTypeMapping';
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 const MINIO_HOST = import.meta.env.VITE_MINIO_HOST || '172.16.134.179';
@@ -2280,17 +2280,21 @@ const TaskRegistryDetails: React.FC = () => {
                                     onClick={async () => {
                                         const mapping = DOCTYPE_PR_LINKS[doctype];
                                         if (!mapping) return;
-                                        const strategy = mapping.primary;
-                                        if (strategy.type === 'pr_name') {
-                                            const val = data[strategy.field];
-                                            if (val) { setPrPreviewName(val); return; }
-                                        }
-                                        if (strategy.type === 'self') {
-                                            setPrPreviewName(name!);
-                                            return;
-                                        }
-                                        const noField = strategy.type === 'pr_project_no' ? strategy.field
-                                            : mapping.fallback?.type === 'pr_project_no' ? (mapping.fallback as any).field
+
+                                        // Try primary first, then fallback — a mapping like Fund Sanction's
+                                        // (primary: direct_type, fallback: pr_name) previously only ever
+                                        // checked primary, so its fallback pr_name field was never read and
+                                        // the button silently no-opped for every such doctype.
+                                        const tryDirectName = (s: PRLinkStrategy): string | null => {
+                                            if (s.type === 'self') return name || null;
+                                            if (s.type === 'pr_name') return data[s.field] || null;
+                                            return null;
+                                        };
+                                        const directName = tryDirectName(mapping.primary) ?? (mapping.fallback ? tryDirectName(mapping.fallback) : null);
+                                        if (directName) { setPrPreviewName(directName); return; }
+
+                                        const noField = mapping.primary.type === 'pr_project_no' ? mapping.primary.field
+                                            : mapping.fallback?.type === 'pr_project_no' ? mapping.fallback.field
                                             : null;
                                         const projectNo = noField ? data[noField] : null;
                                         if (!projectNo) return;

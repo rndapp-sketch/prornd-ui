@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { FaExclamationCircle, FaArrowLeft, FaSearch } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
 // import { AppSidebar } from '@/components/RndSidebar';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useFrappeGetCall, useFrappeGetDocList } from 'frappe-react-sdk';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { ModuleFilterSelect } from '@/components/ModuleFilterSelect';
@@ -93,11 +93,16 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost
 
 const TaskRegistry: React.FC = () => {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [currentPage, setCurrentPage] = useState(1);
-    const [selectedModule, setSelectedModule] = useState<string>('');
-    const [selectedProjectType, setSelectedProjectType] = useState<ProjectTypeTab>('Research');
-    const [searchQuery, setSearchQuery] = useState('');
-    const [debouncedSearch, setDebouncedSearch] = useState('');
+    // Backed by the URL (like PendingTask.tsx) so the selected tab/module/search survive a
+    // back-navigation from an opened task's detail page instead of resetting to Research/all.
+    const selectedModule = searchParams.get('module') ?? '';
+    const selectedProjectType = (searchParams.get('type') as ProjectTypeTab) ?? 'Research';
+    const searchQuery = searchParams.get('q') ?? '';
+    // Seeded from the URL too, so a restored `q` filters immediately instead of only after
+    // the 500ms debounce below fires once on mount.
+    const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get('q') ?? '');
     const itemsPerPage = 10;
 
     // Activity peek panel state
@@ -265,18 +270,17 @@ const TaskRegistry: React.FC = () => {
     };
 
     const handleModuleChange = (module: string) => {
-        setSelectedModule(module);
+        setSearchParams(prev => { module ? prev.set('module', module) : prev.delete('module'); return prev; });
         setCurrentPage(1);
     };
 
     const handleProjectTypeChange = (tab: ProjectTypeTab) => {
-        setSelectedProjectType(tab);
-        setSelectedModule('');
+        setSearchParams(prev => { prev.set('type', tab); prev.delete('module'); return prev; });
         setCurrentPage(1);
     };
 
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setSearchQuery(e.target.value);
+        setSearchParams(prev => { e.target.value ? prev.set('q', e.target.value) : prev.delete('q'); return prev; });
         setCurrentPage(1);
     };
 
