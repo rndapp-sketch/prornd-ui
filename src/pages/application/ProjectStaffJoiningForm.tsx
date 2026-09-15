@@ -757,6 +757,7 @@ const ProjectStaffJoiningForm: React.FC = () => {
                 onSubmit={handleConfirmWorkflowAction}
                 action={pendingWorkflowAction}
                 isLoading={!!actionLoading}
+                requireComment
             />
         </div>
     );

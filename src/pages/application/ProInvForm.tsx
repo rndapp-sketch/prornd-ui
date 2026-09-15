@@ -161,6 +161,7 @@ const InlineInput = ({
                 placeholder={placeholder}
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
+                onWheel={(e) => type === "number" && e.currentTarget.blur()}
                 readOnly={locked}
                 maxLength={maxLength}
                 className={`bg-transparent border-b outline-none transition-all px-1 py-0.5 rounded font-medium text-inherit w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${locked ? "border-transparent cursor-default text-zinc-700 dark:text-zinc-300" : "border-transparent hover:border-zinc-300 dark:hover:border-zinc-700 focus:border-[#D97757] focus:bg-zinc-50 dark:focus:bg-zinc-800/40"} ${className}`}
@@ -286,6 +287,9 @@ export default function ProInvForm() {
     const { call: callSave } = useFrappePostCall<{ message: ProformaBackendDoc }>(API.save);
     const { call: callSubmit } = useFrappePostCall<{ message: ProformaBackendDoc }>(API.submit);
     const { call: callAction } = useFrappePostCall<{ message: ProformaBackendDoc }>(API.action);
+    const { call: addComment } = useFrappePostCall(
+        "rndopsapp.rndopsapp.api.add_project_comment",
+    );
 
     const applyBackendDoc = React.useCallback((doc: ProformaBackendDoc | null) => {
         if (!doc) return;
@@ -525,9 +529,20 @@ export default function ProInvForm() {
                 docname: docName || undefined,
                 project_no: projectKey,
                 invoice_content: generateHtml(),
-                comment,
             });
-            applyBackendDoc(res?.message ?? null);
+            const savedDoc = res?.message ?? null;
+            applyBackendDoc(savedDoc);
+            if (comment.trim() && savedDoc?.name) {
+                try {
+                    await addComment({
+                        doctype: "Proforma_Invoice",
+                        docname: savedDoc.name,
+                        content: comment.trim(),
+                    });
+                } catch {
+                    // comment failure is non-fatal
+                }
+            }
             alert("Submitted to the Head of Section. The signature will appear once the HoS approves.");
         } catch (e) {
             alert(`Could not submit: ${errText(e)}`);
@@ -541,8 +556,19 @@ export default function ProInvForm() {
         if (isBusy || !docName) return;
         setIsBusy(true);
         try {
-            const res = await callAction({ docname: docName, action, comment });
+            const res = await callAction({ docname: docName, action });
             applyBackendDoc(res?.message ?? null);
+            if (comment.trim()) {
+                try {
+                    await addComment({
+                        doctype: "Proforma_Invoice",
+                        docname: docName,
+                        content: comment.trim(),
+                    });
+                } catch {
+                    // comment failure is non-fatal
+                }
+            }
             alert(action === "Approve"
                 ? "Proforma Invoice approved. The signed invoice is now finalized."
                 : "Proforma Invoice sent back to Draft for correction.");
@@ -1080,17 +1106,20 @@ export default function ProInvForm() {
                                 : "Reject Proforma Invoice"}
                         </h3>
                         <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
-                            Add a comment (optional). It will be recorded on the document timeline.
+                            A comment is required. It will be recorded on the document timeline.
                         </p>
                         <textarea
-                            className="w-full border border-zinc-300 dark:border-zinc-700 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[rgba(217,119,87,0.25)] focus:border-[#D97757] dark:bg-zinc-800 dark:text-zinc-100"
+                            className="w-full border border-zinc-300 dark:border-zinc-700 p-3 rounded-lg text-sm mb-1 resize-none focus:outline-none focus:ring-2 focus:ring-[rgba(217,119,87,0.25)] focus:border-[#D97757] dark:bg-zinc-800 dark:text-zinc-100"
                             rows={4}
                             autoFocus
-                            placeholder="Add a comment..."
+                            placeholder="Enter your comment..."
                             value={commentText}
                             onChange={(e) => setCommentText(e.target.value)}
                         />
-                        <div className="flex justify-end gap-2">
+                        {commentText.trim().length === 0 && (
+                            <p className="text-xs text-red-500 mb-3">Comment is required.</p>
+                        )}
+                        <div className="flex justify-end gap-2 mt-3">
                             <button
                                 onClick={() => setCommentModal(null)}
                                 disabled={isBusy}
@@ -1100,8 +1129,8 @@ export default function ProInvForm() {
                             </button>
                             <button
                                 onClick={confirmCommentAction}
-                                disabled={isBusy}
-                                className={`px-4 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50 ${commentModal.action === "Reject" ? "bg-red-600 hover:bg-red-700" : commentModal.action === "Approve" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-amber-500 hover:bg-amber-600"}`}
+                                disabled={isBusy || commentText.trim().length === 0}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50 disabled:cursor-not-allowed ${commentModal.action === "Reject" ? "bg-red-600 hover:bg-red-700" : commentModal.action === "Approve" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-amber-500 hover:bg-amber-600"}`}
                             >
                                 {isBusy ? "Processing..." : `Confirm ${commentModal.action}`}
                             </button>

@@ -377,9 +377,12 @@ const CommentModal = ({
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                     placeholder="Enter your comment here..."
-                    className="mb-4 min-h-[100px] border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:ring-zinc-500"
+                    className="mb-1 min-h-[100px] border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:ring-zinc-500"
                 />
-                <div className="flex justify-end gap-3">
+                {comment.trim().length === 0 && (
+                    <p className="text-xs text-red-500 mb-3">Comment is required.</p>
+                )}
+                <div className="flex justify-end gap-3 mt-3">
                     <Button
                         variant="outline"
                         onClick={onClose}
@@ -392,7 +395,7 @@ const CommentModal = ({
                             onSubmit(comment);
                             setComment("");
                         }}
-                        disabled={isLoading}
+                        disabled={isLoading || comment.trim().length === 0}
                     >
                         {isLoading ? "Submit..." : "Submit"}
                     </Button>

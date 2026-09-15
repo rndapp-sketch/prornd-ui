@@ -16,6 +16,7 @@ export const FloatingActivityLogButton: React.FC<FloatingActivityLogButtonProps>
   const [comment, setComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [filter, setFilter] = useState<"comments" | "all">("comments");
 
   const { call: addComment } = useFrappePostCall(
     "rndopsapp.rndopsapp.api.add_project_comment"
@@ -80,9 +81,33 @@ export const FloatingActivityLogButton: React.FC<FloatingActivityLogButtonProps>
               </button>
             </div>
 
+            {/* Filter tabs */}
+            <div className="flex gap-1 border-b border-[#E4E4E7] bg-white px-4 pt-3 dark:border-[#3F3F46] dark:bg-[#27272A]">
+              {(["comments", "all"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setFilter(tab)}
+                  className={`px-3 py-1.5 text-[12px] font-bold rounded-t-lg border-b-2 transition-colors ${
+                    filter === tab
+                      ? "border-[#4A6CF7] text-[#4A6CF7] dark:text-[#8DA3FA]"
+                      : "border-transparent text-[#71717A] hover:text-[#3F3F46] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7]"
+                  }`}
+                >
+                  {tab === "comments" ? "Comments" : "All"}
+                </button>
+              ))}
+            </div>
+
             {/* Activity list */}
             <div className="flex-1 overflow-y-auto bg-[#FAFAF9] p-4 dark:bg-[#18181B]">
-              <ActivityLog key={refreshKey} doctype={doctype} docname={docname} maxHeight="100%" />
+              <ActivityLog
+                key={refreshKey}
+                doctype={doctype}
+                docname={docname}
+                maxHeight="100%"
+                onlyComments={filter === "comments"}
+              />
             </div>
 
             {/* Add comment */}

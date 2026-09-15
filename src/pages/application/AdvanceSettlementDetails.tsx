@@ -139,15 +139,18 @@ const CommentModal = ({
           Confirm {action}
         </h3>
         <textarea
-          className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#3F3F46] dark:text-[#E4E4E7] p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757] font-sans leading-relaxed"
+          className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#3F3F46] dark:text-[#E4E4E7] p-3 rounded-lg text-sm mb-1 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757] font-sans leading-relaxed"
           rows={4}
-          placeholder="Add a comment (optional)..."
+          placeholder="Enter your comment..."
           maxLength={FIELD_CHAR_LIMITS.Text}
           value={comment}
           onChange={(e) => setComment(e.target.value)}
         />
-        <CharLimitAlert value={comment} maxLength={FIELD_CHAR_LIMITS.Text} className="-mt-3 mb-3" />
-        <div className="flex justify-end gap-3">
+        <CharLimitAlert value={comment} maxLength={FIELD_CHAR_LIMITS.Text} className="-mt-3 mb-1" />
+        {comment.trim().length === 0 && (
+          <p className="text-xs text-red-500 mb-3">Comment is required.</p>
+        )}
+        <div className="flex justify-end gap-3 mt-3">
           <button
             onClick={onClose}
             disabled={isLoading}
@@ -157,7 +160,7 @@ const CommentModal = ({
           </button>
           <button
             onClick={() => onSubmit(comment)}
-            disabled={isLoading}
+            disabled={isLoading || comment.trim().length === 0}
             className="px-4 py-2 rounded-lg font-medium text-sm bg-[#D97757] text-white hover:opacity-90 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? "Processing..." : "Confirm"}
@@ -187,6 +190,10 @@ const AdvanceSettlementWorkflowActions = ({
     "rndopsapp.rndopsapp.doctype.advance_settlement.advance_settlement.perform_advance_settlement_action",
   );
 
+  const { call: addComment } = useFrappePostCall(
+    "rndopsapp.rndopsapp.api.add_project_comment",
+  );
+
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedAction, setSelectedAction] = useState("");
 
@@ -213,6 +220,17 @@ const AdvanceSettlementWorkflowActions = ({
   const handleConfirmAction = async (comment: string) => {
     try {
       await performAction({ docname, action: selectedAction });
+      if (comment.trim()) {
+        try {
+          await addComment({
+            doctype: "Advance Settlement",
+            docname,
+            content: comment.trim(),
+          });
+        } catch {
+          // comment failure is non-fatal
+        }
+      }
       setModalOpen(false);
       onActionComplete();
     } catch (error) {

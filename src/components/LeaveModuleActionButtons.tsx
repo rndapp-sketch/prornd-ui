@@ -32,6 +32,10 @@ const LeaveModuleActionButtons: React.FC<LeaveModuleActionButtonsProps> = ({ doc
     const { call: performAction, loading: actionLoading } =
         useFrappePostCall(leaveModuleAPI.performAction);
 
+    const { call: addComment } = useFrappePostCall(
+        "rndopsapp.rndopsapp.api.add_project_comment",
+    );
+
     useEffect(() => {
         if (docName) {
             fetchActions({ docname: docName });
@@ -83,10 +87,20 @@ const LeaveModuleActionButtons: React.FC<LeaveModuleActionButtonsProps> = ({ doc
             const response = await performAction({
                 docname: docName,
                 action: pendingAction,
-                comment: comment.trim() || undefined,
             });
 
             if (response?.message?.status === 'success') {
+                if (comment.trim()) {
+                    try {
+                        await addComment({
+                            doctype: "Leave Module",
+                            docname: docName,
+                            content: comment.trim(),
+                        });
+                    } catch {
+                        // comment failure is non-fatal
+                    }
+                }
                 setSelectedAction(null);
                 if (onActionComplete) {
                     onActionComplete();
@@ -235,7 +249,7 @@ const LeaveModuleActionButtons: React.FC<LeaveModuleActionButtonsProps> = ({ doc
                         </div>
 
                         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-3">
-                            Add a comment for this action (optional):
+                            Add a comment for this action:
                         </p>
 
                         <Textarea
@@ -243,11 +257,14 @@ const LeaveModuleActionButtons: React.FC<LeaveModuleActionButtonsProps> = ({ doc
                             onChange={(e) => setComment(e.target.value)}
                             placeholder="Enter your comment here..."
                             rows={3}
-                            className="mb-4"
+                            className="mb-1"
                         />
+                        {comment.trim().length === 0 && (
+                            <p className="text-xs text-red-500 mb-3">Comment is required.</p>
+                        )}
 
                         {/* Footer buttons */}
-                        <div className="flex justify-end gap-3">
+                        <div className="flex justify-end gap-3 mt-3">
                             <Button
                                 variant="outline"
                                 onClick={handleCancelDialog}
@@ -256,6 +273,7 @@ const LeaveModuleActionButtons: React.FC<LeaveModuleActionButtonsProps> = ({ doc
                             </Button>
                             <Button
                                 onClick={handleConfirmAction}
+                                disabled={comment.trim().length === 0}
                                 className={pendingAction ? getActionButtonStyle(pendingAction) : ''}
                             >
                                 Confirm {pendingAction}

@@ -35,16 +35,19 @@ const CommentModal = ({
                     Confirm: {action}
                 </h3>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
-                    You may add an optional comment before confirming.
+                    A comment is required before confirming.
                 </p>
                 <textarea
-                    className="w-full border border-zinc-300 dark:border-zinc-700 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[rgba(217,119,87,0.25)] focus:border-[#D97757] dark:bg-zinc-800 dark:text-zinc-100"
+                    className="w-full border border-zinc-300 dark:border-zinc-700 p-3 rounded-lg text-sm mb-1 resize-none focus:outline-none focus:ring-2 focus:ring-[rgba(217,119,87,0.25)] focus:border-[#D97757] dark:bg-zinc-800 dark:text-zinc-100"
                     rows={4}
-                    placeholder="Add a comment (optional)..."
+                    placeholder="Enter your comment..."
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                 />
-                <div className="flex justify-end gap-2">
+                {comment.trim().length === 0 && (
+                    <p className="text-xs text-red-500 mb-3">Comment is required.</p>
+                )}
+                <div className="flex justify-end gap-2 mt-3">
                     <button
                         onClick={onClose}
                         disabled={isLoading}
@@ -54,7 +57,7 @@ const CommentModal = ({
                     </button>
                     <button
                         onClick={() => onSubmit(comment)}
-                        disabled={isLoading}
+                        disabled={isLoading || comment.trim().length === 0}
                         className="px-4 py-2 rounded-lg text-sm font-medium bg-[#D97757] hover:bg-[#c66a4e] text-white disabled:opacity-50"
                     >
                         {isLoading ? "Processing..." : "Confirm"}

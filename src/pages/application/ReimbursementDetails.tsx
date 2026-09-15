@@ -169,17 +169,20 @@ const CommentModal = ({
           Confirm {action}
         </h3>
         <textarea
-          className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757]"
+          className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] p-3 rounded-lg text-sm mb-1 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757]"
           rows={4}
-          placeholder="Add a comment (optional)..."
+          placeholder="Enter your comment..."
           maxLength={FIELD_CHAR_LIMITS.Text}
           value={comment}
           onChange={(e) => setComment(e.target.value)}
         />
-        <CharLimitAlert value={comment} maxLength={FIELD_CHAR_LIMITS.Text} className="-mt-3 mb-3" />
-        <div className="flex justify-end gap-2">
+        <CharLimitAlert value={comment} maxLength={FIELD_CHAR_LIMITS.Text} className="-mt-3 mb-1" />
+        {comment.trim().length === 0 && (
+          <p className="text-xs text-red-500 mb-3">Comment is required.</p>
+        )}
+        <div className="flex justify-end gap-2 mt-3">
           <FrappeButton variant="outline" onClick={onClose} disabled={isLoading}>Cancel</FrappeButton>
-          <FrappeButton variant="primary" onClick={() => onSubmit(comment)} disabled={isLoading}>
+          <FrappeButton variant="primary" onClick={() => onSubmit(comment)} disabled={isLoading || comment.trim().length === 0}>
             {isLoading ? "Processing..." : "Confirm"}
           </FrappeButton>
         </div>
@@ -224,6 +227,9 @@ const ActionsDropdown = ({
   );
   const { call: fetchProjectHeads } = useFrappePostCall(
     "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_project_account_heads",
+  );
+  const { call: addComment } = useFrappePostCall(
+    "rndopsapp.rndopsapp.api.add_project_comment",
   );
   const { currentUser } = useFrappeAuth();
 
@@ -296,7 +302,7 @@ const ActionsDropdown = ({
 
   const handleConfirmAction = async (comment: string) => {
     try {
-      const payload: Record<string, any> = { docname, action: selectedAction, comment };
+      const payload: Record<string, any> = { docname, action: selectedAction };
       if (isPiStep && selectedAction.toLowerCase() === "approve") {
         const proj = piProjects.find((p) => p.value === selectedProject);
         payload.extra_data = JSON.stringify({
@@ -306,6 +312,17 @@ const ActionsDropdown = ({
         });
       }
       await performAction(payload);
+      if (comment.trim()) {
+        try {
+          await addComment({
+            doctype: "Reimbursement",
+            docname,
+            content: comment.trim(),
+          });
+        } catch {
+          // comment failure is non-fatal
+        }
+      }
       setModalOpen(false);
       onActionComplete();
     } catch (error) {

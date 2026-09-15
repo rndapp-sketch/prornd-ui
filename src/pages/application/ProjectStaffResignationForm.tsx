@@ -348,6 +348,10 @@ const ProjectStaffResignationForm: React.FC = () => {
     message: { status: string; docstatus?: number };
   }>(resignationAPI.submit);
 
+  const { call: addComment } = useFrappePostCall(
+    "rndopsapp.rndopsapp.api.add_project_comment",
+  );
+
   // ── Handlers ────────────────────────────────────────────────────────────────
 
   const showToast = (type: "success" | "error", msg: string) => {
@@ -415,13 +419,24 @@ const ProjectStaffResignationForm: React.FC = () => {
       let actionError: unknown = null;
 
       try {
-        const res = await performAction({ docname: docName, action: actionToRun, comment });
+        const res = await performAction({ docname: docName, action: actionToRun });
         if (res?.message?.status === "success") {
           setWorkflowState(res.message.workflow_state ?? workflowState);
           setDocstatus(res.message.docstatus ?? docstatus);
           setAvailableActions(res.message.next_actions ?? []);
           showToast("success", res.message.message ?? `Action '${actionToRun}' completed.`);
           succeeded = true;
+          if (comment.trim()) {
+            try {
+              await addComment({
+                doctype: "Project Staff Resignation",
+                docname: docName,
+                content: comment.trim(),
+              });
+            } catch {
+              // comment failure is non-fatal
+            }
+          }
         }
       } catch (err: unknown) {
         actionError = err;
