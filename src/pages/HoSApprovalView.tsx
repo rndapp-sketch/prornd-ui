@@ -891,7 +891,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                                 </>
                             ) : (
                                 <>
-                                    {isRndStaff && (
+                                    {isRndStaff && fundReceived?.workflow_state !== "Approved" && (
                                         <>
                                             <button
                                                 type="button"

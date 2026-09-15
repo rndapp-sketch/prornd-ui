@@ -144,6 +144,9 @@ export const DOCTYPE_PR_LINKS: Record<string, DoctypePRLink> = {
     'Extension Of Tenure Of Appointment': {
         primary: { type: 'pr_project_no', field: 'project_number' },
     },
+    'Leave Module': {
+        primary: { type: 'pr_project_no', field: 'project_no' },
+    },
     'P_11 Form': {
         primary: { type: 'pr_project_no', field: 'project_no' },
     },

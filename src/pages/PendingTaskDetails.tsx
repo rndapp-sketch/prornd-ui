@@ -28,7 +28,13 @@ import {
     Printer,
     CreditCardIcon,
     AlertTriangleIcon,
+    CalendarIcon,
+    UserIcon,
+    PhoneIcon,
+    MapPinIcon,
+    MessageSquareIcon,
 } from "lucide-react";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ErrorModal } from "../components/ErrorModal";
 import { parseFrappeError } from "../utils/errorUtils";
@@ -105,6 +111,24 @@ const labelClasses =
     "text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1 block";
 const valueClasses =
     "text-[15px] font-medium text-zinc-900 dark:text-zinc-100 leading-relaxed break-words";
+
+// Labeled field with an icon, used by the Leave Module detail view below.
+const LeaveInfoField = ({ icon: Icon, label, value, className }: {
+    icon: React.ElementType;
+    label: string;
+    value?: string | null;
+    className?: string;
+}) => (
+    <div className={cn("flex items-start gap-3", className)}>
+        <Icon className="w-4 h-4 text-zinc-400 mt-0.5 flex-shrink-0" />
+        <div className="min-w-0">
+            <span className={labelClasses}>{label}</span>
+            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 break-words">
+                {value || <span className="text-zinc-400 dark:text-zinc-600 font-normal">—</span>}
+            </p>
+        </div>
+    </div>
+);
 
 const CommentModal = ({
     isOpen,
@@ -3763,8 +3787,10 @@ const PendingTaskDetails: React.FC = () => {
                     projectName={doctype}
                     status={(doctype === "Cancellation Request" && data?.workflow_state === "Approved") ? "Cancelled" : data?.workflow_state}
                 >
-                    {/* View linked Project Registration */}
-                    {doctype !== "Project Registration" && data && (
+                    {/* View linked Project Registration — hidden when this doctype has no
+                        DOCTYPE_PR_LINKS mapping at all (e.g. Leave Module, which links to a
+                        PI, not a project), since the button would otherwise silently no-op. */}
+                    {doctype !== "Project Registration" && data && DOCTYPE_PR_LINKS[doctype] && (
                         <button
                             onClick={async () => {
                                 const directName = extractPRName(doctype, data);
@@ -4880,6 +4906,117 @@ const PendingTaskDetails: React.FC = () => {
                                             </div>
                                         );
                                     })}
+                            </div>
+                        ) : doctype === "Leave Module" && data ? (
+                            <div className="space-y-5">
+                                {/* Applicant */}
+                                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+                                    <div className="flex items-center gap-3 px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
+                                        <UserIcon className="w-4 h-4 text-[#D97757]" />
+                                        <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
+                                            Applicant
+                                        </h3>
+                                    </div>
+                                    <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
+                                        <LeaveInfoField icon={UserIcon} label="Email" value={data.email} />
+                                        <LeaveInfoField icon={UserIcon} label="Username" value={data.username} />
+                                        <LeaveInfoField icon={UserIcon} label="PI / Mentor" value={data.pi} className="sm:col-span-2" />
+                                    </div>
+                                </div>
+
+                                {/* Leave Details */}
+                                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+                                    <div className="flex items-center gap-3 px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
+                                        <FileTextIcon className="w-4 h-4 text-[#D97757]" />
+                                        <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
+                                            Leave Details
+                                        </h3>
+                                    </div>
+                                    <div className="p-6 space-y-5">
+                                        <LeaveInfoField icon={FileTextIcon} label="Leave Type" value={data.leave_type} />
+
+                                        {data.leave_type === "CL" && Array.isArray(data.cl_dates_table) && data.cl_dates_table.length > 0 && (
+                                            <div>
+                                                <span className={labelClasses}>CL Dates</span>
+                                                <div className="flex flex-wrap gap-2 mt-1.5">
+                                                    {data.cl_dates_table.map((row: any, i: number) => (
+                                                        <span
+                                                            key={i}
+                                                            className="px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                                                        >
+                                                            {row.cl_date ? format(new Date(row.cl_date), "dd MMM yyyy") : "—"}
+                                                            {row.day_type && (
+                                                                <span className="ml-1 text-xs text-zinc-500 dark:text-zinc-400">({row.day_type})</span>
+                                                            )}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {(data.leave_type === "EL" || data.leave_type === "On Duty Leave") && (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+                                                <LeaveInfoField
+                                                    icon={CalendarIcon}
+                                                    label="From Date"
+                                                    value={data.from_date ? format(new Date(data.from_date), "dd MMM yyyy") : undefined}
+                                                />
+                                                <LeaveInfoField
+                                                    icon={CalendarIcon}
+                                                    label="To Date"
+                                                    value={data.to_date ? format(new Date(data.to_date), "dd MMM yyyy") : undefined}
+                                                />
+                                            </div>
+                                        )}
+
+                                        {data.station_leave_permission === "Required" && (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                                                <LeaveInfoField
+                                                    icon={CalendarIcon}
+                                                    label="Station Leave From"
+                                                    value={data.sl_from_date ? format(new Date(data.sl_from_date), "dd MMM yyyy") : undefined}
+                                                />
+                                                <LeaveInfoField
+                                                    icon={CalendarIcon}
+                                                    label="Station Leave To"
+                                                    value={data.sl_to_date ? format(new Date(data.sl_to_date), "dd MMM yyyy") : undefined}
+                                                />
+                                            </div>
+                                        )}
+
+                                        {data.leave_type === "On Duty Leave" && data.onduty_leave_docs && (
+                                            <a
+                                                href={getFileUrl(data.onduty_leave_docs)}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-2 text-[#D97757] hover:text-[#c66a4e] hover:underline text-sm font-semibold"
+                                            >
+                                                <FileTextIcon className="w-4 h-4" />
+                                                View Attached Document
+                                            </a>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Reason & Contact */}
+                                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+                                    <div className="flex items-center gap-3 px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
+                                        <MessageSquareIcon className="w-4 h-4 text-[#D97757]" />
+                                        <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
+                                            Reason &amp; Contact
+                                        </h3>
+                                    </div>
+                                    <div className="p-6 space-y-5">
+                                        <LeaveInfoField icon={MessageSquareIcon} label="Reason For Leave" value={data.reason_for_leave} />
+                                        <LeaveInfoField icon={MapPinIcon} label="Address On Leave" value={data.address_on_leave} />
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+                                            <LeaveInfoField icon={PhoneIcon} label="Contact Number" value={data.contact_number} />
+                                            {data.additional_remarks && (
+                                                <LeaveInfoField icon={MessageSquareIcon} label="Additional Remarks" value={data.additional_remarks} />
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         ) : (
                             renderGenericDetails()

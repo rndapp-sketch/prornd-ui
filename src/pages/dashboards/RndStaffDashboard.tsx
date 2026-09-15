@@ -14,7 +14,15 @@ import {
 
 interface TaskRecord { name: string; title: string; status: string; creation: string; modified: string; owner: string; }
 interface TaskGroup { doctype: string; records: TaskRecord[]; mod_vis?: number; }
-interface PendingTaskResponse { message: { page: string; status_value: string; results: TaskGroup[] }; }
+// Row shape returned by get_categorized_pending_task, already bucketed into
+// research/consultancy/others and resolved server-side via DOCTYPE_PR_LINKS.
+// It has no `modified` field — only `date` (creation, truncated) — so every
+// age/recency computation below is keyed off creation date, not last-modified.
+interface CategorizedTaskRow {
+  status: string; module: string; title: string; project_no: string; date: string;
+  owner: string; doctype: string; name: string; mod_vis: number | null; deposit_slip?: string;
+}
+interface PendingTaskResponse { message: { research: CategorizedTaskRow[]; consultancy: CategorizedTaskRow[]; others: CategorizedTaskRow[] }; }
 interface TaskRegistryResponse { message: { results: TaskGroup[]; pagination: unknown; filters: unknown }; }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -121,7 +129,7 @@ export function RndStaffDashboard() {
   const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", { fields: ["full_name"], enabled: !!currentUser });
 
   const { data: pendingData, isLoading: pendingLoading } = useFrappeGetCall<PendingTaskResponse>(
-    "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_pending_task", { page_name: "pending-task" }
+    "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_categorized_pending_task", { page_name: "pending-task" }
   );
   const { data: registryData, isLoading: registryLoading } = useFrappeGetCall<TaskRegistryResponse>(
     "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_task_registry", { page_name: "task-registry" }
@@ -145,12 +153,18 @@ export function RndStaffDashboard() {
   const isLoading = pendingLoading || registryLoading;
 
   const pendingTasks = useMemo(() => {
-    if (!pendingData?.message?.results) return [];
-    const tasks: (TaskRecord & { doctype: string })[] = [];
-    pendingData.message.results.forEach(g => {
-      if (g.mod_vis || g.doctype === "Advance Settlement")
-        g.records.forEach(r => tasks.push({ ...r, doctype: g.doctype }));
-    });
+    if (!pendingData?.message) return [];
+    const records = [
+      ...pendingData.message.research,
+      ...pendingData.message.consultancy,
+      ...pendingData.message.others,
+    ];
+    const tasks: (TaskRecord & { doctype: string })[] = records
+      .filter(r => r.mod_vis || r.doctype === "Advance Settlement")
+      .map(r => ({
+        name: r.name, title: r.title, status: r.status,
+        creation: r.date, modified: r.date, owner: r.owner, doctype: r.doctype,
+      }));
     return tasks.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
   }, [pendingData]);
 

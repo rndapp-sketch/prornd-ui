@@ -26,11 +26,28 @@ interface TaskGroup {
     mod_vis?: number;
 }
 
+// Row shape returned by get_categorized_pending_task, already bucketed into
+// research/consultancy/others and resolved server-side via DOCTYPE_PR_LINKS.
+// It has no `modified` field — only `date` (creation, truncated) — so recency
+// sorting/display below is keyed off creation date, not last-modified.
+interface CategorizedTaskRow {
+    status: string;
+    module: string;
+    title: string;
+    project_no: string;
+    date: string;
+    owner: string;
+    doctype: string;
+    name: string;
+    mod_vis: number | null;
+    deposit_slip?: string;
+}
+
 interface PendingTaskResponse {
     message: {
-        page: string;
-        status_value: string;
-        results: TaskGroup[];
+        research: CategorizedTaskRow[];
+        consultancy: CategorizedTaskRow[];
+        others: CategorizedTaskRow[];
     };
 }
 
@@ -138,7 +155,7 @@ export function StudentDashboard() {
 
     // Fetch Pending Tasks
     const { data: pendingData, isLoading: pendingLoading } = useFrappeGetCall<PendingTaskResponse>(
-        "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_pending_task",
+        "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_categorized_pending_task",
         { page_name: "pending-task" }
     );
 
@@ -153,15 +170,23 @@ export function StudentDashboard() {
 
     // --- Computed Data ---
     const pendingTasks = React.useMemo(() => {
-        if (!pendingData?.message?.results) return [];
-        const tasks: (TaskRecord & { doctype: string })[] = [];
-        pendingData.message.results.forEach((group) => {
-            if (group.mod_vis || group.doctype === "Advance Settlement") {
-                group.records.forEach((record) => {
-                    tasks.push({ ...record, doctype: group.doctype });
-                });
-            }
-        });
+        if (!pendingData?.message) return [];
+        const records = [
+            ...pendingData.message.research,
+            ...pendingData.message.consultancy,
+            ...pendingData.message.others,
+        ];
+        const tasks: (TaskRecord & { doctype: string })[] = records
+            .filter((r) => r.mod_vis || r.doctype === "Advance Settlement")
+            .map((r) => ({
+                name: r.name,
+                title: r.title,
+                status: r.status,
+                creation: r.date,
+                modified: r.date,
+                owner: r.owner,
+                doctype: r.doctype,
+            }));
         return tasks.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
     }, [pendingData]);
 

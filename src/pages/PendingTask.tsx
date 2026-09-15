@@ -11,70 +11,47 @@ import { XIcon, ActivityIcon } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useFrappeGetCall, useFrappeAuth, useFrappeGetDocList, useFrappePostCall } from 'frappe-react-sdk';
 import { GlobalLoader } from '@/components/ui/global-loader';
+import { ModuleFilterSelect } from '@/components/ModuleFilterSelect';
 import { useUserRoles } from '../components/UserRole';
 import { selectionCandidateDetailsAPI, selectionCommitteeReportAPI } from '@/services/apiService';
-import {
-    resolveProjectCategory,
-    normalizeProjectType,
-    DOCTYPE_PR_LINKS,
-    type PRLinkStrategy,
-    type ProjectCategory,
-} from '@/utils/projectTypeMapping';
+import { type ProjectCategory } from '@/utils/projectTypeMapping';
 
-interface PendingTaskRecord {
-    name: string;
-    title: string;
+// Row shape returned by get_categorized_pending_task, already bucketed into
+// research/consultancy/others and resolved server-side via DOCTYPE_PR_LINKS
+// (see rndopsapp/project_type_links.py, the backend's single source of truth).
+interface CategorizedTaskRow {
     status: string;
-    creation: string;
-    modified: string;
+    module: string;
+    title: string;
+    project_no: string;
+    date: string;
     owner: string;
-    head_approver?: string;
-    // PR link fields — which ones are populated depends on the DocType
-    prjreg_title?: string;
-    project_name?: string;
-    project_proposal?: string;
-    project_type_linked?: string;
-    project_ref_number?: string;
-    project_number?: string;
-    project_title?: string;
-    project_ref?: string;
-    project_no?: string;
-    project_code?: string;
-    project_id?: string;
-    travel_project_title?: string;
-    travel_project_number?: string;
-    igf_project_title?: string;
-    igf_project_code?: string;
-    upfa_project_code?: string;
-    prj_num?: string;
-}
-
-interface PendingTaskResult {
     doctype: string;
-    records: PendingTaskRecord[];
-    mod_vis?: number;
+    name: string;
+    // Backend passthrough of get_pending_task's group-level visibility flag —
+    // filtering on it is still entirely a frontend concern (see allTasks below).
+    mod_vis: number | null;
+    deposit_slip?: string;
 }
 
-interface PendingTaskResponse {
+interface CategorizedPendingTaskResponse {
     message: {
-        page: string;
-        status_value: string;
-        results: PendingTaskResult[];
+        research: CategorizedTaskRow[];
+        consultancy: CategorizedTaskRow[];
+        others: CategorizedTaskRow[];
     };
 }
 
 interface FlattenedTask {
     id: string;
     title: string;
-    "Project Number": string;
     projectNo: string;
     status: string;
-    priority: string;
     creation: string;
-    modified: string;
     owner: string;
     doctype: string;
     project_type: ProjectCategory;
+    depositSlip?: string;
 }
 
 type ProjectTypeTab = ProjectCategory;
@@ -179,17 +156,6 @@ const getCandidateWorkflow = (
         // has joined. Marked completed once its reference number is saved on SCD.
         joiningReport: !joiningDone ? 'disabled' : joiningReportDone ? 'completed' : 'available',
     };
-};
-
-// Splits a list of ids into fixed-size batches so a `name in [...]` filter can't grow into a
-// query string long enough for the server/proxy to reject the request outright (returning an
-// HTML error page instead of JSON) — a real failure mode once task volume/id length grows, e.g.
-// Fund Received's occasional "-prjreg_refnum" autoname bug roughly doubling typical id length.
-const ID_BATCH_SIZE = 40;
-const chunk = <T,>(items: T[], size: number): T[][] => {
-    const batches: T[][] = [];
-    for (let i = 0; i < items.length; i += size) batches.push(items.slice(i, i + size));
-    return batches;
 };
 
 const PROJECT_TYPE_TABS: ProjectTypeTab[] = ['Research', 'Consultancy', 'Others'];
@@ -372,37 +338,19 @@ const PendingTask: React.FC = () => {
         }
     };
 
-    // Explicit, distinct SWR keys on both "Project Registration" list calls below — without
-    // this, any two calls to the same doctype are one accidental refactor away from resolving
-    // to the same cache entry (e.g. if a default/auto key ever collapses fields+filters), and
-    // whichever one wins silently starves prNameToType/prNoToType (see allProjectRegistrations).
     const { data: headApproverProjects } = useFrappeGetDocList("Project Registration", {
         filters: [["head_approver", "=", currentUser ?? ""]],
         fields: ["name"],
         limit: 500,
     }, isHeadApprover && !!currentUser ? `project-registration-head-approver:${currentUser}` : null);
 
-    // Fetch all projects for project_type lookup (single source of truth). Must never share a
-    // cache entry with headApproverProjects above — that would starve prNameToType/prNoToType
-    // down to the head-approver-filtered subset, silently miscategorizing most Fund Received /
-    // other doctype tasks into "Others" even though resolveProjectCategory itself is correct.
-    // `limit: 0` (not a hardcoded page size) — this doctype has grown well past any fixed cap
-    // over the institute's history, so a fixed `limit: 1000` silently drops older/less-recently-
-    // modified Project Registrations from this map, and every task linked to one of those falls
-    // back to "Others" even though its project_type is correct server-side. Same "fetch everything"
-    // idiom already used for `allFundingAgencies` below.
-    const { data: allProjectRegistrations, error: allProjectRegistrationsError } = useFrappeGetDocList("Project Registration", {
-        fields: ["name", "project_no", "project_type", "funding_agen"],
+    // Funding Agency needs a name → funding_agen lookup on Project Registration rows — project_type
+    // resolution itself now happens server-side (get_categorized_pending_task), so this call only
+    // exists for that one column. `limit: 0`, same "fetch everything" idiom as `allFundingAgencies`.
+    const { data: allProjectRegistrations } = useFrappeGetDocList("Project Registration", {
+        fields: ["name", "funding_agen"],
         limit: 0,
-    }, "project-registration-all-for-type-lookup");
-
-    React.useEffect(() => {
-        if (allProjectRegistrationsError) {
-            // Task categorization silently falls back to "Others" whenever this list is empty,
-            // so a failed fetch (e.g. permission error) is otherwise invisible — surface it.
-            console.error("Failed to load full Project Registration list for task categorization:", allProjectRegistrationsError);
-        }
-    }, [allProjectRegistrationsError]);
+    }, "project-registration-all-for-funding-agency-lookup");
 
     // Funding Agency id -> display name, same bulk-map pattern used by ProjectsView.tsx's "My Projects" list
     const { data: allFundingAgencies } = useFrappeGetDocList("fundingagency_", {
@@ -437,253 +385,83 @@ const PendingTask: React.FC = () => {
         return new Set(piLeaveModules.map((l: { name: string }) => l.name));
     }, [isPermanentEmployee, piLeaveModules]);
 
-    // prNameToType: PR document name (auto-id) → raw project_type
-    // prNoToType:   PR project_no (human-readable) → raw project_type
     // prNameToFundingAgen: PR document name → raw funding_agen id (resolved to a display name via fundingAgencyNameMap)
-    const { prNameToType, prNoToType, prNameToFundingAgen } = React.useMemo(() => {
-        const prNameToType = new Map<string, string>();
-        const prNoToType = new Map<string, string>();
-        const prNameToFundingAgen = new Map<string, string>();
-        if (allProjectRegistrations) {
-            allProjectRegistrations.forEach((p: { name: string; project_no?: string; project_type?: string; funding_agen?: string }) => {
-                const raw = p.project_type || '';
-                if (p.name) prNameToType.set(p.name, raw);
-                if (p.project_no) prNoToType.set(p.project_no, raw);
-                if (p.name && p.funding_agen) prNameToFundingAgen.set(p.name, p.funding_agen);
-            });
-        }
-        return { prNameToType, prNoToType, prNameToFundingAgen };
+    const prNameToFundingAgen = React.useMemo(() => {
+        const map = new Map<string, string>();
+        (allProjectRegistrations ?? []).forEach((p: { name: string; funding_agen?: string }) => {
+            if (p.name && p.funding_agen) map.set(p.name, p.funding_agen);
+        });
+        return map;
     }, [allProjectRegistrations]);
 
-    const { data, isLoading, error } = useFrappeGetCall<PendingTaskResponse>(
-        "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_pending_task",
+    const { data, isLoading, error } = useFrappeGetCall<CategorizedPendingTaskResponse>(
+        "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_categorized_pending_task",
         { page_name: "pending-task" }
     );
 
     const allTasks: FlattenedTask[] = React.useMemo(() => {
-        if (!data?.message?.results) return [];
+        if (!data?.message) return [];
+
+        const buckets: [ProjectCategory, CategorizedTaskRow[]][] = [
+            ['Research', data.message.research ?? []],
+            ['Consultancy', data.message.consultancy ?? []],
+            ['Others', data.message.others ?? []],
+        ];
 
         const tasks: FlattenedTask[] = [];
-        data.message.results.forEach((group) => {
+        buckets.forEach(([project_type, rows]) => rows.forEach((record) => {
             // HoS users: also include records from mod_vis=0 groups if status is "Pending HoS Approval"
-            const shouldIncludeGroup = group.mod_vis || group.doctype === "Advance Settlement";
-            group.records.forEach((record) => {
-                const isHosPendingRecord = record.status === "Pending HoS Approval";
-                // Include if: normal group OR HoS user with a HoS-specific record
-                if (!shouldIncludeGroup && !(isHosRnd && isHosPendingRecord)) return;
+            const shouldIncludeGroup = !!record.mod_vis || record.doctype === "Advance Settlement";
+            const isHosPendingRecord = record.status === "Pending HoS Approval";
+            // Include if: normal group OR HoS user with a HoS-specific record
+            if (!shouldIncludeGroup && !(isHosRnd && isHosPendingRecord)) return;
 
-                if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name) && !(isHosRnd && isHosPendingRecord)) {
-                    return;
-                }
-                if (isPermanentEmployee && group.doctype === "Leave Module" && record.status === "Pending PI Approval" && allowedLeaveNames && !allowedLeaveNames.has(record.name)) {
-                    return;
-                }
-                // Disbursal of Consultancy is filed by the PI themselves (the doc `owner`
-                // is the PI), so a record in "Pending PI Approval" is only actionable by
-                // that specific PI — mod_vis makes the whole doctype group visible to
-                // other roles (Dean/RnD staff/etc.) for its other workflow states, but
-                // this particular status should never surface for anyone but its own PI.
-                if (group.doctype === "Disbursal of Consultancy" && record.status === "Pending PI Approval" && record.owner !== currentUser) {
-                    return;
-                }
-                if (record.status === "Endorsement Approved") {
-                    return;
-                }
-                if (
-                    record.status === "Sanction Approved" &&
-                    group.doctype !== "Direct Purchase"
-                ) {
-                    return;
-                }
-                // HoS users should not see Associate Dean tasks
-                if (isHosRnd && !isAdoRnd && record.status === "Pending Associate Dean") {
-                    return;
-                }
-                // ADO users should not see HoS-only tasks
-                if (isAdoRnd && !isHosRnd && record.status === "Pending HoS Approval") {
-                    return;
-                }
-                const projectNo =
-                    record.project_no ||
-                    record.project_number ||
-                    record.project_ref_number ||
-                    record.project_code ||
-                    record.project_id ||
-                    record.prj_num ||
-                    record.travel_project_number ||
-                    record.igf_project_code ||
-                    record.upfa_project_code ||
-                    "";
+            if (isHeadApprover && record.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name) && !(isHosRnd && isHosPendingRecord)) {
+                return;
+            }
+            if (isPermanentEmployee && record.doctype === "Leave Module" && record.status === "Pending PI Approval" && allowedLeaveNames && !allowedLeaveNames.has(record.name)) {
+                return;
+            }
+            // Disbursal of Consultancy is filed by the PI themselves (the doc `owner`
+            // is the PI), so a record in "Pending PI Approval" is only actionable by
+            // that specific PI — mod_vis makes the whole doctype group visible to
+            // other roles (Dean/RnD staff/etc.) for its other workflow states, but
+            // this particular status should never surface for anyone but its own PI.
+            if (record.doctype === "Disbursal of Consultancy" && record.status === "Pending PI Approval" && record.owner !== currentUser) {
+                return;
+            }
+            if (record.status === "Endorsement Approved") {
+                return;
+            }
+            if (
+                record.status === "Sanction Approved" &&
+                record.doctype !== "Direct Purchase"
+            ) {
+                return;
+            }
+            // HoS users should not see Associate Dean tasks
+            if (isHosRnd && !isAdoRnd && record.status === "Pending Associate Dean") {
+                return;
+            }
+            // ADO users should not see HoS-only tasks
+            if (isAdoRnd && !isHosRnd && record.status === "Pending HoS Approval") {
+                return;
+            }
 
-                tasks.push({
-                    id: record.name,
-                    title: record.title,
-                    "Project Number": record.name,
-                    projectNo,
-                    status: record.status,
-                    priority: 'Medium',
-                    creation: record.creation,
-                    modified: record.modified,
-                    owner: record.owner,
-                    doctype: group.doctype,
-                    // Proforma Invoices are only ever raised for Consultancy projects
-                    // (the "Pro Inv" action is gated to project_type === "Consultancy"),
-                    // and the doctype is read-restricted so the generic type-resolution
-                    // can't fetch it — categorize it directly.
-                    // Disbursal of Consultancy has no genuine link back to Project Registration at
-                    // all — its DOCTYPE_PR_LINKS field `disbursal_project_number` is actually a
-                    // Select with fixed options "Select"/"PDF" (verified against the doctype's own
-                    // field definitions), not a project reference, so resolveProjectCategory can
-                    // never match it. The doctype name itself guarantees the category, same as
-                    // Proforma_Invoice above.
-                    project_type: (group.doctype === "Proforma_Invoice" || group.doctype === "Disbursal of Consultancy")
-                        ? 'Consultancy'
-                        : resolveProjectCategory(
-                            record as unknown as Record<string, unknown>,
-                            group.doctype,
-                            prNameToType,
-                            prNoToType,
-                        ),
-                });
+            tasks.push({
+                id: record.name,
+                title: record.title,
+                projectNo: record.project_no || "",
+                status: record.status,
+                creation: record.date,
+                owner: record.owner,
+                doctype: record.doctype,
+                depositSlip: record.deposit_slip,
+                project_type,
             });
-        });
+        }));
         return tasks;
-    }, [data, isHeadApprover, allowedProjectNames, prNameToType, prNoToType, isPermanentEmployee, allowedLeaveNames, isHosRnd, isAdoRnd, currentUser]);
-
-    // Phase-2: secondary fetch to resolve project_type from each doctype's actual link fields.
-    // The pending-task API only returns basic fields (name, title, status…), so link fields
-    // like prjreg_title / project_name are absent. We batch-fetch per doctype to fill the gap.
-    const [resolvedProjectTypes, setResolvedProjectTypes] = React.useState<Map<string, ProjectCategory>>(new Map());
-
-    React.useEffect(() => {
-        if (!allTasks.length) return;
-
-        const byDoctype = new Map<string, string[]>();
-        allTasks.forEach(task => {
-            // Disbursal of Consultancy is hardcoded to 'Consultancy' above (its DOCTYPE_PR_LINKS
-            // field doesn't actually reference a project — see the comment at that assignment) —
-            // it must be skipped here too, or this generic resolution would run anyway, resolve
-            // to 'Others' via the bogus field, and clobber that hardcoded value in resolvedTasks.
-            if (task.doctype === "Disbursal of Consultancy") return;
-            const mapping = DOCTYPE_PR_LINKS[task.doctype];
-            if (!mapping || mapping.primary.type === 'self') return;
-            if (!byDoctype.has(task.doctype)) byDoctype.set(task.doctype, []);
-            byDoctype.get(task.doctype)!.push(task.id);
-        });
-
-        if (!byDoctype.size) return;
-
-        const newMap = new Map<string, ProjectCategory>();
-        const promises: Promise<void>[] = [];
-
-        byDoctype.forEach((ids, doctype) => {
-            const mapping = DOCTYPE_PR_LINKS[doctype]!;
-            const fields = new Set<string>(['name']);
-            const addField = (s: PRLinkStrategy) => { if (s.type !== 'self') fields.add(s.field); };
-            addField(mapping.primary);
-            if (mapping.fallback) addField(mapping.fallback);
-
-            chunk(ids, ID_BATCH_SIZE).forEach((batch) => {
-                // Frappe v1 list API:
-                //   filters  → JSON array of [field, op, value] triples
-                //   fields   → JSON array of field names
-                //   in-filter value must be a comma-separated string, NOT a nested array
-                const filterValue = batch.join(',');
-                const params = new URLSearchParams({
-                    filters: JSON.stringify([['name', 'in', filterValue]]),
-                    fields: JSON.stringify([...fields]),
-                    limit: String(batch.length),
-                });
-
-                const p = fetch(`/api/resource/${encodeURIComponent(doctype)}?${params}`, { credentials: "include" })
-                    .then(r => r.json())
-                    .then(result => {
-                        // Frappe v1 returns { data: [...] }
-                        (result?.data ?? result?.message ?? []).forEach((rec: Record<string, unknown>) => {
-                            const cat = resolveProjectCategory(rec, doctype, prNameToType, prNoToType);
-                            newMap.set(rec['name'] as string, cat);
-                        });
-                    })
-                    .catch((err) => {
-                        // Was previously silent — this fetch resolving is the only thing that
-                        // overrides Phase-1's default "Others" categorization, so a swallowed
-                        // failure here means every task of that doctype gets stuck in Others
-                        // with no visible signal.
-                        console.error(`Failed to resolve project_type for doctype "${doctype}" (batch: ${batch[0]}..):`, err);
-                    });
-
-                promises.push(p);
-            });
-        });
-
-        Promise.all(promises).then(() => {
-            if (newMap.size > 0) setResolvedProjectTypes(new Map(newMap));
-        });
-    }, [allTasks, prNameToType, prNoToType]);
-
-    // Merge phase-1 results with phase-2 resolved types
-    const resolvedTasks = React.useMemo(() =>
-        allTasks.map(task => {
-            const resolved = resolvedProjectTypes.get(task.id);
-            return resolved ? { ...task, project_type: resolved } : task;
-        }),
-        [allTasks, resolvedProjectTypes]);
-
-    // Phase-2b: resolve project_no and project_type for Top Up Fellowship tasks.
-    // Top Up Fellowship only has a `project_no` field (no `project_code` Link field
-    // exists on this DocType) — fetch it directly, then resolve project_type via
-    // the PR record matching that project_no.
-    const [tufProjectNos, setTufProjectNos] = React.useState<Map<string, string>>(new Map());
-    React.useEffect(() => {
-        const tufIds = allTasks
-            .filter(t => t.doctype === "Top Up Fellowship")
-            .map(t => t.id);
-        if (!tufIds.length) return;
-
-        const params = new URLSearchParams({
-            fields: JSON.stringify(["name", "project_no"]),
-            filters: JSON.stringify([["name", "in", tufIds.join(",")]]),
-            limit: String(tufIds.length),
-        });
-
-        fetch(`/api/resource/Top%20Up%20Fellowship?${params}`, { credentials: "include" })
-            .then(r => r.json())
-            .then(async (result) => {
-                const tufDocs: any[] = result?.data ?? [];
-                const noMap = new Map<string, string>();
-                tufDocs.forEach((rec: any) => {
-                    if (rec.project_no) noMap.set(rec.name, rec.project_no);
-                });
-
-                // Resolve project_type via the PR docs matching those project_no values
-                const projectNos = [...new Set(tufDocs.map(rec => rec.project_no).filter(Boolean))];
-                if (projectNos.length > 0) {
-                    const prParams = new URLSearchParams({
-                        fields: JSON.stringify(["name", "project_no", "project_type"]),
-                        filters: JSON.stringify([["project_no", "in", projectNos.join(",")]]),
-                        limit: String(projectNos.length),
-                    });
-                    try {
-                        const prRes = await fetch(`/api/resource/Project%20Registration?${prParams}`, { credentials: "include" });
-                        const prResult = await prRes.json();
-                        const typeByProjectNo = new Map<string, string>();
-                        (prResult?.data ?? []).forEach((pr: any) => {
-                            if (pr.project_no && pr.project_type) typeByProjectNo.set(pr.project_no, pr.project_type);
-                        });
-
-                        const typeMap = new Map<string, ProjectCategory>();
-                        tufDocs.forEach((rec: any) => {
-                            const rawType = rec.project_no ? typeByProjectNo.get(rec.project_no) : undefined;
-                            if (rawType) typeMap.set(rec.name, normalizeProjectType(rawType));
-                        });
-                        if (typeMap.size > 0) setResolvedProjectTypes(prev => new Map([...prev, ...typeMap]));
-                    } catch { /* non-critical */ }
-                }
-
-                if (noMap.size > 0) setTufProjectNos(noMap);
-            })
-            .catch(() => {});
-    }, [allTasks]);
+    }, [data, isHeadApprover, allowedProjectNames, isPermanentEmployee, allowedLeaveNames, isHosRnd, isAdoRnd, currentUser]);
 
     // Phase-2c: fetch project_no for PSD tasks, then resolve project title from Project Registration
     const [psdProjectNos, setPsdProjectNos] = React.useState<Map<string, string>>(new Map());
@@ -734,118 +512,6 @@ const PendingTask: React.FC = () => {
             .catch(() => {});
     }, [allTasks]);
 
-    // Phase-2d: Fund Received rows — the pending-task API's `project_no` field for this doctype
-    // is unreliable (can come back as raw placeholder text like "REC_xxxx-prjreg_refnum"), so
-    // resolve the real project_no via prjreg_title → Project Registration, and separately look
-    // up any deposit slip already linked to the Fund Received record (fund_received_ref match
-    // across all deposit slip doctypes, same lookup used in HoSApprovalView/FundReceivedDetails).
-    const FR_DEPOSIT_SLIP_DOCTYPES = [
-        "Research Consultancy Deposit Slip",
-        "D Consultancy Deposit Slip",
-        "E Non Routine Deposit Slip",
-        "T Testing Deposit Slip",
-        "Other Event Deposit Slip",
-        "Research Deposit Slip",
-    ];
-    const [frProjectNos, setFrProjectNos] = React.useState<Map<string, string>>(new Map());
-    const [frDepositSlips, setFrDepositSlips] = React.useState<Map<string, string>>(new Map());
-    React.useEffect(() => {
-        const frIds = allTasks
-            .filter(t => t.doctype === "Fund Received")
-            .map(t => t.id);
-        if (!frIds.length) return;
-
-        // Batched: a giant `name in [...]` filter over every pending Fund Received id (and, below,
-        // every doubled ref candidate × 6 deposit-slip doctypes) can build a query string long
-        // enough that the server/proxy rejects it outright and returns an HTML error page instead
-        // of JSON — same failure mode as the Phase-2 fetch above, fixed the same way.
-        (async () => {
-            try {
-                const docBatches = await Promise.all(chunk(frIds, ID_BATCH_SIZE).map(async (idBatch) => {
-                    const params = new URLSearchParams({
-                        fields: JSON.stringify(["name", "prjreg_title", "fund_received_ref_number"]),
-                        filters: JSON.stringify([["name", "in", idBatch.join(",")]]),
-                        limit: String(idBatch.length),
-                    });
-                    const res = await fetch(`/api/resource/Fund%20Received?${params}`, { credentials: "include" });
-                    const result = await res.json();
-                    return (result?.data ?? []) as any[];
-                }));
-                const docs: any[] = docBatches.flat();
-                if (!docs.length) return;
-
-                // Resolve real project_no via prjreg_title (Project Registration docname)
-                const prNames = [...new Set(docs.map((d: any) => d.prjreg_title).filter(Boolean))];
-                if (prNames.length) {
-                    const noByPrName = new Map<string, string>();
-                    await Promise.all(chunk(prNames, ID_BATCH_SIZE).map(async (prNameBatch) => {
-                        const prParams = new URLSearchParams({
-                            fields: JSON.stringify(["name", "project_no"]),
-                            filters: JSON.stringify([["name", "in", prNameBatch.join(",")]]),
-                            limit: String(prNameBatch.length),
-                        });
-                        const prRes = await fetch(`/api/resource/Project%20Registration?${prParams}`, { credentials: "include" });
-                        const prResult = await prRes.json();
-                        (prResult?.data ?? []).forEach((pr: any) => {
-                            if (pr.name && pr.project_no) noByPrName.set(pr.name, pr.project_no);
-                        });
-                    }));
-                    const noMap = new Map<string, string>();
-                    docs.forEach((d: any) => {
-                        const no = d.prjreg_title ? noByPrName.get(d.prjreg_title) : undefined;
-                        if (no) noMap.set(d.name, no);
-                    });
-                    if (noMap.size > 0) setFrProjectNos(noMap);
-                }
-
-                // Resolve any linked deposit slip via fund_received_ref (FR docname or ref number).
-                // Known naming-template bug: some deposit slips were created with `fund_received_ref`
-                // literally storing "<real ref>-prjreg_refnum" — the `prjreg_refnum` token was never
-                // substituted (e.g. "REC_0108262318-prjreg_refnum" instead of "REC_0108262318"). Add
-                // this exact suffix as a candidate so those slips are still found.
-                const baseRefCandidates = [...new Set(
-                    docs.flatMap((d: any) => [d.name, d.fund_received_ref_number].filter(Boolean))
-                )];
-                const refCandidates = [...new Set([...baseRefCandidates, ...baseRefCandidates.map((c) => `${c}-prjreg_refnum`)])];
-                if (!refCandidates.length) return;
-
-                const slipByRef = new Map<string, string>();
-                const refBatches = chunk(refCandidates, ID_BATCH_SIZE);
-                await Promise.all(FR_DEPOSIT_SLIP_DOCTYPES.flatMap((doctype) =>
-                    refBatches.map(async (refBatch) => {
-                        try {
-                            const slipParams = new URLSearchParams({
-                                fields: JSON.stringify(["name", "fund_received_ref"]),
-                                filters: JSON.stringify([["fund_received_ref", "in", refBatch.join(",")]]),
-                                limit: String(refBatch.length),
-                            });
-                            const res = await fetch(`/api/resource/${encodeURIComponent(doctype)}?${slipParams}`, { credentials: "include" });
-                            const json = await res.json();
-                            (json?.data ?? []).forEach((slip: any) => {
-                                if (slip.fund_received_ref) slipByRef.set(slip.fund_received_ref, slip.name);
-                            });
-                        } catch {
-                            /* skip batch on error */
-                        }
-                    })
-                ));
-
-                const depositMap = new Map<string, string>();
-                docs.forEach((d: any) => {
-                    const docCandidates = [d.name, d.fund_received_ref_number].filter(Boolean) as string[];
-                    const slip = docCandidates
-                        .flatMap((c) => [c, `${c}-prjreg_refnum`])
-                        .map((c) => slipByRef.get(c))
-                        .find(Boolean);
-                    if (slip) depositMap.set(d.name, slip);
-                });
-                if (depositMap.size > 0) setFrDepositSlips(depositMap);
-            } catch {
-                /* non-critical: project_no/deposit-slip display only */
-            }
-        })();
-    }, [allTasks]);
-
     // Phase-3: fetch director_signed_pdf for all doctypes that support Director Approval flow
     const DIRECTOR_PDF_DOCTYPES = ["Indent General Form", "Selection Committee Report", "Indent Cum Sanction Sheet", "Disbursal of Honorarium"];
     const [directorPdfStatus, setDirectorPdfStatus] = React.useState<Map<string, boolean>>(new Map());
@@ -879,8 +545,8 @@ const PendingTask: React.FC = () => {
     }, [allTasks]);
 
     const visibleTasks = React.useMemo(() =>
-        resolvedTasks.filter(task => !(task.project_type === 'Others' && HIDDEN_OTHERS_DOCTYPES.has(task.doctype))),
-        [resolvedTasks]);
+        allTasks.filter(task => !(task.project_type === 'Others' && HIDDEN_OTHERS_DOCTYPES.has(task.doctype))),
+        [allTasks]);
 
     const tabCounts = React.useMemo(() => ({
         Research: visibleTasks.filter(t => t.project_type === 'Research').length,
@@ -895,6 +561,13 @@ const PendingTask: React.FC = () => {
         return Array.from(uniqueModules).sort();
     }, [visibleTasks, selectedProjectType]);
 
+    const moduleCounts = React.useMemo(() => {
+        const baseTasks = visibleTasks.filter(t => t.project_type === selectedProjectType);
+        const counts: Record<string, number> = {};
+        baseTasks.forEach(task => { counts[task.doctype] = (counts[task.doctype] ?? 0) + 1; });
+        return counts;
+    }, [visibleTasks, selectedProjectType]);
+
     const filteredTasks = React.useMemo(() => {
         let tasks = visibleTasks.filter(t => t.project_type === selectedProjectType);
 
@@ -907,7 +580,7 @@ const PendingTask: React.FC = () => {
                 const ownerUsername = task.owner?.split("@")[0]?.toLowerCase() ?? "";
                 return (
                     task.title?.toLowerCase().includes(q) ||
-                    task["Project Number"]?.toLowerCase().includes(q) ||
+                    task.id?.toLowerCase().includes(q) ||
                     task.projectNo?.toLowerCase().includes(q) ||
                     task.owner?.toLowerCase().includes(q) ||
                     ownerUsername.includes(q) ||
@@ -1072,24 +745,14 @@ const PendingTask: React.FC = () => {
                 {/* Filter Section */}
                 <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-3 shadow-sm">
                     <div className="flex items-center gap-3">
-                        <div className="relative">
-                            <select
-                                id="module-filter"
-                                value={selectedModule}
-                                onChange={(e) => handleModuleChange(e.target.value)}
-                                className="h-10 pl-4 pr-10 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-zinc-200 appearance-none shadow-sm cursor-pointer min-w-[180px]"
-                            >
-                                <option value="all">All Modules</option>
-                                {moduleNames.map((module) => (
-                                    <option key={module} value={module}>
-                                        {module}
-                                    </option>
-                                ))}
-                            </select>
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-                            </div>
-                        </div>
+                        <ModuleFilterSelect
+                            value={selectedModule}
+                            onChange={handleModuleChange}
+                            modules={moduleNames}
+                            counts={moduleCounts}
+                            totalCount={visibleTasks.filter(t => t.project_type === selectedProjectType).length}
+                            allValue="all"
+                        />
 
                         {selectedModule !== 'all' && (
                             <>
@@ -1162,7 +825,7 @@ const PendingTask: React.FC = () => {
                                 <tr>
                                     <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
                                     <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Module</th>
-                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Title</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Title/Document ID</th>
                                     {showFundingAgencyColumn && (
                                         <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Funding Agency</th>
                                     )}
@@ -1218,15 +881,15 @@ const PendingTask: React.FC = () => {
                                             <td className="p-3 align-middle font-mono text-zinc-500 dark:text-zinc-400 text-xs">
                                                 {task.doctype === "Fund Received" ? (
                                                     <div className="flex flex-col gap-0.5">
-                                                        <span>{frProjectNos.get(task.id) || "-"}</span>
-                                                        {frDepositSlips.get(task.id) && (
+                                                        <span>{task.projectNo || "-"}</span>
+                                                        {task.depositSlip && (
                                                             <span className="text-[10px] text-[#D97757] font-semibold">
-                                                                Deposit: {frDepositSlips.get(task.id)}
+                                                                Deposit: {task.depositSlip}
                                                             </span>
                                                         )}
                                                     </div>
                                                 ) : (
-                                                    psdProjectNos.get(task.id) || task.projectNo || tufProjectNos.get(task.id) || task["Project Number"]
+                                                    psdProjectNos.get(task.id) || task.projectNo || task.id
                                                 )}
                                             </td>
                                             <td className="p-3 align-middle text-zinc-500 dark:text-zinc-400">

@@ -32,6 +32,7 @@ import { useDepositSlipCalculations } from "../hooks/useDepositSlipCalculations"
 import { useFrappeFetchFrom } from "../hooks/useFrappeFetchFrom";
 import { HoSApprovalView } from "./HoSApprovalView";
 import { ActivityLog } from "@/components/ActivityLog";
+import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { getFileUrl } from "@/utils/fileUtils";
 import { BudgetHeadName } from "@/components/BudgetHeadName";
@@ -1593,6 +1594,11 @@ const FundReceivedDetails = () => {
                         </div>
                     </div>
                 )}
+
+                {/* This "Approved" branch only opened the activity log via the AccountPortalToast
+                    (dismissed after one click), so it had no persistent way back in — add the
+                    floating button used everywhere else in the app. */}
+                {name && <FloatingActivityLogButton doctype="Fund Received" docname={name} />}
             </div>
         );
     }

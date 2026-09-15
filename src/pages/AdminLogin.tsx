@@ -241,8 +241,11 @@ const AdminLogin: React.FC = () => {
           <img src={`${import.meta.env.BASE_URL}IITG_Large_Logo.gif`} alt="IIT Guwahati" className="h-14 w-auto object-contain" />
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
-          <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
+        <div className="rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+          {/* rounded-t-2xl instead of relying on the card's overflow-hidden to clip this bar —
+              overflow-hidden on the card would also clip the username autocomplete dropdown
+              below, which needs to overflow past the card's bottom edge. */}
+          <div className="h-[3px] rounded-t-2xl bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
           <div className="px-6 py-6 sm:px-7">
             <div className="mb-6 text-center">
               <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[#E4E4E7] bg-[#FAFAF9] dark:border-[#3F3F46] dark:bg-[#18181B]">
