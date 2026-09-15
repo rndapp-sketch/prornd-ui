@@ -41,6 +41,12 @@ const getAppRoute = (app: PendingApplicationRecord) => {
             return `/reimbursement/${app.name}`;
         case "Direct Purchase":
             return `/direct-purchase/${app.name}`;
+        // Cancellation Request has no dedicated detail page — it renders inside the generic
+        // Pending Task detail view (see PendingTaskDetails.tsx's "Cancellation Request" branch).
+        // Previously fell through to the Leave Module default below, which 404'd since a
+        // cancellation request is never a Leave Module document.
+        case "Cancellation Request":
+            return `/pending-tasks/${encodeURIComponent("Cancellation Request")}/${encodeURIComponent(app.name)}`;
         case "Leave Module":
         default:
             return `/leave-module/${app.name}`;

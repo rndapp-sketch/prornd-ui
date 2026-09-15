@@ -18,7 +18,7 @@ import { FaArrowLeft } from "react-icons/fa";
 import { cn } from "@/lib/utils";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { CancellationModal } from "@/components/CancellationModal";
-import { MyCancellationRequests } from "@/components/MyCancellationRequests";
+import { MyCancellationRequests, type CancellationRequestRow } from "@/components/MyCancellationRequests";
 import { awaitingLabel } from "@/utils/cancellationLabels";
 
 interface ApplicationRecord {
@@ -103,6 +103,29 @@ const FormApplication: React.FC = () => {
         );
         return records;
     }, [applicationGroups]);
+
+    // "Cancellation Requests" tab rows — every application with a cancellation requested,
+    // built straight from allRecords rather than a separate (unreliable) backend call.
+    // get_my_applications sets has_pending_cancellation=true without always populating the
+    // nested `cancellation` object (the Applications tab below degrades the same way — see
+    // the disabled `!record.cancellation?.name` button at the "Cancellation requested" badge),
+    // so rows without a real cancellation doc name get a synthetic key and aren't clickable.
+    const cancellationRows = React.useMemo((): CancellationRequestRow[] =>
+        allRecords
+            .filter((r) => r.has_pending_cancellation || r.cancellation)
+            .map((r) => ({
+                name: r.cancellation?.name || `pending-${r.doctype}-${r.name}`,
+                reference_doctype: r.doctype,
+                reference_docname: r.name,
+                reference_name: r.title || r.name,
+                status: r.cancellation?.status,
+                workflow_state: r.cancellation?.workflow_state,
+                request_date: r.cancellation?.creation,
+                creation: r.cancellation?.creation,
+                reference_state: r.status,
+                hasDetails: !!r.cancellation?.name,
+            })),
+        [allRecords]);
 
     // Module names for filter
     const moduleNames = React.useMemo(() => {
@@ -325,7 +348,7 @@ const FormApplication: React.FC = () => {
                     </div>
 
                     {activeTab === "cancellations" ? (
-                        <MyCancellationRequests />
+                        <MyCancellationRequests rows={cancellationRows} />
                     ) : (
                     <>
                     {/* Filter Section */}
