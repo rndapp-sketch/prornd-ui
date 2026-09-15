@@ -1298,23 +1298,26 @@ const DirectPurchaseActionButtons = ({
                             Confirm: {selectedAction}
                         </h3>
                         <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
-                            Optionally add a comment before performing this action.
+                            A comment is required before performing this action.
                         </p>
                         <Textarea
                             rows={4}
-                            placeholder="Add a comment (optional)..."
+                            placeholder="Enter your comment..."
                             maxLength={65535}
                             value={comment}
                             onChange={(e) => setComment(e.target.value)}
                             autoFocus
-                            className="w-full text-sm resize-none border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg mb-4"
+                            className="w-full text-sm resize-none border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg mb-1"
                         />
-                        <CharLimitAlert value={comment} maxLength={65535} className="-mt-3 mb-3" />
-                        <div className="flex justify-end gap-2">
+                        <CharLimitAlert value={comment} maxLength={65535} className="-mt-3 mb-1" />
+                        {comment.trim().length === 0 && (
+                            <p className="text-xs text-red-500 mb-3">Comment is required.</p>
+                        )}
+                        <div className="flex justify-end gap-2 mt-3">
                             <ClaudeButton variant="outline" onClick={() => { setShowCommentModal(false); setComment(""); }}>
                                 Cancel
                             </ClaudeButton>
-                            <ClaudeButton variant="action" disabled={isPerforming} onClick={() => handleActionConfirm(comment)}>
+                            <ClaudeButton variant="action" disabled={isPerforming || comment.trim().length === 0} onClick={() => handleActionConfirm(comment)}>
                                 {isPerforming ? "Processing…" : "Confirm"}
                             </ClaudeButton>
                         </div>
@@ -1463,14 +1466,17 @@ const P11FormActionButtons = ({
                         </h3>
                         <Textarea
                             rows={4}
-                            placeholder="Add a comment (optional)..."
+                            placeholder="Enter your comment..."
                             maxLength={65535}
                             value={comment}
                             onChange={(e) => setComment(e.target.value)}
-                            className="w-full text-sm resize-none border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg mb-4"
+                            className="w-full text-sm resize-none border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg mb-1"
                         />
-                        <CharLimitAlert value={comment} maxLength={65535} className="-mt-3 mb-3" />
-                        <div className="flex justify-end gap-2">
+                        <CharLimitAlert value={comment} maxLength={65535} className="-mt-3 mb-1" />
+                        {comment.trim().length === 0 && (
+                            <p className="text-xs text-red-500 mb-3">Comment is required.</p>
+                        )}
+                        <div className="flex justify-end gap-2 mt-3">
                             <ClaudeButton
                                 variant="outline"
                                 onClick={() => {
@@ -1481,6 +1487,7 @@ const P11FormActionButtons = ({
                                 Cancel
                             </ClaudeButton>
                             <ClaudeButton
+                                disabled={comment.trim().length === 0}
                                 variant="action"
                                 onClick={() =>
                                     handleActionConfirm(selectedAction, comment)
@@ -1645,14 +1652,17 @@ const SanctionSheetActionButtons = ({
                         </h3>
                         <Textarea
                             rows={4}
-                            placeholder="Add a comment (optional)..."
+                            placeholder="Enter your comment..."
                             maxLength={65535}
                             value={comment}
                             onChange={(e) => setComment(e.target.value)}
-                            className="w-full text-sm resize-none border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg mb-4"
+                            className="w-full text-sm resize-none border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg mb-1"
                         />
-                        <CharLimitAlert value={comment} maxLength={65535} className="-mt-3 mb-3" />
-                        <div className="flex justify-end gap-2">
+                        <CharLimitAlert value={comment} maxLength={65535} className="-mt-3 mb-1" />
+                        {comment.trim().length === 0 && (
+                            <p className="text-xs text-red-500 mb-3">Comment is required.</p>
+                        )}
+                        <div className="flex justify-end gap-2 mt-3">
                             <ClaudeButton
                                 variant="outline"
                                 onClick={() => {
@@ -1663,6 +1673,7 @@ const SanctionSheetActionButtons = ({
                                 Cancel
                             </ClaudeButton>
                             <ClaudeButton
+                                disabled={comment.trim().length === 0}
                                 variant="action"
                                 onClick={() =>
                                     handleActionConfirm(selectedAction, comment)

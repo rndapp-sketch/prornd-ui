@@ -77,17 +77,20 @@ const CommentModal = ({
                     Confirm: {action}
                 </h3>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
-                    Optionally add a comment before performing this action.
+                    A comment is required before performing this action.
                 </p>
                 <textarea
-                    className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#3F3F46] dark:text-[#E4E4E7] p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757] font-sans leading-relaxed"
+                    className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#3F3F46] dark:text-[#E4E4E7] p-3 rounded-lg text-sm mb-1 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757] font-sans leading-relaxed"
                     rows={4}
-                    placeholder="Add a comment (optional)..."
+                    placeholder="Enter your comment..."
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                     autoFocus
                 />
-                <div className="flex justify-end gap-3">
+                {comment.trim().length === 0 && (
+                    <p className="text-xs text-red-500 mb-3">Comment is required.</p>
+                )}
+                <div className="flex justify-end gap-3 mt-3">
                     <button
                         onClick={onClose}
                         disabled={isLoading}
@@ -97,7 +100,7 @@ const CommentModal = ({
                     </button>
                     <button
                         onClick={() => onSubmit(comment)}
-                        disabled={isLoading}
+                        disabled={isLoading || comment.trim().length === 0}
                         className="px-4 py-2 rounded-lg font-medium text-sm bg-[#D97757] text-white hover:opacity-90 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isLoading ? "Processing..." : "Confirm"}

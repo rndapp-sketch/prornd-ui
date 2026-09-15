@@ -5446,12 +5446,13 @@ const IndentCumSanctionSheetForm: React.FC = () => {
   const isAtDeanApproval = workflowState === "Pending Dean Approval";
   const sendToDirector = Boolean(Number(formData.send_to_director || 0));
   const directorSignedPdf = String(formData.director_signed_pdf || "").trim();
+  // Show the doc's real workflow_state so this matches the Pending Tasks list.
+  // send_to_director only flags that Director sign-off is additionally required
+  // while the doc is still sitting at the Dean stage; it doesn't move workflow_state.
   const displayWorkflowState =
     signedPoFileUrl && workflowState === "PO Generated"
       ? "PO Delivered"
-      : isAtDeanApproval && sendToDirector
-        ? "Pending Director Approval"
-        : workflowState;
+      : workflowState;
   const isDirectorApprovalRequired =
     Boolean(Number(formData.director_approval_required || 0)) ||
     sendToDirector ||
@@ -6471,15 +6472,18 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             </div>
             <div className="px-5 py-4 space-y-3">
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                You are about to <strong className="text-zinc-700 dark:text-zinc-200">{pendingAction}</strong> this Indent Cum Sanction Sheet. Add an optional comment below.
+                You are about to <strong className="text-zinc-700 dark:text-zinc-200">{pendingAction}</strong> this Indent Cum Sanction Sheet. A comment is required below.
               </p>
               <textarea
                 rows={3}
-                placeholder="Optional comment…"
+                placeholder="Enter your comment…"
                 value={actionComment}
                 onChange={(e) => setActionComment(e.target.value)}
                 className="w-full resize-none rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757] transition-colors"
               />
+              {actionComment.trim().length === 0 && (
+                <p className="text-xs text-red-500">Comment is required.</p>
+              )}
             </div>
             <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
               <button
@@ -6490,7 +6494,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
               </button>
               <button
                 onClick={handleConfirmAction}
-                disabled={isActionLoading}
+                disabled={isActionLoading || actionComment.trim().length === 0}
                 className={cn(
                   "px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors",
                   pendingAction === "Approve"
@@ -6498,7 +6502,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                     : pendingAction === "Reject"
                       ? "bg-red-600 hover:bg-red-700"
                       : "bg-[#D97757] hover:opacity-90",
-                  isActionLoading && "opacity-50 cursor-not-allowed",
+                  (isActionLoading || actionComment.trim().length === 0) && "opacity-50 cursor-not-allowed",
                 )}
               >
                 {isActionLoading ? (

@@ -2234,6 +2234,9 @@ const DirectPurchase: React.FC = () => {
     const { call: submitDocCall, error: submitDocError } = useFrappePostCall(
         directPurchaseAPI.performAction
     );
+    const { call: addComment } = useFrappePostCall(
+        "rndopsapp.rndopsapp.api.add_project_comment"
+    );
     const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>(
         'frappe.client.get'
     );
@@ -2679,9 +2682,20 @@ const DirectPurchase: React.FC = () => {
             const result = await submitDocCall({
                 docname: savedDocName,
                 action: 'Submit',
-                comment: comment.trim() || undefined,
             });
             console.log('Submit result:', result);
+
+            if (comment.trim()) {
+                try {
+                    await addComment({
+                        doctype: "Direct Purchase",
+                        docname: savedDocName,
+                        content: comment.trim(),
+                    });
+                } catch {
+                    // comment failure is non-fatal
+                }
+            }
 
             alert('Direct Purchase submitted successfully!');
             goAfterLeavingForm(savedDocName);
@@ -2985,6 +2999,7 @@ const DirectPurchase: React.FC = () => {
                 onSubmit={handleConfirmSubmit}
                 action="Submit Direct Purchase"
                 isLoading={isSubmitting}
+                requireComment
             />
             <DirectPurchaseHelpGuide />
             <ErrorModal

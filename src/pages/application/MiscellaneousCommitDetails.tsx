@@ -17,6 +17,7 @@ import { type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import ProjectDetailsOverview from '@/pages/ProjectDetailsOverview';
 import { ErrorModal } from '../../components/ErrorModal';
 import { parseFrappeError } from '../../utils/errorUtils';
+import { CommentModal } from '@/components/CommentModal';
 
 // --- WORKFLOW STAGES ---
 const STAGES_STAFF_PATH = ['Draft', 'Pending HoS Approval', 'Pending Dean Approval', 'Approved'];
@@ -183,6 +184,9 @@ const MiscellaneousCommitDetails: React.FC = () => {
     const { call: fetchDocument } = useFrappePostCall<{ message: any }>('frappe.client.get');
     const { call: saveForm } = useFrappePostCall<{ message: any }>(miscellaneousCommitAPI.save);
     const { call: submitDocument } = useFrappePostCall<{ message: any }>(miscellaneousCommitAPI.submit);
+    const { call: addComment } = useFrappePostCall(
+        "rndopsapp.rndopsapp.api.add_project_comment",
+    );
 
     useEffect(() => {
         if (id) fetchFormData({ doc_name: id });
@@ -212,7 +216,9 @@ const MiscellaneousCommitDetails: React.FC = () => {
         setRefreshKey(k => k + 1);
     }, []);
 
-    const handleSubmitDraft = async () => {
+    const [submitCommentModalOpen, setSubmitCommentModalOpen] = useState(false);
+
+    const handleSubmitDraft = async (comment: string) => {
         if (!id || isSubmitting) return;
         setIsSubmitting(true);
         try {
@@ -222,6 +228,18 @@ const MiscellaneousCommitDetails: React.FC = () => {
             const docname = saveRes.message.docname || id;
             const submitRes = await submitDocument({ docname });
             if (submitRes?.message?.status === 'success') {
+                if (comment.trim()) {
+                    try {
+                        await addComment({
+                            doctype: "Miscellaneous Commit",
+                            docname,
+                            content: comment.trim(),
+                        });
+                    } catch {
+                        // comment failure is non-fatal
+                    }
+                }
+                setSubmitCommentModalOpen(false);
                 alert('Miscellaneous Commit submitted successfully!');
                 handleRefresh();
             } else {
@@ -315,7 +333,7 @@ const MiscellaneousCommitDetails: React.FC = () => {
                                         Edit
                                     </button>
                                     <button
-                                        onClick={handleSubmitDraft}
+                                        onClick={() => setSubmitCommentModalOpen(true)}
                                         disabled={isSubmitting}
                                         className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-bold bg-[#D97757] hover:bg-[#c66a4e] text-white shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
@@ -520,6 +538,15 @@ const MiscellaneousCommitDetails: React.FC = () => {
                 title={errorModal.title}
                 message={errorModal.message}
                 onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
+            />
+
+            <CommentModal
+                isOpen={submitCommentModalOpen}
+                onClose={() => setSubmitCommentModalOpen(false)}
+                onSubmit={handleSubmitDraft}
+                action="Submit"
+                isLoading={isSubmitting}
+                requireComment
             />
         </div>
     );

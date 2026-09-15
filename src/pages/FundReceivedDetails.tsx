@@ -203,15 +203,18 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: { isOpen
                 <h3 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-1">Confirm Action</h3>
                 <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] mb-4">You are about to perform: <span className="font-bold text-[#D97757]">{action}</span></p>
                 <textarea
-                    className="w-full border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-3 rounded-lg text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] mb-4 resize-none focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7] transition-colors"
+                    className="w-full border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-3 rounded-lg text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] mb-1 resize-none focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7] transition-colors"
                     rows={3}
-                    placeholder="Add a comment (optional)..."
+                    placeholder="Enter your comment..."
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                 />
-                <div className="flex justify-end gap-2">
+                {comment.trim().length === 0 && (
+                    <p className="text-xs text-red-500 mb-3">Comment is required.</p>
+                )}
+                <div className="flex justify-end gap-2 mt-3">
                     <button onClick={onClose} disabled={isLoading} className="btn-neutral text-sm px-4 py-2 rounded-lg font-semibold">Cancel</button>
-                    <button onClick={() => { onSubmit(comment); setComment(""); }} disabled={isLoading} className="btn-primary-accent text-sm px-4 py-2 rounded-lg font-semibold">
+                    <button onClick={() => { onSubmit(comment); setComment(""); }} disabled={isLoading || comment.trim().length === 0} className="btn-primary-accent text-sm px-4 py-2 rounded-lg font-semibold">
                         {isLoading ? "Processing…" : "Confirm"}
                     </button>
                 </div>
@@ -769,7 +772,7 @@ const FundReceivedDetails = () => {
     const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Submission Failed", message: "" });
 
     // Loan settlements raised from this fund receipt (read-only context).
-    // See docs/loan-settlement-implementation.md.
+    // See docs/misc/loan-settlement-implementation.md.
     const { data: loanSettlementData } = useFrappeGetCall<{
         message: { status: string; data: any[] };
     }>(

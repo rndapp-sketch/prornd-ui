@@ -403,7 +403,7 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({
     // ── Render ──────────────────────────────────────────────────────────────
 
     const visibleEntries = onlyComments
-        ? entries.filter((e) => e.type === "comment")
+        ? entries.filter((e) => e.type === "comment" || e.type === "creation")
         : entries;
 
     return (

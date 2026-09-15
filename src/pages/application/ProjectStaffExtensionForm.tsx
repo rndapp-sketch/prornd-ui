@@ -418,6 +418,10 @@ const ProjectStaffExtensionForm: React.FC = () => {
     message: { status: string; message?: string; workflow_state?: string; docstatus?: number; next_actions?: string[] };
   }>(extensionAPI.performAction);
 
+  const { call: addComment } = useFrappePostCall(
+    "rndopsapp.rndopsapp.api.add_project_comment",
+  );
+
   const { call: directSubmit } = useFrappePostCall<{
     message: { status: string; docstatus?: number };
   }>(extensionAPI.submit);
@@ -628,13 +632,24 @@ const ProjectStaffExtensionForm: React.FC = () => {
       let actionStatusMsg = "";
 
       try {
-        const res = await performAction({ docname: docName, action: actionToRun, comment });
+        const res = await performAction({ docname: docName, action: actionToRun });
         if (res?.message?.status === "success") {
           setWorkflowState(res.message.workflow_state ?? workflowState);
           setDocstatus(res.message.docstatus ?? docstatus);
           setAvailableActions(res.message.next_actions ?? []);
           showToast("success", res.message.message ?? `Action '${actionToRun}' completed.`);
           succeeded = true;
+          if (comment.trim()) {
+            try {
+              await addComment({
+                doctype: "Project Staff Extension",
+                docname: docName,
+                content: comment.trim(),
+              });
+            } catch {
+              // comment failure is non-fatal
+            }
+          }
         } else {
           // Endpoint responded but did not complete the transition — keep the reason.
           actionStatusMsg = res?.message?.message ?? "";

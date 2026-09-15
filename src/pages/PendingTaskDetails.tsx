@@ -134,13 +134,16 @@ const CommentModal = ({
                     Confirm {action}
                 </h3>
                 <textarea
-                    className="w-full border border-zinc-300 dark:border-zinc-700 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[rgba(217,119,87,0.25)] focus:border-[#D97757]"
+                    className="w-full border border-zinc-300 dark:border-zinc-700 p-3 rounded-lg text-sm mb-1 resize-none focus:outline-none focus:ring-2 focus:ring-[rgba(217,119,87,0.25)] focus:border-[#D97757]"
                     rows={4}
-                    placeholder="Add a comment (optional)..."
+                    placeholder="Enter your comment..."
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                 />
-                <div className="flex justify-end gap-2">
+                {comment.trim().length === 0 && (
+                    <p className="text-xs text-red-500 mb-3">Comment is required.</p>
+                )}
+                <div className="flex justify-end gap-2 mt-3">
                     <FrappeButton
                         onClick={onClose}
                         className="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:bg-zinc-700"
@@ -150,7 +153,7 @@ const CommentModal = ({
                     </FrappeButton>
                     <FrappeButton
                         onClick={() => onSubmit(comment)}
-                        disabled={isLoading}
+                        disabled={isLoading || comment.trim().length === 0}
                         className="bg-[#D97757] hover:bg-[#c66a4e] text-white"
                     >
                         {isLoading ? "Processing..." : "Confirm"}

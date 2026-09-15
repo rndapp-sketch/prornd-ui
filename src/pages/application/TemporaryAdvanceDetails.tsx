@@ -166,15 +166,18 @@ const CommentModal = ({
                     Confirm: {action}
                 </h3>
                 <textarea
-                    className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757]"
+                    className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] p-3 rounded-lg text-sm mb-1 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757]"
                     rows={4}
-                    placeholder="Add a comment (optional)..."
+                    placeholder="Enter your comment..."
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                 />
-                <div className="flex justify-end gap-2">
+                {comment.trim().length === 0 && (
+                    <p className="text-xs text-red-500 mb-3">Comment is required.</p>
+                )}
+                <div className="flex justify-end gap-2 mt-3">
                     <FrappeButton variant="outline" onClick={onClose} disabled={isLoading}>Cancel</FrappeButton>
-                    <FrappeButton variant="primary" onClick={() => onSubmit(comment)} disabled={isLoading}>
+                    <FrappeButton variant="primary" onClick={() => onSubmit(comment)} disabled={isLoading || comment.trim().length === 0}>
                         {isLoading ? "Processing..." : "Confirm"}
                     </FrappeButton>
                 </div>
@@ -207,6 +210,9 @@ const ActionsDropdown = ({
     );
     const { call: performAction, loading: actionLoading } = useFrappePostCall(
         "rndopsapp.rndopsapp.doctype.temporary_advance.temporary_advance.perform_temporary_advance_action",
+    );
+    const { call: addComment } = useFrappePostCall(
+        "rndopsapp.rndopsapp.api.add_project_comment",
     );
 
     const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -249,7 +255,18 @@ const ActionsDropdown = ({
 
     const handleConfirmAction = async (comment: string) => {
         try {
-            await performAction({ docname, action: selectedAction, comment });
+            await performAction({ docname, action: selectedAction });
+            if (comment.trim()) {
+                try {
+                    await addComment({
+                        doctype: "Temporary Advance",
+                        docname,
+                        content: comment.trim(),
+                    });
+                } catch {
+                    // comment failure is non-fatal
+                }
+            }
             setModalOpen(false);
             onActionComplete();
         } catch (error) {
@@ -451,6 +468,9 @@ const TemporaryAdvanceDetails: React.FC = () => {
     const { call: fetchTaFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any } }>(
         temporaryAdvanceAPI.getFields,
     );
+    const { call: addAutoSubmitComment } = useFrappePostCall(
+        "rndopsapp.rndopsapp.api.add_project_comment",
+    );
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
 
@@ -533,18 +553,15 @@ const TemporaryAdvanceDetails: React.FC = () => {
             try {
                 await submitDoc({ docname: data.name });
                 if (pendingComment) {
-                    await fetch("/api/method/frappe.desk.form.utils.add_comment", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": (window as any).csrf_token || "" },
-                        credentials: "include",
-                        body: JSON.stringify({
-                            reference_doctype: "Temporary Advance",
-                            reference_name: data.name,
+                    try {
+                        await addAutoSubmitComment({
+                            doctype: "Temporary Advance",
+                            docname: data.name,
                             content: pendingComment,
-                            comment_email: "",
-                            comment_by: "",
-                        }),
-                    });
+                        });
+                    } catch {
+                        // comment failure is non-fatal
+                    }
                 }
                 await loadData();
             } catch (err: any) {

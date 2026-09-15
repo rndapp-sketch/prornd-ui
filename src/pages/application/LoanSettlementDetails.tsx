@@ -136,6 +136,9 @@ const LoanSettlementDetails: React.FC = () => {
     );
     const { call: performAction } = useFrappePostCall<{ message: any }>(loanSettlementAPI.performAction);
     const { call: retryPublish } = useFrappePostCall<{ message: any }>(loanSettlementAPI.retryPublish);
+    const { call: addComment } = useFrappePostCall(
+        "rndopsapp.rndopsapp.api.add_project_comment",
+    );
 
     const load = useCallback(async () => {
         if (!id) return;
@@ -176,17 +179,33 @@ const LoanSettlementDetails: React.FC = () => {
             return;
         }
 
+        if (!remarks.trim()) {
+            setFormError('Please add a remark before proceeding.');
+            return;
+        }
+
         setSubmitting(true);
         try {
             const res = await performAction({
                 docname: id,
                 action,
                 settlement_mode: action === 'Process' ? settlementMode : undefined,
-                remarks: action === 'Process' ? remarks : undefined,
+                remarks,
             });
             if (res?.message?.status === 'error') {
                 setFormError(res.message.message || 'Action failed.');
                 return;
+            }
+            if (remarks.trim()) {
+                try {
+                    await addComment({
+                        doctype: "Loan Settlement",
+                        docname: id,
+                        content: remarks.trim(),
+                    });
+                } catch {
+                    // comment failure is non-fatal
+                }
             }
             await load();
         } catch (err: any) {
@@ -315,14 +334,14 @@ const LoanSettlementDetails: React.FC = () => {
 
                                     <div>
                                         <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1">
-                                            Remarks
+                                            Remarks (required)
                                         </label>
                                         <textarea
                                             rows={3}
                                             value={remarks}
                                             onChange={(e) => setRemarks(e.target.value)}
                                             disabled={submitting}
-                                            placeholder="Optional note about this settlement…"
+                                            placeholder="Enter your remarks…"
                                             className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] resize-none"
                                         />
                                     </div>
@@ -343,16 +362,16 @@ const LoanSettlementDetails: React.FC = () => {
                                     <div className="flex items-center gap-3">
                                         <button
                                             onClick={() => handleAction('Process')}
-                                            disabled={submitting}
-                                            className="flex-1 flex items-center justify-center gap-2 bg-[#D97757] hover:bg-[#c66a4e] text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm disabled:opacity-50"
+                                            disabled={submitting || !remarks.trim()}
+                                            className="flex-1 flex items-center justify-center gap-2 bg-[#D97757] hover:bg-[#c66a4e] text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                                             {submitting ? 'Processing…' : 'Process Settlement'}
                                         </button>
                                         <button
                                             onClick={() => handleAction('Reject')}
-                                            disabled={submitting}
-                                            className="flex items-center justify-center gap-2 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+                                            disabled={submitting || !remarks.trim()}
+                                            className="flex items-center justify-center gap-2 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             <XCircle className="w-4 h-4" />
                                             Reject

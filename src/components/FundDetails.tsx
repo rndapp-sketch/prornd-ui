@@ -32,13 +32,16 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: {
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-md">
                 <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Confirm {action}</h3>
                 <textarea
-                    className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                    className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 p-3 rounded-lg text-sm mb-1 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
                     rows={4}
-                    placeholder="Add a comment (optional)..."
+                    placeholder="Enter your comment..."
                     value={comment}
                     onChange={e => setComment(e.target.value)}
                 />
-                <div className="flex justify-end gap-2">
+                {comment.trim().length === 0 && (
+                    <p className="text-xs text-red-500 mb-3">Comment is required.</p>
+                )}
+                <div className="flex justify-end gap-2 mt-3">
                     <button
                         onClick={onClose}
                         disabled={isLoading}
@@ -48,7 +51,7 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: {
                     </button>
                     <button
                         onClick={() => { onSubmit(comment); setComment(""); }}
-                        disabled={isLoading}
+                        disabled={isLoading || comment.trim().length === 0}
                         className="px-4 py-2 text-sm font-medium text-white bg-[#D97757] rounded-lg hover:bg-[#D97757] disabled:opacity-50"
                     >
                         {isLoading ? "Processing..." : "Confirm"}

@@ -864,10 +864,10 @@ const msg = saveResult?.message;
                         <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-700 w-full max-w-md mx-4 overflow-hidden">
                             <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800">
                                 <h3 className="text-sm font-bold text-zinc-800 dark:text-zinc-100">Submit Temporary Advance</h3>
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Optionally add a comment before submitting.</p>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">A comment is required before submitting.</p>
                             </div>
                             <div className="px-6 py-4">
-                                <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5 uppercase tracking-wide">Comment (optional)</label>
+                                <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5 uppercase tracking-wide">Comment (required)</label>
                                 <textarea
                                     value={draftComment}
                                     onChange={e => setDraftComment(e.target.value)}
@@ -877,6 +877,9 @@ const msg = saveResult?.message;
                                     className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-800 dark:text-zinc-100 px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/40"
                                 />
                                 <CharLimitAlert value={draftComment} maxLength={65535} className="mt-1" />
+                                {draftComment.trim().length === 0 && (
+                                    <p className="text-xs text-red-500 mt-1.5">Comment is required.</p>
+                                )}
                             </div>
                             <div className="px-6 py-3 bg-zinc-50 dark:bg-zinc-800/60 border-t border-zinc-100 dark:border-zinc-800 flex justify-end gap-2">
                                 <button
@@ -887,7 +890,8 @@ const msg = saveResult?.message;
                                 </button>
                                 <button
                                     onClick={() => handleSaveAndSubmit(draftComment)}
-                                    className="px-4 py-2 text-xs font-bold rounded-lg bg-[#D97757] text-white hover:bg-[#c5694d] transition-colors"
+                                    disabled={draftComment.trim().length === 0}
+                                    className="px-4 py-2 text-xs font-bold rounded-lg bg-[#D97757] text-white hover:bg-[#c5694d] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     Submit
                                 </button>

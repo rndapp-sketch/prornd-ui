@@ -198,6 +198,7 @@ const TADASettlementActionButtons: React.FC<TADASettlementActionButtonsProps> = 
                 onSubmit={handleConfirmAction}
                 action={selectedAction || "Action"}
                 isLoading={actionLoading}
+                requireComment
             />
         </div>
     );

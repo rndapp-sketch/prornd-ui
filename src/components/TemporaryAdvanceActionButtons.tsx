@@ -20,6 +20,10 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
         "rndopsapp.rndopsapp.doctype.temporary_advance.temporary_advance.perform_temporary_advance_action"
     );
 
+    const { call: addComment } = useFrappePostCall(
+        "rndopsapp.rndopsapp.api.add_project_comment"
+    );
+
     const actions: string[] = (actionsData?.message || []).map((a: any) =>
         typeof a === "string" ? a : a.action || a.workflow_action || a.label || ""
     ).filter(Boolean);
@@ -64,24 +68,18 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
     const handleConfirm = async () => {
         setIsPerforming(true);
         try {
-            await performAction({ docname, action: pendingAction, comment: comment.trim() });
+            await performAction({ docname, action: pendingAction });
             const trimmedComment = comment.trim();
             if (trimmedComment) {
-                await fetch("/api/method/frappe.desk.form.utils.add_comment", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-Frappe-CSRF-Token": (window as any).csrf_token || "",
-                    },
-                    credentials: "include",
-                    body: JSON.stringify({
-                        reference_doctype: "Temporary Advance",
-                        reference_name: docname,
+                try {
+                    await addComment({
+                        doctype: "Temporary Advance",
+                        docname,
                         content: trimmedComment,
-                        comment_email: "",
-                        comment_by: "",
-                    }),
-                });
+                    });
+                } catch {
+                    // comment failure is non-fatal
+                }
             }
             await refetchActions();
             setModalOpen(false);
@@ -212,10 +210,10 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
                     <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-700 w-full max-w-md mx-4 overflow-hidden">
                         <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800">
                             <h3 className="text-sm font-bold text-zinc-800 dark:text-zinc-100">Confirm: {pendingAction}</h3>
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Optionally add a comment before proceeding.</p>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">A comment is required before proceeding.</p>
                         </div>
                         <div className="px-6 py-4">
-                            <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5 uppercase tracking-wide">Comment (optional)</label>
+                            <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5 uppercase tracking-wide">Comment (required)</label>
                             <textarea
                                 value={comment}
                                 onChange={e => setComment(e.target.value)}
@@ -223,6 +221,9 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
                                 rows={3}
                                 className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm text-zinc-800 dark:text-zinc-100 px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/40"
                             />
+                            {comment.trim().length === 0 && (
+                                <p className="text-xs text-red-500 mt-1.5">Comment is required.</p>
+                            )}
                         </div>
                         <div className="px-6 py-3 bg-zinc-50 dark:bg-zinc-800/60 border-t border-zinc-100 dark:border-zinc-800 flex justify-end gap-2">
                             <button
@@ -233,7 +234,7 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
                             </button>
                             <button
                                 onClick={handleConfirm}
-                                disabled={isPerforming}
+                                disabled={isPerforming || comment.trim().length === 0}
                                 className="px-4 py-2 text-xs font-bold rounded-lg bg-[#D97757] text-white hover:bg-[#c5694d] transition-colors disabled:opacity-50"
                             >
                                 {isPerforming ? "Processing…" : pendingAction}

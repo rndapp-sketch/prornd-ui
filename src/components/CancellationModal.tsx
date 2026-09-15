@@ -29,6 +29,9 @@ export const CancellationModal: React.FC<CancellationModalProps> = ({
     const { call: createCancellation } = useFrappePostCall(
         "rndopsapp.rndopsapp.cancellation_api.create_cancellation_request"
     );
+    const { call: addComment } = useFrappePostCall(
+        "rndopsapp.rndopsapp.api.add_project_comment"
+    );
 
     const handleSubmit = async () => {
         if (!reason.trim()) {
@@ -54,6 +57,16 @@ export const CancellationModal: React.FC<CancellationModalProps> = ({
                 setError(res.message.message || "Failed to create cancellation request.");
                 setIsSubmitting(false);
                 return;
+            }
+
+            try {
+                await addComment({
+                    doctype,
+                    docname,
+                    content: reason.trim(),
+                });
+            } catch {
+                // comment failure is non-fatal
             }
 
             // Success

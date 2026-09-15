@@ -35,13 +35,16 @@ const CommentModal = ({
           Confirm: {action}
         </h3>
         <textarea
-          className="w-full border border-zinc-300 dark:border-zinc-700 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[rgba(217,119,87,0.25)] focus:border-[#D97757] dark:bg-zinc-800 dark:text-zinc-100"
+          className="w-full border border-zinc-300 dark:border-zinc-700 p-3 rounded-lg text-sm mb-1 resize-none focus:outline-none focus:ring-2 focus:ring-[rgba(217,119,87,0.25)] focus:border-[#D97757] dark:bg-zinc-800 dark:text-zinc-100"
           rows={4}
-          placeholder="Add a comment (optional)..."
+          placeholder="Enter your comment..."
           value={comment}
           onChange={(e) => setComment(e.target.value)}
         />
-        <div className="flex justify-end gap-2">
+        {comment.trim().length === 0 && (
+          <p className="text-xs text-red-500 mb-3">Comment is required.</p>
+        )}
+        <div className="flex justify-end gap-2 mt-3">
           <button
             onClick={onClose}
             disabled={isLoading}
@@ -51,8 +54,8 @@ const CommentModal = ({
           </button>
           <button
             onClick={() => onSubmit(comment)}
-            disabled={isLoading}
-            className="px-4 py-2 rounded-lg text-sm font-medium bg-[#D97757] hover:bg-[#c66a4e] text-white disabled:opacity-50"
+            disabled={isLoading || comment.trim().length === 0}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-[#D97757] hover:bg-[#c66a4e] text-white disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? "Processing..." : "Confirm"}
           </button>
@@ -83,6 +86,10 @@ const IndentGeneralFormActionButtons = ({
 
   const { call: putBack, loading: putBackLoading } = useFrappePostCall(
     indentGeneralFormAPI.putBack,
+  );
+
+  const { call: addComment } = useFrappePostCall(
+    "rndopsapp.rndopsapp.api.add_project_comment",
   );
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -135,9 +142,20 @@ const IndentGeneralFormActionButtons = ({
   const handleConfirmAction = async (comment: string) => {
     try {
       if (isPutBack) {
-        await putBack({ docname, target: selectedTarget, comment });
+        await putBack({ docname, target: selectedTarget });
       } else {
-        await performAction({ docname, action: selectedAction, comment });
+        await performAction({ docname, action: selectedAction });
+      }
+      if (comment.trim()) {
+        try {
+          await addComment({
+            doctype: "Indent General Form",
+            docname,
+            content: comment.trim(),
+          });
+        } catch {
+          // comment failure is non-fatal
+        }
       }
       setModalOpen(false);
       onActionComplete();

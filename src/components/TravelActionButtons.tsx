@@ -262,6 +262,7 @@ const TravelActionButtons: React.FC<TravelActionButtonsProps> = ({
                 onSubmit={handleConfirmAction}
                 action={selectedAction || 'Action'}
                 isLoading={actionLoading}
+                requireComment
             />
         </div>
     );

@@ -644,6 +644,7 @@ const P11Form: React.FC = () => {
                 onSubmit={handleConfirmWorkflowAction}
                 action={pendingWorkflowAction}
                 isLoading={isSubmitting}
+                requireComment
             />
             <ErrorModal
                 open={errorModal.open}
