@@ -11,6 +11,7 @@ import {
     type LinkOption,
 } from "@/components/forms/DynamicFormRenderer";
 import { CommentModal } from "@/components/CommentModal";
+import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import { ActivityStream, type ActivityStreamHandle } from "@/components/ActivityStream";
 import {
     prepareFormDataForApi,
@@ -750,6 +751,10 @@ const ProjectStaffJoiningForm: React.FC = () => {
                     )}
                 </div>
             </main>
+
+            {savedDocName && (
+                <FloatingActivityLogButton doctype="Project Staff Details" docname={savedDocName} />
+            )}
 
             <CommentModal
                 isOpen={commentModalOpen}
