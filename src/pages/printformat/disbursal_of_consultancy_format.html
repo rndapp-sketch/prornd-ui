@@ -94,7 +94,9 @@
             margin: 3px 0 2px 0;
         }
 
-        .doc-ref-right .doc-ref-label { font-weight: bold; }
+        .doc-ref-right .doc-ref-label {
+            font-weight: bold;
+        }
 
         .form-line {
             display: flex;
@@ -104,7 +106,10 @@
             font-size: 9.5pt;
         }
 
-        .form-type { font-weight: bold; font-size: 10pt; }
+        .form-type {
+            font-weight: bold;
+            font-size: 10pt;
+        }
 
         .info-table {
             width: 100%;
@@ -190,9 +195,17 @@
             font-size: 8.5pt;
         }
 
-        .activity-table th:nth-child(1) { width: 30%; }
-        .activity-table th:nth-child(2) { width: 50%; }
-        .activity-table th:nth-child(3) { width: 20%; }
+        .activity-table th:nth-child(1) {
+            width: 30%;
+        }
+
+        .activity-table th:nth-child(2) {
+            width: 50%;
+        }
+
+        .activity-table th:nth-child(3) {
+            width: 20%;
+        }
 
         .activity-table .designation {
             display: block;
@@ -210,6 +223,7 @@
             .print-hide {
                 display: none !important;
             }
+
             .watermark {
                 position: fixed !important;
                 top: 50% !important;
@@ -217,6 +231,7 @@
                 transform: translate(-50%, -50%) !important;
                 z-index: 0 !important;
             }
+
             .print-footer {
                 display: flex !important;
                 justify-content: space-between;
@@ -232,13 +247,16 @@
                 z-index: 100;
             }
 
-            table.layout-table > tbody > tr,
-            table.layout-table > tbody > tr > td {
+            table.layout-table>tbody>tr,
+            table.layout-table>tbody>tr>td {
                 page-break-inside: auto !important;
                 break-inside: auto !important;
             }
 
-            tr { page-break-inside: avoid; }
+            tr {
+                page-break-inside: avoid;
+            }
+
             body {
                 margin: 0;
                 background: none;
@@ -253,13 +271,15 @@
                 page-break-inside: auto;
             }
 
-            .content { padding: 0 14mm; }
+            .content {
+                padding: 0 14mm;
+            }
 
             .activity-log {
                 page-break-inside: avoid;
             }
         }
-    
+
         .print-footer {
             display: none;
         }
@@ -268,11 +288,12 @@
 
 <body>
     <div class="page">
-        
+
         <div class="content"> <!-- HEADER -->
             <div class="header-row">
                 <div class="logo-left">
-                    <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG" onerror="this.style.display='none'">
+                    <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG"
+                        onerror="this.style.display='none'">
                 </div>
                 <div class="header-center">
                     <div class="header-hindi">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
@@ -330,14 +351,12 @@
             <table class="item-table">
                 <colgroup>
                     <col style="width: 4%" />
-                    <col style="width: 16%" />
+                    <col style="width: 24%" />
                     <col style="width: 10%" />
                     <col style="width: 12%" />
                     <col style="width: 8%" />
-                    <col style="width: 14%" />
-                    <col style="width: 12%" />
-                    <col style="width: 12%" />
-                    <col style="width: 12%" />
+                    <col style="width: 22%" />
+                    <col style="width: 20%" />
                 </colgroup>
                 <thead>
                     <tr>
@@ -348,8 +367,6 @@
                         <th>Emp. ID</th>
                         <th>PDF No. / Bank A/c No.</th>
                         <th>Amount (Rs.)</th>
-                        <th>Personal Share (Rs.)</th>
-                        <th>Institute Share (Rs.)</th>
                     </tr>
                 </thead>
                 <tbody> {{ITEM_ROWS}} </tbody>
@@ -358,13 +375,13 @@
                 <tr>
                     <td class="label">Total Disbursal Amount</td>
                     <td>{{TOTAL_DISBURSAL_AMOUNT}}</td>
-                    <td class="label">Total Personal Share</td>
-                    <td>{{TOTAL_PERSONAL_SHARE}}</td>
+                    <!-- <td class="label">Total Personal Share</td>
+                    <td>{{TOTAL_PERSONAL_SHARE}}</td> -->
                 </tr>
-                <tr>
+                <!-- <tr>
                     <td class="label">Total Institute Share</td>
                     <td colspan="3">{{TOTAL_INSTITUTE_SHARE}}</td>
-                </tr>
+                </tr> -->
             </table> <!-- INSTITUTE SHARE BREAKDOWN -->
             <div class="section-heading">Institute Share Breakdown</div>
             <table class="info-table">
@@ -385,8 +402,8 @@
             {{ATTACHMENTS_SECTION}}
         </div>
     </div>
-<div class="watermark"> <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
-                onerror="this.style.display = 'none'" /> </div>
+    <div class="watermark"> <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
+            onerror="this.style.display = 'none'" /> </div>
 </body>
 
 </html>
