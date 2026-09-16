@@ -8,9 +8,11 @@ import {
 } from "lucide-react";
 import { cn } from '@/lib/utils';
 
-import { AppSidebar } from '@/components/RndSidebar';
+
 import { PageHeader } from '@/components/common/PageHeader';
 import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButton';
+import { ActivityLog } from '@/components/ActivityLog';
+import { P11PrintModal } from '@/components/P11PrintModal';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { travelAPI, advanceSettlementAPI, temporaryAdvanceAPI, tadaAPI, recruitmentAdhocContractualAPI, selectionCommitteeReportAPI, disbursalOfHonorariumAPI, dpPoAPI, directPurchaseAPI } from '@/services/apiService';
 import { useUserRoles } from '@/components/UserRole';
@@ -24,6 +26,7 @@ import ProjectDetailsView from "./ProjectDetails";
 import ProjectDetailsOverview from "./ProjectDetailsOverview";
 import { generateTemporaryAdvanceHtml } from '@/utils/temporaryAdvancePrint';
 import { generateDisbursalOfHonorariumHtml, resolveHonorariumPrintData, type ActivityItem } from '@/utils/disbursalOfHonorariumPrint';
+import { generateTopUpFellowshipHtml, resolveTopUpFellowshipPrintData } from '@/utils/topUpFellowshipPrint';
 import { generateSanctionSheetHtml } from '@/utils/sanctionSheetPrint';
 import { DOCTYPE_PR_LINKS, type PRLinkStrategy } from '@/utils/projectTypeMapping';
 
@@ -101,7 +104,7 @@ const SectionHeading = ({ icon, title }: { icon: React.ReactNode; title: string 
 function getOriginalApplicationRoute(refDoctype: string, refName: string): string {
     if (!refDoctype || !refName) return "";
     const name = encodeURIComponent(refName);
-    
+
     switch (refDoctype) {
         case "Reimbursement":
             return `/reimbursement/${name}`;
@@ -215,11 +218,10 @@ const OriginalCommitmentModal = ({
                         <div className="grid grid-cols-3 gap-2 py-2.5 border-b border-zinc-100 dark:border-zinc-800">
                             <span className="text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider">Staging Status</span>
                             <div className="col-span-2 text-right">
-                               <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                    displayStatus === "Committed"
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${displayStatus === "Committed"
                                         ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
                                         : "bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400"
-                                }`}>
+                                    }`}>
                                     {displayStatus}
                                 </span>
                             </div>
@@ -454,8 +456,8 @@ const DPDocumentViewer = ({ data, doctype: viewerDoctype }: { data: Record<strin
                                     {key === 'account_head' || key === 'ss_account_head'
                                         ? <BudgetHeadName id={String(value)} />
                                         : key === 'applicant_department' || key === 'applying_for_department'
-                                        ? <DepartmentName name={String(value)} />
-                                        : String(value)}
+                                            ? <DepartmentName name={String(value)} />
+                                            : String(value)}
                                 </p>
                             </div>
                         ))}
@@ -546,17 +548,17 @@ const DPDocumentViewer = ({ data, doctype: viewerDoctype }: { data: Record<strin
 type DPTabId = 'details' | 'p11' | 'sanction' | 'po';
 
 const DP_TABS: { id: DPTabId; label: string; icon: React.ReactNode }[] = [
-    { id: 'details',  label: 'Details',         icon: <LayoutGridIcon className="h-3.5 w-3.5" /> },
-    { id: 'p11',      label: 'P-11 Form',       icon: <ClipboardListIcon className="h-3.5 w-3.5" /> },
-    { id: 'sanction', label: 'Sanction Sheet',  icon: <FileTextIcon className="h-3.5 w-3.5" /> },
-    { id: 'po',       label: 'Purchase Order',  icon: <ShoppingCartIcon className="h-3.5 w-3.5" /> },
+    { id: 'details', label: 'Details', icon: <LayoutGridIcon className="h-3.5 w-3.5" /> },
+    { id: 'p11', label: 'P-11 Form', icon: <ClipboardListIcon className="h-3.5 w-3.5" /> },
+    { id: 'sanction', label: 'Sanction Sheet', icon: <FileTextIcon className="h-3.5 w-3.5" /> },
+    { id: 'po', label: 'Purchase Order', icon: <ShoppingCartIcon className="h-3.5 w-3.5" /> },
 ];
 
 const DP_TAB_ACTIVE: Record<DPTabId, string> = {
-    details:  'border-[#2563EB] bg-blue-50 text-[#1D4ED8] shadow-sm dark:border-blue-500/50 dark:bg-blue-950/25 dark:text-blue-300',
-    p11:      'border-[#4A6CF7] bg-indigo-50 text-[#4338CA] shadow-sm dark:border-indigo-500/50 dark:bg-indigo-950/25 dark:text-indigo-300',
+    details: 'border-[#2563EB] bg-blue-50 text-[#1D4ED8] shadow-sm dark:border-blue-500/50 dark:bg-blue-950/25 dark:text-blue-300',
+    p11: 'border-[#4A6CF7] bg-indigo-50 text-[#4338CA] shadow-sm dark:border-indigo-500/50 dark:bg-indigo-950/25 dark:text-indigo-300',
     sanction: 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm dark:border-emerald-500/50 dark:bg-emerald-950/25 dark:text-emerald-300',
-    po:       'border-[#D97757] bg-orange-50 text-[#B45309] shadow-sm dark:border-[#D97757]/60 dark:bg-orange-950/20 dark:text-orange-300',
+    po: 'border-[#D97757] bg-orange-50 text-[#B45309] shadow-sm dark:border-[#D97757]/60 dark:bg-orange-950/20 dark:text-orange-300',
 };
 
 // ── Empty state ───────────────────────────────────────────────────────────────
@@ -930,7 +932,7 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
                                 workflowState?.toLowerCase().includes("pending") && "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800/40",
                                 workflowState?.toLowerCase().includes("approved") && "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800/40",
                                 workflowState?.toLowerCase().includes("reject") && "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800/40",
-                                !["Completed","Draft"].includes(workflowState) && !workflowState?.toLowerCase().includes("pending") && !workflowState?.toLowerCase().includes("approved") && !workflowState?.toLowerCase().includes("reject") && "bg-orange-50 text-[#D97757] border-orange-200 dark:bg-orange-950/20 dark:border-orange-900/30",
+                                !["Completed", "Draft"].includes(workflowState) && !workflowState?.toLowerCase().includes("pending") && !workflowState?.toLowerCase().includes("approved") && !workflowState?.toLowerCase().includes("reject") && "bg-orange-50 text-[#D97757] border-orange-200 dark:bg-orange-950/20 dark:border-orange-900/30",
                             )}>
                                 {workflowState}
                             </span>
@@ -1010,60 +1012,60 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
                     )}
                     {activeTab === 'po' && (
                         isLoadingPOData ? <Spinner /> :
-                        data?.workflow_state === "Sanction Sheet Generated" ? (
-                            <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-4 dark:border-amber-700/60 dark:bg-amber-950/40 shadow-sm">
-                                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/50">
-                                    <svg className="h-4 w-4 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-                                    </svg>
+                            data?.workflow_state === "Sanction Sheet Generated" ? (
+                                <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-4 dark:border-amber-700/60 dark:bg-amber-950/40 shadow-sm">
+                                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/50">
+                                        <svg className="h-4 w-4 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p className="text-[13px] font-bold text-amber-800 dark:text-amber-300">
+                                            Purchase Order Locked
+                                        </p>
+                                        <p className="mt-1 text-[12px] leading-5 text-amber-700 dark:text-amber-400">
+                                            The Purchase Order is locked. The Sanction Sheet has not been printed yet
+                                            {applicant && (
+                                                <> by <span className="font-semibold">{applicant}</span></>
+                                            )}
+                                            . Once the PI prints the Sanction Sheet, this form will move to{" "}
+                                            <span className="font-semibold">"Sanction Sheet Printed"</span>{" "}
+                                            status, then RnD staff can process the form and the Purchase Order will be enabled.
+                                        </p>
+                                        <p className="mt-2 text-[12px] text-amber-700 dark:text-amber-400">
+                                            To take action, go to{" "}
+                                            <button
+                                                onClick={() => navigate(`/direct-purchase/${docName}`)}
+                                                className="inline-flex items-center gap-1 font-semibold text-amber-800 dark:text-amber-300 underline underline-offset-2 hover:text-amber-900 dark:hover:text-amber-200 transition-colors"
+                                            >
+                                                Pending Tasks
+                                                <ExternalLinkIcon className="w-3 h-3" />
+                                            </button>
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-[13px] font-bold text-amber-800 dark:text-amber-300">
-                                        Purchase Order Locked
-                                    </p>
-                                    <p className="mt-1 text-[12px] leading-5 text-amber-700 dark:text-amber-400">
-                                        The Purchase Order is locked. The Sanction Sheet has not been printed yet
-                                        {applicant && (
-                                            <> by <span className="font-semibold">{applicant}</span></>
-                                        )}
-                                        . Once the PI prints the Sanction Sheet, this form will move to{" "}
-                                        <span className="font-semibold">"Sanction Sheet Printed"</span>{" "}
-                                        status, then RnD staff can process the form and the Purchase Order will be enabled.
-                                    </p>
-                                    <p className="mt-2 text-[12px] text-amber-700 dark:text-amber-400">
-                                        To take action, go to{" "}
-                                        <button
-                                            onClick={() => navigate(`/direct-purchase/${docName}`)}
-                                            className="inline-flex items-center gap-1 font-semibold text-amber-800 dark:text-amber-300 underline underline-offset-2 hover:text-amber-900 dark:hover:text-amber-200 transition-colors"
-                                        >
-                                            Pending Tasks
-                                            <ExternalLinkIcon className="w-3 h-3" />
-                                        </button>
-                                    </p>
-                                </div>
-                            </div>
-                        ) :
-                        poSanctionData && (isStaffRnD || data?.workflow_state === "POGenerated" || data?.workflow_state === "Sanction Sheet Printed") ? (
-                            <POEditor
-                                ssData={poSanctionData}
-                                dpId={docName}
-                                isStaffRnD={isStaffRnD}
-                                isPIReadOnly={isPermanentEmployee && !isStaffRnD}
-                                isSaved={!!dpPoName}
-                            />
-                        ) : poSanctionData ? (
-                            <EmptyState
-                                icon={<ShoppingCartIcon className="h-5 w-5" />}
-                                title="Purchase Order Not Yet Generated"
-                                description="The Purchase Order has not been generated by staff yet. Please check back later."
-                            />
-                        ) : (
-                            <EmptyState
-                                icon={<ShoppingCartIcon className="h-5 w-5" />}
-                                title="No Sanction Sheet Available"
-                                description="The Purchase Order is generated once the Sanction Sheet is approved."
-                            />
-                        )
+                            ) :
+                                poSanctionData && (isStaffRnD || data?.workflow_state === "POGenerated" || data?.workflow_state === "Sanction Sheet Printed") ? (
+                                    <POEditor
+                                        ssData={poSanctionData}
+                                        dpId={docName}
+                                        isStaffRnD={isStaffRnD}
+                                        isPIReadOnly={isPermanentEmployee && !isStaffRnD}
+                                        isSaved={!!dpPoName}
+                                    />
+                                ) : poSanctionData ? (
+                                    <EmptyState
+                                        icon={<ShoppingCartIcon className="h-5 w-5" />}
+                                        title="Purchase Order Not Yet Generated"
+                                        description="The Purchase Order has not been generated by staff yet. Please check back later."
+                                    />
+                                ) : (
+                                    <EmptyState
+                                        icon={<ShoppingCartIcon className="h-5 w-5" />}
+                                        title="No Sanction Sheet Available"
+                                        description="The Purchase Order is generated once the Sanction Sheet is approved."
+                                    />
+                                )
                     )}
                 </div>
             </div>
@@ -1240,7 +1242,7 @@ const FundSanctionView = ({ data, docname, canEdit, onRefresh }: {
         fetch('/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0')
             .then(r => r.json())
             .then(j => { if (j?.data) setBudgetHeadList(j.data.map((x: any) => x.budget_head).filter(Boolean)); })
-            .catch(() => {});
+            .catch(() => { });
     }, []);
 
     const startEditBudget = () => {
@@ -1754,6 +1756,10 @@ const TaskRegistryDetails: React.FC = () => {
     const [dohLinkOptions, setDohLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [isDohLoading, setIsDohLoading] = useState(false);
 
+    const [tufLinkOptions, setTufLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    const [isTufPrintOpen, setIsTufPrintOpen] = useState(false);
+    const tufActivityLogContainerRef = useRef<HTMLDivElement>(null);
+
     const [resolvedAccountHead, setResolvedAccountHead] = useState<string>("");
     const [resolvedProjectTitle, setResolvedProjectTitle] = useState<string>("");
     const [resolvedApplicantName, setResolvedApplicantName] = useState<string>("");
@@ -1877,7 +1883,7 @@ const TaskRegistryDetails: React.FC = () => {
                     .then(res => {
                         if (res.data) setResolvedAccountHead(res.data.budget_head || res.data.name);
                     })
-                    .catch(() => {});
+                    .catch(() => { });
             }
 
             // Department — resolve raw ID to human-readable name for print
@@ -1889,7 +1895,7 @@ const TaskRegistryDetails: React.FC = () => {
                         const name = res.data?.dept_name;
                         if (name) setDisplayData(prev => ({ ...prev, applicant_department: name }));
                     })
-                    .catch(() => {});
+                    .catch(() => { });
             }
 
             // Applicant full name — applicant_name may store email; resolve from User
@@ -1901,7 +1907,7 @@ const TaskRegistryDetails: React.FC = () => {
                         const fullName = res.message?.full_name;
                         if (fullName) setResolvedApplicantName(fullName);
                     })
-                    .catch(() => {});
+                    .catch(() => { });
             }
 
             // Project Title — project_code/project_no is the project number, NOT the Frappe doc name.
@@ -2008,6 +2014,7 @@ const TaskRegistryDetails: React.FC = () => {
         }
     };
 
+
     const { call: fetchTravelFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any } }>(travelAPI.getFields);
     const { call: fetchAdvFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any; child_table_meta?: any } }>(advanceSettlementAPI.getFields);
     const { call: fetchTaFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any } }>(temporaryAdvanceAPI.getFields);
@@ -2015,6 +2022,9 @@ const TaskRegistryDetails: React.FC = () => {
     const { call: fetchRecFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any; child_table_meta?: any } }>(recruitmentAdhocContractualAPI.getFields);
     const { call: fetchScrFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any; child_table_meta?: any } }>(selectionCommitteeReportAPI.getFields);
     const { call: fetchDohFields } = useFrappePostCall<{ message: { fields: FormField[]; link_options: any; child_table_fields?: any } }>(disbursalOfHonorariumAPI.getFields);
+    const { call: fetchTufFields } = useFrappePostCall<{ message: { link_options: Record<string, LinkOption[]> } }>(
+        'rndopsapp.rndopsapp.doctype.top_up_fellowship.top_up_fellowship.get_top_up_fellowship_fields',
+    );
 
     useEffect(() => {
         if (doctype === 'Disbursal of Consultancy' && name) navigate(`/disbursal-of-consultancy/${name}`, { replace: true });
@@ -2072,6 +2082,14 @@ const TaskRegistryDetails: React.FC = () => {
             fetchRecFields({ doc_name: name }).then(res => {
                 if (res?.message) { setRecFields(res.message.fields || []); setRecLinkOptions(res.message.link_options || {}); }
             }).finally(() => setIsRecLoading(false));
+        }
+    }, [doctype, name]);
+
+    useEffect(() => {
+        if (doctype === 'Top Up Fellowship' && name) {
+            fetchTufFields({ doc_name: name }).then(res => {
+                if (res?.message) setTufLinkOptions(res.message.link_options || {});
+            }).catch(() => { });
         }
     }, [doctype, name]);
 
@@ -2255,7 +2273,7 @@ const TaskRegistryDetails: React.FC = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans overflow-x-hidden">
-            <AppSidebar />
+
             <main className="transition-all duration-300 ease-in-out px-5 py-6 md:px-8 md:py-7 overflow-x-hidden">
                 <PageHeader
                     title={name || ''}
@@ -2295,7 +2313,7 @@ const TaskRegistryDetails: React.FC = () => {
 
                                         const noField = mapping.primary.type === 'pr_project_no' ? mapping.primary.field
                                             : mapping.fallback?.type === 'pr_project_no' ? mapping.fallback.field
-                                            : null;
+                                                : null;
                                         const projectNo = noField ? data[noField] : null;
                                         if (!projectNo) return;
                                         setPrPreviewLoading(true);
@@ -2334,6 +2352,16 @@ const TaskRegistryDetails: React.FC = () => {
                                     onClick={handlePrintDisbursalOfHonorarium}
                                     className="inline-flex items-center justify-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-zinc-200 dark:border-zinc-700 bg-[#FAFAF9] dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-[#EFF6FF] dark:hover:bg-[#2563EB]/10 hover:border-[#2563EB]/40 shadow-sm transition-all"
                                     title="Print Disbursal of Honorarium"
+                                >
+                                    <Printer className="h-4 w-4 text-[#2563EB] dark:text-[#60A5FA]" />
+                                    Print
+                                </button>
+                            )}
+                            {doctype === 'Top Up Fellowship' && isStaffRnD && (
+                                <button
+                                    onClick={() => setIsTufPrintOpen(true)}
+                                    className="inline-flex items-center justify-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-zinc-200 dark:border-zinc-700 bg-[#FAFAF9] dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-[#EFF6FF] dark:hover:bg-[#2563EB]/10 hover:border-[#2563EB]/40 shadow-sm transition-all"
+                                    title="Print Top Up Fellowship"
                                 >
                                     <Printer className="h-4 w-4 text-[#2563EB] dark:text-[#60A5FA]" />
                                     Print
@@ -2388,6 +2416,36 @@ const TaskRegistryDetails: React.FC = () => {
                     projectName={prPreviewName}
                     onClose={() => setPrPreviewName(null)}
                 />
+            )}
+
+            {doctype === 'Top Up Fellowship' && (
+                <>
+                    <div style={{ display: "none" }} ref={tufActivityLogContainerRef}>
+                        {name && (
+                            <ActivityLog
+                                doctype="Top Up Fellowship"
+                                docname={name}
+                                fallbackOwner={displayData?.owner}
+                                fallbackCreation={displayData?.creation}
+                            />
+                        )}
+                    </div>
+
+                    <P11PrintModal
+                        title="Top Up Fellowship"
+                        isOpen={isTufPrintOpen}
+                        onClose={() => setIsTufPrintOpen(false)}
+                        docName={name || ""}
+                        htmlContent={
+                            isTufPrintOpen ? generateTopUpFellowshipHtml(
+                                resolveTopUpFellowshipPrintData(displayData, tufLinkOptions),
+                                activityData?.message || [],
+                                [],
+                                tufActivityLogContainerRef.current
+                            ) : ""
+                        }
+                    />
+                </>
             )}
         </div>
     );
