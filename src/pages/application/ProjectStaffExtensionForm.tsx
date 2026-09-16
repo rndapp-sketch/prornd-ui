@@ -632,7 +632,12 @@ const ProjectStaffExtensionForm: React.FC = () => {
       let actionStatusMsg = "";
 
       try {
-        const res = await performAction({ docname: docName, action: actionToRun });
+        // Unlike most doctypes' perform-action endpoints, Project Staff Extension's own
+        // perform_project_staff_extension_action hard-requires a non-empty `comment` param
+        // server-side (frappe.throw "A comment is required before performing this action"),
+        // so it can't drop this the way the other uniform-comment-persistence doctypes did —
+        // every action here failed outright once this stopped being sent.
+        const res = await performAction({ docname: docName, action: actionToRun, comment: comment.trim() });
         if (res?.message?.status === "success") {
           setWorkflowState(res.message.workflow_state ?? workflowState);
           setDocstatus(res.message.docstatus ?? docstatus);
