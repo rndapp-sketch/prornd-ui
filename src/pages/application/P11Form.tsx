@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AppSidebar } from '@/components/RndSidebar';
 import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { AlertCircle, Printer, CheckCircle2 } from 'lucide-react';
@@ -493,7 +492,6 @@ const P11Form: React.FC = () => {
 
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-            <AppSidebar />
 
             {/* Save Success Popup */}
             {savePopup && (

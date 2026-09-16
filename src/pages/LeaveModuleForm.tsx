@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useFrappeAuth, useFrappeGetCall, useFrappePostCall } from 'frappe-react-sdk';
 import { AlertCircle, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { AppSidebar } from '@/components/RndSidebar';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { leaveModuleAPI, prepareFormDataForApi } from '@/services/apiService';
@@ -400,7 +399,6 @@ const LeaveModuleForm = () => {
     if (balanceLoaded && !canApplyLeave) {
         return (
             <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-                <AppSidebar />
                 <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                     <PageHeader title={editDocName ? `Edit Leave Application — ${editDocName}` : "New Leave Application"} />
                     <div className="max-w-xl mx-auto mt-16 text-center">
@@ -454,7 +452,6 @@ const LeaveModuleForm = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-            <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 <PageHeader title={editDocName ? `Edit Leave Application — ${editDocName}` : "New Leave Application"} />
 

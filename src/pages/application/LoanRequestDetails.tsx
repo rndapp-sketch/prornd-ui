@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { AppSidebar } from '@/components/RndSidebar';
 import { useFrappePostCall, useFrappeAuth, useFrappeGetDoc } from 'frappe-react-sdk';
 import { useUserRoles } from '@/components/UserRole';
 import { cn } from '@/lib/utils';
@@ -385,7 +384,6 @@ const LoanRequestDetails: React.FC = () => {
 
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-            <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 <PageHeader
                     title={formData.name || id || 'Loan Request'}

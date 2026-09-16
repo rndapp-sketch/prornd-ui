@@ -18,7 +18,6 @@ import {
     useFrappeAuth,
 } from "frappe-react-sdk";
 import { Textarea } from "@/components/ui/textarea"; // Assuming this can be styled via className
-// import { AppSidebar } from "../components/RndSidebar";
 import {
     ArrowLeftIcon,
     FileTextIcon,
@@ -3509,7 +3508,6 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                     onDismiss={() => setPutBackAlertDismissed(true)}
                     onOpen={() => { setPutBackAlertDismissed(true); setActiveTab("activity"); }} />
             )}
-            {/*<AppSidebar />*/}
             <main className="flex-1 w-full overflow-hidden">
                 {renderContent()}
             </main>

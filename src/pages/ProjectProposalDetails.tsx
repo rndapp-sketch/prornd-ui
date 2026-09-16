@@ -5,7 +5,6 @@ import {
     useFrappePostCall,
     useFrappeAuth,
 } from "frappe-react-sdk";
-import { AppSidebar } from "../components/RndSidebar";
 import { ErrorModal } from "../components/ErrorModal";
 import { parseFrappeError } from "../utils/errorUtils";
 import {
@@ -274,7 +273,6 @@ const ProjectProposalDetails: React.FC = () => {
 
     return (
         <div className="bg-claude-bg min-h-screen">
-            <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 <header className="mb-8 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
                     <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
-import { AppSidebar } from "../components/RndSidebar";
 import { useNavigate } from 'react-router-dom';
 import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
@@ -449,7 +448,6 @@ const ProjectProposal: React.FC = () => {
 
     return (
         <div className="bg-claude-bg dark:bg-zinc-900">
-            <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden bg-claude-bg dark:bg-zinc-900">
                 <header className="mb-3">
                     <h1 className="text-3xl md:text-4xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight ">New Endorsement</h1>

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AppSidebar } from '@/components/RndSidebar';
 import { cn } from '@/lib/utils';
 import { Plus, ArrowLeftIcon } from 'lucide-react';
 import { GlobalLoader } from '@/components/ui/global-loader';
@@ -59,7 +58,6 @@ const DisbursalOfConsultancy: React.FC = () => {
 
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-            <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 {/* Header */}
                 <header className="mb-6 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">

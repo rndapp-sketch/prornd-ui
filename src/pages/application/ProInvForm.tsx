@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-// import { AppSidebar } from "@/components/RndSidebar";
 import { ToWords } from "to-words";
 import {
     useFrappeGetDoc,

@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
-import { AppSidebar } from "../../components/RndSidebar";
 import {
   useFrappePostCall,
   useFrappeGetCall,
@@ -1160,7 +1159,6 @@ const ReimbursementDetails: React.FC = () => {
   if (error || !data) {
     return (
       <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-        <AppSidebar />
         <main className="flex-1 p-4 md:p-8">
           <FrappeCard className="text-center py-16">
             <FileTextIcon className="w-16 h-16 mx-auto text-zinc-400 dark:text-zinc-500 mb-4" />
@@ -1178,7 +1176,6 @@ const ReimbursementDetails: React.FC = () => {
   return (
     <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
       <GlobalLoader isLoading={isSubmitting} />
-      <AppSidebar />
       <main className="flex-1 p-4 md:p-8">
         {/* Header */}
         <PageHeader

@@ -2,7 +2,6 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetDoc, useFrappeGetCall, useFrappeGetDocList } from "frappe-react-sdk";
 import { useUserRoles } from "../../components/UserRole";
-// import { AppSidebar } from "../../components/RndSidebar";
 import { AnalyticsCard, CurrentTime } from "../../components/DashboardCards";
 import { cn } from "@/lib/utils";
 import {

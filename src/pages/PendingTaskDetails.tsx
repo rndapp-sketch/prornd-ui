@@ -38,7 +38,6 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ErrorModal } from "../components/ErrorModal";
 import { parseFrappeError } from "../utils/errorUtils";
-import { AppSidebar } from '@/components/RndSidebar';
 import { ApplicantLeaveBalance } from '@/components/ApplicantLeaveBalance';
 import { PageHeader } from "@/components/common/PageHeader";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
@@ -3773,7 +3772,6 @@ const PendingTaskDetails: React.FC = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-            <AppSidebar />
 
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 {cancellationStatus?.message?.has_cancellation && (

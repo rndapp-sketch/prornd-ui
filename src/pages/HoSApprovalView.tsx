@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { GlobalLoader } from "@/components/ui/global-loader";
-// import { AppSidebar } from "@/components/RndSidebar";
 import { DepositSlipDocument, computeENonRoutine, computeDConsultancy } from "@/components/DepositSlipDocument";
 import { useUserRoleChecks } from "@/components/UserRoleCheck";
 import { BudgetHeadName } from "@/components/BudgetHeadName";
@@ -629,7 +628,6 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
     if (fundError || !fundReceived) {
         return (
             <div className="bg-zinc-100 dark:bg-zinc-800 min-h-screen">
-                {/* <AppSidebar /> */}
                 <main className="flex-1 p-4 md:p-8">
                     <FrappeCard className="text-center py-16">
                         <FileText className="w-16 h-16 mx-auto text-zinc-400 dark:text-zinc-500 mb-4" />
@@ -657,7 +655,6 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
     if (slipError || !depositSlip) {
         return (
             <div className="bg-zinc-100 dark:bg-zinc-800 min-h-screen">
-                {/* <AppSidebar /> */}
                 <main className="flex-1 p-4 md:p-8">
                     <FrappeCard className="text-center py-16">
                         <FileText className="w-16 h-16 mx-auto text-zinc-400 dark:text-zinc-500 mb-4" />

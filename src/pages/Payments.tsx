@@ -3,7 +3,6 @@ import { FaExclamationCircle, FaArrowLeft, FaSearch } from 'react-icons/fa';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// import { AppSidebar } from '@/components/RndSidebar';
 import { useNavigate } from 'react-router-dom';
 import { GlobalLoader } from '@/components/ui/global-loader';
 
@@ -607,7 +606,6 @@ const Payments: React.FC = () => {
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
             <GlobalLoader isLoading={isLoading} />
-            {/* <AppSidebar /> */}
 
             <main className="flex-1 px-6 md:px-8 pt-7 pb-10 w-full overflow-hidden">
                 {/* Header */}

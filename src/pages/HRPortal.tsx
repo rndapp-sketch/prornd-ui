@@ -6,7 +6,6 @@
 import React, { useState } from 'react';
 import { FaUsers, FaTasks, FaUserClock, FaFileAlt, FaCalendarCheck, FaUserPlus, FaFileImport, FaCalendarAlt, FaChartBar, FaCog } from 'react-icons/fa';
 import { cn } from '@/lib/utils'; // Assuming you have a utility for classnames
-import { AppSidebar } from '@/components/RndSidebar'; // Assuming this is your project's sidebar
 
 // --- Reusable Neo-Brutalism Components (with updated font weight) ---
 const FrappeButton = ({ children, className, onClick }: { children: React.ReactNode; className?: string; onClick?: () => void }) => (
@@ -113,7 +112,6 @@ const HRPortal: React.FC = () => {
 
     return (
         <div className=" bg-claude-bg min-h-screen font-sans">
-            <AppSidebar />
             <div className="flex-1 flex flex-col">
                 {/* Main Content */}
                 <main className="flex-1 p-4 md:p-6">

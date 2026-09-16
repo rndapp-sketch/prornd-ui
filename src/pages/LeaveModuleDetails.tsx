@@ -6,7 +6,6 @@ import {
     EditIcon, Trash2Icon, CalendarIcon, UserIcon, FileTextIcon,
     PhoneIcon, MapPinIcon, MessageSquareIcon, CheckCircle2, Clock, XCircle,
 } from 'lucide-react';
-import { AppSidebar } from '@/components/RndSidebar';
 import { PageHeader } from '@/components/common/PageHeader';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { cn } from '@/lib/utils';
@@ -218,7 +217,6 @@ const LeaveModuleDetails = () => {
     if (!doc) {
         return (
             <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-                <AppSidebar />
                 <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                     <PageHeader title="Leave Application" />
                     <div className="mt-16 text-center text-zinc-500 dark:text-zinc-400">
@@ -231,7 +229,6 @@ const LeaveModuleDetails = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-            <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 <PageHeader
                     title={`${doc.name} — ${doc.leave_type || 'Leave'} Application`}

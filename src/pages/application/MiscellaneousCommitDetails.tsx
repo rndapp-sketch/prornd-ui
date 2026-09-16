@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { AppSidebar } from '@/components/RndSidebar';
 import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import {
@@ -278,7 +277,6 @@ const MiscellaneousCommitDetails: React.FC = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-            <AppSidebar />
             <main className="flex-1 px-4 md:px-8 pt-6 pb-12 w-full overflow-hidden">
 
                 {/* ── Header ────────────────────────────────────── */}

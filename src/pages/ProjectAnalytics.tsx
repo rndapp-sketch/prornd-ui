@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFrappeAuth, useFrappeGetCall } from 'frappe-react-sdk';
-import { AppSidebar } from "../components/RndSidebar";
 import {
     BarChart,
     Bar,
@@ -62,7 +61,6 @@ const ProjectAnalytics = () => {
 
     return (
         <div className="bg-claude-bg min-h-screen font-sans">
-            <AppSidebar />
             <div className="flex-1 p-4 md:p-8">
                 <div className="max-w-7xl mx-auto">
                     {/* Header */}

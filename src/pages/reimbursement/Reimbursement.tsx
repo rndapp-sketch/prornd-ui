@@ -469,7 +469,6 @@
 
 //     return (
 //         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-//             {/* <AppSidebar /> */}
 //             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
 //                 <PageHeader
 //                     title={editDocName ? `Edit Reimbursement` : 'Reimbursement Application'}
@@ -537,7 +536,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-// import { AppSidebar } from '@/components/RndSidebar';
 import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 // import { ArrowLeftIcon } from 'lucide-react';
@@ -1068,7 +1066,6 @@ const Reimbursement: React.FC = () => {
 
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-            {/* <AppSidebar /> */}
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 <PageHeader
                     title={editDocName ? `Edit Reimbursement` : 'Reimbursement Application'}

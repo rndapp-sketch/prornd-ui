@@ -181,7 +181,6 @@ export function HosRndDashboard() {
 
   return (
     <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] font-sans">
-      {/* <AppSidebar /> */}
       <div className="flex-1 p-4 md:p-8">
         <div className="w-full max-w-7xl mx-auto">
 

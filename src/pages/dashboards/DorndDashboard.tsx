@@ -1,7 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetDoc, useFrappeGetCall } from "frappe-react-sdk";
-// import { AppSidebar } from "../../components/RndSidebar";
 import { AnalyticsCard, CurrentTime } from "../../components/DashboardCards";
 import { StaffLeaderboardCard } from "../../components/StaffLeaderboardCard";
 import { cn } from "@/lib/utils";
@@ -170,7 +169,6 @@ export function DorndDashboard() {
 
   return (
     <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] font-sans">
-      {/* <AppSidebar /> */}
       <div className="flex-1 p-4 md:p-8">
         <div className="w-full max-w-7xl mx-auto">
 
