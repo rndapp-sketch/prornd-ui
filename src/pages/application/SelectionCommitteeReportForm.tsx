@@ -2221,6 +2221,8 @@ import { cn } from "@/lib/utils";
 import { useUserRoles } from "@/components/UserRole";
 import { DepartmentName } from "@/components/DepartmentName";
 import { ActivityStream } from "@/components/ActivityStream";
+import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
+import { CommentModal } from "@/components/CommentModal";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlobalLoader } from "@/components/ui/global-loader";
 
@@ -2348,6 +2350,8 @@ const SelectionCommitteeReportForm: React.FC = () => {
     const [workflowState, setWorkflowState] = useState<string>("Draft");
     const [availableActions, setAvailableActions] = useState<string[]>([]);
     const [isActionLoading, setIsActionLoading] = useState(false);
+    const [commentModalOpen, setCommentModalOpen] = useState(false);
+    const [pendingWorkflowAction, setPendingWorkflowAction] = useState("");
 
     // Candidates feature
     const [candidatesList, setCandidatesList] = useState<CandidateRecord[]>([]);
@@ -2375,6 +2379,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
     const { call: performActionCall } = useFrappePostCall(
         selectionCommitteeReportAPI.performAction,
     );
+    const { call: addProjectComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
     // Hook to fetch piheadmentor_user_id from User doctype (client script logic)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>(
@@ -3258,7 +3263,14 @@ const SelectionCommitteeReportForm: React.FC = () => {
         }
     };
 
-    const handleWorkflowAction = async (action: string) => {
+    const handleWorkflowAction = (action: string) => {
+        setPendingWorkflowAction(action);
+        setCommentModalOpen(true);
+    };
+
+    const handleConfirmWorkflowAction = async (comment: string) => {
+        setCommentModalOpen(false);
+        const action = pendingWorkflowAction;
         const docNameToUse = savedDocName || editDocName;
         if (!docNameToUse) {
             alert("Please save the document first.");
@@ -3319,6 +3331,17 @@ const SelectionCommitteeReportForm: React.FC = () => {
                 response.message &&
                 response.message.status === "success"
             ) {
+                if (comment.trim()) {
+                    try {
+                        await addProjectComment({
+                            doctype: "Selection Committee Report",
+                            docname: docNameToUse,
+                            content: comment.trim(),
+                        });
+                    } catch {
+                        // comment failure is non-fatal — the workflow action itself already succeeded
+                    }
+                }
                 alert(`Action "${action}" completed successfully`);
                 setWorkflowState(response.message.workflow_state);
                 fetchFormConfiguration();
@@ -4489,6 +4512,19 @@ const SelectionCommitteeReportForm: React.FC = () => {
                     </>
                 )}
             </div>
+
+            {activityDocName && (
+                <FloatingActivityLogButton doctype="Selection Committee Report" docname={activityDocName} />
+            )}
+
+            <CommentModal
+                isOpen={commentModalOpen}
+                onClose={() => { setCommentModalOpen(false); setPendingWorkflowAction(""); }}
+                onSubmit={handleConfirmWorkflowAction}
+                action={pendingWorkflowAction}
+                isLoading={isActionLoading}
+                requireComment
+            />
         </>
     );
 };
