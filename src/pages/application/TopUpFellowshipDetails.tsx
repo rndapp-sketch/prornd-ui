@@ -7,7 +7,7 @@ import {
     UserIcon, GraduationCapIcon, BuildingIcon, Printer, ExternalLink, FileTextIcon,
     FileSpreadsheetIcon as LedgerIcon,
 } from 'lucide-react';
-import { AppSidebar } from '@/components/RndSidebar';
+
 import { PageHeader } from '@/components/common/PageHeader';
 import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButton';
 import { GlobalLoader } from '@/components/ui/global-loader';
@@ -292,7 +292,7 @@ const TopUpFellowshipDetails: React.FC = () => {
                 if (result?.data)
                     setBudgetHeadList(result.data.map((item: any) => ({ name: item.budget_head, id: item.id })));
             })
-            .catch(() => {});
+            .catch(() => { });
     }, []);
 
     // Fetch the actual owner's full name directly using the whitelisted API
@@ -362,7 +362,7 @@ const TopUpFellowshipDetails: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-[#FAFAF9] font-sans dark:bg-[#18181B]">
-            <AppSidebar />
+
             <main className="w-full overflow-hidden px-5 py-6 md:px-8 md:py-7">
                 <PageHeader
                     title={docName || 'Top Up Fellowship'}
@@ -417,11 +417,11 @@ const TopUpFellowshipDetails: React.FC = () => {
 
                         {/* Summary card */}
                         {summaryFields.length > 0 && (
-                            <GroupCard 
-                                icon={UserIcon} 
+                            <GroupCard
+                                icon={UserIcon}
                                 label="Application Summary"
                                 action={
-                                    <button 
+                                    <button
                                         type="button"
                                         onClick={() => setIsPrintOpen(true)}
                                         className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
@@ -631,9 +631,9 @@ const TopUpFellowshipDetails: React.FC = () => {
 
             <div style={{ display: "none" }} ref={activityLogContainerRef}>
                 {docName && (
-                    <ActivityLog 
-                        doctype="Top Up Fellowship" 
-                        docname={docName} 
+                    <ActivityLog
+                        doctype="Top Up Fellowship"
+                        docname={docName}
                         fallbackOwner={formData.owner}
                         fallbackCreation={formData.creation}
                         fallbackOwnerName={fetchedOwnerName || formData.owner}
