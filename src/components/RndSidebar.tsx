@@ -125,9 +125,9 @@ export function AppSidebar() {
     // Fetch pending task count
     const { data: pendingTaskData } = useFrappeGetCall<{
         message: {
-            research: Array<{ status: string; doctype: string; name: string; mod_vis: number | null }>;
-            consultancy: Array<{ status: string; doctype: string; name: string; mod_vis: number | null }>;
-            others: Array<{ status: string; doctype: string; name: string; mod_vis: number | null }>;
+            research: Array<{ status: string; doctype: string; name: string; mod_vis: number | null; owner: string }>;
+            consultancy: Array<{ status: string; doctype: string; name: string; mod_vis: number | null; owner: string }>;
+            others: Array<{ status: string; doctype: string; name: string; mod_vis: number | null; owner: string }>;
         };
     }>(
         "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_categorized_pending_task",
@@ -162,6 +162,10 @@ export function AppSidebar() {
             if (isPermanentEmployee && record.doctype === "Leave Module" && allowedLeaveNames) {
                 if (record.status === "Pending PI Approval" && !allowedLeaveNames.has(record.name)) return;
             }
+            // Disbursal of Consultancy is filed by the PI themselves, so a record in
+            // "Pending PI Approval" is only actionable by that specific PI — mirrors
+            // the same owner check in PendingTask.tsx.
+            if (record.doctype === "Disbursal of Consultancy" && record.status === "Pending PI Approval" && record.owner !== currentUser) return;
             if (record.status === "Endorsement Approved") return;
             if (record.status === "Sanction Approved" && record.doctype !== "Direct Purchase") return;
             if (isHosRnd && !isAdoRnd && record.status === "Pending Associate Dean") return;
@@ -169,7 +173,7 @@ export function AppSidebar() {
             count++;
         });
         return count;
-    }, [pendingTaskData, isHeadApprover, allowedProjectNames, isPermanentEmployee, allowedLeaveNames, isHosRnd, isAdoRnd]);
+    }, [pendingTaskData, isHeadApprover, allowedProjectNames, isPermanentEmployee, allowedLeaveNames, isHosRnd, isAdoRnd, currentUser]);
 
     const pendingDirectorPdfCount = pendingDirectorPdfData?.message?.data?.length ?? 0;
 
