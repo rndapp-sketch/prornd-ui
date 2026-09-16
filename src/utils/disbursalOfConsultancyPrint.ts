@@ -129,8 +129,6 @@ export function generateDisbursalOfConsultancyHtml(
             <td>${row.emp_id || row.employee_id || ""}</td>
             <td>${row.disbursal_pdf_no_or_bank_account_no || row.pdf_no_or_bank_account_no || row.bank_account_number || ""}</td>
             <td class="right">${fmt(row.disbursal_amount ?? row.amount_to_be_disbursed ?? row.amount)}</td>
-            <td class="right">${fmt(row.disbursal_personal_share ?? row.personal_share)}</td>
-            <td class="right">${fmt(row.disbursal_institute_share ?? row.institute_share ?? row.inst_share)}</td>
         </tr>`,
         )
         .join("");
