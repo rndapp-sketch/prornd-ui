@@ -4,7 +4,6 @@ import { useFrappePostCall } from "frappe-react-sdk";
 import { ArrowLeft, Eye, Loader2, Save, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DepartmentName } from "@/components/DepartmentName";
-import { AppSidebar } from "@/components/RndSidebar";
 import {
     DynamicFormRenderer,
     type FormField,
@@ -523,7 +522,6 @@ const ProjectStaffJoiningForm: React.FC = () => {
     if (loading) {
         return (
             <div className="min-h-screen bg-[#FAFAF9] font-sans dark:bg-[#18181B]">
-                <AppSidebar />
                 <main className="flex min-h-screen items-center justify-center p-6 md:p-10">
                     <div className="flex items-center gap-3 rounded-2xl border border-[#E4E4E7] bg-white px-5 py-4 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
                         <Loader2 className="h-5 w-5 animate-spin text-[#D97757]" />
@@ -536,7 +534,6 @@ const ProjectStaffJoiningForm: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-[#FAFAF9] font-sans dark:bg-[#18181B]">
-            <AppSidebar />
 
             <main className="mx-auto max-w-[1600px] p-6 md:p-8">
                 <div className="mb-6 overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">

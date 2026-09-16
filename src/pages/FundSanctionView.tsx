@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useFrappeGetDoc, useFrappePostCall } from 'frappe-react-sdk';
-import { AppSidebar } from '../components/RndSidebar';
 import FundDetails from '../components/FundDetails';
 import { ArrowLeft, IndianRupee, FileText, Plus } from 'lucide-react';
 import { ActivityLog } from '../components/ActivityLog';
@@ -66,7 +65,6 @@ const FundSanctionView: React.FC = () => {
     if (isLoading) {
         return (
             <div className="flex min-h-screen w-full bg-claude-bg">
-                <AppSidebar />
                 <main className="flex-1 flex items-center justify-center">
                     <div className="text-center">
                         <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#D97757] border-t-transparent mx-auto mb-4"></div>
@@ -80,7 +78,6 @@ const FundSanctionView: React.FC = () => {
     if (error || !data) {
         return (
             <div className="flex min-h-screen w-full bg-claude-bg">
-                <AppSidebar />
                 <main className="flex-1 flex items-center justify-center">
                     <div className="text-center p-8 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
                         <p className="text-lg font-semibold text-red-600 mb-4">Failed to load sanction details</p>
@@ -96,7 +93,6 @@ const FundSanctionView: React.FC = () => {
 
     return (
         <div className="flex min-h-screen w-full bg-claude-bg">
-            <AppSidebar />
             <main className="flex-1 p-4 md:p-8">
                 {/* Header */}
                 <header className="mb-6 p-4 flex items-center justify-between bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">

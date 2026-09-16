@@ -6,7 +6,6 @@ import {
     Plus, FileText, CalendarDays, UserX, AlertTriangle, ShieldCheck, ActivityIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AppSidebar } from "@/components/RndSidebar";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { getStateBadgeStyle } from "@/utils/workflowUtils";
 import { format } from "date-fns";
@@ -235,7 +234,6 @@ const LeaveModule = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-            <AppSidebar />
             <main className="flex-1 px-6 md:px-8 pt-7 pb-10 w-full overflow-hidden">
                 {/* Header */}
                 <div className="mb-5 overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">

@@ -32,7 +32,6 @@ const EndorsementCertificateView: React.FC = () => {
 
     return (
         <div className=" min-h-screen bg-zinc-100 dark:bg-zinc-800 print:bg-white dark:bg-zinc-900">
-            {/* <AppSidebar /> */}
 
             <div className="print:hidden text-center mb-6">
                 <button

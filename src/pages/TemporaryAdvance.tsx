@@ -1,7 +1,6 @@
 // -=-=-=-=-=-=
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AppSidebar } from "../components/RndSidebar";
 import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -761,7 +760,6 @@ const msg = saveResult?.message;
 
     return (
         <div className="min-h-screen bg-[#FAFAF9] font-sans dark:bg-[#18181B]">
-            <AppSidebar />
             <main className="flex-1 px-5 py-6 md:px-8 md:py-7">
                 <PageHeader
                     title="Temporary Advance Application"

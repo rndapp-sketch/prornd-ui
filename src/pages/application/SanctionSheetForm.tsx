@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { AppSidebar } from "@/components/RndSidebar";
 import { useFrappePostCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
 import { AlertCircle, Printer } from "lucide-react";
@@ -615,7 +614,6 @@ const SanctionSheetForm: React.FC = () => {
 
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-            <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 <div className="flex items-center justify-between gap-4 mb-2">
                     <PageHeader

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { AppSidebar } from "@/components/RndSidebar";
 import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -1017,7 +1016,6 @@ const TADASettlementForm: React.FC = () => {
 
   return (
     <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-      <AppSidebar />
       <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
         <PageHeader
           title={

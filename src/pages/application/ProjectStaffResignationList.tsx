@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AppSidebar } from '@/components/RndSidebar';
 import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { ArrowLeftIcon, PlusIcon, Search, Filter } from 'lucide-react';
@@ -81,7 +80,6 @@ const ProjectStaffResignationList: React.FC = () => {
 
     return (
         <div className="bg-claude-bg min-h-screen">
-            <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 <header className="mb-8 p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

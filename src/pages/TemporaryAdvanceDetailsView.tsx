@@ -13,7 +13,6 @@ import {
     useFrappeAuth,
 } from "frappe-react-sdk";
 import { Textarea } from "@/components/ui/textarea";
-import { AppSidebar } from "../components/RndSidebar";
 import {
     ArrowLeftIcon,
     FileTextIcon,

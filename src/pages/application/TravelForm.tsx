@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AppSidebar } from '@/components/RndSidebar';
 import { useFrappePostCall } from 'frappe-react-sdk';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -888,7 +887,6 @@ const TravelForm: React.FC = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-            <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 <PageHeader
                     title={editDocName ? `Edit Travel: ${editDocName}` : 'Travel Application'}
@@ -996,7 +994,6 @@ export default TravelForm;
 
 // import React, { useState, useEffect, useCallback, useMemo } from 'react';
 // import { useNavigate, useSearchParams } from 'react-router-dom';
-// import { AppSidebar } from '@/components/RndSidebar';
 // import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
 // import { cn } from '@/lib/utils';
 // import { ArrowLeft, Wallet, TrendingUp, AlertCircle, CheckCircle2, Info, Sun, Moon } from 'lucide-react';
@@ -1503,7 +1500,6 @@ export default TravelForm;
 
 //     return (
 //         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen font-sans">
-//             <AppSidebar />
 
 //             <button
 //                 onClick={toggleTheme}
