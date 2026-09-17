@@ -57,11 +57,19 @@ export const useDepositSlipCalculations = (
 
       return `rc:${amount}:${multiplier}:${tableSig}`;
     } else if (depositSlipType === "d_consultancy") {
-      // For D Consultancy, track ONLY the amount that triggers full recalculation
-      // Do NOT track Y or Z in signature to allow user manual edits without interference
+      // D Consultancy has NO auto calculation except two derived fields:
+      // - ammount_actually_received_in_bank (from amount_inclusive_of_gst - deductions)
+      // - total_gst (sum of the three manually-entered GST fields)
+      // Everything else is manual entry, so track only the inputs those two need.
       const amount = flt(formData.amount_inclusive_of_gst);
+      const incomeTaxTds = flt(formData.income_tax_tds);
+      const gstTds = flt(formData.amount_after_gst_tds);
+      const otherDeductions = flt(formData.other_deductions);
+      const igst = flt(formData.igst_18_on_consultancy);
+      const cgst = flt(formData.cgst_9_of_consultancy_fee);
+      const sgst = flt(formData.sgst_9_of_consultancy_fee);
 
-      return `dc:${amount}`;
+      return `dc:${amount}:${incomeTaxTds}:${gstTds}:${otherDeductions}:${igst}:${cgst}:${sgst}`;
     } else if (depositSlipType === "t_testing") {
       const amount = flt(formData.amount_inclusive_of_gst);
       const cgst = flt(formData.cgst_9);
@@ -142,13 +150,6 @@ export const useDepositSlipCalculations = (
     if (
       depositSlipType === "research_consultancy" &&
       flt(data.amount_inclusive_gst_capital) <= 0
-    ) {
-      lastSignatureRef.current = currentSignature;
-      return;
-    }
-    if (
-      depositSlipType === "d_consultancy" &&
-      flt(data.amount_inclusive_of_gst) <= 0
     ) {
       lastSignatureRef.current = currentSignature;
       return;
@@ -503,125 +504,31 @@ function calculateResearchDeposit(formData: FormData): FormData {
 }
 
 // =============================================================
-// D CONSULTANCY CALCULATIONS (Frappe Backend Logic)
+// D CONSULTANCY CALCULATIONS
+// No auto calculation except two derived totals — every other field
+// (Y/Z split, overhead, institute share, IDF/DPF/welfare, balances, GST
+// components, TDS, deductions) is manual entry.
 // =============================================================
 function calculateDConsultancy(formData: FormData): FormData {
+  // Amount actually received in bank = Amount Inclusive of GST
+  // minus Income Tax TDS, GST TDS, and Other Deductions.
   const amountInclGst = flt(formData.amount_inclusive_of_gst);
-
-  if (amountInclGst <= 0) {
-    return {
-      igst_18_on_consultancy: 0,
-      income_tax_tds: 0,
-      gst_tds__2: 0,
-      other_deductions: 0,
-      amount_actually_received: 0,
-      amount_after_gst_tds: 0,
-      total_cost_x: 0,
-      consultancy_charge_y: 0,
-      operational_charge_z: 0,
-      overhead_from_y_amount: 0,
-      overhead_from_z_amount: 0,
-      total_overhead_amount: 0,
-      institute_share_amount: 0,
-      total_overhead_institute_share: 0,
-      idf_percentage: 40,
-      idf_amount: 0,
-      dpf_amount: 0,
-      staff_welfare_amount: 0,
-      student_welfare_amount: 0,
-      balance_consultancy_fee: 0,
-      balance_operation_charge: 0,
-      total_gst: 0,
-      total_amount: 0,
-    };
-  }
-
-  // === GST CALCULATIONS ===
-  const taxableAmount = flt(amountInclGst / 1.18);
-  const igstAmount = flt(taxableAmount * 0.18);
-  const tdsAmount = flt(taxableAmount * 0.02);
-  const amountAfterTds = flt(amountInclGst - tdsAmount);
-  const totalCostX = flt(amountAfterTds - igstAmount);
-
-  // === ACTUAL TDS DEDUCTED (manually entered, separate from the flat 2% assumption above) ===
   const incomeTaxTds = flt(formData.income_tax_tds);
-  // Real doctype field is gst_tds__2 (double underscore) — gst_tds does not exist on the D
-  // Consultancy Deposit Slip doctype, so writing to it was silently dropped by the generic
-  // post-submit save endpoint, which filters against real DB fieldnames.
-  const gstTds = flt(formData.gst_tds__2);
+  const gstTds = flt(formData.amount_after_gst_tds);
   const otherDeductions = flt(formData.other_deductions);
-  const amountActuallyReceived = flt(amountInclGst - incomeTaxTds - gstTds - otherDeductions);
+  const amountActuallyReceivedInBank = flt(
+    amountInclGst - incomeTaxTds - gstTds - otherDeductions,
+  );
 
-  // === Y AND Z SPLIT ===
-  const chargeY = flt(totalCostX * 0.30);
-  const chargeZ = flt(totalCostX - chargeY);
-
-  // === OVERHEAD AND DISTRIBUTION CALCULATIONS ===
-  const overheadFromY = flt(chargeY * 0.1);
-  const overheadFromZ = flt(chargeZ * 0.1);
-  const totalOverhead = flt(overheadFromY + overheadFromZ);
-  const instituteShare = flt(chargeY * 0.2);
-  const totalOverheadAndShare = flt(totalOverhead + instituteShare);
-
-  // === CREDIT DISTRIBUTION ===
-  // IDF percentage defaults to 40% (user-editable)
-  const idfPercentage = flt(formData.idf_percentage) || 40;
-  const idfAmt = flt(totalOverheadAndShare * (idfPercentage / 100));
-
-  // Staff and Student welfare are FIXED at 5% each
-  const staffWelfareAmt = flt(totalOverheadAndShare * 0.05);
-  const studentWelfareAmt = flt(totalOverheadAndShare * 0.05);
-
-  // DPF total is calculated based on user-entered row percentages
-  // Total DPF = 100% - IDF% - Staff 5% - Student 5%
-  const totalDpfPercentage = flt(100 - idfPercentage - 5 - 5);
-  const dpfAmt = flt(totalOverheadAndShare * (totalDpfPercentage / 100));
-
-  // === UPDATE DPF CHILD TABLE (Similar to Research Consultancy) ===
-  const currentDpfDist = formData.dpf_credit_distributions || [];
-  let updatedDpfDist = [...currentDpfDist];
-
-  if (currentDpfDist.length > 0) {
-    updatedDpfDist = currentDpfDist.map((row: any) => {
-      const rowPercentage = flt(row.dpf_percentage || 0);
-      const rowAmount = flt(totalOverheadAndShare * (rowPercentage / 100));
-      return {
-        ...row,
-        dpf_amount: rowAmount,
-      };
-    });
-  }
-
-  // === FINAL BALANCES ===
-  const balanceConsultancyFee = flt(chargeY - overheadFromY - instituteShare);
-  const balanceOperationCharge = flt(chargeZ - overheadFromZ);
-  const totalGst = igstAmount;
-  const totalAmount = amountAfterTds;
+  // Total GST = IGST @18% + CGST @9% + SGST @9% on consultancy fee
+  // (each of the three is manually entered by the user).
+  const igst = flt(formData.igst_18_on_consultancy);
+  const cgst = flt(formData.cgst_9_of_consultancy_fee);
+  const sgst = flt(formData.sgst_9_of_consultancy_fee);
+  const totalGst = flt(igst + cgst + sgst);
 
   return {
-    igst_18_on_consultancy: igstAmount,
-    income_tax_tds: incomeTaxTds,
-    gst_tds__2: gstTds,
-    other_deductions: otherDeductions,
-    amount_actually_received: amountActuallyReceived,
-    amount_after_gst_tds: amountAfterTds,
-    total_cost_x: totalCostX,
-    consultancy_charge_y: chargeY,
-    operational_charge_z: chargeZ,
-    overhead_from_y_amount: overheadFromY,
-    overhead_from_z_amount: overheadFromZ,
-    total_overhead_amount: totalOverhead,
-    institute_share_amount: instituteShare,
-    total_overhead_institute_share: totalOverheadAndShare,
-    idf_percentage: idfPercentage,
-    idf_amount: idfAmt,
-    dpf_amount: dpfAmt,
-    staff_welfare_amount: staffWelfareAmt,
-    student_welfare_amount: studentWelfareAmt,
-    balance_consultancy_fee: balanceConsultancyFee,
-    balance_operation_charge: balanceOperationCharge,
+    ammount_actually_received_in_bank: amountActuallyReceivedInBank,
     total_gst: totalGst,
-    total_amount: totalAmount,
-    dpf_credit_distributions: updatedDpfDist,
   };
 }
