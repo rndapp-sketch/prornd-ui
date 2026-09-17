@@ -762,6 +762,7 @@ const FundReceivedDetails = () => {
     const [selectedDepositSlipType, setSelectedDepositSlipType] = useState<string>("");
     const [depositFormLoading, setDepositFormLoading] = useState(false);
     const [showActivityLog, setShowActivityLog] = useState(false);
+    const [activityLogFilter, setActivityLogFilter] = useState<"comments" | "all">("comments");
     const [showSummary, setShowSummary] = useState(false);
     const [childTableMeta, setChildTableMeta] = useState<Record<string, any>>({});
     const prevProjectTitleRef = React.useRef<string>("");
@@ -1589,8 +1590,16 @@ const FundReceivedDetails = () => {
                                 </div>
                                 <button onClick={() => setShowActivityLog(false)} className="p-1.5 rounded-lg hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] text-[#71717A] transition-colors"><X className="h-4 w-4" /></button>
                             </div>
+                            <div className="flex gap-1 border-b border-[#E4E4E7] dark:border-[#3F3F46] px-5 pt-3">
+                                {(["comments", "all"] as const).map((tab) => (
+                                    <button key={tab} type="button" onClick={() => setActivityLogFilter(tab)}
+                                        className={`px-3 py-1.5 text-[12px] font-bold rounded-t-lg border-b-2 transition-colors ${activityLogFilter === tab ? "border-[#4A6CF7] text-[#4A6CF7] dark:text-[#8DA3FA]" : "border-transparent text-[#71717A] hover:text-[#3F3F46] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7]"}`}>
+                                        {tab === "comments" ? "Comments" : "All"}
+                                    </button>
+                                ))}
+                            </div>
                             <div className="flex-1 overflow-y-auto p-5 bg-[#FAFAF9] dark:bg-[#18181B]">
-                                {name && <ActivityLog doctype="Fund Received" docname={name} maxHeight="100%" />}
+                                {name && <ActivityLog doctype="Fund Received" docname={name} maxHeight="100%" onlyComments={activityLogFilter === "comments"} />}
                             </div>
                         </div>
                     </div>
@@ -2340,8 +2349,16 @@ const FundReceivedDetails = () => {
                             </div>
                             <button onClick={() => setShowActivityLog(false)} className="p-1.5 rounded-lg hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] text-[#71717A] transition-colors"><X className="h-4 w-4" /></button>
                         </div>
+                        <div className="flex gap-1 border-b border-[#E4E4E7] dark:border-[#3F3F46] px-5 pt-3">
+                            {(["comments", "all"] as const).map((tab) => (
+                                <button key={tab} type="button" onClick={() => setActivityLogFilter(tab)}
+                                    className={`px-3 py-1.5 text-[12px] font-bold rounded-t-lg border-b-2 transition-colors ${activityLogFilter === tab ? "border-[#4A6CF7] text-[#4A6CF7] dark:text-[#8DA3FA]" : "border-transparent text-[#71717A] hover:text-[#3F3F46] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7]"}`}>
+                                    {tab === "comments" ? "Comments" : "All"}
+                                </button>
+                            ))}
+                        </div>
                         <div className="flex-1 overflow-y-auto p-5 bg-[#FAFAF9] dark:bg-[#18181B]">
-                            {name && <ActivityLog doctype="Fund Received" docname={name} maxHeight="100%" />}
+                            {name && <ActivityLog doctype="Fund Received" docname={name} maxHeight="100%" onlyComments={activityLogFilter === "comments"} />}
                         </div>
                     </div>
                 </div>
