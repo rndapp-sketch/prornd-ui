@@ -169,7 +169,6 @@ const DISTRIBUTION_TOTAL_FIELDS = [
     "amount_received",
     "fund_received_amt",
     "grand_total",
-    "total_overhead_institute_share", // For D Consultancy DPF/PDF distribution
 ];
 const PDF_DPF_TOTAL_PERCENTAGE = 25;
 
@@ -282,32 +281,32 @@ const D_CONSULTANCY_FIELDS = [
     { fieldname: "bank", label: "Bank", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
     { fieldname: "ecs_ac_no", label: "ECS A/C No.", fieldtype: "Data", mandatory: 0, read_only: 0, hidden: 0 },
     { fieldname: "section_break_mqkq", label: "GST and Fee Calculations", fieldtype: "Section Break" },
-    { fieldname: "amount_inclusive_of_gst", label: "Amount Inclusive of GST", fieldtype: "Currency", mandatory: 1, read_only: 0, hidden: 0, description: "Enter the total amount inclusive of 18% GST" },
-    { fieldname: "income_tax_tds", label: "IT TDS", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0, description: "Actual Income Tax TDS deducted by the client" },
-    { fieldname: "gst_tds__2", label: "GST TDS", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0, description: "Actual GST TDS deducted by the client" },
-    { fieldname: "other_deductions", label: "Other Deductions", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0, description: "Any other amount deducted by the client before remittance" },
-    { fieldname: "amount_actually_received", label: "Amount Actually Received", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Amount Inclusive of GST − IT TDS − GST TDS − Other Deductions" },
-    { fieldname: "igst_18_on_consultancy", label: "IGST @18% on Consultancy Fee", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Taxable Amount × 0.18 (where Taxable Amount = Amount ÷ 1.18)" },
-    { fieldname: "amount_after_gst_tds", label: "Amount after GST TDS @ 2%", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Amount Inclusive - TDS Amount (2% of Taxable Amount, rounded)" },
-    { fieldname: "total_cost_x", label: "Total Cost X", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Amount after TDS - IGST (Balance after GST deduction from amount received)" },
-    { fieldname: "consultancy_charge_y", label: "Consultancy Charge (Y)", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0, description: "Auto-filled as 30% of Total Cost X. Can be manually adjusted independently of Z." },
-    { fieldname: "operational_charge_z", label: "Operational Charge (Z)", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0, description: "Auto-filled as 70% of Total Cost X (X - Y). Can be manually adjusted independently of Y." },
-    { fieldname: "overhead_from_y_amount", label: "Overhead from Y (10% * Y)", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Consultancy Charge (Y) × 0.10" },
-    { fieldname: "overhead_from_z_amount", label: "Overhead from Z (10% * Z)", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Operational Charge (Z) × 0.10" },
-    { fieldname: "total_overhead_amount", label: "Total Overhead", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Overhead from Y + Overhead from Z" },
-    { fieldname: "institute_share_amount", label: "Institute Share (20% * Y)", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Consultancy Charge (Y) × 0.20" },
-    { fieldname: "total_overhead_institute_share", label: "Overhead + Institute Share", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Total Overhead + Institute Share (Base for all credit distributions)" },
-    { fieldname: "credit_distribution_section", label: "Credit Distribution", fieldtype: "Section Break", description: "Total allocation must equal 100%: IDF% + DPF% (sum of rows) + Staff 5% + Student 5% = 100%" },
-    { fieldname: "idf_percentage", label: "IDF % age", fieldtype: "Float", read_only: 0, hidden: 0, default: 40, description: "User-editable IDF percentage (default: 40%). Enter custom percentage; DPF will adjust to maintain 100% total." },
-    { fieldname: "idf_amount", label: "IDF Amount", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: (Overhead + Institute Share) × (IDF % / 100)" },
-    { fieldname: "dpf_amount", label: "Total DPF/CE Amount", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: (Overhead + Institute Share) × (Remaining % / 100) where Remaining = 100% - IDF% - 5% - 5%" },
-    { fieldname: "staff_welfare_amount", label: "Staff Welfare Amount", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: (Overhead + Institute Share) × 0.05 (5% - Fixed)" },
-    { fieldname: "student_welfare_amount", label: "Student Welfare Amount", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: (Overhead + Institute Share) × 0.05 (5% - Fixed)" },
+    { fieldname: "amount_inclusive_of_gst", label: "Amount Inclusive of GST", fieldtype: "Currency", mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "igst_18_on_consultancy", label: "IGST @18% on Consultancy Fee", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "cgst_9_of_consultancy_fee", label: "CGST @9% of Consultancy Fee", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "sgst_9_of_consultancy_fee", label: "SGST @9% of Consultancy Fee", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "income_tax_tds", label: "Income Tax TDS", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "amount_after_gst_tds", label: "GST TDS", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "other_deductions", label: "Other Deductions", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "ammount_actually_received_in_bank", label: "Ammount actually received in bank account", fieldtype: "Currency", read_only: 0, hidden: 0, description: "Calculated as: Amount Inclusive of GST − Income Tax TDS − GST TDS − Other Deductions" },
+    { fieldname: "total_cost_x", label: "Total Cost X", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0, description: "Total Cost X (Balance after GST Deduction from amount received)" },
+    { fieldname: "consultancy_charge_y", label: "Consultancy Charge (Y)", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "operational_charge_z", label: "Operational Charge (Z)", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "overhead_from_y_amount", label: "Overhead from Y (10% * Y) Amount", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "overhead_from_z_amount", label: "Overhead from Z (10% * Z) Amount", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "total_overhead_amount", label: "Total Overhead ((10% * Y) + (10% * Z)) Amount", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "institute_share_amount", label: "Institute Share (20% * Y) Amount", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "total_overhead_institute_share", label: "Overhead + Institute Share", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "credit_distribution_section", label: "Credit Distribution", fieldtype: "Section Break" },
+    { fieldname: "idf_percentage", label: "(A) IDF % age (40%)", fieldtype: "Float", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "idf_amount", label: "IDF Amount", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0, description: "(IDF %age of Overhead + Institute Share)" },
+    { fieldname: "student_welfare_amount", label: "(C) Student welfare Amount (5%)", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "staff_welfare_amount", label: "(D) Staff welfare Amount (5%)", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0 },
     { fieldname: "final_totals", label: "Final Totals", fieldtype: "Section Break" },
-    { fieldname: "balance_consultancy_fee", label: "Balance Consultancy Fee", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Y - Overhead(Y) - Institute Share = Y × 0.70" },
-    { fieldname: "balance_operation_charge", label: "Balance Operation Charge", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Calculated as: Z - Overhead(Z) = Z × 0.90" },
-    { fieldname: "total_gst", label: "Total GST", fieldtype: "Currency", read_only: 0, hidden: 0, description: "Equals IGST @18% calculated at the top" },
-    { fieldname: "total_amount", label: "Total Amount", fieldtype: "Currency", read_only: 1, hidden: 0, description: "Equals Amount after GST TDS @ 2%" },
+    { fieldname: "balance_consultancy_fee", label: "Balance Consultancy Fee", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "balance_operation_charge", label: "Balance Operation Charge", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "total_gst", label: "Total GST", fieldtype: "Currency", read_only: 0, hidden: 0, description: "Auto-calculated: IGST @18% + CGST @9% + SGST @9% of Consultancy Fee" },
+    { fieldname: "total_amount", label: "Total Amount", fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0 },
 ];
 
 // Map from deposit slip type key → static field definitions
@@ -396,81 +395,10 @@ const DepositSlipForm: React.FC = () => {
     // Run auto-calculations based on deposit slip type
     useDepositSlipCalculations(formValues, setFormValues, selectedType);
 
-    // Recalculate overhead / institute-share whenever Consultancy Charge (Y)
-    // or Operational Charge (Z) are edited — independently or together.
-    // Each contributes its own overhead (10%) regardless of the other; only
-    // Y contributes Institute Share (20%). Previously this only reacted to Y
-    // changes (and re-derived Z as X - Y), so editing Z alone never updated
-    // overhead_from_z_amount/total_overhead_amount, and editing both in the
-    // same tick raced against the initial X-based auto-split, leaving the
-    // totals stuck at stale/zero values.
-    useEffect(() => {
-        if (selectedType !== "d_consultancy") return;
-
-        const chargeY = parseNumericValue(formValues.consultancy_charge_y || 0);
-        const chargeZ = parseNumericValue(formValues.operational_charge_z || 0);
-
-        const ohY = roundToTwo(chargeY * 0.10);
-        const ohZ = roundToTwo(chargeZ * 0.10);
-        const totalOh = roundToTwo(ohY + ohZ);
-        const instShare = roundToTwo(chargeY * 0.20);
-        const totalOhShare = roundToTwo(totalOh + instShare);
-
-        setFormValues((prev) => {
-            if (
-                parseNumericValue(prev.overhead_from_y_amount || 0) === ohY &&
-                parseNumericValue(prev.overhead_from_z_amount || 0) === ohZ &&
-                parseNumericValue(prev.total_overhead_amount || 0) === totalOh &&
-                parseNumericValue(prev.institute_share_amount || 0) === instShare &&
-                parseNumericValue(prev.total_overhead_institute_share || 0) === totalOhShare
-            ) {
-                return prev;
-            }
-
-            return {
-                ...prev,
-                overhead_from_y_amount: ohY,
-                overhead_from_z_amount: ohZ,
-                total_overhead_amount: totalOh,
-                institute_share_amount: instShare,
-                total_overhead_institute_share: totalOhShare,
-                idf_amount: roundToTwo(totalOhShare * 0.40),
-                dpf_amount: roundToTwo(totalOhShare * 0.50),
-                staff_welfare_amount: roundToTwo(totalOhShare * 0.05),
-                student_welfare_amount: roundToTwo(totalOhShare * 0.05),
-                balance_consultancy_fee: roundToTwo(chargeY - ohY - instShare),
-                balance_operation_charge: roundToTwo(chargeZ - ohZ),
-            };
-        });
-    }, [formValues.consultancy_charge_y, formValues.operational_charge_z, selectedType]);
-
-    // Sync DPF row amounts based on user-entered dpf_percentage
-    // Formula: dpf_amount = total_overhead_institute_share × (dpf_percentage / 100)
-    useEffect(() => {
-        if (selectedType !== "d_consultancy") {
-            return;
-        }
-
-        // Always recalculate when base amount changes, even if rows are empty initially
-        const totalOverheadShare = parseNumericValue(formValues.total_overhead_institute_share || 0);
-
-        if (dpfCreditDistributions.length === 0) {
-            return;
-        }
-
-        // Recalculate all DPF row amounts based on their percentages
-        const updatedDpf = dpfCreditDistributions.map((row) => {
-            const dpfPct = parseNumericValue(row.dpf_percentage || 25); // Default to 25 if not set
-            const dpfAmount = roundToTwo((totalOverheadShare * dpfPct) / 100);
-
-            return {
-                ...row,
-                dpf_amount: formatNumericInput(dpfAmount),
-            };
-        });
-
-        setDpfCreditDistributions(updatedDpf);
-    }, [selectedType, formValues.total_overhead_institute_share, dpfCreditDistributions.length]);
+    // NOTE: D Consultancy has no auto calculation beyond what
+    // useDepositSlipCalculations already does for it (Amount Actually
+    // Received in Bank and Total GST). Y/Z split, overhead, institute share,
+    // IDF/DPF/welfare amounts, and balances are all manual entry fields.
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {

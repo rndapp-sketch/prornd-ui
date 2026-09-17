@@ -227,12 +227,11 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
     // them, otherwise the persisted doc drifts from what the print view just showed.
     const ENR_DRIVER_FIELDS = ["amount_inclusive_of_gst", "income_tax_tds", "gst_tds_2", "cgst_9", "sgst_9", "igst_18", "overhead_multiplier"];
 
-    // Fields that feed the D Consultancy GST/overhead formula (see computeDConsultancy) — if any
-    // of these were edited, the derived fields must be recomputed and saved alongside them.
-    // cgst_9/sgst_9/igst_18_on_consultancy must be included: editing IGST alone (e.g. reverting
-    // it back to 0) previously skipped this whole block, so total_gst/total_amount never got
-    // included in that save's payload and were left stale in the doc.
-    const DC_DRIVER_FIELDS = ["amount_inclusive_of_gst", "consultancy_charge_y", "operational_charge_z", "idf_percentage", "cgst_9", "sgst_9", "igst_18_on_consultancy", "income_tax_tds", "gst_tds__2", "other_deductions"];
+    // D Consultancy has no auto calculation except two derived totals (see computeDConsultancy):
+    // "Ammount actually received in bank account" and "Total GST". Every other D Consultancy
+    // field is manual entry and reaches `changes` via the `editedFields` spread above — no
+    // recompute needed for those.
+    const DC_DRIVER_FIELDS = ["amount_inclusive_of_gst", "income_tax_tds", "amount_after_gst_tds", "other_deductions", "igst_18_on_consultancy", "cgst_9_of_consultancy_fee", "sgst_9_of_consultancy_fee"];
 
     const handleSaveSlip = async () => {
         const updateMethod = UPDATE_METHOD_BY_DOCTYPE[depositSlipDoctype];
@@ -292,63 +291,14 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
             if (dcRecomputeNeeded) {
                 const merged = { ...depositSlip, ...editedFields };
                 const dc = computeDConsultancy(merged);
-                // A field the user typed into directly always wins over the formula-recomputed
-                // value for that same field — otherwise editing a driver (e.g. Y) alongside a
-                // manual override of a derived total (e.g. Total Overhead) in the same save would
-                // silently clobber the override with the formula result.
-                const pick = (field: string, computed: number) =>
-                    field in editedFields ? (parseFloat(editedFields[field]) || 0) : computed;
-
-                // dc.igstAmount is the untouched 18% formula (drives Total Cost X); the row can be
-                // overridden independently (e.g. set to 0), so persist dc.igstDisplay — what the
-                // print view actually shows — not the formula value, or a manual override gets
-                // silently clobbered back on the very next save.
-                changes.igst_18_on_consultancy = pick("igst_18_on_consultancy", dc.igstDisplay);
-                changes.amount_actually_received = pick("amount_actually_received", dc.amountActuallyReceived);
-                changes.amount_after_gst_tds = pick("amount_after_gst_tds", dc.amountAfterTds);
-                changes.total_cost_x = pick("total_cost_x", dc.totalCostX);
-                changes.consultancy_charge_y = pick("consultancy_charge_y", dc.chargeY);
-                changes.operational_charge_z = pick("operational_charge_z", dc.chargeZ);
-                changes.overhead_from_y_amount = pick("overhead_from_y_amount", dc.overheadFromY);
-                changes.overhead_from_z_amount = pick("overhead_from_z_amount", dc.overheadFromZ);
-                changes.total_overhead_amount = pick("total_overhead_amount", dc.totalOverhead);
-                changes.institute_share_amount = pick("institute_share_amount", dc.instituteShare);
-                changes.total_overhead_institute_share = pick("total_overhead_institute_share", dc.totalOverheadAndShare);
-                changes.idf_percentage = pick("idf_percentage", dc.idfPercentage);
-                changes.idf_amount = pick("idf_amount", dc.idfAmount);
-                changes.staff_welfare_amount = pick("staff_welfare_amount", dc.staffWelfareAmount);
-                changes.student_welfare_amount = pick("student_welfare_amount", dc.studentWelfareAmount);
-                changes.balance_consultancy_fee = pick("balance_consultancy_fee", dc.balanceConsultancyFee);
-                changes.balance_operation_charge = pick("balance_operation_charge", dc.balanceOperationCharge);
-                changes.total_gst = pick("total_gst", dc.totalGst);
-                changes.total_amount = pick("total_amount", dc.totalAmount);
-
-                const dpfRows: any[] = Array.isArray(merged.dpf_credit_distributions) ? merged.dpf_credit_distributions : [];
-                if (dpfRows.length > 0) {
-                    const dpfSumPct = dpfRows.reduce((s: number, r: any) => s + (parseFloat(r.dpf_percentage) || parseFloat(r.percentage) || 0), 0);
-                    childTableChanges.push({
-                        fieldname: "dpf_credit_distributions",
-                        updated: dpfRows
-                            .filter((r) => r.name)
-                            .map((r) => {
-                                // A direct edit to this row's amount (editedDpfRows) wins over the
-                                // formula-recomputed share of the DPF pool.
-                                if (r.name in editedDpfRows) {
-                                    return { name: r.name, changes: { dpf_amount: parseFloat(editedDpfRows[r.name]) || 0 } };
-                                }
-                                const pct = parseFloat(r.dpf_percentage) || parseFloat(r.percentage) || 0;
-                                const amount = dpfSumPct > 0 ? dc.dpfAmount * (pct / dpfSumPct) : dc.dpfAmount / dpfRows.length;
-                                return { name: r.name, changes: { dpf_amount: amount } };
-                            }),
-                    });
-                }
+                changes.ammount_actually_received_in_bank = dc.amountActuallyReceivedInBank;
+                changes.total_gst = dc.totalGst;
             }
 
-            // DPF row edits made without the recompute block running (force-edit mode, or no
-            // driver field touched) still need to reach the payload — merge them in directly.
+            // DPF row amounts are manual entry for D Consultancy — always merge direct row edits
+            // into the payload (no formula recompute).
             if (
                 depositSlipDoctype === "D Consultancy Deposit Slip" &&
-                !dcRecomputeNeeded &&
                 Object.keys(editedDpfRows).length > 0
             ) {
                 childTableChanges.push({

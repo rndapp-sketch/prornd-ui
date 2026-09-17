@@ -111,84 +111,25 @@ export const computeENonRoutine = (depositSlip: any) => {
     return { amountActuallyReceived, consultancyFeeX, overheadAmount, gstComponent, balanceInProject };
 };
 
-// D Consultancy Deposit Slip — mirrors calculateDConsultancy() in useDepositSlipCalculations.ts
-// so the print view (and edits made there) reflect the same GST/overhead formula used at
-// creation time, using the real "D Consultancy Deposit Slip" doctype field names.
+// D Consultancy Deposit Slip — mirrors calculateDConsultancy() in useDepositSlipCalculations.ts.
+// D Consultancy has NO auto calculation except these two derived totals; every other field
+// (Y/Z split, overhead, institute share, IDF/DPF/welfare, balances, GST components, TDS,
+// deductions) is manual entry and is read straight off depositSlip in the JSX below.
 export const computeDConsultancy = (depositSlip: any) => {
     const amountInclGst = flt(depositSlip.amount_inclusive_of_gst);
-
-    const taxableAmount = round2(amountInclGst / 1.18);
-    const igstAmount = round2(taxableAmount * 0.18);
-    const tdsAmount = round2(taxableAmount * 0.02);
-    const amountAfterTds = round2(amountInclGst - tdsAmount);
-    const totalCostX = round2(amountAfterTds - igstAmount);
-
-    // IT TDS / GST TDS / Other Deductions — manually entered actual deduction figures (may differ
-    // from the flat 2% assumption above), used only to derive "Amount Actually Received"; they
-    // don't feed X/Y/Z.
     const incomeTaxTds = flt(depositSlip.income_tax_tds);
-    // Real doctype field is gst_tds__2, not gst_tds (that name belongs to the unrelated
-    // E Non Routine doctype's gst_tds_2, single underscore). Fall back to gst_tds only for
-    // old records saved before this fix.
-    const gstTds = flt(depositSlip.gst_tds__2 ?? depositSlip.gst_tds);
+    const gstTds = flt(depositSlip.amount_after_gst_tds);
     const otherDeductions = flt(depositSlip.other_deductions);
-    const amountActuallyReceived = round2(amountInclGst - incomeTaxTds - gstTds - otherDeductions);
+    const amountActuallyReceivedInBank = round2(amountInclGst - incomeTaxTds - gstTds - otherDeductions);
 
-    // CGST/SGST — informational, editable fields (same pattern as E Non Routine): mutually
-    // exclusive with IGST. IGST above always drives Total Cost X and is left untouched; when it
-    // applies (interstate), CGST/SGST default to 0 just like the E Non Routine print view.
-    const cgstAmount = flt(depositSlip.cgst_9);
-    const sgstAmount = flt(depositSlip.sgst_9);
-
-    // The IGST *row* can be overridden independently of the 18% formula that drives Total Cost X
-    // (e.g. set to 0 when GST is actually CGST+SGST) — Total GST must sum whatever that row is
-    // actually showing, not the untouched formula value, or the two go out of sync.
-    // Note: '' (cleared field) is deliberately treated as an explicit 0 override, not "unset" —
-    // otherwise deleting the value in edit mode would bounce back to the formula default instead
-    // of the 0 the user just typed. Only undefined/null (field never touched) falls back to it.
-    const igstDisplay = depositSlip.igst_18_on_consultancy !== undefined && depositSlip.igst_18_on_consultancy !== null
-        ? flt(depositSlip.igst_18_on_consultancy)
-        : igstAmount;
-
-    const chargeY = round2(depositSlip.consultancy_charge_y !== undefined && depositSlip.consultancy_charge_y !== null
-        ? flt(depositSlip.consultancy_charge_y)
-        : totalCostX * 0.30);
-    const chargeZ = round2(depositSlip.operational_charge_z !== undefined && depositSlip.operational_charge_z !== null
-        ? flt(depositSlip.operational_charge_z)
-        : totalCostX - chargeY);
-
-    const overheadFromY = round2(chargeY * 0.1);
-    const overheadFromZ = round2(chargeZ * 0.1);
-    const totalOverhead = round2(overheadFromY + overheadFromZ);
-    const instituteShare = round2(chargeY * 0.2);
-    const totalOverheadAndShare = round2(totalOverhead + instituteShare);
-
-    const idfPercentage = round2(depositSlip.idf_percentage !== undefined && depositSlip.idf_percentage !== null
-        ? flt(depositSlip.idf_percentage)
-        : 40);
-    const idfAmount = round2(totalOverheadAndShare * (idfPercentage / 100));
-    const staffWelfareAmount = round2(totalOverheadAndShare * 0.05);
-    const studentWelfareAmount = round2(totalOverheadAndShare * 0.05);
-    const totalDpfPercentage = round2(100 - idfPercentage - 5 - 5);
-    const dpfAmount = round2(totalOverheadAndShare * (totalDpfPercentage / 100));
-
-    const balanceConsultancyFee = round2(chargeY - overheadFromY - instituteShare);
-    const balanceOperationCharge = round2(chargeZ - overheadFromZ);
-    // Total GST (26) = CGST (11) + SGST (12) + IGST (13) — always the sum of what those three
-    // rows actually display (igstDisplay), so it can never drift from them.
-    const totalGst = round2(cgstAmount + sgstAmount + igstDisplay);
-    // Total Amount = Total Overhead + Institute Share (22) + Balance Consultancy Fee (24)
-    // + Balance Operation Charge (25) + Total GST (26) — NOT amountAfterTds directly, since Y/Z
-    // may have been edited away from their auto-computed defaults, which this sum reflects but
-    // a flat "amount after TDS" would not.
-    const totalAmount = round2(totalOverheadAndShare + balanceConsultancyFee + balanceOperationCharge + totalGst);
+    const igst = flt(depositSlip.igst_18_on_consultancy);
+    const cgst = flt(depositSlip.cgst_9_of_consultancy_fee);
+    const sgst = flt(depositSlip.sgst_9_of_consultancy_fee);
+    const totalGst = round2(igst + cgst + sgst);
 
     return {
-        cgstAmount, sgstAmount, igstAmount, igstDisplay, amountAfterTds, totalCostX, chargeY, chargeZ,
-        overheadFromY, overheadFromZ, totalOverhead, instituteShare, totalOverheadAndShare,
-        idfPercentage, idfAmount, staffWelfareAmount, studentWelfareAmount, dpfAmount,
-        balanceConsultancyFee, balanceOperationCharge, totalGst, totalAmount,
-        incomeTaxTds, gstTds, otherDeductions, amountActuallyReceived,
+        incomeTaxTds, gstTds, otherDeductions, amountActuallyReceivedInBank,
+        igst, cgst, sgst, totalGst,
     };
 };
 
@@ -317,34 +258,26 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
     const renderCreditItems = () => {
         const items: { label: string; amount: number; whole?: boolean; editableField?: string }[] = [];
 
-        // IDF
+        // IDF — manual entry for D Consultancy (no auto calculation)
         if (dc) {
-            items.push({ label: `IDF (${dc.idfPercentage}% of Overhead + Institute Share)`, amount: dVal(depositSlip.idf_amount, dc.idfAmount), whole: true, editableField: forceEdit ? 'idf_amount' : undefined });
+            items.push({ label: `IDF (${depositSlip.idf_percentage ?? 40}% of Overhead + Institute Share)`, amount: flt(depositSlip.idf_amount), whole: true, editableField: editable ? 'idf_amount' : undefined });
         } else if (depositSlip.idf_amount) {
             items.push({ label: 'IDF (40% of Overhead Amount)', amount: depositSlip.idf_amount, editableField: forceEdit ? 'idf_amount' : undefined });
         }
 
-        // DPF — child table (Research deposit slip)
+        // DPF — child table (Research deposit slip). For D Consultancy each row's amount is
+        // manual entry (no auto calculation) — show the doc's own stored per-row amount.
         if (Array.isArray(depositSlip.dpf_credit_distributions) && depositSlip.dpf_credit_distributions.length > 0) {
-            // For D Consultancy, the DPF pool is whatever % remains after IDF/Staff/Student —
-            // keep each row's amount live-recomputed off that pool (see computeDConsultancy)
-            // once in edit mode; otherwise show the doc's own stored per-row amount.
-            const dpfRows = depositSlip.dpf_credit_distributions;
-            const dpfSumPct = dpfRows.reduce((s: number, r: any) => s + (flt(r.dpf_percentage) || flt(r.percentage) || 0), 0);
             depositSlip.dpf_credit_distributions.forEach((item: any) => {
                 const dept = item.select_dept || item.department || item.dept_name || '';
                 const pct = item.dpf_percentage || item.percentage || 0;
-                const storedAmount = parseFloat(item.dpf_amount) || parseFloat(item.amount) || undefined;
-                const liveAmount = dc
-                    ? (dpfSumPct > 0 ? dc.dpfAmount * (pct / dpfSumPct) : dc.dpfAmount / dpfRows.length)
-                    : 0;
-                const amount = dc ? dVal(storedAmount, liveAmount) : (storedAmount || 0);
+                const amount = parseFloat(item.dpf_amount) || parseFloat(item.amount) || 0;
                 const deptSuffix = dept ? ` - ${dept}` : '';
                 items.push({
                     label: `DPF (${pct}% of Overhead Amount)${deptSuffix}`,
                     amount,
                     whole: !!dc,
-                    editableField: forceEdit && item.name ? `dpf_credit_distributions.${item.name}.dpf_amount` : undefined,
+                    editableField: (dc ? editable : forceEdit) && item.name ? `dpf_credit_distributions.${item.name}.dpf_amount` : undefined,
                 });
             });
         }
@@ -419,7 +352,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
 
         // Staff Welfare
         if (dc) {
-            items.push({ label: `Staff welfare Amount (5% of Overhead + Institute Share)`, amount: dVal(depositSlip.staff_welfare_amount, dc.staffWelfareAmount), whole: true, editableField: forceEdit ? 'staff_welfare_amount' : undefined });
+            items.push({ label: `Staff welfare Amount (5% of Overhead + Institute Share)`, amount: flt(depositSlip.staff_welfare_amount), whole: true, editableField: editable ? 'staff_welfare_amount' : undefined });
         } else if (depositSlip.staff_welfare_amount) {
             items.push({
                 label: `Staff welfare Amount (5% of Overhead Amount)`,
@@ -430,7 +363,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
 
         // Student Welfare - use the correct field name
         if (dc) {
-            items.push({ label: `Student welfare Amount (5% of Overhead + Institute Share)`, amount: dVal(depositSlip.student_welfare_amount, dc.studentWelfareAmount), whole: true, editableField: forceEdit ? 'student_welfare_amount' : undefined });
+            items.push({ label: `Student welfare Amount (5% of Overhead + Institute Share)`, amount: flt(depositSlip.student_welfare_amount), whole: true, editableField: editable ? 'student_welfare_amount' : undefined });
         }
         const studentWelfare = dc ? 0 : (depositSlip.student_welfare_amount || parseFloat(depositSlip.student_welfare_fund) || 0);
         if (studentWelfare > 0) {
@@ -791,14 +724,14 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                         </>
                     )}
 
-                    {/* D Consultancy only: IT TDS, GST TDS, Amount Actually Received — manually
-                        entered actual TDS deducted by the client, separate from the flat 2%
-                        assumption used to derive Total Cost X below. */}
+                    {/* D Consultancy only: Income Tax TDS, GST TDS, Other Deductions — manual
+                        entry. "Ammount actually received in bank account" is the one row here
+                        that's auto-calculated (Amount Inclusive of GST − the three deductions). */}
                     {type === 'consultancy_d' && dc && (
                         <>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
-                                <td className="border border-black p-1">IT TDS</td>
+                                <td className="border border-black p-1">Income Tax TDS</td>
                                 <td colSpan={2} className="border border-black p-1 text-right">
                                     {editable
                                         ? <EditableCell value={depositSlip.income_tax_tds} field="income_tax_tds" editable onChange={onFieldChange} numeric align="right" />
@@ -810,8 +743,8 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                 <td className="border border-black p-1">GST TDS</td>
                                 <td colSpan={2} className="border border-black p-1 text-right">
                                     {editable
-                                        ? <EditableCell value={depositSlip.gst_tds__2 ?? depositSlip.gst_tds} field="gst_tds__2" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrency(depositSlip.gst_tds__2 ?? depositSlip.gst_tds)}
+                                        ? <EditableCell value={depositSlip.amount_after_gst_tds} field="amount_after_gst_tds" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrency(depositSlip.amount_after_gst_tds)}
                                 </td>
                             </tr>
                             <tr>
@@ -825,11 +758,11 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
-                                <td className="border border-black p-1">Amount Actually Received</td>
+                                <td className="border border-black p-1">Ammount actually received in bank account
+                                    <span className="block text-xs text-zinc-500">Auto: Amount Inclusive of GST − Income Tax TDS − GST TDS − Other Deductions</span>
+                                </td>
                                 <td colSpan={2} className="border border-black p-1 text-right">
-                                    {forceEdit
-                                        ? <EditableCell value={depositSlip.amount_actually_received ?? dc.amountActuallyReceived} field="amount_actually_received" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrency(dVal(depositSlip.amount_actually_received, dc.amountActuallyReceived))}
+                                    {formatCurrency(dc.amountActuallyReceivedInBank)}
                                 </td>
                             </tr>
                         </>
@@ -862,66 +795,56 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                         </tr>
                     ) : null}
 
-                    {/* Consultancy D — full GST / Y / Z / overhead breakdown, matching the
-                        D Consultancy Deposit Slip doctype fields exactly so edits save cleanly. */}
+                    {/* Consultancy D — GST / Y / Z / overhead breakdown, matching the
+                        D Consultancy Deposit Slip doctype fields. All manual entry (no auto
+                        calculation) except Total GST further below. */}
                     {type === 'consultancy_d' && dc && (
                         <>
-                            <tr>
-                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
-                                <td className="border border-black p-1">CGST @9%</td>
-                                <td colSpan={2} className="border border-black p-1 text-right">
-                                    {editable
-                                        ? <EditableCell value={dc.cgstAmount} field="cgst_9" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrencyWhole(dc.cgstAmount)}
-                                </td>
-                            </tr>
-                            <tr>
-                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
-                                <td className="border border-black p-1">SGST @9%</td>
-                                <td colSpan={2} className="border border-black p-1 text-right">
-                                    {editable
-                                        ? <EditableCell value={dc.sgstAmount} field="sgst_9" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrencyWhole(dc.sgstAmount)}
-                                </td>
-                            </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
                                 <td className="border border-black p-1">IGST @18% on Consultancy Fee</td>
                                 <td colSpan={2} className="border border-black p-1 text-right">
                                     {editable
-                                        ? <EditableCell value={depositSlip.igst_18_on_consultancy ?? dc.igstDisplay} field="igst_18_on_consultancy" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrencyWhole(dc.igstDisplay)}
+                                        ? <EditableCell value={depositSlip.igst_18_on_consultancy} field="igst_18_on_consultancy" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrencyWhole(dc.igst)}
                                 </td>
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
-                                <td className="border border-black p-1">Amount after GST TDS @ 2%</td>
+                                <td className="border border-black p-1">CGST @9% of Consultancy Fee</td>
                                 <td colSpan={2} className="border border-black p-1 text-right">
                                     {editable
-                                        ? <EditableCell value={depositSlip.amount_after_gst_tds ?? dc.amountAfterTds.toFixed(2)} field="amount_after_gst_tds" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrencyWhole(depositSlip.amount_after_gst_tds ?? dc.amountAfterTds)}
+                                        ? <EditableCell value={depositSlip.cgst_9_of_consultancy_fee} field="cgst_9_of_consultancy_fee" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrencyWhole(dc.cgst)}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td className="border border-black p-1 text-center">{getRowNum()}</td>
+                                <td className="border border-black p-1">SGST @9% of Consultancy Fee</td>
+                                <td colSpan={2} className="border border-black p-1 text-right">
+                                    {editable
+                                        ? <EditableCell value={depositSlip.sgst_9_of_consultancy_fee} field="sgst_9_of_consultancy_fee" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrencyWhole(dc.sgst)}
                                 </td>
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
                                 <td className="border border-black p-1">Total Cost (X)
-                                    <span className="block text-xs text-zinc-500">Balance after deducting GST from amount received</span>
+                                    <span className="block text-xs text-zinc-500">Balance after GST deduction from amount received</span>
                                 </td>
                                 <td colSpan={2} className="border border-black p-1 text-right">
                                     {editable
-                                        ? <EditableCell value={depositSlip.total_cost_x ?? dc.totalCostX.toFixed(2)} field="total_cost_x" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrencyWhole(depositSlip.total_cost_x ?? dc.totalCostX)}
+                                        ? <EditableCell value={depositSlip.total_cost_x} field="total_cost_x" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrencyWhole(depositSlip.total_cost_x)}
                                 </td>
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
-                                <td className="border border-black p-1">Consultancy Charge (Y)
-                                    <span className="block text-xs text-zinc-500">≤ 30% of X</span>
-                                </td>
+                                <td className="border border-black p-1">Consultancy Charge (Y)</td>
                                 <td colSpan={2} className="border border-black p-1 text-right">
                                     {editable
-                                        ? <EditableCell value={depositSlip.consultancy_charge_y ?? dc.chargeY.toFixed(2)} field="consultancy_charge_y" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrencyWhole(depositSlip.consultancy_charge_y ?? dc.chargeY)}
+                                        ? <EditableCell value={depositSlip.consultancy_charge_y} field="consultancy_charge_y" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrencyWhole(depositSlip.consultancy_charge_y)}
                                 </td>
                             </tr>
                             <tr>
@@ -929,53 +852,53 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                 <td className="border border-black p-1">Operational Charge (Z)</td>
                                 <td colSpan={2} className="border border-black p-1 text-right">
                                     {editable
-                                        ? <EditableCell value={depositSlip.operational_charge_z ?? dc.chargeZ.toFixed(2)} field="operational_charge_z" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrencyWhole(depositSlip.operational_charge_z ?? dc.chargeZ)}
+                                        ? <EditableCell value={depositSlip.operational_charge_z} field="operational_charge_z" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrencyWhole(depositSlip.operational_charge_z)}
                                 </td>
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
                                 <td className="border border-black p-1">Overhead from Y (10% × Y)</td>
                                 <td colSpan={2} className="border border-black p-1 text-right">
-                                    {forceEdit
-                                        ? <EditableCell value={depositSlip.overhead_from_y_amount ?? dc.overheadFromY} field="overhead_from_y_amount" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrencyWhole(dVal(depositSlip.overhead_from_y_amount, dc.overheadFromY))}
+                                    {editable
+                                        ? <EditableCell value={depositSlip.overhead_from_y_amount} field="overhead_from_y_amount" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrencyWhole(depositSlip.overhead_from_y_amount)}
                                 </td>
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
                                 <td className="border border-black p-1">Overhead from Z (10% × Z)</td>
                                 <td colSpan={2} className="border border-black p-1 text-right">
-                                    {forceEdit
-                                        ? <EditableCell value={depositSlip.overhead_from_z_amount ?? dc.overheadFromZ} field="overhead_from_z_amount" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrencyWhole(dVal(depositSlip.overhead_from_z_amount, dc.overheadFromZ))}
+                                    {editable
+                                        ? <EditableCell value={depositSlip.overhead_from_z_amount} field="overhead_from_z_amount" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrencyWhole(depositSlip.overhead_from_z_amount)}
                                 </td>
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
                                 <td className="border border-black p-1">Institute Share (20% × Y)</td>
                                 <td colSpan={2} className="border border-black p-1 text-right">
-                                    {forceEdit
-                                        ? <EditableCell value={depositSlip.institute_share_amount ?? dc.instituteShare} field="institute_share_amount" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrencyWhole(dVal(depositSlip.institute_share_amount, dc.instituteShare))}
+                                    {editable
+                                        ? <EditableCell value={depositSlip.institute_share_amount} field="institute_share_amount" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrencyWhole(depositSlip.institute_share_amount)}
                                 </td>
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
                                 <td className="border border-black p-1">Total Overhead (10% × Y + 10% × Z)</td>
                                 <td colSpan={2} className="border border-black p-1 text-right">
-                                    {forceEdit
-                                        ? <EditableCell value={depositSlip.total_overhead_amount ?? dc.totalOverhead} field="total_overhead_amount" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrencyWhole(dVal(depositSlip.total_overhead_amount, dc.totalOverhead))}
+                                    {editable
+                                        ? <EditableCell value={depositSlip.total_overhead_amount} field="total_overhead_amount" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrencyWhole(depositSlip.total_overhead_amount)}
                                 </td>
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
                                 <td className="border border-black p-1 font-bold">Total Overhead + Institute Share</td>
                                 <td colSpan={2} className="border border-black p-1 text-right font-bold">
-                                    {forceEdit
-                                        ? <EditableCell value={depositSlip.total_overhead_institute_share ?? dc.totalOverheadAndShare} field="total_overhead_institute_share" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrencyWhole(dVal(depositSlip.total_overhead_institute_share, dc.totalOverheadAndShare))}
+                                    {editable
+                                        ? <EditableCell value={depositSlip.total_overhead_institute_share} field="total_overhead_institute_share" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrencyWhole(depositSlip.total_overhead_institute_share)}
                                 </td>
                             </tr>
                         </>
@@ -1035,44 +958,38 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                         <>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
-                                <td className="border border-black p-1">Balance Consultancy Fee
-                                    <span className="block text-xs text-zinc-500">Y − Overhead from Y − Institute Share</span>
-                                </td>
+                                <td className="border border-black p-1">Balance Consultancy Fee</td>
                                 <td colSpan={2} className="border border-black p-1 text-right">
-                                    {forceEdit
-                                        ? <EditableCell value={depositSlip.balance_consultancy_fee ?? dc.balanceConsultancyFee} field="balance_consultancy_fee" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrencyWhole(dVal(depositSlip.balance_consultancy_fee, dc.balanceConsultancyFee))}
+                                    {editable
+                                        ? <EditableCell value={depositSlip.balance_consultancy_fee} field="balance_consultancy_fee" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrencyWhole(depositSlip.balance_consultancy_fee)}
                                 </td>
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
-                                <td className="border border-black p-1">Balance Operation Charge
-                                    <span className="block text-xs text-zinc-500">Z − Overhead from Z</span>
-                                </td>
+                                <td className="border border-black p-1">Balance Operation Charge</td>
                                 <td colSpan={2} className="border border-black p-1 text-right">
-                                    {forceEdit
-                                        ? <EditableCell value={depositSlip.balance_operation_charge ?? dc.balanceOperationCharge} field="balance_operation_charge" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrencyWhole(dVal(depositSlip.balance_operation_charge, dc.balanceOperationCharge))}
+                                    {editable
+                                        ? <EditableCell value={depositSlip.balance_operation_charge} field="balance_operation_charge" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrencyWhole(depositSlip.balance_operation_charge)}
                                 </td>
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
                                 <td className="border border-black p-1">Total GST
-                                    <span className="block text-xs text-zinc-500">CGST + SGST + IGST</span>
+                                    <span className="block text-xs text-zinc-500">Auto: IGST @18% + CGST @9% + SGST @9% of Consultancy Fee</span>
                                 </td>
                                 <td colSpan={2} className="border border-black p-1 text-right">
-                                    {forceEdit
-                                        ? <EditableCell value={depositSlip.total_gst ?? dc.totalGst} field="total_gst" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrencyWhole(dVal(depositSlip.total_gst, dc.totalGst))}
+                                    {formatCurrencyWhole(dc.totalGst)}
                                 </td>
                             </tr>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
                                 <td className="border border-black p-1 font-bold">Total Amount</td>
                                 <td colSpan={2} className="border border-black p-1 text-right font-bold">
-                                    {forceEdit
-                                        ? <EditableCell value={depositSlip.total_amount ?? dc.totalAmount} field="total_amount" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrencyWhole(dVal(depositSlip.total_amount, dc.totalAmount))}
+                                    {editable
+                                        ? <EditableCell value={depositSlip.total_amount} field="total_amount" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrencyWhole(depositSlip.total_amount)}
                                 </td>
                             </tr>
                         </>
