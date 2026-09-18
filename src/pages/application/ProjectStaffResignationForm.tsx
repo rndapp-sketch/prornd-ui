@@ -8,6 +8,7 @@ import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { resignationAPI } from "@/services/apiService";
 import { PageHeader } from "@/components/common/PageHeader";
 import ResignationActionButtons from "@/components/ResignationActionButtons";
+import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import {
   User as UserIcon, IdCard, Mail, Building2, Briefcase,
   FolderOpen, CalendarDays, FileText, AlertCircle, CheckCircle2,
@@ -855,6 +856,9 @@ const ProjectStaffResignationForm: React.FC = () => {
         </div>
       </main>
 
+      {docName && (
+        <FloatingActivityLogButton doctype="Project Staff Resignation" docname={docName} />
+      )}
     </div>
   );
 };
