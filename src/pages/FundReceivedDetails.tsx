@@ -1314,10 +1314,12 @@ const FundReceivedDetails = () => {
             if (name) initialData.fund_received_ref = name;
             setFormData(initialData);
 
-            if (client_scripts && Array.isArray(client_scripts)) {
-                let combinedScript = client_scripts.map((cs: any) => cs.script).join("\n\n");
-                const _fixedFunction = `function calculate_deposit_slip(frm){let total_inclusive=flt(frm.doc.amount_inclusive_gst_capital);let multiplier=flt(frm.doc.overhead_multiplier)||15;if(total_inclusive>0){let project_balance=total_inclusive/1.18;let cgst=project_balance*0.09;let sgst=project_balance*0.09;let overhead_amount=project_balance*(multiplier/(100+multiplier));let project_amount=project_balance-overhead_amount;let idf_amt=overhead_amount*(40.0/100);let dpf_amt=overhead_amount*(25.0/100);let staff_amt=overhead_amount*(5.0/100);let student_amt=overhead_amount*(5.0/100);frm.set_value({'project_balance_after_gst':project_balance,'cgst_9':cgst,'sgst_9':sgst,'total_gst':cgst+sgst,'total_budget':total_inclusive,'overhead_amount':overhead_amount,'overhead_amount_label':'<b>Overhead Amount @ '+multiplier+'% (inclusive)</b>','prj_amount':project_amount,'idf_amount':flt(idf_amt,2),'dpf_cle_amount':flt(dpf_amt,2),'staff_welfare_amount':flt(staff_amt,2),'student_welfare_amount':flt(student_amt,2)}).then(()=>{distribute_pool_share(frm,overhead_amount);});}else{frm.set_value({'project_balance_after_gst':0,'cgst_9':0,'sgst_9':0,'total_gst':0,'total_budget':0,'overhead_amount':0,'overhead_amount_label':'','prj_amount':0,'idf_amount':0,'dpf_cle_amount':0,'staff_welfare_amount':0,'student_welfare_amount':0}).then(()=>{distribute_pool_share(frm,0);});}}`;
-                combinedScript += "\n\n" + _fixedFunction;
+            // Research Consultancy Deposit Slip has no auto calculation — every field
+            // (GST components, overhead, IDF/DPF/welfare) is manual entry, so the
+            // backend's client script (which auto-computes all of these from
+            // amount_inclusive_gst_capital) must never run for this type.
+            if (client_scripts && Array.isArray(client_scripts) && type !== "research_consultancy") {
+                const combinedScript = client_scripts.map((cs: any) => cs.script).join("\n\n");
                 setClientScript(combinedScript);
             }
         }
