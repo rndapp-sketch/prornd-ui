@@ -419,7 +419,12 @@ const ProjectStaffResignationForm: React.FC = () => {
       let actionError: unknown = null;
 
       try {
-        const res = await performAction({ docname: docName, action: actionToRun });
+        // Like Project Staff Extension, Project Staff Resignation's own
+        // perform_project_staff_resignation_action hard-requires a non-empty `comment`
+        // param server-side (frappe.throw "A comment is required before performing this
+        // action"), so it can't be posted after the fact the way the uniform-comment-
+        // persistence doctypes do — every action here fails outright without it.
+        const res = await performAction({ docname: docName, action: actionToRun, comment: comment.trim() });
         if (res?.message?.status === "success") {
           setWorkflowState(res.message.workflow_state ?? workflowState);
           setDocstatus(res.message.docstatus ?? docstatus);
