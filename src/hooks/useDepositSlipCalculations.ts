@@ -13,16 +13,6 @@ interface FormData {
 }
 
 // =============================================================
-// RESEARCH CONSULTANCY CONFIGURATION
-// =============================================================
-const RC_SHARE_POOL_PERCENT = 25.0;
-const RC_SHARE_LABEL_KEY = "PDF";
-const RC_PCT_IDF = 40.0;
-const RC_PCT_DPF = 25.0;
-const RC_PCT_STAFF_WELFARE = 5.0;
-const RC_PCT_STUDENT_WELFARE = 5.0;
-
-// =============================================================
 // MAIN HOOK
 // =============================================================
 export const useDepositSlipCalculations = (
@@ -39,24 +29,7 @@ export const useDepositSlipCalculations = (
 
   // Build signature for comparison (only input fields that trigger calculation)
   const getSignature = (): string => {
-    if (depositSlipType === "research_consultancy") {
-      const amount = flt(formData.amount_inclusive_gst_capital);
-      const multiplier = flt(formData.overhead_multiplier) || 15;
-
-      // Signature includes table structure to trigger calc on Add/Remove/LabelChange
-      // CRITICAL: Do NOT include calculated fields (amount, pdf_percentage) to avoid loops!
-      const table = formData.credit_distribution || [];
-      const tableSig = table
-        .map((r: any) => {
-          const label = r.label || "";
-          const isPdf = label.toUpperCase().startsWith(RC_SHARE_LABEL_KEY);
-          if (isPdf) return `P:${label}`; // Only track label existence for PDF
-          return `O:${label}:${r.percentage_of_overhead}`; // Track user input % for others
-        })
-        .join("|");
-
-      return `rc:${amount}:${multiplier}:${tableSig}`;
-    } else if (depositSlipType === "d_consultancy") {
+    if (depositSlipType === "d_consultancy") {
       // D Consultancy has NO auto calculation except two derived fields:
       // - ammount_actually_received_in_bank (from amount_inclusive_of_gst - deductions)
       // - total_gst (sum of the three manually-entered GST fields)
@@ -133,7 +106,7 @@ export const useDepositSlipCalculations = (
   useEffect(() => {
     // Guard: unsupported type
     if (
-      !["research_consultancy", "t_testing", "research_deposit_slip", "d_consultancy", "e_non_routine"].includes(
+      !["t_testing", "research_deposit_slip", "d_consultancy", "e_non_routine"].includes(
         depositSlipType,
       )
     ) {
@@ -147,13 +120,6 @@ export const useDepositSlipCalculations = (
 
     // Guard: skip if zero/empty inputs - BUT update last signature to avoid re-runs
     const data = formDataRef.current;
-    if (
-      depositSlipType === "research_consultancy" &&
-      flt(data.amount_inclusive_gst_capital) <= 0
-    ) {
-      lastSignatureRef.current = currentSignature;
-      return;
-    }
     if (
       depositSlipType === "t_testing" &&
       flt(data.amount_inclusive_of_gst) <= 0
@@ -185,9 +151,7 @@ export const useDepositSlipCalculations = (
 
     let updates: FormData = {};
 
-    if (depositSlipType === "research_consultancy") {
-      updates = calculateResearchConsultancy(data);
-    } else if (depositSlipType === "d_consultancy") {
+    if (depositSlipType === "d_consultancy") {
       updates = calculateDConsultancy(data);
     } else if (depositSlipType === "t_testing") {
       updates = calculateTTesting(data);
@@ -261,74 +225,6 @@ function calculateENonRoutine(formData: FormData): FormData {
     credit_distribution: creditDistribution,
     balance_in_project: balanceInProject,
     total_budget: totalBudget,
-  };
-}
-
-// =============================================================
-// RESEARCH CONSULTANCY CALCULATIONS
-// =============================================================
-function calculateResearchConsultancy(formData: FormData): FormData {
-  const totalInclusive = flt(formData.amount_inclusive_gst_capital);
-  const multiplier = flt(formData.overhead_multiplier) || 15;
-
-  const projectBalance = flt(totalInclusive / 1.18);
-  const cgst = flt(projectBalance * 0.09);
-  const sgst = flt(projectBalance * 0.09);
-  const overheadAmount = flt(projectBalance * (multiplier / (100 + multiplier)));
-  const projectAmount = flt(projectBalance - overheadAmount);
-  const idfAmt = flt(overheadAmount * (RC_PCT_IDF / 100));
-  const dpfAmt = flt(overheadAmount * (RC_PCT_DPF / 100));
-  const staffAmt = flt(overheadAmount * (RC_PCT_STAFF_WELFARE / 100));
-  const studentAmt = flt(overheadAmount * (RC_PCT_STUDENT_WELFARE / 100));
-
-  // Handle credit distribution
-  const currentDist = formData.credit_distribution || [];
-  let updatedDist = [...currentDist];
-
-  if (currentDist.length > 0) {
-    const poolIndices: number[] = [];
-    updatedDist = currentDist.map((row: any, i: number) => {
-      if (row.label && row.label.toUpperCase().startsWith(RC_SHARE_LABEL_KEY)) {
-        poolIndices.push(i);
-        return row;
-      } else if (row.percentage_of_overhead) {
-        return {
-          ...row,
-          amount: flt(overheadAmount * (row.percentage_of_overhead / 100)),
-        };
-      }
-      return row;
-    });
-
-    if (poolIndices.length > 0) {
-      const sharePercentage = RC_SHARE_POOL_PERCENT / poolIndices.length;
-      const shareAmount = overheadAmount * (sharePercentage / 100);
-      poolIndices.forEach((i) => {
-        updatedDist[i] = {
-          ...updatedDist[i],
-          percentage_of_overhead: flt(sharePercentage),
-          amount: flt(shareAmount),
-        };
-      });
-    }
-  }
-
-  return {
-    project_balance_after_gst: flt(projectBalance),
-    cgst_9: flt(cgst),
-    sgst_9: flt(sgst),
-    total_gst: flt(cgst + sgst),
-    total_budget: flt(totalInclusive),
-    overhead_amount: flt(overheadAmount),
-    prj_amount: flt(projectAmount),
-    idf_amount: flt(idfAmt),
-    dpf_cle_amount: flt(dpfAmt),
-    staff_welfare_amount: flt(staffAmt),
-    student_welfare_amount: flt(studentAmt),
-    credit_distribution: updatedDist,
-
-    // Ensure multiplier field is set if missing (default logic)
-    overhead_multiplier: multiplier,
   };
 }
 
