@@ -133,36 +133,8 @@ export const computeDConsultancy = (depositSlip: any) => {
     };
 };
 
-// Research Consultancy Deposit Slip — mirrors calculateResearchConsultancy() in
-// useDepositSlipCalculations.ts so the print view reflects the same GST/overhead formula
-// used at creation time. IT TDS / GST TDS / IGST are not part of that formula (the hook
-// assumes an intrastate CGST+SGST-only transaction with no TDS step) — they're manually
-// entered actual figures here, same pattern as D Consultancy's IT TDS/GST TDS fields.
-export const computeResearchConsultancy = (depositSlip: any) => {
-    const totalInclusive = flt(depositSlip.amount_inclusive_gst_capital ?? depositSlip.amount_inclusive_of_gst ?? depositSlip.total_amount);
-    const multiplier = flt(depositSlip.overhead_multiplier) || 15;
-
-    const projectBalance = round2(totalInclusive / 1.18);
-    const cgstAmount = round2(projectBalance * 0.09);
-    const sgstAmount = round2(projectBalance * 0.09);
-    const overheadAmount = round2(projectBalance * (multiplier / (100 + multiplier)));
-    const idfAmount = round2(overheadAmount * 0.40);
-    const dpfAmount = round2(overheadAmount * 0.25);
-    const staffWelfareAmount = round2(overheadAmount * 0.05);
-    const studentWelfareAmount = round2(overheadAmount * 0.05);
-
-    const incomeTaxTds = flt(depositSlip.income_tax_tds);
-    const gstTds = flt(depositSlip.gst_tds__2 ?? depositSlip.gst_tds_2 ?? depositSlip.gst_tds);
-    const igstAmount = flt(depositSlip.igst_18 ?? depositSlip.igst_amount ?? depositSlip.igst);
-    const amountActuallyReceived = round2(totalInclusive - incomeTaxTds - gstTds);
-    const totalGst = round2(igstAmount > 0 ? igstAmount : cgstAmount + sgstAmount);
-
-    return {
-        projectBalance, cgstAmount, sgstAmount, overheadAmount, idfAmount, dpfAmount,
-        staffWelfareAmount, studentWelfareAmount, incomeTaxTds, gstTds, igstAmount,
-        amountActuallyReceived, totalGst,
-    };
-};
+// Research Consultancy Deposit Slip has no auto calculation — every field
+// (GST components, overhead, IDF/DPF/welfare, TDS, deductions) is manual entry.
 
 // Helper to format date
 const formatDate = (dateStr: string | undefined | null) => {
@@ -240,12 +212,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
     const config = getDepositTypeConfig(type, depositSlip);
     const enr = type === 'consultancy_e' ? computeENonRoutine(depositSlip) : null;
     const dc = type === 'consultancy_d' ? computeDConsultancy(depositSlip) : null;
-    const rc = type === 'consultancy_research' ? computeResearchConsultancy(depositSlip) : null;
-    // Derived-field display rule: show the doc's original stored value until edit mode is
-    // switched on, then live-recompute so the preview tracks whatever the user just changed.
-    // Force edit turns this off entirely — every field is manual, so always show the stored
-    // (or just-typed) value and never override it with the formula result.
-    const dVal = (stored: any, live: number) => (forceEdit ? (stored ?? 0) : (editable ? live : (stored ?? live)));
+    const rc = type === 'consultancy_research';
 
     // Determine row counter
     let rowNum = 0;
@@ -284,10 +251,9 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
 
         // DPF — scalar fallback (other deposit slip types)
         if (!Array.isArray(depositSlip.dpf_credit_distributions) || depositSlip.dpf_credit_distributions.length === 0) {
-            // Research Consultancy's calc writes to dpf_cle_amount, not dpf_amount — fall back to it.
-            const dpfAmountValue = rc
-                ? dVal(depositSlip.dpf_amount ?? depositSlip.dpf_cle_amount, rc.dpfAmount)
-                : (depositSlip.dpf_amount ?? depositSlip.dpf_cle_amount);
+            // Research Consultancy stores this under dpf_cle_amount, not dpf_amount — manual
+            // entry, so just show whichever field the doc actually has.
+            const dpfAmountValue = depositSlip.dpf_amount ?? depositSlip.dpf_cle_amount;
             if (dpfAmountValue) {
                 const dpfLabel = type === 'consultancy_d' || type === 'consultancy_e'
                     ? 'DPF/CE (50% of Overhead Amount)'
@@ -297,7 +263,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                 items.push({
                     label: dpfLabel,
                     amount: dpfAmountValue,
-                    editableField: forceEdit ? (depositSlip.dpf_amount !== undefined ? 'dpf_amount' : 'dpf_cle_amount') : undefined,
+                    editableField: (forceEdit || (rc && editable)) ? (depositSlip.dpf_amount !== undefined ? 'dpf_amount' : 'dpf_cle_amount') : undefined,
                 });
             }
         }
@@ -604,8 +570,8 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                         </td>
                     </tr>
 
-                    {/* Research Consultancy only: IT TDS, GST TDS, Amount Actually Received, CGST, SGST, IGST */}
-                    {type === 'consultancy_research' && rc && (
+                    {/* Research Consultancy only: IT TDS, GST TDS, Amount Actually Received, CGST, SGST, IGST — all manual entry */}
+                    {rc && (
                         <>
                             <tr>
                                 <td className="border border-black p-1 text-center">{getRowNum()}</td>
@@ -630,8 +596,8 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                 <td className="border border-black p-1">Amount Actually Received</td>
                                 <td colSpan={2} className="border border-black p-1 text-right">
                                     {editable
-                                        ? <EditableCell value={depositSlip.amount_actually_received ?? rc.amountActuallyReceived} field="amount_actually_received" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrency(dVal(depositSlip.amount_actually_received, rc.amountActuallyReceived))}
+                                        ? <EditableCell value={depositSlip.amount_actually_received} field="amount_actually_received" editable onChange={onFieldChange} numeric align="right" />
+                                        : formatCurrency(depositSlip.amount_actually_received)}
                                 </td>
                             </tr>
                             <tr>
@@ -640,7 +606,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                 <td colSpan={2} className="border border-black p-1 text-right">
                                     {editable
                                         ? <EditableCell value={depositSlip.cgst_9} field="cgst_9" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrency(dVal(depositSlip.cgst_9, rc.cgstAmount))}
+                                        : formatCurrency(depositSlip.cgst_9)}
                                 </td>
                             </tr>
                             <tr>
@@ -649,7 +615,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                 <td colSpan={2} className="border border-black p-1 text-right">
                                     {editable
                                         ? <EditableCell value={depositSlip.sgst_9} field="sgst_9" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrency(dVal(depositSlip.sgst_9, rc.sgstAmount))}
+                                        : formatCurrency(depositSlip.sgst_9)}
                                 </td>
                             </tr>
                             <tr>
@@ -658,7 +624,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                 <td colSpan={2} className="border border-black p-1 text-right">
                                     {editable
                                         ? <EditableCell value={depositSlip.igst_18 ?? depositSlip.igst_amount ?? depositSlip.igst} field="igst_18" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrency(dVal(depositSlip.igst_18 ?? depositSlip.igst_amount ?? depositSlip.igst, rc.igstAmount))}
+                                        : formatCurrency(depositSlip.igst_18 ?? depositSlip.igst_amount ?? depositSlip.igst)}
                                 </td>
                             </tr>
                         </>
