@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { GlobalLoader } from '@/components/ui/global-loader';
 
 import { ledgerService } from '@/services/ledgerService';
+import { overheadFundAPI } from '@/services/apiService';
 import type { CommitRecord } from '@/types/ledgerTypes';
 import { PaymentForm } from '@/components/PaymentForm';
 import { useUserRoles } from '@/components/UserRole';
@@ -162,9 +163,26 @@ const Payments: React.FC = () => {
             const statuses = ['COMMITTED', 'PARTIALLY_PAID', 'OVERPAYMENT'];
             const promises = statuses.map(status => ledgerService.getCommitsByStatus(status));
 
-            const results = await Promise.all(promises);
+            // Overhead commits (PDF per employee, DPF per department) come from a second
+            // source: the Accounts overhead API has no by-status endpoint, and its data
+            // must not go through /ledger-api, so a whitelisted Frappe method returns them
+            // already shaped as CommitRecord. Failure here must not blank the project
+            // commits, so it resolves to an empty list rather than rejecting.
+            // See docs/pdf-project-implementation.md §5.8.2 and docs/dpf-project-implementation.md §5.8.2.
+            const overheadCommits = fetch(
+                `/api/method/${overheadFundAPI.getCommits}`,
+                { credentials: 'include', headers: { Accept: 'application/json' } },
+            )
+                .then(r => r.json())
+                .then(payload => (payload?.message?.data ?? []) as CommitRecord[])
+                .catch(() => [] as CommitRecord[]);
+
+            const [results, overhead] = await Promise.all([
+                Promise.all(promises),
+                overheadCommits,
+            ]);
             // Flatten results and sort by date descending (latest first)
-            const allCommits = results.flat();
+            const allCommits = [...results.flat(), ...overhead];
             allCommits.sort((a, b) => {
                 const dateA = a.commitDate ? new Date(a.commitDate).getTime() : 0;
                 const dateB = b.commitDate ? new Date(b.commitDate).getTime() : 0;
@@ -260,7 +278,25 @@ const Payments: React.FC = () => {
     const fetchPayments = useCallback(async () => {
         setIsLoading(true);
         try {
-            const data = await ledgerService.getAllPayments();
+            // Overhead payments live in the Accounts overhead tables, not the project
+            // payment table /account-head-payments reads — so without this an overhead
+            // commit never found its payment and kept offering "Pay" on something already
+            // paid. Same shape, so the mapping below is shared. Resolves to [] on failure
+            // rather than rejecting, so it can never blank the project payments.
+            // See docs/dpf-project-implementation.md §5.10.8.
+            const overheadPayments = fetch(
+                `/api/method/${overheadFundAPI.getPayments}`,
+                { credentials: 'include', headers: { Accept: 'application/json' } },
+            )
+                .then(r => r.json())
+                .then(payload => (payload?.message?.data ?? []) as any[])
+                .catch(() => [] as any[]);
+
+            const [projectPayments, overhead] = await Promise.all([
+                ledgerService.getAllPayments(),
+                overheadPayments,
+            ]);
+            const data = [...(Array.isArray(projectPayments) ? projectPayments : []), ...overhead];
             if (data && Array.isArray(data)) {
                 const loadedPayments: PaymentRecord[] = data.map((p: any) => ({
                     name: String(p.transactionPaymentNumber),
@@ -293,6 +329,9 @@ const Payments: React.FC = () => {
         }
     }, []);
 
+    // Commit ids paid during this session, before Accounts has echoed the payment back.
+    const [justPaidCommitIds, setJustPaidCommitIds] = useState<Set<number>>(new Set());
+
     // Map commit id -> its most recent payment info. The ledger's commit `status`
     // (COMMITTED/PARTIALLY_PAID/...) frequently doesn't get updated the moment a
     // payment is created against it — new payments start life as `PENDING` and
@@ -309,8 +348,23 @@ const Payments: React.FC = () => {
                 map.set(commitId, p);
             }
         });
+        // A payment just made in this session may not be readable back yet: both payment
+        // lists are populated by the Accounts service, which receives ours over Kafka and
+        // consumes it asynchronously. Refetching alone therefore leaves "Pay" on screen
+        // until that round trip lands — which is what made it look like nothing happened
+        // until the page was reloaded. Record it locally so the row flips the moment the
+        // modal closes; the real payment replaces this as soon as it comes back.
+        justPaidCommitIds.forEach(commitId => {
+            if (!map.has(commitId)) {
+                map.set(commitId, {
+                    name: 'pending…',
+                    payment_status: 'PENDING',
+                    transaction_commit_number: commitId,
+                } as PaymentRecord);
+            }
+        });
         return map;
-    }, [payments]);
+    }, [payments, justPaidCommitIds]);
 
     // Filter out commits that have module ID '11' or resolved/raw module name 'Recruitment Adhoc Contractual'
     const filteredPendingCommits = React.useMemo(() => {
@@ -1293,8 +1347,17 @@ const Payments: React.FC = () => {
                                 commitData={selectedCommit || undefined}
                                 resolvedBudgetHead={selectedCommit ? budgetHeadMap[String(selectedCommit.accountHeadId)] : undefined}
                                 onSuccess={() => {
+                                    const paidCommitId = selectedCommit?.transactionCommitNumber;
+                                    if (paidCommitId != null) {
+                                        setJustPaidCommitIds(prev => new Set(prev).add(paidCommitId));
+                                    }
                                     setPaymentModalOpen(false);
                                     fetchPendingCommits();
+                                    // Was missing: commitPaymentInfo — which decides whether a row
+                                    // shows Pay or Payment Pending — is built from `payments`, not
+                                    // from the commits. Without this the row kept offering Pay
+                                    // until the page was reloaded.
+                                    fetchPayments();
                                 }}
                                 onCancel={() => setPaymentModalOpen(false)}
                             />

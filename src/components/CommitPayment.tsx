@@ -26,6 +26,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { fetchOverheadLedger, isOverheadProjectNo } from "@/services/overheadLedger";
 import { createPortal } from "react-dom";
 import { useFrappePostCall } from "frappe-react-sdk";
 import { CheckCircle2, AlertCircle, Loader2, CreditCard, ShieldAlert, X } from "lucide-react";
@@ -58,6 +59,8 @@ export interface CommitPaymentProps {
     defaultBudgetHead?: string;
     /** Optional: map of budget head label -> ledger Budget Head id, used to query the ledger API (accountHeadId expects the id, not the label) */
     budgetHeadIds?: Record<string, string | number>;
+    /** Fix the budget head (PDF projects book everything to a single "Overhead" pool). */
+    lockBudgetHead?: boolean;
     /** Optional: custom reference_name/name for Kafka Commit Staging checks and submit payload */
     stagingReferenceName?: string;
     /** Optional: application id to keep in the payload when stagingReferenceName is different */
@@ -402,6 +405,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     parentAppId,
     defaultBudgetHead,
     budgetHeadIds,
+    lockBudgetHead = false,
     stagingReferenceName,
     frapAppId,
     forcedRefDetails,
@@ -619,16 +623,31 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                     // The ledger API's accountHeadId param expects the Budget Head's numeric/short id,
                     // not the human-readable label — resolve it via budgetHeadIds, falling back to the
                     // label itself if no mapping was provided.
-                    const accountHeadId = budgetHeadIds?.[commitHead] ?? commitHead;
-                    const ledgerUrl = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectName)}&accountHeadId=${encodeURIComponent(String(accountHeadId))}`;
-                    const ledgerRes = await fetch(ledgerUrl);
-                    if (ledgerRes.ok) {
-                        const entries: any[] = await ledgerRes.json().then((d) =>
-                            Array.isArray(d) ? d : []
-                        );
-                        const parentEntry = entries.find((e: any) => e.frapAppId === parentAppId);
-                        if (parentEntry) {
+                    if (isOverheadProjectNo(projectName)) {
+                        // An overhead fund's log must not travel over /ledger-api (unauthenticated
+                        // proxy — see services/overheadLedger), so it is read through the whitelisted
+                        // Frappe method. The id it yields is the overheadCommitId, which is what
+                        // refDetails expects on the overhead side. Rows of every type share the log,
+                        // so the parent's COMMIT row is preferred over any other carrying its frapAppId.
+                        const rows = await fetchOverheadLedger(projectName);
+                        const parentEntry =
+                            rows.find((e) => e.frapAppId === parentAppId && e.transactionType === "COMMIT") ??
+                            rows.find((e) => e.frapAppId === parentAppId);
+                        if (parentEntry?.transactionId != null) {
                             refDetails = String(parentEntry.transactionId);
+                        }
+                    } else {
+                        const accountHeadId = budgetHeadIds?.[commitHead] ?? commitHead;
+                        const ledgerUrl = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectName)}&accountHeadId=${encodeURIComponent(String(accountHeadId))}`;
+                        const ledgerRes = await fetch(ledgerUrl);
+                        if (ledgerRes.ok) {
+                            const entries: any[] = await ledgerRes.json().then((d) =>
+                                Array.isArray(d) ? d : []
+                            );
+                            const parentEntry = entries.find((e: any) => e.frapAppId === parentAppId);
+                            if (parentEntry) {
+                                refDetails = String(parentEntry.transactionId);
+                            }
                         }
                     }
                 } catch (ledgerErr) {
@@ -807,7 +826,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                     <select
                         value={commitHead}
                         onChange={(e) => setCommitHead(e.target.value)}
-                        disabled={disabled || budgetHeads.length === 0}
+                        disabled={disabled || lockBudgetHead || budgetHeads.length === 0}
                         className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                     >
                         {budgetHeads.length === 0 ? (

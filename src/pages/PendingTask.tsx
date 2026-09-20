@@ -14,7 +14,14 @@ import { GlobalLoader } from '@/components/ui/global-loader';
 import { ModuleFilterSelect } from '@/components/ModuleFilterSelect';
 import { useUserRoles } from '../components/UserRole';
 import { selectionCandidateDetailsAPI, selectionCommitteeReportAPI } from '@/services/apiService';
-import { type ProjectCategory } from '@/utils/projectTypeMapping';
+import { projectTypeTabLabel, withOverheadCategory, type ProjectCategory } from '@/utils/projectTypeMapping';
+
+/** The Project Registration fields this page reads, fetched once for every PR. */
+interface PRRow {
+    name: string;
+    project_no?: string;
+    funding_agen?: string;
+}
 
 // Row shape returned by get_categorized_pending_task, already bucketed into
 // research/consultancy/others and resolved server-side via DOCTYPE_PR_LINKS
@@ -39,6 +46,10 @@ interface CategorizedPendingTaskResponse {
         research: CategorizedTaskRow[];
         consultancy: CategorizedTaskRow[];
         others: CategorizedTaskRow[];
+        // Not returned today — overhead tasks arrive in one of the three buckets above and
+        // are moved by project number (see withOverheadCategory). Read if the backend ever
+        // starts bucketing them itself.
+        overhead?: CategorizedTaskRow[];
     };
 }
 
@@ -158,7 +169,7 @@ const getCandidateWorkflow = (
     };
 };
 
-const PROJECT_TYPE_TABS: ProjectTypeTab[] = ['Research', 'Consultancy', 'Others'];
+const PROJECT_TYPE_TABS: ProjectTypeTab[] = ['Research', 'Consultancy', 'Others', 'Overhead'];
 const HIDDEN_OTHERS_DOCTYPES = new Set(['Kafka Commit Staging', 'Project Number Generation']);
 
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
@@ -197,9 +208,10 @@ const PendingTask: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const [currentPage, setCurrentPage] = useState(1);
     const selectedModule = searchParams.get('module') ?? 'all';
-    // Funding Agency only exists on Project Registration — only show the column
-    // when that module is explicitly selected, not for "All" or other modules.
-    const showFundingAgencyColumn = selectedModule === 'Project Registration';
+    // Shown for every module. The agency is a property of the *project*, so any
+    // application that carries a project number can display it (see prRowForTask below).
+    // Rows that resolve to no project show "-".
+    const showFundingAgencyColumn = true;
     const searchQuery = searchParams.get('q') ?? '';
     const selectedProjectType = (searchParams.get('type') as ProjectTypeTab) ?? 'Research';
     const searchInputRef = useRef<HTMLInputElement>(null);
@@ -344,11 +356,11 @@ const PendingTask: React.FC = () => {
         limit: 500,
     }, isHeadApprover && !!currentUser ? `project-registration-head-approver:${currentUser}` : null);
 
-    // Funding Agency needs a name → funding_agen lookup on Project Registration rows — project_type
-    // resolution itself now happens server-side (get_categorized_pending_task), so this call only
+    // Funding Agency needs a lookup on Project Registration rows — project_type
+    // resolution itself happens server-side (get_categorized_pending_task), so this call only
     // exists for that one column. `limit: 0`, same "fetch everything" idiom as `allFundingAgencies`.
     const { data: allProjectRegistrations } = useFrappeGetDocList("Project Registration", {
-        fields: ["name", "funding_agen"],
+        fields: ["name", "project_no", "funding_agen"],
         limit: 0,
     }, "project-registration-all-for-funding-agency-lookup");
 
@@ -385,14 +397,30 @@ const PendingTask: React.FC = () => {
         return new Set(piLeaveModules.map((l: { name: string }) => l.name));
     }, [isPermanentEmployee, piLeaveModules]);
 
-    // prNameToFundingAgen: PR document name → raw funding_agen id (resolved to a display name via fundingAgencyNameMap)
-    const prNameToFundingAgen = React.useMemo(() => {
-        const map = new Map<string, string>();
-        (allProjectRegistrations ?? []).forEach((p: { name: string; funding_agen?: string }) => {
-            if (p.name && p.funding_agen) map.set(p.name, p.funding_agen);
+    // prByName / prByNo: the whole PR row, keyed both ways, so a task can yield its project's
+    // funding agency whichever form of project reference its row carries.
+    const { prByName, prByNo } = React.useMemo(() => {
+        const prByName = new Map<string, PRRow>();
+        const prByNo = new Map<string, PRRow>();
+        (allProjectRegistrations ?? []).forEach((p: PRRow) => {
+            if (p.name) prByName.set(p.name, p);
+            if (p.project_no) prByNo.set(p.project_no, p);
         });
-        return map;
+        return { prByName, prByNo };
     }, [allProjectRegistrations]);
+
+    /**
+     * The Project Registration row behind a task. A Project Registration task *is* the row
+     * (its id is the PR name); every other doctype points at it through the `project_no` the
+     * server already resolved onto the row — a project_no for most, a PR docname for a few,
+     * so both maps are tried. Overhead projects are hidden from non-owners, so this can
+     * legitimately miss; callers fall back to "-".
+     */
+    const prRowForTask = React.useCallback((task: { id: string; doctype: string; projectNo: string }): PRRow | undefined => {
+        if (task.doctype === "Project Registration") return prByName.get(task.id);
+        if (!task.projectNo) return undefined;
+        return prByNo.get(task.projectNo) ?? prByName.get(task.projectNo);
+    }, [prByName, prByNo]);
 
     const { data, isLoading, error } = useFrappeGetCall<CategorizedPendingTaskResponse>(
         "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_categorized_pending_task",
@@ -406,10 +434,14 @@ const PendingTask: React.FC = () => {
             ['Research', data.message.research ?? []],
             ['Consultancy', data.message.consultancy ?? []],
             ['Others', data.message.others ?? []],
+            ['Overhead', data.message.overhead ?? []],
         ];
 
         const tasks: FlattenedTask[] = [];
-        buckets.forEach(([project_type, rows]) => rows.forEach((record) => {
+        buckets.forEach(([bucket_type, rows]) => rows.forEach((record) => {
+            // Overhead funds (PDF/DPF/…) announce themselves in the project number, so the
+            // task is moved into the Overhead tab whichever bucket the backend put it in.
+            const project_type = withOverheadCategory(bucket_type, record.project_no);
             // HoS users: also include records from mod_vis=0 groups if status is "Pending HoS Approval"
             const shouldIncludeGroup = !!record.mod_vis || record.doctype === "Advance Settlement";
             const isHosPendingRecord = record.status === "Pending HoS Approval";
@@ -552,6 +584,7 @@ const PendingTask: React.FC = () => {
         Research: visibleTasks.filter(t => t.project_type === 'Research').length,
         Consultancy: visibleTasks.filter(t => t.project_type === 'Consultancy').length,
         Others: visibleTasks.filter(t => t.project_type === 'Others').length,
+        Overhead: visibleTasks.filter(t => t.project_type === 'Overhead').length,
     }), [visibleTasks]);
 
     // Module names scoped to current project type tab
@@ -717,11 +750,13 @@ const PendingTask: React.FC = () => {
                                 Research: active ? 'bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A] shadow-sm shadow-[#4A6CF7]/10 dark:bg-[#4A6CF7]/18 dark:border-[#818CF8] dark:text-[#C7D2FE]' : 'border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/10 dark:text-[#C7D2FE]',
                                 Consultancy: active ? 'bg-[#ECFDF5] border-[#10B981] text-[#065F46] shadow-sm shadow-[#10B981]/10 dark:bg-[#10B981]/15 dark:border-[#34D399] dark:text-[#A7F3D0]' : 'border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] hover:bg-[#ECFDF5] dark:border-[#10B981]/30 dark:bg-[#10B981]/10 dark:text-[#A7F3D0]',
                                 Others: active ? 'bg-[#F4F4F5] border-[#71717A] text-[#3F3F46] shadow-sm dark:bg-[#3F3F46] dark:border-[#A1A1AA] dark:text-[#E4E4E7]' : 'border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]',
+                                Overhead: active ? 'bg-[#FFF7ED] border-[#EA580C] text-[#9A3412] shadow-sm shadow-[#EA580C]/10 dark:bg-[#EA580C]/18 dark:border-[#FB923C] dark:text-[#FED7AA]' : 'border-[#FED7AA] bg-[#FFF7ED]/60 text-[#C2410C] hover:bg-[#FFF7ED] dark:border-[#EA580C]/30 dark:bg-[#EA580C]/10 dark:text-[#FED7AA]',
                             };
                             const badgeColors: Record<string, string> = {
                                 Research: active ? 'bg-[#4A6CF7] text-white' : 'bg-white/80 text-[#4A6CF7] dark:bg-[#18181B]/50',
                                 Consultancy: active ? 'bg-[#10B981] text-white' : 'bg-white/80 text-[#059669] dark:bg-[#18181B]/50',
                                 Others: active ? 'bg-[#71717A] text-white' : 'bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50',
+                                Overhead: active ? 'bg-[#EA580C] text-white' : 'bg-white/80 text-[#C2410C] dark:bg-[#18181B]/50',
                             };
                             return (
                                 <button
@@ -732,7 +767,7 @@ const PendingTask: React.FC = () => {
                                         tabColors[tab]
                                     )}
                                 >
-                                    {tab}
+                                    {projectTypeTabLabel(tab, roles)}
                                     <span className={cn("px-2 py-0.5 rounded-full text-xs font-semibold", badgeColors[tab])}>
                                         {tabCounts[tab]}
                                     </span>
@@ -871,8 +906,9 @@ const PendingTask: React.FC = () => {
                                             {showFundingAgencyColumn && (
                                                 <td className="p-3 align-middle text-zinc-600 dark:text-zinc-400">
                                                     {(() => {
-                                                        if (task.doctype !== "Project Registration") return "-";
-                                                        const fundingAgen = prNameToFundingAgen.get(task.id);
+                                                        // Resolved through the task's own project, so this works for
+                                                        // every application form, not just Project Registration.
+                                                        const fundingAgen = prRowForTask(task)?.funding_agen;
                                                         if (!fundingAgen) return "-";
                                                         return fundingAgencyNameMap.get(fundingAgen) || fundingAgen;
                                                     })()}

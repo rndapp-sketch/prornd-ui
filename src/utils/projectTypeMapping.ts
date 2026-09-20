@@ -176,13 +176,128 @@ export const DOCTYPE_PR_LINKS: Record<string, DoctypePRLink> = {
 
 // ── Lookup helpers ───────────────────────────────────────────────────────────
 
-export type ProjectCategory = 'Research' | 'Consultancy' | 'Others';
+export type ProjectCategory = 'Research' | 'Consultancy' | 'Others' | 'Overhead';
+
+/**
+ * The institute's overhead funds, surfaced as projects so they can be spent from and
+ * approved like any other. PDF (per employee) and DPF (per department) exist today; the
+ * institute-wide pools are listed now so they land in the same category automatically
+ * when they follow.
+ * See docs/pdf-project-implementation.md and docs/dpf-project-implementation.md.
+ */
+export const OVERHEAD_PROJECT_TYPES = ['pdf', 'dpf', 'idf', 'swf', 'stwf'];
+
+/**
+ * Roles whose overhead tab holds funds of more than one kind.
+ *
+ * An R&D approver's queue merges every PI's and every head's overhead applications, so
+ * naming the tab after one fund would be wrong for them — they keep the generic label.
+ * Checked first, because a Dean or Director may also hold one of the roles below.
+ */
+const OVERHEAD_MIXED_ROLES = [
+    'staff, RnD',
+    'Hos, RnD (Head of Section, RnD)',
+    'Dean, RnD',
+    'Director',
+    'Ado_RnD',
+];
+
+/** Roles that own a Departmental Development Fund — the head of a department/centre/school. */
+const OVERHEAD_DPF_ROLES = [
+    'head_approver_1',
+    'head_department_center_school',
+    'HoD (Head of Department)',
+    'HoC (Head of Center)',
+    'HoS (Head of School)',
+];
+
+/** Roles that own a Personal Development Fund — a PI. */
+const OVERHEAD_PDF_ROLES = ['Permanent Employee'];
+
+/**
+ * What to call the Overhead tab for this user.
+ *
+ * The tab holds every overhead fund, but almost nobody holds more than one kind: a
+ * department head sees only their DPF, a PI only their PDF. Naming it after the fund they
+ * actually have is more use than the umbrella term — so the label is cosmetic and
+ * role-derived, while the category stays `'Overhead'` everywhere else.
+ *
+ * **Display only.** `ProjectCategory`, the tab filter, the counts map, the colour maps and
+ * PendingTask's `?type=` URL parameter all remain keyed on `'Overhead'`; renaming the value
+ * would break the deep links and every lookup that indexes by it.
+ */
+export function overheadTabLabel(roles: string[] | undefined | null): string {
+    const held = new Set(roles ?? []);
+    if (OVERHEAD_MIXED_ROLES.some((r) => held.has(r))) return 'Overhead';
+    if (OVERHEAD_DPF_ROLES.some((r) => held.has(r))) return 'DPF';
+    if (OVERHEAD_PDF_ROLES.some((r) => held.has(r))) return 'PDF';
+    return 'Overhead';
+}
+
+/** The label for any tab: only `Overhead` varies, the rest are their own name. */
+export function projectTypeTabLabel(tab: string, roles: string[] | undefined | null): string {
+    return tab === 'Overhead' ? overheadTabLabel(roles) : tab;
+}
 
 export function normalizeProjectType(raw: string | undefined | null): ProjectCategory {
-    const t = (raw ?? '').toLowerCase();
+    const t = (raw ?? '').toLowerCase().trim();
     if (t.includes('research'))  return 'Research';
     if (t.includes('consult'))   return 'Consultancy';
+    // Checked before the Others fallback, so an overhead fund gets its own tab rather
+    // than being lumped in with everything unclassified.
+    if (OVERHEAD_PROJECT_TYPES.includes(t)) return 'Overhead';
     return 'Others';
+}
+
+/**
+ * How a record points at its Project Registration.
+ *
+ *   kind 'name'       – the value is a PR document name (auto-id)
+ *   kind 'project_no' – the value is the human-readable PR project_no
+ *
+ * Returned so a caller can look up *anything* on the PR — title, funding agency,
+ * project type — rather than only the category. `direct_type` links yield no ref:
+ * that strategy stores a copied project_type string, not a pointer to a PR.
+ */
+export interface ProjectRef {
+    kind: 'name' | 'project_no';
+    value: string;
+}
+
+/**
+ * The Project Registration a pending-task / task-registry record belongs to.
+ *
+ * Uses the same DOCTYPE_PR_LINKS strategies as resolveProjectCategory, including the
+ * fallback, so every doctype that can resolve a category can also resolve a project —
+ * which is what lets the Title and Funding Agency columns work for *all* application
+ * forms rather than only Project Registration.
+ */
+export function resolveProjectRef(
+    record: Record<string, unknown>,
+    doctype: string,
+): ProjectRef | undefined {
+    const mapping = DOCTYPE_PR_LINKS[doctype];
+    if (!mapping) return undefined;
+
+    const applyStrategy = (strategy: PRLinkStrategy): ProjectRef | undefined => {
+        if (strategy.type === 'self') {
+            const name = record['name'] as string | undefined;
+            return name ? { kind: 'name', value: name } : undefined;
+        }
+        if (strategy.type === 'pr_name') {
+            const val = record[strategy.field] as string | undefined;
+            return val ? { kind: 'name', value: val } : undefined;
+        }
+        if (strategy.type === 'pr_project_no') {
+            const val = record[strategy.field] as string | undefined;
+            return val ? { kind: 'project_no', value: val } : undefined;
+        }
+        // 'direct_type' carries a project_type value, not a project reference.
+        return undefined;
+    };
+
+    return applyStrategy(mapping.primary)
+        ?? (mapping.fallback ? applyStrategy(mapping.fallback) : undefined);
 }
 
 /**
@@ -194,6 +309,42 @@ export function normalizeProjectType(raw: string | undefined | null): ProjectCat
  * @param prNameToType  Map: PR document `name` → raw project_type string
  * @param prNoToType    Map: PR `project_no`   → raw project_type string
  */
+/**
+ * Project-number prefixes for the overhead funds. Minted as `{FUND}{scope id}` —
+ * `PDF1411` for employee 1411, `DPF4` for department 4.
+ */
+const OVERHEAD_PROJECT_NO_PREFIXES = ['PDF', 'DPF', 'IDF', 'SWF', 'STWF'];
+
+/**
+ * Whether a project number belongs to an overhead fund, judged from the number alone.
+ *
+ * This exists because the Project Registration lookup below can miss for a *legitimate*
+ * reason: overhead projects are hidden from anyone who does not own them, so an approver
+ * without a privileged role receives the application in their queue but cannot see its
+ * project — and the task then fell into `Others`. The project number is already on the
+ * record they can see, and it is enough to place the task in the right tab without
+ * widening anyone's access to the fund itself.
+ */
+export const looksLikeOverheadProjectNo = (value: unknown): boolean =>
+    typeof value === 'string' &&
+    OVERHEAD_PROJECT_NO_PREFIXES.some((prefix) => value.startsWith(prefix));
+
+/**
+ * Moves a server-categorized task into the Overhead category when its project number
+ * announces an overhead fund.
+ *
+ * PendingTask and TaskRegistry now receive tasks already bucketed by the backend
+ * (get_categorized_*), which knows only Research / Consultancy / Others. The project
+ * number rides on every row, so the overhead tab is layered on top here — exactly the
+ * number-prefix fallback `resolveProjectCategory` uses, and for the same reason: it needs
+ * no access to the fund's project row, so it places the task correctly for every approver
+ * without widening anyone's access.
+ */
+export const withOverheadCategory = (
+    category: ProjectCategory,
+    projectNo: unknown,
+): ProjectCategory => (looksLikeOverheadProjectNo(projectNo) ? 'Overhead' : category);
+
 export function resolveProjectCategory(
     record: Record<string, unknown>,
     doctype: string,
@@ -222,6 +373,15 @@ export function resolveProjectCategory(
 
     const primary = applyStrategy(mapping.primary);
     if (primary) return normalizeProjectType(primary);
+
+    // The project row was not visible (or not found). Before giving up, read the project
+    // *number* off the record — an overhead fund announces itself in its own number.
+    const overheadByNumber = [mapping.primary, mapping.fallback].some(
+        (strategy) =>
+            strategy?.type === 'pr_project_no' &&
+            looksLikeOverheadProjectNo(record[strategy.field]),
+    );
+    if (overheadByNumber) return 'Overhead';
 
     if (mapping.fallback) {
         const fallback = applyStrategy(mapping.fallback);

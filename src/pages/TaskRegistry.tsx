@@ -3,12 +3,22 @@ import React, { useState, useEffect } from 'react';
 import { FaExclamationCircle, FaArrowLeft, FaSearch } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useFrappeGetCall, useFrappeGetDocList } from 'frappe-react-sdk';
+import { useFrappeAuth, useFrappeGetCall, useFrappeGetDocList } from 'frappe-react-sdk';
+import { useUserRoles } from '../components/UserRole';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { ModuleFilterSelect } from '@/components/ModuleFilterSelect';
 import { ActivityLog } from '@/components/ActivityLog';
 import { XIcon, ActivityIcon } from 'lucide-react';
-import { resolveProjectCategory, type ProjectCategory } from '@/utils/projectTypeMapping';
+import { resolveProjectCategory, projectTypeTabLabel, withOverheadCategory, type ProjectCategory } from '@/utils/projectTypeMapping';
+
+/** The Project Registration fields this page reads, fetched once for every PR. */
+interface PRRow {
+    name: string;
+    project_no?: string;
+    project_type?: string;
+    project_title?: string;
+    funding_agen?: string;
+}
 // import { debounce } from 'lodash';
 
 // Row shape returned by get_categorized_task_registry, already bucketed into
@@ -33,6 +43,10 @@ interface CategorizedTaskRegistryResponse {
         research: CategorizedTaskRow[];
         consultancy: CategorizedTaskRow[];
         others: CategorizedTaskRow[];
+        // Not returned today — overhead tasks arrive in one of the three buckets above and
+        // are moved by project number (see withOverheadCategory). Read if the backend ever
+        // starts bucketing them itself.
+        overhead?: CategorizedTaskRow[];
     };
 }
 
@@ -55,7 +69,7 @@ interface FlattenedTask {
 
 type ProjectTypeTab = ProjectCategory;
 
-const PROJECT_TYPE_TABS: ProjectTypeTab[] = ['Research', 'Consultancy', 'Others'];
+const PROJECT_TYPE_TABS: ProjectTypeTab[] = ['Research', 'Consultancy', 'Others', 'Overhead'];
 const HIDDEN_OTHERS_DOCTYPES = new Set(['Kafka Commit Staging', 'Project Number Generation']);
 
 // Frappe-styled components
@@ -94,6 +108,10 @@ const TaskRegistry: React.FC = () => {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const [currentPage, setCurrentPage] = useState(1);
+    // Only used to name the Overhead tab after the fund this user actually holds —
+    // DPF for a department head, PDF for a PI. Nothing else on this page is role-aware.
+    const { currentUser } = useFrappeAuth();
+    const { roles } = useUserRoles(currentUser ?? null);
     // Backed by the URL (like PendingTask.tsx) so the selected tab/module/search survive a
     // back-navigation from an opened task's detail page instead of resetting to Research/all.
     const selectedModule = searchParams.get('module') ?? '';
@@ -122,25 +140,60 @@ const TaskRegistry: React.FC = () => {
         { debug: 1 }
     );
 
-    // Only needed to categorize the client-merged Recruitment Adhoc Contractual rows below —
-    // every other doctype's project_type comes pre-resolved from get_categorized_task_registry.
+    // Categorizes the client-merged Recruitment Adhoc Contractual rows below (every other
+    // doctype's project_type comes pre-resolved from get_categorized_task_registry), and
+    // supplies the project title and funding agency shown for every row.
     const { data: allProjectRegistrations } = useFrappeGetDocList("Project Registration", {
-        fields: ["name", "project_no", "project_type"],
-        limit: 1000,
+        fields: ["name", "project_no", "project_type", "project_title", "funding_agen"],
+        limit: 0,
     });
 
-    const { prNameToType, prNoToType } = React.useMemo(() => {
+    // Funding agency id -> display name, same bulk-map pattern PendingTask uses.
+    // NOTE the doctype is `fundingagency_` (trailing underscore) — there is no
+    // "Funding Agency" doctype, and querying that name silently returns nothing.
+    const { data: allFundingAgencies } = useFrappeGetDocList("fundingagency_", {
+        fields: ["name", "funding_agency_name"],
+        limit: 0,
+    } as any);
+    const fundingAgencyNameMap = React.useMemo(() => {
+        const map = new Map<string, string>();
+        (allFundingAgencies ?? []).forEach((agency: { name: string; funding_agency_name?: string }) => {
+            if (agency.name && agency.funding_agency_name) map.set(agency.name, agency.funding_agency_name);
+        });
+        return map;
+    }, [allFundingAgencies]);
+
+    // prByName / prByNo: the whole PR row, keyed both ways, so a task can yield its project's
+    // title AND funding agency whichever form of project reference its row carries.
+    const { prNameToType, prNoToType, prByName, prByNo } = React.useMemo(() => {
         const prNameToType = new Map<string, string>();
         const prNoToType = new Map<string, string>();
+        const prByName = new Map<string, PRRow>();
+        const prByNo = new Map<string, PRRow>();
         if (allProjectRegistrations) {
-            allProjectRegistrations.forEach((p: { name: string; project_no?: string; project_type?: string }) => {
+            allProjectRegistrations.forEach((p: PRRow) => {
                 const raw = p.project_type || '';
                 if (p.name) prNameToType.set(p.name, raw);
                 if (p.project_no) prNoToType.set(p.project_no, raw);
+                if (p.name) prByName.set(p.name, p);
+                if (p.project_no) prByNo.set(p.project_no, p);
             });
         }
-        return { prNameToType, prNoToType };
+        return { prNameToType, prNoToType, prByName, prByNo };
     }, [allProjectRegistrations]);
+
+    /**
+     * The Project Registration row behind a task. A Project Registration task *is* the row
+     * (its id is the PR name); every other doctype points at it through the `project_no`
+     * the server already resolved onto the row — a project_no for most, a PR docname for a
+     * few, so both maps are tried. Overhead projects are hidden from non-owners, so this
+     * can legitimately miss; callers fall back to the document's own title / "-".
+     */
+    const prRowForTask = React.useCallback((task: { id: string; doctype: string; projectNo: string }): PRRow | undefined => {
+        if (task.doctype === "Project Registration") return prByName.get(task.id);
+        if (!task.projectNo) return undefined;
+        return prByNo.get(task.projectNo) ?? prByName.get(task.projectNo);
+    }, [prByName, prByNo]);
 
     // Supplemental fetch: Recruitment Adhoc Contractual is not returned by the
     // task-registry endpoint, so fetch them directly and merge below.
@@ -172,9 +225,13 @@ const TaskRegistry: React.FC = () => {
                 ['Research', data.message.research ?? []],
                 ['Consultancy', data.message.consultancy ?? []],
                 ['Others', data.message.others ?? []],
+                ['Overhead', data.message.overhead ?? []],
             ];
-            buckets.forEach(([project_type, rows]) => rows.forEach((record) => {
+            buckets.forEach(([bucket_type, rows]) => rows.forEach((record) => {
                 existingIds.add(record.name);
+                // Overhead funds (PDF/DPF/…) announce themselves in the project number, so the
+                // task is moved into the Overhead tab whichever bucket the backend put it in.
+                const project_type = withOverheadCategory(bucket_type, record.project_no);
                 tasks.push({
                     id: record.name,
                     title: record.title,
@@ -201,11 +258,14 @@ const TaskRegistry: React.FC = () => {
                         modified: rec.modified,
                         owner: rec.owner,
                         doctype: 'Recruitment Adhoc Contractual',
-                        project_type: resolveProjectCategory(
-                            rec as unknown as Record<string, unknown>,
-                            'Recruitment Adhoc Contractual',
-                            prNameToType,
-                            prNoToType,
+                        project_type: withOverheadCategory(
+                            resolveProjectCategory(
+                                rec as unknown as Record<string, unknown>,
+                                'Recruitment Adhoc Contractual',
+                                prNameToType,
+                                prNoToType,
+                            ),
+                            rec.upfa_project_code,
                         ),
                         projectNo: rec.upfa_project_code || "",
                     });
@@ -224,6 +284,7 @@ const TaskRegistry: React.FC = () => {
         Research: visibleTasks.filter(t => t.project_type === 'Research').length,
         Consultancy: visibleTasks.filter(t => t.project_type === 'Consultancy').length,
         Others: visibleTasks.filter(t => t.project_type === 'Others').length,
+        Overhead: visibleTasks.filter(t => t.project_type === 'Overhead').length,
     }), [visibleTasks]);
 
     const moduleNames = React.useMemo(() => {
@@ -386,11 +447,13 @@ const TaskRegistry: React.FC = () => {
                                     Research: active ? 'bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A] shadow-sm shadow-[#4A6CF7]/10 dark:bg-[#4A6CF7]/18 dark:border-[#818CF8] dark:text-[#C7D2FE]' : 'border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/10 dark:text-[#C7D2FE]',
                                     Consultancy: active ? 'bg-[#ECFDF5] border-[#10B981] text-[#065F46] shadow-sm shadow-[#10B981]/10 dark:bg-[#10B981]/15 dark:border-[#34D399] dark:text-[#A7F3D0]' : 'border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] hover:bg-[#ECFDF5] dark:border-[#10B981]/30 dark:bg-[#10B981]/10 dark:text-[#A7F3D0]',
                                     Others: active ? 'bg-[#F4F4F5] border-[#71717A] text-[#3F3F46] shadow-sm dark:bg-[#3F3F46] dark:border-[#A1A1AA] dark:text-[#E4E4E7]' : 'border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]',
+                                    Overhead: active ? 'bg-[#FFF7ED] border-[#EA580C] text-[#9A3412] shadow-sm shadow-[#EA580C]/10 dark:bg-[#EA580C]/18 dark:border-[#FB923C] dark:text-[#FED7AA]' : 'border-[#FED7AA] bg-[#FFF7ED]/60 text-[#C2410C] hover:bg-[#FFF7ED] dark:border-[#EA580C]/30 dark:bg-[#EA580C]/10 dark:text-[#FED7AA]',
                                 };
                                 const badgeColors: Record<ProjectTypeTab, string> = {
                                     Research: active ? 'bg-[#4A6CF7] text-white' : 'bg-white/80 text-[#4A6CF7] dark:bg-[#18181B]/50',
                                     Consultancy: active ? 'bg-[#10B981] text-white' : 'bg-white/80 text-[#059669] dark:bg-[#18181B]/50',
                                     Others: active ? 'bg-[#71717A] text-white' : 'bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50',
+                                    Overhead: active ? 'bg-[#EA580C] text-white' : 'bg-white/80 text-[#C2410C] dark:bg-[#18181B]/50',
                                 };
                                 return (
                                     <button
@@ -401,7 +464,7 @@ const TaskRegistry: React.FC = () => {
                                             tabColors[tab],
                                         )}
                                     >
-                                        {tab}
+                                        {projectTypeTabLabel(tab, roles)}
                                         <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold leading-none", badgeColors[tab])}>
                                             {tabCounts[tab]}
                                         </span>
@@ -470,6 +533,7 @@ const TaskRegistry: React.FC = () => {
                                         <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
                                         <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Module</th>
                                         <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Title/Document ID</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Funding Agency</th>
                                         <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Document ID</th>
                                         <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Created</th>
                                         <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Modified</th>
@@ -534,9 +598,23 @@ const TaskRegistry: React.FC = () => {
                                                         }}
                                                         title="Click to preview activity log"
                                                     >
-                                                        {task.title.length > 30 ? `${task.title.substring(0, 30)}...` : task.title}
+                                                        {(() => {
+                                                            // Prefer the project's own title — the registry API's
+                                                            // `title` is often the document id, which reads as noise.
+                                                            const display = prRowForTask(task)?.project_title || task.title;
+                                                            return display.length > 30 ? `${display.substring(0, 30)}...` : display;
+                                                        })()}
                                                         <ActivityIcon className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-[#D97757] flex-shrink-0 transition-opacity" />
                                                     </button>
+                                                </td>
+                                                <td className="p-3 align-middle text-zinc-600 dark:text-zinc-400">
+                                                    {(() => {
+                                                        // Resolved through the task's own project, so this works for
+                                                        // every application form, not just Project Registration.
+                                                        const fundingAgen = prRowForTask(task)?.funding_agen;
+                                                        if (!fundingAgen) return "-";
+                                                        return fundingAgencyNameMap.get(fundingAgen) || fundingAgen;
+                                                    })()}
                                                 </td>
                                                 <td className="p-3 font-mono text-zinc-900 dark:text-zinc-100">
                                                     {task.doctype === "Fund Received" ? (
@@ -607,7 +685,7 @@ const TaskRegistry: React.FC = () => {
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan={8} className="p-8 text-center text-zinc-900 dark:text-zinc-100 font-bold">
+                                            <td colSpan={9} className="p-8 text-center text-zinc-900 dark:text-zinc-100 font-bold">
                                                 {isLoading ? "Loading documents..." : "No documents found matching your criteria."}
                                             </td>
                                         </tr>

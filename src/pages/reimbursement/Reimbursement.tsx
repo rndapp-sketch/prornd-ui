@@ -544,6 +544,7 @@ import { DynamicFormRenderer, type FormField, type LinkOption } from '@/componen
 import { isFieldVisible } from '@/utils/evalExpression';
 import { prepareFormDataForApi } from '@/services/apiService';
 import { ErrorModal } from '@/components/ErrorModal';
+import { useIsOverheadProject } from '@/hooks/useIsOverheadProject';
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -613,6 +614,11 @@ const Reimbursement: React.FC = () => {
     const [fields, setFields] = useState<FormField[]>([]);
     const [formData, setFormData] = useState<Record<string, any>>({});
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    // An overhead fund (PDF / DPF / IDF / SWF / STWF) is a single pool with no head
+    // dimension — every spend books to "Overhead". This fixes and locks every Budget
+    // Head selector on the form. Ordinary projects are untouched.
+    const isOverheadProject = useIsOverheadProject(formData.project_number || formData.project_name);
+
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
@@ -1078,6 +1084,7 @@ const Reimbursement: React.FC = () => {
                 <form onSubmit={handleSubmit}>
                     <FrappeCard className="space-y-12">
                         <DynamicFormRenderer
+                                                        overheadFund={isOverheadProject}
                             fields={fields}
                             formData={formData}
                             linkOptions={linkOptions}

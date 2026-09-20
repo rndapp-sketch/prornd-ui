@@ -9,6 +9,7 @@ import { miscellaneousCommitAPI, prepareFormDataForApi } from '@/services/apiSer
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { DepartmentName } from '@/components/DepartmentName';
 import ProjectDetailsOverview from '@/pages/ProjectDetailsOverview';
+import { useIsOverheadProject } from '@/hooks/useIsOverheadProject';
 import { ErrorModal } from '../../components/ErrorModal';
 import { parseFrappeError } from '../../utils/errorUtils';
 
@@ -138,6 +139,11 @@ const MiscellaneousCommitForm: React.FC = () => {
     const [fields, setFields] = useState<FormField[]>([]);
     const [formData, setFormData] = useState<Record<string, any>>({});
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    // An overhead fund (PDF / DPF / IDF / SWF / STWF) is a single pool with no head
+    // dimension — every spend books to "Overhead". This fixes and locks every Budget
+    // Head selector on the form. Ordinary projects are untouched.
+    const isOverheadProject = useIsOverheadProject(formData.project_no || formData.project_name);
+
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -384,6 +390,7 @@ const MiscellaneousCommitForm: React.FC = () => {
                             </div>
                         )}
                         <DynamicFormRenderer
+                                                        overheadFund={isOverheadProject}
                             fields={groupA}
                             {...commonRendererProps}
                             autocompleteFields={['project_number']}

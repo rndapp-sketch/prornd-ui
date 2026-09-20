@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { overheadFundAPI } from "@/services/apiService";
 import {
   Select,
   SelectContent,
@@ -38,6 +39,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserRoles } from "../components/UserRole";
+import { projectTypeTabLabel } from "@/utils/projectTypeMapping";
 import { format } from "date-fns";
 import {
   DropdownMenu,
@@ -82,14 +84,25 @@ interface UserDelegation {
   enabled?: number;
 }
 
-type ProjectTypeTab = 'Research' | 'Consultancy' | 'Others';
-const PROJECT_TYPE_TABS: ProjectTypeTab[] = ['Research', 'Consultancy', 'Others'];
+type ProjectTypeTab = 'Research' | 'Consultancy' | 'Others' | 'Overhead';
+const PROJECT_TYPE_TABS: ProjectTypeTab[] = ['Research', 'Consultancy', 'Others', 'Overhead'];
+
+/**
+ * The institute's overhead funds, which are surfaced as projects so they can be spent
+ * from and approved like any other. PDF and DPF exist today; IDF / SWF / STWF are
+ * listed now so they join the same tab automatically when they follow.
+ */
+const OVERHEAD_PROJECT_TYPES = ['pdf', 'dpf', 'idf', 'swf', 'stwf'];
 
 const normalizeProjectType = (raw?: string): ProjectTypeTab => {
   if (!raw) return 'Others';
-  const lower = raw.toLowerCase();
+  const lower = raw.toLowerCase().trim();
   if (lower.includes('research')) return 'Research';
   if (lower.includes('consult')) return 'Consultancy';
+  // Checked before the Others fallback, so an overhead fund gets its own tab rather than
+  // being lumped in with everything unclassified. This is the tab approvers
+  // (staff/HoS/Dean, RnD) act on for overhead applications.
+  if (OVERHEAD_PROJECT_TYPES.includes(lower)) return 'Overhead';
   return 'Others';
 };
 
@@ -452,16 +465,24 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     error: rolesError,
   } = useUserRoles(currentUser ?? null);
 
-  const { isAdministrator, isPermanentEmployee } = React.useMemo(() => {
-    const roles =
+  // The role list every check on this page uses. `useUserRoles` is the source of truth,
+  // but it resolves asynchronously — the fallback keeps role-dependent rendering correct
+  // on the first paint instead of briefly showing the wrong thing.
+  const roles = React.useMemo<string[]>(
+    () =>
       fetchedRoles?.length > 0
         ? fetchedRoles
-        : (userData?.roles?.map((r: any) => r.role) ?? []);
-    return {
+        : (userData?.roles?.map((r: any) => r.role) ?? []),
+    [userData, fetchedRoles],
+  );
+
+  const { isAdministrator, isPermanentEmployee } = React.useMemo(
+    () => ({
       isAdministrator: roles.includes("Administrator"),
       isPermanentEmployee: roles.includes("Permanent Employee"),
-    };
-  }, [userData, fetchedRoles]);
+    }),
+    [roles],
+  );
 
   React.useEffect(() => {
     if (initialTab) setActiveTab(initialTab);
@@ -469,6 +490,18 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
       setActiveTab("pending");
     }
   }, [initialTab, location.state]);
+
+  // Overhead funds: a PI with a credited PDF balance, and a department head whose
+  // department has a credited DPF balance, each get an inbuilt pre-approved project.
+  // Minted on first visit rather than in bulk, so nobody is handed an empty shell — the
+  // backend skips any fund with no balance yet, and the call is a single indexed lookup
+  // once the projects exist. One round trip covers every fund the user is entitled to.
+  // See docs/pdf-project-implementation.md §5.1 / §10 and docs/dpf-project-implementation.md §5.1.
+  const { call: ensureOverheadProjects } = useFrappePostCall<{
+    message: { status: string; created: boolean; data: { pdf: string | null; dpf: string[] } };
+  }>(overheadFundAPI.ensureProjects);
+
+  const overheadEnsuredRef = React.useRef(false);
 
   const {
     data: myCreatedProjects,
@@ -482,6 +515,22 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
       : [["name", "=", "NON_EXISTENT_DOC"]],
     limit: 1000,
   });
+
+  React.useEffect(() => {
+    if (!currentUser || overheadEnsuredRef.current) return;
+    overheadEnsuredRef.current = true;
+
+    ensureOverheadProjects({})
+      .then((res) => {
+        // Only refetch when something was actually created — the usual case is that the
+        // projects already exist, or the user has no overhead balance and never gets one.
+        if (res?.message?.created) mutateCreated();
+      })
+      .catch(() => {
+        // Never let this block the project list. Someone with no overhead fund simply
+        // doesn't see one; the backend already logs the reason.
+      });
+  }, [currentUser, ensureOverheadProjects, mutateCreated]);
 
   const {
     data: myApprovalProjects,
@@ -736,6 +785,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     Research: ((activeTab === "delegated" ? visibleDelegatedProjects : myProjects) ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Research').length,
     Consultancy: ((activeTab === "delegated" ? visibleDelegatedProjects : myProjects) ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Consultancy').length,
     Others: ((activeTab === "delegated" ? visibleDelegatedProjects : myProjects) ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Others').length,
+    Overhead: ((activeTab === "delegated" ? visibleDelegatedProjects : myProjects) ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Overhead').length,
   }), [activeTab, visibleDelegatedProjects, myProjects]);
 
   const visibleProjects = activeTab === "delegated" ? visibleDelegatedProjects : myProjects;
@@ -845,6 +895,15 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     const result = sanctionedProjectsSet.has(p.name);
     return result;
   };
+
+  // An overhead fund (PDF / DPF / IDF / SWF / STWF) is credited automatically when a
+  // consultancy deposit slip distributes the institute share — it is never sanctioned,
+  // and the Sanction tab and journey are hidden for it everywhere else. So the sanction
+  // sub-label under the status badge has nothing to report: hasSanction() can only ever
+  // be false, leaving every overhead project reading "(Pending Sanction)" forever, for a
+  // sanction that is never coming. The workflow state on its own is the whole status.
+  const showsSanctionState = (p: any) =>
+    normalizeProjectType((p as any).project_type) !== 'Overhead';
 
   // --- Fetch Project Proposals ---
   const { data: projectProposals, isLoading: proposalsLoading } =
@@ -1090,11 +1149,13 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
               Research: active ? 'bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A] shadow-sm shadow-[#4A6CF7]/10 dark:bg-[#4A6CF7]/18 dark:border-[#818CF8] dark:text-[#C7D2FE]' : 'border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/10 dark:text-[#C7D2FE]',
               Consultancy: active ? 'bg-[#ECFDF5] border-[#10B981] text-[#065F46] shadow-sm shadow-[#10B981]/10 dark:bg-[#10B981]/15 dark:border-[#34D399] dark:text-[#A7F3D0]' : 'border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] hover:bg-[#ECFDF5] dark:border-[#10B981]/30 dark:bg-[#10B981]/10 dark:text-[#A7F3D0]',
               Others: active ? 'bg-[#F4F4F5] border-[#71717A] text-[#3F3F46] shadow-sm dark:bg-[#3F3F46] dark:border-[#A1A1AA] dark:text-[#E4E4E7]' : 'border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]',
+              Overhead: active ? 'bg-[#FFF7ED] border-[#EA580C] text-[#9A3412] shadow-sm shadow-[#EA580C]/10 dark:bg-[#EA580C]/18 dark:border-[#FB923C] dark:text-[#FED7AA]' : 'border-[#FED7AA] bg-[#FFF7ED]/60 text-[#C2410C] hover:bg-[#FFF7ED] dark:border-[#EA580C]/30 dark:bg-[#EA580C]/10 dark:text-[#FED7AA]',
             };
             const badgeColors: Record<string, string> = {
               Research: active ? 'bg-[#4A6CF7] text-white' : 'bg-white/80 text-[#4A6CF7] dark:bg-[#18181B]/50',
               Consultancy: active ? 'bg-[#10B981] text-white' : 'bg-white/80 text-[#059669] dark:bg-[#18181B]/50',
               Others: active ? 'bg-[#71717A] text-white' : 'bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50',
+              Overhead: active ? 'bg-[#EA580C] text-white' : 'bg-white/80 text-[#C2410C] dark:bg-[#18181B]/50',
             };
             return (
               <button
@@ -1105,7 +1166,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                   tabColors[tab]
                 )}
               >
-                {tab}
+                {projectTypeTabLabel(tab, roles)}
                 <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-bold leading-none", badgeColors[tab])}>
                   {projectTypeCounts[tab]}
                 </span>
@@ -1279,7 +1340,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                         <TableCell className="px-4 py-3 whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
                           <div className="flex flex-col gap-0.5">
                             {getStatusBadge(p.workflow_state)}
-                            {p.workflow_state === "Approved" && (
+                            {p.workflow_state === "Approved" && showsSanctionState(p) && (
                               hasSanction(p) ? (
                                 <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
                                   (Sanction Approved)

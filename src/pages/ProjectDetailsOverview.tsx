@@ -81,6 +81,7 @@ import {
 } from "@/components/ui/table";
 import { DepartmentName } from "@/components/DepartmentName";
 import { useUserRoles } from "../components/UserRole";
+import { OVERHEAD_BUDGET_HEAD, OVERHEAD_BUDGET_HEAD_ID, fetchOverheadLedger } from "@/services/overheadLedger";
 
 // --- Ledger Interfaces ---
 interface LedgerTransaction {
@@ -795,6 +796,9 @@ interface QuickActionsProps {
     embedded?: boolean;
     hasSanction?: boolean;
     hasFunds?: boolean;
+    /** Overhead fund project (PDF per employee, DPF per department) — a fund with no
+     *  sanction and no funding agency, not a sponsored project. */
+    isOverheadProject?: boolean;
 }
 
 const QuickActions = ({
@@ -805,6 +809,7 @@ const QuickActions = ({
     embedded = false,
     hasSanction = false,
     hasFunds = false,
+    isOverheadProject = false,
 }: QuickActionsProps) => {
     const [searchParams, setSearchParams] = useSearchParams();
     const location = useLocation();
@@ -1085,17 +1090,25 @@ const QuickActions = ({
 
     // Lock all groups except Loan and Recruitment when project has no available fund balance
     const isModuleLocked = !hasFunds;
-    const unlockedGroups = ["Loan", "Recruitment"];
-    const unlockedApplications = ["Loan Request", "Adhoc/Contractual"];
+    // A PDF project has no Loan tab (loans aren't possible against a personal fund), so
+    // it must not be offered as an unlocked group or used as the locked-state fallback.
+    const unlockedGroups = isOverheadProject ? ["Recruitment"] : ["Loan", "Recruitment"];
+    const unlockedApplications = isOverheadProject
+        ? ["Adhoc/Contractual"]
+        : ["Loan Request", "Adhoc/Contractual"];
+    // Where to send the user when everything is locked. Falling back to "Loan" on a PDF
+    // project would select a tab that doesn't exist, leaving a blank screen with no route
+    // back — and a PDF project does reach the locked state once its fund is spent down.
+    const lockedFallbackTab = isOverheadProject ? "Recruitment" : "Loan";
 
-    // Auto-redirect to Loan tab when modules are locked; clear selectedApplication so the banner is visible
+    // Auto-redirect to the fallback tab when modules are locked; clear selectedApplication so the banner is visible
     useEffect(() => {
         if (isModuleLocked && !unlockedGroups.includes(activeTab)) {
-            setActiveTab("Loan");
+            setActiveTab(lockedFallbackTab);
             setSelectedApplication(null);
             setApplicationData([]);
         }
-    }, [isModuleLocked]);
+    }, [isModuleLocked, isOverheadProject]);
 
     const groups = [
         {
@@ -1139,7 +1152,11 @@ const QuickActions = ({
             ],
         },
         { title: "Travel", icon: Plane, items: ["Travel"] },
-        { title: "Loan", icon: CreditCardIcon, items: ["Loan Request"] },
+        // Loans are not possible against a Personal Development Fund, so the group is
+        // dropped entirely for PDF projects rather than shown and rejected later.
+        ...(isOverheadProject
+            ? []
+            : [{ title: "Loan", icon: CreditCardIcon, items: ["Loan Request"] }]),
         ...(isStaffRnDForCommit ? [{
             title: "Commit / De-Commit",
             icon: CreditCardIcon,
@@ -3028,6 +3045,19 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             dedupingInterval: 60000, // Cache for 60 seconds
         },
     );
+
+    // An overhead fund project (PDF per employee, DPF per department). It has no
+    // sanction, no funding agency and no fund-received flow, and its balance comes from
+    // the Accounts overhead API rather than the project ledger. The legacy is_pdf_project
+    // flag is still read so a project minted before the backfill patch behaves correctly.
+    const isOverheadProject = Boolean(
+        (data as any)?.is_overhead_project || (data as any)?.is_pdf_project,
+    );
+    // Declared here, directly after `data`, rather than further down the component:
+    // dependency arrays are evaluated during render, so a hook below that lists
+    // isOverheadProject would throw "used before its declaration" if it were declared
+    // after that hook. The ledger's head-detection effect needs exactly that dependency.
+
     const { data: fundingAgencyResult } = useFrappeGetCall<{
         message: Record<string, any>;
     }>(
@@ -3293,7 +3323,22 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
     // Check which budget heads have data when entering ledger tab
     useEffect(() => {
         const checkHeadsWithData = async () => {
-            if (!projectName || budgetHeadList.length === 0) return;
+            if (!projectName) return;
+
+            // An overhead fund is a single pool with no head dimension. Skip the
+            // per-head fan-out entirely — it would be 36+ calls returning nothing, and
+            // every one would go through /ledger-api, which must never carry fund data.
+            //
+            // Checked BEFORE the budgetHeadList guard below: an overhead fund does not
+            // use that list at all, so waiting for it only delayed the one head we
+            // already know.
+            if (isOverheadProject) {
+                setHeadsWithData(new Set<number>([OVERHEAD_BUDGET_HEAD_ID]));
+                setIsCheckingHeads(false);
+                return;
+            }
+
+            if (budgetHeadList.length === 0) return;
 
             const effectiveProjectNo = data?.project_no || projectName;
 
@@ -3329,12 +3374,25 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         if (activeTab === "ledger") {
             checkHeadsWithData();
         }
-    }, [activeTab, projectName, budgetHeadList, data?.project_no]);
+        // isOverheadProject is in the deps deliberately. It is derived from `data`, which
+        // resolves *after* this effect first runs on a fresh navigation — so without it the
+        // effect had already taken the ordinary-project path (36 empty /ledger-api calls)
+        // and never re-ran once the project turned out to be an overhead fund. The ledger
+        // then stayed empty until a reload, when `data` was served from cache and the first
+        // run took the right branch. That was the "works only after refresh" bug.
+    }, [activeTab, projectName, budgetHeadList, data?.project_no, isOverheadProject]);
 
     // Use budgetHeadList filtered to only heads with data for ledger tabs
     const ledgerHeads = useMemo(
-        () => budgetHeadList.filter((head) => headsWithData.has(head.id)),
-        [budgetHeadList, headsWithData],
+        () =>
+            // An overhead fund books everything to the single "Overhead" head, so it is
+            // named directly rather than filtered out of budgetHeadList — that list is
+            // fetched separately and may not have arrived yet, which would leave the
+            // ledger with no head to select and nothing to fetch.
+            isOverheadProject
+                ? [{ name: OVERHEAD_BUDGET_HEAD, id: OVERHEAD_BUDGET_HEAD_ID }]
+                : budgetHeadList.filter((head) => headsWithData.has(head.id)),
+        [isOverheadProject, budgetHeadList, headsWithData],
     );
 
     // Track selected head by ID
@@ -3354,7 +3412,14 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         if (activeTab === "ledger" && activeLedgerHeadId) {
             fetchLedgerData(activeLedgerHeadId);
         }
-    }, [projectName, activeLedgerHeadId]);
+        // `activeTab` is in the deps because the condition above tests it. Without it the
+        // effect only fired when the *head* changed, so whether the ledger loaded came
+        // down to ordering: for an ordinary project the head is discovered on entering the
+        // tab, so the change coincided with the click and it worked by luck. An overhead
+        // fund knows its single head as soon as the document loads, so the head was
+        // already set before the tab was ever opened — the click changed nothing this
+        // effect watched, and no fetch was made until something else moved.
+    }, [activeTab, projectName, activeLedgerHeadId, isOverheadProject]);
 
     const sortedTransactions = useMemo(() => {
         return [...ledgerTransactions].sort((a, b) => {
@@ -3379,6 +3444,37 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         setIsLedgerLoading(true);
         setLedgerError(null);
         try {
+            if (isOverheadProject) {
+                // Shared with the ledger modal and the full-page ledger; also the only
+                // path that keeps overhead data off /ledger-api. Balances come from the
+                // Accounts service rather than being recomputed from received − paid,
+                // which ignores loans.
+                const rows = await fetchOverheadLedger(data?.project_no || projectName || "");
+
+                const mapped = rows
+                    .map((txn: any) => ({
+                        ...txn,
+                        sl: txn.transactionId,
+                        date: txn.transactionDate
+                            ? new Date(txn.transactionDate).toLocaleDateString("en-IN")
+                            : "",
+                        particulars: txn.particulars || "",
+                        ref: txn.refDetails || "",
+                        received: txn.fundReceivedAmount || 0,
+                        committed: txn.commitAmount || 0,
+                        bmr: txn.bmr || "",
+                        payment: txn.paymentAmount || 0,
+                        commitableBalance: txn.commitableBalance || 0,
+                        actualBalance: txn.balance || 0,
+                        head: OVERHEAD_BUDGET_HEAD,
+                        type: "transaction" as const,
+                        frapAppId: txn.frapAppId,
+                    }));
+
+                setLedgerTransactions(mapped);
+                return;
+            }
+
             // Use proxy to avoid CORS - /ledger-api proxies to the ledger backend (see proxyOptions.ts, VITE_LEDGER_HOST)
             const response = await fetch(
                 `/ledger-api/commit-payment-transactions?projectNumber=${data?.project_no || projectName}&accountHeadId=${headId}`,
@@ -3587,6 +3683,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         {};
     const actualBalance = projectData?.availableCommitAmount ?? 0;
     const commitableBalance = projectData?.availablePaymentAmount ?? 0;
+
+    // Personal Development Fund project: a personal overhead fund surfaced as a project.
 
     const handleCommit = () => {
         const amount = parseFloat(commitAmount);
@@ -4023,14 +4121,18 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             inactiveClass: "border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/10 dark:text-[#C7D2FE]",
             iconClass: "text-[#4A6CF7] dark:text-[#A5B4FC]",
         },
-        {
-            id: "sanction-details",
-            label: "Sanction Details",
-            icon: CreditCardIcon,
-            activeClass: "bg-[#059669] border-[#059669] text-white shadow-sm",
-            inactiveClass: "border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] hover:bg-[#ECFDF5] dark:border-[#10B981]/30 dark:bg-[#10B981]/10 dark:text-[#A7F3D0]",
-            iconClass: "text-[#059669] dark:text-[#6EE7B7]",
-        },
+        // A PDF fund is credited by consultancy disbursal and never sanctioned, so the
+        // Sanction Details tab has nothing to show for it.
+        ...(isOverheadProject
+            ? []
+            : [{
+                id: "sanction-details",
+                label: "Sanction Details",
+                icon: CreditCardIcon,
+                activeClass: "bg-[#059669] border-[#059669] text-white shadow-sm",
+                inactiveClass: "border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] hover:bg-[#ECFDF5] dark:border-[#10B981]/30 dark:bg-[#10B981]/10 dark:text-[#A7F3D0]",
+                iconClass: "text-[#059669] dark:text-[#6EE7B7]",
+            }]),
         {
             id: "ledger",
             label: "Ledger",
@@ -4213,6 +4315,11 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                 {/* Sanction Status Below Header */}
                 {(() => {
                     if (isLoading || sanctionIsLoading) return null;
+                    // A PDF fund is credited by consultancy disbursal, never sanctioned.
+                    // The whole "add sanction → get it approved → record fund received"
+                    // journey is meaningless here, and offering it would invite someone to
+                    // register a sanction against a personal fund.
+                    if (isOverheadProject) return null;
 
                     const sanctions = normalizeResponse(sanctionData);
                     const hasSanctionRecord = sanctions.length > 0;
@@ -4854,6 +4961,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                         </SectionWrapper>
                                     )}
 
+                                    {/* A PDF fund has no funding agency, no co-investigators
+                                        and no clearances — it is one person's own earned
+                                        share, not a sponsored project. */}
+                                    {!isOverheadProject && (
                                     <SectionWrapper
                                         title="Funding Agency"
                                         icon={BuildingIcon}
@@ -4936,6 +5047,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                             />
                                         </div>
                                     </SectionWrapper>
+                                    )}
 
                                     {/* Account Details */}
                                     {data?.is_the_account_type_pfms && (
@@ -4981,6 +5093,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                         </SectionWrapper>
                                     )}
 
+                                    {!isOverheadProject && (
                                     <SectionWrapper
                                         title="Investigators"
                                         icon={UsersIcon}
@@ -5026,7 +5139,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                             />
                                         </div>
                                     </SectionWrapper>
-                                    {data?.is_additional_pi === "Yes" && (
+                                    )}
+                                    {!isOverheadProject && data?.is_additional_pi === "Yes" && (
                                         <TableDisplay
                                             label="Additional PIs"
                                             data={data?.additional_pi_table}
@@ -5748,6 +5862,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                         icon={CheckCircleIcon}
                                     />
 
+                                    {!isOverheadProject && (
                                     <SectionWrapper
                                         title="Clearance Details"
                                         icon={ShieldIcon}
@@ -5786,6 +5901,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                             />
                                         </div>
                                     </SectionWrapper>
+                                    )}
                                 </div>
                             )}
 
@@ -6991,6 +7107,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                         (s) => (s.sanction_workflow_status || "").toLowerCase() === "sanction approved"
                                     )}
                                     hasFunds={commitableBalance > 0 || actualBalance > 0}
+                                    isOverheadProject={isOverheadProject}
                                 />
                             )}
 

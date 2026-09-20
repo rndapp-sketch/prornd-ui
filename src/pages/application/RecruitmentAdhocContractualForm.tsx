@@ -20,6 +20,7 @@ import { CommitPayment } from '@/components/CommitPayment';
 import { ActivityLog, clearActivityLogCache } from '@/components/ActivityLog';
 import { P11PrintModal } from "@/components/P11PrintModal";
 import { generateRecruitmentAdhocContractualHtml } from "@/utils/recruitmentAdhocContractualPrint";
+import { useIsOverheadProject } from '@/hooks/useIsOverheadProject';
 import { ErrorModal } from "../../components/ErrorModal";
 import { parseFrappeError } from "../../utils/errorUtils";
 
@@ -163,6 +164,10 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
     const [fields, setFields] = useState<FormField[]>([]);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [formData, setFormData] = useState<Record<string, any>>({});
+    // An overhead fund (PDF / DPF / IDF / SWF / STWF) is a single pool with no head
+    // dimension — every spend books to "Overhead". This fixes and locks every Budget
+    // Head selector on the form. Ordinary projects are untouched.
+    const isOverheadProject = useIsOverheadProject(formData.upfa_project_code);
     const [linkOptions, setLinkOptions] = useState<LinkOptionsMap>({});
     const [isLoadingFields, setIsLoadingFields] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1326,6 +1331,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                         <FrappeCard>
                             <div className="p-8">
                                 <DynamicFormRenderer
+                                                                        overheadFund={isOverheadProject}
                                     fields={(() => {
                                         const DEAN_ONLY_FIELDS = ["chairperson_webmail_id", "chairperson_name"];
                                         const showDeanFields = isDoRnd || activeWorkflowState === "Approved";

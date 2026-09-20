@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { FileSpreadsheet as LedgerIcon, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { fetchOverheadLedger, isOverheadProjectNo, OVERHEAD_BUDGET_HEAD_ID } from "@/services/overheadLedger";
 
 export interface BudgetEntry {
     sl: number;
@@ -76,6 +77,17 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
 
             setIsCheckingHeads(true);
             const validHeads = new Set<string | number>();
+
+            // A PDF fund is one pool with no head dimension, and its data must not go
+            // through /ledger-api (see services/overheadLedger). Select the single Overhead
+            // head directly instead of probing 36+ heads that hold nothing.
+            if (isOverheadProjectNo(projectName)) {
+                validHeads.add(OVERHEAD_BUDGET_HEAD_ID);
+                setHeadsWithData(validHeads);
+                setActiveLedgerHeadId(OVERHEAD_BUDGET_HEAD_ID);
+                setIsCheckingHeads(false);
+                return;
+            }
 
             try {
                 const promises = budgetHeadList.map(async (head) => {
@@ -175,6 +187,38 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
         setIsLedgerLoading(true);
         setLedgerError(null);
         try {
+            if (isOverheadProjectNo(projectName)) {
+                const rows = await fetchOverheadLedger(String(projectName));
+                // Keep the Accounts service's own balances — the running total below
+                // ignores loans, which an overhead fund can have.
+                //
+                // Mapped field by field rather than spread: every field on an overhead
+                // row is optional (the Accounts payload omits what does not apply), while
+                // LedgerTransaction requires all of them. Spreading left the optionals in
+                // place and the assignment did not type-check.
+                setLedgerTransactions(
+                    rows.map((txn): LedgerTransaction => ({
+                        transactionType: txn.transactionType ?? "",
+                        transactionId: txn.transactionId ?? 0,
+                        transactionDate: txn.transactionDate ?? "",
+                        particulars: txn.particulars ?? "",
+                        refDetails: txn.refDetails ?? "",
+                        fundReceivedAmount: txn.fundReceivedAmount ?? null,
+                        commitAmount: txn.commitAmount ?? null,
+                        paymentAmount: txn.paymentAmount ?? null,
+                        commitableBalance: txn.commitableBalance ?? 0,
+                        paymentBalance: txn.balance ?? 0,
+                        balance: txn.balance ?? 0,
+                        status: (txn as { status?: string }).status ?? "",
+                        bmr: txn.bmr ?? null,
+                        bankTransactionNumber: null,
+                        bankTransactionDate: null,
+                        frapAppId: txn.frapAppId ?? null,
+                    })),
+                );
+                return;
+            }
+
             const response = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(String(projectName))}&accountHeadId=${encodeURIComponent(String(headId))}`);
             if (!response.ok) {
                 throw new Error(`API Error: ${response.statusText}`);

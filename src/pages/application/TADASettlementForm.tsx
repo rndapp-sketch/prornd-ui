@@ -20,6 +20,8 @@ import { useUserRoles } from "@/components/UserRole";
 import { generateTadaSettlementHtml } from "@/utils/tadaSettlementPrint";
 import { resolveBudgetHeadLabel } from "@/utils/resolveBudgetHeadLabel";
 import { fetchActivityLogHtml } from "@/utils/fetchActivityLogHtml";
+import { useIsOverheadProject } from '@/hooks/useIsOverheadProject';
+import { fetchOverheadLedger, isOverheadProjectNo } from '@/services/overheadLedger';
 import { ErrorModal } from "../../components/ErrorModal";
 import { parseFrappeError } from "../../utils/errorUtils";
 
@@ -237,6 +239,32 @@ const TadaWorkflowTimeline: React.FC<{
 };
 
 // --- MAIN COMPONENT ---
+/**
+ * Whether the Travel application this settlement belongs to actually asked for an advance.
+ *
+ * `do_you_need_advance` is a Select of "Yes" / "No" on Travel, and may be blank on older
+ * documents — anything that is not an explicit "Yes" counts as no advance.
+ */
+const travelNeedsAdvance = (travelDoc: any): boolean =>
+    String(travelDoc?.do_you_need_advance ?? "").trim().toLowerCase() === "yes";
+
+/**
+ * What to pre-fill "Advance Taken (INR)" with, from the Travel application.
+ *
+ * A settlement can only offset an advance that was actually taken. When the Travel said
+ * *No* to "Do you need Advance?", there is nothing to offset and the field is 0 — pulling
+ * the committed amount or the trip estimate in regardless made the claimant appear to owe
+ * money back on a trip they never drew an advance for.
+ *
+ * When an advance *was* requested, the ledger's committed amount is authoritative; the
+ * Travel's own estimate is the fallback for a commit that has not landed yet.
+ */
+const resolveAdvanceTaken = (travelDoc: any, ledgerAdvance: number | null | undefined): number => {
+    if (!travelNeedsAdvance(travelDoc)) return 0;
+    if (ledgerAdvance != null) return ledgerAdvance;
+    return parseFloat(travelDoc?.total_estimate || 0) || 0;
+};
+
 const TADASettlementForm: React.FC = () => {
   const { currentUser } = useFrappeAuth();
   const navigate = useNavigate();
@@ -247,6 +275,10 @@ const TADASettlementForm: React.FC = () => {
 
   const [fields, setFields] = useState<FormField[]>([]);
   const [formData, setFormData] = useState<Record<string, any>>({});
+  // An overhead fund (PDF / DPF / IDF / SWF / STWF) is a single pool with no head
+  // dimension — every spend books to "Overhead". This fixes and locks every Budget
+  // Head selector on the form. Ordinary projects are untouched.
+  const isOverheadProject = useIsOverheadProject(formData.project_no);
   const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>(
     {},
   );
@@ -343,6 +375,20 @@ const TADASettlementForm: React.FC = () => {
       getBudgetHeads: () => Promise<{ message: any[] }>,
     ): Promise<number | null> => {
       if (!travelAppId || !projectCode) return null;
+      // An overhead fund's log must not travel over /ledger-api (unauthenticated proxy — see
+      // services/overheadLedger), and it has no per-head split to walk, so it is read once
+      // through the whitelisted Frappe method.
+      if (isOverheadProjectNo(projectCode)) {
+        try {
+          const rows = await fetchOverheadLedger(projectCode);
+          const match =
+            rows.find((e) => e.frapAppId === travelAppId && e.transactionType === "COMMIT") ??
+            rows.find((e) => e.frapAppId === travelAppId && e.commitAmount != null);
+          return match?.commitAmount != null ? Number(match.commitAmount) : null;
+        } catch {
+          return null;
+        }
+      }
       try {
         const headsResult = await getBudgetHeads();
         const rawHeads: any[] = headsResult?.message || [];
@@ -555,7 +601,11 @@ const TADASettlementForm: React.FC = () => {
                 resolvedProject,
                 () => fetchBudgetHeadList({ doctype: "Budget Head", fields: ["name", "id", "uid"], limit_page_length: 50 }),
               );
-              if (advanceTaken != null) {
+              if (!travelNeedsAdvance(travelDoc)) {
+                // The Travel did not request an advance, so there is nothing to settle
+                // against — force 0 rather than leaving a stale or inferred figure.
+                initialData.ta_da_advance_taken = 0;
+              } else if (advanceTaken != null) {
                 initialData.ta_da_advance_taken = advanceTaken;
               } else if (
                 initialData.ta_da_advance_taken == null ||
@@ -812,10 +862,8 @@ const TADASettlementForm: React.FC = () => {
                   travelDoc.bank_account_number ||
                   "",
                 ta_da_account_head: travelDoc.account_head || "",
-                ...(advanceTaken != null ? { ta_da_advance_taken: advanceTaken } : {}),
-                ...(advanceTaken == null
-                  ? { ta_da_advance_taken: parseFloat(travelDoc.total_estimate || 0) || 0 }
-                  : {}),
+                // 0 unless the Travel actually asked for an advance — see resolveAdvanceTaken.
+                ta_da_advance_taken: resolveAdvanceTaken(travelDoc, advanceTaken),
               }));
             } else {
               // Fallback: resolve department from Travel doc's department ID
@@ -844,10 +892,8 @@ const TADASettlementForm: React.FC = () => {
                   travelDoc.bank_account_number ||
                   "",
                 ta_da_account_head: travelDoc.account_head || "",
-                ...(advanceTaken != null ? { ta_da_advance_taken: advanceTaken } : {}),
-                ...(advanceTaken == null
-                  ? { ta_da_advance_taken: parseFloat(travelDoc.total_estimate || 0) || 0 }
-                  : {}),
+                // 0 unless the Travel actually asked for an advance — see resolveAdvanceTaken.
+                ta_da_advance_taken: resolveAdvanceTaken(travelDoc, advanceTaken),
               }));
             }
           }
@@ -1083,6 +1129,7 @@ const TADASettlementForm: React.FC = () => {
         <form onSubmit={handleSubmit}>
           <FrappeCard className="space-y-12">
             <DynamicFormRenderer
+                            overheadFund={isOverheadProject}
               fields={processedFields}
               formData={formData}
               linkOptions={linkOptions}
