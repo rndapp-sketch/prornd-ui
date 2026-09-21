@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Selection Committee Report</title>
+
+    <!--
+        PLACEHOLDERS — written as double curly braces around the NAME in the body below, e.g. DOC_REF.
+        (Their braces are left out of this comment on purpose: fillers replace the first match, and
+        a match inside a comment would leave the real one unfilled.)
+        Text values must be HTML-escaped by the caller.
+
+        Text
+          DOC_REF                 document name, shown in the page footer
+          DATE                    date of the report (dd/mm/yyyy)
+          PRINT_DATE              print time, shown in the page footer
+          LOGO_URL                absolute URL of the IITG logo
+          APPLICANT_NAME          applicant / PI name
+          APPLICANT_DEPARTMENT    applicant department (display name)
+          EMPLOYEE_ID             employee id / webmail
+          INTERVIEW_ID
+          PROJECT_NAME
+          PROJECT_NUMBER
+          DATE_OF_INTERVIEW
+
+        HTML fragments (built by the caller with the classes defined below)
+          RECRUITMENT_TYPE_HTML   "—", or <span class="rt">Type</span>  (red)
+          SPONSORING_AGENCY_HTML  agency text, or <span class="blank-line">&nbsp;</span> when empty
+          POST_DETAILS_SECTION    empty string, or the whole "Post Details" block:
+                <div class="scr-section post-details">
+                  <div class="block-title">Post Details</div>
+                  <table class="tbl">
+                    <thead><tr><th class="hcell c">Name</th><th class="hcell c" style="width:30%">Number of Posts</th></tr></thead>
+                    <tbody>
+                      <tr><td class="cell">Designation</td><td class="cell c">02</td></tr>
+                      <tr><td class="cell r b">Total Posts:</td><td class="cell c b">02</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+          POST_SECTIONS           one block per applied post:
+                <div class="scr-section post-block">
+                  <table class="tbl post-head"><tbody><tr>
+                    <td class="post-name">Post: NAME</td><td class="post-label">Recommended Candidates:</td>
+                  </tr></tbody></table>
+                  <table class="tbl cand">
+                    <thead><tr> 12 x <th class="hcell c">…</th> (see column list below) </tr></thead>
+                    <tbody> <tr><td class="cell c">1</td> … 12 cells … </tr> …  or  <tr><td class="cell c" colspan="12">No candidates</td></tr> </tbody>
+                  </table>
+                  <div class="waitlist"><strong>Wait Listed Candidates:</strong><span>NIL | 1. Name, 2. Name</span></div>
+                  <hr class="rule" /><hr class="rule tight" />
+                </div>
+                Candidate columns: Sl No. | Name | Applied for Position | Basic Pay Recommended | Increment (If Any) |
+                HRA Required 3515 FD | Medical Required | Total Amount | Period of Appointment (In months) |
+                Selection Status | Justification | Candidate Details.
+                Use class "r" on the amount cells and "c" on the centred ones.
+          NO_CANDIDATES_NOTICE    empty string, or <div class="no-candidates">No candidates recorded</div>
+          COMMITTEE_ROWS          <tr> per member: Sl No. (c) | Name | Designation | Email Id | Signature (class "sign")
+                                      or one row  <td class="cell c muted" colspan="5">No committee members recorded</td>
+    -->
+
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Times New Roman", Times, serif;
+            font-size: 9pt;
+            color: #000;
+            background: #e0e0e0;
+        }
+
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 20px auto;
+            background: #fff;
+            position: relative;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .content {
+            padding: 0 12mm;
+        }
+
+        /* ── Tables ── */
+        .tbl {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .cell {
+            border: 1px solid #555;
+            padding: 3px 5px;
+            font-size: 8pt;
+            vertical-align: top;
+        }
+
+        .hcell {
+            border: 1px solid #555;
+            padding: 3px 5px;
+            font-size: 8pt;
+            vertical-align: top;
+            background: #e8e8e8;
+            font-weight: 700;
+        }
+
+        .hcell.group {
+            text-align: center;
+            background: #ccc;
+        }
+
+        .c {
+            text-align: center;
+        }
+
+        .r {
+            text-align: right;
+        }
+
+        .b {
+            font-weight: 700;
+        }
+
+        .muted {
+            color: #666;
+        }
+
+        .rt {
+            color: #c00;
+        }
+
+        .blank-line {
+            display: inline-block;
+            width: 80%;
+            border-bottom: 1px dotted #999;
+        }
+
+        /* ── Letterhead ── */
+        table.letterhead {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #000;
+            margin-bottom: 4px;
+        }
+
+        table.letterhead td {
+            vertical-align: middle;
+        }
+
+        .letterhead .logo-cell {
+            width: 14%;
+            padding: 4px;
+            text-align: center;
+            border: 1px solid #000;
+        }
+
+        .letterhead .logo-cell img {
+            width: 52px;
+            height: auto;
+        }
+
+        .letterhead .title-cell {
+            padding: 4px 8px;
+            text-align: center;
+        }
+
+        .lh-hindi {
+            font-size: 12pt;
+            font-weight: 900;
+        }
+
+        .lh-english {
+            font-size: 11pt;
+            font-weight: 900;
+        }
+
+        .lh-sub {
+            font-size: 9pt;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .date-row {
+            text-align: right;
+            font-size: 8.5pt;
+            margin-bottom: 2px;
+        }
+
+        .report-title {
+            text-align: center;
+            font-size: 13pt;
+            font-weight: 700;
+            text-decoration: underline;
+            margin: 5px 0 8px;
+        }
+
+        /* ── Applicant / form details (two columns) ── */
+        table.two-col {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 6px;
+        }
+
+        table.two-col>tbody>tr>td {
+            width: 50%;
+            vertical-align: top;
+        }
+
+        table.two-col>tbody>tr>td:first-child {
+            padding-right: 3px;
+        }
+
+        table.two-col>tbody>tr>td:last-child {
+            padding-left: 3px;
+        }
+
+        .k-applicant {
+            width: 36%;
+        }
+
+        .k-form {
+            width: 44%;
+        }
+
+        /* ── Post details ── */
+        .post-details {
+            margin-bottom: 8px;
+        }
+
+        .block-title {
+            font-weight: 700;
+            font-size: 8.5pt;
+            margin-bottom: 2px;
+        }
+
+        /* ── Per-post candidate blocks ── */
+        .post-block {
+            margin-bottom: 10px;
+        }
+
+        /* A post with many candidates cannot fit on one page, so its block may split across
+           pages (table header repeats, rows never split). Keeping the whole block together
+           would push it to the next page and leave the current one mostly empty. */
+        .scr-section.post-block {
+            page-break-inside: auto;
+            break-inside: auto;
+        }
+
+        table.post-head {
+            margin-bottom: 2px;
+            page-break-after: avoid;
+            break-after: avoid;
+        }
+
+        table.cand thead {
+            display: table-header-group;
+        }
+
+        .waitlist {
+            page-break-before: avoid;
+            break-before: avoid;
+        }
+
+        .post-name {
+            font-weight: 700;
+            font-size: 8.5pt;
+            padding: 2px 0;
+        }
+
+        .post-label {
+            text-align: right;
+            font-size: 8.5pt;
+            padding: 2px 0;
+        }
+
+        table.cand th {
+            font-size: 7pt;
+            text-align: center;
+            padding: 2px 3px;
+            white-space: normal;
+        }
+
+        table.cand th:nth-child(1) {
+            width: 4%;
+        }
+
+        table.cand th:nth-child(2) {
+            width: 10%;
+        }
+
+        table.cand td {
+            font-size: 7.5pt;
+        }
+
+        .waitlist {
+            font-size: 8pt;
+            margin-top: 4px;
+        }
+
+        .waitlist span {
+            margin-left: 8px;
+        }
+
+        hr.rule {
+            border: none;
+            border-top: 1px solid #999;
+            margin: 4px 0;
+        }
+
+        hr.rule.tight {
+            margin: 0 0 2px;
+        }
+
+        .no-candidates {
+            text-align: center;
+            color: #666;
+            font-size: 8pt;
+            padding: 8px;
+            border: 1px dashed #aaa;
+            margin-bottom: 8px;
+        }
+
+        /* ── Committee members ── */
+        table.committee th.k-sl {
+            width: 7%;
+            text-align: center;
+        }
+
+        table.committee th.k-sign {
+            width: 22%;
+            text-align: center;
+        }
+
+        table.committee th {
+            text-align: center;
+        }
+
+        td.sign {
+            height: 30px;
+        }
+
+        /* ── Keep blocks together across pages ── */
+        .scr-section {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        .scr-sig-block {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        tr {
+            page-break-inside: avoid;
+        }
+
+        /* ── Page-repeating spacers: reserve room for the fixed footer on every printed page ── */
+        table.layout-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: none;
+        }
+
+        table.layout-table>tbody>tr>td,
+        table.layout-table>tfoot>tr>td,
+        table.layout-table>thead>tr>td {
+            border: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        table.layout-table>tbody>tr,
+        table.layout-table>tbody>tr>td {
+            page-break-inside: auto;
+            break-inside: auto;
+        }
+
+        /* Per-page footer (print only) */
+        .print-footer {
+            display: none;
+        }
+
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        @media print {
+            body {
+                margin: 0;
+                background: none;
+            }
+
+            .page {
+                margin: 0;
+                box-shadow: none;
+                background: none;
+                width: auto;
+                min-height: auto;
+            }
+
+            .content {
+                padding: 0 12mm;
+            }
+
+            .print-footer {
+                display: flex;
+                justify-content: space-between;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                border-top: 1px solid #bbb;
+                background: #fff;
+                padding: 3px 12mm;
+                font-size: 7.5pt;
+                color: #555;
+            }
+
+            .print-hide {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+        <div class="content">
+            <table class="layout-table">
+                <thead>
+                    <tr>
+                        <td><div style="height: 8mm;"></div></td>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            <!-- LETTERHEAD -->
+                            <table class="letterhead">
+                                <tbody>
+                                    <tr>
+                                        <td class="logo-cell">
+                                            <img src="{{LOGO_URL}}" alt="IITG" onerror="this.style.display='none'">
+                                        </td>
+                                        <td class="title-cell">
+                                            <div class="lh-hindi">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
+                                            <div class="lh-english">INDIAN INSTITUTE OF TECHNOLOGY GUWAHATI</div>
+                                            <div class="lh-sub">RESEARCH AND DEVELOPMENT CELL</div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            <div class="date-row"><strong>Date:</strong> {{DATE}}</div>
+                            <div class="report-title">Selection Committee Report</div>
+
+                            <!-- APPLICANT DETAILS | FORM DETAILS -->
+                            <div class="scr-section">
+                                <table class="two-col">
+                                    <tbody>
+                                        <tr>
+                                            <td>
+                                                <table class="tbl">
+                                                    <tbody>
+                                                        <tr><td class="hcell group" colspan="2">Applicant Details</td></tr>
+                                                        <tr><td class="hcell k-applicant">Name:</td><td class="cell">{{APPLICANT_NAME}}</td></tr>
+                                                        <tr><td class="hcell">Department:</td><td class="cell">{{APPLICANT_DEPARTMENT}}</td></tr>
+                                                        <tr><td class="hcell">Employee ID:</td><td class="cell">{{EMPLOYEE_ID}}</td></tr>
+                                                    </tbody>
+                                                </table>
+                                            </td>
+                                            <td>
+                                                <table class="tbl">
+                                                    <tbody>
+                                                        <tr><td class="hcell group" colspan="2">Form Details</td></tr>
+                                                        <tr><td class="hcell k-form">Interview Id:</td><td class="cell">{{INTERVIEW_ID}}</td></tr>
+                                                        <tr><td class="hcell">Project Name:</td><td class="cell">{{PROJECT_NAME}}</td></tr>
+                                                        <tr><td class="hcell">Project Number:</td><td class="cell">{{PROJECT_NUMBER}}</td></tr>
+                                                        <tr><td class="hcell">Recruitment Type:</td><td class="cell">{{RECRUITMENT_TYPE_HTML}}</td></tr>
+                                                        <tr><td class="hcell">Date of Interview:</td><td class="cell">{{DATE_OF_INTERVIEW}}</td></tr>
+                                                        <tr><td class="hcell">Sponsoring Agency:</td><td class="cell">{{SPONSORING_AGENCY_HTML}}</td></tr>
+                                                    </tbody>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- POST DETAILS SUMMARY (omitted when the form has no post details) -->
+                            {{POST_DETAILS_SECTION}}
+
+                            <!-- PER-POST CANDIDATE TABLES -->
+                            {{POST_SECTIONS}}
+
+                            {{NO_CANDIDATES_NOTICE}}
+
+                            <!-- COMMITTEE MEMBER DETAILS -->
+                            <div class="scr-sig-block">
+                                <div class="block-title">Committee Member Details</div>
+                                <table class="tbl committee">
+                                    <thead>
+                                        <tr>
+                                            <th class="hcell k-sl">Sl No.</th>
+                                            <th class="hcell">Name</th>
+                                            <th class="hcell">Designation</th>
+                                            <th class="hcell">Email Id</th>
+                                            <th class="hcell k-sign">Signature</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {{COMMITTEE_ROWS}}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td><div style="height: 10mm;"></div></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <div class="print-footer">
+        <span>{{DOC_REF}}</span>
+        <span>{{PRINT_DATE}}</span>
+    </div>
+</body>
+
+</html>

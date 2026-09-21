@@ -3394,12 +3394,35 @@ const SelectionCommitteeReportForm: React.FC = () => {
             @media print {
                 @page { size: A4; margin: 0; }
 
-                /* === Step 1: Hide app shell (navbar/sidebar) via visibility === */
+                /* === Step 1: Take the app shell out of the layout === */
+                /* visibility:hidden alone still reserves the sidebar's width and the navbar's height, */
+                /* which shifts the report and adds blank pages — display:none removes them from flow. */
+                /* The body visibility rule stays as a guard so any floating widget (e.g. the */
+                /* Activity Log button) never prints. */
                 body { visibility: hidden !important; background: #fff !important; margin: 0; }
+                header.enterprise-navbar,
+                [data-slot="sidebar"],
+                [data-slot="sidebar-gap"],
+                [data-slot="sidebar-container"],
+                [data-sidebar="sidebar"] { display: none !important; }
 
-                /* === Step 2: Collapse wrapper height so min-h-screen doesn't create a blank page === */
-                #scr-print-root { min-height: 0 !important; }
-                #scr-print-root > main { padding: 0 !important; min-height: 0 !important; }
+                /* === Step 2: Neutralize flex, heights, paddings and animations on the ancestors === */
+                /* Flexbox and min-h-screen break Chrome's print pagination. */
+                [data-slot="sidebar-wrapper"],
+                [data-slot="sidebar-inset"],
+                main, .mx-auto, #scr-print-root {
+                    display: block !important;
+                    min-height: 0 !important;
+                    height: auto !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                }
+
+                /* Transforms create new containing blocks which can clip print content */
+                .animate-in, .slide-in-from-bottom-2 {
+                    animation: none !important;
+                    transform: none !important;
+                }
 
                 /* === Step 3: Remove interactive form from document FLOW (fixes blank pages) === */
                 /* display:none removes them from layout entirely — no extra page height */
@@ -3407,7 +3430,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                 .scr-form-content { display: none !important; }
                 .scr-action-bar   { display: none !important; }
 
-                /* === Step 3: Show only the print layout in normal flow === */
+                /* === Step 4: Show only the print layout in normal flow === */
                 .scr-print-layout,
                 .scr-print-layout * { visibility: visible !important; }
                 .scr-print-layout {
