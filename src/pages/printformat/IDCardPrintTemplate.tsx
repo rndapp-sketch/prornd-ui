@@ -485,7 +485,7 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
                   objectFit: "cover",
                   objectPosition: "center",
                   filter:
-                    "contrast(1.6) brightness(0.7) drop-shadow(0 0 0.2px #000000)",
+                    "contrast(1.6) drop-shadow(0 0 0.2px #000000)",
                 }}
                 crossOrigin="anonymous"
               />
