@@ -2215,13 +2215,12 @@ import {
     prepareFormDataForApi,
     candidateAPI,
 } from "@/services/apiService";
-import { Loader2, Save, Send, CheckCircle2, Printer, EyeIcon, MessageSquare, X } from "lucide-react";
+import { Loader2, Save, Send, CheckCircle2, Printer, EyeIcon } from "lucide-react";
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useUserRoles } from "@/components/UserRole";
 import { DepartmentName } from "@/components/DepartmentName";
-import { ActivityStream } from "@/components/ActivityStream";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import { CommentModal } from "@/components/CommentModal";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -2345,7 +2344,6 @@ const SelectionCommitteeReportForm: React.FC = () => {
     const [savedDocName, setSavedDocName] = useState<string | null>(
         editDocName || null,
     );
-    const [isActivityOpen, setIsActivityOpen] = useState(false);
 
     // Workflow States
     const [workflowState, setWorkflowState] = useState<string>("Draft");
@@ -4462,56 +4460,6 @@ const SelectionCommitteeReportForm: React.FC = () => {
                         </div>
                     </div>
                 </main>
-
-                {activityDocName && (
-                    <>
-                        <button
-                            type="button"
-                            onClick={() => setIsActivityOpen(true)}
-                            className="scr-form-content fixed bottom-6 right-6 z-40 inline-flex h-12 items-center gap-2 rounded-full border border-[#C7D2FE] bg-[#2563EB] px-4 text-[12px] font-extrabold uppercase tracking-wider text-white shadow-lg shadow-blue-900/20 transition-all hover:bg-[#1D4ED8] focus:outline-none focus:ring-4 focus:ring-[#4A6CF7]/20 dark:border-[#4A6CF7]/40"
-                            aria-label="Open Activity Log"
-                        >
-                            <MessageSquare className="h-4 w-4" />
-                            Activity Log
-                        </button>
-
-                        {isActivityOpen && (
-                            <div className="scr-form-content fixed inset-0 z-50 flex justify-end">
-                                <div
-                                    className="absolute inset-0 bg-black/35 backdrop-blur-[2px]"
-                                    onClick={() => setIsActivityOpen(false)}
-                                />
-                                <aside className="relative h-full w-full max-w-[460px] overflow-y-auto border-l border-[#E4E4E7] bg-[#FAFAF9] p-5 shadow-2xl dark:border-[#3F3F46] dark:bg-[#18181B]">
-                                    <div className="mb-4 flex items-start justify-between gap-4">
-                                        <div className="min-w-0">
-                                            <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#D97757]">
-                                                Selection Committee Report
-                                            </p>
-                                            <h2 className="mt-1 text-[18px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
-                                                Activity Log
-                                            </h2>
-                                            <p className="mt-0.5 truncate font-mono text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
-                                                {activityDocName}
-                                            </p>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsActivityOpen(false)}
-                                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] text-[#71717A] transition-colors hover:bg-[#F4F4F5] hover:text-[#3F3F46] dark:border-[#3F3F46] dark:text-[#A1A1AA] dark:hover:bg-[#27272A] dark:hover:text-[#E4E4E7]"
-                                            aria-label="Close Activity Log"
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </button>
-                                    </div>
-                                    <ActivityStream
-                                        doctype="Selection Committee Report"
-                                        docname={activityDocName}
-                                    />
-                                </aside>
-                            </div>
-                        )}
-                    </>
-                )}
             </div>
 
             {activityDocName && (
