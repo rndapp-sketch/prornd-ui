@@ -1,4 +1,5 @@
 import { useRef, useState, useMemo, useEffect } from "react";
+import { getFileUrl } from "@/utils/fileUtils";
 import { useFrappeGetCall } from "frappe-react-sdk";
 import {
     FileTextIcon,
@@ -320,7 +321,7 @@ const TableRow = ({ doc, onDone }: { doc: TopUpDoc; onDone: () => void }) => {
     };
 
     const onView = () => {
-        if (doc.faculty_admission_pdf) window.open(doc.faculty_admission_pdf, "_blank");
+        if (doc.faculty_admission_pdf) window.open(getFileUrl(doc.faculty_admission_pdf), "_blank");
     };
 
     const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {

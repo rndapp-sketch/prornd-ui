@@ -1018,7 +1018,9 @@ export default function ProInvForm() {
         // Once submitted/approved the backend holds the authoritative (and, when
         // approved, signed) PDF — open that instead of re-rendering client-side.
         if (attachmentUrl) {
-            window.open(attachmentUrl, "_blank");
+            // invoice_attachment is now a MinIO-style value rather than a /private/files/
+            // path, so it goes through getFileUrl like every other Attach field.
+            window.open(getFileUrl(attachmentUrl), "_blank");
             return;
         }
         const htmlContent = renderStored(generateHtml());

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { getFileUrl } from "@/utils/fileUtils";
 import { useParams, useNavigate } from 'react-router-dom';
 
 import { useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
@@ -974,7 +975,7 @@ const TravelDetails: React.FC = () => {
 
                                     {directorSignedPdf && (
                                         <a
-                                            href={directorSignedPdf}
+                                            href={getFileUrl(directorSignedPdf)}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg px-3 py-2.5"

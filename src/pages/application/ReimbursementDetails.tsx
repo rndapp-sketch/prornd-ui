@@ -1378,7 +1378,7 @@ const ReimbursementDetails: React.FC = () => {
                             </td>
                             <td className="px-4 py-3 text-sm">
                               {item.uploads ? (
-                                <a href={item.uploads} target="_blank" rel="noopener noreferrer" className="text-[#D97757] font-bold hover:underline">
+                                <a href={getFileUrl(item.uploads)} target="_blank" rel="noopener noreferrer" className="text-[#D97757] font-bold hover:underline">
                                   View File
                                 </a>
                               ) : (

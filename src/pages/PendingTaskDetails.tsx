@@ -1013,7 +1013,7 @@ const TopUpFellowshipWorkflowActions = ({
                 <div className="flex flex-col items-end gap-2">
                     <div className="flex gap-2 flex-wrap">
                         <FrappeButton
-                            onClick={() => window.open(facultyPdfUrl, "_blank")}
+                            onClick={() => window.open(getFileUrl(facultyPdfUrl), "_blank")}
                             className="bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800/50 dark:text-emerald-300"
                         >
                             View Faculty Admission Signed PDF
@@ -1788,7 +1788,7 @@ const DPDocumentViewer = ({
         if (isFilePath(String(value))) {
             return (
                 <a
-                    href={String(value)}
+                    href={getFileUrl(String(value))}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50 dark:bg-zinc-800 text-[#D97757] hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-sm font-medium max-w-full"
@@ -3521,7 +3521,7 @@ const PendingTaskDetails: React.FC = () => {
 
                                     {isFile ? (
                                         <a
-                                            href={String(value)}
+                                            href={getFileUrl(String(value))}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="group flex items-center gap-2 mt-1 px-3 py-2 bg-zinc-50 dark:bg-zinc-700/50 text-[#D97757] rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors font-medium border border-zinc-200 dark:border-zinc-700"
@@ -4532,7 +4532,7 @@ const PendingTaskDetails: React.FC = () => {
                                     <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-5">
                                         <p className={labelClasses}>Sanction Letter</p>
                                         <a
-                                            href={data.sanction_letter}
+                                            href={getFileUrl(data.sanction_letter)}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="inline-flex items-center gap-2 mt-2 px-4 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm font-medium text-[#D97757] hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
@@ -4841,7 +4841,7 @@ const PendingTaskDetails: React.FC = () => {
                                                             </span>
                                                             {isFile ? (
                                                                 <a
-                                                                    href={String(value)}
+                                                                    href={getFileUrl(String(value))}
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
                                                                     className="group flex items-center gap-2 mt-1 px-3 py-2 bg-zinc-50 dark:bg-zinc-700/50 text-[#D97757] rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors font-medium border border-zinc-200 dark:border-zinc-700"

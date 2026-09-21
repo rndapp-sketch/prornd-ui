@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { getFileUrl } from "@/utils/fileUtils";
 import { useParams, useNavigate } from "react-router-dom";
 import { useFrappePostCall, useFrappeGetCall, useFrappeAuth } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
@@ -771,7 +772,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                             </p>
                         </div>
                         <button
-                            onClick={() => window.open(directorSignedPdf, "_blank", "noopener,noreferrer")}
+                            onClick={() => window.open(getFileUrl(directorSignedPdf), "_blank", "noopener,noreferrer")}
                             className="shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm"
                         >
                             <ExternalLink className="w-3.5 h-3.5" />
@@ -794,7 +795,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                             </p>
                         </div>
                         <button
-                            onClick={() => window.open(directorSignedPdf, "_blank", "noopener,noreferrer")}
+                            onClick={() => window.open(getFileUrl(directorSignedPdf), "_blank", "noopener,noreferrer")}
                             className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors"
                         >
                             <ExternalLink className="w-3 h-3" />
@@ -1145,7 +1146,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                                         PDF available
                                     </div>
                                     <button
-                                        onClick={() => window.open(directorSignedPdf, "_blank", "noopener,noreferrer")}
+                                        onClick={() => window.open(getFileUrl(directorSignedPdf), "_blank", "noopener,noreferrer")}
                                         className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 transition-all"
                                     >
                                         <ExternalLink className="w-3.5 h-3.5" />
@@ -1167,7 +1168,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                                             PDF uploaded
                                         </div>
                                         <button
-                                            onClick={() => window.open(directorSignedPdf, "_blank", "noopener,noreferrer")}
+                                            onClick={() => window.open(getFileUrl(directorSignedPdf), "_blank", "noopener,noreferrer")}
                                             className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 transition-all"
                                         >
                                             <ExternalLink className="w-3.5 h-3.5" />

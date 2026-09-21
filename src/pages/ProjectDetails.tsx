@@ -1624,8 +1624,9 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
         }
     };
 
-    const MINIO_BASE = `http://${import.meta.env.VITE_MINIO_HOST || "172.16.134.179"}:${import.meta.env.VITE_MINIO_PORT || "9000"}`;
-    const attachmentsPath = `${MINIO_BASE}/prod-rnd-files/Project_Registration/${projectName}/attachments`;
+    // Object key of this project's attachments folder. Files are read through the
+    // authenticated file route (getFileUrl), never straight from MinIO.
+    const attachmentsPath = `/Project_Registration/${projectName}/attachments`;
 
     const { data: frappeFiles } = useFrappeGetDocList("File", {
         filters: [
@@ -2157,7 +2158,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                             </p>
                                                         </div>
                                                         <a
-                                                            href={`${MINIO_BASE}/prod-rnd-files/Project_Registration/${projectName}/attachments/${data.upload_proj_prop.split("/").pop()}`}
+                                                            href={getFileUrl(`${attachmentsPath}/${data.upload_proj_prop.split("/").pop()}`)}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="text-sm font-medium text-[#D97757] hover:underline flex items-center gap-1"
@@ -2190,7 +2191,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                                     {data.upload_supporting_docs.map((row: any, idx: number) => {
                                                                         const filePath = row.project_file || '';
                                                                         const fileName = filePath.split('/').pop() || filePath;
-                                                                        const fileUrl = fileName ? `${attachmentsPath}/${fileName}` : null;
+                                                                        const fileUrl = fileName ? getFileUrl(`${attachmentsPath}/${fileName}`) : null;
                                                                         return (
                                                                             <tr key={idx} className="border-t border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
                                                                                 <td className="px-3 py-2 text-zinc-500 dark:text-zinc-400">{idx + 1}</td>
@@ -3180,7 +3181,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                 <div className="space-y-3">
                                                     {frappeFiles.map((file: { file_name: string; file_url?: string; file_size?: number; attached_to_field?: string; creation?: string }) => {
                                                         const fname = file.file_name;
-                                                        const url = `${attachmentsPath}/${fname}`;
+                                                        const url = getFileUrl(`${attachmentsPath}/${fname}`);
                                                         return (
                                                             <div
                                                                 key={fname}

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ExternalLinkIcon } from 'lucide-react';
+import { getMinioKey, getMinioFileUrl } from '@/utils/fileUtils';
 
 interface FileDownloadLinkProps {
     fileUrl: string;
@@ -23,7 +24,9 @@ export const FileDownloadLink: React.FC<FileDownloadLinkProps> = ({
         setIsDownloading(true);
         try {
             // Create the absolute URL for the fetch request
-            let urlToFetch = fileUrl;
+            // MinIO objects are read through the authenticated Frappe file route, never directly.
+            const minioKey = getMinioKey(fileUrl);
+            let urlToFetch = minioKey ? getMinioFileUrl(minioKey) : fileUrl;
             if (!urlToFetch.startsWith('http')) {
                 let baseUrl = import.meta.env.VITE_FRAPPE_URL;
                 if (!baseUrl) {

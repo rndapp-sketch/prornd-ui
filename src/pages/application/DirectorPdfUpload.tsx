@@ -1,4 +1,5 @@
 import { useRef, useState, useMemo, useEffect } from "react";
+import { getFileUrl } from "@/utils/fileUtils";
 import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
 import {
     UploadIcon,
@@ -540,7 +541,7 @@ const TableRow = ({ doc, onDone }: { doc: PendingDoc; onDone: () => void }) => {
     const short = MODULE_SHORT[doc._doctype] ?? doc._doctype;
 
     const onView = () => {
-        if (doc.director_signed_pdf) window.open(doc.director_signed_pdf, "_blank");
+        if (doc.director_signed_pdf) window.open(getFileUrl(doc.director_signed_pdf), "_blank");
     };
 
     const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {

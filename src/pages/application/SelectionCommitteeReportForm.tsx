@@ -2202,6 +2202,7 @@
 
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { getFileUrl } from "@/utils/fileUtils";
 import { useSearchParams, useNavigate, useParams } from "react-router-dom";
 import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
 import {
@@ -3678,7 +3679,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                     return (
                                         <>
                                             <button
-                                                onClick={() => window.open(formData.director_signed_pdf, '_blank')}
+                                                onClick={() => window.open(getFileUrl(formData.director_signed_pdf), '_blank')}
                                                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-bold bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800/50 dark:text-emerald-300 dark:hover:bg-emerald-900/40 shadow-sm transition-all"
                                             >
                                                 <EyeIcon className="w-3.5 h-3.5" />
@@ -3711,7 +3712,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                     <>
                                         {isContractual && formData.director_signed_pdf && (
                                             <button
-                                                onClick={() => window.open(formData.director_signed_pdf, '_blank')}
+                                                onClick={() => window.open(getFileUrl(formData.director_signed_pdf), '_blank')}
                                                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-bold bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800/50 dark:text-emerald-300 dark:hover:bg-emerald-900/40 shadow-sm transition-all"
                                             >
                                                 <EyeIcon className="w-3.5 h-3.5" />

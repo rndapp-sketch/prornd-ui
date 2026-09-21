@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { getFileUrl } from "@/utils/fileUtils";
 import { useParams } from 'react-router-dom';
 import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
@@ -90,7 +91,7 @@ const InfoRow = ({ label, value, isFile, children }: {
             </div>
         ) : isFile && value ? (
             <a
-                href={value}
+                href={getFileUrl(value)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 mt-1 text-[13px] font-semibold text-[#2563EB] dark:text-blue-300 hover:underline"
@@ -373,7 +374,7 @@ const TopUpFellowshipDetails: React.FC = () => {
                     <ViewProjectButton doctype="Top Up Fellowship" data={formData} />
                     {facultyPdfUrl && isPendingStaff && (
                         <a
-                            href={facultyPdfUrl}
+                            href={getFileUrl(facultyPdfUrl)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 transition-colors"
@@ -539,7 +540,7 @@ const TopUpFellowshipDetails: React.FC = () => {
                                     The signed PDF has been uploaded. Review it before forwarding to HoS.
                                 </p>
                                 <a
-                                    href={facultyPdfUrl}
+                                    href={getFileUrl(facultyPdfUrl)}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors"

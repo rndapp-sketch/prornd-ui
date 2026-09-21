@@ -474,7 +474,7 @@ const DPDocumentViewer = ({ data, doctype: viewerDoctype }: { data: Record<strin
                     <SectionHeading icon={<PaperclipIcon />} title="Attachments" />
                     <div className="flex flex-wrap gap-2">
                         {fileFields.map(([key, value]) => (
-                            <a key={key} href={String(value)} target="_blank" rel="noreferrer"
+                            <a key={key} href={getFileUrl(String(value))} target="_blank" rel="noreferrer"
                                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50 dark:bg-zinc-800 text-[#D97757] hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-sm font-medium">
                                 <PaperclipIcon className="h-3.5 w-3.5 flex-shrink-0" />
                                 <span className="truncate max-w-[200px]">{getFileName(String(value))}</span>
@@ -1098,7 +1098,7 @@ const GenericDocViewer = ({ data, doctype }: { data: Record<string, any>; doctyp
                                     <span className="truncate">{fmt(key)}</span>
                                 </div>
                                 {isFilePath(String(value)) ? (
-                                    <a href={String(value)} target="_blank" rel="noreferrer"
+                                    <a href={getFileUrl(String(value))} target="_blank" rel="noreferrer"
                                         className="text-[13px] font-semibold text-[#D97757] underline break-words">{getFileName(String(value))}</a>
                                 ) : doctype === "Cancellation Request" && key === "reference_name" && data?.reference_doctype ? (
                                     <button
@@ -1610,7 +1610,7 @@ const FundSanctionView = ({ data, docname, canEdit, onRefresh }: {
             {/* Sanction letter attachment */}
             {data.sanction_letter && (
                 <RegistryPanel title="Sanction Letter">
-                    <a href={data.sanction_letter} target="_blank" rel="noreferrer"
+                    <a href={getFileUrl(data.sanction_letter)} target="_blank" rel="noreferrer"
                         className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50 dark:bg-zinc-800 text-[#D97757] hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-sm font-medium">
                         <PaperclipIcon className="h-4 w-4" />
                         {getFileName(data.sanction_letter)}

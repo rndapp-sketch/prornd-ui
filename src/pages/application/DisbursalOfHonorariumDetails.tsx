@@ -791,7 +791,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                                         <FrappeButton
                                             className="w-full"
                                             variant="outline"
-                                            onClick={() => window.open(directorSignedPdf, "_blank", "noopener,noreferrer")}
+                                            onClick={() => window.open(getFileUrl(directorSignedPdf), "_blank", "noopener,noreferrer")}
                                         >
                                             <ExternalLink className="w-3.5 h-3.5" />
                                             View Director PDF

@@ -5,6 +5,7 @@ import React, {
     forwardRef,
     useEffect
 } from "react";
+import { getFileUrl } from "@/utils/fileUtils";
 import { useParams, useNavigate } from "react-router-dom";
 import {
     useFrappeGetDoc,
@@ -635,7 +636,7 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
                                                     </div>
                                                     {doc.file_url && (
                                                         <a
-                                                            href={doc.file_url}
+                                                            href={getFileUrl(doc.file_url)}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="flex items-center gap-1.5 text-xs font-medium text-[#D97757] hover:underline"

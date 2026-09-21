@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { getFileUrl } from "@/utils/fileUtils";
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFrappePostCall } from 'frappe-react-sdk';
 import { ApplicantLeaveBalance } from '@/components/ApplicantLeaveBalance';
@@ -340,7 +341,7 @@ const LeaveModuleDetails = () => {
 
                                 {doc.leave_type === 'On Duty Leave' && doc.onduty_leave_docs && (
                                     <a
-                                        href={doc.onduty_leave_docs}
+                                        href={getFileUrl(doc.onduty_leave_docs)}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="inline-flex items-center gap-2 text-[#D97757] hover:text-[#c66a4e] hover:underline text-sm font-semibold"

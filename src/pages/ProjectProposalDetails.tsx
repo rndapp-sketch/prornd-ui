@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from "react";
+import { getFileUrl } from "@/utils/fileUtils";
 import { useParams, useNavigate } from "react-router-dom";
 import {
     useFrappeGetDoc,
@@ -145,7 +146,7 @@ const TableDisplay = ({
                                         {col.type === "file" ? (
                                             row[col.fieldname] ? (
                                                 <a
-                                                    href={row[col.fieldname]}
+                                                    href={getFileUrl(row[col.fieldname])}
                                                     target="_blank"
                                                     rel="noreferrer"
                                                     className="flex items-center gap-2 text-blue-600 underline hover:text-blue-800"
@@ -385,7 +386,7 @@ const ProjectProposalDetails: React.FC = () => {
                                             value={
                                                 data.upload_proj_prop ? (
                                                     <a
-                                                        href={data.upload_proj_prop}
+                                                        href={getFileUrl(data.upload_proj_prop)}
                                                         target="_blank"
                                                         rel="noreferrer"
                                                         className="text-blue-600 underline"

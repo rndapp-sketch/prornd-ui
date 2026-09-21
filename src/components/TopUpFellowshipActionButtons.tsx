@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { getFileUrl } from "@/utils/fileUtils";
 import { createPortal } from "react-dom";
 import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
@@ -261,7 +262,7 @@ const TopUpFellowshipActionButtons: React.FC<Props> = ({
         <>
             {showFacultyPdfLink && (
                 <a
-                    href={effectiveFacultyPdfUrl}
+                    href={getFileUrl(effectiveFacultyPdfUrl)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 transition-colors"

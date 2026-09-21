@@ -3,6 +3,7 @@
 // -=-=-=======================================================================================
 
 import React, { useEffect, useRef, useState } from "react";
+import { getFileUrl } from "@/utils/fileUtils";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import {
@@ -856,7 +857,7 @@ const DocumentViewer = ({
         if (isFilePath(value)) {
             return (
                 <a
-                    href={String(value)}
+                    href={getFileUrl(String(value))}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50 dark:bg-zinc-800 text-[#D97757] hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-sm font-medium max-w-full"
@@ -2501,7 +2502,7 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
                     formData.upload_attachments ? (
                     <div className="flex items-center gap-3">
                         <a
-                            href={formData.upload_attachments}
+                            href={getFileUrl(formData.upload_attachments)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50 dark:bg-zinc-800 text-[#D97757] hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-[12px] font-medium"
@@ -3264,7 +3265,7 @@ const DirectPurchaseDetails: React.FC = () => {
 
             const fileUrl = json?.message?.file_url || json?.message?.url;
             if (fileUrl) {
-                window.open(fileUrl, "_blank");
+                window.open(getFileUrl(fileUrl), "_blank");
             } else {
                 throw new Error("No file URL returned");
             }

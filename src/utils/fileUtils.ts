@@ -5,55 +5,103 @@
  * Frappe with a path like:
  *   /Project_Registration/2026031901MeiTy000636/indent_general_form/.../file.pdf
  *
- * These must be served from MinIO directly:
- *   http://172.16.134.179:9000/prod-rnd-files/Project_Registration/...
+ * The browser NEVER talks to MinIO. Every MinIO object is read through the
+ * authenticated Frappe route
+ *   /api/method/rndopsapp.rndopsapp.file_api.get_file?file_url=<stored value>
+ * which requires a logged-in session and checks read permission on the document the
+ * object belongs to. <img src>, <a href> and window.open all send the session cookie,
+ * so no auth header is needed.
  *
  * Standard Frappe-managed files use `/files/...` or `/private/files/...`
- * paths and are served from the Frappe backend.
+ * paths and are served from the Frappe backend directly.
  */
 
 const MINIO_HOST = import.meta.env.VITE_MINIO_HOST || "172.16.134.179";
 const MINIO_PORT = import.meta.env.VITE_MINIO_PORT || "9000";
 const MINIO_ALT_PORT = import.meta.env.VITE_MINIO_ALT_PORT || "8081";
-const MINIO_BASE = `http://${MINIO_HOST}:${MINIO_PORT}/prod-rnd-files`;
-const MINIO_HOST_8081 = `http://${MINIO_HOST}:${MINIO_ALT_PORT}/`;
 const MINIO_BUCKET = "prod-rnd-files";
 
-// Path prefixes that indicate a MinIO-stored file
+// Object-key prefixes that indicate a MinIO-stored file. The first path segment of an object
+// key is the owning {Doctype} (or a lowercase legacy folder); the route's own allow-list is
+// the real gate, this list only decides which stored values are routed through it.
 const MINIO_PATH_PREFIXES = [
-    "/Project_Registration/",
-    "/indent_general_form/",
-    "/indent_cum_sanction_sheet/",
-    "/proprietary_purchase/",
+    "Project_Registration",
+    "Proforma_Invoice",
+    "indent_general_form",
+    "indent_cum_sanction_sheet",
+    "proprietary_purchase",
+    "standerdized_purchase",
+    "direct_purchase",
 ];
+
+const FILE_API_METHOD = "rndopsapp.rndopsapp.file_api.get_file";
+
+/**
+ * The MinIO object key (no leading slash) a stored value refers to, or null when the value
+ * is not a MinIO object (ordinary Frappe file, external URL, empty).
+ *
+ * Accepts every form the backend stores or that older records still hold:
+ *   /Project_Registration/…                       object path
+ *   Project_Registration/…                        object path, no leading slash
+ *   /prod-rnd-files/Project_Registration/…        bucket-prefixed path
+ *   http://<minio>:9000/prod-rnd-files/…          full MinIO URL
+ *   http://<minio>:8081/[prod-rnd-files/]…        full MinIO URL via the alternate port
+ */
+export function getMinioKey(path: string | null | undefined): string | null {
+    if (!path || typeof path !== "string") return null;
+    const trimmed = path.trim();
+    if (!trimmed) return null;
+
+    let value = trimmed;
+    let isMinioUrl = false;
+
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+        let url: URL;
+        try {
+            url = new URL(trimmed);
+        } catch {
+            return null;
+        }
+        // Only the configured MinIO host counts as MinIO; anything else is an external link.
+        if (url.hostname !== MINIO_HOST || (url.port !== MINIO_PORT && url.port !== MINIO_ALT_PORT)) {
+            return null;
+        }
+        // The URL's own path is the object key. Only the key is used — never the host.
+        try {
+            value = decodeURIComponent(url.pathname);
+        } catch {
+            value = url.pathname;
+        }
+        isMinioUrl = true;
+    }
+
+    let key = value.replace(/^\/+/, "");
+    const hasBucket = key.startsWith(`${MINIO_BUCKET}/`);
+    if (hasBucket) key = key.slice(MINIO_BUCKET.length + 1);
+
+    // A full MinIO URL or a bucket-prefixed path is MinIO whatever its first segment; a bare
+    // path must start with a known prefix, so ordinary Frappe paths ("/files/…") are never
+    // mistaken for objects.
+    if (isMinioUrl || hasBucket) return key || null;
+    return MINIO_PATH_PREFIXES.some((prefix) => key.startsWith(`${prefix}/`)) ? key : null;
+}
+
+/** The authenticated Frappe route that serves a MinIO object key. */
+export function getMinioFileUrl(key: string): string {
+    // Encoded exactly once — the route does not decode a second time.
+    return `${window.location.origin}/api/method/${FILE_API_METHOD}?file_url=${encodeURIComponent(`/${key.replace(/^\/+/, "")}`)}`;
+}
 
 export function getFileUrl(path: string | null | undefined): string {
     if (!path || typeof path !== "string") return "";
 
-    // Port-8081 URL that already contains the bucket — serve as-is
-    if (path.startsWith(`${MINIO_HOST_8081}${MINIO_BUCKET}/`)) {
-        return path;
-    }
-
-    // Port-8081 URL missing the bucket prefix — insert it
-    if (path.startsWith(MINIO_HOST_8081)) {
-        const objectPath = path.slice(MINIO_HOST_8081.length);
-        return `${MINIO_HOST_8081}${MINIO_BUCKET}/${objectPath}`;
-    }
+    // MinIO object (path, bucket path or full MinIO URL) — read through the Frappe route.
+    const minioKey = getMinioKey(path);
+    if (minioKey) return getMinioFileUrl(minioKey);
 
     // Already a full URL (other origins) — return as-is
     if (path.startsWith("http://") || path.startsWith("https://")) {
         return path;
-    }
-
-    // Already a MinIO proxy path — prepend the MinIO base
-    if (path.startsWith("/prod-rnd-files/")) {
-        return `http://${MINIO_HOST}:${MINIO_PORT}${path}`;
-    }
-
-    // MinIO-stored file referenced by its object path (no bucket prefix)
-    if (MINIO_PATH_PREFIXES.some((prefix) => path.startsWith(prefix))) {
-        return `${MINIO_BASE}${path}`;
     }
 
     // Standard Frappe file paths — made fully absolute (not left relative) because

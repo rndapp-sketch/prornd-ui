@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { getFileUrl } from "@/utils/fileUtils";
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFrappePostCall, useFrappeAuth, useFrappeGetDoc } from 'frappe-react-sdk';
 import { useUserRoles } from '@/components/UserRole';
@@ -539,7 +540,7 @@ const LoanRequestDetails: React.FC = () => {
                                     </p>
                                     {formData.additional_attachment && typeof formData.additional_attachment === 'string' ? (
                                         <a
-                                            href={formData.additional_attachment}
+                                            href={getFileUrl(formData.additional_attachment)}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="inline-flex items-center gap-2 px-4 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-md text-sm font-medium transition-colors"
