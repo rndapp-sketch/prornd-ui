@@ -5,7 +5,7 @@ import type { ActivityItem } from "@/utils/disbursalOfHonorariumPrint";
 
 // The .html?raw template is static text pulled in at build time, so it can't
 // reference import.meta.env itself; substitute the asset host here instead.
-const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.117.39";
+const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.131.206";
 const ASSET_PORT = import.meta.env.VITE_ASSET_PORT || "8000";
 
 function buildActivityLogHtml(items: ActivityItem[], formData?: Record<string, any>): string {
@@ -41,7 +41,7 @@ function buildActivityLogHtml(items: ActivityItem[], formData?: Record<string, a
                 : "";
             const plainContent = (c.content || "").replace(/<[^>]*>/g, "").trim();
             const label = c.comment_type === "Creation" ? "Submitted" : "";
-            
+
             const time = dateStr ? `${dateStr}${timeStr ? ", " + timeStr : ""}` : "";
             const finalComment = plainContent || label || "-";
 
@@ -134,7 +134,7 @@ export function generateDisbursalOfConsultancyHtml(
         .join("");
 
     const projectNo = formData.disbursal_project_number || formData.project_number || formData.project_no || "-";
-    
+
     let dept = formData.department || formData.department_name || "";
     if (!dept && projectNo !== "-") {
         const parts = projectNo.split("-");
@@ -158,7 +158,7 @@ export function generateDisbursalOfConsultancyHtml(
                 "ENC": "Energy",
                 "CIE": "Centre for Intelligent Cyber Physical Systems"
             };
-            
+
             let foundCode = "";
             for (const d of Object.keys(deptMap)) {
                 if (thirdPart.startsWith(d)) {
@@ -166,7 +166,7 @@ export function generateDisbursalOfConsultancyHtml(
                     break;
                 }
             }
-            
+
             if (foundCode) {
                 dept = deptMap[foundCode];
             } else {
@@ -235,19 +235,19 @@ export function generateDisbursalOfConsultancyHtml(
                 if (activityEl) {
                     const allItems = Array.from(activityEl.querySelectorAll(".flex.items-start"));
                     const items = allItems.filter(item => item.querySelector(".text-xs.font-semibold"));
-                    
+
                     if (items.length > 0) {
                         const activityRows = items
                             .map((item) => {
-                                const nameEl   = item.querySelector(".text-xs.font-semibold");
-                                let name     = nameEl?.textContent?.trim() || "Unknown";
-                                
+                                const nameEl = item.querySelector(".text-xs.font-semibold");
+                                let name = nameEl?.textContent?.trim() || "Unknown";
+
                                 // If the UI fell back to an email and we have the resolved name, map it!
                                 if (name === formData.owner && formData.pi_name) {
                                     name = formData.pi_name;
                                 }
-                                
-                                const desigEl  = item.querySelector(".designation-text");
+
+                                const desigEl = item.querySelector(".designation-text");
                                 const designation = desigEl?.textContent?.trim() || "";
 
                                 const actionEls = item.querySelectorAll<HTMLElement>(".text-xs.text-zinc-500, .text-xs.text-zinc-400");
@@ -259,11 +259,11 @@ export function generateDisbursalOfConsultancyHtml(
                                     }
                                 });
 
-                                const timeEl   = item.querySelector<HTMLElement>("p[title], p.text-\\[11px\\], .text-xs.text-zinc-400");
+                                const timeEl = item.querySelector<HTMLElement>("p[title], p.text-\\[11px\\], .text-xs.text-zinc-400");
                                 const titleTime = timeEl?.getAttribute("title") || "";
                                 const relativeTime = timeEl?.textContent?.trim() || "";
                                 const time = titleTime || relativeTime;
-                                
+
                                 const commentEl = item.querySelector<HTMLElement>(".prose");
                                 const comment = commentEl?.textContent?.trim() || "";
 
@@ -283,7 +283,7 @@ export function generateDisbursalOfConsultancyHtml(
                             })
                             .filter((row, index, self) => self.indexOf(row) === index)
                             .join("");
-                        
+
                         return `
                         <div style="page-break-inside: avoid; break-inside: avoid;">
                             <div class="section-heading" style="margin-top:8px;">Activity Log</div>
@@ -306,7 +306,7 @@ export function generateDisbursalOfConsultancyHtml(
                 if (docActivityEntries && docActivityEntries.length > 0) {
                     // Fallback to legacy string build if no DOM (not implemented here since we didn't bring in buildDocActivityLogHtml, we just fallback to basic string if DOM fails)
                 }
-                
+
                 // Final fallback using the original string builder logic if everything else fails
                 const allItems = [...activityItems];
                 const hasCreation = allItems.some((i) => i.comment_type === "Creation");

@@ -95,7 +95,9 @@
             margin: 3px 0 2px 0;
         }
 
-        .doc-ref-right .doc-ref-label { font-weight: bold; }
+        .doc-ref-right .doc-ref-label {
+            font-weight: bold;
+        }
 
         .form-line {
             display: flex;
@@ -105,7 +107,10 @@
             font-size: 9.5pt;
         }
 
-        .form-type { font-weight: bold; font-size: 10pt; }
+        .form-type {
+            font-weight: bold;
+            font-size: 10pt;
+        }
 
         .info-table {
             width: 100%;
@@ -188,9 +193,17 @@
             font-size: 13px;
         }
 
-        .activity-table th:nth-child(1) { width: 30%; }
-        .activity-table th:nth-child(2) { width: 50%; }
-        .activity-table th:nth-child(3) { width: 20%; }
+        .activity-table th:nth-child(1) {
+            width: 30%;
+        }
+
+        .activity-table th:nth-child(2) {
+            width: 50%;
+        }
+
+        .activity-table th:nth-child(3) {
+            width: 20%;
+        }
 
         .activity-table .designation {
             display: block;
@@ -205,9 +218,9 @@
             border: none;
         }
 
-        table.layout-table > tbody > tr > td,
-        table.layout-table > tfoot > tr > td,
-        table.layout-table > thead > tr > td {
+        table.layout-table>tbody>tr>td,
+        table.layout-table>tfoot>tr>td,
+        table.layout-table>thead>tr>td {
             border: none;
             padding: 0;
             margin: 0;
@@ -225,29 +238,33 @@
                 left: 50% !important;
                 transform: translate(-50%, -50%) !important;
                 z-index: 0 !important;
-                .print-footer {
-                display: flex !important;
-                justify-content: space-between;
-                align-items: center;
-                position: fixed;
-                bottom: 8mm;
-                right: 14mm;
-                left: 14mm;
-                font-size: 8pt;
-                color: #888;
-                border-top: 1px solid #ddd;
-                padding-top: 4px;
-                z-index: 100;
-            }
-        }
 
-            table.layout-table > tbody > tr,
-            table.layout-table > tbody > tr > td {
+                .print-footer {
+                    display: flex !important;
+                    justify-content: space-between;
+                    align-items: center;
+                    position: fixed;
+                    bottom: 8mm;
+                    right: 14mm;
+                    left: 14mm;
+                    font-size: 8pt;
+                    color: #888;
+                    border-top: 1px solid #ddd;
+                    padding-top: 4px;
+                    z-index: 100;
+                }
+            }
+
+            table.layout-table>tbody>tr,
+            table.layout-table>tbody>tr>td {
                 page-break-inside: auto !important;
                 break-inside: auto !important;
             }
 
-            tr { page-break-inside: avoid; }
+            tr {
+                page-break-inside: avoid;
+            }
+
             body {
                 margin: 0;
                 background: none;
@@ -262,7 +279,9 @@
                 page-break-inside: auto;
             }
 
-            .content { padding: 0 14mm; }
+            .content {
+                padding: 0 14mm;
+            }
 
             .activity-table {
                 page-break-inside: avoid;
@@ -272,7 +291,7 @@
                 display: none !important;
             }
         }
-    
+
         .print-footer {
             display: none;
         }
@@ -281,102 +300,112 @@
 
 <body>
     <div class="page">
-        
+
 
         <div class="content">
             <table class="layout-table">
                 <thead>
                     <tr>
-                        <td><div style="height: 14mm;"></div></td>
+                        <td>
+                            <div style="height: 14mm;"></div>
+                        </td>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td>
                             <!-- HEADER -->
-            <div class="header-row">
-                <div class="logo-left">
-                    <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG" onerror="this.style.display='none'">
-                </div>
-                <div class="header-center">
-                    <div class="header-hindi">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
-                    <div class="header-english">Indian Institute of Technology Guwahati</div>
-                    <div class="header-sub">Research and Development Section</div>
-                </div>
-            </div>
+                            <div class="header-row">
+                                <div class="logo-left">
+                                    <img src="http://172.16.131.206:8000/files/IITG_logo.png" alt="IITG"
+                                        onerror="this.style.display='none'">
+                                </div>
+                                <div class="header-center">
+                                    <div class="header-hindi">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
+                                    <div class="header-english">Indian Institute of Technology Guwahati</div>
+                                    <div class="header-sub">Research and Development Section</div>
+                                </div>
+                            </div>
 
-            <!-- DOC META & FORM TYPE -->
-            <div style="display: flex; justify-content: space-between; align-items: baseline; margin: 4px 0 2px 0;">
-                <div class="form-type">Form Type: Top Up Fellowship</div>
-                <div class="doc-ref-right" style="margin: 0;">
-                    <span class="doc-ref-label">Doc Ref: </span><span>{{DOC_REF}}</span>
-                    &nbsp;&nbsp;
-                    <span class="doc-ref-label">Status: </span><span>{{WORKFLOW_STATE}}</span>
-                </div>
-            </div>
-            <!-- PROJECT LINE & DATE -->
-            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; font-size: 9.5pt;">
-                <div>
-                    <strong>Project No:</strong> {{PROJECT_NO}}
-                </div>
-                <div style="text-align: right;">
-                    <strong>Date:</strong> {{DATE}}
-                </div>
-            </div>
-            <!-- SUPERVISOR DETAILS -->
-            <div class="section-heading">Project &amp; Supervisor Details</div>
-            <table class="info-table">
-                <tr>
-                    <td class="label">Account Head</td>
-                    <td colspan="3">{{ACCOUNT_HEAD}}</td>
-                </tr>
-                <tr>
-                    <td class="label">Project Name</td>
-                    <td colspan="3">{{PROJECT_NAME}}</td>
-                </tr>
-                <tr>
-                    <td class="label">Supervisor / Faculty Adviser Webmail</td>
-                    <td>{{SUPERVISOR_WEBMAIL}}</td>
-                    <td class="label">Coordinating PI Webmail</td>
-                    <td>{{PI_WEBMAIL}}</td>
-                </tr>
-            </table>
+                            <!-- DOC META & FORM TYPE -->
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: baseline; margin: 4px 0 2px 0;">
+                                <div class="form-type">Form Type: Top Up Fellowship</div>
+                                <div class="doc-ref-right" style="margin: 0;">
+                                    <span class="doc-ref-label">Doc Ref: </span><span>{{DOC_REF}}</span>
+                                    &nbsp;&nbsp;
+                                    <span class="doc-ref-label">Status: </span><span>{{WORKFLOW_STATE}}</span>
+                                </div>
+                            </div>
+                            <!-- PROJECT LINE & DATE -->
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; font-size: 9.5pt;">
+                                <div>
+                                    <strong>Project No:</strong> {{PROJECT_NO}}
+                                </div>
+                                <div style="text-align: right;">
+                                    <strong>Date:</strong> {{DATE}}
+                                </div>
+                            </div>
+                            <!-- SUPERVISOR DETAILS -->
+                            <div class="section-heading">Project &amp; Supervisor Details</div>
+                            <table class="info-table">
+                                <tr>
+                                    <td class="label">Account Head</td>
+                                    <td colspan="3">{{ACCOUNT_HEAD}}</td>
+                                </tr>
+                                <tr>
+                                    <td class="label">Project Name</td>
+                                    <td colspan="3">{{PROJECT_NAME}}</td>
+                                </tr>
+                                <tr>
+                                    <td class="label">Supervisor / Faculty Adviser Webmail</td>
+                                    <td>{{SUPERVISOR_WEBMAIL}}</td>
+                                    <td class="label">Coordinating PI Webmail</td>
+                                    <td>{{PI_WEBMAIL}}</td>
+                                </tr>
+                            </table>
 
-            <!-- FELLOWSHIP DETAILS -->
-            <div class="section-heading">Fellowship Details</div>
-            
-            <div style="display: flex; flex-direction: column; gap: 20px;">
-                {{ITEM_ROWS}}
-            </div>
+                            <!-- FELLOWSHIP DETAILS -->
+                            <div class="section-heading">Fellowship Details</div>
 
-            <table class="info-table" style="margin-top: 15px;">
-                <tbody>
-                    <tr style="background-color: #f8fafc;">
-                        <td class="label" style="text-align: left; font-size: 14px;">Grand Total Amount per Month:</td>
-                        <td style="text-align: right; font-weight: bold; color: #000; font-size: 14px; width: 25%;">{{TOTAL_AMOUNT}}</td>
-                    </tr>
-                </tbody>
-            </table>
+                            <div style="display: flex; flex-direction: column; gap: 20px;">
+                                {{ITEM_ROWS}}
+                            </div>
 
-            <!-- ACTIVITY LOG -->
-            {{ACTIVITY_LOG_SECTION}}
+                            <table class="info-table" style="margin-top: 15px;">
+                                <tbody>
+                                    <tr style="background-color: #f8fafc;">
+                                        <td class="label" style="text-align: left; font-size: 14px;">Grand Total Amount
+                                            per Month:</td>
+                                        <td
+                                            style="text-align: right; font-weight: bold; color: #000; font-size: 14px; width: 25%;">
+                                            {{TOTAL_AMOUNT}}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
 
-            {{ATTACHMENTS_SECTION}}
+                            <!-- ACTIVITY LOG -->
+                            {{ACTIVITY_LOG_SECTION}}
+
+                            {{ATTACHMENTS_SECTION}}
                         </td>
                     </tr>
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td><div style="height: 5mm;"></div></td>
+                        <td>
+                            <div style="height: 5mm;"></div>
+                        </td>
                     </tr>
                 </tfoot>
             </table>
         </div>
     </div>
-<div class="watermark">
-            <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
-                onerror="this.style.display = 'none'" />
-        </div>
+    <div class="watermark">
+        <img src="http://172.16.131.206:8000/files/IITG_logo.png" alt="IITG Logo"
+            onerror="this.style.display = 'none'" />
+    </div>
 </body>
 
 </html>

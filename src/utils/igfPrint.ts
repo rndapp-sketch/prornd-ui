@@ -3,7 +3,7 @@ import { getFileUrl } from "@/utils/fileUtils";
 
 // The .html?raw template is static text pulled in at build time, so it can't
 // reference import.meta.env itself; substitute the asset host here instead.
-const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.117.39";
+const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.131.206";
 const ASSET_PORT = import.meta.env.VITE_ASSET_PORT || "8000";
 
 export interface ActivityItem {
@@ -195,7 +195,7 @@ export function generateIgfPrintHtml(
 
     // Extract Attachments
     const attachments: { name: string, url: string }[] = [];
-    
+
     // 1. Explicit fields
     if (formData.igf_upload_detailed_specification) {
         const url = formData.igf_upload_detailed_specification;

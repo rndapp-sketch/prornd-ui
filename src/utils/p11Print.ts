@@ -4,7 +4,7 @@ import p11Template from "@/pages/printformat/p_11_format.html?raw";
 
 // The .html?raw template is static text pulled in at build time, so it can't
 // reference import.meta.env itself; substitute the asset host here instead.
-const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.117.39";
+const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.131.206";
 const ASSET_PORT = import.meta.env.VITE_ASSET_PORT || "8000";
 
 const fmtNum = (val: any) => {
@@ -55,10 +55,10 @@ export function generateP11Html(formData: Record<string, any>): string {
   // ── Date ──────────────────────────────────────────────────────────────────
   const creation = formData.creation
     ? new Date(formData.creation).toLocaleDateString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    })
     : "";
 
   // ── Indenter name: match owner email against PC table to get full name ───
@@ -72,10 +72,10 @@ export function generateP11Html(formData: Record<string, any>): string {
   // Fallback: Try to clean the email to make it look like a name if all else fails
   const emailToName = ownerEmail
     ? ownerEmail
-        .split("@")[0]
-        .split(".")
-        .map((s: string) => s.charAt(0).toUpperCase() + s.slice(1))
-        .join(" ")
+      .split("@")[0]
+      .split(".")
+      .map((s: string) => s.charAt(0).toUpperCase() + s.slice(1))
+      .join(" ")
     : "";
 
   // Final resolution chain
@@ -132,12 +132,12 @@ export function generateP11Html(formData: Record<string, any>): string {
     pcMembers.length > 0
       ? pcMembers
       : [
-          {
-            pc_name: indenterName,
-            webmail_id: formData.owner || "",
-            designation: "",
-          },
-        ];
+        {
+          pc_name: indenterName,
+          webmail_id: formData.owner || "",
+          designation: "",
+        },
+      ];
 
   const sigBlockStyle = [
     "display:inline-block",
@@ -198,7 +198,7 @@ export function generateP11Html(formData: Record<string, any>): string {
     .replace(
       "{{RECOMMENDATION_FROM}}",
       formData.the_purchase_committe_recommends_purchase_of_the_items_from_ms ||
-        "",
+      "",
     )
     .replace("{{ITEM_ROWS}}", itemRows)
     .replace("{{TOTAL_EX_WORKS}}", fmtNum(totalExWorks))

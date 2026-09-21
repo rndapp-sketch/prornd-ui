@@ -3,19 +3,19 @@ import { ToWords } from "to-words";
 
 // The .html?raw template is static text pulled in at build time, so it can't
 // reference import.meta.env itself; substitute the asset host here instead.
-const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.117.39";
+const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.131.206";
 const ASSET_PORT = import.meta.env.VITE_ASSET_PORT || "8000";
 
 const toWords = new ToWords({ localeCode: "en-IN", converterOptions: { ignoreDecimal: true } });
 
 const fmt = (val: any) => {
-    const n = Number(val);
-    if (!val && val !== 0) return "";
-    if (isNaN(n)) return String(val);
-    return n.toLocaleString("en-IN", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    });
+  const n = Number(val);
+  if (!val && val !== 0) return "";
+  if (isNaN(n)) return String(val);
+  return n.toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 };
 
 export const DEFAULT_TERMS = `<ol>
@@ -87,24 +87,24 @@ In the event of failure to submit the PBG within the stipulated timeframe, IIT G
 </ol>`;
 
 export const getFormattedTerms = (termsHtml: string, poData: Record<string, any>) => {
-    if (!termsHtml) return "";
-    const contactNo = poData.pi_phone || poData.applicant_phone || poData.applicant_mobile || poData.cell_phone_number || poData.phone_number || poData.contact_number || poData.mobile_no || poData.ss_applicant_phone || poData.ss_phone || "";
-    const contactStr = contactNo ? `, Contact No. ${contactNo}` : "";
-    return termsHtml
-        .replace(/\{\{PI_DEPARTMENT\}\}/g, poData.ss_department_for_purchase || "Department of Physics")
-        .replace(/\{\{PI_NAME\}\}/g, poData.ss_applicant_name || "Prof. Pravat Kumar Giri")
-        .replace(/\{\{PI_CONTACT\}\}/g, contactStr)
-        .replace(/\{\{PI_EMAIL\}\}/g, poData.owner || "giri@iitg.ac.in");
+  if (!termsHtml) return "";
+  const contactNo = poData.pi_phone || poData.applicant_phone || poData.applicant_mobile || poData.cell_phone_number || poData.phone_number || poData.contact_number || poData.mobile_no || poData.ss_applicant_phone || poData.ss_phone || "";
+  const contactStr = contactNo ? `, Contact No. ${contactNo}` : "";
+  return termsHtml
+    .replace(/\{\{PI_DEPARTMENT\}\}/g, poData.ss_department_for_purchase || "Department of Physics")
+    .replace(/\{\{PI_NAME\}\}/g, poData.ss_applicant_name || "Prof. Pravat Kumar Giri")
+    .replace(/\{\{PI_CONTACT\}\}/g, contactStr)
+    .replace(/\{\{PI_EMAIL\}\}/g, poData.owner || "giri@iitg.ac.in");
 };
 
 export function generatePOHtml(poData: Record<string, any>): string {
-    const rows: any[] = Array.isArray(poData.table_bttk)
-        ? poData.table_bttk
-        : [];
+  const rows: any[] = Array.isArray(poData.table_bttk)
+    ? poData.table_bttk
+    : [];
 
-    const itemRows = rows
-        .map(
-            (row, i) => `
+  const itemRows = rows
+    .map(
+      (row, i) => `
         <tr>
             <td class="center">${i + 1}</td>
             <td>${row.item_name || ""}</td>
@@ -117,55 +117,55 @@ export function generatePOHtml(poData: Record<string, any>): string {
             <td class="right">${fmt(row.item_gst)}</td>
             <td class="right">${fmt(row.dp_total_price)}</td>
         </tr>`,
-        )
-        .join("");
+    )
+    .join("");
 
-    const summaryRows = [
-        poData.ss_total_es_basic_value
-            ? `<tr><td colspan="9">Total Estimated Basic Value:</td><td class="right">${fmt(poData.ss_total_es_basic_value)}</td></tr>`
-            : "",
-        poData.ss_pack_forward
-            ? `<tr><td colspan="9">Packing &amp; Forwarding:</td><td class="right">${fmt(poData.ss_pack_forward)}</td></tr>`
-            : "",
-        poData.ss_freight
-            ? `<tr><td colspan="9">Freight:</td><td class="right">${fmt(poData.ss_freight)}</td></tr>`
-            : "",
-        poData.ss_other_charges
-            ? `<tr><td colspan="9">Other Charges:</td><td class="right">${fmt(poData.ss_other_charges)}</td></tr>`
-            : "",
-        poData.ss_grand_total
-            ? `<tr><td colspan="9"><strong>Grand Total:</strong></td><td class="right"><strong>${fmt(poData.ss_grand_total)}</strong></td></tr>`
-            : "",
-    ].join("");
+  const summaryRows = [
+    poData.ss_total_es_basic_value
+      ? `<tr><td colspan="9">Total Estimated Basic Value:</td><td class="right">${fmt(poData.ss_total_es_basic_value)}</td></tr>`
+      : "",
+    poData.ss_pack_forward
+      ? `<tr><td colspan="9">Packing &amp; Forwarding:</td><td class="right">${fmt(poData.ss_pack_forward)}</td></tr>`
+      : "",
+    poData.ss_freight
+      ? `<tr><td colspan="9">Freight:</td><td class="right">${fmt(poData.ss_freight)}</td></tr>`
+      : "",
+    poData.ss_other_charges
+      ? `<tr><td colspan="9">Other Charges:</td><td class="right">${fmt(poData.ss_other_charges)}</td></tr>`
+      : "",
+    poData.ss_grand_total
+      ? `<tr><td colspan="9"><strong>Grand Total:</strong></td><td class="right"><strong>${fmt(poData.ss_grand_total)}</strong></td></tr>`
+      : "",
+  ].join("");
 
-    // Build Account Head with IV (Indent Value) and SV (Sanction Value)
-    // IV = Total Estimated Basic Value from sanction sheet (ss_total_es_basic_value)
-    // SV = Grand Total from sanction sheet (ss_grand_total)
-    const ivRaw = poData.dp_indent_value || poData.ss_total_es_basic_value;
-    const ivStr = ivRaw !== undefined && ivRaw !== "" && Number(ivRaw) !== 0
-        ? `IV: ₹${fmt(ivRaw)}`
-        : "";
-    const svStr = poData.ss_grand_total !== undefined && poData.ss_grand_total !== "" && Number(poData.ss_grand_total) !== 0
-        ? `SV: ₹${fmt(poData.ss_grand_total)}`
-        : "";
-    const ivSvPart = [ivStr, svStr].filter(Boolean).join(", ");
-    const accountHeadStr = poData.ss_account_head
-        ? `${poData.ss_account_head}${ivSvPart ? ` (${ivSvPart})` : ""}`
-        : "";
+  // Build Account Head with IV (Indent Value) and SV (Sanction Value)
+  // IV = Total Estimated Basic Value from sanction sheet (ss_total_es_basic_value)
+  // SV = Grand Total from sanction sheet (ss_grand_total)
+  const ivRaw = poData.dp_indent_value || poData.ss_total_es_basic_value;
+  const ivStr = ivRaw !== undefined && ivRaw !== "" && Number(ivRaw) !== 0
+    ? `IV: ₹${fmt(ivRaw)}`
+    : "";
+  const svStr = poData.ss_grand_total !== undefined && poData.ss_grand_total !== "" && Number(poData.ss_grand_total) !== 0
+    ? `SV: ₹${fmt(poData.ss_grand_total)}`
+    : "";
+  const ivSvPart = [ivStr, svStr].filter(Boolean).join(", ");
+  const accountHeadStr = poData.ss_account_head
+    ? `${poData.ss_account_head}${ivSvPart ? ` (${ivSvPart})` : ""}`
+    : "";
 
-    return poTemplate
-        .replace(/http:\/\/172\.16\.117\.39:8000/g, `http://${ASSET_HOST}:${ASSET_PORT}`)
-        .replace("{{VENDOR_ADDRESS}}", poData.vendor_address || poData.ss_name_of_firms || "")
-        .replace("{{PO_NUMBER}}", poData.po_number || poData.name || "")
-        .replace("{{PO_DATE}}", poData.po_date || new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }))
-        .replace("{{QUOTATION_NO}}", poData.quotation_no || "")
-        .replace("{{ITEM_ROWS}}", itemRows)
-        .replace("{{SUMMARY_ROWS}}", summaryRows)
-        .replace("{{AMOUNT_IN_WORDS}}", poData.amount_in_words || (poData.ss_grand_total ? toWords.convert(Number(poData.ss_grand_total)) : ""))
-        .replace("{{ACCOUNT_HEAD}}", accountHeadStr)
-        .replace("{{FILE_NUMBER}}", poData.ss_file_number || "")
-        .replace("{{PO_CREATED_BY}}", poData.owner || "")
-        .replace("{{SIGNEE_NAME}}", poData.signee_name || "")
-        .replace("{{SIGNEE_DESIGNATION}}", poData.signee_designation || "")
-        .replace("{{TERMS_AND_CONDITIONS}}", getFormattedTerms(poData.terms_and_conditions || DEFAULT_TERMS, poData));
+  return poTemplate
+    .replace(/http:\/\/172\.16\.117\.39:8000/g, `http://${ASSET_HOST}:${ASSET_PORT}`)
+    .replace("{{VENDOR_ADDRESS}}", poData.vendor_address || poData.ss_name_of_firms || "")
+    .replace("{{PO_NUMBER}}", poData.po_number || poData.name || "")
+    .replace("{{PO_DATE}}", poData.po_date || new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }))
+    .replace("{{QUOTATION_NO}}", poData.quotation_no || "")
+    .replace("{{ITEM_ROWS}}", itemRows)
+    .replace("{{SUMMARY_ROWS}}", summaryRows)
+    .replace("{{AMOUNT_IN_WORDS}}", poData.amount_in_words || (poData.ss_grand_total ? toWords.convert(Number(poData.ss_grand_total)) : ""))
+    .replace("{{ACCOUNT_HEAD}}", accountHeadStr)
+    .replace("{{FILE_NUMBER}}", poData.ss_file_number || "")
+    .replace("{{PO_CREATED_BY}}", poData.owner || "")
+    .replace("{{SIGNEE_NAME}}", poData.signee_name || "")
+    .replace("{{SIGNEE_DESIGNATION}}", poData.signee_designation || "")
+    .replace("{{TERMS_AND_CONDITIONS}}", getFormattedTerms(poData.terms_and_conditions || DEFAULT_TERMS, poData));
 }

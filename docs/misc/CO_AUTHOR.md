@@ -98,7 +98,7 @@ refactor: extract FundSanctionView into separate component
 ## Project-Specific Guidelines
 
 - **Framework:** React + TypeScript + Vite — always type-check before committing (`yarn tsc --noEmit`)
-- **Backend:** Frappe/ERPNext at `prornd.local` — API calls go through the proxy at `http://172.16.117.39:8000`
+- **Backend:** Frappe/ERPNext at `prornd.local` — API calls go through the proxy at `http://172.16.131.206:8000`
 - **Build output:** goes to `../rndopsapp/public/frontend/` — never commit this directory
 - **Active branch:** `mythos_omni_v0.4` — all work happens here until a release cut
 - **Role strings:** when checking staff RnD roles, always match all variants:

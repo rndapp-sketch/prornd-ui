@@ -41,7 +41,7 @@ This frontend connects to a **Frappe/ERPNext backend** located at the site `pror
 - **FrappeProvider**: Wraps the app and connects to the Frappe backend via `frappe-react-sdk`
 - **Site Name**: `prornd.local` (configured in [App.tsx](src/App.tsx#L184))
 - **Socket Port**: 9001 for real-time updates
-- **Proxy Configuration**: Development proxy routes API calls to `http://172.16.117.39:8000` (defined in [proxyOptions.ts](proxyOptions.ts))
+- **Proxy Configuration**: Development proxy routes API calls to `http://172.16.131.206:8000` (defined in [proxyOptions.ts](proxyOptions.ts))
 - **Additional Ledger API**: Proxies `/ledger-api` to port 18083 for external ledger integration
 
 ### State Management

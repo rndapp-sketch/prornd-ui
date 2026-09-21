@@ -824,39 +824,39 @@ const ReimbursementDetails: React.FC = () => {
     const activityEl = activityLogContainerRef.current;
 
     if (activityEl) {
-        const allItems = Array.from(activityEl.querySelectorAll(".flex.items-start"));
-        
-        const extracted = allItems.map((item) => {
-            const spans = item.querySelectorAll("span");
-            const rawName = spans[1]?.textContent?.trim() || "";
-            let name = rawName;
-            const designation = item.querySelector(".designation-text")?.textContent?.trim() || "";
-            if (designation) {
-                name = `${rawName} <br><span class="designation">(${designation})</span>`;
-            }
-            const timeRaw = item.querySelector("p.text-\\[11px\\]")?.textContent?.trim() || "";
-            let timeStr = timeRaw;
-            const parsedDt = new Date(timeRaw);
-            if (!isNaN(parsedDt.getTime())) {
-                const ds = parsedDt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-                const ts = parsedDt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
-                timeStr = `${ds}, ${ts}`;
-            }
-            const content = item.querySelector(".prose")?.innerHTML?.trim() || spans[2]?.textContent?.trim() || "";
-            return { name, content, time: timeStr };
-        });
+      const allItems = Array.from(activityEl.querySelectorAll(".flex.items-start"));
 
-        if (extracted.length > 0) {
-            activityRows = extracted.map(
-                (e) => `
+      const extracted = allItems.map((item) => {
+        const spans = item.querySelectorAll("span");
+        const rawName = spans[1]?.textContent?.trim() || "";
+        let name = rawName;
+        const designation = item.querySelector(".designation-text")?.textContent?.trim() || "";
+        if (designation) {
+          name = `${rawName} <br><span class="designation">(${designation})</span>`;
+        }
+        const timeRaw = item.querySelector("p.text-\\[11px\\]")?.textContent?.trim() || "";
+        let timeStr = timeRaw;
+        const parsedDt = new Date(timeRaw);
+        if (!isNaN(parsedDt.getTime())) {
+          const ds = parsedDt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+          const ts = parsedDt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+          timeStr = `${ds}, ${ts}`;
+        }
+        const content = item.querySelector(".prose")?.innerHTML?.trim() || spans[2]?.textContent?.trim() || "";
+        return { name, content, time: timeStr };
+      });
+
+      if (extracted.length > 0) {
+        activityRows = extracted.map(
+          (e) => `
                     <tr>
                         <td>${e.name}</td>
                         <td>${e.content}</td>
                         <td style="white-space:nowrap;">${e.time}</td>
                     </tr>`
-            ).join("");
-            activityCount = extracted.length;
-        }
+        ).join("");
+        activityCount = extracted.length;
+      }
     }
 
     let attachmentsSection = "";
@@ -977,7 +977,7 @@ const ReimbursementDetails: React.FC = () => {
 
     <!-- Header -->
     <div class="header">
-        <img src="http://${import.meta.env.VITE_ASSET_HOST || '172.16.117.39'}:${import.meta.env.VITE_ASSET_PORT || '8000'}/files/IITG_logo.png" alt="IITG Logo" class="logo-img" />
+        <img src="http://${import.meta.env.VITE_ASSET_HOST || '172.16.131.206'}:${import.meta.env.VITE_ASSET_PORT || '8000'}/files/IITG_logo.png" alt="IITG Logo" class="logo-img" />
         <div class="header-text">
             <div class="inst-hi">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
             <div class="inst-en">Indian Institute of Technology Guwahati</div>
@@ -1235,9 +1235,9 @@ const ReimbursementDetails: React.FC = () => {
         {/* Warning Banner if there's a pending cancellation */}
         {cancellationStatus?.message?.has_cancellation && (
           <CancellationStatusBanner
-                        requests={cancellationStatus?.message?.cancellation_requests}
-                        currentUser={currentUser}
-                    />
+            requests={cancellationStatus?.message?.cancellation_requests}
+            currentUser={currentUser}
+          />
         )}
         {/* Content Grid */}
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">

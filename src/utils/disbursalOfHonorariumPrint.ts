@@ -3,7 +3,7 @@ import { getFileUrl } from "@/utils/fileUtils";
 
 // The .html?raw template is static text pulled in at build time, so it can't
 // reference import.meta.env itself; substitute the asset host here instead.
-const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.117.39";
+const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.131.206";
 const ASSET_PORT = import.meta.env.VITE_ASSET_PORT || "8000";
 
 export interface ActivityItem {
@@ -44,7 +44,7 @@ function buildActivityLogHtml(items: ActivityItem[], formData?: Record<string, a
                 : "";
             const plainContent = (c.content || "").replace(/<[^>]*>/g, "").trim();
             const label = c.comment_type === "Creation" ? "Submitted" : "";
-            
+
             const time = dateStr ? `${dateStr}${timeStr ? ", " + timeStr : ""}` : "";
             const finalComment = plainContent || label || "-";
 
@@ -114,7 +114,7 @@ function buildDocActivityLogHtml(entries: any[]): string {
             const plainContent = (e.content || "").replace(/<[^>]*>/g, "").trim();
             const finalComment = plainContent || label || "-";
             const time = dateStr ? `${dateStr}${timeStr ? ", " + timeStr : ""}` : "";
-            
+
             return `
                     <tr>
                         <td>${displayName}</td>
@@ -333,19 +333,19 @@ export function generateDisbursalOfHonorariumHtml(
                 if (activityEl) {
                     const allItems = Array.from(activityEl.querySelectorAll(".flex.items-start"));
                     const items = allItems.filter(item => item.querySelector(".text-xs.font-semibold"));
-                    
+
                     if (items.length > 0) {
                         const activityRows = items
                             .map((item) => {
-                                const nameEl   = item.querySelector(".text-xs.font-semibold");
-                                let name     = nameEl?.textContent?.trim() || "Unknown";
-                                
+                                const nameEl = item.querySelector(".text-xs.font-semibold");
+                                let name = nameEl?.textContent?.trim() || "Unknown";
+
                                 // If the UI fell back to an email and we have the resolved name, map it!
                                 if (name === formData.owner && formData.resolved_owner_name) {
                                     name = formData.resolved_owner_name.replace(/\s*\(.*\)$/, "");
                                 }
-                                
-                                const desigEl  = item.querySelector(".designation-text");
+
+                                const desigEl = item.querySelector(".designation-text");
                                 const designation = desigEl?.textContent?.trim() || "";
 
                                 const actionEls = item.querySelectorAll<HTMLElement>(".text-xs.text-zinc-500, .text-xs.text-zinc-400");
@@ -357,11 +357,11 @@ export function generateDisbursalOfHonorariumHtml(
                                     }
                                 });
 
-                                const timeEl   = item.querySelector<HTMLElement>("p[title], p.text-\\[11px\\], .text-xs.text-zinc-400");
+                                const timeEl = item.querySelector<HTMLElement>("p[title], p.text-\\[11px\\], .text-xs.text-zinc-400");
                                 const titleTime = timeEl?.getAttribute("title") || "";
                                 const relativeTime = timeEl?.textContent?.trim() || "";
                                 const time = titleTime || relativeTime;
-                                
+
                                 const commentEl = item.querySelector<HTMLElement>(".prose");
                                 const comment = commentEl?.textContent?.trim() || "";
 
@@ -380,7 +380,7 @@ export function generateDisbursalOfHonorariumHtml(
                                 </tr>`;
                             })
                             .join("");
-                        
+
                         return `
                         <div style="page-break-inside: avoid; break-inside: avoid;">
                             <div class="section-heading" style="margin-top:8px;">Activity Log</div>

@@ -1,406 +1,409 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <title>Sanction Sheet</title>
 
-        <style>
-            * {
-                box-sizing: border-box;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
+<head>
+    <meta charset="UTF-8" />
+    <title>Sanction Sheet</title>
 
-            body {
-                margin: 0;
-                padding: 0;
-                font-family: "Times New Roman", Times, serif;
-                background: #e0e0e0;
-            }
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
 
-            .page {
-                width: 210mm;
-                min-height: 297mm;
-                margin: 20px auto;
-                background: #fff;
-                position: relative;
-                box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-            }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Times New Roman", Times, serif;
+            background: #e0e0e0;
+        }
 
-            .content {
-                position: relative;
-                z-index: 1;
-                padding: 10mm 12mm;
-            }
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 20px auto;
+            background: #fff;
+            position: relative;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
 
-            .watermark {
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                opacity: 0.08;
-                z-index: 0;
-                pointer-events: none;
-            }
+        .content {
+            position: relative;
+            z-index: 1;
+            padding: 10mm 12mm;
+        }
 
-            .watermark img {
-                width: 350px;
-            }
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.08;
+            z-index: 0;
+            pointer-events: none;
+        }
 
-            .header-row {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: 15px;
-                margin-bottom: 10px;
-            }
+        .watermark img {
+            width: 350px;
+        }
 
-            .logo-container img {
-                height: 65px;
-                width: auto;
-            }
+        .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
 
-            .header-text {
-                text-align: center;
-            }
+        .logo-container img {
+            height: 65px;
+            width: auto;
+        }
 
-            .header {
-                font-size: 22px;
-                font-weight: bold;
-                text-transform: uppercase;
-                margin-bottom: 2px;
-            }
+        .header-text {
+            text-align: center;
+        }
 
-            .sub-header {
-                font-size: 18px;
-                font-weight: bold;
-            }
+        .header {
+            font-size: 22px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
 
-            .title {
-                text-align: center;
-                font-weight: bold;
-                text-decoration: underline;
-                margin: 10px 0 14px 0;
-                font-size: 18px;
-            }
+        .sub-header {
+            font-size: 18px;
+            font-weight: bold;
+        }
 
-            .top-info {
-                display: flex;
-                justify-content: space-between;
-                font-size: 15px;
-                margin-bottom: 12px;
-                line-height: 1.4;
-            }
+        .title {
+            text-align: center;
+            font-weight: bold;
+            text-decoration: underline;
+            margin: 10px 0 14px 0;
+            font-size: 18px;
+        }
 
-            /* Info table (key-value pairs) */
-            .info-table {
-                width: 100%;
-                border-collapse: collapse;
-                font-size: 14px;
-                margin-bottom: 12px;
-            }
+        .top-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 15px;
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
 
-            .info-table td {
-                border: 1px solid #000;
-                padding: 5px 8px;
-                vertical-align: top;
-                line-height: 1.3;
-            }
+        /* Info table (key-value pairs) */
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
 
-            .info-table td.label {
-                font-weight: bold;
-                width: 20%;
-                background-color: #f7f7f7;
-            }
+        .info-table td {
+            border: 1px solid #000;
+            padding: 5px 8px;
+            vertical-align: top;
+            line-height: 1.3;
+        }
 
-            /* Item table */
-            table.item-table {
-                width: 100%;
-                border-collapse: collapse;
-                font-size: 13px;
-                margin-bottom: 10px;
-            }
+        .info-table td.label {
+            font-weight: bold;
+            width: 20%;
+            background-color: #f7f7f7;
+        }
 
-            table.item-table th,
-            table.item-table td {
-                border: 1px solid #000;
-                padding: 5px 6px;
-                vertical-align: middle;
-                line-height: 1.3;
-                word-wrap: break-word;
-            }
+        /* Item table */
+        table.item-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
 
-            table.item-table th {
-                text-align: center;
-                font-weight: bold;
-                background-color: #f0f0f0;
-            }
+        table.item-table th,
+        table.item-table td {
+            border: 1px solid #000;
+            padding: 5px 6px;
+            vertical-align: middle;
+            line-height: 1.3;
+            word-wrap: break-word;
+        }
 
-            .center {
-                text-align: center;
-            }
-            .right {
-                text-align: right;
-                white-space: nowrap;
-            }
+        table.item-table th {
+            text-align: center;
+            font-weight: bold;
+            background-color: #f0f0f0;
+        }
 
-            .section-title {
-                font-size: 14px;
-                font-weight: bold;
-                text-decoration: underline;
-                margin: 12px 0 6px 0;
-            }
+        .center {
+            text-align: center;
+        }
 
-            .terms-list {
-                font-size: 14px;
-                padding-left: 20px;
-                margin: 4px 0 10px 0;
-                line-height: 1.6;
-            }
+        .right {
+            text-align: right;
+            white-space: nowrap;
+        }
 
-            .remarks {
-                font-size: 14px;
-                margin-bottom: 10px;
-                line-height: 1.5;
-            }
+        .section-title {
+            font-size: 14px;
+            font-weight: bold;
+            text-decoration: underline;
+            margin: 12px 0 6px 0;
+        }
 
-            .declaration {
-                font-size: 13px;
-                line-height: 1.6;
-                margin-bottom: 16px;
-            }
+        .terms-list {
+            font-size: 14px;
+            padding-left: 20px;
+            margin: 4px 0 10px 0;
+            line-height: 1.6;
+        }
 
-            .signature-section {
-                margin-top: 50px;
-                display: flex;
-                justify-content: space-between;
-                font-size: 14px;
-                page-break-inside: avoid;
-            }
+        .remarks {
+            font-size: 14px;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
 
-            .sig-block {
-                text-align: center;
-            }
+        .declaration {
+            font-size: 13px;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
 
-            @page {
-                size: A4;
-                margin: 15mm 12mm;
-            }
+        .signature-section {
+            margin-top: 50px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            page-break-inside: avoid;
+        }
 
-            @media print {
+        .sig-block {
+            text-align: center;
+        }
+
+        @page {
+            size: A4;
+            margin: 15mm 12mm;
+        }
+
+        @media print {
             .watermark {
                 position: fixed !important;
                 top: 50% !important;
                 left: 50% !important;
                 transform: translate(-50%, -50%) !important;
                 z-index: 0 !important;
-                .print-footer {
-                display: flex !important;
-                justify-content: space-between;
-                align-items: center;
-                position: fixed;
-                bottom: 8mm;
-                right: 14mm;
-                left: 14mm;
-                font-size: 8pt;
-                color: #888;
-                border-top: 1px solid #ddd;
-                padding-top: 4px;
-                z-index: 100;
-            }
-        }
 
-            table.layout-table > tbody > tr,
-            table.layout-table > tbody > tr > td {
+                .print-footer {
+                    display: flex !important;
+                    justify-content: space-between;
+                    align-items: center;
+                    position: fixed;
+                    bottom: 8mm;
+                    right: 14mm;
+                    left: 14mm;
+                    font-size: 8pt;
+                    color: #888;
+                    border-top: 1px solid #ddd;
+                    padding-top: 4px;
+                    z-index: 100;
+                }
+            }
+
+            table.layout-table>tbody>tr,
+            table.layout-table>tbody>tr>td {
                 page-break-inside: auto !important;
                 break-inside: auto !important;
             }
 
-            tr { page-break-inside: avoid; }
-                body {
-                    margin: 0;
-                    background: none;
-                }
-
-                .page {
-                    margin: 0;
-                    box-shadow: none;
-                    background: none;
-                    width: auto;
-                    min-height: auto;
-                    page-break-inside: auto;
-                }
-
-                .content { padding: 0 14mm; }
-
-                .signature-section {
-                    page-break-inside: avoid;
-                }
+            tr {
+                page-break-inside: avoid;
             }
-        
+
+            body {
+                margin: 0;
+                background: none;
+            }
+
+            .page {
+                margin: 0;
+                box-shadow: none;
+                background: none;
+                width: auto;
+                min-height: auto;
+                page-break-inside: auto;
+            }
+
+            .content {
+                padding: 0 14mm;
+            }
+
+            .signature-section {
+                page-break-inside: avoid;
+            }
+        }
+
         .print-footer {
             display: none;
         }
     </style>
-    </head>
+</head>
 
-    <body>
-        <div class="page">
-            
+<body>
+    <div class="page">
 
-            <div class="content">
-                <!-- HEADER -->
-                <div class="header-row">
-                    <div class="logo-container">
-                        <img
-                            src="http://172.16.117.39:8000/files/IITG_logo.png"
-                            alt="IITG Logo"
-                            onerror="this.style.display = 'none'"
-                        />
+
+        <div class="content">
+            <!-- HEADER -->
+            <div class="header-row">
+                <div class="logo-container">
+                    <img src="http://172.16.131.206:8000/files/IITG_logo.png" alt="IITG Logo"
+                        onerror="this.style.display = 'none'" />
+                </div>
+                <div class="header-text">
+                    <div class="header">
+                        Indian Institute of Technology Guwahati
                     </div>
-                    <div class="header-text">
-                        <div class="header">
-                            Indian Institute of Technology Guwahati
-                        </div>
-                        <div class="sub-header">
-                            Research &amp; Development Section
-                        </div>
+                    <div class="sub-header">
+                        Research &amp; Development Section
                     </div>
                 </div>
+            </div>
 
-                <!-- TOP INFO -->
-                <div class="top-info">
-                    <div>
-                        <strong>File No.:</strong> {{FILE_NUMBER}}<br />
-                        <strong>Project No.:</strong> {{PROJECT_NO}}
-                    </div>
-                    <div style="text-align: right">
-                        <strong>Doc Ref.:</strong> {{DOC_REF}}<br />
-                        <strong>Direct Purchase Ref.:</strong>
-                        {{DIRECT_PURCHASE_REF}}<br />
-                        <strong>Date:</strong> {{DATE}}
-                    </div>
+            <!-- TOP INFO -->
+            <div class="top-info">
+                <div>
+                    <strong>File No.:</strong> {{FILE_NUMBER}}<br />
+                    <strong>Project No.:</strong> {{PROJECT_NO}}
                 </div>
+                <div style="text-align: right">
+                    <strong>Doc Ref.:</strong> {{DOC_REF}}<br />
+                    <strong>Direct Purchase Ref.:</strong>
+                    {{DIRECT_PURCHASE_REF}}<br />
+                    <strong>Date:</strong> {{DATE}}
+                </div>
+            </div>
 
-                <!-- TITLE -->
-                <div class="title">SANCTION SHEET</div>
+            <!-- TITLE -->
+            <div class="title">SANCTION SHEET</div>
 
-                <!-- APPLICANT INFO TABLE -->
+            <!-- APPLICANT INFO TABLE -->
+            <table class="info-table">
+                <tr>
+                    <td class="label">Applicant Name</td>
+                    <td>{{SS_APPLICANT_NAME}}</td>
+                    <td class="label">Year / Period of Sanction</td>
+                    <td>{{SS_YEAR_PERIOD}}</td>
+                </tr>
+                <tr>
+                    <td class="label">Department / Centre</td>
+                    <td>{{SS_DEPARTMENT}}</td>
+                    <td class="label">Funding Agency</td>
+                    <td>{{SS_FUNDING_AGENCY}}</td>
+                </tr>
+                <tr>
+                    <td class="label">Head of Account</td>
+                    <td>{{SS_ACCOUNT_HEAD}}</td>
+                    <td class="label">Funds Allocated (INR)</td>
+                    <td>{{SS_FUNDS_ALLOCATED}}</td>
+                </tr>
+                <tr>
+                    <td class="label">Balance Available (INR)</td>
+                    <td>{{SS_BALANCE_AVAILABLE}}</td>
+                    <td class="label">Actual Expenditure (INR)</td>
+                    <td>{{SS_ACTUAL_EXPENDITURE}}</td>
+                </tr>
+                <tr>
+                    <td class="label">Name of Firm(s)</td>
+                    <td colspan="3">{{SS_NAME_OF_FIRMS}}</td>
+                </tr>
+            </table>
+
+            <!-- ITEM TABLE -->
+            <div class="section-title">Brief Details of Purchase</div>
+            <table class="item-table">
+                <colgroup>
+                    <col style="width: 4%" />
+                    <col style="width: 16%" />
+                    <col style="width: 9%" />
+                    <col style="width: 9%" />
+                    <col style="width: 21%" />
+                    <col style="width: 5%" />
+                    <col style="width: 10%" />
+                    <col style="width: 9%" />
+                    <col style="width: 7%" />
+                    <col style="width: 10%" />
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th>Sl.</th>
+                        <th>Item Name</th>
+                        <th>Make</th>
+                        <th>Model</th>
+                        <th>Description</th>
+                        <th>Qty</th>
+                        <th>Unit Price</th>
+                        <th>Discount</th>
+                        <th>GST</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ITEM_ROWS}} {{SUMMARY_ROWS}}
+                </tbody>
+            </table>
+
+            <!-- TERMS & CONDITIONS -->
+            <div style="page-break-inside: avoid; break-inside: avoid;">
+                <div class="section-title">Terms &amp; Conditions</div>
                 <table class="info-table">
                     <tr>
-                        <td class="label">Applicant Name</td>
-                        <td>{{SS_APPLICANT_NAME}}</td>
-                        <td class="label">Year / Period of Sanction</td>
-                        <td>{{SS_YEAR_PERIOD}}</td>
+                        <td class="label">Warranty</td>
+                        <td>{{SS_WARRANTY}}</td>
+                        <td class="label">Delivery</td>
+                        <td>{{SS_DELIVERY}}</td>
                     </tr>
                     <tr>
-                        <td class="label">Department / Centre</td>
-                        <td>{{SS_DEPARTMENT}}</td>
-                        <td class="label">Funding Agency</td>
-                        <td>{{SS_FUNDING_AGENCY}}</td>
+                        <td class="label">Payment</td>
+                        <td colspan="3">{{SS_PAYMENT}}</td>
                     </tr>
-                    <tr>
-                        <td class="label">Head of Account</td>
-                        <td>{{SS_ACCOUNT_HEAD}}</td>
-                        <td class="label">Funds Allocated (INR)</td>
-                        <td>{{SS_FUNDS_ALLOCATED}}</td>
-                    </tr>
-                    <tr>
-                        <td class="label">Balance Available (INR)</td>
-                        <td>{{SS_BALANCE_AVAILABLE}}</td>
-                        <td class="label">Actual Expenditure (INR)</td>
-                        <td>{{SS_ACTUAL_EXPENDITURE}}</td>
-                    </tr>
-                    <tr>
-                        <td class="label">Name of Firm(s)</td>
-                        <td colspan="3">{{SS_NAME_OF_FIRMS}}</td>
-                    </tr>
+                    {{ADDITIONAL_TERMS_ROW}}
                 </table>
+            </div>
 
-                <!-- ITEM TABLE -->
-                <div class="section-title">Brief Details of Purchase</div>
-                <table class="item-table">
-                    <colgroup>
-                        <col style="width: 4%" />
-                        <col style="width: 16%" />
-                        <col style="width: 9%" />
-                        <col style="width: 9%" />
-                        <col style="width: 21%" />
-                        <col style="width: 5%" />
-                        <col style="width: 10%" />
-                        <col style="width: 9%" />
-                        <col style="width: 7%" />
-                        <col style="width: 10%" />
-                    </colgroup>
-                    <thead>
-                        <tr>
-                            <th>Sl.</th>
-                            <th>Item Name</th>
-                            <th>Make</th>
-                            <th>Model</th>
-                            <th>Description</th>
-                            <th>Qty</th>
-                            <th>Unit Price</th>
-                            <th>Discount</th>
-                            <th>GST</th>
-                            <th>Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {{ITEM_ROWS}} {{SUMMARY_ROWS}}
-                    </tbody>
-                </table>
+            <!-- REMARKS -->
+            {{REMARKS_ROW}}
 
-                <!-- TERMS & CONDITIONS -->
-                <div style="page-break-inside: avoid; break-inside: avoid;">
-                    <div class="section-title">Terms &amp; Conditions</div>
-                    <table class="info-table">
-                        <tr>
-                            <td class="label">Warranty</td>
-                            <td>{{SS_WARRANTY}}</td>
-                            <td class="label">Delivery</td>
-                            <td>{{SS_DELIVERY}}</td>
-                        </tr>
-                        <tr>
-                            <td class="label">Payment</td>
-                            <td colspan="3">{{SS_PAYMENT}}</td>
-                        </tr>
-                        {{ADDITIONAL_TERMS_ROW}}
-                    </table>
-                </div>
+            <!-- DECLARATION AND SIGNATURES (Kept Together) -->
+            <div style="page-break-inside: avoid; break-inside: avoid;">
+                <div class="section-title">Declaration</div>
+                <div class="declaration">{{SS_DECLARATION}}</div>
 
-                <!-- REMARKS -->
-                {{REMARKS_ROW}}
-
-                <!-- DECLARATION AND SIGNATURES (Kept Together) -->
-                <div style="page-break-inside: avoid; break-inside: avoid;">
-                    <div class="section-title">Declaration</div>
-                    <div class="declaration">{{SS_DECLARATION}}</div>
-
-                    <!-- SIGNATURES -->
-                    <div class="signature-section">
-                        <div class="sig-block">
-                            _______________________<br /><br />
-                            <strong>Principal Investigator</strong>
-                        </div>
-                        <div class="sig-block">
-                            _______________________<br /><br />
-                            <strong>HoS (RnD)</strong>
-                        </div>
-                        <div class="sig-block">
-                            _______________________<br /><br />
-                            <strong>Dean, R&amp;D / Assoc. Dean, R&amp;D</strong>
-                        </div>
+                <!-- SIGNATURES -->
+                <div class="signature-section">
+                    <div class="sig-block">
+                        _______________________<br /><br />
+                        <strong>Principal Investigator</strong>
+                    </div>
+                    <div class="sig-block">
+                        _______________________<br /><br />
+                        <strong>HoS (RnD)</strong>
+                    </div>
+                    <div class="sig-block">
+                        _______________________<br /><br />
+                        <strong>Dean, R&amp;D / Assoc. Dean, R&amp;D</strong>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
     <div class="watermark">
-                <img
-                    src="http://172.16.117.39:8000/files/IITG_logo.png"
-                    alt="IITG Logo"
-                    onerror="this.style.display = 'none'"
-                />
-            </div>
+        <img src="http://172.16.131.206:8000/files/IITG_logo.png" alt="IITG Logo"
+            onerror="this.style.display = 'none'" />
+    </div>
 </body>
+
 </html>

@@ -302,29 +302,33 @@
                 left: 50% !important;
                 transform: translate(-50%, -50%) !important;
                 z-index: 0 !important;
-                .print-footer {
-                display: flex !important;
-                justify-content: space-between;
-                align-items: center;
-                position: fixed;
-                bottom: 8mm;
-                right: 14mm;
-                left: 14mm;
-                font-size: 8pt;
-                color: #888;
-                border-top: 1px solid #ddd;
-                padding-top: 4px;
-                z-index: 100;
-            }
-        }
 
-            table.layout-table > tbody > tr,
-            table.layout-table > tbody > tr > td {
+                .print-footer {
+                    display: flex !important;
+                    justify-content: space-between;
+                    align-items: center;
+                    position: fixed;
+                    bottom: 8mm;
+                    right: 14mm;
+                    left: 14mm;
+                    font-size: 8pt;
+                    color: #888;
+                    border-top: 1px solid #ddd;
+                    padding-top: 4px;
+                    z-index: 100;
+                }
+            }
+
+            table.layout-table>tbody>tr,
+            table.layout-table>tbody>tr>td {
                 page-break-inside: auto !important;
                 break-inside: auto !important;
             }
 
-            tr { page-break-inside: avoid; }
+            tr {
+                page-break-inside: avoid;
+            }
+
             body {
                 margin: 0;
                 background: none;
@@ -339,13 +343,15 @@
                 page-break-inside: auto;
             }
 
-            .content { padding: 0 14mm; }
+            .content {
+                padding: 0 14mm;
+            }
 
             .signature-section {
                 page-break-inside: avoid;
             }
         }
-    
+
         .print-footer {
             display: none;
         }
@@ -354,14 +360,14 @@
 
 <body>
     <div class="page">
-        
+
 
         <div class="content">
             <!-- HEADER -->
             <div class="header-row">
                 <div class="header-brand">
                     <div class="logo-container">
-                        <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
+                        <img src="http://172.16.131.206:8000/files/IITG_logo.png" alt="IITG Logo"
                             onerror="this.style.display = 'none'" />
                     </div>
                     <div class="header-text">
@@ -446,10 +452,10 @@
             </div>
         </div>
     </div>
-<div class="watermark">
-            <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
-                onerror="this.style.display = 'none'" />
-        </div>
+    <div class="watermark">
+        <img src="http://172.16.131.206:8000/files/IITG_logo.png" alt="IITG Logo"
+            onerror="this.style.display = 'none'" />
+    </div>
 </body>
 
 </html>

@@ -2,7 +2,7 @@ import ssTemplate from "@/pages/printformat/sanction_sheet_format.html?raw";
 
 // The .html?raw template is static text pulled in at build time, so it can't
 // reference import.meta.env itself; substitute the asset host here instead.
-const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.117.39";
+const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.131.206";
 const ASSET_PORT = import.meta.env.VITE_ASSET_PORT || "8000";
 
 const fmt = (val: any) => {
@@ -23,15 +23,15 @@ export function generateSanctionSheetHtml(
         : [];
     const creation = formData.creation
         ? new Date(formData.creation).toLocaleDateString("en-IN", {
-              day: "2-digit",
-              month: "2-digit",
-              year: "numeric",
-          })
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+        })
         : new Date().toLocaleDateString("en-IN", {
-              day: "2-digit",
-              month: "2-digit",
-              year: "numeric",
-          });
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+        });
 
     const itemRows = rows
         .map(
@@ -122,6 +122,6 @@ export function generateSanctionSheetHtml(
         .replace(
             "{{SS_DECLARATION}}",
             formData.html_dqce ||
-                "Purchase made under direct procurement of the purchase committee up to 10 lakhs by submission of quotation(s).",
+            "Purchase made under direct procurement of the purchase committee up to 10 lakhs by submission of quotation(s).",
         );
 }

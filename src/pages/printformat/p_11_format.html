@@ -271,29 +271,32 @@
                 left: 50% !important;
                 transform: translate(-50%, -50%) !important;
                 z-index: 0 !important;
-                .print-footer {
-                display: flex !important;
-                justify-content: space-between;
-                align-items: center;
-                position: fixed;
-                bottom: 8mm;
-                right: 14mm;
-                left: 14mm;
-                font-size: 8pt;
-                color: #888;
-                border-top: 1px solid #ddd;
-                padding-top: 4px;
-                z-index: 100;
-            }
-        }
 
-            table.layout-table > tbody > tr,
-            table.layout-table > tbody > tr > td {
+                .print-footer {
+                    display: flex !important;
+                    justify-content: space-between;
+                    align-items: center;
+                    position: fixed;
+                    bottom: 8mm;
+                    right: 14mm;
+                    left: 14mm;
+                    font-size: 8pt;
+                    color: #888;
+                    border-top: 1px solid #ddd;
+                    padding-top: 4px;
+                    z-index: 100;
+                }
+            }
+
+            table.layout-table>tbody>tr,
+            table.layout-table>tbody>tr>td {
                 page-break-inside: auto !important;
                 break-inside: auto !important;
             }
 
-            tr { page-break-inside: avoid; }
+            tr {
+                page-break-inside: avoid;
+            }
 
             body,
             .page {
@@ -346,7 +349,7 @@
         }
 
         /* Also show the footer in screen view */
-    
+
         .print-footer {
             display: none;
         }
@@ -357,7 +360,7 @@
 <body>
     <div class="page">
 
-        
+
 
         <div class="content">
 
@@ -369,7 +372,7 @@
                             <!-- HEADER -->
                             <div class="header-row">
                                 <div class="logo-left">
-                                    <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG"
+                                    <img src="http://172.16.131.206:8000/files/IITG_logo.png" alt="IITG"
                                         onerror="this.style.display='none'">
                                 </div>
                                 <div class="header-center">
@@ -381,15 +384,18 @@
                             </div>
 
                             <!-- DOC META & FORM TYPE -->
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin: 4px 0 2px 0;">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: flex-start; margin: 4px 0 2px 0;">
                                 <div class="form-type">
                                     Form Type: P_11 Form
                                     <div class="form-type-ref">
-                                        <span class="doc-ref-label">Direct Purchase Ref: </span><span class="doc-ref-value">{{DIRECT_PURCHASE_REF}}</span>
+                                        <span class="doc-ref-label">Direct Purchase Ref: </span><span
+                                            class="doc-ref-value">{{DIRECT_PURCHASE_REF}}</span>
                                     </div>
                                 </div>
                                 <div class="doc-ref-right" style="margin: 0;">
-                                    <span class="doc-ref-label">P_11 Ref: </span><span class="doc-ref-value">{{DOC_REF}}</span>
+                                    <span class="doc-ref-label">P_11 Ref: </span><span
+                                        class="doc-ref-value">{{DOC_REF}}</span>
                                     &nbsp;&nbsp;
                                     <span class="doc-ref-label">Status: </span><span>{{WORKFLOW_STATE}}</span>
                                 </div>
@@ -504,15 +510,15 @@
         </div>
 
         <!-- FIXED FOOTER -->
-        
+
 
     </div>
-<div class="watermark">
-            <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="" onerror="this.style.display='none'">
-        </div>
-<div class="print-footer">
-    Printed on: {{CURRENT_TIME}} &nbsp;|&nbsp; IIT Guwahati — R&amp;D Section &nbsp;|&nbsp; P-11 Form
-</div>
+    <div class="watermark">
+        <img src="http://172.16.131.206:8000/files/IITG_logo.png" alt="" onerror="this.style.display='none'">
+    </div>
+    <div class="print-footer">
+        Printed on: {{CURRENT_TIME}} &nbsp;|&nbsp; IIT Guwahati — R&amp;D Section &nbsp;|&nbsp; P-11 Form
+    </div>
 </body>
 
 </html>

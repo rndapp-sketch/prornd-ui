@@ -989,7 +989,7 @@ const buildDirectorApprovalPrintHtml = ({
     <div class="page">
         <div class="letterhead">
             <div class="brand">
-                <img src="http://${import.meta.env.VITE_ASSET_HOST || '172.16.117.39'}:${import.meta.env.VITE_ASSET_PORT || '8000'}/files/IITG_logo.png" alt="IITG Logo" onerror="this.style.display='none'" />
+                <img src="http://${import.meta.env.VITE_ASSET_HOST || '172.16.131.206'}:${import.meta.env.VITE_ASSET_PORT || '8000'}/files/IITG_logo.png" alt="IITG Logo" onerror="this.style.display='none'" />
                 <div>
                     <div class="inst-en">Indian Institute of Technology Guwahati</div>
                     <div class="inst-hi">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
@@ -1766,7 +1766,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
   // Head selector on the form. Ordinary projects are untouched.
   const isOverheadProject = useIsOverheadProject(formData.project_ref || formData.project_no);
   const [linkOptions, setLinkOptions] = useState<Record<string, any[]>>({});
-  
+
   const { call: fetchUserDetails } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
   const [fetchedOwnerName, setFetchedOwnerName] = useState<string>("");
 
@@ -6091,19 +6091,19 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                       )}
                     </div>
                     {id && (
-                      <button 
+                      <button
                         onClick={() => setIsIcssPrintModalOpen(true)}
                         disabled={!!formData.owner && !fetchedOwnerName}
                         className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[12px] font-bold text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <Printer className="h-3.5 w-3.5" aria-hidden="true" /> 
+                        <Printer className="h-3.5 w-3.5" aria-hidden="true" />
                         Print / PDF
                       </button>
                     )}
                   </div>
                   <div className="p-8" id="icss-printable-details">
                     <DynamicFormRenderer
-                                            overheadFund={isOverheadProject}
+                      overheadFund={isOverheadProject}
                       fields={displayBaseFields}
                       formData={formData}
                       linkOptions={displayLinkOptions}
@@ -6122,8 +6122,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                   </div>
                   <div id="icss-activity-log" className="hidden">
                     {id && (
-                      <ActivityLog 
-                        doctype="Indent Cum Sanction Sheet" 
+                      <ActivityLog
+                        doctype="Indent Cum Sanction Sheet"
                         docname={id}
                         fallbackOwner={formData.owner}
                         fallbackCreation={formData.creation}
@@ -6138,13 +6138,13 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                     htmlContent={
                       isIcssPrintModalOpen
                         ? generateIcssHtml(
-                            formData,
-                            document.getElementById("icss-activity-log"),
-                            document.getElementById("icss-printable-details"),
-                            document.getElementById("icss-subform-printable-details"),
-                            document.getElementById("icss-workflow-progress"),
-                            displayLinkOptions
-                          )
+                          formData,
+                          document.getElementById("icss-activity-log"),
+                          document.getElementById("icss-printable-details"),
+                          document.getElementById("icss-subform-printable-details"),
+                          document.getElementById("icss-workflow-progress"),
+                          displayLinkOptions
+                        )
                         : ""
                     }
                     docName={formData.name || "ICSS"}
@@ -6410,43 +6410,43 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                     </FrappeCard>
                   )}
                   <CommitPayment
-                  doctype="Indent Cum Sanction Sheet"
-                  docName={currentDocName}
-                  stagingReferenceName={poCommitReferenceName}
-                  frapAppId={currentDocName}
-                  projectName={projectCode}
-                  budgetHeads={budgetHeads}
-                  headBalances={poCommitHeadBalances}
-                  defaultBudgetHead={defaultCommitBudgetHead}
-                  actualBalance={actualBalance}
-                  commitableBalance={commitableBalance}
-                  billAmount={poCommitAmount || undefined}
-                  forcedRefDetails={previousIcssCommitmentTid || undefined}
-                  includeBillAmount
-                  moduleId={14}
-                  triggerState="Pending PO Generation"
-                  stagingStatuses={
-                    workflowState === "Pending PO Generation"
-                      ? ["PENDING_APPROVAL"]
-                      : ["PUBLISHED", "PENDING_APPROVAL", "FAILED"]
-                  }
-                  requiredPayloadKeys={["bill_amount"]}
-                  title={
-                    workflowState === "Pending PO Generation"
-                      ? "Make PO Commitment"
-                      : "PO Commitment Details"
-                  }
-                  submitLabel="Submit PO Commitment"
-                  description={
-                    workflowState === "Pending PO Generation"
-                      ? "This stages the PO-generation commitment first. Generate PO will publish the staged commitment after the PO draft is saved."
-                      : "Committed amount captured during PO generation. This stays visible after PO is generated."
-                  }
-                  disabled={workflowState !== "Pending PO Generation"}
-                  disabledReason="PO commitment is read-only after PO generation."
-                  onStagingStatusChange={(committed) =>
-                    setIsPoCommittedForGate(committed)
-                  }
+                    doctype="Indent Cum Sanction Sheet"
+                    docName={currentDocName}
+                    stagingReferenceName={poCommitReferenceName}
+                    frapAppId={currentDocName}
+                    projectName={projectCode}
+                    budgetHeads={budgetHeads}
+                    headBalances={poCommitHeadBalances}
+                    defaultBudgetHead={defaultCommitBudgetHead}
+                    actualBalance={actualBalance}
+                    commitableBalance={commitableBalance}
+                    billAmount={poCommitAmount || undefined}
+                    forcedRefDetails={previousIcssCommitmentTid || undefined}
+                    includeBillAmount
+                    moduleId={14}
+                    triggerState="Pending PO Generation"
+                    stagingStatuses={
+                      workflowState === "Pending PO Generation"
+                        ? ["PENDING_APPROVAL"]
+                        : ["PUBLISHED", "PENDING_APPROVAL", "FAILED"]
+                    }
+                    requiredPayloadKeys={["bill_amount"]}
+                    title={
+                      workflowState === "Pending PO Generation"
+                        ? "Make PO Commitment"
+                        : "PO Commitment Details"
+                    }
+                    submitLabel="Submit PO Commitment"
+                    description={
+                      workflowState === "Pending PO Generation"
+                        ? "This stages the PO-generation commitment first. Generate PO will publish the staged commitment after the PO draft is saved."
+                        : "Committed amount captured during PO generation. This stays visible after PO is generated."
+                    }
+                    disabled={workflowState !== "Pending PO Generation"}
+                    disabledReason="PO commitment is read-only after PO generation."
+                    onStagingStatusChange={(committed) =>
+                      setIsPoCommittedForGate(committed)
+                    }
                   />
                 </>
               )}

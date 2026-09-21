@@ -210,9 +210,17 @@
             font-size: 10.5px;
         }
 
-        .activity-table th:nth-child(1) { width: 30%; }
-        .activity-table th:nth-child(2) { width: 50%; }
-        .activity-table th:nth-child(3) { width: 20%; }
+        .activity-table th:nth-child(1) {
+            width: 30%;
+        }
+
+        .activity-table th:nth-child(2) {
+            width: 50%;
+        }
+
+        .activity-table th:nth-child(3) {
+            width: 20%;
+        }
 
         .activity-table .designation {
             display: block;
@@ -265,29 +273,33 @@
                 left: 50% !important;
                 transform: translate(-50%, -50%) !important;
                 z-index: 0 !important;
-                .print-footer {
-                display: flex !important;
-                justify-content: space-between;
-                align-items: center;
-                position: fixed;
-                bottom: 8mm;
-                right: 14mm;
-                left: 14mm;
-                font-size: 8pt;
-                color: #888;
-                border-top: 1px solid #ddd;
-                padding-top: 4px;
-                z-index: 100;
-            }
-        }
 
-            table.layout-table > tbody > tr,
-            table.layout-table > tbody > tr > td {
+                .print-footer {
+                    display: flex !important;
+                    justify-content: space-between;
+                    align-items: center;
+                    position: fixed;
+                    bottom: 8mm;
+                    right: 14mm;
+                    left: 14mm;
+                    font-size: 8pt;
+                    color: #888;
+                    border-top: 1px solid #ddd;
+                    padding-top: 4px;
+                    z-index: 100;
+                }
+            }
+
+            table.layout-table>tbody>tr,
+            table.layout-table>tbody>tr>td {
                 page-break-inside: auto !important;
                 break-inside: auto !important;
             }
 
-            tr { page-break-inside: avoid; }
+            tr {
+                page-break-inside: avoid;
+            }
+
             body {
                 margin: 0;
                 background: none;
@@ -302,9 +314,11 @@
                 page-break-inside: auto;
             }
 
-            .content { padding: 0 14mm; }
+            .content {
+                padding: 0 14mm;
+            }
         }
-    
+
         .print-footer {
             display: none;
         }
@@ -313,13 +327,13 @@
 
 <body>
     <div class="page">
-        
+
 
         <div class="content">
             <!-- HEADER -->
             <div class="header-row">
                 <div class="logo-container">
-                    <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
+                    <img src="http://172.16.131.206:8000/files/IITG_logo.png" alt="IITG Logo"
                         onerror="this.style.display = 'none'" />
                 </div>
                 <div class="header-text">
@@ -451,22 +465,31 @@
             <!-- DECLARATION -->
             <div class="section-title">Declaration</div>
             <div class="declaration-text">
-                <strong style="display:block;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Please Submit the following documents to R&amp;D Office</strong>
-                <p>Hard copy of the online TA-DA Settlement application should be submitted with the following documents.</p>
+                <strong
+                    style="display:block;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">Please
+                    Submit the following documents to R&amp;D Office</strong>
+                <p>Hard copy of the online TA-DA Settlement application should be submitted with the following
+                    documents.</p>
                 <ol style="list-style-type:decimal;list-style-position:outside;margin:0;padding-left:20px;">
                     <li style="margin-bottom:4px;">Tickets, Boarding passes, where applicable.</li>
                     <li style="margin-bottom:4px;">Proof of payments in all cases.</li>
-                    <li style="margin-bottom:4px;">Copy of Participation Certificate in case of Seminar/ Conference etc.</li>
+                    <li style="margin-bottom:4px;">Copy of Participation Certificate in case of Seminar/ Conference etc.
+                    </li>
                     <li style="margin-bottom:4px;">All bills should be signed by the claimant.</li>
-                    <li>Any expenditure in foreign currency should be converted into equivalent Indian Rupees and proof of conversion should be attached.</li>
+                    <li>Any expenditure in foreign currency should be converted into equivalent Indian Rupees and proof
+                        of conversion should be attached.</li>
                 </ol>
             </div>
             <div class="declaration-text">
                 <ul class="declaration-list" style="margin:0;">
-                    <li>The distances for road journeys shown in the bill are correct to the best of my knowledge. Accepted: <strong>{{DECL_DISTANCES}}</strong></li>
-                    <li>I have traveled in a class of accommodation not lower than the ones for which fares are claimed in this bill and to which I am entitled. Accepted: <strong>{{DECL_ENTITLED_CLASS}}</strong></li>
-                    <li>The journeys were performed by the shortest routes. Accepted: <strong>{{DECL_SHORTEST_ROUTE}}</strong></li>
-                    <li>The claims for journeys mentioned in this bill have neither been preferred nor paid from any other sources. Accepted: <strong>{{DECL_NOT_PAID_ELSEWHERE}}</strong></li>
+                    <li>The distances for road journeys shown in the bill are correct to the best of my knowledge.
+                        Accepted: <strong>{{DECL_DISTANCES}}</strong></li>
+                    <li>I have traveled in a class of accommodation not lower than the ones for which fares are claimed
+                        in this bill and to which I am entitled. Accepted: <strong>{{DECL_ENTITLED_CLASS}}</strong></li>
+                    <li>The journeys were performed by the shortest routes. Accepted:
+                        <strong>{{DECL_SHORTEST_ROUTE}}</strong></li>
+                    <li>The claims for journeys mentioned in this bill have neither been preferred nor paid from any
+                        other sources. Accepted: <strong>{{DECL_NOT_PAID_ELSEWHERE}}</strong></li>
                     <li>Free Transport: {{FREE_TRANSPORT}}</li>
                     <li>Boarding and Lodging Status: {{BOARDING_LODGING_STATUS}}</li>
                 </ul>
@@ -499,10 +522,10 @@
             </div>
         </div>
     </div>
-<div class="watermark">
-            <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
-                onerror="this.style.display = 'none'" />
-        </div>
+    <div class="watermark">
+        <img src="http://172.16.131.206:8000/files/IITG_logo.png" alt="IITG Logo"
+            onerror="this.style.display = 'none'" />
+    </div>
 </body>
 
 </html>

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>Indent Cum Sanction Sheet</title>
@@ -24,7 +25,7 @@
             margin: 20px auto;
             background: #fff;
             position: relative;
-            box-shadow: 0 0 12px rgba(0,0,0,0.3);
+            box-shadow: 0 0 12px rgba(0, 0, 0, 0.3);
             padding-bottom: 20mm;
         }
 
@@ -34,14 +35,16 @@
             border: none;
         }
 
-        table.layout-table > tbody > tr > td,
-        table.layout-table > tfoot > tr > td {
+        table.layout-table>tbody>tr>td,
+        table.layout-table>tfoot>tr>td {
             border: none;
             padding: 0;
             margin: 0;
         }
 
-        .footer-space { height: 25mm; }
+        .footer-space {
+            height: 25mm;
+        }
 
         .watermark {
             position: absolute;
@@ -53,7 +56,9 @@
             pointer-events: none;
         }
 
-        .watermark img { width: 280px; }
+        .watermark img {
+            width: 280px;
+        }
 
         .content {
             position: relative;
@@ -109,7 +114,9 @@
             margin: 3px 0 2px 0;
         }
 
-        .doc-ref-right .doc-ref-label { font-weight: bold; }
+        .doc-ref-right .doc-ref-label {
+            font-weight: bold;
+        }
 
         .form-line {
             display: flex;
@@ -119,7 +126,10 @@
             font-size: 9.5pt;
         }
 
-        .form-type { font-weight: bold; font-size: 10pt; }
+        .form-type {
+            font-weight: bold;
+            font-size: 10pt;
+        }
 
         /* ── TITLE ── */
         .form-title {
@@ -154,7 +164,9 @@
             width: 20%;
         }
 
-        .info-grid .val { width: 30%; }
+        .info-grid .val {
+            width: 30%;
+        }
 
         /* ── SECTION HEADING ── */
         .section-heading {
@@ -195,9 +207,17 @@
             font-size: 9pt;
         }
 
-        .c { text-align: center; }
-        .r { text-align: right; }
-        .b { font-weight: bold; }
+        .c {
+            text-align: center;
+        }
+
+        .r {
+            text-align: right;
+        }
+
+        .b {
+            font-weight: bold;
+        }
 
         .summary-lbl {
             text-align: left;
@@ -228,9 +248,17 @@
             font-size: 8.5pt;
         }
 
-        .activity-table th:nth-child(1) { width: 30%; }
-        .activity-table th:nth-child(2) { width: 50%; }
-        .activity-table th:nth-child(3) { width: 20%; }
+        .activity-table th:nth-child(1) {
+            width: 30%;
+        }
+
+        .activity-table th:nth-child(2) {
+            width: 50%;
+        }
+
+        .activity-table th:nth-child(3) {
+            width: 20%;
+        }
 
         .activity-table .designation {
             display: block;
@@ -251,7 +279,10 @@
             border: 1px solid #e4e4e7;
             border-radius: 8px;
         }
-        .print-only { display: none; }
+
+        .print-only {
+            display: none;
+        }
 
         @page {
             size: A4;
@@ -259,28 +290,34 @@
         }
 
         @media print {
-            table.layout-table > tbody > tr,
-            table.layout-table > tbody > tr > td {
+
+            table.layout-table>tbody>tr,
+            table.layout-table>tbody>tr>td {
                 page-break-inside: auto !important;
                 break-inside: auto !important;
-                .print-footer {
-                display: flex !important;
-                justify-content: space-between;
-                align-items: center;
-                position: fixed;
-                bottom: 8mm;
-                right: 14mm;
-                left: 14mm;
-                font-size: 8pt;
-                color: #888;
-                border-top: 1px solid #ddd;
-                padding-top: 4px;
-                z-index: 100;
-            }
-        }
 
-            tr { page-break-inside: avoid; }
-            body, .page {
+                .print-footer {
+                    display: flex !important;
+                    justify-content: space-between;
+                    align-items: center;
+                    position: fixed;
+                    bottom: 8mm;
+                    right: 14mm;
+                    left: 14mm;
+                    font-size: 8pt;
+                    color: #888;
+                    border-top: 1px solid #ddd;
+                    padding-top: 4px;
+                    z-index: 100;
+                }
+            }
+
+            tr {
+                page-break-inside: avoid;
+            }
+
+            body,
+            .page {
                 margin: 0;
                 box-shadow: none;
                 background: #fff;
@@ -293,14 +330,33 @@
                 border-radius: 0 !important;
             }
 
-            .print-hide { display: none !important; }
-            .print-only { display: block !important; }
+            .print-hide {
+                display: none !important;
+            }
 
-            .content { padding: 0 14mm; }
+            .print-only {
+                display: block !important;
+            }
 
-            .content table.data-table { page-break-inside: auto; break-before: avoid; page-break-before: avoid; }
-            .content table.data-table thead { display: table-header-group; break-after: avoid; page-break-after: avoid; }
-            .content table.data-table tfoot { display: table-footer-group; }
+            .content {
+                padding: 0 14mm;
+            }
+
+            .content table.data-table {
+                page-break-inside: auto;
+                break-before: avoid;
+                page-break-before: avoid;
+            }
+
+            .content table.data-table thead {
+                display: table-header-group;
+                break-after: avoid;
+                page-break-after: avoid;
+            }
+
+            .content table.data-table tfoot {
+                display: table-footer-group;
+            }
 
             .content table.data-table tr {
                 page-break-inside: avoid !important;
@@ -325,144 +381,154 @@
                 z-index: 0;
             }
         }
-    
+
         .print-footer {
             display: none;
         }
     </style>
 
 </head>
+
 <body>
-<div class="page">
+    <div class="page">
 
-    
 
-    <div class="content">
-        <table class="layout-table">
-            <thead>
-                <tr>
-                    <td><div style="height: 14mm;"></div></td>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>
 
-                        <!-- HEADER -->
-                        <div class="header-row">
-                            <div class="logo-left">
-                                <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG" onerror="this.style.display='none'">
+        <div class="content">
+            <table class="layout-table">
+                <thead>
+                    <tr>
+                        <td>
+                            <div style="height: 14mm;"></div>
+                        </td>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+
+                            <!-- HEADER -->
+                            <div class="header-row">
+                                <div class="logo-left">
+                                    <img src="http://172.16.131.206:8000/files/IITG_logo.png" alt="IITG"
+                                        onerror="this.style.display='none'">
+                                </div>
+                                <div class="header-center">
+                                    <div class="header-hindi">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
+                                    <div class="header-english">Indian Institute of Technology Guwahati</div>
+                                    <div class="header-sub">Research and Development Section</div>
+                                </div>
                             </div>
-                            <div class="header-center">
-                                <div class="header-hindi">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
-                                <div class="header-english">Indian Institute of Technology Guwahati</div>
-                                <div class="header-sub">Research and Development Section</div>
-                            </div>
-                        </div>
 
-                        <!-- DOC META & FORM TYPE -->
-                        <div style="display: flex; justify-content: space-between; align-items: baseline; margin: 4px 0 2px 0;">
-                            <div class="form-type">Form Type: Indent Cum Sanction Sheet</div>
-                            <div class="doc-ref-right" style="margin: 0;">
-                                <span class="doc-ref-label">Doc Ref: </span><span>{{DOC_REF}}</span>
-                                &nbsp;&nbsp;
-                                <span class="doc-ref-label">Status: </span><span>{{WORKFLOW_STATE}}</span>
+                            <!-- DOC META & FORM TYPE -->
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: baseline; margin: 4px 0 2px 0;">
+                                <div class="form-type">Form Type: Indent Cum Sanction Sheet</div>
+                                <div class="doc-ref-right" style="margin: 0;">
+                                    <span class="doc-ref-label">Doc Ref: </span><span>{{DOC_REF}}</span>
+                                    &nbsp;&nbsp;
+                                    <span class="doc-ref-label">Status: </span><span>{{WORKFLOW_STATE}}</span>
+                                </div>
                             </div>
-                        </div>
-                        <!-- PROJECT LINE & DATE -->
-                        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; font-size: 9.5pt;">
-                            <div>
-                                <strong>Project No:</strong> {{PROJECT_NUMBER}}
+                            <!-- PROJECT LINE & DATE -->
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; font-size: 9.5pt;">
+                                <div>
+                                    <strong>Project No:</strong> {{PROJECT_NUMBER}}
+                                </div>
+                                <div style="text-align: right;">
+                                    <strong>Date:</strong> {{DATE}}
+                                </div>
                             </div>
-                            <div style="text-align: right;">
-                                <strong>Date:</strong> {{DATE}}
+
+                            <!-- TITLE -->
+                            <div class="form-title">
+                                Indent Cum Sanction Sheet — Research &amp; Development Section
                             </div>
-                        </div>
 
-                        <!-- TITLE -->
-                        <div class="form-title">
-                            Indent Cum Sanction Sheet — Research &amp; Development Section
-                        </div>
+                            <!-- APPLICANT & PROJECT INFORMATION -->
+                            <div class="section-heading">Application Information</div>
+                            <table class="info-grid">
+                                <tbody>
+                                    {{INFO_ROWS}}
+                                </tbody>
+                            </table>
 
-                        <!-- APPLICANT & PROJECT INFORMATION -->
-                        <div class="section-heading">Application Information</div>
-                        <table class="info-grid">
-                            <tbody>
-                                {{INFO_ROWS}}
-                            </tbody>
-                        </table>
+                            <!-- ITEMS TABLE -->
+                            <div style="page-break-inside: avoid; break-inside: avoid;">
+                                <div class="section-heading" style="margin-top:8px;">Purchase Items</div>
+                                <table class="data-table">
+                                    <colgroup>
+                                        <col style="width:5%;">
+                                        <col style="width:48%;">
+                                        <col style="width:10%;">
+                                        <col style="width:17%;">
+                                        <col style="width:20%;">
+                                    </colgroup>
+                                    <thead>
+                                        <tr>
+                                            <th>Sl.<br>No.</th>
+                                            <th>Item Name</th>
+                                            <th>Qty</th>
+                                            <th>Unit Price (₹)</th>
+                                            <th>Total (₹)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {{ITEM_ROWS}}
+                                        <tr>
+                                            <td colspan="4" class="summary-lbl b">Total Estimated Amount</td>
+                                            <td class="r b">{{TOTAL_ESTIMATE}}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
 
-                        <!-- ITEMS TABLE -->
-                        <div style="page-break-inside: avoid; break-inside: avoid;">
-                            <div class="section-heading" style="margin-top:8px;">Purchase Items</div>
-                            <table class="data-table">
-                                <colgroup>
-                                    <col style="width:5%;">
-                                    <col style="width:48%;">
-                                    <col style="width:10%;">
-                                    <col style="width:17%;">
-                                    <col style="width:20%;">
-                                </colgroup>
+                            <!-- DECLARATIONS -->
+                            {{DECLARATIONS}}
+
+                            <!-- ACTIVITY LOG -->
+                            <div class="section-heading" style="margin-top:8px;">Activity Log</div>
+                            <table class="activity-table">
                                 <thead>
                                     <tr>
-                                        <th>Sl.<br>No.</th>
-                                        <th>Item Name</th>
-                                        <th>Qty</th>
-                                        <th>Unit Price (₹)</th>
-                                        <th>Total (₹)</th>
+                                        <th>Approver</th>
+                                        <th>Comment</th>
+                                        <th>Time</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {{ITEM_ROWS}}
-                                    <tr>
-                                        <td colspan="4" class="summary-lbl b">Total Estimated Amount</td>
-                                        <td class="r b">{{TOTAL_ESTIMATE}}</td>
-                                    </tr>
+                                    {{ACTIVITY_ROWS}}
                                 </tbody>
                             </table>
-                        </div>
 
-                        <!-- DECLARATIONS -->
-                        {{DECLARATIONS}}
+                            <!-- ATTACHMENTS (Images/PDFs) -->
+                            {{ATTACHMENTS}}
 
-                        <!-- ACTIVITY LOG -->
-                        <div class="section-heading" style="margin-top:8px;">Activity Log</div>
-                        <table class="activity-table">
-                            <thead>
-                                <tr>
-                                    <th>Approver</th>
-                                    <th>Comment</th>
-                                    <th>Time</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {{ACTIVITY_ROWS}}
-                            </tbody>
-                        </table>
+                        </td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td>
+                            <div class="footer-space"></div>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
 
-                        <!-- ATTACHMENTS (Images/PDFs) -->
-                        {{ATTACHMENTS}}
+        <!-- FIXED FOOTER -->
 
-                    </td>
-                </tr>
-            </tbody>
-            <tfoot>
-                <tr>
-                    <td><div class="footer-space"></div></td>
-                </tr>
-            </tfoot>
-        </table>
+
     </div>
-
-    <!-- FIXED FOOTER -->
-    
-
-</div>
-<div class="watermark">
-        <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="" onerror="this.style.display='none'">
+    <div class="watermark">
+        <img src="http://172.16.131.206:8000/files/IITG_logo.png" alt="" onerror="this.style.display='none'">
     </div>
-<div class="print-footer">
-    Printed on: {{CURRENT_TIME}} &nbsp;|&nbsp; IIT Guwahati — R&amp;D Section &nbsp;|&nbsp; Indent Cum Sanction Sheet
-</div>
+    <div class="print-footer">
+        Printed on: {{CURRENT_TIME}} &nbsp;|&nbsp; IIT Guwahati — R&amp;D Section &nbsp;|&nbsp; Indent Cum Sanction
+        Sheet
+    </div>
 </body>
+
 </html>

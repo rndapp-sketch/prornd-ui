@@ -5,7 +5,7 @@ import { ToWords } from "to-words";
 
 // The .html?raw template is static text pulled in at build time, so it can't
 // reference import.meta.env itself; substitute the asset host here instead.
-const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.117.39";
+const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.131.206";
 const ASSET_PORT = import.meta.env.VITE_ASSET_PORT || "8000";
 
 const toWords = new ToWords({ localeCode: "en-IN", converterOptions: { ignoreDecimal: false } });
@@ -60,13 +60,13 @@ export function generateTemporaryAdvanceHtml(
     }
 
     const indenterName = resolvedApplicantName || data.applicant_name || data.owner || "";
-    
+
     let activityRows = "<tr><td colspan='3' style='text-align:center;color:#888;font-style:italic;'>No activity recorded.</td></tr>";
     let activityCount = 0;
 
     if (activityEl) {
         const allItems = Array.from(activityEl.querySelectorAll(".flex.items-start"));
-        
+
         const extracted = allItems.map((item) => {
             const spans = item.querySelectorAll("span");
             const rawName = spans[1]?.textContent?.trim() || "";
@@ -99,7 +99,7 @@ export function generateTemporaryAdvanceHtml(
             activityCount = extracted.length;
         }
     }
-    
+
     const finalActivityHtml = `
         <table class="activity-table">
             <thead>
