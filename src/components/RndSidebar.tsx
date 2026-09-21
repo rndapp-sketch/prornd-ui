@@ -327,6 +327,11 @@ export function AppSidebar() {
             path: "/task-registry",
         },
         {
+            label: "ID Card Management",
+            icon: IdCard,
+            path: "/hr-id-card-management",
+        },
+        {
             label: "Track Application",
             icon: Search,
             path: "/track-application",
@@ -380,11 +385,6 @@ export function AppSidebar() {
             label: "Project Search",
             icon: Search,
             path: "/project-search",
-        },
-        {
-            label: "ID Card Management",
-            icon: IdCard,
-            path: "/hr-id-card-management",
         },
     ].filter((item) => {
         if (item.label === "Upload Director PDF") {

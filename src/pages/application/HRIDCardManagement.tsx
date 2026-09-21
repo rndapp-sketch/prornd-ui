@@ -4,7 +4,7 @@ import {
     IdCard, Search, Eye, CheckCircle2, Printer,
     Loader2, X, User as UserIcon, Phone, MapPin,
     Briefcase, Calendar, Droplets, Heart, FileText,
-    Edit, RotateCcw, Save, MessageSquare
+    Edit, RotateCcw, Save, MessageSquare, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -66,7 +66,27 @@ const formatDate = (dateStr: string) => {
     }
 };
 
-const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+type ProjectTab = 'research' | 'consultancy' | 'others';
+
+const PROJECT_TABS: { key: ProjectTab; label: string }[] = [
+    { key: 'research', label: 'Research' },
+    { key: 'consultancy', label: 'Consultancy' },
+    { key: 'others', label: 'Others' },
+];
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
+// Project number like "2627R-0225-CLEG0985SENT": the letter ending the first
+// segment is the type — R = Research, C = Consultancy, O (or anything else) = Others.
+const getProjectTab = (projectNumber?: string): ProjectTab => {
+    const prefix = (projectNumber || '').trim().split('-')[0];
+    const type = prefix.charAt(prefix.length - 1).toUpperCase();
+    if (type === 'R') return 'research';
+    if (type === 'C') return 'consultancy';
+    return 'others';
+};
+
+const BLOOD_GROUPS =['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const MARITAL_STATUSES = ['Single', 'Married', 'Divorced', 'Widowed'];
 
 const isSubmittedState = (status?: string) => {
@@ -82,6 +102,11 @@ const isVerifiedOrGeneratedState = (status?: string) => {
 const HRIDCardManagement: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('All');
+    const [activeTab, setActiveTabState] = useState<ProjectTab>('research');
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSizeState] = useState<number>(PAGE_SIZE_OPTIONS[0]);
+    const setActiveTab = (tab: ProjectTab) => { setActiveTabState(tab); setPage(1); };
+    const setPageSize = (n: number) => { setPageSizeState(n); setPage(1); };
     const [selectedCard, setSelectedCard] = useState<IDCardRecord | null>(null);
     const [showPrintPreview, setShowPrintPreview] = useState(false);
     const { designations: designationOptions, departments: departmentOptions } = useIdCardOptions();
@@ -124,6 +149,7 @@ const HRIDCardManagement: React.FC = () => {
         return cardList.filter(card => {
             const cStatus = (card.workflow_state || '').trim();
             if (!cStatus || cStatus === 'Draft') return false;
+            if (getProjectTab(card.project_number__) !== activeTab) return false;
 
             const matchesSearch = !term ||
                 (card.full_name__ || '').toLowerCase().includes(term) ||
@@ -143,12 +169,31 @@ const HRIDCardManagement: React.FC = () => {
 
             return matchesSearch && matchesStatus;
         });
-    }, [cardList, searchTerm, statusFilter]);
+    }, [cardList, searchTerm, statusFilter, activeTab]);
 
-    // Status counts (excludes Draft/returned documents)
+    // Pagination (clamped so a shrinking list never leaves us on an empty page)
+    const totalPages = Math.max(1, Math.ceil(filteredCards.length / pageSize));
+    const currentPage = Math.min(page, totalPages);
+    const pagedCards = useMemo(
+        () => filteredCards.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+        [filteredCards, currentPage, pageSize]
+    );
+
+    // Per-tab counts (non-draft requests only)
+    const tabCounts = useMemo(() => {
+        const counts: Record<ProjectTab, number> = { research: 0, consultancy: 0, others: 0 };
+        (cardList || []).forEach(c => {
+            if (c.workflow_state && c.workflow_state !== 'Draft') counts[getProjectTab(c.project_number__)]++;
+        });
+        return counts;
+    }, [cardList]);
+
+    // Status counts for the active tab (excludes Draft/returned documents)
     const statusCounts = useMemo(() => {
         if (!cardList) return { total: 0, submitted: 0, verified: 0, generated: 0 };
-        const nonDrafts = cardList.filter(c => c.workflow_state && c.workflow_state !== 'Draft');
+        const nonDrafts = cardList.filter(c =>
+            c.workflow_state && c.workflow_state !== 'Draft' && getProjectTab(c.project_number__) === activeTab
+        );
         return {
             total: nonDrafts.length,
             submitted: nonDrafts.filter(c => isSubmittedState(c.workflow_state)).length,
@@ -500,36 +545,62 @@ const HRIDCardManagement: React.FC = () => {
                 <PageHeader title="ID Card Management" />
 
                 {/* Stats Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
                     {[
                         { label: 'Total Requests', value: statusCounts.total, color: 'text-[#4A6CF7]', bg: 'bg-[#4A6CF7]/10' },
                         { label: 'Pending Review', value: statusCounts.submitted, color: 'text-[#D97757]', bg: 'bg-[#D97757]/10 dark:bg-[#D97757]/20' },
                         { label: 'Verified', value: statusCounts.verified, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/20' },
                         { label: 'ID Generated', value: statusCounts.generated, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/20' },
                     ].map(stat => (
-                        <div key={stat.label} className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-4">
-                            <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">{stat.label}</p>
-                            <p className={cn("text-2xl font-bold mt-1", stat.color)}>{stat.value}</p>
+                        <div key={stat.label} className="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 shadow-sm px-3 py-1.5 flex items-center justify-between gap-2">
+                            <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide truncate">{stat.label}</p>
+                            <p className={cn("text-base font-bold leading-none", stat.color)}>{stat.value}</p>
                         </div>
                     ))}
                 </div>
 
+                {/* Project Type Tabs */}
+                <div className="flex gap-1 mb-3 border-b border-zinc-200 dark:border-zinc-700 overflow-x-auto">
+                    {PROJECT_TABS.map(tab => (
+                        <button
+                            key={tab.key}
+                            onClick={() => setActiveTab(tab.key)}
+                            className={cn(
+                                "px-3 py-1.5 text-xs font-semibold whitespace-nowrap border-b-2 -mb-px transition-colors flex items-center gap-2",
+                                activeTab === tab.key
+                                    ? "border-[#4A6CF7] text-[#4A6CF7]"
+                                    : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                            )}
+                        >
+                            {tab.label}
+                            <span className={cn(
+                                "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
+                                activeTab === tab.key
+                                    ? "bg-[#4A6CF7]/10 text-[#4A6CF7]"
+                                    : "bg-zinc-100 dark:bg-zinc-700 text-zinc-500"
+                            )}>
+                                {tabCounts[tab.key]}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+
                 {/* Search & Filter */}
-                <div className="flex flex-col sm:flex-row gap-3 mb-6">
+                <div className="flex flex-col sm:flex-row gap-2 mb-3">
                     <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
                         <input
                             type="text"
                             placeholder="Search by name, ID, department..."
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]"
+                            onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]"
                         />
                     </div>
                     <select
                         value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="px-4 py-2.5 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 min-w-[160px]"
+                        onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+                        className="px-3 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 min-w-[140px]"
                     >
                         <option value="All">All Statuses</option>
                         <option value="Draft">Draft</option>
@@ -548,86 +619,145 @@ const HRIDCardManagement: React.FC = () => {
                             <p className="text-xs text-zinc-400 mt-1">Requests submitted by project staff will appear here.</p>
                         </div>
                     ) : (
-                        <div className="divide-y divide-zinc-100 dark:divide-zinc-700">
-                            {filteredCards.map((card) => (
-                                <div
-                                    key={card.name}
-                                    className="p-4 hover:bg-zinc-50 dark:hover:bg-zinc-750 transition-colors group"
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-4 min-w-0 flex-1">
-                                            <div className="w-10 h-10 rounded-full bg-[#4A6CF7]/10 dark:bg-[#4A6CF7]/20 flex items-center justify-center flex-shrink-0">
-                                                {card.photo_path__ ? (
-                                                    <img src={getUploadedImageUrl(card.photo_path__)} alt="" className="w-full h-full rounded-full object-cover" />
-                                                ) : (
-                                                    <UserIcon className="h-5 w-5 text-[#4A6CF7]" />
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-300 dark:border-zinc-600">
+                                        {['#', 'Employee', 'Emp ID', 'Designation', 'Department', 'Project No.', 'Status', 'Modified', 'Actions'].map((h) => (
+                                            <th
+                                                key={h}
+                                                className={cn(
+                                                    "px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 whitespace-nowrap border-r border-zinc-200 dark:border-zinc-700 last:border-r-0",
+                                                    h === 'Actions' && 'text-right'
                                                 )}
-                                            </div>
-                                            <div className="min-w-0">
-                                                <div className="flex items-center gap-2 mb-0.5">
-                                                    <p className="text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7] truncate">
-                                                        {card.full_name__}
-                                                    </p>
-                                                    <Badge className={cn("text-[10px] font-bold px-2 py-0.5 border", getStatusStyle(card.workflow_state))}>
+                                            >
+                                                {h}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {pagedCards.map((card, idx) => {
+                                        const cellCls = "px-2.5 py-1.5 text-[11px] text-zinc-700 dark:text-zinc-300 border-r border-zinc-200 dark:border-zinc-700 last:border-r-0 align-middle";
+                                        return (
+                                            <tr
+                                                key={card.name}
+                                                className="border-b border-zinc-200 dark:border-zinc-700 last:border-b-0 hover:bg-zinc-50 dark:hover:bg-zinc-750 transition-colors"
+                                            >
+                                                <td className={cn(cellCls, "text-zinc-400 w-8")}>{(currentPage - 1) * pageSize + idx + 1}</td>
+                                                <td className={cellCls}>
+                                                    <div className="flex items-center gap-2 min-w-[140px]">
+                                                        <div className="w-6 h-6 rounded-full bg-[#4A6CF7]/10 dark:bg-[#4A6CF7]/20 flex items-center justify-center flex-shrink-0">
+                                                            {card.photo_path__ ? (
+                                                                <img src={getUploadedImageUrl(card.photo_path__)} alt="" className="w-full h-full rounded-full object-cover" />
+                                                            ) : (
+                                                                <UserIcon className="h-3 w-3 text-[#4A6CF7]" />
+                                                            )}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="font-semibold text-[#27272A] dark:text-[#E4E4E7] truncate">{card.full_name__}</p>
+                                                            <p className="text-[10px] text-zinc-400 leading-tight">{card.name}</p>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className={cn(cellCls, "font-medium whitespace-nowrap")}>{card.emp_id__ || '—'}</td>
+                                                <td className={cellCls}>{card.designation__ || '—'}</td>
+                                                <td className={cellCls}>{card.department_name__ || '—'}</td>
+                                                <td className={cn(cellCls, "font-medium whitespace-nowrap")}>{card.project_number__ || '—'}</td>
+                                                <td className={cellCls}>
+                                                    <Badge className={cn("text-[9px] font-bold px-1.5 py-0 border whitespace-nowrap", getStatusStyle(card.workflow_state))}>
                                                         {card.workflow_state}
                                                     </Badge>
-                                                </div>
-                                                <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                                                    <span className="font-medium">{card.emp_id__}</span>
-                                                    {' · '}
-                                                    {card.designation__}
-                                                    {' · '}
-                                                    {card.department_name__}
-                                                </p>
-                                                <p className="text-[11px] text-zinc-400 mt-0.5">
-                                                    {card.name} · Modified {formatDate(card.modified)}
-                                                </p>
-                                            </div>
-                                        </div>
+                                                </td>
+                                                <td className={cn(cellCls, "whitespace-nowrap text-zinc-500")}>{formatDate(card.modified)}</td>
+                                                <td className={cellCls}>
+                                                    <div className="flex items-center justify-end gap-1.5">
+                                                        {/* View Details */}
+                                                        <button
+                                                            onClick={() => { setSelectedCard(card); setIsEditing(false); }}
+                                                            className="px-2 py-1 text-[11px] font-semibold text-[#4A6CF7] hover:text-white hover:bg-[#4A6CF7] border border-[#4A6CF7]/20 hover:border-[#4A6CF7] rounded-md transition-all flex items-center gap-1"
+                                                        >
+                                                            <Eye className="h-3 w-3" /> View
+                                                        </button>
 
-                                        <div className="flex items-center gap-2 flex-shrink-0">
-                                            {/* View Details */}
-                                            <button
-                                                onClick={() => { setSelectedCard(card); setIsEditing(false); }}
-                                                className="px-3 py-1.5 text-xs font-semibold text-[#4A6CF7] hover:text-white hover:bg-[#4A6CF7] border border-[#4A6CF7]/20 hover:border-[#4A6CF7] rounded-lg transition-all flex items-center gap-1"
-                                            >
-                                                <Eye className="h-3.5 w-3.5" /> View
-                                            </button>
+                                                        {/* Put Back to User */}
+                                                        {card.workflow_state !== 'Draft' && (
+                                                            <button
+                                                                onClick={() => { setSelectedCard(card); setPutBackComment(''); setShowPutBackModal(true); }}
+                                                                className="px-2 py-1 text-[11px] font-semibold text-amber-600 hover:text-white hover:bg-amber-600 border border-amber-200 hover:border-amber-600 rounded-md transition-all flex items-center gap-1"
+                                                            >
+                                                                <RotateCcw className="h-3 w-3" /> Put Back
+                                                            </button>
+                                                        )}
 
-                                            {/* Put Back to User */}
-                                            {card.workflow_state !== 'Draft' && (
-                                                <button
-                                                    onClick={() => { setSelectedCard(card); setPutBackComment(''); setShowPutBackModal(true); }}
-                                                    className="px-3 py-1.5 text-xs font-semibold text-amber-600 hover:text-white hover:bg-amber-600 border border-amber-200 hover:border-amber-600 rounded-lg transition-all flex items-center gap-1"
-                                                >
-                                                    <RotateCcw className="h-3.5 w-3.5" /> Put Back
-                                                </button>
-                                            )}
+                                                        {/* Verify (only for Submitted state) */}
+                                                        {card.workflow_state === 'Submitted' && (
+                                                            <button
+                                                                onClick={() => handleVerify(card.name)}
+                                                                disabled={isActioning}
+                                                                className="px-2 py-1 text-[11px] font-semibold text-emerald-600 hover:text-white hover:bg-emerald-600 border border-emerald-200 hover:border-emerald-600 rounded-md transition-all flex items-center gap-1 disabled:opacity-50"
+                                                            >
+                                                                <CheckCircle2 className="h-3 w-3" /> Verify
+                                                            </button>
+                                                        )}
 
-                                            {/* Verify (only for Submitted state) */}
-                                            {card.workflow_state === 'Submitted' && (
-                                                <button
-                                                    onClick={() => handleVerify(card.name)}
-                                                    disabled={isActioning}
-                                                    className="px-3 py-1.5 text-xs font-semibold text-emerald-600 hover:text-white hover:bg-emerald-600 border border-emerald-200 hover:border-emerald-600 rounded-lg transition-all flex items-center gap-1 disabled:opacity-50"
-                                                >
-                                                    <CheckCircle2 className="h-3.5 w-3.5" /> Verify
-                                                </button>
-                                            )}
+                                                        {/* Generate & Print (only for Verified or Generated states) */}
+                                                        {isVerifiedOrGeneratedState(card.workflow_state) && (
+                                                            <button
+                                                                onClick={() => handleGenerateAndPrint(card)}
+                                                                className="px-2 py-1 text-[11px] font-semibold text-blue-600 hover:text-white hover:bg-blue-600 border border-blue-200 hover:border-blue-600 rounded-md transition-all flex items-center gap-1"
+                                                            >
+                                                                <Printer className="h-3 w-3" /> Print ID
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
 
-                                            {/* Generate & Print (only for Verified or Generated states) */}
-                                            {isVerifiedOrGeneratedState(card.workflow_state) && (
-                                                <button
-                                                    onClick={() => handleGenerateAndPrint(card)}
-                                                    className="px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-white hover:bg-blue-600 border border-blue-200 hover:border-blue-600 rounded-lg transition-all flex items-center gap-1"
-                                                >
-                                                    <Printer className="h-3.5 w-3.5" /> Print ID
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                    {/* Pagination */}
+                    {filteredCards.length > 0 && (
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-zinc-100 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/50">
+                            <div className="flex items-center gap-3 text-xs text-zinc-500">
+                                <span>
+                                    Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filteredCards.length)} of {filteredCards.length}
+                                </span>
+                                <select
+                                    value={pageSize}
+                                    onChange={(e) => setPageSize(Number(e.target.value))}
+                                    className="px-2 py-1 text-xs rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 focus:outline-none"
+                                >
+                                    {PAGE_SIZE_OPTIONS.map(n => (
+                                        <option key={n} value={n}>{n} / page</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <button
+                                    onClick={() => setPage(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    className="p-1.5 rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    aria-label="Previous page"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </button>
+                                <span className="px-3 text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                                    Page {currentPage} of {totalPages}
+                                </span>
+                                <button
+                                    onClick={() => setPage(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    className="p-1.5 rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    aria-label="Next page"
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -1005,7 +1135,7 @@ const HRIDCardManagement: React.FC = () => {
                                             onClick={() => { setPutBackComment(''); setShowPutBackModal(true); }}
                                             className="px-3.5 py-2 text-xs font-semibold text-amber-600 bg-amber-50 hover:bg-amber-600 hover:text-white border border-amber-200 rounded-lg transition-all flex items-center gap-1.5"
                                         >
-                                            <RotateCcw className="h-3.5 w-3.5" /> Put Back to User
+                                            <RotateCcw className="h-3 w-3" /> Put Back to User
                                         </button>
                                     )}
                                 </div>
