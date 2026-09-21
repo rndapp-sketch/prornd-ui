@@ -72,6 +72,8 @@ import TravelDetails from './pages/application/TravelDetails.tsx';
 import TADASettlementForm from './pages/application/TADASettlementForm.tsx';
 import ProjectStaffResignationForm from './pages/application/ProjectStaffResignationForm.tsx';
 import ProjectStaffExtensionForm from './pages/application/ProjectStaffExtensionForm.tsx';
+import IDCardRequestForm from './pages/application/IDCardRequestForm.tsx';
+import HRIDCardManagement from './pages/application/HRIDCardManagement.tsx';
 import ProInvForm from './pages/application/ProInvForm.tsx';
 import TaskRegistry from './pages/TaskRegistry.tsx';
 import TaskRegistryDetails from './pages/TaskRegistryDetails.tsx';
@@ -597,6 +599,24 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <ProjectStaffExtensionForm />
+                        </AuthRouteWrapper>
+                    )
+                },
+                // Project staff — Employee ID Card request
+                {
+                    path: "id-card-request",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <IDCardRequestForm />
+                        </AuthRouteWrapper>
+                    )
+                },
+                // HR — verify requests and generate the printable ID card
+                {
+                    path: "hr-id-card-management",
+                    element: (
+                        <AuthRouteWrapper allowedRole="staff, RnD">
+                            <HRIDCardManagement />
                         </AuthRouteWrapper>
                     )
                 },

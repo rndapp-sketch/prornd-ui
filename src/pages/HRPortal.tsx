@@ -4,7 +4,9 @@
 // -=-=-=-=-=-=-==-=
 
 import React, { useState } from 'react';
-import { FaUsers, FaTasks, FaUserClock, FaFileAlt, FaCalendarCheck, FaUserPlus, FaFileImport, FaCalendarAlt, FaChartBar, FaCog } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
+import { useFrappeGetDocList } from 'frappe-react-sdk';
+import { FaUsers, FaTasks, FaUserClock, FaFileAlt, FaCalendarCheck, FaUserPlus, FaFileImport, FaCalendarAlt, FaChartBar, FaCog, FaIdCard } from 'react-icons/fa';
 import { cn } from '@/lib/utils'; // Assuming you have a utility for classnames
 
 // --- Reusable Neo-Brutalism Components (with updated font weight) ---
@@ -25,6 +27,15 @@ const FrappeButton = ({ children, className, onClick }: { children: React.ReactN
 const HRPortal: React.FC = () => {
     // --- LOGIC: All state and handlers remain unchanged ---
     const [activeTask, setActiveTask] = useState<{ title: string; details: string } | null>(null);
+    const navigate = useNavigate();
+
+    // Fetch pending ID Card requests
+    const { data: pendingIdCards } = useFrappeGetDocList('Employee ID Card', {
+        filters: [['workflow_state', 'like', '%Submit%']],
+        fields: ['name'],
+        limit: 500,
+    });
+    const pendingIdCardCount = pendingIdCards?.length ?? 0;
 
     const tasks = [
         { title: 'Project Staff Joining - John Doe', details: 'John Doe joined on Oct 12, awaiting HR approval.', priority: 'High' },
@@ -41,6 +52,7 @@ const HRPortal: React.FC = () => {
     ];
 
     const quickActions = [
+        { icon: FaIdCard, label: 'ID Card Generation', path: '/hr-id-card-management' },
         { icon: FaUserPlus, label: 'Add Employee' },
         { icon: FaFileImport, label: 'Process Payroll' },
         { icon: FaCalendarAlt, label: 'Leave Requests' },
@@ -87,9 +99,20 @@ const HRPortal: React.FC = () => {
                     {quickActions.map(action => (
                         <button
                             key={action.label}
-                            onClick={() => handleTaskClick({ title: action.label, details: 'This feature is currently under development.' })}
-                            className="flex flex-col items-center justify-center p-4 text-center border border-zinc-200 dark:border-zinc-800 rounded-lg bg-white dark:bg-zinc-900 shadow-sm transition-all hover:bg-[#A5D6A7] hover:shadow-[2px_2px_0px_rgba(0,0,0,0.25)] hover:translate-x-[2px] hover:translate-y-[2px]"
+                            onClick={() => {
+                                if ('path' in action && action.path) {
+                                    navigate(action.path);
+                                } else {
+                                    handleTaskClick({ title: action.label, details: 'This feature is currently under development.' });
+                                }
+                            }}
+                            className="relative flex flex-col items-center justify-center p-4 text-center border border-zinc-200 dark:border-zinc-800 rounded-lg bg-white dark:bg-zinc-900 shadow-sm transition-all hover:bg-[#A5D6A7] hover:shadow-[2px_2px_0px_rgba(0,0,0,0.25)] hover:translate-x-[2px] hover:translate-y-[2px]"
                         >
+                            {action.label === 'ID Card Generation' && pendingIdCardCount > 0 && (
+                                <span className="absolute -top-2 -right-2 bg-[#D97757] text-white text-[10px] font-bold rounded-full h-5 min-w-[20px] px-1 flex items-center justify-center shadow-md">
+                                    {pendingIdCardCount > 99 ? '99+' : pendingIdCardCount}
+                                </span>
+                            )}
                             <action.icon className="text-2xl mb-2" />
                             <span className="font-semibold text-sm">{action.label}</span>
                         </button>

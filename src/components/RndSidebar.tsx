@@ -32,6 +32,7 @@ import {
     Search,
     Share2 as Share2Icon,
     GraduationCap,
+    IdCard,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -188,6 +189,32 @@ export function AppSidebar() {
     );
     const pendingApplicationCount = pendingApplicationData?.message?.results?.length ?? 0;
 
+    // Fetch pending ID Card requests for HR (Submitted state only)
+    const isHrUser = roles?.some(r => ["staff, RnD", "System Manager"].includes(r)) ?? false;
+    const { data: pendingIdCardList } = useFrappeGetDocList("Employee ID Card", {
+        filters: [
+            ["workflow_state", "=", "Submitted"],
+            ["docstatus", "=", 1]
+        ],
+        fields: ["name"],
+        limit: 500,
+    }, currentUser && isHrUser ? undefined : null);
+    const pendingIdCardCount = isHrUser ? (pendingIdCardList?.length ?? 0) : 0;
+
+    // Fetch returned ID Card requests for project staff (Draft state with HR remarks)
+    const isProjectStaff = roles?.includes("project staff") ?? false;
+    const { data: myReturnedIdCardsData } = useFrappeGetCall<any>(
+        "rndopsapp.rndopsapp.doctype.employee_id_card.employee_id_card.get_my_id_card_details",
+        undefined,
+        currentUser && isProjectStaff ? undefined : null
+    );
+    const myReturnedIdCards = Array.isArray(myReturnedIdCardsData?.message)
+        ? myReturnedIdCardsData.message
+        : Array.isArray(myReturnedIdCardsData) ? myReturnedIdCardsData : [];
+    const returnedIdCardCount = isProjectStaff
+        ? myReturnedIdCards.filter((c: any) => (c.workflow_state === "Draft" || !c.workflow_state) && (c.remarks || c.hr_comments)).length
+        : 0;
+
     // --- LOGIC: Menu Data (Unchanged) ---
     const isDirector = roles?.includes("Director");
     const hasOverviewAccess = roles?.some(r => ["Director", "Dean, RnD", "Ado_RnD", "Hos, RnD (Head of Section, RnD)"].includes(r));
@@ -274,6 +301,11 @@ export function AppSidebar() {
             icon: FileText,
             path: "/project-staff-extension",
         },
+        {
+            label: "ID Card Request",
+            icon: IdCard,
+            path: "/id-card-request",
+        },
         ...(isPermanentEmployee ? [{
             label: "Form Cancellation",
             icon: FileText,
@@ -348,6 +380,11 @@ export function AppSidebar() {
             label: "Project Search",
             icon: Search,
             path: "/project-search",
+        },
+        {
+            label: "ID Card Management",
+            icon: IdCard,
+            path: "/hr-id-card-management",
         },
     ].filter((item) => {
         if (item.label === "Upload Director PDF") {
@@ -452,8 +489,11 @@ export function AppSidebar() {
             const allowedRoles = ["project staff", "IF - Inspired Faculty", "Independent Researcher"];
             return roles ? allowedRoles.some((role) => roles.includes(role)) : false;
         }
-        if (item.label === "Resignation" || item.label === "Extension") {
+        if (item.label === "Resignation" || item.label === "Extension" || item.label === "ID Card Request") {
             return roles?.includes("project staff") ?? false;
+        }
+        if (item.label === "ID Card Management") {
+            return roles?.includes("staff, RnD") ?? false;
         }
         return true;
     });
@@ -675,6 +715,34 @@ export function AppSidebar() {
                                                 )}>
                                                     {pendingDirectorPdfCount > 99 ? "99+" : pendingDirectorPdfCount}
                                                 </span>
+                                            )}
+
+                                            {item.label === "ID Card Management" && pendingIdCardCount > 0 && state === "expanded" && (
+                                                <span className={cn(
+                                                    "ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold leading-none",
+                                                    isActive
+                                                        ? "bg-[#4A6CF7] text-white"
+                                                        : "bg-[#D97757] text-white",
+                                                )}>
+                                                    {pendingIdCardCount > 99 ? "99+" : pendingIdCardCount}
+                                                </span>
+                                            )}
+                                            {item.label === "ID Card Management" && pendingIdCardCount > 0 && state !== "expanded" && (
+                                                <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-[#D97757]" />
+                                            )}
+
+                                            {item.label === "ID Card Request" && returnedIdCardCount > 0 && state === "expanded" && (
+                                                <span className={cn(
+                                                    "ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold leading-none",
+                                                    isActive
+                                                        ? "bg-[#4A6CF7] text-white"
+                                                        : "bg-[#D97757] text-white",
+                                                )}>
+                                                    {returnedIdCardCount > 99 ? "99+" : returnedIdCardCount}
+                                                </span>
+                                            )}
+                                            {item.label === "ID Card Request" && returnedIdCardCount > 0 && state !== "expanded" && (
+                                                <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-[#D97757]" />
                                             )}
 
                                             {item.subMenu && !item.alwaysOpen && state === "expanded" && (

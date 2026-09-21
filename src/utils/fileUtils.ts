@@ -27,6 +27,7 @@ const MINIO_BUCKET = "prod-rnd-files";
 const MINIO_PATH_PREFIXES = [
     "Project_Registration",
     "Proforma_Invoice",
+    "Employee_ID_Card",
     "indent_general_form",
     "indent_cum_sanction_sheet",
     "proprietary_purchase",
@@ -62,10 +63,13 @@ export function getMinioKey(path: string | null | undefined): string | null {
         } catch {
             return null;
         }
-        // Only the configured MinIO host counts as MinIO; anything else is an external link.
-        if (url.hostname !== MINIO_HOST || (url.port !== MINIO_PORT && url.port !== MINIO_ALT_PORT)) {
-            return null;
-        }
+        // A URL whose path starts with the bucket is a MinIO object whatever host it carries
+        // (records keep the host they were written with, and it differs between environments).
+        // Without the bucket, only the configured MinIO host counts; anything else is external.
+        const hasBucketPath = url.pathname.startsWith(`/${MINIO_BUCKET}/`);
+        const isConfiguredHost =
+            url.hostname === MINIO_HOST && (url.port === MINIO_PORT || url.port === MINIO_ALT_PORT);
+        if (!hasBucketPath && !isConfiguredHost) return null;
         // The URL's own path is the object key. Only the key is used — never the host.
         try {
             value = decodeURIComponent(url.pathname);
@@ -92,12 +96,40 @@ export function getMinioFileUrl(key: string): string {
     return `${window.location.origin}/api/method/${FILE_API_METHOD}?file_url=${encodeURIComponent(`/${key.replace(/^\/+/, "")}`)}`;
 }
 
-export function getFileUrl(path: string | null | undefined): string {
+// Paths Frappe itself serves; never treated as a MinIO object key.
+const FRAPPE_PATH_PREFIXES = ["/files/", "/private/files/", "/assets/", "/app/", "/api/"];
+
+/**
+ * True for a bare object key such as `Employee_ID_Card/EIC-0001/photo.png` or the same with a
+ * leading slash: at least {folder}/{document}/{file}, and not a path Frappe serves.
+ */
+const looksLikeObjectKey = (path: string): boolean => {
+    if (/^(https?:|data:|blob:)/i.test(path)) return false;
+    if (FRAPPE_PATH_PREFIXES.some((p) => path.startsWith(p))) return false;
+    return path.replace(/^\/+/, "").split("/").filter(Boolean).length >= 3;
+};
+
+export interface GetFileUrlOptions {
+    /**
+     * For fields that can only ever hold an uploaded file (ID card photo / signature): a bare
+     * {folder}/{document}/{file} path that isn't a Frappe path is a MinIO object, whatever its
+     * folder is called — so it does not depend on the prefix list above.
+     */
+    assumeMinio?: boolean;
+}
+
+export function getFileUrl(path: string | null | undefined, options?: GetFileUrlOptions): string {
     if (!path || typeof path !== "string") return "";
+
+    // In-memory previews (an image just picked in a form) are not server files.
+    if (path.startsWith("data:") || path.startsWith("blob:")) return path;
 
     // MinIO object (path, bucket path or full MinIO URL) — read through the Frappe route.
     const minioKey = getMinioKey(path);
     if (minioKey) return getMinioFileUrl(minioKey);
+    if (options?.assumeMinio && looksLikeObjectKey(path.trim())) {
+        return getMinioFileUrl(path.trim());
+    }
 
     // Already a full URL (other origins) — return as-is
     if (path.startsWith("http://") || path.startsWith("https://")) {
@@ -120,3 +152,7 @@ export function getFileUrl(path: string | null | undefined): string {
     // Plain path without leading slash
     return `${window.location.origin}/files/${path}`;
 }
+
+/** An uploaded image (ID card photo / signature) — see GetFileUrlOptions.assumeMinio. */
+export const getUploadedImageUrl = (path: string | null | undefined): string =>
+    getFileUrl(path, { assumeMinio: true });

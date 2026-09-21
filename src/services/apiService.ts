@@ -432,6 +432,18 @@ export const studentAPI = {
     saveMyProfile: `rndopsapp.rndopsapp.user_api.student_api.save_my_student_profile`,
 };
 
+// Employee ID Card API endpoints
+export const employeeIdCardAPI = {
+    getFields: `${API_BASE}.employee_id_card.employee_id_card.get_employee_id_card_fields`,
+    save: `${API_BASE}.employee_id_card.employee_id_card.save_employee_id_card_data`,
+    submit: `${API_BASE}.employee_id_card.employee_id_card.submit_employee_id_card`,
+    getList: `${API_BASE}.employee_id_card.employee_id_card.get_employee_id_card_list`,
+    getWorkflowActions: `${API_BASE}.employee_id_card.employee_id_card.get_employee_id_card_workflow_actions`,
+    performAction: `${API_BASE}.employee_id_card.employee_id_card.perform_employee_id_card_action`,
+    getMyDetails: `${API_BASE}.employee_id_card.employee_id_card.get_my_id_card_details`,
+    verifyByHR: `${API_BASE}.employee_id_card.employee_id_card.verify_id_card_by_hr`,
+};
+
 // Helper to prepare form data with file conversions for API submission
 export const prepareFormDataForApi = async (formData: Record<string, unknown>): Promise<Record<string, unknown>> => {
     const data = JSON.parse(JSON.stringify(formData)) as Record<string, unknown>;

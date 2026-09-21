@@ -7,7 +7,7 @@ import {
   ClipboardCheck, Briefcase, BarChart, Layers,
   AlertCircle, Zap, Activity, Clock,
   ArrowRight, ChevronRight, Mail, User as UserIcon, IdCard,
-  Receipt, Wallet, RotateCcw, ShoppingCart, FileText, Search, ListTodo, Eye
+  Receipt, Wallet, RotateCcw, ShoppingCart, FileText, Search, ListTodo, Eye, CheckCircle2
 } from "lucide-react";
 import {
   Table,
@@ -189,6 +189,7 @@ const applicationGroups = [
       bg: "bg-purple-50 dark:bg-purple-900/20",
     },
     items: [
+      { label: "ID Card Request", description: "Request your Employee ID Card", icon: IdCard, path: "/id-card-request" },
       { label: "Project Staff Extension", description: "Apply for extension of project staff tenure", icon: Clock, path: "/project-staff-extension" },
       { label: "Project Staff Resignation", description: "Submit project staff resignation request", icon: FileText, path: "/project-staff-resignation" },
     ],
@@ -308,9 +309,40 @@ export function ProjectStaffDashboard() {
     limit: 100,
   });
 
+  const { data: myIdCardDetailsResp, isLoading: idCardLoading } = useFrappeGetCall<any>(
+    "rndopsapp.rndopsapp.doctype.employee_id_card.employee_id_card.get_my_id_card_details",
+    undefined,
+    currentUser ? undefined : null,
+  );
+
+  const myIdCardList = React.useMemo(() => {
+    if (Array.isArray(myIdCardDetailsResp?.message)) return myIdCardDetailsResp.message;
+    if (Array.isArray(myIdCardDetailsResp)) return myIdCardDetailsResp;
+    return [];
+  }, [myIdCardDetailsResp]);
+
+  // A request HR sent back: Draft again, carrying HR's comment
+  const returnedIdCardAlert = React.useMemo(() => {
+    if (!myIdCardList || !Array.isArray(myIdCardList)) return null;
+    return myIdCardList.find(
+      (d: any) => (d.workflow_state === "Draft" || !d.workflow_state) && (d.remarks || d.hr_comments),
+    );
+  }, [myIdCardList]);
+
+  // The latest request once HR has verified it or generated the card
+  const activeIdCardAlert = React.useMemo(() => {
+    if (!myIdCardList || !Array.isArray(myIdCardList) || myIdCardList.length === 0) return null;
+    const doc = myIdCardList[0];
+    const st = (doc?.workflow_state || "").toLowerCase();
+    if (st.includes("verified")) return { type: "verified", doc };
+    if (st.includes("generated")) return { type: "generated", doc };
+    return null;
+  }, [myIdCardList]);
+
   const trackingLoading = dpResult.isLoading || igResult.isLoading || icResult.isLoading ||
     taResult.isLoading || asResult.isLoading || rbResult.isLoading ||
-    trResult.isLoading || tdResult.isLoading || rsLoading || exLoading || peResult.isLoading || lvResult.isLoading;
+    trResult.isLoading || tdResult.isLoading || rsLoading || exLoading || peResult.isLoading || lvResult.isLoading ||
+    idCardLoading;
   const [searchTerm, setSearchTerm] = React.useState("");
   const [actionSearch, setActionSearch] = React.useState("");
   const [selectedDoctype, setSelectedDoctype] = React.useState("All");
@@ -478,10 +510,21 @@ export function ProjectStaffDashboard() {
       }));
     }
 
+    if (myIdCardList && myIdCardList.length > 0) {
+      myIdCardList.forEach((d: any) => items.push({
+        id: d.name,
+        doctype: "Employee ID Card",
+        workflow_state: formatState(d.workflow_state),
+        modified: d.modified,
+        creation: d.creation,
+        route: `/id-card-request?edit=${d.name}`,
+      }));
+    }
+
     return items.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
   }, [
     dpResult.data, igResult.data, icResult.data, taResult.data, asResult.data,
-    rbResult.data, trResult.data, tdResult.data, rsListResp, exListResp, peResult.data, lvResult.data,
+    rbResult.data, trResult.data, tdResult.data, rsListResp, exListResp, peResult.data, lvResult.data, myIdCardList,
     basic?.erp_mail, basic?.ps_emp_id, currentUser
   ]);
 
@@ -664,6 +707,74 @@ export function ProjectStaffDashboard() {
           {/* Tab Content: Overview */}
           {(!activeTab || activeTab === "overview") && (
             <>
+              {/* Action Required Alert for Returned ID Card Request */}
+              {returnedIdCardAlert && (
+                <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-400 dark:border-amber-600 rounded-xl shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-pulse">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-6 w-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="font-bold text-amber-900 dark:text-amber-100 text-sm">
+                        Action Required: Your ID Card Request was Returned by HR
+                      </h3>
+                      <p className="text-xs font-semibold text-amber-800 dark:text-amber-200 mt-1 bg-amber-100/90 dark:bg-amber-900/60 p-2 rounded-lg border border-amber-200 dark:border-amber-700">
+                        HR Comment: "{returnedIdCardAlert.remarks || returnedIdCardAlert.hr_comments}"
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => navigate(`/id-card-request?edit=${returnedIdCardAlert.name}`)}
+                    className="px-4 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-sm flex-shrink-0 transition-colors flex items-center gap-1.5 self-end sm:self-auto"
+                  >
+                    Edit & Resubmit <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {/* HR Verified Alert Banner */}
+              {activeIdCardAlert?.type === "verified" && (
+                <div className="mb-6 p-4 bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-400 dark:border-emerald-600 rounded-xl shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="font-bold text-emerald-900 dark:text-emerald-100 text-sm">
+                        Status: HR Verified
+                      </h3>
+                      <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-200 mt-1">
+                        Your ID card request has been Verified by the HR.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => navigate(`/id-card-request?edit=${activeIdCardAlert.doc.name}`)}
+                    className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm flex-shrink-0 transition-colors flex items-center gap-1.5 self-end sm:self-auto"
+                  >
+                    View Status <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {/* ID Card Generated Alert Banner */}
+              {activeIdCardAlert?.type === "generated" && (
+                <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/40 border-2 border-blue-400 dark:border-blue-600 rounded-xl shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <IdCard className="h-6 w-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="font-bold text-blue-900 dark:text-blue-100 text-sm">
+                        Status: ID Card Generated.
+                      </h3>
+                      <p className="text-xs font-semibold text-blue-800 dark:text-blue-200 mt-1">
+                        Your ID card got Generated. Please collect your ID Card.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => navigate(`/id-card-request?edit=${activeIdCardAlert.doc.name}`)}
+                    className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm flex-shrink-0 transition-colors flex items-center gap-1.5 self-end sm:self-auto"
+                  >
+                    View Status <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
               {/* Basic Details */}
               <section className="mb-6 bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-5">
                 <div className="flex items-center gap-2 mb-4">
