@@ -4,7 +4,7 @@ import {
     IdCard, Search, Eye, CheckCircle2, Printer,
     Loader2, X, User as UserIcon, Phone, MapPin,
     Briefcase, Calendar, Droplets, Heart, FileText,
-    Edit, RotateCcw, Save, MessageSquare, ChevronLeft, ChevronRight
+    Edit, RotateCcw, Save, MessageSquare, ChevronLeft, ChevronRight, Crop
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -18,6 +18,7 @@ import jsPDF from 'jspdf';
 import { createZipArchive, type ZipFileEntry } from '@/utils/zipUtils';
 import { getUploadedImageUrl } from "@/utils/fileUtils";
 import { IdCardOptionSelect } from "@/components/IdCardOptionSelect";
+import { ImageCropModal } from "@/components/ImageCropModal";
 import { useIdCardOptions } from "@/hooks/useIdCardOptions";
 
 interface IDCardRecord {
@@ -212,6 +213,67 @@ const HRIDCardManagement: React.FC = () => {
         setSignEditPreview(selectedCard.sign_path__ || null);
         setIsEditing(true);
     }, [selectedCard]);
+
+    // --- Adjust signature crop from the ID card preview ---------------------
+    const [signatureToAdjust, setSignatureToAdjust] = useState<File | null>(null);
+    const [isLoadingSignature, setIsLoadingSignature] = useState(false);
+
+    // Load the stored signature as a File so it can be re-cropped
+    const handleAdjustSignature = useCallback(async () => {
+        if (!selectedCard?.sign_path__) return;
+        setIsLoadingSignature(true);
+        try {
+            const res = await fetch(getUploadedImageUrl(selectedCard.sign_path__), { credentials: 'include' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const blob = await res.blob();
+            if (!blob.type.startsWith('image/')) throw new Error('Not an image');
+            setSignatureToAdjust(new File([blob], 'signature.png', { type: blob.type }));
+        } catch {
+            setErrorModal({
+                open: true,
+                title: 'Signature Unavailable',
+                message: 'Could not load the stored signature to adjust it. Please try again.',
+            });
+        } finally {
+            setIsLoadingSignature(false);
+        }
+    }, [selectedCard]);
+
+    // Save the re-cropped signature, then refresh the preview with it
+    const handleSignatureAdjusted = useCallback(async (cropped: File) => {
+        if (!selectedCard) return;
+        setSignatureToAdjust(null);
+        setIsActioning(true);
+        try {
+            // Same full-record payload the HR edit form sends, with only the signature replaced
+            const dataToSave: Record<string, any> = {
+                ...selectedCard,
+                name: selectedCard.name,
+                sign_path__: await fileToBase64(cropped),
+            };
+            const res = await saveForm({ data: JSON.stringify(dataToSave) });
+            if (!(res?.message?.status === 'success' || res?.message?.name || res?.message?.docname)) {
+                throw new Error(res?.message?.message || 'Save failed');
+            }
+            // Show the new crop immediately; the list refresh brings the stored path
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(cropped);
+            });
+            setSelectedCard(prev => (prev ? { ...prev, sign_path__: dataUrl } : null));
+            refreshList();
+        } catch (err: any) {
+            setErrorModal({
+                open: true,
+                title: 'Signature Update Failed',
+                message: parseFrappeError(saveError, err),
+            });
+        } finally {
+            setIsActioning(false);
+        }
+    }, [selectedCard, saveForm, saveError, refreshList]);
 
     // Save HR edits
     const handleSaveEdit = useCallback(async () => {
@@ -1262,6 +1324,17 @@ const HRIDCardManagement: React.FC = () => {
                             >
                                 Close
                             </button>
+                            {selectedCard.sign_path__ && (
+                                <button
+                                    onClick={handleAdjustSignature}
+                                    disabled={isActioning || isLoadingSignature}
+                                    title="Re-crop the signature if it is not aligned properly on the card"
+                                    className="px-4 py-2 text-sm font-semibold text-[#4A6CF7] bg-[#4A6CF7]/10 hover:bg-[#4A6CF7]/20 rounded-lg transition-all flex items-center gap-2 disabled:opacity-50"
+                                >
+                                    {isLoadingSignature ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crop className="h-4 w-4" />}
+                                    Adjust Signature
+                                </button>
+                            )}
                             <button
                                 onClick={handleDownloadPNG}
                                 disabled={isActioning}
@@ -1288,6 +1361,18 @@ const HRIDCardManagement: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* Frame matches the signature box printed on the card (162x36) */}
+            <ImageCropModal
+                file={signatureToAdjust}
+                aspect={162 / 36}
+                outputWidth={810}
+                allowPadding
+                enhance
+                title="Adjust Signature"
+                onCancel={() => setSignatureToAdjust(null)}
+                onConfirm={handleSignatureAdjusted}
+            />
 
             <ErrorModal
                 open={errorModal.open}

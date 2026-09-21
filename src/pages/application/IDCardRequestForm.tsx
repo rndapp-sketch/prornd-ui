@@ -28,7 +28,14 @@ import { ErrorModal } from "@/components/ErrorModal";
 import { parseFrappeError } from "@/utils/errorUtils";
 import { getUploadedImageUrl } from "@/utils/fileUtils";
 import { IdCardOptionSelect } from "@/components/IdCardOptionSelect";
+import { ImageCropModal } from "@/components/ImageCropModal";
 import { useIdCardOptions } from "@/hooks/useIdCardOptions";
+
+// Upload size limits, checked on the chosen file and again on the cropped result
+const IMAGE_SIZE_LIMITS = {
+  photo_path__: { bytes: 2 * 1024 * 1024, label: "2MB", name: "Photo" },
+  sign_path__: { bytes: 1024 * 1024, label: "1MB", name: "Signature" },
+} as const;
 
 // -----------------------------------------------------------------------
 // ID Card Request Form
@@ -223,6 +230,11 @@ const IDCardRequestForm = () => {
     message: "",
   });
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  // Image chosen in a file input, waiting to be cropped before it is used
+  const [pendingCrop, setPendingCrop] = useState<{
+    field: "photo_path__" | "sign_path__";
+    file: File;
+  } | null>(null);
   const [signPreview, setSignPreview] = useState<string | null>(null);
   const [autoFetched, setAutoFetched] = useState(false);
   const [hrRemarks, setHrRemarks] = useState<string | null>(null);
@@ -417,6 +429,21 @@ const IDCardRequestForm = () => {
           .slice(0, field === "emergency_phone__" ? 12 : 10);
       }
       setFormData((prev) => ({ ...prev, [field]: value }));
+    },
+    [],
+  );
+
+  // Returns true (and shows an error) when the file is over the field's size limit
+  const rejectIfTooLarge = useCallback(
+    (field: "photo_path__" | "sign_path__", file: File): boolean => {
+      const limit = IMAGE_SIZE_LIMITS[field];
+      if (file.size <= limit.bytes) return false;
+      setErrorModal({
+        open: true,
+        title: `${limit.name} Too Large`,
+        message: `${limit.name} must be ${limit.label} or smaller. The selected file is ${(file.size / (1024 * 1024)).toFixed(1)}MB.`,
+      });
+      return true;
     },
     [],
   );
@@ -984,16 +1011,16 @@ const IDCardRequestForm = () => {
                       type="file"
                       accept="image/jpeg,image/png,image/jpg"
                       disabled={isReadOnly}
-                      onChange={(e) =>
-                        handleFileChange(
-                          "photo_path__",
-                          e.target.files?.[0] || null,
-                        )
-                      }
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file && !rejectIfTooLarge("photo_path__", file))
+                          setPendingCrop({ field: "photo_path__", file });
+                        e.target.value = ""; // allow re-picking the same file
+                      }}
                       className="block w-full text-xs text-zinc-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-[#4A6CF7]/10 file:text-[#4A6CF7] hover:file:bg-[#4A6CF7]/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     />
                     <p className="text-[11px] text-zinc-400 mt-1.5">
-                      JPEG/PNG, max 2MB. Passport size preferred.
+                      JPEG/PNG, max 2MB. You will crop it to the card's photo frame after choosing.
                     </p>
                   </div>
                 </div>
@@ -1018,22 +1045,42 @@ const IDCardRequestForm = () => {
                       type="file"
                       accept="image/jpeg,image/png,image/jpg"
                       disabled={isReadOnly}
-                      onChange={(e) =>
-                        handleFileChange(
-                          "sign_path__",
-                          e.target.files?.[0] || null,
-                        )
-                      }
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file && !rejectIfTooLarge("sign_path__", file))
+                          setPendingCrop({ field: "sign_path__", file });
+                        e.target.value = ""; // allow re-picking the same file
+                      }}
                       className="block w-full text-xs text-zinc-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-[#4A6CF7]/10 file:text-[#4A6CF7] hover:file:bg-[#4A6CF7]/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     />
                     <p className="text-[11px] text-zinc-400 mt-1.5">
-                      JPEG/PNG, max 1MB. Sign on white background.
+                      JPEG/PNG, max 1MB. Sign on white background; you will crop it after choosing.
                     </p>
                   </div>
                 </div>
               </FormField>
             </div>
           </FrappeCard>
+
+          <ImageCropModal
+            file={pendingCrop?.file ?? null}
+            // Frames match the printed card: photo box 105x124, signature 162x36
+            aspect={pendingCrop?.field === "sign_path__" ? 162 / 36 : 105 / 124}
+            outputWidth={pendingCrop?.field === "sign_path__" ? 810 : 420}
+            allowPadding={pendingCrop?.field === "sign_path__"}
+            enhance={pendingCrop?.field === "sign_path__"}
+            title={
+              pendingCrop?.field === "sign_path__"
+                ? "Crop Signature"
+                : "Crop Passport Photo"
+            }
+            onCancel={() => setPendingCrop(null)}
+            onConfirm={(cropped) => {
+              if (pendingCrop && !rejectIfTooLarge(pendingCrop.field, cropped))
+                handleFileChange(pendingCrop.field, cropped);
+              setPendingCrop(null);
+            }}
+          />
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2 pb-8">
