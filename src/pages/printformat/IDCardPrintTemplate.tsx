@@ -465,13 +465,14 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
         }}
       >
         {/* Holder Signature */}
-        <div style={{ textAlign: "center", width: "140px" }}>
+        <div style={{ textAlign: "center", width: "168px" }}>
           <div
             style={{
-              height: "32px",
+              height: "38px",
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
+              justifyContent: "flex-start",
+              paddingLeft: "4px",
             }}
           >
             {holderSignature ? (
@@ -479,9 +480,10 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
                 src={getUploadedImageUrl(holderSignature)}
                 alt="Holder Signature"
                 style={{
-                  maxHeight: "30px",
-                  maxWidth: "130px",
-                  objectFit: "contain",
+                  width: "162px",
+                  height: "36px",
+                  objectFit: "cover",
+                  objectPosition: "center",
                   filter:
                     "contrast(1.6) brightness(0.7) drop-shadow(0 0 0.2px #000000)",
                 }}
