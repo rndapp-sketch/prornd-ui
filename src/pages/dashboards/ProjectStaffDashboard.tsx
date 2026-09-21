@@ -366,19 +366,19 @@ function StatCell({
   className?: string;
 }) {
   return (
-    <div className={cn("bg-white p-5 dark:bg-zinc-900 md:p-6", className)}>
-      <div className="flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+    <div className={cn("bg-white px-4 py-3.5 dark:bg-zinc-900", className)}>
+      <div className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
         <span className={cn("size-1.5 rounded-full", dot)} />
         {label}
       </div>
       {loading ? (
-        <Skeleton className="mt-4 h-10 w-16" />
+        <Skeleton className="mt-2 h-7 w-10" />
       ) : (
-        <div className="mt-3 font-mono text-4xl font-medium leading-none tracking-tighter tabular-nums text-zinc-900 dark:text-zinc-50 md:text-5xl">
+        <div className="mt-2 font-mono text-2xl font-medium leading-none tracking-tighter tabular-nums text-zinc-900 dark:text-zinc-50">
           {String(value).padStart(2, "0")}
         </div>
       )}
-      <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">{caption}</p>
+      <p className="mt-1.5 truncate text-[11px] text-zinc-500 dark:text-zinc-400">{caption}</p>
     </div>
   );
 }
@@ -1054,7 +1054,7 @@ export function ProjectStaffDashboard() {
               className={cn(
                 SURFACE,
                 REVEAL,
-                "grid grid-cols-2 gap-px overflow-hidden bg-zinc-200/70 dark:bg-zinc-800 lg:grid-cols-[1.35fr_1fr_1fr_1fr]"
+                "grid grid-cols-2 gap-px overflow-hidden !rounded-2xl bg-zinc-200/70 dark:bg-zinc-800 md:grid-cols-4"
               )}
             >
               <StatCell
@@ -1063,7 +1063,6 @@ export function ProjectStaffDashboard() {
                 caption={`Across ${uniqueDoctypes.length - 1} application ${uniqueDoctypes.length - 1 === 1 ? "type" : "types"}`}
                 dot="bg-zinc-900 dark:bg-zinc-100"
                 loading={trackingLoading}
-                className="col-span-2 lg:col-span-1"
               />
               <StatCell
                 label="In review"
@@ -1085,7 +1084,6 @@ export function ProjectStaffDashboard() {
                 caption="Need your input"
                 dot="bg-rose-500"
                 loading={trackingLoading}
-                className="col-span-2 lg:col-span-1"
               />
             </section>
 
@@ -1216,8 +1214,8 @@ export function ProjectStaffDashboard() {
                         <span className="break-all">{basic.erp_mail || "—"}</span>
                       </ProfileRow>
                       <ProfileRow label="Department">
-                        {basic.ps_department || basic.ps_department_name ? (
-                          <DepartmentName name={basic.ps_department || basic.ps_department_name || ""} />
+                        {basic.ps_department_name || basic.ps_department ? (
+                          <DepartmentName name={basic.ps_department_name || basic.ps_department || ""} />
                         ) : "—"}
                       </ProfileRow>
                       <ProfileRow label="Designation">{basic.ps_designation || "—"}</ProfileRow>
