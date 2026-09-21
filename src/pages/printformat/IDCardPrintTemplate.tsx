@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useLayoutEffect, useRef } from "react";
 import { getUploadedImageUrl } from "@/utils/fileUtils";
 
 // -----------------------------------------------------------------------
@@ -53,6 +53,55 @@ const formatDateSlash = (dateStr?: string) => {
   } catch {
     return dateStr;
   }
+};
+
+// Single-line text that shrinks its font-size until it fits the box it is
+// laid out in. Glyph widths differ per OS/browser (the card's Noto fonts are
+// not bundled, so Windows/macOS/Linux each substitute something else), so a
+// fixed px size can overflow on one machine and fit on another. The size
+// passed in is the design size and is only reduced when the text overflows.
+const FitText: React.FC<{
+  size: number;
+  minScale?: number;
+  style?: React.CSSProperties;
+  children: React.ReactNode;
+}> = ({ size, minScale = 0.6, style, children }) => {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const fit = () => {
+      const min = size * minScale;
+      let current = size;
+      el.style.fontSize = `${current}px`;
+      // 0.5px tolerance absorbs sub-pixel rounding differences between engines
+      while (el.scrollWidth - el.clientWidth > 0.5 && current > min) {
+        current = Math.max(min, current - 0.25);
+        el.style.fontSize = `${current}px`;
+      }
+    };
+
+    fit();
+    // Re-fit once web/system fonts have actually resolved
+    let cancelled = false;
+    document.fonts?.ready.then(() => {
+      if (!cancelled) fit();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [size, minScale, children]);
+
+  return (
+    <div
+      ref={ref}
+      style={{ ...style, fontSize: `${size}px`, whiteSpace: "nowrap" }}
+    >
+      {children}
+    </div>
+  );
 };
 
 export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
@@ -158,62 +207,58 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
               justifyContent: "center",
             }}
           >
-            <div
+            <FitText
+              size={19}
               style={{
-                fontSize: "19px",
                 fontWeight: 800,
-                color: "#8A0000",
-                WebkitTextStroke: "0.2px #8A0000",
+                color: "#8A0100",
+                WebkitTextStroke: "0.2px #8A0100",
                 lineHeight: "1.2",
                 margin: 0,
                 letterSpacing: "0.3px",
-                whiteSpace: "nowrap",
               }}
             >
               भारतीय प्रौद्योगिकी संस्थान गुवाहाटी
-            </div>
-            <div
+            </FitText>
+            <FitText
+              size={15.5}
               style={{
-                fontSize: "15.5px",
                 fontWeight: 900,
-                color: "#8A0000",
-                WebkitTextStroke: "0.2px #8A0000",
+                color: "#8A0100",
+                WebkitTextStroke: "0.2px #8A0100",
                 lineHeight: "1.2",
                 margin: "2px 0",
                 letterSpacing: "-0.1px",
-                whiteSpace: "nowrap",
               }}
             >
               INDIAN INSTITUTE OF TECHNOLOGY GUWAHATI
-            </div>
-            <div
+            </FitText>
+            <FitText
+              size={14.5}
               style={{
-                fontSize: "14.5px",
                 fontWeight: 800,
-                color: "#8A0000",
-                WebkitTextStroke: "0.2px #8A0000",
+                color: "#8A0100",
+                WebkitTextStroke: "0.2px #8A0100",
                 letterSpacing: "0.5px",
                 lineHeight: "1.2",
                 margin: 0,
-                whiteSpace: "nowrap",
               }}
             >
               RESEARCH AND DEVELOPMENT CELL
-            </div>
-            <div
+            </FitText>
+            <FitText
+              size={8.5}
               style={{
-                fontSize: "8.5px",
                 fontWeight: 800,
-                color: "#8A0000",
-                WebkitTextStroke: "0.15px #8A0000",
+                color: "#8A0100",
+                WebkitTextStroke: "0.15px #8A0100",
                 letterSpacing: "0.3px",
                 lineHeight: "1.2",
                 margin: 0,
-                whiteSpace: "nowrap",
               }}
             >
               (An autonomous Institution of National Importance under MoE, GOI)
-            </div>
+            </FitText>
           </div>
         </div>
 
@@ -225,15 +270,18 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
             justifyContent: "space-between",
             alignItems: "center",
             borderBottom: "1.5px solid #000000",
-            fontSize: "12px",
             fontWeight: 800,
             color: "#000000",
             WebkitTextStroke: "0.15px #000000",
-            whiteSpace: "nowrap",
+            gap: "8px",
           }}
         >
-          <div>ID No: {data.emp_id__ || "—"}</div>
-          <div>Project No: {data.project_number__ || "—"}</div>
+          <FitText size={12} style={{ minWidth: 0, flex: "0 1 auto" }}>
+            ID No: {data.emp_id__ || "—"}
+          </FitText>
+          <FitText size={12} style={{ minWidth: 0, flex: "0 1 auto" }}>
+            Project No: {data.project_number__ || "—"}
+          </FitText>
         </div>
 
         {/* Main Content Area (Photo + Holder Details) */}

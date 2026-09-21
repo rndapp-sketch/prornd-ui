@@ -1127,7 +1127,7 @@ const HRIDCardManagement: React.FC = () => {
                             )}
 
                             {/* Action Buttons Footer */}
-                            <div className="flex justify-between items-center pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                            <div className="sticky bottom-0 z-10 -mx-6 -mb-6 px-6 py-4 bg-white dark:bg-zinc-900 flex justify-between items-center border-t border-zinc-200 dark:border-zinc-700">
                                 <div>
                                     {/* Put Back to User button */}
                                     {!isEditing && selectedCard.workflow_state !== 'Draft' && (
@@ -1190,7 +1190,7 @@ const HRIDCardManagement: React.FC = () => {
             {/* Put Back to User Modal with Comment Box */}
             {showPutBackModal && selectedCard && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                    <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl max-w-md w-full p-6">
+                    <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl max-w-md w-full p-6 max-h-[calc(100vh-2rem)] overflow-y-auto">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="p-2 bg-[#4A6CF7]/10 dark:bg-[#4A6CF7]/20 rounded-lg">
                                 <RotateCcw className="h-5 w-5 text-[#4A6CF7]" />
@@ -1241,21 +1241,21 @@ const HRIDCardManagement: React.FC = () => {
             {/* Print Preview Modal */}
             {showPrintPreview && selectedCard && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                    <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl max-w-2xl w-full">
-                        <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
+                    <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[calc(100vh-2rem)] flex flex-col overflow-hidden">
+                        <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between shrink-0">
                             <h3 className="font-bold text-[#27272A] dark:text-[#E4E4E7]">ID Card Preview</h3>
                             <button onClick={handleClosePrintPreview} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg">
                                 <X className="h-5 w-5 text-zinc-500" />
                             </button>
                         </div>
 
-                        <div className="p-6 flex justify-center">
+                        <div className="p-6 flex justify-center flex-1 min-h-0 overflow-y-auto">
                             <div ref={printRef}>
                                 <IDCardPrintTemplate data={selectedCard} />
                             </div>
                         </div>
 
-                        <div className="px-6 py-4 border-t border-zinc-200 dark:border-zinc-700 flex justify-end gap-3 flex-wrap">
+                        <div className="px-6 py-4 border-t border-zinc-200 dark:border-zinc-700 flex justify-end gap-3 flex-wrap shrink-0 bg-white dark:bg-zinc-900">
                             <button
                                 onClick={handleClosePrintPreview}
                                 className="px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors"
