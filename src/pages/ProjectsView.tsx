@@ -455,10 +455,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     });
   };
   const { currentUser } = useFrappeAuth();
-  const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", {
-    fields: ["*"],
-    enabled: !!currentUser,
-  });
+  const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", currentUser ? undefined : null);
   const {
     roles: fetchedRoles,
     isLoading: isRolesLoading,

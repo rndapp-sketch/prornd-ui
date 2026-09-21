@@ -136,10 +136,7 @@ const ActionCard: React.FC<ActionCardProps> = ({ icon, title, description, onCli
 export function Home() {
   const navigate = useNavigate();
   const { currentUser } = useFrappeAuth();
-  const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", {
-    fields: ["full_name", "user_roles"],
-    enabled: !!currentUser,
-  });
+  const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", currentUser ? undefined : null);
 
   const userName = currentUser || "Guest";
   const fullName = userData?.full_name || "";

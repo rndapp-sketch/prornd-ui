@@ -881,10 +881,7 @@ export function DirectorDashboard() {
         | "PI";
     const viewMode = viewModeParam || "Director";
 
-    const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", {
-        fields: ["full_name", "user_roles"],
-        enabled: !!currentUser,
-    });
+    const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", currentUser ? undefined : null);
 
     const fullName = userData?.full_name || currentUser || "Guest";
 

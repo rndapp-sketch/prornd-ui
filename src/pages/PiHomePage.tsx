@@ -479,10 +479,7 @@ const MANUAL_STEPS = [
 export function PiHomePage() {
   const navigate = useNavigate();
   const { currentUser } = useFrappeAuth();
-  const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", {
-    fields: ["full_name", "user_roles"],
-    enabled: !!currentUser,
-  });
+  const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", currentUser ? undefined : null);
 
   const { data: dashboardData, isLoading: dashboardLoading } =
     useFrappeGetCall<{ message: PiDashboardData }>(

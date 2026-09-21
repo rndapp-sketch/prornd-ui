@@ -554,10 +554,7 @@ export function HeadOverview() {
     }, []);
 
     // ── Fetch current user info & department ─────────────────────────────────
-    const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", {
-        fields: ["full_name", "department"],
-        enabled: !!currentUser,
-    });
+    const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", currentUser ? undefined : null);
     const fullName = userData?.full_name || currentUser || "Guest";
     const userDept = userData?.department || "";
 
@@ -565,7 +562,7 @@ export function HeadOverview() {
     const { data: headDataRes, isLoading: isHeadDataLoading } = useFrappeGetCall<{ message: any }>(
         "rndopsapp.dashboard.get_head_dashboard_data",
         { user_email: currentUser, department: userDept },
-        { enabled: !!currentUser && !!userDept }
+        currentUser && userDept ? undefined : null
     );
     const headData = headDataRes?.message || {};
     const projectOverview = headData.project_overview || {};

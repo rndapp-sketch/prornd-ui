@@ -114,8 +114,8 @@ export function HeadApprovalProjects() {
       filters: [["head_approver", "=", currentUser || ""]],
       limit: 0,
     },
-    // **FIX**: `enabled` is passed as a second argument (query options)
-    { enabled: !!currentUser }
+    // A null SWR key (3rd arg) disables the request until the user is known
+    currentUser ? undefined : null
   );
 
   useEffect(() => {
@@ -145,8 +145,8 @@ export function HeadApprovalProjects() {
       filters: projectFilters as any,
       limit: 0,
     },
-    // **FIX**: `enabled` is passed as a second argument (query options)
-    { enabled: !!currentUser && !departmentsLoading && userDepartments.length > 0 }
+    // A null SWR key (3rd arg) disables the request until the departments are known
+    !!currentUser && !departmentsLoading && userDepartments.length > 0 ? undefined : null
   );
 
   const isLoading = departmentsLoading || projectsLoading;

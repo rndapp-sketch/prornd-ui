@@ -243,9 +243,7 @@ const LoanRequestDetails: React.FC = () => {
     const [fetchedDeptName, setFetchedDeptName] = useState<string>('');
     const [fetchedDesignation, setFetchedDesignation] = useState<string>('');
 
-    const { data: projectDoc } = useFrappeGetDoc('Project Registration', formData?.project_name, {
-        enabled: !!formData?.project_name,
-    });
+    const { data: projectDoc } = useFrappeGetDoc('Project Registration', formData?.project_name, formData?.project_name ? undefined : null);
     const fetchedProjectTitle = projectDoc?.project_title || '';
 
     useEffect(() => {

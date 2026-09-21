@@ -96,11 +96,7 @@ const LeaveModule = () => {
     }>(
         leaveModuleAPI.getLeaveBalance,
         {},
-        {
-            enabled: !!currentUser,
-            revalidateOnFocus: false,
-            revalidateOnReconnect: false,
-        }
+        currentUser ? undefined : null, { revalidateOnFocus: false, revalidateOnReconnect: false }
     );
 
     const leaveBalance = leaveBalanceData?.message;

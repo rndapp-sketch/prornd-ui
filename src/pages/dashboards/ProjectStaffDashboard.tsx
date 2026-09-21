@@ -441,10 +441,7 @@ export function ProjectStaffDashboard() {
   const [searchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") || "";
   const { currentUser } = useFrappeAuth();
-  const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", {
-    fields: ["full_name"],
-    enabled: !!currentUser,
-  });
+  const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", currentUser ? undefined : null);
 
   // Basic Details (joined via username = part of erp_mail before '@')
   const { data: basicResp, isLoading: basicLoading } = useFrappeGetCall<{

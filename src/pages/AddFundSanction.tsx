@@ -319,6 +319,7 @@ const AddFundSanction: React.FC = () => {
     const { data: projectDoc } = useFrappeGetDoc(
         'Project Registration',
         projectName ?? '',
+        projectName ? undefined : null,
         { revalidateOnFocus: false, revalidateOnReconnect: false }
     );
 

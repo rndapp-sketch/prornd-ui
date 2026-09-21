@@ -7,10 +7,7 @@ const UserRoleCheck = () => {
   const [isPermanentEmployee, setIsPermanentEmployee] = useState<boolean | null>(null); // State to store the result
   const [isRndMiscellaneous, setIsRndMiscellaneous] = useState<boolean | null>(null); // State for RnD Miscellaneous
 
-  const { data: userData, isLoading: isUserLoading } = useFrappeGetDoc("User", currentUser ?? "", {
-    fields: ["roles"], // Fetch roles from the User doctype
-    enabled: !!currentUser,  // Only fetch if currentUser exists
-  });
+  const { data: userData, isLoading: isUserLoading } = useFrappeGetDoc("User", currentUser ?? "", currentUser ? undefined : null);
 
   const { roles: fetchedRoles, isLoading: areRolesLoading } = useUserRoles(currentUser ?? null);
 
@@ -44,10 +41,7 @@ export const useUserRoleChecks = () => {
   const [isRndMiscellaneous, setIsRndMiscellaneous] = useState<boolean | null>(null);
   const [isRndStaff, setIsRndStaff] = useState<boolean | null>(null);
 
-  const { data: userData, isLoading: isUserLoading } = useFrappeGetDoc("User", currentUser ?? "", {
-    fields: ["roles"],
-    enabled: !!currentUser,
-  });
+  const { data: userData, isLoading: isUserLoading } = useFrappeGetDoc("User", currentUser ?? "", currentUser ? undefined : null);
 
   const { roles: fetchedRoles, isLoading: areRolesLoading } = useUserRoles(currentUser ?? null);
 

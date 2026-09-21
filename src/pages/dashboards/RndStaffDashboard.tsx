@@ -126,7 +126,7 @@ function KpiCard({ title, value, subtitle, icon: Icon, accentColor, bgClass, tex
 export function RndStaffDashboard() {
   const navigate = useNavigate();
   const { currentUser } = useFrappeAuth();
-  const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", { fields: ["full_name"], enabled: !!currentUser });
+  const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", currentUser ? undefined : null);
 
   const { data: pendingData, isLoading: pendingLoading } = useFrappeGetCall<PendingTaskResponse>(
     "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_categorized_pending_task", { page_name: "pending-task" }

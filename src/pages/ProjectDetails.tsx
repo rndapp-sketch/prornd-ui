@@ -938,11 +938,7 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
         } = useFrappeGetCall<{ message: ActivityItem[] }>(
             "rndopsapp.rndopsapp.api.get_project_activity",
             { doctype, docname },
-            {
-                enabled: !!docname,
-                revalidateOnFocus: false,
-                revalidateOnReconnect: false,
-            },
+            docname ? undefined : null, { revalidateOnFocus: false, revalidateOnReconnect: false },
         );
         const { call: addComment } = useFrappePostCall(
             "rndopsapp.rndopsapp.api.add_project_comment",
@@ -1572,7 +1568,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     const { data, error, isLoading, mutate } = useFrappeGetDoc(
         "Project Registration",
         projectName ?? "",
-        { enabled: !!projectName, cacheTime: 0 },
+        projectName ? undefined : null,
     );
 
     // --- Proposed Budget Breakup save (RnD Staff only) — defined after mutate ---

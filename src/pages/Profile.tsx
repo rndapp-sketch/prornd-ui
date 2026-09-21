@@ -238,34 +238,7 @@ export default function Profile() {
         data: user,
         isLoading,
         error,
-    } = useFrappeGetDoc<UserDoc>("User", currentUser || "", {
-        fields: [
-            "name",
-            "email",
-            "first_name",
-            "middle_name",
-            "last_name",
-            "full_name",
-            "username",
-            "user_image",
-            "pi_initials",
-            "phone",
-            "mobile_no",
-            "location",
-            "birth_date",
-            "gender",
-            "bio",
-            "employee_id",
-            "department_name",
-            "designation_name",
-            "empclass",
-            "language",
-            "time_zone",
-            "enabled",
-            "roles",
-        ],
-        enabled: !!currentUser,
-    });
+    } = useFrappeGetDoc<UserDoc>("User", currentUser || "", currentUser ? undefined : null);
 
     const { call: saveUser, loading: isSaving } = useFrappePostCall<{
         message: UserDoc;

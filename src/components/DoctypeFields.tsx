@@ -15,9 +15,7 @@ const DoctypeFields: React.FC<DoctypeFieldsProps> = ({ doctypeName }) => {
   const { data, isLoading, error } = useFrappeGetDoc(
     "DocType",
     doctypeName,
-    {
-      enabled: !!doctypeName,
-    }
+    doctypeName ? undefined : null
   );
 
   if (!doctypeName) {

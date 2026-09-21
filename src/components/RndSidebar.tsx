@@ -86,10 +86,7 @@ export function AppSidebar() {
     const { data: userDoc, isLoading: isLoadingUserDoc } = useFrappeGetDoc(
         "User",
         currentUser || "",
-        {
-            fields: ["full_name", "email", "user_image"],
-            enabled: !!currentUser,
-        },
+        currentUser ? undefined : null,
     );
 
     const { roles } = useUserRoles(currentUser || null);
@@ -104,7 +101,7 @@ export function AppSidebar() {
         filters: [["head_approver", "=", currentUser ?? ""]],
         fields: ["name"],
         limit: 500,
-    }, isHeadApprover && !!currentUser ? undefined : null);
+    }, isHeadApprover && currentUser ? undefined : null);
 
     const allowedProjectNames = React.useMemo(() => {
         if (!isHeadApprover || !headApproverProjects) return null;
@@ -116,7 +113,7 @@ export function AppSidebar() {
         filters: [["pi", "=", currentUser ?? ""]],
         fields: ["name"],
         limit: 500,
-    }, isPermanentEmployee && !!currentUser ? undefined : null);
+    }, isPermanentEmployee && currentUser ? undefined : null);
 
     const allowedLeaveNames = React.useMemo(() => {
         if (!isPermanentEmployee || !piLeaveModules) return null;

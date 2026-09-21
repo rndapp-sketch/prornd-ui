@@ -22,22 +22,7 @@ const DetailItem = ({ icon: Icon, label, value }: { icon: React.ElementType, lab
 
 const UserDetails = () => {
     const { userName } = useParams();
-    const { data: user, isLoading, error } = useFrappeGetDoc("User", userName, {
-        fields: [
-            'name',
-            'full_name',
-            'user_image',
-            'username',
-            'employee_id',
-            'department_name',
-            'designation_name',
-            'empclass',
-            'language',
-            'time_zone',
-            'enabled',
-            'roles'
-        ]
-    });
+    const { data: user, isLoading, error } = useFrappeGetDoc("User", userName);
     const [activeTab, setActiveTab] = useState('details');
 
     // Skeleton loader for when data is being fetched

@@ -103,10 +103,7 @@ const formatRelativeTime = (dateStr: string) => {
 export function HeadDashboard() {
   const navigate = useNavigate();
   const { currentUser } = useFrappeAuth();
-  const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", {
-    fields: ["full_name"],
-    enabled: !!currentUser,
-  });
+  const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", currentUser ? undefined : null);
 
   // Fetch Pending Tasks
   const { data: pendingData, isLoading: pendingLoading } = useFrappeGetCall<PendingTaskResponse>(
@@ -128,7 +125,7 @@ export function HeadDashboard() {
     filters: [["head_approver", "=", currentUser ?? ""]],
     fields: ["name"],
     limit: 500,
-  }, isHeadApprover && !!currentUser ? undefined : null);
+  }, isHeadApprover && currentUser ? undefined : null);
 
   const allowedProjectNames = React.useMemo(() => {
     if (!isHeadApprover || !headApproverProjects) return null;

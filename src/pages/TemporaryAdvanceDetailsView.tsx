@@ -108,11 +108,7 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
         } = useFrappeGetCall<{ message: ActivityItem[] }>(
             "rndopsapp.rndopsapp.api.get_project_activity",
             { doctype, docname },
-            {
-                enabled: !!docname,
-                revalidateOnFocus: false,
-                revalidateOnReconnect: false,
-            }
+            docname ? undefined : null, { revalidateOnFocus: false, revalidateOnReconnect: false }
         );
         const { call: addComment } = useFrappePostCall(
             "rndopsapp.rndopsapp.api.add_project_comment"
@@ -255,7 +251,7 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
     const { data, error, isLoading } = useFrappeGetDoc(
         "Temporary Advance",
         docName ?? "",
-        { enabled: !!docName, cacheTime: 0 }
+        docName ? undefined : null
     );
 
     const { data: cancellationStatus } = useFrappeGetCall<{

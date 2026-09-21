@@ -229,10 +229,7 @@ export function AdoRndDashboard() {
   const [showSensitiveData, setShowSensitiveData] = useState(false);
 
   // Fetch user data
-  const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", {
-    fields: ["full_name", "email"],
-    enabled: !!currentUser,
-  });
+  const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", currentUser ? undefined : null);
 
   // Fetch user permissions from backend
   const { data: permissionsData, isLoading: isLoadingPermissions, error: permissionError } = useFrappeGetCall<{
@@ -240,28 +237,21 @@ export function AdoRndDashboard() {
   }>(
     "rndopsapp.dashboard.get_ado_rnd_permissions",
     { user: currentUser },
-    {
-      enabled: !!currentUser,
-      revalidateOnFocus: false,
-    }
+    currentUser ? undefined : null, { revalidateOnFocus: false }
   );
 
   // Fetch pending tasks
   const { data: pendingData, isLoading: pendingLoading } = useFrappeGetCall<PendingTaskResponse>(
     "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_categorized_pending_task",
     { page_name: "pending-task" },
-    {
-      revalidateOnFocus: false,
-    }
+    undefined, { revalidateOnFocus: false }
   );
 
   // Fetch task registry
   const { data: registryData, isLoading: registryLoading } = useFrappeGetCall<TaskRegistryResponse>(
     "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_task_registry",
     { page_name: "task-registry" },
-    {
-      revalidateOnFocus: false,
-    }
+    undefined, { revalidateOnFocus: false }
   );
 
   // Fetch Ado_RnD specific dashboard data
@@ -270,10 +260,7 @@ export function AdoRndDashboard() {
   }>(
     "rndopsapp.dashboard.get_ado_rnd_dashboard_data",
     {},
-    {
-      enabled: !!currentUser,
-      revalidateOnFocus: false,
-    }
+    currentUser ? undefined : null, { revalidateOnFocus: false }
   );
 
   const fullName = userData?.full_name || currentUser || "Guest";

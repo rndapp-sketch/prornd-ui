@@ -20,11 +20,13 @@ export function useStableFrappeGetDoc<T = any>(
     docname: string | null | undefined,
     options?: SwrConfigOptions
 ) {
-    return useFrappeGetDoc<T>(doctype, docname ?? "", {
-        ...options,
+    // Options go in the 4th (SWR config) argument. The 3rd argument is the SWR cache
+    // key — passing an options object there makes every caller share one cache entry.
+    const { enabled = !!docname, ...swrOptions } = options ?? {};
+    return useFrappeGetDoc<T>(doctype, docname ?? "", enabled ? undefined : null, {
+        ...swrOptions,
         revalidateOnFocus: false,
         revalidateOnReconnect: false,
-        enabled: options?.enabled !== undefined ? options.enabled : !!docname,
     });
 }
 
@@ -37,8 +39,10 @@ export function useStableFrappeGetCall<T = any>(
     params?: Record<string, any>,
     options?: SwrConfigOptions
 ) {
-    return useFrappeGetCall<T>(method, params, {
-        ...options,
+    // `enabled: false` disables the request via a null SWR key (see useStableFrappeGetDoc).
+    const { enabled = true, ...swrOptions } = options ?? {};
+    return useFrappeGetCall<T>(method, params, enabled ? undefined : null, {
+        ...swrOptions,
         revalidateOnFocus: false,
         revalidateOnReconnect: false,
     });

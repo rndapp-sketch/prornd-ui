@@ -101,10 +101,7 @@ export function HosRndDashboard() {
   const { currentUser } = useFrappeAuth();
   const { roles } = useUserRoles(currentUser ?? null);
   const isAdoRnd = roles?.includes("Ado_RnD") ?? false;
-  const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", {
-    fields: ["full_name"],
-    enabled: !!currentUser,
-  });
+  const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", currentUser ? undefined : null);
 
   const { data: pendingData, isLoading: pendingLoading } = useFrappeGetCall<PendingTaskResponse>(
     "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_categorized_pending_task",

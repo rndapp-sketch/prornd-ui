@@ -135,10 +135,7 @@ function AppContent() {
   const { data: userData, isLoading: isUserLoading } = useFrappeGetDoc(
     "User",
     currentUser ?? "",
-    {
-      fields: ["user_image", "full_name", "roles"],
-      enabled: !!currentUser,
-    },
+    currentUser ? undefined : null,
   );
 
   const showGlobalLoader = (!isPublicPage && isNavigating) || isLoggingOut;

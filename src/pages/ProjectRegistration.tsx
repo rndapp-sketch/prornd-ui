@@ -1113,9 +1113,7 @@ const ProjectRegistration: React.FC = () => {
     const { data: existingDoc } = useFrappeGetDoc(
         "Project Registration",
         docname ?? "",
-        {
-            enabled: !!docname,
-        },
+        docname ? undefined : null,
     );
     const {
         call: submitForm,

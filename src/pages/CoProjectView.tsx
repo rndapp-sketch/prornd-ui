@@ -130,10 +130,7 @@ const getStatusBadge = (status?: string) => {
 export default function CoProjectView() {
     const navigate = useNavigate();
     const { currentUser } = useFrappeAuth();
-    const { data: userDoc } = useFrappeGetDoc("User", currentUser || "", {
-        fields: ["full_name", "email", "username", "first_name", "last_name"],
-        enabled: !!currentUser,
-    });
+    const { data: userDoc } = useFrappeGetDoc("User", currentUser || "", currentUser ? undefined : null);
     const {
         data: projectStubs,
         isLoading: isProjectListLoading,
