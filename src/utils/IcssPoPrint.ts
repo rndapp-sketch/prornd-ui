@@ -1,10 +1,5 @@
 import poTemplate from "@/pages/printformat/icss_po_format.html?raw";
 
-// The .html?raw template is static text pulled in at build time, so it can't
-// reference import.meta.env itself; substitute the asset host here instead.
-const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.131.206";
-const ASSET_PORT = import.meta.env.VITE_ASSET_PORT || "8000";
-
 const fmt = (val: any) => {
   const n = Number(val);
   if (!val && val !== 0) return "";
@@ -520,7 +515,6 @@ export function generatePOHtml(poData: Record<string, any>): string {
       : poData.ss_grand_total;
 
   return poTemplate
-    .replace(/http:\/\/172\.16\.117\.39:8000/g, `http://${ASSET_HOST}:${ASSET_PORT}`)
     .replace(
       "{{VENDOR_ADDRESS}}",
       poData.vendor_address || poData.ss_name_of_firms || "",
