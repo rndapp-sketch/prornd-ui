@@ -376,6 +376,36 @@ const PreviewModal = ({
                 .watermark { position: fixed !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; z-index: 0 !important; }
             `;
             iDoc.head.appendChild(pdfOverrideStyle);
+
+            // The IITG logo/watermark are served from an intranet host
+            // (172.16.117.39:8000) without CORS headers. An <img> tag loads and
+            // displays such images fine (Print worked), but html2canvas's
+            // useCORS mode fetches them anonymously to read pixel data, and
+            // without an Access-Control-Allow-Origin response that fetch is
+            // silently blocked — the logo/watermark just never get drawn, even
+            // though the rest of the page renders. Inline every image as a
+            // base64 data URI first so the capture doesn't depend on CORS at all.
+            const images = Array.from(iDoc.querySelectorAll("img"));
+            await Promise.all(
+                images.map(async (img) => {
+                    const src = img.getAttribute("src");
+                    if (!src || src.startsWith("data:")) return;
+                    try {
+                        const res = await fetch(src);
+                        const blob = await res.blob();
+                        const dataUrl = await new Promise<string>((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve(reader.result as string);
+                            reader.onerror = reject;
+                            reader.readAsDataURL(blob);
+                        });
+                        img.src = dataUrl;
+                    } catch {
+                        // Leave the original src; html2canvas will just skip it as before.
+                    }
+                }),
+            );
+
             // Wait for fonts and images to load
             await new Promise((r) => setTimeout(r, 1200));
             try {
@@ -438,6 +468,7 @@ const PreviewModal = ({
             }
             pdf.save(`PO-${docName || "form"}.pdf`);
         } catch (err) {
+            console.error("[PO PDF] generation failed:", err);
         } finally {
             setIsGeneratingPdf(false);
         }
