@@ -541,9 +541,19 @@ export const POEditor: React.FC<POEditorProps> = ({
             // value), not the PO grand total — recompute from ss_grand_total so the PO
             // print shows the correct amount in words. Only fall back to the sanction
             // sheet's field when no grand total is available at all.
-            amount_in_words: ssData.ss_grand_total
-                ? toWords.convert(Number(ssData.ss_grand_total))
-                : ssData.amount_in_words || "",
+            //
+            // ss_grand_total can arrive as a formatted string (currency symbol,
+            // thousands separators) rather than a raw number — strip that before
+            // parsing, and fall back rather than calling ToWords.convert(NaN),
+            // which throws and crashes the whole PO render.
+            amount_in_words: (() => {
+                const grandTotal = Number(
+                    String(ssData.ss_grand_total ?? "").replace(/[^0-9.-]/g, ""),
+                );
+                return Number.isFinite(grandTotal) && grandTotal !== 0
+                    ? toWords.convert(grandTotal)
+                    : ssData.amount_in_words || "";
+            })(),
             terms_and_conditions:
                 ssData.terms_and_conditions || getFormattedTerms(DEFAULT_TERMS, ssData),
         });
