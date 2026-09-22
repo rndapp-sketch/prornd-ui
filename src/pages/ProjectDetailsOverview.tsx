@@ -3256,19 +3256,32 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
     const [ledgerPage, setLedgerPage] = useState(1);
     const [ledgerPageSize, setLedgerPageSize] = useState(10);
 
-    // Apply sorting to filtered data (fix for newest/oldest button issue).
-    // `date` here is a locale-formatted display string (e.g. "15/01/2026"),
-    // which `new Date()` often can't parse reliably — when it fails for both
-    // sides (or both sides are equal), fall back to `sl` (creation order) so
-    // the toggle always produces a visible reorder instead of a silent no-op.
+    // Apply sorting to filtered data by recordTime (falling back to
+    // transactionDate, then `sl`). Sorting on the previously-used `date`
+    // field — a locale-formatted "DD/MM/YYYY" display string — was the
+    // actual bug: `new Date("03/12/2026")` gets silently misread as
+    // MM/DD/YYYY whenever the day is <=12, scrambling the order for
+    // same-month transactions. `recordTime` reflects when the row was
+    // actually recorded, which can legitimately differ from its nominal
+    // transactionDate (e.g. a backdated/postdated sanction date), so it's
+    // the authoritative chronological key — same as the running-balance fix
+    // in commit 2b1b498. `sl` (assigned upstream from that same
+    // recordTime-sorted merge) is the final tiebreaker for entries with no
+    // parseable date of their own (e.g. manual commitments).
     const sortedFilteredLedgerData = useMemo(() => {
+        const getSortTime = (entry: any): number => {
+            const raw = entry.recordTime || entry.transactionDate;
+            if (raw) {
+                const t = new Date(raw).getTime();
+                if (Number.isFinite(t)) return t;
+            }
+            return NaN;
+        };
         const sorted = [...filteredLedgerData].sort((a, b) => {
-            const dateA = new Date(a.date).getTime();
-            const dateB = new Date(b.date).getTime();
-            if (Number.isFinite(dateA) && Number.isFinite(dateB) && dateA !== dateB) {
-                return ledgerSortOrder === "newest"
-                    ? dateB - dateA // Newest first
-                    : dateA - dateB; // Oldest first
+            const timeA = getSortTime(a);
+            const timeB = getSortTime(b);
+            if (Number.isFinite(timeA) && Number.isFinite(timeB) && timeA !== timeB) {
+                return ledgerSortOrder === "newest" ? timeB - timeA : timeA - timeB;
             }
             const slA = Number(a.sl) || 0;
             const slB = Number(b.sl) || 0;
@@ -3422,13 +3435,21 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
     }, [activeTab, projectName, activeLedgerHeadId, isOverheadProject]);
 
     const sortedTransactions = useMemo(() => {
-        return [...ledgerTransactions].sort((a, b) => {
-            const dateA = new Date(a.transactionDate || "").getTime();
-            const dateB = new Date(b.transactionDate || "").getTime();
+        console.log(
+            "[ledger sort] recordTime/transactionDate per row:",
+            ledgerTransactions.map((t: any) => ({
+                transactionId: t.transactionId,
+                recordTime: t.recordTime,
+                transactionDate: t.transactionDate,
+            })),
+        );
+        return [...ledgerTransactions].sort((a: any, b: any) => {
+            const dateA = new Date(a.recordTime || a.transactionDate || "").getTime();
+            const dateB = new Date(b.recordTime || b.transactionDate || "").getTime();
             // Ledger rows created in the same batch often share an identical
-            // transactionDate (or the field is missing/unparseable) — in that
-            // case dateB - dateA is 0/NaN for every pair, so Array.sort leaves
-            // the list untouched and the Newest/Oldest toggle looks broken
+            // recordTime/transactionDate (or the field is missing/unparseable) —
+            // in that case dateB - dateA is 0/NaN for every pair, so Array.sort
+            // leaves the list untouched and the Newest/Oldest toggle looks broken
             // even though its label still flips. Fall back to transactionId
             // (creation order) so toggling always produces a visible reorder.
             if (Number.isFinite(dateA) && Number.isFinite(dateB) && dateA !== dateB) {
