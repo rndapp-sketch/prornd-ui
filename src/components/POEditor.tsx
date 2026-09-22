@@ -362,6 +362,20 @@ const PreviewModal = ({
             iDoc.open();
             iDoc.write(htmlContent);
             iDoc.close();
+            // The print format's @media print rules (drop the page shadow/grey
+            // margin, tighten .content padding, pin the watermark) only apply
+            // under an actual print context — html2canvas rasterizes this iframe
+            // in plain screen mode, so without forcing them here the downloaded
+            // PDF looked visibly different from the Print output. Re-apply them
+            // unconditionally so the capture matches what Print renders.
+            const pdfOverrideStyle = iDoc.createElement("style");
+            pdfOverrideStyle.textContent = `
+                body { margin: 0 !important; background: none !important; }
+                .page { margin: 0 !important; box-shadow: none !important; background: none !important; width: auto !important; min-height: auto !important; }
+                .content { padding: 0 14mm !important; }
+                .watermark { position: fixed !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; z-index: 0 !important; }
+            `;
+            iDoc.head.appendChild(pdfOverrideStyle);
             // Wait for fonts and images to load
             await new Promise((r) => setTimeout(r, 1200));
             try {
