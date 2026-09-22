@@ -280,17 +280,20 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                 const displayLabel = recipient && recipient !== label && !isDateString
                     ? `${label} / ${recipient} (${pct}% of Overhead Amount)`
                     : `${label} (${pct}% of Overhead Amount)`;
-                // Read-only view: always show the live overhead-based formula, ignoring a
-                // possibly-stale stored amount (see computeENonRoutine). Edit mode: show the
-                // row's current amount (stored, or the user's own in-progress edit merged in by
-                // HoSApprovalView) so a direct edit to this cell is never overwritten by the
-                // formula while typing; only fall back to the formula if the row has no amount.
+                // Prefer the row's stored amount — that's what was actually recorded/credited
+                // at submission time, and can legitimately differ from a fresh recompute (e.g.
+                // a manual override, or a backend formula tweak after this record was saved).
+                // Only fall back to the live overhead-based formula (see computeENonRoutine)
+                // when the row has no stored amount at all (e.g. a brand-new, unsaved record).
+                // Edit mode keeps the same fallback so a direct edit to this cell is never
+                // overwritten by the formula while typing.
                 const liveAmount = enr ? enr.overheadAmount * (pct / 100) : 0;
+                const hasStoredAmount = item.amount !== undefined && item.amount !== null && item.amount !== '';
                 const amount = enr
                     ? (forceEdit
                         ? flt(item.amount)
-                        : editable
-                            ? (item.amount !== undefined && item.amount !== null && item.amount !== '' ? flt(item.amount) : liveAmount)
+                        : hasStoredAmount
+                            ? flt(item.amount)
                             : liveAmount)
                     : (parseFloat(item.amount) || 0);
                 items.push({
@@ -883,7 +886,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                 {type === 'consultancy_e'
                                     ? (editable
                                         ? <EditableCell value={depositSlip.overhead_amount ?? enr!.overheadAmount} field="overhead_amount" editable onChange={onFieldChange} numeric align="right" />
-                                        : formatCurrency(enr!.overheadAmount))
+                                        : formatCurrency(depositSlip.overhead_amount ?? enr!.overheadAmount))
                                     : editable
                                         ? <EditableCell value={depositSlip.overhead_amount} field="overhead_amount" editable onChange={onFieldChange} numeric align="right" />
                                         : formatCurrency(depositSlip.overhead_amount)}
@@ -914,7 +917,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                             <td colSpan={2} className="border border-black p-1 text-right font-bold">
                                 {editable
                                     ? <EditableCell value={depositSlip.balance_in_project ?? enr!.balanceInProject} field="balance_in_project" editable onChange={onFieldChange} numeric align="right" />
-                                    : formatCurrency(enr!.balanceInProject)}
+                                    : formatCurrency(depositSlip.balance_in_project ?? enr!.balanceInProject)}
                             </td>
                         </tr>
                     )}
@@ -999,10 +1002,12 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                                 align="right"
                                             />
                                             : formatCurrency(
-                                                (depositSlip.credit_distribution || []).reduce(
-                                                    (s: number, r: any) => s + enr.overheadAmount * ((r.percentage_of_overhead || r.percentage || 0) / 100),
-                                                    0,
-                                                ) + enr.gstComponent + enr.balanceInProject,
+                                                depositSlip.total_budget ??
+                                                    depositSlip.grand_total ??
+                                                    (depositSlip.credit_distribution || []).reduce(
+                                                        (s: number, r: any) => s + enr.overheadAmount * ((r.percentage_of_overhead || r.percentage || 0) / 100),
+                                                        0,
+                                                    ) + enr.gstComponent + enr.balanceInProject,
                                             ))
                                         : formatCurrency(
                                             depositSlip.total_budget ||
