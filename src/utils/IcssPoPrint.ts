@@ -1,5 +1,11 @@
 import poTemplate from "@/pages/printformat/icss_po_format.html?raw";
 
+// See DpPoPrint.ts for why this needs to be a fully-qualified URL rather than
+// a bare "/files/..." path: this HTML also renders inside a blob: URL iframe,
+// and blob URLs have no real authority component, so a root-relative
+// reference resolves into a broken "blob:/files/..." URL.
+const LOGO_URL = typeof window !== "undefined" ? `${window.location.origin}/files/IITG_logo.png` : "/files/IITG_logo.png";
+
 const fmt = (val: any) => {
   const n = Number(val);
   if (!val && val !== 0) return "";
@@ -515,6 +521,7 @@ export function generatePOHtml(poData: Record<string, any>): string {
       : poData.ss_grand_total;
 
   return poTemplate
+    .replace(/\{\{LOGO_URL\}\}/g, LOGO_URL)
     .replace(
       "{{VENDOR_ADDRESS}}",
       poData.vendor_address || poData.ss_name_of_firms || "",

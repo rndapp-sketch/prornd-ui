@@ -1,6 +1,15 @@
 import poTemplate from "@/pages/printformat/dp_po_format.html?raw";
 import { ToWords } from "to-words";
 
+// The logo needs a fully-qualified same-origin URL, not a bare "/files/..."
+// path: this HTML also gets rendered inside a blob: URL iframe (for the
+// preview/print view), and blob URLs have no real authority component, so a
+// root-relative reference resolves against it into a broken "blob:/files/..."
+// URL. window.location.origin gives the real scheme+host at generation time,
+// which keeps the logo same-origin (avoiding the mixed-content issue the
+// hardcoded intranet IP had) while still resolving correctly everywhere.
+const LOGO_URL = typeof window !== "undefined" ? `${window.location.origin}/files/IITG_logo.png` : "/files/IITG_logo.png";
+
 const toWords = new ToWords({ localeCode: "en-IN", converterOptions: { ignoreDecimal: true } });
 
 const fmt = (val: any) => {
@@ -149,6 +158,7 @@ export function generatePOHtml(poData: Record<string, any>): string {
     : "";
 
   return poTemplate
+    .replace(/\{\{LOGO_URL\}\}/g, LOGO_URL)
     .replace("{{VENDOR_ADDRESS}}", poData.vendor_address || poData.ss_name_of_firms || "")
     .replace("{{PO_NUMBER}}", poData.po_number || poData.name || "")
     .replace("{{PO_DATE}}", poData.po_date || new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }))
