@@ -3543,12 +3543,13 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                     Array.isArray(fund.received_amt_breakup)
                 ) {
                     fund.received_amt_breakup.forEach((item: any) => {
+                        const rawDate =
+                            fund.transaction_date ||
+                            fund.modified?.split(" ")[0] ||
+                            "";
                         rawEntries.push({
                             sl: 0, // Assigned later
-                            date:
-                                fund.transaction_date ||
-                                fund.modified?.split(" ")[0] ||
-                                "",
+                            date: rawDate,
                             particulars: `Fund Received - ${item.account_head} `,
                             ref: fund.sanction_ref_no || fund.name,
                             received: item.amount_received,
@@ -3559,21 +3560,35 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                             actualBalance: 0, // Calc later
                             type: "transaction",
                             accountHead: item.account_head,
-                        } as BudgetEntry & { accountHead?: string });
+                            _sortTime: new Date(rawDate || fund.modified || 0).getTime(),
+                        } as BudgetEntry & { accountHead?: string; _sortTime?: number });
                     });
                 }
             });
         }
 
-        // 2. Combine with Manual Commitments and Ledger Transactions
-        // We assume chronological order: Funds first, then commitments.
-        // You could sort by date here if 'manualCommitments' have dates interleaved with funds.
-        // For now, appending manual commitments as per user workflow.
+        // 2. Combine with Manual Commitments and Ledger Transactions, then sort
+        // chronologically. Each source carries its own date field (fund's
+        // _sortTime, a manual commitment's _id creation timestamp, or a ledger
+        // transaction's recordTime/transactionDate) — without sorting here the
+        // running balance was computed in append order (funds, then
+        // commitments, then transactions) regardless of actual date, which
+        // could show a commitment/payment "before" the fund that covers it.
+        const getEntrySortTime = (entry: any): number => {
+            if (typeof entry._sortTime === "number") return entry._sortTime;
+            if (typeof entry._id === "number") return entry._id;
+            const raw = entry.recordTime || entry.transactionDate;
+            if (raw) {
+                const t = new Date(raw).getTime();
+                if (Number.isFinite(t)) return t;
+            }
+            return 0;
+        };
         const allRawEntries = [
             ...rawEntries,
             ...manualCommitments,
             ...ledgerTransactions,
-        ];
+        ].sort((a, b) => getEntrySortTime(a) - getEntrySortTime(b));
 
         // 3. Calculate Running Totals
 
