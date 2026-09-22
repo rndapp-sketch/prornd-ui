@@ -3488,11 +3488,11 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             const rawData = Array.isArray(result) ? result : [];
             let runningPaymentBalance = 0;
 
-            // Sort by date ascending to ensure accurate running balance
+            // Sort by recordTime (with fallback to transactionDate) ascending to ensure accurate running balance
             const sortedData = [...rawData].sort(
                 (a: any, b: any) =>
-                    new Date(a.transactionDate).getTime() -
-                    new Date(b.transactionDate).getTime(),
+                    new Date(a.recordTime || a.transactionDate).getTime() -
+                    new Date(b.recordTime || b.transactionDate).getTime(),
             );
 
             const calculatedData = sortedData.map((txn: any) => {
