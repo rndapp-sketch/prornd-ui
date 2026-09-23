@@ -261,6 +261,8 @@ const MemoizedFormField = memo(
                   field.fieldname === "ps_department" ||
                   field.fieldname === "implementation_department" ||
                   field.fieldname === "applicant_department" ||
+                  field.fieldname === "reimbursement_for_department" ||
+                  field.fieldname === "reimb_applying_for_department" ||
                   field.fieldname === "igf_department_centre_section") &&
                   value ? (
                   <DepartmentName name={value} />
@@ -706,7 +708,9 @@ const MemoizedFormField = memo(
                 field.fieldname === "upfa_department" ||
                 field.fieldname === "ps_department" ||
                 field.fieldname === "implementation_department" ||
-                field.fieldname === "applicant_department") &&
+                field.fieldname === "applicant_department" ||
+                field.fieldname === "reimbursement_for_department" ||
+                field.fieldname === "reimb_applying_for_department") &&
                 value ? (
                 <DepartmentName name={value} />
               ) : field.fieldname === "account_head" && value ? (
@@ -795,7 +799,9 @@ const MemoizedFormField = memo(
               field.fieldname === "upfa_department" ||
               field.fieldname === "ps_department" ||
               field.fieldname === "implementation_department" ||
-              field.fieldname === "applicant_department")
+              field.fieldname === "applicant_department" ||
+              field.fieldname === "reimbursement_for_department" ||
+              field.fieldname === "reimb_applying_for_department")
           ) {
             return (
               <div className="flex min-h-10 w-full rounded-md border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]/60 px-3 py-2 text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5] whitespace-normal break-words leading-relaxed">
@@ -862,7 +868,9 @@ const MemoizedFormField = memo(
                       field.fieldname === "upfa_department" ||
                       field.fieldname === "ps_department" ||
                       field.fieldname === "implementation_department" ||
-                      field.fieldname === "applicant_department") &&
+                      field.fieldname === "applicant_department" ||
+                      field.fieldname === "reimbursement_for_department" ||
+                      field.fieldname === "reimb_applying_for_department") &&
                       value
                       ? "text-transparent focus:text-zinc-900 dark:focus:text-zinc-100 placeholder:text-transparent focus:placeholder:text-zinc-400 disabled:text-transparent dark:disabled:text-transparent relative z-10"
                       : "",
@@ -873,7 +881,9 @@ const MemoizedFormField = memo(
                   field.fieldname === "upfa_department" ||
                   field.fieldname === "ps_department" ||
                   field.fieldname === "implementation_department" ||
-                  field.fieldname === "applicant_department") &&
+                  field.fieldname === "applicant_department" ||
+                  field.fieldname === "reimbursement_for_department" ||
+                  field.fieldname === "reimb_applying_for_department") &&
                   value && (
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-sm text-zinc-900 dark:text-zinc-100 truncate max-w-[calc(100%-2.5rem)] pointer-events-none z-20">
                       <DepartmentName name={value} />
