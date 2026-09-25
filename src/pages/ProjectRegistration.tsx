@@ -2625,6 +2625,17 @@ const ProjectRegistration: React.FC = () => {
                         depends_on_eval: ""
                     };
                 }
+                if (field.fieldname === "project_type") {
+                    // DPF/PDF projects are minted by the backend for overhead funds only —
+                    // never selectable when a user manually registers a new project.
+                    return {
+                        ...field,
+                        options: (field.options || "")
+                            .split("\n")
+                            .filter((opt) => opt !== "DPF" && opt !== "PDF")
+                            .join("\n"),
+                    };
+                }
                 return field;
             });
 
