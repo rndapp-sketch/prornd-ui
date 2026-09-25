@@ -422,6 +422,11 @@ const ActionsDropdown = ({
                     <option key={h.value} value={h.value}>{h.label}</option>
                   ))}
                 </select>
+                {(!selectedProject || !selectedHead) && (
+                  <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                    Select a project and account head to enable Approve.
+                  </span>
+                )}
               </div>
             )}
 
@@ -465,7 +470,11 @@ const ActionsDropdown = ({
                       {group.map((action) => {
                         const a = action.toLowerCase();
                         const exempt = categorise(action) === "reject" || a.includes("put back");
-                        const blocked = commitRequired && !exempt;
+                        const needsPiSelection = isPiStep && a === "approve" && (!selectedProject || !selectedHead);
+                        const blocked = (commitRequired && !exempt) || needsPiSelection;
+                        const blockedMessage = needsPiSelection
+                          ? "Select a project and account head before approving."
+                          : "A commitment must be submitted before proceeding.";
                         const { icon, cls, iconCls } = itemStyle(action);
                         return (
                           <div key={action} className="relative group/item">
@@ -486,7 +495,7 @@ const ActionsDropdown = ({
                             {blocked && (
                               <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/item:block z-[9999]">
                                 <div className="bg-zinc-900 text-white text-[11px] rounded-lg px-3 py-1.5 shadow-lg whitespace-nowrap">
-                                  A commitment must be submitted before proceeding.
+                                  {blockedMessage}
                                 </div>
                               </div>
                             )}
