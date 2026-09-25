@@ -589,7 +589,9 @@ const ReimbursementDetails: React.FC = () => {
     (data.reimbursement_for_id || "").toLowerCase() === currentUser.toLowerCase();
 
   useEffect(() => {
-    if (isPiApprovalStep) setShowPiHint(true);
+    if (!isPiApprovalStep) return;
+    const timer = setTimeout(() => setShowPiHint(true), 800);
+    return () => clearTimeout(timer);
   }, [isPiApprovalStep, data?.name]);
 
   const [isLedgerOpen, setIsLedgerOpen] = useState(false);
@@ -1265,7 +1267,7 @@ const ReimbursementDetails: React.FC = () => {
 
         {/* One-time hint for the PI: pick project + account head via Actions */}
         {showPiHint && (
-          <div className="fixed top-4 right-4 z-[9999] max-w-sm animate-in fade-in slide-in-from-top-2">
+          <div className="fixed top-4 right-4 z-[9999] max-w-sm animate-in fade-in slide-in-from-right-full duration-1000 ease-out">
             <BorderBeam
               size="md"
               colorVariant="colorful"
