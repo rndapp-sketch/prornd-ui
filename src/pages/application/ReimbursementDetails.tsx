@@ -572,6 +572,16 @@ const ReimbursementDetails: React.FC = () => {
   const { roles } = useUserRoles(currentUser ?? null);
 
   const [showPiHint, setShowPiHint] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(
+    () => document.documentElement.classList.contains("dark"),
+  );
+  useEffect(() => {
+    const update = () => setIsDarkMode(document.documentElement.classList.contains("dark"));
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
   const isPiApprovalStep =
     !!data &&
     !!currentUser &&
@@ -1256,8 +1266,16 @@ const ReimbursementDetails: React.FC = () => {
         {/* One-time hint for the PI: pick project + account head via Actions */}
         {showPiHint && (
           <div className="fixed top-4 right-4 z-[9999] max-w-sm animate-in fade-in slide-in-from-top-2">
-            <BorderBeam size="md" colorVariant="sunset" theme="light" borderRadius={12}>
-              <div className="relative flex items-start gap-3 px-4 py-3.5 rounded-xl shadow-2xl bg-white dark:bg-zinc-900">
+            <BorderBeam
+              size="md"
+              colorVariant="sunset"
+              theme={isDarkMode ? "dark" : "light"}
+              borderRadius={12}
+              brightness={1.8}
+              saturation={1.8}
+              strength={1}
+            >
+              <div className="relative flex items-start gap-3 px-4 py-3.5 rounded-xl shadow-2xl border-2 border-[#D97757] dark:border-[#ff8a5c] bg-white dark:bg-zinc-900">
                 <AlertTriangle className="w-5 h-5 mt-0.5 text-[#D97757] shrink-0" />
                 <p className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-100 leading-snug">
                   Use the <span className="font-extrabold text-[#D97757]">Actions</span> button
