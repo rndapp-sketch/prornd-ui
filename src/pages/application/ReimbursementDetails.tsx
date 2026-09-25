@@ -38,6 +38,7 @@ import { FIELD_CHAR_LIMITS } from "@/utils/fieldLimits";
 import { ErrorModal } from "../../components/ErrorModal";
 import { parseFrappeError } from "../../utils/errorUtils";
 import { CancellationStatusBanner } from "../../components/CancellationStatusBanner";
+import { BorderBeam } from "border-beam";
 
 // --- TYPE DEFINITIONS ---
 interface ReimbursementData {
@@ -1254,22 +1255,24 @@ const ReimbursementDetails: React.FC = () => {
 
         {/* One-time hint for the PI: pick project + account head via Actions */}
         {showPiHint && (
-          <div className="fixed top-4 right-4 z-[9999] max-w-sm">
-            <div className="flex items-start gap-3 px-4 py-3 rounded-lg shadow-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30">
-              <AlertTriangle className="w-4 h-4 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
-              <p className="text-[12px] font-medium text-amber-800 dark:text-amber-200">
-                Use the <span className="font-bold">Actions</span> button in the top right to
-                select the project and account head against which this reimbursement amount
-                will be processed.
-              </p>
-              <button
-                onClick={() => setShowPiHint(false)}
-                className="text-amber-500 hover:text-amber-700 dark:hover:text-amber-300 shrink-0"
-                aria-label="Dismiss"
-              >
-                <XCircleIcon className="w-4 h-4" />
-              </button>
-            </div>
+          <div className="fixed top-4 right-4 z-[9999] max-w-sm animate-in fade-in slide-in-from-top-2">
+            <BorderBeam size="md" colorVariant="sunset" borderRadius={12}>
+              <div className="relative flex items-start gap-3 px-4 py-3.5 rounded-xl shadow-2xl bg-white dark:bg-zinc-900">
+                <AlertTriangle className="w-5 h-5 mt-0.5 text-[#D97757] shrink-0" />
+                <p className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-100 leading-snug">
+                  Use the <span className="font-extrabold text-[#D97757]">Actions</span> button
+                  in the top right to select the project and account head against which this
+                  reimbursement amount will be processed.
+                </p>
+                <button
+                  onClick={() => setShowPiHint(false)}
+                  className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 shrink-0"
+                  aria-label="Dismiss"
+                >
+                  <XCircleIcon className="w-4 h-4" />
+                </button>
+              </div>
+            </BorderBeam>
           </div>
         )}
 
