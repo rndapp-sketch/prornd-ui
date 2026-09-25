@@ -1256,7 +1256,7 @@ const ReimbursementDetails: React.FC = () => {
         {/* One-time hint for the PI: pick project + account head via Actions */}
         {showPiHint && (
           <div className="fixed top-4 right-4 z-[9999] max-w-sm animate-in fade-in slide-in-from-top-2">
-            <BorderBeam size="md" colorVariant="sunset" borderRadius={12}>
+            <BorderBeam size="md" colorVariant="sunset" theme="light" borderRadius={12}>
               <div className="relative flex items-start gap-3 px-4 py-3.5 rounded-xl shadow-2xl bg-white dark:bg-zinc-900">
                 <AlertTriangle className="w-5 h-5 mt-0.5 text-[#D97757] shrink-0" />
                 <p className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-100 leading-snug">
