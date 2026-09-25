@@ -570,6 +570,17 @@ const ReimbursementDetails: React.FC = () => {
   const { currentUser } = useFrappeAuth();
   const { roles } = useUserRoles(currentUser ?? null);
 
+  const [showPiHint, setShowPiHint] = useState(false);
+  const isPiApprovalStep =
+    !!data &&
+    !!currentUser &&
+    data.workflow_state === "Pending PI Approval" &&
+    (data.reimbursement_for_id || "").toLowerCase() === currentUser.toLowerCase();
+
+  useEffect(() => {
+    if (isPiApprovalStep) setShowPiHint(true);
+  }, [isPiApprovalStep, data?.name]);
+
   const [isLedgerOpen, setIsLedgerOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const activityLogContainerRef = useRef<HTMLDivElement>(null);
@@ -1240,6 +1251,27 @@ const ReimbursementDetails: React.FC = () => {
             )}
           </div>
         </PageHeader>
+
+        {/* One-time hint for the PI: pick project + account head via Actions */}
+        {showPiHint && (
+          <div className="fixed top-4 right-4 z-[9999] max-w-sm">
+            <div className="flex items-start gap-3 px-4 py-3 rounded-lg shadow-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30">
+              <AlertTriangle className="w-4 h-4 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
+              <p className="text-[12px] font-medium text-amber-800 dark:text-amber-200">
+                Use the <span className="font-bold">Actions</span> button in the top right to
+                select the project and account head against which this reimbursement amount
+                will be processed.
+              </p>
+              <button
+                onClick={() => setShowPiHint(false)}
+                className="text-amber-500 hover:text-amber-700 dark:hover:text-amber-300 shrink-0"
+                aria-label="Dismiss"
+              >
+                <XCircleIcon className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Warning Banner if there's a pending cancellation */}
         {cancellationStatus?.message?.has_cancellation && (
