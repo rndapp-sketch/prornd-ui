@@ -1268,18 +1268,18 @@ const ReimbursementDetails: React.FC = () => {
           <div className="fixed top-4 right-4 z-[9999] max-w-sm animate-in fade-in slide-in-from-top-2">
             <BorderBeam
               size="md"
-              colorVariant="ocean"
+              colorVariant="colorful"
               theme={isDarkMode ? "dark" : "light"}
               borderRadius={12}
-              brightness={0.75}
+              brightness={0.7}
               saturation={2.2}
-              hueRange={150}
+              hueRange={90}
               strength={1}
             >
-              <div className="relative flex items-start gap-3 px-4 py-3.5 rounded-xl shadow-2xl border-2 border-indigo-700 dark:border-indigo-400 bg-white dark:bg-zinc-900">
-                <AlertTriangle className="w-5 h-5 mt-0.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <div className="relative flex items-start gap-3 px-4 py-3.5 rounded-xl shadow-2xl border-2 border-violet-700 dark:border-violet-400 bg-white dark:bg-zinc-900">
+                <AlertTriangle className="w-5 h-5 mt-0.5 text-violet-700 dark:text-violet-400 shrink-0" />
                 <p className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-100 leading-snug">
-                  Use the <span className="font-extrabold text-indigo-600 dark:text-indigo-400">Actions</span> button
+                  Use the <span className="font-extrabold text-violet-700 dark:text-violet-400">Actions</span> button
                   in the top right to select the project and account head against which this
                   reimbursement amount will be processed.
                 </p>
