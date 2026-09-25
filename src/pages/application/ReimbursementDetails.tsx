@@ -1271,8 +1271,8 @@ const ReimbursementDetails: React.FC = () => {
               colorVariant="ocean"
               theme={isDarkMode ? "dark" : "light"}
               borderRadius={12}
-              brightness={1.3}
-              saturation={2}
+              brightness={0.75}
+              saturation={2.2}
               hueRange={150}
               strength={1}
             >
