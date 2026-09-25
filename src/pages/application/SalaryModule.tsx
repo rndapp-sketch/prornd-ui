@@ -321,6 +321,9 @@ const mapRow = (row: any): StaffRecord => {
 
 type SortKey = keyof StaffRecord;
 
+// Bucket for projects with no scheme number set on their Project Registration
+const PHYSICAL_SCHEME_LABEL = "Physical";
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const SalaryModule: React.FC = () => {
@@ -1205,12 +1208,15 @@ const SalaryModule: React.FC = () => {
 
     const schemesList = useMemo(() => {
         const set = new Set<string>();
+        let hasPhysical = false;
         records.forEach(r => {
             const pNo = (r.project_no || "").trim();
             const s = pNo && schemeNumberMap[pNo] ? schemeNumberMap[pNo].trim() : "";
             if (s && s !== "—") set.add(s);
+            else hasPhysical = true;
         });
-        return ["All", ...Array.from(set)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+        const sorted = Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+        return ["All", ...(hasPhysical ? [PHYSICAL_SCHEME_LABEL] : []), ...sorted];
     }, [records, schemeNumberMap]);
 
     useEffect(() => {
@@ -1255,7 +1261,7 @@ const SalaryModule: React.FC = () => {
             list = list.filter(r => {
                 const pNo = (r.project_no || "").trim();
                 const s = pNo && schemeNumberMap[pNo] ? schemeNumberMap[pNo].trim() : "";
-                return s === schemeFilter;
+                return schemeFilter === PHYSICAL_SCHEME_LABEL ? !s : s === schemeFilter;
             });
         }
         if (projectTypeMap) {
