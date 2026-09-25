@@ -683,7 +683,8 @@ const SalaryModule: React.FC = () => {
         const schemeNumbers = new Set(
             selectedRecords.map(r => {
                 const pNo = (r.project_no || "").trim();
-                return (pNo && schemeNumberMap[pNo] ? schemeNumberMap[pNo].trim() : "") || pNo || "";
+                const s = pNo && schemeNumberMap[pNo] ? schemeNumberMap[pNo].trim() : "";
+                return s || PHYSICAL_SCHEME_LABEL;
             })
         );
         if (schemeNumbers.size > 1) {
