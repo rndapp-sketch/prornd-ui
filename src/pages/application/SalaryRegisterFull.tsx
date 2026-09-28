@@ -103,11 +103,10 @@ const calcWorkingDaysForPeriod = (joiningDate: string, termCompletionDate: strin
 const calcProRataBasic = (basic: number, workingDays: number, daysInMonth: number): number =>
     (basic / daysInMonth) * workingDays;
 
-// Assam Professional Tax slabs, effective 15-10-2014
-const calcPTax = (basicSalary: number): number => {
-    if (basicSalary <= 10000) return 0;
-    if (basicSalary < 15000) return 150;
-    if (basicSalary < 25000) return 180;
+// Assam Professional Tax slabs, effective 15-10-2014, applied on the month's actual (pro-rated) Gross pay
+const calcPTax = (grossPay: number): number => {
+    if (grossPay <= 15000) return 0;
+    if (grossPay <= 25000) return 180;
     return 208;
 };
 
@@ -421,7 +420,11 @@ const SalaryRegisterFull: React.FC = () => {
     const totalMedical = filtered.reduce((s, r) => s + (r.medical_allowance / daysInMonth) * calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth), 0);
     const totalArrear = filtered.reduce((s, r) => s + getRowInputs(r.docName).inputs.arrear, 0);
     const totalMedicalDed = filtered.reduce((s, r) => s + getRowInputs(r.docName).inputs.medicalDeduction, 0);
-    const totalPTax = filtered.reduce((s, r) => s + calcPTax(r.basic_salary), 0);
+    const totalPTax = filtered.reduce((s, r) => {
+        const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+        const gross = calcProRataBasic(r.basic_salary, wd, daysInMonth) + (r.hra / daysInMonth) * wd + (r.medical_allowance / daysInMonth) * wd + getRowInputs(r.docName).inputs.arrear;
+        return s + calcPTax(gross);
+    }, 0);
     const totalTA = filtered.reduce((s, r) => s + getRowInputs(r.docName).inputs.ta, 0);
     const totalIdCard = filtered.reduce((s, r) => s + getRowInputs(r.docName).inputs.idCardCharge, 0);
     const totalElectricity = filtered.reduce((s, r) => s + getRowInputs(r.docName).inputs.electricityBill, 0);
@@ -436,14 +439,15 @@ const SalaryRegisterFull: React.FC = () => {
     const totalDeductions = useMemo(() => filtered.reduce((s, r) => {
         const { inputs } = getRowInputs(r.docName);
         const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
-        return s + (r.hra / daysInMonth) * wd + inputs.medicalDeduction + calcPTax(r.basic_salary) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
+        const gross = calcProRataBasic(r.basic_salary, wd, daysInMonth) + (r.hra / daysInMonth) * wd + (r.medical_allowance / daysInMonth) * wd + inputs.arrear;
+        return s + (r.hra / daysInMonth) * wd + inputs.medicalDeduction + calcPTax(gross) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
     }, 0), [filtered, getRowInputs, selectedMonth, selectedYear, daysInMonth]);
 
     const totalNetPay = useMemo(() => filtered.reduce((s, r) => {
         const { inputs } = getRowInputs(r.docName);
         const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
         const gross = calcProRataBasic(r.basic_salary, wd, daysInMonth) + (r.hra / daysInMonth) * wd + (r.medical_allowance / daysInMonth) * wd + inputs.arrear;
-        const ded = (r.hra / daysInMonth) * wd + inputs.medicalDeduction + calcPTax(r.basic_salary) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
+        const ded = (r.hra / daysInMonth) * wd + inputs.medicalDeduction + calcPTax(gross) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
         return s + (gross - ded);
     }, 0), [filtered, getRowInputs, selectedMonth, selectedYear, daysInMonth]);
 
@@ -458,7 +462,7 @@ const SalaryRegisterFull: React.FC = () => {
             const pHRA = (r.hra / daysInMonth) * wd;
             const pMA = (r.medical_allowance / daysInMonth) * wd;
             const gross = prb + pHRA + pMA + inputs.arrear;
-            const pt = calcPTax(r.basic_salary);
+            const pt = calcPTax(gross);
             const ded = pHRA + inputs.medicalDeduction + pt + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
             return [i + 1, r.employee_id, r.first_name, r.email_id, r.department, r.designation, r.joining_date, r.term_completion_date, r.basic_salary, r.hra, wd, prb.toFixed(2), pHRA.toFixed(2), pMA.toFixed(2), inputs.arrear, gross.toFixed(2), pHRA.toFixed(2), inputs.medicalDeduction, pt, inputs.ta, inputs.idCardCharge, inputs.electricityBill, inputs.otherDeduction, ded.toFixed(2), (gross - ded).toFixed(2), inputs.comment, inputs.remarks];
         });
@@ -639,7 +643,7 @@ const SalaryRegisterFull: React.FC = () => {
                                 const proRataHRA = (r.hra / daysInMonth) * workingDays;
                                 const proRataMedical = (r.medical_allowance / daysInMonth) * workingDays;
                                 const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
-                                const pTax = calcPTax(r.basic_salary);
+                                const pTax = calcPTax(grossPay);
                                 const totalDed = proRataHRA + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
                                 const netPay = grossPay - totalDed;
 
@@ -942,7 +946,7 @@ const SalaryRegisterFull: React.FC = () => {
                                 const pHRA = (selectedSlipRecord.hra / daysInMonth) * wd;
                                 const pMA = (selectedSlipRecord.medical_allowance / daysInMonth) * wd;
                                 const gross = prb + pHRA + pMA + inputs.arrear;
-                                const pTax = calcPTax(selectedSlipRecord.basic_salary);
+                                const pTax = calcPTax(gross);
                                 const totalDed = pHRA + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
                                 const netPay = gross - totalDed;
                                 return (

@@ -197,16 +197,16 @@ const calcHRAFromBasic = (hraPercent: number, basic: number): number => {
     return Math.round(basic * factor);
 };
 
-/** Professional Tax (P-Tax) based on monthly basic salary.
+/** Professional Tax (P-Tax) based on the month's actual (pro-rated) Gross pay.
  *  Assam Professional Tax slabs:
  *  Up to ₹15,000       → ₹0
  *  ₹15,001 – ₹25,000   → ₹180
  *  Above ₹25,000       → ₹208
  */
 // Assam Professional Tax slabs, effective 15-10-2014
-const calcPTax = (basicSalary: number): number => {
-    if (basicSalary <= 15000) return 0;
-    if (basicSalary <= 25000) return 180;
+const calcPTax = (grossPay: number): number => {
+    if (grossPay <= 15000) return 0;
+    if (grossPay <= 25000) return 180;
     return 208;
 };
 
@@ -488,7 +488,7 @@ const SalaryModule: React.FC = () => {
         const proRataHRA = Math.round((currentHRA / daysInMonthVal) * workingDays);
         const proRataMedical = Math.round((r.medical_allowance / daysInMonthVal) * workingDays);
         const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
-        const pTax = calcPTax(inputs.basic);
+        const pTax = calcPTax(grossPay);
         const hraDed = inputs.hraDeduction;
         const totalDed = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
 
@@ -723,7 +723,7 @@ const SalaryModule: React.FC = () => {
                 const proRataMedical = Math.round((r.medical_allowance / dim) * wd);
                 const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
                 const hraDed = inputs.hraDeduction;
-                const totalDed = hraDed + inputs.medicalDeduction + calcPTax(inputs.basic) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
+                const totalDed = hraDed + inputs.medicalDeduction + calcPTax(grossPay) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
                 const netPay = Math.round(grossPay - totalDed);
                 const result = await buildCommitData(r, netPay);
                 if (result.ok) {
@@ -1386,8 +1386,14 @@ const SalaryModule: React.FC = () => {
     const totalArrear = filtered.reduce((s, r) => s + getRowInputs(r.docName).inputs.arrear, 0);
     const totalMedicalDed = filtered.reduce((s, r) => s + getRowInputs(r.docName).inputs.medicalDeduction, 0);
     const totalPTax = filtered.reduce((s, r) => {
-        // Use the (possibly overridden) basic salary for P‑Tax calculation (no pro‑rating)
-        return s + calcPTax(getRowInputs(r.docName).inputs.basic);
+        const { inputs, currentHRA } = getRowInputs(r.docName);
+        const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+        const prb = calcProRataBasic(inputs.basic, wd, daysInMonth);
+        const proRataHRA = Math.round((currentHRA / daysInMonth) * wd);
+        const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * wd);
+        const grossPay = prb + proRataHRA + proRataMedical + inputs.arrear;
+        // P‑Tax is calculated on the pro‑rated Gross pay for the month
+        return s + calcPTax(grossPay);
     }, 0);
     const totalTA = filtered.reduce((s, r) => s + getRowInputs(r.docName).inputs.ta, 0);
     const totalIdCard = filtered.reduce((s, r) => s + getRowInputs(r.docName).inputs.idCardCharge, 0);
@@ -1414,11 +1420,16 @@ const SalaryModule: React.FC = () => {
 
     const totalDeductions = useMemo(() => {
         return filtered.reduce((s, r) => {
-            const { inputs } = getRowInputs(r.docName);
+            const { inputs, currentHRA } = getRowInputs(r.docName);
+            const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+            const prb = calcProRataBasic(inputs.basic, wd, daysInMonth);
+            const proRataHRA = Math.round((currentHRA / daysInMonth) * wd);
+            const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * wd);
+            const grossPay = prb + proRataHRA + proRataMedical + inputs.arrear;
             const hraDed = inputs.hraDeduction;
-            return s + (hraDed + inputs.medicalDeduction + calcPTax(inputs.basic) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction);
+            return s + (hraDed + inputs.medicalDeduction + calcPTax(grossPay) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction);
         }, 0);
-    }, [filtered, getRowInputs]);
+    }, [filtered, getRowInputs, selectedMonth, selectedYear, daysInMonth]);
 
     const totalNetPay = useMemo(() => {
         return filtered.reduce((s, r) => {
@@ -1429,7 +1440,7 @@ const SalaryModule: React.FC = () => {
             const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * wd);
             const grossPay = prb + proRataHRA + proRataMedical + inputs.arrear;
             const hraDed = inputs.hraDeduction;
-            const deductions = hraDed + inputs.medicalDeduction + calcPTax(inputs.basic) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
+            const deductions = hraDed + inputs.medicalDeduction + calcPTax(grossPay) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
             return s + (grossPay - deductions);
         }, 0);
     }, [filtered, getRowInputs, selectedMonth, selectedYear, daysInMonth]);
@@ -1463,7 +1474,7 @@ const SalaryModule: React.FC = () => {
             const proRataHRA = Math.round((currentHRA / daysInMonth) * workingDays);
             const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * workingDays);
             const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
-            const pTax = calcPTax(inputs.basic);
+            const pTax = calcPTax(grossPay);
             const hraDed = inputs.hraDeduction;
             const deductions = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
             const netPay = grossPay - deductions;
@@ -2358,7 +2369,7 @@ const SalaryModule: React.FC = () => {
                                                     const proRataHRA = Math.round((currentHRA / daysInMonth) * workingDays);
                                                     const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * workingDays);
                                                     const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
-                                                    const pTax = calcPTax(inputs.basic);
+                                                    const pTax = calcPTax(grossPay);
                                                     const hraDed = inputs.hraDeduction;
                                                     const totalDed = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
                                                     const netPay = grossPay - totalDed;
@@ -2986,7 +2997,7 @@ const SalaryModule: React.FC = () => {
                                 const proRataHRA = Math.round((currentHRA / daysInMonth) * workingDays);
                                 const proRataMedical = Math.round((selectedSlipRecord.medical_allowance / daysInMonth) * workingDays);
                                 const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
-                                const pTax = calcPTax(inputs.basic);
+                                const pTax = calcPTax(grossPay);
                                 const hraDed = inputs.hraDeduction;
                                 const totalDed = hraDed + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
                                 const netPay = grossPay - totalDed;
