@@ -54,6 +54,7 @@ import { AdoRndDashboard } from './pages/dashboards/AdoRndDashboard.tsx';
 import GenerateReport from './pages/dashboards/GenerateReport.tsx';
 import InstituteReportingModule from './pages/dashboards/InstituteReportingModule.tsx';
 import { StudentDashboard } from './pages/dashboards/StudentDashboard.tsx';
+import { IndependentResearcherDashboard } from './pages/dashboards/IndependentResearcherDashboard.tsx';
 import Reimbursement from './pages/reimbursement/Reimbursement.tsx';
 import PendingTask from './pages/PendingTask.tsx';
 import PendingApplication from './pages/PendingApplication.tsx';
@@ -437,6 +438,10 @@ const router = createBrowserRouter(
                 {
                     path: "student-dashboard",
                     element: (<AuthRouteWrapper allowedRole="Student"><StudentDashboard /></AuthRouteWrapper>),
+                },
+                {
+                    path: "independent-researcher-dashboard",
+                    element: (<AuthRouteWrapper allowedRole="Independent Researcher"><IndependentResearcherDashboard /></AuthRouteWrapper>),
                 },
                 {
                     path: "ado-rnd-dashboard",

@@ -14,6 +14,7 @@ import ProjectDetailsView from "./ProjectDetails";
 import {
     useFrappePostCall,
     useFrappeAuth,
+    useFrappeGetCall,
     useFrappeGetDoc,
     useFrappeGetDocList,
 } from "frappe-react-sdk";
@@ -970,6 +971,42 @@ const ProjectRegistration: React.FC = () => {
     const isStaffRnD = roles.some((r) =>
         ["staff, RnD", "Staff RnD", "RnD Staff", "System Manager"].includes(r),
     );
+    const isIndependentResearcher = roles.includes("Independent Researcher");
+    const isInspiredFaculty = roles.includes("IF - Inspired Faculty");
+    // Mentor field (mentor_user_id) is only relevant for these two roles.
+    const isMentorEligible = isIndependentResearcher || isInspiredFaculty;
+    // The current user's assigned mentor (User doctype "piheadmentor_user_id"), used to
+    // default the Mentor field for new Independent Researcher / Inspired Faculty project
+    // registrations. Backend now mirrors this via mentor_user_id's fetch_from
+    // (pi_webmail.piheadmentor_user_id); this client-side default keeps the field
+    // pre-filled the same way before the doc has a pi_webmail value saved.
+    const { data: assignedMentorResp } = useFrappeGetCall<{
+        message: { piheadmentor_user_id?: string };
+    }>(
+        "frappe.client.get_value",
+        { doctype: "User", filters: currentUser, fieldname: "piheadmentor_user_id" },
+        isMentorEligible && currentUser ? undefined : null,
+        { revalidateOnFocus: false },
+    );
+    const assignedMentor = assignedMentorResp?.message?.piheadmentor_user_id;
+    // Eligible mentors: Permanent Employees. Built here rather than via the generic
+    // field-metadata renderer, since mentor_user_id is read-only/fetch_from on the
+    // backend and needs a manual-override dropdown when the auto-fill has no value.
+    const { data: mentorOptionsResp, isLoading: mentorOptionsLoading } = useFrappeGetCall<{
+        message: { name: string; full_name?: string }[];
+    }>(
+        "frappe.client.get_list",
+        {
+            doctype: "User",
+            filters: JSON.stringify([["role_profile", "=", "Permanent Employee"]]),
+            fields: JSON.stringify(["name", "full_name"]),
+            limit_page_length: 0,
+            order_by: "full_name asc",
+        },
+        isMentorEligible ? undefined : null,
+        { revalidateOnFocus: false },
+    );
+    const mentorOptions = mentorOptionsResp?.message ?? [];
     const [isSavingPfms, setIsSavingPfms] = useState(false);
     const [activeTab, setActiveTab] = useState(0);
     const [fields, setFields] = useState<Field[]>([]);
@@ -1072,6 +1109,8 @@ const ProjectRegistration: React.FC = () => {
 
         const hasFundingAgency = !!formData.funding_agen;
 
+        const hasMentor = !isMentorEligible || !!formData.mentor_user_id;
+
         return (
             hasProjectTitle &&
             hasProjectType &&
@@ -1082,9 +1121,10 @@ const ProjectRegistration: React.FC = () => {
             hasPiName &&
             hasPiDesignation &&
             hasPiEmployeeId &&
-            hasPiDepartment
+            hasPiDepartment &&
+            hasMentor
         );
-    }, [formData]);
+    }, [formData, isMentorEligible]);
 
     // Build list of missing endorsement fields for user feedback
     const missingEndorsementFields = useMemo(() => {
@@ -1100,8 +1140,9 @@ const ProjectRegistration: React.FC = () => {
         if (!formData.funding_agen) missing.push("Funding Agency");
         if (!formData.pi_webmail || !formData.principal_investigator_name?.trim())
             missing.push("Principal Investigator (PI)");
+        if (isMentorEligible && !formData.mentor_user_id) missing.push("Mentor");
         return missing;
-    }, [formData]);
+    }, [formData, isMentorEligible]);
 
     const {
         call: fetchFormData,
@@ -2320,6 +2361,8 @@ const ProjectRegistration: React.FC = () => {
         // --- Top-level fields ---
         for (const field of fields) {
             if (field.hidden) continue;
+            // Mentor is only rendered (and thus only mandatory) for eligible roles
+            if (field.fieldname === "mentor_user_id" && !isMentorEligible) continue;
             if (
                 field.depends_on_eval &&
                 !evaluateDependsOn(field.depends_on_eval, formData)
@@ -2433,6 +2476,11 @@ const ProjectRegistration: React.FC = () => {
                         );
                 });
             }
+        }
+
+        // --- Mentor (mandatory for Independent Researchers / Inspired Faculty) ---
+        if (isMentorEligible && !formData.mentor_user_id) {
+            errors.push("Mentor");
         }
 
         return errors;
@@ -2685,6 +2733,15 @@ const ProjectRegistration: React.FC = () => {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [formDataResult, formDataError, currentUser]);
+
+    // Default the Mentor field to the applicant's assigned mentor on new registrations,
+    // unless the applicant has already picked someone else.
+    useEffect(() => {
+        if (!docname && isMentorEligible && assignedMentor && !formData.mentor_user_id) {
+            setFormData((prev) => ({ ...prev, mentor_user_id: assignedMentor }));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [docname, isMentorEligible, assignedMentor]);
 
     // Override funding_agen options with the full unbounded list from Frappe
     useEffect(() => {
@@ -3367,6 +3424,7 @@ Endorsement is optional. You may continue completing Project Registration while 
             "applicant_department",
             "pi_userid",
         ],
+        mentorDetails: ["mentor_user_id"],
         collaboratorToggles: ["is_additional_pi", "has_co_pi"],
         budgetToggles: ["equipment_checkbox", "manpower_checkbox"],
         sanction: [
@@ -4038,6 +4096,55 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                     </div>
                                                 </div>
                                             </div>
+                                            {isMentorEligible && (
+                                                <div className="overflow-hidden border border-zinc-300 dark:border-zinc-700 rounded-xl shadow-sm bg-white dark:bg-zinc-900">
+                                                    <div className="px-5 py-3 bg-[#EEF2FF]/80 dark:bg-[#1E3A8A]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/20 flex items-center gap-3">
+                                                        <h3 className="text-[13px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD]">
+                                                            Mentor
+                                                        </h3>
+                                                    </div>
+                                                    <div className="p-5 space-y-8">
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                                                            <div className="space-y-1.5">
+                                                                <label
+                                                                    htmlFor="mentor_user_id"
+                                                                    className="block text-[11px] font-bold uppercase tracking-widest text-[#27272A] dark:text-[#E4E4E7]"
+                                                                >
+                                                                    Mentor
+                                                                    <span className="text-red-500 ml-0.5 normal-case">*</span>
+                                                                </label>
+                                                                <select
+                                                                    id="mentor_user_id"
+                                                                    name="mentor_user_id"
+                                                                    className={inputClasses}
+                                                                    required
+                                                                    disabled={!isEditMode}
+                                                                    value={formData.mentor_user_id || ""}
+                                                                    onChange={(e) =>
+                                                                        handleFieldChangeWithSideEffects("mentor_user_id", e.target.value)
+                                                                    }
+                                                                >
+                                                                    <option value="">
+                                                                        {mentorOptionsLoading ? "Loading…" : "Select mentor..."}
+                                                                    </option>
+                                                                    {mentorOptions.map((opt) => (
+                                                                        <option key={opt.name} value={opt.name}>
+                                                                            {opt.full_name || opt.name}
+                                                                        </option>
+                                                                    ))}
+                                                                    {formData.mentor_user_id &&
+                                                                        !mentorOptions.some((opt) => opt.name === formData.mentor_user_id) && (
+                                                                            <option value={formData.mentor_user_id}>{formData.mentor_user_id}</option>
+                                                                        )}
+                                                                </select>
+                                                                <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-1 leading-relaxed">
+                                                                    Must be a Permanent Employee. Your mentor will review and approve applications on your behalf.
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                             <div className="space-y-8">
                                                 <div className="space-y-4">
                                                     {renderField("is_additional_pi")}

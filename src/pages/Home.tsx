@@ -182,8 +182,10 @@ export function Home() {
       navigate('/student-dashboard');
     } else if (isProjectStaff) {
       navigate('/project-staff-dashboard');
-    } else if (isInspiredFaculty || isIndependentResearcher) {
-      // These roles stay on /home — do nothing
+    } else if (isIndependentResearcher) {
+      navigate('/independent-researcher-dashboard');
+    } else if (isInspiredFaculty) {
+      // Stays on /home — do nothing
     } else if (isPermanentEmployee) {
       navigate('/pihomepage');
     }

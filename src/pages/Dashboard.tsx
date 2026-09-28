@@ -92,7 +92,9 @@ const Dashboard = () => {
         navigate('/student-dashboard');
       } else if (isProjectStaff) {
         navigate('/project-staff-dashboard');
-      } else if (isInspiredFaculty || isIndependentResearcher) {
+      } else if (isIndependentResearcher) {
+        navigate('/independent-researcher-dashboard');
+      } else if (isInspiredFaculty) {
         navigate('/home');
       } else if (isPermanentEmployee) {
         navigate('/pihomepage');

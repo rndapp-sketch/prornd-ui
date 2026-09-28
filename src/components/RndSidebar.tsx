@@ -449,7 +449,7 @@ export function AppSidebar() {
             return roles && allowedRoles.some((role) => roles.includes(role));
         }
         if (item.label === "Projects") {
-            const allowedRoles = ["Permanent Employee", "head_approver_1", "Dean, RnD"];
+            const allowedRoles = ["Permanent Employee", "head_approver_1", "Dean, RnD", "Independent Researcher"];
             return roles && allowedRoles.some((role) => roles.includes(role));
         }
         if (item.label === "Project Staff") {

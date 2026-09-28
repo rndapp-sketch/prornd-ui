@@ -32,6 +32,21 @@ export interface FeatureUpdate {
 
 export const featureUpdates: FeatureUpdate[] = [
     {
+        id: "independent-researcher-inspired-faculty-registration",
+        title: "Independent Researchers & Inspired Faculty Can Now Apply for Projects",
+        date: "2026-09-28",
+        time: "16:32",
+        status: "in-progress",
+        accent: "sky",
+        tags: ["Project Registration", "Independent Researcher", "Inspired Faculty"],
+        summary: "Independent Researchers and Inspired Faculty can now register projects through the portal, with a mentor assigned to review and approve on their behalf.",
+        highlights: [
+            "Independent Researcher gets its own dashboard to track and manage their applications",
+            "A Mentor field appears on Project Registration for both roles, pre-filled from your assigned mentor and editable if it needs to change",
+            "Mentor is required before the application can be sent for endorsement",
+        ],
+    },
+    {
         id: "employee-id-card",
         title: "Employee ID Card",
         date: "2026-09-21",
