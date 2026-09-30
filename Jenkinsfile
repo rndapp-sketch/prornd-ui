@@ -26,6 +26,12 @@ pipeline {
   }
 
   environment {
+    // nvm's bin must be on PATH, not just referenced by absolute path: npm is a
+    // node script (#!/usr/bin/env node), and vite shells out to node too. Without
+    // this, every npm call dies with "/usr/bin/env: 'node': No such file or
+    // directory" (exit 127), because a systemd service's PATH has no nvm.
+    NODE_BIN   = '/home/rndadmin/.nvm/versions/node/v20.20.2/bin'
+    PATH       = "/home/rndadmin/.nvm/versions/node/v20.20.2/bin:${env.PATH}"
     NPM        = '/home/rndadmin/.nvm/versions/node/v20.20.2/bin/npm'
     BENCH      = '/home/rndadmin/.local/bin/bench'
     BENCH_DIR  = '/home/rndadmin/frappe-dev/prornd'
