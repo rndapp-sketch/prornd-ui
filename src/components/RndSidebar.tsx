@@ -95,6 +95,7 @@ export function AppSidebar() {
     const canUploadDirectorPdf = roles?.includes("staff, RnD") ?? false;
     const isHosRnd = roles?.includes("Hos, RnD (Head of Section, RnD)") ?? false;
     const isAdoRnd = roles?.includes("Ado_RnD") ?? false;
+    const isDoRnd = roles?.includes("Dean, RnD") ?? false;
 
     // Fetch projects assigned to current user as head_approver (same filter as PendingTask.tsx)
     const { data: headApproverProjects } = useFrappeGetDocList("Project Registration", {
@@ -177,12 +178,15 @@ export function AppSidebar() {
 
     // Leave Module applications pending the current user's approval as PI —
     // scoped server-side, so no extra client-side filtering is needed here.
+    // Fetched for every role that can see the "Pending Application" menu item
+    // (not just Permanent Employee), since head_approver_1 / Dean, RnD users
+    // can also be a PI on some applications.
     const { data: pendingApplicationData } = useFrappeGetCall<{
         message: { user: string; results: Array<{ name: string }> };
     }>(
         "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_pending_application",
         {},
-        currentUser && isPermanentEmployee ? undefined : null,
+        currentUser && (isPermanentEmployee || isHeadApprover || isDoRnd) ? undefined : null,
     );
     const pendingApplicationCount = pendingApplicationData?.message?.results?.length ?? 0;
 
@@ -309,12 +313,12 @@ export function AppSidebar() {
             path: "/form-application",
         }] : []),
         {
-            label: "Pending Task",
+            label: "Pending Task (as Approver)",
             icon: ListTodo,
             path: "/pending-task",
         },
-        ...(isPermanentEmployee || isHeadApprover ? [{
-            label: "Pending Application",
+        ...(isPermanentEmployee || isHeadApprover || isDoRnd ? [{
+            label: "Pending Application (as PI)",
             icon: ClipboardCheck,
             path: "/pending-application",
         }] : []),
@@ -408,7 +412,7 @@ export function AppSidebar() {
             const allowedRoles = ["staff, RnD", "Permanent Employee"];
             return roles && allowedRoles.some((role) => roles.includes(role));
         }
-        if (item.label === "Pending Task") {
+        if (item.label === "Pending Task (as Approver)") {
             const allowedRoles = [
                 "Dean, RnD",
                 "Ado_RnD",
@@ -681,7 +685,7 @@ export function AppSidebar() {
                                                 {state === "expanded" && <span className="break-words leading-tight">{item.label}</span>}
                                             </div>
 
-                                            {item.label === "Pending Task" && pendingTaskCount > 0 && state === "expanded" && (
+                                            {item.label === "Pending Task (as Approver)" && pendingTaskCount > 0 && state === "expanded" && (
                                                 <span className={cn(
                                                     "ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold leading-none",
                                                     isActive
@@ -692,7 +696,7 @@ export function AppSidebar() {
                                                 </span>
                                             )}
 
-                                            {item.label === "Pending Application" && pendingApplicationCount > 0 && state === "expanded" && (
+                                            {item.label === "Pending Application (as PI)" && pendingApplicationCount > 0 && state === "expanded" && (
                                                 <span className={cn(
                                                     "ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold leading-none",
                                                     isActive

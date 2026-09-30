@@ -1,7 +1,14 @@
 import React, { useState } from "react";
 import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { disbursalOfConsultancyAPI } from "@/services/apiService";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface DisbursalOfConsultancyActionButtonsProps {
   docname: string;
@@ -107,24 +114,56 @@ const DisbursalOfConsultancyActionButtons = ({
 
   if (actionsLoading || !data?.message?.length) return null;
 
+  if (data.message.length === 1) {
+    const action = data.message[0];
+    return (
+      <>
+        <button
+          onClick={() => handleActionClick(action)}
+          disabled={actionLoading}
+          className={cn(
+            "inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200",
+            "bg-[#D97757] hover:bg-[#c66a4e] text-white shadow-sm",
+            actionLoading && "opacity-50 cursor-not-allowed",
+          )}
+        >
+          {actionLoading ? "Processing..." : action}
+        </button>
+        <CommentModal
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          onSubmit={handleConfirmAction}
+          action={selectedAction}
+          isLoading={actionLoading ?? false}
+        />
+      </>
+    );
+  }
+
   return (
     <>
-      <div className="flex gap-2 flex-wrap">
-        {data.message.map((action) => (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
           <button
-            key={action}
-            onClick={() => handleActionClick(action)}
             disabled={actionLoading}
-            className={cn(
-              "px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 border",
-              "bg-[#D97757] hover:bg-[#c66a4e] text-white",
-              actionLoading && "opacity-50 cursor-not-allowed",
-            )}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 bg-[#D97757] hover:bg-[#c66a4e] text-white shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {actionLoading ? "Processing..." : action}
+            {actionLoading ? "Processing..." : "Actions"}
+            <ChevronDown className="h-3.5 w-3.5" />
           </button>
-        ))}
-      </div>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {data.message.map((action) => (
+            <DropdownMenuItem
+              key={action}
+              disabled={actionLoading}
+              onSelect={() => handleActionClick(action)}
+            >
+              {action}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
       <CommentModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}

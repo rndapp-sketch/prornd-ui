@@ -33,6 +33,7 @@ import {
     X,
     Pencil,
     ReceiptIndianRupee,
+    RefreshCw,
 } from "lucide-react";
 import {
     EndorsementCertificate,
@@ -358,6 +359,11 @@ const MemoizedFormField = memo(
                                         : "text"
                             }
                             {...commonProps}
+                            className={
+                                field.fieldname === "project_title"
+                                    ? cn(inputClasses, "h-14 text-base font-semibold px-4")
+                                    : commonProps.className
+                            }
                             value={value || ""}
                             onChange={(e) =>
                                 onChange(field.fieldname, e.target.value)
@@ -2299,6 +2305,49 @@ const ProjectRegistration: React.FC = () => {
     const renderFields = (fieldnames: string[]) =>
         fieldnames.map((fn) => renderField(fn));
 
+    // Re-runs the pi_webmail fetch that populates Name, Employee ID, Designation
+    // and Department — used when one of those fields didn't get auto-filled.
+    const refetchPiDetails = useCallback(() => {
+        const webmail = formData.pi_webmail || currentUser;
+        if (webmail) {
+            handleFieldChangeWithSideEffects("pi_webmail", webmail);
+        }
+    }, [formData.pi_webmail, currentUser, handleFieldChangeWithSideEffects]);
+
+    // Wraps a PI field with a small refresh icon and, when it has no value yet,
+    // a placeholder nudging the user to refetch it.
+    const renderPiField = (fieldname: string) => {
+        const field = renderField(fieldname);
+        if (!field) return null;
+        const isEmpty = !formData[fieldname];
+        return (
+            <div key={fieldname} className="relative">
+                {field}
+                {isEditMode && (
+                    <button
+                        type="button"
+                        title="Refetch from PI webmail"
+                        disabled={isFetchingPiDetails}
+                        onClick={refetchPiDetails}
+                        className="absolute right-0 top-0 rounded p-0.5 text-[#4A6CF7] transition-colors hover:bg-[#4A6CF7]/10 disabled:opacity-40 dark:text-[#93C5FD]"
+                    >
+                        <RefreshCw
+                            className={cn(
+                                "h-3 w-3",
+                                isFetchingPiDetails && "animate-spin",
+                            )}
+                        />
+                    </button>
+                )}
+                {isEmpty && !isFetchingPiDetails && (
+                    <p className="mt-1 text-[11px] italic text-amber-600 dark:text-amber-400">
+                        Not filled in — click the refresh icon above to fetch it.
+                    </p>
+                )}
+            </div>
+        );
+    };
+
     const fileToBase64 = (
         file: File,
     ): Promise<{ filename: string; content: string }> =>
@@ -4076,18 +4125,18 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                     )}
                                                 </div>
                                                 <div className="p-5 space-y-8">
-                                                    {renderField("pi_webmail")}
+                                                    {renderPiField("pi_webmail")}
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-4 border-t border-dashed border-zinc-400 dark:border-zinc-600">
-                                                        {renderField(
+                                                        {renderPiField(
                                                             "principal_investigator_name",
                                                         )}
-                                                        {renderField(
+                                                        {renderPiField(
                                                             "pi_employee_id",
                                                         )}
-                                                        {renderField(
+                                                        {renderPiField(
                                                             "designation",
                                                         )}
-                                                        {renderField(
+                                                        {renderPiField(
                                                             "applicant_department",
                                                         )}
                                                         {renderField(

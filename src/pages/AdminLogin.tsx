@@ -352,19 +352,21 @@ const AdminLogin: React.FC = () => {
                   {/* Autocomplete dropdown */}
                   {showSuggestions && suggestions.length > 0 && (
                     <div className="absolute z-50 w-full overflow-hidden rounded-lg border border-[#E4E4E7] bg-white shadow-lg dark:border-[#3F3F46] dark:bg-[#27272A]">
-                      {suggestions.map((user) => (
-                        <button
-                          key={user.name}
-                          type="button"
-                          onMouseDown={() => selectSuggestion(user)}
-                          className="flex w-full flex-col gap-0.5 px-4 py-2.5 text-left transition-colors hover:bg-[#FAFAF9] dark:hover:bg-[#3F3F46]"
-                        >
-                          <span className="text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
-                            {user.full_name || user.username || user.name}
-                          </span>
-                          <span className="text-[11px] text-[#71717A] dark:text-[#A1A1AA]">{user.name}</span>
-                        </button>
-                      ))}
+                      <div className="max-h-60 overflow-y-auto">
+                        {suggestions.map((user) => (
+                          <button
+                            key={user.name}
+                            type="button"
+                            onMouseDown={() => selectSuggestion(user)}
+                            className="flex w-full flex-col gap-0.5 px-4 py-2.5 text-left transition-colors hover:bg-[#FAFAF9] dark:hover:bg-[#3F3F46]"
+                          >
+                            <span className="text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
+                              {user.full_name || user.username || user.name}
+                            </span>
+                            <span className="text-[11px] text-[#71717A] dark:text-[#A1A1AA]">{user.name}</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
