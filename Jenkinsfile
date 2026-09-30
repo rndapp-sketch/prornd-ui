@@ -41,7 +41,7 @@ pipeline {
     // app silently talks to the wrong host.
     stage('Inject server config') {
       steps {
-        sh '''
+        sh '''#!/bin/bash
           set -euo pipefail
           if [ ! -f "$ENV_FILE" ]; then
             echo "FATAL: $ENV_FILE not found."
@@ -57,7 +57,7 @@ pipeline {
 
     stage('Install') {
       steps {
-        sh '''
+        sh '''#!/bin/bash
           set -euo pipefail
           "$NPM" ci
         '''
@@ -66,7 +66,7 @@ pipeline {
 
     stage('Build') {
       steps {
-        sh '''
+        sh '''#!/bin/bash
           set -euo pipefail
           "$NPM" run build -- --mode production
           test -f dist/index.html || { echo "FATAL: build produced no dist/index.html"; exit 1; }
@@ -81,7 +81,7 @@ pipeline {
     // never exits and would hang this stage forever.
     stage('Deploy') {
       steps {
-        sh '''
+        sh '''#!/bin/bash
           set -euo pipefail
           test -d "$RNDOPSAPP" || { echo "FATAL: $RNDOPSAPP not found"; exit 1; }
 
@@ -102,7 +102,7 @@ pipeline {
     // pipeline existed). So resolve the asset the HTML actually references.
     stage('Smoke test') {
       steps {
-        sh '''
+        sh '''#!/bin/bash
           set -euo pipefail
 
           html=$(curl -fsS -H "Host: prornd.local" "$BASE_URL/rndopsapp")
