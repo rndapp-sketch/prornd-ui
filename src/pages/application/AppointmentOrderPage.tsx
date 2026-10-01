@@ -117,6 +117,7 @@ type PostDetail = {
     name: string;
     upfa_designation: string;
     upfa_duration_months: number;
+    upfa_hra_percent?: string;
 };
 
 const capitalizeName = (value: string) =>
@@ -125,6 +126,11 @@ const capitalizeName = (value: string) =>
         .split(/\s+/)
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
         .join(' ');
+
+// Width in `ch` that grows/shrinks with the typed value so inline inputs
+// never truncate long text or leave a long empty gap for short text.
+const autoWidth = (value: string, placeholder: string, min = 6, max = 60) =>
+    `${Math.min(Math.max(value.length || placeholder.length, min) + 1, max)}ch`;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 const AppointmentOrderPage: React.FC = () => {
@@ -143,12 +149,14 @@ const AppointmentOrderPage: React.FC = () => {
     const [piName, setPiName] = useState('');
     const [candidate, setCandidate] = useState<Candidate | null>(null);
     const [duration, setDuration] = useState(0);
+    const [postHra, setPostHra] = useState('');
 
     // Editable
     const [issueNumber, setIssueNumber] = useState('');
     const [address, setAddress] = useState('');
     const [candidateEmail, setCandidateEmail] = useState('');
     const [piDept, setPiDept] = useState('');
+    const [dateOfInterview, setDateOfInterview] = useState('');
 
     const [scdDocName, setScdDocName] = useState('');
     const [saving, setSaving] = useState(false);
@@ -176,6 +184,7 @@ const AppointmentOrderPage: React.FC = () => {
                     setProjectNumber(prefill.project_number || '');
                     setProjectName(prefill.project_name || '');
                     setRecruitmentType(prefill.recruitment_type || '');
+                    setDateOfInterview(prefill.date_of_interview || '');
 
                     const candidates: Candidate[] =
                         typeof prefill.candidates === 'string'
@@ -195,6 +204,7 @@ const AppointmentOrderPage: React.FC = () => {
                                 p.upfa_designation?.toLowerCase() === found.applied_post?.toLowerCase()
                         );
                         setDuration(post?.upfa_duration_months ?? 0);
+                        setPostHra(post?.upfa_hra_percent || '');
                     }
 
                     const piLookup = prefill.principal_investigator
@@ -408,7 +418,7 @@ const AppointmentOrderPage: React.FC = () => {
                                 placeholder="Issue No."
                                 maxLength={140}
                                 className="ao-input"
-                                style={{ width: '100px' }}
+                                style={{ width: autoWidth(issueNumber, 'Issue No.', 8, 40) }}
                             />
                             <InlineCharLimitWarn value={issueNumber} maxLength={140} />
                         </span>
@@ -438,7 +448,7 @@ const AppointmentOrderPage: React.FC = () => {
                                 placeholder="candidate@email.com"
                                 maxLength={140}
                                 className="ao-input"
-                                style={{ width: '230px' }}
+                                style={{ width: autoWidth(candidateEmail, 'candidate@email.com', 12, 45) }}
                             />
                             <InlineCharLimitWarn value={candidateEmail} maxLength={140} />
                             <span>)</span>
@@ -458,7 +468,7 @@ const AppointmentOrderPage: React.FC = () => {
                             placeholder="Dept. Name"
                             maxLength={140}
                             className="ao-input"
-                            style={{ width: '180px' }}
+                            style={{ width: autoWidth(piDept, 'Dept. Name', 10, 45) }}
                         />
                         <InlineCharLimitWarn value={piDept} maxLength={140} />{' '}
                         under Dr. <strong>{piName}</strong>.
@@ -469,7 +479,17 @@ const AppointmentOrderPage: React.FC = () => {
                         <p style={{ marginBottom: '10px' }}>Dear <strong>{fullName}</strong>,</p>
                         <p style={{ textAlign: 'justify', lineHeight: '1.6', textIndent: '2em' }}>
                             Inviting reference to your application for the above post of{' '}
-                            <strong>{candidate.applied_post}</strong> and subsequent interview, you are
+                            <strong>{candidate.applied_post}</strong> and subsequent interview held on{' '}
+                            <input
+                                type="text"
+                                value={dateOfInterview}
+                                onChange={e => setDateOfInterview(e.target.value)}
+                                placeholder="DD-MM-YYYY"
+                                maxLength={20}
+                                className="ao-input"
+                                style={{ width: autoWidth(dateOfInterview, 'DD-MM-YYYY', 10, 20) }}
+                            />
+                            <InlineCharLimitWarn value={dateOfInterview} maxLength={20} />, you are
                             offered the post of <strong>{candidate.applied_post}</strong> in the said
                             project under the following terms &amp; conditions:
                         </p>
@@ -513,13 +533,17 @@ const AppointmentOrderPage: React.FC = () => {
                                 <td style={{ width: '130px', verticalAlign: 'top', paddingBottom: '8px', paddingRight: '4px' }}><strong>3.&nbsp;Initial pay admissible</strong></td>
                                 <td style={{ width: '16px', verticalAlign: 'top', paddingBottom: '8px' }}>:</td>
                                 <td style={{ textAlign: 'justify', verticalAlign: 'top', paddingBottom: '8px' }}>
-                                    Rs. {Number(candidate.total_amount).toLocaleString('en-IN')}/- per month (inclusive of HRA @ {candidate.hra})
+                                    Rs. {Number(candidate.total_amount).toLocaleString('en-IN')}/- per month
+                                    {(postHra || candidate.hra) ? ` (inclusive of HRA @ ${postHra || candidate.hra})` : ' (HRA not applicable)'}
                                 </td>
                             </tr>
                             <tr>
                                 <td style={{ width: '130px', verticalAlign: 'top', paddingBottom: '8px', paddingRight: '4px' }}><strong>4.&nbsp;Medical facility</strong></td>
                                 <td style={{ width: '16px', verticalAlign: 'top', paddingBottom: '8px' }}>:</td>
-                                <td style={{ textAlign: 'justify', verticalAlign: 'top', paddingBottom: '8px' }}>As per institute norms.</td>
+                                <td style={{ textAlign: 'justify', verticalAlign: 'top', paddingBottom: '8px' }}>
+                                    As per institute norms for treatment in the institute hospital only
+                                    (exclusively for self and no dependants).
+                                </td>
                             </tr>
                             <tr>
                                 <td style={{ width: '130px', verticalAlign: 'top', paddingBottom: '8px', paddingRight: '4px' }}><strong>5.&nbsp;Leave</strong></td>
@@ -594,7 +618,7 @@ const AppointmentOrderPage: React.FC = () => {
                                 placeholder="Dept. Name"
                                 maxLength={140}
                                 className="ao-input"
-                                style={{ width: '160px' }}
+                                style={{ width: autoWidth(piDept, 'Dept. Name', 10, 45) }}
                             />
                             <InlineCharLimitWarn value={piDept} maxLength={140} />
                         </p>

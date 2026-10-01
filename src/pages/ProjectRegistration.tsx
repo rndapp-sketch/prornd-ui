@@ -2088,10 +2088,39 @@ const ProjectRegistration: React.FC = () => {
                             details?.designation ||
                             "";
                     }
-                    department =
+                    // Resolve to the Department_prornd record's actual name/dept_id (not a
+                    // raw/displayed label) the same way the PI's own department is resolved
+                    // in handleFieldChangeWithSideEffects — otherwise a value like a bare
+                    // hash autoname can end up stored verbatim and never resolve to a
+                    // readable name downstream (DepartmentName looks it up by name/dept_id).
+                    const deptName =
                         details?.department_name ||
+                        details?.department ||
                         details?.applicant_department ||
                         "";
+                    if (deptName) {
+                        const normalize = (s: string) => s.trim().toLowerCase();
+                        const deptOptions = linkOptions["applicant_department"] || [];
+                        const matchedOption = deptOptions.find(
+                            (opt) =>
+                                normalize(opt.label) === normalize(deptName) ||
+                                normalize(opt.value) === normalize(deptName),
+                        );
+                        if (matchedOption) {
+                            department = matchedOption.label;
+                        } else {
+                            try {
+                                const deptLookup = await fetchDeptHead({
+                                    doctype: "Department_prornd",
+                                    fieldname: "dept_name",
+                                    filters: { name: deptName },
+                                });
+                                department = deptLookup?.message?.dept_name || deptName;
+                            } catch (e) {
+                                department = deptName;
+                            }
+                        }
+                    }
                     address =
                         details?.inst_name_address ||
                         details?.copi_address ||
@@ -2120,7 +2149,7 @@ const ProjectRegistration: React.FC = () => {
                 return { ...prev, [tableName]: t };
             });
         },
-        [linkOptions, fetchPiDetails],
+        [linkOptions, fetchPiDetails, fetchDeptHead],
     );
 
     const addBudgetRow = useCallback(

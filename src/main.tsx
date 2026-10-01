@@ -520,6 +520,26 @@ const router = createBrowserRouter(
                     ),
                 },
                 {
+                    // Project Registration applications surfaced in the PI Inbox (Pending
+                    // Application) open here instead of the editable draft form or the
+                    // generic Pending Task details route — same ProjectDetailsView review
+                    // UI, but scoped under pending-application so "Back" returns there.
+                    path: "pending-application/project-registration/:projectName",
+                    element: (
+                        <AuthRouteWrapper allowedRole={[
+                            'Director',
+                            'Dean, RnD',
+                            'Ado_RnD',
+                            'head_approver_1',
+                            'Hos, RnD (Head of Section, RnD)',
+                            'staff, RnD',
+                            'Permanent Employee'
+                        ]}>
+                            <ProjectDetails backUrl="/pending-application" backLabel="Back to Pending Applications" />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
                     path: "pending-tasks/:doctype/:name",
                     element: (
                         <AuthRouteWrapper allowedRole={[
