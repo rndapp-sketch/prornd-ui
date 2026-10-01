@@ -122,8 +122,34 @@ const Reimbursement: React.FC = () => {
             if (formDataResult?.message && !dataLoaded) {
                 const { fields: apiFields, prefill_data, link_options, child_table_fields } = formDataResult.message;
 
-                // Merge child_fields into the Table fields
-                const enhancedFields = (apiFields || []).map((field: FormField) => {
+                // The backend metadata hides the project fields (field-level hidden/depends_on, a
+                // "Hidden" fieldtype, or a hidden parent section). Always show them, except for
+                // Other-PI applications (self_other == "Other"), where they stay hidden.
+                const PROJECT_FIELDS = ['project_name', 'project_number', 'account_head'];
+                const NOT_OTHER = 'eval:doc.self_other != "Other"';
+                const FALLBACK_TYPE: Record<string, string> = { project_name: 'Link', project_number: 'Data', account_head: 'Link' };
+                console.log('project field meta:', (apiFields || []).filter((f: FormField) => PROJECT_FIELDS.includes(f.fieldname)));
+
+                // Section Breaks that contain a project field must not hide it
+                const sectionsToShow = new Set<number>();
+                let lastSection = -1;
+                (apiFields || []).forEach((f: FormField, i: number) => {
+                    if (f.fieldtype === 'Section Break') lastSection = i;
+                    else if (PROJECT_FIELDS.includes(f.fieldname) && lastSection >= 0) sectionsToShow.add(lastSection);
+                });
+
+                const enhancedFields = (apiFields || []).map((rawField: FormField, idx: number) => {
+                    let field: FormField = rawField;
+                    if (PROJECT_FIELDS.includes(rawField.fieldname)) {
+                        field = {
+                            ...rawField,
+                            hidden: 0,
+                            depends_on: NOT_OTHER,
+                            fieldtype: rawField.fieldtype === 'Hidden' ? FALLBACK_TYPE[rawField.fieldname] : rawField.fieldtype,
+                        };
+                    } else if (sectionsToShow.has(idx)) {
+                        field = { ...rawField, hidden: 0, depends_on: undefined };
+                    }
                     if (field.fieldtype === 'Table' && child_table_fields && child_table_fields[field.fieldname]) {
                         return { ...field, child_fields: child_table_fields[field.fieldname] };
                     }
@@ -221,7 +247,16 @@ const Reimbursement: React.FC = () => {
                             initialData.project_number = pData.project_no || pData.name || projectFromUrl;
                             // Use doc name (ID) for the Link field so the dropdown can match it
                             initialData.project_name = pData.name || projectFromUrl;
-                            setProjectTitle(projectTitleFromUrl || pData.project_title || '');
+                            const resolvedTitle = projectTitleFromUrl || pData.project_title || pData.title || '';
+                            setProjectTitle(resolvedTitle);
+                            // Make sure the Project Name dropdown has an option for this project,
+                            // otherwise the prefilled value has no label and shows blank.
+                            const optValue = initialData.project_name;
+                            setLinkOptions(prev => {
+                                const existing = prev['project_name'] || [];
+                                if (existing.some(o => o.value === optValue)) return prev;
+                                return { ...prev, project_name: [...existing, { value: optValue, label: resolvedTitle || optValue }] };
+                            });
                         } else {
                             // Fallback if fetch fails or no message
                             initialData.project_name = projectFromUrl;
@@ -244,6 +279,22 @@ const Reimbursement: React.FC = () => {
                             message: `We could not find a project matching "${projectFromUrl}". Please select the project manually in the form below.`,
                         });
                     }
+                }
+
+                // Normal project reimbursement: auto-select the "Self" answer on both
+                // "Is this charged to another PI's project?" and "Applying for self or other?".
+                if (projectFromUrl && !editDocName && searchParams.get("other_pi") !== "1") {
+                    initialData.self_other = "Self";
+                    const selfLike = /^(self|own|no)$/i;
+                    enhancedFields.forEach((f: FormField) => {
+                        const label = (f.label || '').toLowerCase();
+                        const isChargedQ = label.includes('another pi');
+                        const isSelfOtherQ = label.includes('self or other') || f.fieldname === 'self_other';
+                        if (f.fieldtype !== 'Select' || !(isChargedQ || isSelfOtherQ)) return;
+                        const opts = String(f.options || '').split('\n').map(o => o.trim()).filter(Boolean);
+                        const pick = opts.find(o => selfLike.test(o)) || opts.find(o => !/other|yes/i.test(o));
+                        if (pick) initialData[f.fieldname] = pick;
+                    });
                 }
 
                 // If launched from Other PI tab, default self_other to "Other" and clear project fields

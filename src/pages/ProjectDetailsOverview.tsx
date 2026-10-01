@@ -1241,7 +1241,12 @@ const QuickActions = ({
                             projectNameLower.includes(itemProjectNumber);
 
                         return matches;
-                    });
+                    }).filter((item: any) =>
+                        // Drafts are private: only the creator (owner) may see them
+                        (item.workflow_state || "").toLowerCase() !== "draft" ||
+                        (!!quickActionsCurrentUser &&
+                            (item.owner || "").toLowerCase() === quickActionsCurrentUser.toLowerCase()),
+                    );
                 } catch (fetchError) {
                     data = [];
                 }
@@ -1875,7 +1880,7 @@ const QuickActions = ({
         } finally {
             setIsLoading(false);
         }
-    }, [selectedApplication, projectName, projectNo, fetchReimbursements]);
+    }, [selectedApplication, projectName, projectNo, fetchReimbursements, quickActionsCurrentUser]);
 
     useEffect(() => {
         fetchApplicationData();
