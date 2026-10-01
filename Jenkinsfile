@@ -2,8 +2,8 @@
 // Tracked branch: testing-frontend. See JENKINS_CI_CD_PLAN.md in the bench root.
 //
 // WHAT THIS SERVES, AND WHY NOT VIA FRAPPE:
-// The build is served standalone on port 8081 by `vite preview`, kept alive in
-// the `frappe_ui` tmux session (same pattern bench uses in the `frappe` session).
+// The build is served standalone on port 8081 by `vite preview`, kept alive by
+// the prornd-ui systemd user unit, so it returns by itself after a reboot.
 //
 // It is deliberately NOT copied into rndopsapp/public/frontend to be served at
 // Frappe's /rndopsapp route, even though deploy-prod.sh and CLAUDE.md describe
@@ -38,10 +38,6 @@ pipeline {
     PATH        = "/home/rndadmin/.nvm/versions/node/v20.20.2/bin:${env.PATH}"
     NPM         = '/home/rndadmin/.nvm/versions/node/v20.20.2/bin/npm'
     ENV_FILE    = '/home/rndadmin/deploy-config/prornd-ui/testing.env.production'
-    // NOT named TMUX — that is tmux's own reserved variable (it expects
-    // <socket-path>,<pid>,<idx>); setting it to a bare name makes every tmux
-    // call try to connect to a socket by that name and fail.
-    UI_SESSION  = 'frappe_ui'
     PORT        = '8081'
     BASE_URL    = 'http://127.0.0.1:8081'
   }
@@ -86,34 +82,39 @@ pipeline {
       }
     }
 
-    // Restart the preview server on the built dist/. Long-running, so it lives in
-    // a tmux session rather than as a child of this build, which exits.
+    // Restart the preview server onto the build just produced. It runs as the
+    // prornd-ui user unit (not a tmux session, which did not survive reboots),
+    // with WorkingDirectory set to this workspace — so it picks up the new
+    // dist/ with nothing to copy.
     stage('Serve') {
       steps {
         sh '''#!/bin/bash
           set -euo pipefail
 
-          if ! tmux has-session -t "$UI_SESSION" 2>/dev/null; then
-            echo "tmux session '$UI_SESSION' not found — creating it"
-            tmux new-session -d -s "$UI_SESSION"
-          fi
+          # Jenkins is a SYSTEM service running as rndadmin, so it inherits no
+          # XDG_RUNTIME_DIR and `systemctl --user` cannot find the user bus
+          # without it. /run/user/1000 persists with no login only because
+          # lingering is enabled for rndadmin (loginctl enable-linger).
+          export XDG_RUNTIME_DIR=/run/user/$(id -u)
 
-          # Stop whatever currently holds the port (previously a hand-started
-          # `npm run dev`). Ctrl-C the session rather than pkill, so we never
-          # kill a process that merely looks similar.
-          tmux send-keys -t "$UI_SESSION" C-c
-          for i in $(seq 1 15); do
-            ss -tln 2>/dev/null | grep -q ":$PORT " || break
-            sleep 1
-          done
-          if ss -tln 2>/dev/null | grep -q ":$PORT "; then
-            echo "FATAL: port $PORT still held after Ctrl-C to session '$UI_SESSION'."
-            echo "Something outside that session owns it. Check: ss -tlnp | grep $PORT"
+          if ! systemctl --user cat prornd-ui.service >/dev/null 2>&1; then
+            echo "FATAL: prornd-ui.service not found for user $(whoami)."
+            echo "Expected at ~/.config/systemd/user/prornd-ui.service"
             exit 1
           fi
 
-          tmux send-keys -t "$UI_SESSION" \
-            "cd $WORKSPACE && exec $NPM run preview -- --port $PORT --host 0.0.0.0" Enter
+          # Guard against the unit's WorkingDirectory having drifted from this
+          # workspace — it would then serve a different (stale) build than the
+          # one just built here, with nothing to indicate it.
+          want="$WORKSPACE"
+          got=$(systemctl --user show prornd-ui -p WorkingDirectory --value)
+          if [ "$got" != "$want" ]; then
+            echo "FATAL: prornd-ui.service serves '$got' but this build produced '$want'."
+            echo "Update WorkingDirectory in ~/.config/systemd/user/prornd-ui.service"
+            exit 1
+          fi
+
+          systemctl --user restart prornd-ui
         '''
       }
     }
@@ -130,7 +131,7 @@ pipeline {
             sleep 2
           done
           echo "FATAL: nothing answered on $BASE_URL within 60s"
-          echo "Attach with: tmux attach -t $UI_SESSION"
+          echo "Logs: journalctl --user -u prornd-ui -n 50 --no-pager"
           exit 1
         '''
       }
