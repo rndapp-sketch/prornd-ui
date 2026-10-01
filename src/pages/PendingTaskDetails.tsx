@@ -1710,7 +1710,7 @@ const ProjectPreviewModal = ({
             </div>
             {/* Scrollable body */}
             <div className="flex-1 overflow-y-auto">
-                <ProjectDetailsOverview projectName={projectName} embedded />
+                <ProjectDetailsOverview projectName={projectName} embedded hideActions />
             </div>
         </div>
     </div>

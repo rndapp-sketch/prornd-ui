@@ -33,6 +33,7 @@ import {
     Share2 as Share2Icon,
     GraduationCap,
     IdCard,
+    FileSpreadsheet,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -258,8 +259,8 @@ export function AppSidebar() {
             subMenu: [
                 { label: "Projects View", path: "/projects-view" },
                 { label: "Co-Projects", path: "/co-projects" },
-                { label: "Other PI", path: "/other-pi" },
-                { label: "Registration", path: "/project-registration" },
+                { label: "Apply on Other PI Projects", path: "/other-pi" },
+                { label: "Project Registration", path: "/project-registration" },
             ],
         },
         // {
@@ -387,6 +388,11 @@ export function AppSidebar() {
             icon: Search,
             path: "/project-search",
         },
+        {
+            label: "Ledger Export",
+            icon: FileSpreadsheet,
+            path: "/project-ledger-export",
+        },
     ].filter((item) => {
         if (item.label === "Upload Director PDF") {
             return canUploadDirectorPdf;
@@ -400,7 +406,7 @@ export function AppSidebar() {
         if (item.label === "Commit / De-Commit") {
             return roles?.includes("staff, RnD") ?? false;
         }
-        if (item.label === "Project Search") {
+        if (item.label === "Project Search" || item.label === "Ledger Export") {
             return roles?.includes("staff, RnD") ?? false;
         }
         if (item.label === "Universal Forms") {
@@ -626,12 +632,16 @@ export function AppSidebar() {
                 <SidebarContent className="bg-white dark:bg-[#18181B] px-2 py-3">
                     <SidebarGroup>
                         <SidebarMenu className="space-y-0.5">
-                            {menuItems.map((item) => {
+                            {menuItems.map((item, index) => {
                                 if (item.isSubOf) {
                                     if (state !== "expanded") return null;
                                     const isSubActive = item.path ? isActivePath(item.path) : false;
+                                    const endsGroup = !menuItems[index + 1]?.isSubOf && index !== menuItems.length - 1;
                                     return (
-                                        <SidebarMenuItem key={item.label}>
+                                        <SidebarMenuItem
+                                            key={item.label}
+                                            className={cn(endsGroup && "border-b-2 border-[#D4D4D8] dark:border-[#52525B] pb-1 mb-1")}
+                                        >
                                             <SidebarMenuSub className="ml-[1.875rem] pl-3 border-l-[1.5px] border-[#C7D2FE] dark:border-[#4A6CF7]/30 space-y-0.5">
                                                 <SidebarMenuSubItem>
                                                     <SidebarMenuSubButton
@@ -655,8 +665,17 @@ export function AppSidebar() {
                                 const isActive = (item.path && isActivePath(item.path)) || isAnySubMenuActive;
                                 const isSubMenuOpen = openSubMenus.includes(item.label);
 
+                                const hasSubOfChild = !!menuItems[index + 1]?.isSubOf;
+                                const isLastItem = index === menuItems.length - 1;
+
                                 return (
-                                    <SidebarMenuItem key={item.label}>
+                                    <SidebarMenuItem
+                                        key={item.label}
+                                        className={cn(
+                                            !hasSubOfChild && !isLastItem && state === "expanded" &&
+                                                "border-b-2 border-[#D4D4D8] dark:border-[#52525B] pb-1 mb-1",
+                                        )}
+                                    >
                                         <SidebarMenuButton
                                             onClick={() => handleMenuItemClick(item)}
                                             className={cn(
@@ -760,10 +779,14 @@ export function AppSidebar() {
 
                                         {item.subMenu && (isSubMenuOpen || item.alwaysOpen) && state === "expanded" && (
                                             <SidebarMenuSub className="ml-[1.875rem] mt-0.5 space-y-0.5 pl-3 border-l-[1.5px] border-[#C7D2FE] dark:border-[#4A6CF7]/30">
-                                                {item.subMenu.map((subItem) => {
+                                                {item.subMenu.map((subItem, subIndex) => {
                                                     const isSubActive = isActivePath(subItem.path);
+                                                    const isLastSub = subIndex === item.subMenu!.length - 1;
                                                     return (
-                                                        <SidebarMenuSubItem key={subItem.label}>
+                                                        <SidebarMenuSubItem
+                                                            key={subItem.label}
+                                                            className={cn(!isLastSub && "border-b border-[#A1A1AA] dark:border-[#52525B] pb-0.5 mb-0.5")}
+                                                        >
                                                             <SidebarMenuSubButton
                                                                 onClick={() => handleSubMenuItemClick(subItem)}
                                                                 className={cn(

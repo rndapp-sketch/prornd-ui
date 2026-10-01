@@ -21,7 +21,7 @@ import {
   UserCircle,
   Sparkles,
 } from "lucide-react";
-import { GlobalLoader } from "@/components/ui/global-loader";
+import { GlobalLoader, GlobalLoaderHost } from "@/components/ui/global-loader";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { SWRConfig, useSWRConfig } from "swr";
 import { useRef, useEffect, useState } from "react";
@@ -153,6 +153,7 @@ function AppContent() {
 
   return (
     <div className="App bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
+      <GlobalLoaderHost />
       <GlobalLoader isLoading={showGlobalLoader} />
 
       <SWRConfig

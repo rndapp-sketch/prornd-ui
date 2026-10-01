@@ -1267,7 +1267,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                             </button>
                         </div>
                         <div className="p-4">
-                            <ProjectDetailsOverview projectName={prPreviewName} embedded />
+                            <ProjectDetailsOverview projectName={prPreviewName} embedded hideActions />
                         </div>
                     </div>
                 </div>

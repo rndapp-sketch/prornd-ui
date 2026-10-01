@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useFrappePostCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
+import { ThinkingOrbs } from "@/components/ui/thinking-orbs";
 import {
     Search,
     Activity,
@@ -131,28 +132,6 @@ const FrappeCard = ({
         )}
         <div className="p-5">{children}</div>
     </div>
-);
-
-// Three orbs pulsing/bouncing in sequence — used in place of plain
-// "Tracking…" text while the lookup is in flight.
-const ThinkingOrbs = ({
-    size = "w-2 h-2",
-    color = "bg-white",
-    className,
-}: {
-    size?: string;
-    color?: string;
-    className?: string;
-}) => (
-    <span className={cn("inline-flex items-center gap-1", className)}>
-        {[0, 1, 2].map((i) => (
-            <span
-                key={i}
-                className={cn("rounded-full animate-bounce", size, color)}
-                style={{ animationDelay: `${i * 0.15}s`, animationDuration: "0.8s" }}
-            />
-        ))}
-    </span>
 );
 
 const InfoTile = ({

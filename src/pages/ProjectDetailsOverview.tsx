@@ -4444,6 +4444,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                     }
 
                     if (hasSanctionApproved && hasFundReceived) {
+                        if (hideActions) return null;
                         return (
                             <div className="px-4 mb-4">
                                 <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-700">
@@ -6952,6 +6953,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                             funds are received.
                                                         </p>
                                                     </div>
+                                                    {!hideActions && (
                                                     <button
                                                         onClick={handleAddSanctionDetails}
                                                         className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm"
@@ -6959,6 +6961,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                         <PlusIcon className="w-4 h-4" />
                                                         Add Fund Sanction
                                                     </button>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -7183,7 +7186,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                         icon: CreditCardIcon, color: "blue",
                                         done: hasSanctionRecord, active: projectApproved && !hasSanctionRecord,
                                         description: "Add the fund sanction letter details from your funding agency (e.g., DST, SERB, MOES). This registers the total grant amount, sanction number, and budget heads. Once submitted, it goes through the R&D workflow for approval.",
-                                        action: (projectApproved && !hasSanctionRecord ? handleAddSanctionDetails : null) as (() => void) | null,
+                                        action: (!hideActions && projectApproved && !hasSanctionRecord ? handleAddSanctionDetails : null) as (() => void) | null,
                                         actionLabel: "Add Fund Sanction",
                                     },
                                     {
@@ -7198,7 +7201,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                         icon: IndianRupeeIcon, color: "orange",
                                         done: hasFundReceived, active: hasSanctionApproved && !hasFundReceived,
                                         description: "Once the sanction is approved, record each installment of funds received from the funding agency. This updates your project balance and goes through the R&D workflow for verification.",
-                                        action: (hasSanctionApproved && !hasFundReceived ? handleAddFunds : null) as (() => void) | null,
+                                        action: (!hideActions && hasSanctionApproved && !hasFundReceived ? handleAddFunds : null) as (() => void) | null,
                                         actionLabel: "Add Fund Received",
                                     },
                                     {

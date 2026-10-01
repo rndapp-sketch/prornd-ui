@@ -135,6 +135,7 @@ import LeaveModuleForm from './pages/LeaveModuleForm.tsx';
 import LeaveModuleDetails from './pages/LeaveModuleDetails.tsx';
 import FormApplication from './pages/FormApplication.tsx';
 import { ProjectSearch } from './pages/ProjectSearch.tsx';
+import { ProjectLedgerExport } from './pages/ProjectLedgerExport.tsx';
 import NotFound from './pages/NotFound.tsx';
 
 const router = createBrowserRouter(
@@ -430,6 +431,10 @@ const router = createBrowserRouter(
                 {
                     path: "project-search",
                     element: (<AuthRouteWrapper allowedRole="staff, RnD"><ProjectSearch /></AuthRouteWrapper>),
+                },
+                {
+                    path: "project-ledger-export",
+                    element: (<AuthRouteWrapper allowedRole="staff, RnD"><ProjectLedgerExport /></AuthRouteWrapper>),
                 },
                 {
                     path: "project-staff-dashboard",

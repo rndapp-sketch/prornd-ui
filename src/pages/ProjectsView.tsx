@@ -1473,22 +1473,6 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
 
   return (
     <div className="w-full mx-auto space-y-5 animate-in fade-in duration-500">
-      {/* Page Header */}
-      <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
-        <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
-        <div className="flex flex-col gap-1 px-5 py-4">
-          <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">
-            Project Registry
-          </span>
-          <h1 className="font-sans text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
-            Projects
-          </h1>
-          <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
-            Manage and track all your research projects.
-          </p>
-        </div>
-      </div>
-
       <div className="flex flex-wrap gap-2 rounded-xl border border-[#E4E4E7] bg-white p-2 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
         {[
           { id: "myProjects", label: "My Projects", count: myProjects?.length || 0 },

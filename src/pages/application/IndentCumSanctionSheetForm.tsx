@@ -6556,7 +6556,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto">
-              <ProjectDetailsOverview projectName={prPreviewName} embedded />
+              <ProjectDetailsOverview projectName={prPreviewName} embedded hideActions />
             </div>
           </div>
         </div>
