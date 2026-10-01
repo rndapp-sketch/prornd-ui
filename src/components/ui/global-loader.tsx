@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { CrispOrb } from '@/components/ui/crisp-orb';
 
 const DEFAULT_DELAY = 650;
-const DEFAULT_MIN_DURATION = 4000;
+const DEFAULT_MIN_DURATION = 3000;
 
 interface LoaderRequest {
     delay: number;
@@ -47,7 +47,7 @@ interface GlobalLoaderProps {
     className?: string;
     /** Delay in ms before showing the loader. Default 650ms to prevent flash on quick loads */
     delay?: number;
-    /** Once shown, the loader stays up at least this many ms, even if loading finishes sooner. Default 4000ms. */
+    /** Once shown, the loader stays up at least this many ms, even if loading finishes sooner. Default 3000ms. */
     minDuration?: number;
 }
 
@@ -70,6 +70,55 @@ export const GlobalLoader: React.FC<GlobalLoaderProps> = ({
     }, [isLoading, delay, minDuration, className]);
 
     return null;
+};
+
+const WORD = 'PRAGATI'.split('');
+// Blue → orange across the letters, the app's two accent colours.
+const LETTER_COLORS = ['#4A6CF7', '#3F69F2', '#2F66EA', '#6B6FD4', '#A8709A', '#D97757', '#D97757'];
+const CYCLE_MS = 3000; // one full spell-out; repeats for as long as loading lasts
+const FIRST_LETTER_MS = 300;
+const LETTER_STEP_MS = 250;
+const FADE_OUT_AT_MS = 2700;
+
+/** Spells P R A G A T I one letter at a time, then fades out and starts over every CYCLE_MS. */
+const PragatiWord: React.FC = () => {
+    const [visible, setVisible] = useState(0);
+
+    useEffect(() => {
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            setVisible(WORD.length);
+            return;
+        }
+        const start = performance.now();
+        const timer = setInterval(() => {
+            const t = (performance.now() - start) % CYCLE_MS;
+            const next =
+                t >= FADE_OUT_AT_MS
+                    ? 0
+                    : Math.min(WORD.length, Math.max(0, Math.floor((t - FIRST_LETTER_MS) / LETTER_STEP_MS) + 1));
+            setVisible(next);
+        }, 50);
+        return () => clearInterval(timer);
+    }, []);
+
+    return (
+        <div className="flex items-center gap-[0.35em] font-sans text-[26px] font-extrabold leading-none" aria-hidden="true">
+            {WORD.map((letter, i) => (
+                <span
+                    key={i}
+                    className="inline-block transition-all duration-300 ease-out"
+                    style={{
+                        color: LETTER_COLORS[i],
+                        opacity: i < visible ? 1 : 0,
+                        transform: i < visible ? 'translateY(0) scale(1)' : 'translateY(10px) scale(0.85)',
+                        filter: i < visible ? 'blur(0)' : 'blur(4px)',
+                    }}
+                >
+                    {letter}
+                </span>
+            ))}
+        </div>
+    );
 };
 
 /** Draws the overlay for all GlobalLoader requests. Mount once, near the app root. */
@@ -119,12 +168,13 @@ export const GlobalLoaderHost: React.FC = () => {
             aria-label="Loading"
             className={cn(
                 // Frosted glass: heavy blur + a light veil, so the page behind stays visible but soft.
-                "fixed inset-0 z-[100] flex items-center justify-center backdrop-blur-xl backdrop-saturate-150 transition-opacity duration-500",
+                "fixed inset-0 z-[100] flex flex-col items-center justify-center gap-5 backdrop-blur-xl backdrop-saturate-150 transition-opacity duration-500",
                 "bg-gradient-to-br from-white/50 via-white/30 to-white/45 dark:from-[#18181B]/60 dark:via-[#18181B]/40 dark:to-[#18181B]/55",
                 classNameRef.current
             )}
         >
             <CrispOrb size={160} color="#4A6CF7" dotSize={1.35} dots={1.5} />
+            <PragatiWord />
         </div>,
         document.body
     );

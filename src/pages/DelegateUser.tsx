@@ -1,4 +1,5 @@
 import React from "react";
+import { GlobalLoader } from "@/components/ui/global-loader";
 import { useFrappeAuth, useFrappeGetDocList, useFrappePostCall } from "frappe-react-sdk";
 import {
     CheckCircle2,
@@ -492,16 +493,7 @@ const DelegateUser: React.FC = () => {
         }
     };
 
-    if (loading) {
-        return (
-            <div className="flex min-h-[55vh] items-center justify-center">
-                <div className="flex items-center gap-2 text-[13px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">
-                    <Loader2 className="h-4 w-4 animate-spin text-[#4A6CF7]" />
-                    Loading delegation workspace...
-                </div>
-            </div>
-        );
-    }
+    if (loading) return <GlobalLoader isLoading delay={0} />;
 
     return (
         <div className="space-y-5">
