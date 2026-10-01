@@ -1,3 +1,4 @@
+import BudgetHeadBalance from "@/components/BudgetHeadBalance";
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useSWRConfig } from "swr";
@@ -135,12 +136,16 @@ const CommentModal = ({
     onSubmit,
     action,
     isLoading,
+    extra,
+    confirmDisabled = false,
 }: {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (comment: string) => void;
     action: string;
     isLoading: boolean;
+    extra?: React.ReactNode;
+    confirmDisabled?: boolean;
 }) => {
     const [comment, setComment] = React.useState("");
 
@@ -156,6 +161,7 @@ const CommentModal = ({
                 <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
                     Confirm {action}
                 </h3>
+                {extra}
                 <textarea
                     className="w-full border border-zinc-300 dark:border-zinc-700 p-3 rounded-lg text-sm mb-1 resize-none focus:outline-none focus:ring-2 focus:ring-[rgba(217,119,87,0.25)] focus:border-[#D97757]"
                     rows={4}
@@ -176,7 +182,7 @@ const CommentModal = ({
                     </FrappeButton>
                     <FrappeButton
                         onClick={() => onSubmit(comment)}
-                        disabled={isLoading || comment.trim().length === 0}
+                        disabled={isLoading || confirmDisabled || comment.trim().length === 0}
                         className="bg-[#D97757] hover:bg-[#c66a4e] text-white"
                     >
                         {isLoading ? "Processing..." : "Confirm"}
@@ -186,6 +192,9 @@ const CommentModal = ({
         </div>
     );
 };
+
+// The Other-PI approval action ("Approve", "Approve and Forward", ...), but never a reject / put back
+const isPiApproveAction = (action: string) => /approve|forward/i.test(action) && !/reject|put back|cancel/i.test(action);
 
 const ReimbursementWorkflowActions = ({
     docname,
@@ -217,6 +226,7 @@ const ReimbursementWorkflowActions = ({
     const { call: fetchProjectHeads } = useFrappePostCall(
         "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_project_account_heads",
     );
+    const { call: fetchProjectDoc } = useFrappePostCall<{ message: any }>("frappe.client.get");
     const { currentUser } = useFrappeAuth();
 
     const [modalOpen, setModalOpen] = React.useState(false);
@@ -233,6 +243,21 @@ const ReimbursementWorkflowActions = ({
     const [heads, setHeads] = React.useState<any[]>([]);
     const [selectedProject, setSelectedProject] = React.useState("");
     const [selectedHead, setSelectedHead] = React.useState("");
+    const [selectedProjectNo, setSelectedProjectNo] = React.useState("");
+
+    // Auto-fill the project number of the chosen project
+    React.useEffect(() => {
+        const proj = projects.find((p) => p.value === selectedProject);
+        setSelectedProjectNo(selectedProject ? proj?.project_number || proj?.project_no || "" : "");
+        if (!selectedProject) return;
+        fetchProjectDoc({ doctype: "Project Registration", name: selectedProject })
+            .then((res: any) => {
+                const no = res?.message?.project_no;
+                if (no) setSelectedProjectNo(no);
+            })
+            .catch(() => { });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedProject, projects]);
 
     React.useEffect(() => {
         if (!isPiStep) return;
@@ -250,10 +275,6 @@ const ReimbursementWorkflowActions = ({
     }, [selectedProject]);
 
     const handleActionClick = (action: string) => {
-        if (isPiStep && action === "Approve" && (!selectedProject || !selectedHead)) {
-            alert("Please select a project and account head before approving.");
-            return;
-        }
         setSelectedAction(action);
         setModalOpen(true);
     };
@@ -261,11 +282,11 @@ const ReimbursementWorkflowActions = ({
     const handleConfirmAction = async (comment: string) => {
         try {
             const payload: Record<string, any> = { docname, action: selectedAction, comment };
-            if (isPiStep && selectedAction === "Approve") {
+            if (isPiStep && isPiApproveAction(selectedAction)) {
                 const proj = projects.find((p) => p.value === selectedProject);
                 payload.extra_data = JSON.stringify({
                     project_name: selectedProject,
-                    project_number: proj?.project_number || proj?.project_no || "",
+                    project_number: selectedProjectNo || proj?.project_number || proj?.project_no || selectedProject,
                     account_head: selectedHead,
                 });
             }
@@ -280,36 +301,6 @@ const ReimbursementWorkflowActions = ({
 
     return (
         <>
-            {isPiStep && (
-                <div className="flex flex-col gap-2 mb-2 p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
-                    <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">
-                        Approve against one of your projects
-                    </span>
-                    <div className="flex flex-col sm:flex-row gap-2 min-w-0 w-full">
-                        <select
-                            value={selectedProject}
-                            onChange={(e) => setSelectedProject(e.target.value)}
-                            className="min-w-0 w-full flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100"
-                        >
-                            <option value="">Select project…</option>
-                            {projects.map((p) => (
-                                <option key={p.value} value={p.value}>{p.label}</option>
-                            ))}
-                        </select>
-                        <select
-                            value={selectedHead}
-                            onChange={(e) => setSelectedHead(e.target.value)}
-                            disabled={!selectedProject}
-                            className="min-w-0 w-full flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
-                        >
-                            <option value="">Select account head…</option>
-                            {heads.map((h) => (
-                                <option key={h.value} value={h.value}>{h.label}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-            )}
             <div className="flex gap-2">
                 {data.message.map((action) => (
                     <FrappeButton
@@ -328,6 +319,49 @@ const ReimbursementWorkflowActions = ({
                 onSubmit={handleConfirmAction}
                 action={selectedAction}
                 isLoading={actionLoading}
+                confirmDisabled={isPiStep && isPiApproveAction(selectedAction) && (!selectedProject || !selectedHead)}
+                extra={
+                    isPiStep && isPiApproveAction(selectedAction) ? (
+                        <div className="mb-3 flex flex-col gap-2">
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                            To approve this request, select one of your projects and an account head. The available balance of the head is shown before you confirm.
+                          </p>
+                          <select
+                            value={selectedProject}
+                            onChange={(e) => setSelectedProject(e.target.value)}
+                            className="w-full min-w-0 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+                          >
+                            <option value="">Select project…</option>
+                            {projects.map((p) => (
+                              <option key={p.value} value={p.value}>{p.label}</option>
+                            ))}
+                          </select>
+                          {selectedProject && (
+                            <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                              Project number: <span className="font-mono">{selectedProjectNo || "…"}</span>
+                            </span>
+                          )}
+                          <select
+                            value={selectedHead}
+                            onChange={(e) => setSelectedHead(e.target.value)}
+                            disabled={!selectedProject}
+                            className="w-full min-w-0 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+                          >
+                            <option value="">Select account head…</option>
+                            {heads.map((h) => (
+                              <option key={h.value} value={h.value}>{h.label}</option>
+                            ))}
+                          </select>
+                          {selectedProject && selectedHead && (
+                            <BudgetHeadBalance
+                              projectNumber={selectedProjectNo || selectedProject}
+                              headValue={selectedHead}
+                              headLabel={heads.find((h) => h.value === selectedHead)?.label}
+                            />
+                          )}
+                        </div>
+                    ) : undefined
+                }
             />
         </>
     );

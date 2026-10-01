@@ -1,3 +1,4 @@
+import BudgetHeadBalance from "@/components/BudgetHeadBalance";
 import React, { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
@@ -151,12 +152,16 @@ const CommentModal = ({
   onSubmit,
   action,
   isLoading,
+  extra,
+  confirmDisabled = false,
 }: {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (comment: string) => void;
   action: string;
   isLoading: boolean;
+  extra?: React.ReactNode;
+  confirmDisabled?: boolean;
 }) => {
   const [comment, setComment] = useState("");
 
@@ -168,6 +173,7 @@ const CommentModal = ({
         <h3 className="text-lg font-semibold text-[#3F3F46] dark:text-[#E4E4E7] mb-4">
           Confirm {action}
         </h3>
+        {extra}
         <textarea
           className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] p-3 rounded-lg text-sm mb-1 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757]"
           rows={4}
@@ -182,7 +188,7 @@ const CommentModal = ({
         )}
         <div className="flex justify-end gap-2 mt-3">
           <FrappeButton variant="outline" onClick={onClose} disabled={isLoading}>Cancel</FrappeButton>
-          <FrappeButton variant="primary" onClick={() => onSubmit(comment)} disabled={isLoading || comment.trim().length === 0}>
+          <FrappeButton variant="primary" onClick={() => onSubmit(comment)} disabled={isLoading || confirmDisabled || comment.trim().length === 0}>
             {isLoading ? "Processing..." : "Confirm"}
           </FrappeButton>
         </div>
@@ -190,6 +196,9 @@ const CommentModal = ({
     </div>
   );
 };
+
+// The Other-PI approval action ("Approve", "Approve and Forward", ...), but never a reject / put back
+const isPiApproveAction = (action: string) => /approve|forward/i.test(action) && !/reject|put back|cancel/i.test(action);
 
 // --- ACTIONS DROPDOWN ---
 const ActionsDropdown = ({
@@ -228,6 +237,7 @@ const ActionsDropdown = ({
   const { call: fetchProjectHeads } = useFrappePostCall(
     "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_project_account_heads",
   );
+  const { call: fetchProjectDoc } = useFrappePostCall<{ message: any }>("frappe.client.get");
   const { call: addComment } = useFrappePostCall(
     "rndopsapp.rndopsapp.api.add_project_comment",
   );
@@ -244,6 +254,21 @@ const ActionsDropdown = ({
   const [piHeads, setPiHeads] = useState<any[]>([]);
   const [selectedProject, setSelectedProject] = useState("");
   const [selectedHead, setSelectedHead] = useState("");
+  const [selectedProjectNo, setSelectedProjectNo] = useState("");
+
+  // Auto-fill the project number of the chosen project
+  React.useEffect(() => {
+    const proj = piProjects.find((p) => p.value === selectedProject);
+    setSelectedProjectNo(selectedProject ? proj?.project_number || proj?.project_no || "" : "");
+    if (!selectedProject) return;
+    fetchProjectDoc({ doctype: "Project Registration", name: selectedProject })
+      .then((res: any) => {
+        const no = res?.message?.project_no;
+        if (no) setSelectedProjectNo(no);
+      })
+      .catch(() => { });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProject, piProjects]);
 
   React.useEffect(() => {
     if (!isPiStep) return;
@@ -291,10 +316,6 @@ const ActionsDropdown = ({
   };
 
   const handleWorkflowClick = (action: string) => {
-    if (isPiStep && action.toLowerCase() === "approve" && (!selectedProject || !selectedHead)) {
-      alert("Please select a project and account head before approving.");
-      return;
-    }
     setDropdownOpen(false);
     setSelectedAction(action);
     setModalOpen(true);
@@ -303,11 +324,11 @@ const ActionsDropdown = ({
   const handleConfirmAction = async (comment: string) => {
     try {
       const payload: Record<string, any> = { docname, action: selectedAction };
-      if (isPiStep && selectedAction.toLowerCase() === "approve") {
+      if (isPiStep && isPiApproveAction(selectedAction)) {
         const proj = piProjects.find((p) => p.value === selectedProject);
         payload.extra_data = JSON.stringify({
           project_name: selectedProject,
-          project_number: proj?.project_number || proj?.project_no || "",
+          project_number: selectedProjectNo || proj?.project_number || proj?.project_no || selectedProject,
           account_head: selectedHead,
         });
       }
@@ -396,41 +417,6 @@ const ActionsDropdown = ({
               </span>
             </div>
 
-            {/* Other-PI approval: PI selects one of their own projects + account head */}
-            {isPiStep && (
-              <div className="px-3 pt-3 pb-1 flex flex-col gap-2 border-b border-zinc-100 dark:border-zinc-700">
-                <span className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-300">
-                  Approve against one of your projects
-                </span>
-                <select
-                  value={selectedProject}
-                  onChange={(e) => setSelectedProject(e.target.value)}
-                  className="w-full min-w-0 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-[12px] text-zinc-900 dark:text-zinc-100"
-                >
-                  <option value="">Select project…</option>
-                  {piProjects.map((p) => (
-                    <option key={p.value} value={p.value}>{p.label}</option>
-                  ))}
-                </select>
-                <select
-                  value={selectedHead}
-                  onChange={(e) => setSelectedHead(e.target.value)}
-                  disabled={!selectedProject}
-                  className="w-full min-w-0 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-[12px] text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
-                >
-                  <option value="">Select account head…</option>
-                  {piHeads.map((h) => (
-                    <option key={h.value} value={h.value}>{h.label}</option>
-                  ))}
-                </select>
-                {(!selectedProject || !selectedHead) && (
-                  <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400">
-                    Select a project and account head to enable Approve.
-                  </span>
-                )}
-              </div>
-            )}
-
             {/* Commit gate warning */}
             {commitRequired && (
               <div className="mx-3 mt-3 mb-1 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
@@ -471,11 +457,8 @@ const ActionsDropdown = ({
                       {group.map((action) => {
                         const a = action.toLowerCase();
                         const exempt = categorise(action) === "reject" || a.includes("put back");
-                        const needsPiSelection = isPiStep && a === "approve" && (!selectedProject || !selectedHead);
-                        const blocked = (commitRequired && !exempt) || needsPiSelection;
-                        const blockedMessage = needsPiSelection
-                          ? "Select a project and account head before approving."
-                          : "A commitment must be submitted before proceeding.";
+                        const blocked = commitRequired && !exempt;
+                        const blockedMessage = "A commitment must be submitted before proceeding.";
                         const { icon, cls, iconCls } = itemStyle(action);
                         return (
                           <div key={action} className="relative group/item">
@@ -519,6 +502,49 @@ const ActionsDropdown = ({
         onSubmit={handleConfirmAction}
         action={selectedAction}
         isLoading={actionLoading}
+        confirmDisabled={isPiStep && isPiApproveAction(selectedAction) && (!selectedProject || !selectedHead)}
+        extra={
+          isPiStep && isPiApproveAction(selectedAction) ? (
+            <div className="mb-3 flex flex-col gap-2">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                To approve this request, select one of your projects and an account head. The available balance of the head is shown before you confirm.
+              </p>
+              <select
+                value={selectedProject}
+                onChange={(e) => setSelectedProject(e.target.value)}
+                className="w-full min-w-0 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+              >
+                <option value="">Select project…</option>
+                {piProjects.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
+              {selectedProject && (
+                <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                  Project number: <span className="font-mono">{selectedProjectNo || "…"}</span>
+                </span>
+              )}
+              <select
+                value={selectedHead}
+                onChange={(e) => setSelectedHead(e.target.value)}
+                disabled={!selectedProject}
+                className="w-full min-w-0 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+              >
+                <option value="">Select account head…</option>
+                {piHeads.map((h) => (
+                  <option key={h.value} value={h.value}>{h.label}</option>
+                ))}
+              </select>
+              {selectedProject && selectedHead && (
+                <BudgetHeadBalance
+                  projectNumber={selectedProjectNo || selectedProject}
+                  headValue={selectedHead}
+                  headLabel={piHeads.find((h) => h.value === selectedHead)?.label}
+                />
+              )}
+            </div>
+          ) : undefined
+        }
       />
     </>
   );
@@ -1281,9 +1307,9 @@ const ReimbursementDetails: React.FC = () => {
               <div className="relative flex items-start gap-3 px-4 py-3.5 rounded-xl shadow-2xl border-2 border-[#D97757] bg-white dark:bg-zinc-900">
                 <AlertTriangle className="w-5 h-5 mt-0.5 text-[#D97757] shrink-0" />
                 <p className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-100 leading-snug">
-                  Use the <span className="font-extrabold text-[#D97757]">Actions</span> button
-                  in the top right to select the project and account head against which this
-                  reimbursement amount will be processed.
+                  Click <span className="font-extrabold text-[#D97757]">Actions → Approve</span> in
+                  the top right. A window will open where you select the project and account head
+                  for this reimbursement, check the available balance, and then approve.
                 </p>
                 <button
                   onClick={() => setShowPiHint(false)}
