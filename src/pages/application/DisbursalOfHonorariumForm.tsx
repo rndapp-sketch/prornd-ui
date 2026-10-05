@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useFrappePostCall, useFrappeGetDoc } from 'frappe-react-sdk';
@@ -62,7 +63,7 @@ const uploadFileToFrappe = async (file: File): Promise<string> => {
     const fd = new FormData();
     fd.append("file", file, file.name);
     fd.append("is_private", "0");
-    const response = await fetch("/api/method/upload_file", {
+    const response = await fetch(`${FRAPPE_BASE_URL}/api/method/upload_file`, {
         method: "POST",
         body: fd,
         headers: {
@@ -120,7 +121,7 @@ const callSaveApi = async (endpoint: string, formData: Record<string, any>): Pro
     const fd = new globalThis.FormData();
     fd.append('data', JSON.stringify(data));
 
-    const response = await fetch(`/api/method/${endpoint}`, {
+    const response = await fetch(`${FRAPPE_BASE_URL}/api/method/${endpoint}`, {
         method: 'POST',
         body: fd,
         headers: {

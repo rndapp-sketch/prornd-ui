@@ -1,3 +1,5 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
+
 export function generateInstituteReportHtml(
     projects: any[],
     reportType: string,
@@ -217,7 +219,7 @@ export function generateInstituteReportHtml(
         <!-- HEADER -->
         <div class="header-row">
             <div class="logo-left">
-                <img src="http://172.16.131.206:8000/files/IITG_logo.png" alt="IITG" onerror="this.style.display='none'">
+                <img src="${FRAPPE_BASE_URL}/files/IITG_logo.png" alt="IITG" onerror="this.style.display='none'">
             </div>
             <div class="header-center">
                 <div class="header-hindi">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>

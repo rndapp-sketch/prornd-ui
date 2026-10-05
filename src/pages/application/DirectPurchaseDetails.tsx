@@ -2,6 +2,7 @@
 
 // -=-=-=======================================================================================
 
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useEffect, useRef, useState } from "react";
 import { getFileUrl } from "@/utils/fileUtils";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -1925,7 +1926,7 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
 
     const postApi = async (method: string, bodyParams: Record<string, string>) => {
         const body = new URLSearchParams(bodyParams);
-        const res = await fetch(`/api/method/${method}`, {
+        const res = await fetch(`${FRAPPE_BASE_URL}/api/method/${method}`, {
             method: "POST",
             credentials: "include",
             headers: {
@@ -1985,7 +1986,7 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
                 // Find existing PO Commit Adjustment linked to this DP
                 const fsFilters = JSON.stringify([["frap_app_id", "=", dpId]]);
                 const fsRes = await fetch(
-                    `/api/method/frappe.client.get_list?doctype=PO Commit Adjustment&filters=${encodeURIComponent(fsFilters)}&fields=${encodeURIComponent('["name"]')}&limit=1`,
+                    `${FRAPPE_BASE_URL}/api/method/frappe.client.get_list?doctype=PO Commit Adjustment&filters=${encodeURIComponent(fsFilters)}&fields=${encodeURIComponent('["name"]')}&limit=1`,
                     { credentials: "include", headers: { Accept: "application/json" } },
                 ).then((r) => r.json()).catch(() => ({ message: [] }));
                 const existingDoc: string = fsRes?.message?.[0]?.name || "";
@@ -2802,7 +2803,7 @@ const DirectPurchaseDetails: React.FC = () => {
                     JSON.stringify([["reference_name", "=", id]])
                 );
                 const stagingRes = await fetch(
-                    `/api/v2/document/Kafka Commit Staging?filters=${encodedFilter}&fields=["*"]`,
+                    `${FRAPPE_BASE_URL}/api/v2/document/Kafka Commit Staging?filters=${encodedFilter}&fields=["*"]`,
                     { credentials: "include" }
                 );
                 if (!stagingRes.ok || cancelled) return;
@@ -2829,7 +2830,7 @@ const DirectPurchaseDetails: React.FC = () => {
                     ...(budgetHead ? { budgetHead: String(budgetHead) } : {}),
                 });
                 const refRes = await fetch(
-                    `/api/method/rndopsapp.rndopsapp.doctype.dp_po.dp_po.ref_details_id?${params}`,
+                    `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.dp_po.dp_po.ref_details_id?${params}`,
                     { credentials: "include" }
                 );
                 if (!refRes.ok || cancelled) return;
@@ -2870,7 +2871,7 @@ const DirectPurchaseDetails: React.FC = () => {
         const fetchBudgetHeads = async () => {
             try {
                 const response = await fetch(
-                    '/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0',
+                    `${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0`,
                     { credentials: "include", headers: { Accept: "application/json" } },
                 );
                 if (!response.ok) {
@@ -2975,7 +2976,7 @@ const DirectPurchaseDetails: React.FC = () => {
                 // ── 1. Fetch Sanction Sheet ────────────────────────────────────
                 const filters = JSON.stringify([["app_id", "=", id]]);
                 const listRes = await fetch(
-                    `/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`,
+                    `${FRAPPE_BASE_URL}/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`,
                     { credentials: "include", headers: { Accept: "application/json" } },
                 )
                     .then((r) => r.json())
@@ -2984,7 +2985,7 @@ const DirectPurchaseDetails: React.FC = () => {
                 const ssName = listRes?.data?.[0]?.name;
                 if (!ssName) return;
 
-                const ssRes = await fetch("/api/method/frappe.client.get", {
+                const ssRes = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get`, {
                     method: "POST",
                     credentials: "include",
                     headers: {
@@ -3002,7 +3003,7 @@ const DirectPurchaseDetails: React.FC = () => {
 
                 // ── 2. Look up existing dp_po for this Direct Purchase ─────────
                 const dpPoRes = await fetch(
-                    `/api/method/${dpPoAPI.getByDirectPurchase}`,
+                    `${FRAPPE_BASE_URL}/api/method/${dpPoAPI.getByDirectPurchase}`,
                     {
                         method: "POST",
                         credentials: "include",
@@ -3023,7 +3024,7 @@ const DirectPurchaseDetails: React.FC = () => {
                 // ── 3. Auto-create dp_po if it doesn't exist yet ──────────────
                 if (!dpPoName) {
                     const genRes = await fetch(
-                        `/api/method/${dpPoAPI.generateFromSS}`,
+                        `${FRAPPE_BASE_URL}/api/method/${dpPoAPI.generateFromSS}`,
                         {
                             method: "POST",
                             credentials: "include",
@@ -3045,7 +3046,7 @@ const DirectPurchaseDetails: React.FC = () => {
 
                     if (dpPoName) {
                         const freshRes = await fetch(
-                            `/api/method/${dpPoAPI.getByDirectPurchase}`,
+                            `${FRAPPE_BASE_URL}/api/method/${dpPoAPI.getByDirectPurchase}`,
                             {
                                 method: "POST",
                                 credentials: "include",
@@ -3071,7 +3072,7 @@ const DirectPurchaseDetails: React.FC = () => {
                     try {
                         const csrf = (window as any).csrf_token || "";
                         // Find who holds the HoS RnD role
-                        const roleRes = await fetch("/api/method/frappe.client.get_list", {
+                        const roleRes = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, {
                             method: "POST",
                             credentials: "include",
                             headers: { "Content-Type": "application/json", Accept: "application/json", "X-Frappe-CSRF-Token": csrf },
@@ -3081,7 +3082,7 @@ const DirectPurchaseDetails: React.FC = () => {
                         const hosEmail = roleRes?.message?.[0]?.parent || "";
                         const targetEmail = hosEmail || "rndadmin@iitg.ac.in";
 
-                        const detailsRes = await fetch(`/api/method/${directPurchaseAPI.getUserDetails}`, {
+                        const detailsRes = await fetch(`${FRAPPE_BASE_URL}/api/method/${directPurchaseAPI.getUserDetails}`, {
                             method: "POST",
                             credentials: "include",
                             headers: { "Content-Type": "application/json", Accept: "application/json", "X-Frappe-CSRF-Token": csrf },
@@ -3184,7 +3185,7 @@ const DirectPurchaseDetails: React.FC = () => {
                 : [],
         };
 
-        const res = await fetch(`/api/method/${dpPoAPI.save}`, {
+        const res = await fetch(`${FRAPPE_BASE_URL}/api/method/${dpPoAPI.save}`, {
             method: "POST",
             credentials: "include",
             headers: {
@@ -3234,7 +3235,7 @@ const DirectPurchaseDetails: React.FC = () => {
             if (!ssName) {
                 const filters = JSON.stringify([["app_id", "=", id]]);
                 const listRes = await fetch(
-                    `/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name","project_no"]')}`,
+                    `${FRAPPE_BASE_URL}/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name","project_no"]')}`,
                     {
                         credentials: "include",
                         headers: { Accept: "application/json" },
@@ -3253,7 +3254,7 @@ const DirectPurchaseDetails: React.FC = () => {
                 project_no: projectNo || "",
             });
             const res = await fetch(
-                `/api/method/rndopsapp.rndopsapp.doctype.direct_purchase.direct_purchase.get_po_document?${params}`,
+                `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.direct_purchase.direct_purchase.get_po_document?${params}`,
                 {
                     credentials: "include",
                     headers: { Accept: "application/json" },
@@ -3302,7 +3303,7 @@ const DirectPurchaseDetails: React.FC = () => {
         try {
             const filters = JSON.stringify([["app_id", "=", id]]);
             const res = await fetch(
-                `/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=["name"]`,
+                `${FRAPPE_BASE_URL}/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=["name"]`,
                 {
                     credentials: "include",
                     headers: { Accept: "application/json" },
@@ -3835,7 +3836,7 @@ const DirectPurchaseDetails: React.FC = () => {
                                                         "",
                                                     );
                                                     const res = await fetch(
-                                                        "/api/method/rndopsapp.rndopsapp.doctype.direct_purchase.direct_purchase.upload_po_document",
+                                                        `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.direct_purchase.direct_purchase.upload_po_document`,
                                                         {
                                                             method: "POST",
                                                             body: formData,

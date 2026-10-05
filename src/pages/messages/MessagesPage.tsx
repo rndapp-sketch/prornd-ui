@@ -18,7 +18,7 @@ import {
     useMessageUserProfiles,
 } from "@/hooks/useMessageUserProfiles";
 import { useMessages } from "@/hooks/useMessages";
-import { ConversationList } from "./components/ConversationList";
+import { ConversationList, getUniqueConversations } from "./components/ConversationList";
 import { MessageThread } from "./components/MessageThread";
 import { MessageComposer } from "./components/MessageComposer";
 import { ForwardMessageDialog } from "./components/ForwardMessageDialog";
@@ -77,6 +77,7 @@ function playNotificationPing() {
     if (!AudioContextCtor) return;
 
     const context = new AudioContextCtor();
+    void context.resume();
     const oscillator = context.createOscillator();
     const gain = context.createGain();
     const now = context.currentTime;
@@ -159,7 +160,9 @@ export default function MessagesPage() {
             ? Notification.permission
             : "denied",
     );
-    const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+    const [notificationsEnabled, setNotificationsEnabled] = useState(
+        () => localStorage.getItem("messageNotificationsEnabled") !== "0",
+    );
     const seenMessageIdsRef = useRef<Set<string>>(new Set());
     const unreadTotalRef = useRef<number | null>(null);
     const lastPingAtRef = useRef(0);
@@ -189,18 +192,32 @@ export default function MessagesPage() {
         playNotificationPing();
     }, [notificationsEnabled]);
 
+    // Default is On: ask for pop-up permission up front (browsers that need a click first
+    // simply ignore this; the first click on the toggle or page will still work).
+    useEffect(() => {
+        if (!notificationsEnabled || !("Notification" in window)) return;
+        if (Notification.permission !== "default") return;
+        Notification.requestPermission()
+            .then(setNotificationPermission)
+            .catch(() => {});
+    }, [notificationsEnabled]);
+
+    // On/Off controls the ping sound and the desktop pop-up. The pop-up additionally needs
+    // browser permission, which is asked for when switching On but never blocks the switch
+    // (permission is unavailable on plain-http origins and may be denied by the user).
     const handleNotifyToggle = useCallback(async () => {
-        if (!notificationsEnabled) {
-            if (notificationPermission !== "granted") {
-                const permission = await Notification.requestPermission();
-                setNotificationPermission(permission);
-                if (permission !== "granted") return;
+        const next = !notificationsEnabled;
+        setNotificationsEnabled(next);
+        localStorage.setItem("messageNotificationsEnabled", next ? "1" : "0");
+        if (!next) return;
+        if ("Notification" in window && Notification.permission === "default") {
+            try {
+                setNotificationPermission(await Notification.requestPermission());
+            } catch {
+                /* permission prompt unsupported; sound alerts still work */
             }
-            setNotificationsEnabled(true);
-            return;
         }
-        setNotificationsEnabled(false);
-    }, [notificationPermission, notificationsEnabled]);
+    }, [notificationsEnabled]);
 
     const selectConversation = useCallback((id: string) => {
         const next = new URLSearchParams(searchParams);
@@ -436,7 +453,7 @@ export default function MessagesPage() {
                                 Threads
                             </div>
                             <div className="text-[18px] font-extrabold leading-none text-[#2563EB]">
-                                {conversations.length}
+                                {getUniqueConversations(conversations, myEmail).length}
                             </div>
                         </div>
                         <div className="rounded-xl border border-[#E4E4E7] bg-[#FAFAF9] px-3 py-2 dark:border-[#3F3F46] dark:bg-[#18181B]">
@@ -460,18 +477,24 @@ export default function MessagesPage() {
                             type="button"
                             onClick={handleNotifyToggle}
                             className="rounded-xl border border-[#E4E4E7] bg-[#FAFAF9] px-3 py-2 text-left transition-colors hover:border-[#4A6CF7]/40 hover:bg-[#EEF2FF] dark:border-[#3F3F46] dark:bg-[#18181B]"
-                            title="Toggle message notifications"
+                            title={
+                                notificationsEnabled
+                                    ? notificationPermission === "granted"
+                                        ? "Notifications on (sound + pop-up). Click to turn off."
+                                        : "Sound on. Pop-ups need browser notification permission. Click to turn off."
+                                    : "Notifications off. Click to turn on."
+                            }
                         >
                             <div className="text-[10px] font-bold uppercase tracking-widest text-[#A1A1AA]">
                                 Notify
                             </div>
                             <div className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-extrabold text-blue-700 dark:bg-blue-950/30 dark:text-blue-400">
-                                {notificationsEnabled && notificationPermission === "granted" ? (
+                                {notificationsEnabled ? (
                                     <BellRing className="h-3 w-3" />
                                 ) : (
                                     <Bell className="h-3 w-3" />
                                 )}
-                                {notificationsEnabled && notificationPermission === "granted" ? "On" : "Off"}
+                                {notificationsEnabled ? "On" : "Off"}
                             </div>
                         </button>
                     </div>

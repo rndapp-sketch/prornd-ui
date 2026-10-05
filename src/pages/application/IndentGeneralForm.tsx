@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
@@ -248,11 +249,11 @@ const IndentGeneralForm: React.FC = () => {
                 // Fetch budget heads, form fields, and user list in parallel
                 const [res, budgetHeadRes, userRes] = await Promise.all([
                     fetchFields({ doc_name: editDocName || null }),
-                    fetch('/api/resource/Budget%20Head?fields=["name","budget_head"]&order_by=budget_head asc&limit_page_length=0', {
+                    fetch(`${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["name","budget_head"]&order_by=budget_head asc&limit_page_length=0`, {
                         credentials: "include",
                         headers: { Accept: "application/json" },
                     }).then((r) => r.json()).catch(() => ({ data: [] })),
-                    fetch('/api/resource/User?fields=["name","full_name"]&filters=[["enabled","=",1]]&limit_page_length=0', {
+                    fetch(`${FRAPPE_BASE_URL}/api/resource/User?fields=["name","full_name"]&filters=[["enabled","=",1]]&limit_page_length=0`, {
                         credentials: "include",
                         headers: { Accept: "application/json" },
                     }).then((r) => r.json()).catch(() => ({ data: [] })),

@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React from "react";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { useFrappeAuth, useFrappeGetDocList, useFrappePostCall } from "frappe-react-sdk";
@@ -231,7 +232,7 @@ const DelegateUser: React.FC = () => {
                 activeDelegations.map(async (delegation) => {
                     try {
                         const response = await fetch(
-                            `/api/resource/User%20Delegation/${encodeURIComponent(delegation.name)}`,
+                            `${FRAPPE_BASE_URL}/api/resource/User%20Delegation/${encodeURIComponent(delegation.name)}`,
                             { credentials: "include" },
                         );
                         if (!response.ok) return [delegation.name, null] as const;

@@ -1147,10 +1147,10 @@ ansi-styles@^4.1.0:
   dependencies:
     color-convert "^2.0.1"
 
-appwrite@^25.0.0:
-  version "25.1.1"
-  resolved "https://registry.npmjs.org/appwrite/-/appwrite-25.1.1.tgz"
-  integrity sha512-h+vVPErfCLZ9FCnWH1cZOphgX8MsXNNN0PvxCxoOCbqyX6XubtvvOEpp/BpVOAHp7jIDFEJu72ingBu9kh1vDQ==
+appwrite@~24.2.0:
+  version "24.2.0"
+  resolved "https://registry.npmjs.org/appwrite/-/appwrite-24.2.0.tgz"
+  integrity sha512-P5ZhB05RJ7wgCJ23cuu+IT/BtIl5hdru6qa5OXGEz13ZIrHp24gL3C5PGS8Xvv+SIlYGJeBiGpK1vCdekH9YOg==
   dependencies:
     json-bigint "1.0.0"
 

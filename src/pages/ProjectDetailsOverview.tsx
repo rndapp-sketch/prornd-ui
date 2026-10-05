@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import { getFileUrl } from "@/utils/fileUtils";
 import { normalizeProjectType } from "@/utils/projectTypeMapping";
 import React, {
@@ -917,7 +918,7 @@ const QuickActions = ({
 
         try {
             // Direct fetch to v2 document API for the filtered settlement records
-            const apiUrl = `/api/v2/document/TA DA Settlement?filters=[["ta_da_travel_application","=","${item.name}"]]&fields=["*"]`;
+            const apiUrl = `${FRAPPE_BASE_URL}/api/v2/document/TA DA Settlement?filters=[["ta_da_travel_application","=","${item.name}"]]&fields=["*"]`;
 
             const response = await fetch(apiUrl, {
                 method: "GET",
@@ -976,7 +977,7 @@ const QuickActions = ({
                 ["project_no", "=", projectNo || projectName],
                 ["app_id", "=", item.name],
             ]);
-            const apiUrl = `/api/v2/document/P_11 Form?filters=${encodeURIComponent(filters)}&fields=["*"]`;
+            const apiUrl = `${FRAPPE_BASE_URL}/api/v2/document/P_11 Form?filters=${encodeURIComponent(filters)}&fields=["*"]`;
 
             const response = await fetch(apiUrl, {
                 method: "GET",
@@ -1012,7 +1013,7 @@ const QuickActions = ({
         if (!confirm(`Are you sure you want to delete draft "${item.name}"? This cannot be undone.`)) return;
         setDeletingDraftName(item.name);
         try {
-            const res = await fetch(`/api/resource/Direct Purchase/${item.name}`, {
+            const res = await fetch(`${FRAPPE_BASE_URL}/api/resource/Direct Purchase/${item.name}`, {
                 method: "DELETE",
                 headers: { Accept: "application/json" },
                 credentials: "include",
@@ -1034,7 +1035,7 @@ const QuickActions = ({
         if (!confirm(`Are you sure you want to delete draft "${item.name}"? This cannot be undone.`)) return;
         setDeletingDraftName(item.name);
         try {
-            const res = await fetch(`/api/resource/Disbursal of Honorarium/${item.name}`, {
+            const res = await fetch(`${FRAPPE_BASE_URL}/api/resource/Disbursal of Honorarium/${item.name}`, {
                 method: "DELETE",
                 headers: { Accept: "application/json" },
                 credentials: "include",
@@ -1199,7 +1200,7 @@ const QuickActions = ({
                 try {
                     // Use direct fetch to Frappe REST API with cache-busting
                     const timestamp = Date.now();
-                    const apiUrl = `/api/resource/Reimbursement?fields=["name","creation","workflow_state","owner","project_name","project_number","applicant_webmail","comment"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    const apiUrl = `${FRAPPE_BASE_URL}/api/resource/Reimbursement?fields=["name","creation","workflow_state","owner","project_name","project_number","applicant_webmail","comment"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
 
                     const fetchResponse = await fetch(apiUrl, {
                         method: "GET",
@@ -1258,7 +1259,7 @@ const QuickActions = ({
                     const filters = projectCode
                         ? `&filters=[["project_code","=","${projectCode}"]]`
                         : "";
-                    const apiUrl = `/api/v2/document/Temporary Advance?fields=["*"]&limit_page_length=0${filters}&_=${timestamp}`;
+                    const apiUrl = `${FRAPPE_BASE_URL}/api/v2/document/Temporary Advance?fields=["*"]&limit_page_length=0${filters}&_=${timestamp}`;
 
 
                     const fetchResponse = await fetch(apiUrl, {
@@ -1345,7 +1346,7 @@ const QuickActions = ({
                 }));
             } else if (selectedApplication === "Rate Contract") {
                 try {
-                    const apiUrl = `/api/resource/Rate Contract?fields=["name","creation","workflow_state","owner","project_name","email_id"]&order_by=creation desc&limit_page_length=0`;
+                    const apiUrl = `${FRAPPE_BASE_URL}/api/resource/Rate Contract?fields=["name","creation","workflow_state","owner","project_name","email_id"]&order_by=creation desc&limit_page_length=0`;
                     const fetchResponse = await fetch(apiUrl, {
                         method: "GET",
                         headers: { Accept: "application/json" },
@@ -1370,7 +1371,7 @@ const QuickActions = ({
                 }
             } else if (selectedApplication === "Rate Contract") {
                 try {
-                    const apiUrl = `/api/resource/Rate Contract?fields=["name","creation","workflow_state","owner","project_name","email_id"]&order_by=creation desc&limit_page_length=0`;
+                    const apiUrl = `${FRAPPE_BASE_URL}/api/resource/Rate Contract?fields=["name","creation","workflow_state","owner","project_name","email_id"]&order_by=creation desc&limit_page_length=0`;
                     const fetchResponse = await fetch(apiUrl, {
                         method: "GET",
                         headers: { Accept: "application/json" },
@@ -1407,7 +1408,7 @@ const QuickActions = ({
                         ? `&filters=${encodeURIComponent(JSON.stringify([["travel_project_title", "=", projectName]]))}`
                         : "";
                     const travelPromise = fetch(
-                        `/api/v2/document/Travel?fields=["name","creation","workflow_state","owner","travel_project_title","travel_project_number","webmail_id_travel","applicant_name_travel"]&order_by=creation desc&limit_page_length=100000&limit=100000${travelFilters}`,
+                        `${FRAPPE_BASE_URL}/api/v2/document/Travel?fields=["name","creation","workflow_state","owner","travel_project_title","travel_project_number","webmail_id_travel","applicant_name_travel"]&order_by=creation desc&limit_page_length=100000&limit=100000${travelFilters}`,
                         {
                             method: "GET",
                             headers: { Accept: "application/json" },
@@ -1416,7 +1417,7 @@ const QuickActions = ({
                     ).then((res) => (res.ok ? res.json() : { data: [] }));
 
                     const settlementPromise = fetch(
-                        `/api/resource/TA%20DA%20Settlement?fields=["name","creation","workflow_state","owner","ta_da_project_code","ta_da_name","ta_da_travel_application","ta_da_total_claimed","ta_da_net_claimed","docstatus"]&filters=[["ta_da_project_code","=","${projectName}"]]&order_by=creation desc&limit_page_length=0`,
+                        `${FRAPPE_BASE_URL}/api/resource/TA%20DA%20Settlement?fields=["name","creation","workflow_state","owner","ta_da_project_code","ta_da_name","ta_da_travel_application","ta_da_total_claimed","ta_da_net_claimed","docstatus"]&filters=[["ta_da_project_code","=","${projectName}"]]&order_by=creation desc&limit_page_length=0`,
                         {
                             method: "GET",
                             headers: { Accept: "application/json" },
@@ -1467,7 +1468,7 @@ const QuickActions = ({
                 try {
                     const timestamp = Date.now();
                     const tufProjectNo = projectNo || projectName;
-                    const apiUrl = `/api/resource/Top%20Up%20Fellowship?fields=["name","creation","workflow_state","owner","project_no","project_title","pi_webmail","coordinating_pi_webmail","docstatus"]&filters=[["project_no","=","${tufProjectNo}"]]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    const apiUrl = `${FRAPPE_BASE_URL}/api/resource/Top%20Up%20Fellowship?fields=["name","creation","workflow_state","owner","project_no","project_title","pi_webmail","coordinating_pi_webmail","docstatus"]&filters=[["project_no","=","${tufProjectNo}"]]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
                     const fetchResponse = await fetch(apiUrl, {
                         method: "GET",
                         headers: { Accept: "application/json" },
@@ -1507,7 +1508,7 @@ const QuickActions = ({
                     // Use v2 document API to avoid 403 permission issues and include project fields for filtering.
                     // The v2 endpoint does not treat limit_page_length=0 as "unlimited" the way
                     // the v1 REST API does, so pass an explicit high ceiling for both param names instead.
-                    const apiUrl = `/api/v2/document/Disbursal of Honorarium?fields=["name","creation","modified","name_of_applicant","webmail_id","owner","workflow_state","total_amount","project_no"]&order_by=creation desc&limit_page_length=100000&limit=100000${filters}&_=${timestamp}`;
+                    const apiUrl = `${FRAPPE_BASE_URL}/api/v2/document/Disbursal of Honorarium?fields=["name","creation","modified","name_of_applicant","webmail_id","owner","workflow_state","total_amount","project_no"]&order_by=creation desc&limit_page_length=100000&limit=100000${filters}&_=${timestamp}`;
                     const fetchResponse = await fetch(apiUrl, {
                         method: "GET",
                         headers: { Accept: "application/json" },
@@ -1538,7 +1539,7 @@ const QuickActions = ({
                     const timestamp = Date.now();
                     // Use v2 document API (not v1 /api/resource/) to avoid 403 permission
                     // issues for non-System-Manager roles, same fix applied to Disbursal of Honorarium.
-                    const apiUrl = `/api/v2/document/Disbursal of Consultancy?fields=["name","creation","workflow_state","owner","total_disbursal_amount","disbursal_project_number","project_title","webmail_id","pi_name"]&order_by=creation desc&limit_page_length=100000&limit=100000&_=${timestamp}`;
+                    const apiUrl = `${FRAPPE_BASE_URL}/api/v2/document/Disbursal of Consultancy?fields=["name","creation","workflow_state","owner","total_disbursal_amount","disbursal_project_number","project_title","webmail_id","pi_name"]&order_by=creation desc&limit_page_length=100000&limit=100000&_=${timestamp}`;
                     const fetchResponse = await fetch(apiUrl, {
                         method: "GET",
                         headers: { Accept: "application/json" },
@@ -1593,7 +1594,7 @@ const QuickActions = ({
                 try {
                     const timestamp = Date.now();
                     const projectFilter = projectNo || projectName;
-                    const apiUrl = `/api/resource/Direct%20Purchase?fields=["name","creation","workflow_state","owner","project_no","applicant_name","docstatus"]&filters=[["project_no","=","${projectFilter}"]]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    const apiUrl = `${FRAPPE_BASE_URL}/api/resource/Direct%20Purchase?fields=["name","creation","workflow_state","owner","project_no","applicant_name","docstatus"]&filters=[["project_no","=","${projectFilter}"]]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
                     const fetchResponse = await fetch(apiUrl, {
                         method: "GET",
                         headers: { Accept: "application/json" },
@@ -1623,7 +1624,7 @@ const QuickActions = ({
             } else if (selectedApplication === "Adhoc/Contractual") {
                 try {
                     const timestamp = Date.now();
-                    const apiUrl = `/api/resource/Recruitment%20Adhoc%20Contractual?fields=["name","creation","workflow_state","owner","upfa_project_code","upfa_project_title","upfa_department","upfa_appointment_type","webmail_id","docstatus"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    const apiUrl = `${FRAPPE_BASE_URL}/api/resource/Recruitment%20Adhoc%20Contractual?fields=["name","creation","workflow_state","owner","upfa_project_code","upfa_project_title","upfa_department","upfa_appointment_type","webmail_id","docstatus"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
                     const fetchResponse = await fetch(apiUrl, {
                         method: "GET",
                         headers: { Accept: "application/json" },
@@ -1666,7 +1667,7 @@ const QuickActions = ({
                             ["docstatus", "in", [0, 1]],
                         ]),
                     );
-                    const apiUrl = `/api/resource/Indent%20General%20Form?fields=["name","creation","workflow_state","owner","igf_project_title","igf_project_code","igf_webmail_user_id","docstatus","igf_total_estimate","igf_tender_type"]&filters=${filters}&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    const apiUrl = `${FRAPPE_BASE_URL}/api/resource/Indent%20General%20Form?fields=["name","creation","workflow_state","owner","igf_project_title","igf_project_code","igf_webmail_user_id","docstatus","igf_total_estimate","igf_tender_type"]&filters=${filters}&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
                     const fetchResponse = await fetch(apiUrl, {
                         method: "GET",
                         headers: { Accept: "application/json" },
@@ -1693,7 +1694,7 @@ const QuickActions = ({
             } else if (selectedApplication === "Indent cum Sanction") {
                 try {
                     const timestamp = Date.now();
-                    const apiUrl = `/api/resource/Indent%20Cum%20Sanction%20Sheet?fields=["name","creation","modified","workflow_state","owner","project_ref","project_no","icss_indent_type","icss_applicant_webmail_id","icss_applicant_name","send_to_director","director_signed_pdf","docstatus"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    const apiUrl = `${FRAPPE_BASE_URL}/api/resource/Indent%20Cum%20Sanction%20Sheet?fields=["name","creation","modified","workflow_state","owner","project_ref","project_no","icss_indent_type","icss_applicant_webmail_id","icss_applicant_name","send_to_director","director_signed_pdf","docstatus"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
                     const fetchResponse = await fetch(apiUrl, {
                         method: "GET",
                         headers: { Accept: "application/json" },
@@ -1769,7 +1770,7 @@ const QuickActions = ({
                                     JSON.stringify(["file_name", "file_url", "creation"]),
                                 );
                                 const fileResponse = await fetch(
-                                    `/api/resource/File?filters=${fileFilters}&fields=${fileFields}&order_by=creation%20desc&limit_page_length=10`,
+                                    `${FRAPPE_BASE_URL}/api/resource/File?filters=${fileFilters}&fields=${fileFields}&order_by=creation%20desc&limit_page_length=10`,
                                     {
                                         method: "GET",
                                         headers: { Accept: "application/json" },
@@ -1812,7 +1813,7 @@ const QuickActions = ({
             } else if (selectedApplication === "Loan Request") {
                 try {
                     const timestamp = Date.now();
-                    const apiUrl = `/api/v2/document/Loan%20Request?fields=["name","creation","workflow_state","docstatus","owner","project_name","project_number","applicant_webmail","loan_account_type","loan_amount"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    const apiUrl = `${FRAPPE_BASE_URL}/api/v2/document/Loan%20Request?fields=["name","creation","workflow_state","docstatus","owner","project_name","project_number","applicant_webmail","loan_account_type","loan_amount"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
                     const fetchResponse = await fetch(apiUrl, {
                         method: "GET",
                         headers: { Accept: "application/json" },
@@ -1849,7 +1850,7 @@ const QuickActions = ({
             } else if (selectedApplication === "Miscellaneous Commit") {
                 try {
                     const timestamp = Date.now();
-                    const apiUrl = `/api/v2/document/Miscellaneous%20Commit?fields=["name","creation","workflow_state","docstatus","owner","project_number","commit_decommit","commit_amount","budget_head"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    const apiUrl = `${FRAPPE_BASE_URL}/api/v2/document/Miscellaneous%20Commit?fields=["name","creation","workflow_state","docstatus","owner","project_number","commit_decommit","commit_amount","budget_head"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
                     const fetchResponse = await fetch(apiUrl, {
                         method: "GET",
                         headers: { Accept: "application/json" },
@@ -3321,7 +3322,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         const fetchBudgetHeads = async () => {
             try {
                 const response = await fetch(
-                    '/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0',
+                    `${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0`,
                 );
                 const result = await response.json();
                 if (result?.data) {
@@ -3826,7 +3827,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             try {
                 // Fetch payment field definitions from API
                 const response = await fetch(
-                    "/api/method/rndopsapp.rndopsapp.commitPayment.get_account_head_payment_fields",
+                    `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.commitPayment.get_account_head_payment_fields`,
                 );
                 const result = await response.json();
                 if (result?.message) {
@@ -3875,7 +3876,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         setIsPaymentSubmitting(true);
         try {
             const response = await fetch(
-                "/api/method/rndopsapp.rndopsapp.doctype.accountheadpayment.accountheadpayment.submit_payment_data",
+                `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.accountheadpayment.accountheadpayment.submit_payment_data`,
                 {
                     method: "POST",
                     headers: {

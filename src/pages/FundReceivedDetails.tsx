@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useCallback } from "react";
 import { useSWRConfig } from "swr";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
@@ -681,7 +682,7 @@ function useAccountPortalAlert(docname?: string) {
     React.useEffect(() => {
         if (!docname) return;
         let cancelled = false;
-        fetch(`/api/method/rndopsapp.rndopsapp.api.get_document_activity?doctype=Fund%20Received&docname=${encodeURIComponent(docname)}`,
+        fetch(`${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.api.get_document_activity?doctype=Fund%20Received&docname=${encodeURIComponent(docname)}`,
             { credentials: "include" })
             .then((res) => (res.ok ? res.json() : null))
             .then((json) => {
@@ -849,7 +850,7 @@ const FundReceivedDetails = () => {
             let refCandidates: string[] = [name];
             try {
                 const frRes = await fetch(
-                    `/api/v2/document/Fund%20Received/${encodeURIComponent(name)}?fields=["fund_received_ref_number"]`,
+                    `${FRAPPE_BASE_URL}/api/v2/document/Fund%20Received/${encodeURIComponent(name)}?fields=["fund_received_ref_number"]`,
                     { credentials: "include" },
                 );
                 if (frRes.ok) {
@@ -868,7 +869,7 @@ const FundReceivedDetails = () => {
             for (const doctype of doctypes) {
                 try {
                     // Primary: POST-based get_list (reliable across all Frappe versions)
-                    const res = await fetch("/api/method/frappe.client.get_list", {
+                    const res = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         credentials: "include",
@@ -890,7 +891,7 @@ const FundReceivedDetails = () => {
                     }
                     // Fallback: v2 document list API (without fields param to avoid encoding issues)
                     const res2 = await fetch(
-                        `/api/v2/document/${encodeURIComponent(doctype)}?filters=${encodeURIComponent(JSON.stringify([["fund_received_ref", "in", refCandidates]]))}&order_by=creation desc&limit_page_length=1`,
+                        `${FRAPPE_BASE_URL}/api/v2/document/${encodeURIComponent(doctype)}?filters=${encodeURIComponent(JSON.stringify([["fund_received_ref", "in", refCandidates]]))}&order_by=creation desc&limit_page_length=1`,
                         { credentials: "include" },
                     );
                     if (!res2.ok) continue;
@@ -913,7 +914,7 @@ const FundReceivedDetails = () => {
             if (trimmedCandidates.length > 0) {
                 for (const doctype of doctypes) {
                     try {
-                        const res = await fetch("/api/method/frappe.client.get_list", {
+                        const res = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             credentials: "include",
@@ -1052,7 +1053,7 @@ const FundReceivedDetails = () => {
             };
 
             const res = await fetch(
-                "/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.update_fund_received",
+                `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.update_fund_received`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -1117,7 +1118,7 @@ const FundReceivedDetails = () => {
                     const sourceFieldDef = (meta.fields || []).find((f: any) => f.fieldname === sourceFieldName);
                     const doctype = sourceFieldDef?.options;
                     if (!doctype) return;
-                    fetch("/api/method/frappe.client.get_value", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype, filters: { name: sourceValue }, fieldname: [sourceProperty] }) })
+                    fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_value`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype, filters: { name: sourceValue }, fieldname: [sourceProperty] }) })
                         .then(r => r.json()).then(data => {
                             if (data.message?.[sourceProperty] !== undefined) {
                                 setFormData(prev => {
@@ -1135,7 +1136,7 @@ const FundReceivedDetails = () => {
     // Fetches a Project Registration doc and returns mapped auto-fill values.
     const autoFillFromProject = async (projectName: string): Promise<Partial<FormData>> => {
         try {
-            const resp = await fetch("/api/method/frappe.client.get", {
+            const resp = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
@@ -1191,7 +1192,7 @@ const FundReceivedDetails = () => {
         let related_data: any = null;
 
         try {
-            const getFieldsUrl = `/api/method/${DEPOSIT_SLIP_TYPES[type].getFields}`;
+            const getFieldsUrl = `${FRAPPE_BASE_URL}/api/method/${DEPOSIT_SLIP_TYPES[type].getFields}`;
             const response = await fetch(getFieldsUrl, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doc_name: name || undefined }) });
             const result = await response.json();
             const messagePayload = result?.message;
@@ -1266,25 +1267,25 @@ const FundReceivedDetails = () => {
                 try {
                     // Attempt 1: frappe.client.get — works when project_no IS the doc name
                     if (prjregHint) {
-                        const r0 = await fetch("/api/method/frappe.client.get", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: "Project Registration", name: prjregHint }) });
+                        const r0 = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: "Project Registration", name: prjregHint }) });
                         const j0 = await r0.json();
                         if (j0?.message && !j0.exc) prjDoc = j0.message;
                     }
                     // Attempt 2: frappe.client.get via sanction project reference
                     if (!prjDoc && sanctionProjectRef) {
-                        const r0b = await fetch("/api/method/frappe.client.get", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: "Project Registration", name: sanctionProjectRef }) });
+                        const r0b = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: "Project Registration", name: sanctionProjectRef }) });
                         const j0b = await r0b.json();
                         if (j0b?.message && !j0b.exc) prjDoc = j0b.message;
                     }
                     // Attempt 3: get_list by project_no
                     if (!prjDoc && prjregHint) {
-                        const r2 = await fetch("/api/method/frappe.client.get_list", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: prjregHint }, fields: prjFields, limit_page_length: 1 }) });
+                        const r2 = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: prjregHint }, fields: prjFields, limit_page_length: 1 }) });
                         const j2 = await r2.json();
                         if (j2?.message?.length > 0) prjDoc = j2.message[0];
                     }
                     // Attempt 4: get_list by project_no from sanction reference
                     if (!prjDoc && sanctionProjectRef) {
-                        const r3 = await fetch("/api/method/frappe.client.get_list", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: sanctionProjectRef }, fields: prjFields, limit_page_length: 1 }) });
+                        const r3 = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: sanctionProjectRef }, fields: prjFields, limit_page_length: 1 }) });
                         const j3 = await r3.json();
                         if (j3?.message?.length > 0) prjDoc = j3.message[0];
                     }
@@ -1333,7 +1334,7 @@ const FundReceivedDetails = () => {
                 : link_options?.[dt];
             if (!alreadyLoaded) {
                 try {
-                    const listResp = await fetch("/api/method/frappe.client.get_list", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: dt, fields: dt === "User" ? ["name", "full_name"] : dt === "Department_prornd" ? ["name", "dept_name"] : dt === "Project Registration" ? ["name", "project_title"] : ["*"], limit_page_length: 0 }) });
+                    const listResp = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: dt, fields: dt === "User" ? ["name", "full_name"] : dt === "Department_prornd" ? ["name", "dept_name"] : dt === "Project Registration" ? ["name", "project_title"] : ["*"], limit_page_length: 0 }) });
                     const listJson = await listResp.json();
                     if (listJson.message) {
                         const opts = listJson.message.map((d: any) => dt === "Project Registration" ? { label: d.project_title || d.name, value: d.name } : ({ label: d.dept_name || d.full_name || d.budget_head || d.head_name || d.account_head || d.title || d.name, value: d.name }));
@@ -1346,7 +1347,7 @@ const FundReceivedDetails = () => {
         // Step 4b: dedicated searchable options for the "Project Number" child-table column —
         // label carries both title and project_no in brackets so users can search by either.
         try {
-            const prjListResp = await fetch("/api/method/frappe.client.get_list", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: "Project Registration", fields: ["name", "project_title", "project_no"], limit_page_length: 0 }) });
+            const prjListResp = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: "Project Registration", fields: ["name", "project_title", "project_no"], limit_page_length: 0 }) });
             const prjListJson = await prjListResp.json();
             if (prjListJson.message) {
                 const prjOpts = prjListJson.message.map((d: any) => {
@@ -1364,7 +1365,7 @@ const FundReceivedDetails = () => {
         if (isSubmitting || !selectedDepositSlipType) return;
         setIsSubmitting(true);
         try {
-            const response = await fetch(`/api/method/${DEPOSIT_SLIP_TYPES[selectedDepositSlipType].save}`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doc_data: JSON.stringify({ ...formData }) }) });
+            const response = await fetch(`${FRAPPE_BASE_URL}/api/method/${DEPOSIT_SLIP_TYPES[selectedDepositSlipType].save}`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doc_data: JSON.stringify({ ...formData }) }) });
             const result = await response.json();
             alert(result?.message?.name ? `Deposit Slip saved: ${result.message.name}` : "Deposit Slip saved successfully!");
             mutate();
@@ -1383,14 +1384,14 @@ const FundReceivedDetails = () => {
                 // failed — retry the publish only, don't repeat the transfer
                 // (that would debit the source head a second time).
                 const response = await fetch(
-                    "/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.republish_fund_received_after_allocation",
+                    `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.republish_fund_received_after_allocation`,
                     { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ docname: name }) },
                 );
                 json = await response.json();
             } else {
                 const transfers = rows.map((r) => ({ source_head: r.sourceHead, amount: r.required, purpose: r.purpose }));
                 const response = await fetch(
-                    "/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.allocate_deposit_slip_budget_heads",
+                    `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.allocate_deposit_slip_budget_heads`,
                     { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ docname: name, transfers: JSON.stringify(transfers) }) },
                 );
                 json = await response.json();

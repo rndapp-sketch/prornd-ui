@@ -1,4 +1,5 @@
 
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
@@ -413,7 +414,7 @@ const SalaryModule: React.FC = () => {
         setDlqCheckResults(prev => ({ ...prev, [rowIndex]: { checking: true, errors: prev[rowIndex]?.errors ?? [] } }));
         try {
             const response = await fetch(
-                "/api/method/rndopsapp.rndopsapp.commitPayment.get_account_head_payment_dlq_errors",
+                `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.commitPayment.get_account_head_payment_dlq_errors`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -555,7 +556,7 @@ const SalaryModule: React.FC = () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let commitFromApi: any = null;
         try {
-            const apiUrl = `/api/method/rndopsapp.rndopsapp.commitPayment.salary_payment_data?ps_emp_id=${r.employee_id}&yyyy_month=${salary_year_month}`;
+            const apiUrl = `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.commitPayment.salary_payment_data?ps_emp_id=${r.employee_id}&yyyy_month=${salary_year_month}`;
             const response = await fetch(apiUrl, { credentials: "include" });
             const json = await response.json();
             if (!response.ok) {
@@ -900,7 +901,7 @@ const SalaryModule: React.FC = () => {
         if (!bmr) { setBmrError("Please enter a BMR number before submitting."); return; }
         setBmrSubmitting(true);
         setBmrError(null);
-        const paymentEndpoint = "/api/method/rndopsapp.rndopsapp.commitPayment.submit_payment_data";
+        const paymentEndpoint = `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.commitPayment.submit_payment_data`;
         const outcomes: PaymentOutcome[] = [];
         // Cache Project Registration doc-name lookups by project_no — the backend
         // needs project_name to be the actual Project Registration document name
@@ -911,7 +912,7 @@ const SalaryModule: React.FC = () => {
             if (!projectNo) return projectNo;
             if (projectRefCache[projectNo]) return projectRefCache[projectNo];
             try {
-                const prRes = await fetch(`/api/resource/Project%20Registration?filters=[["project_no","=","${projectNo}"]]&fields=["name"]`);
+                const prRes = await fetch(`${FRAPPE_BASE_URL}/api/resource/Project%20Registration?filters=[["project_no","=","${projectNo}"]]&fields=["name"]`);
                 if (prRes.ok) {
                     const prData = await prRes.json();
                     const resolved = prData?.data?.[0]?.name;
@@ -1005,7 +1006,7 @@ const SalaryModule: React.FC = () => {
         try {
             // Fetch Salary Staging document by name (e.g. "2026_june")
             const response = await fetch(
-                `/api/resource/Salary%20Staging/${encodeURIComponent(salary_year_month)}`,
+                `${FRAPPE_BASE_URL}/api/resource/Salary%20Staging/${encodeURIComponent(salary_year_month)}`,
                 { credentials: "include", headers: { Accept: "application/json" } }
             );
 

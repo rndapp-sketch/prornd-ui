@@ -4235,7 +4235,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                                     </p>
                                                                     <button
                                                                         type="button"
-                                                                        onClick={() => window.open(`http://${import.meta.env.VITE_APP_BACKEND_HOST || "172.16.131.206"}:${import.meta.env.VITE_APP_BACKEND_REGISTRATION_PORT || "8081"}/universal-registration`, "_blank")}
+                                                                        onClick={() => window.open(`${window.location.origin}/universal-registration`, "_blank")}
                                                                         className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm"
                                                                     >
                                                                         <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
@@ -4287,7 +4287,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                                 </p>
                                                                 <button
                                                                     type="button"
-                                                                    onClick={() => window.open(`http://${import.meta.env.VITE_APP_BACKEND_HOST || "172.16.131.206"}:${import.meta.env.VITE_APP_BACKEND_REGISTRATION_PORT || "8081"}/universal-registration`, "_blank")}
+                                                                    onClick={() => window.open(`${window.location.origin}/universal-registration`, "_blank")}
                                                                     className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm"
                                                                 >
                                                                     <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>

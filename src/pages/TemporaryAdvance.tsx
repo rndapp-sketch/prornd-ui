@@ -1,4 +1,5 @@
 // -=-=-=-=-=-=
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useFrappePostCall } from 'frappe-react-sdk';
@@ -298,7 +299,7 @@ async function resolveProjectTitle(projectCode: string): Promise<string> {
         // Try fetching by document name (primary key)
         try {
             const r = await fetch(
-                `/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(projectCode)}`,
+                `${FRAPPE_BASE_URL}/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(projectCode)}`,
                 { credentials: "include" }
             );
             if (r.ok) {
@@ -310,7 +311,7 @@ async function resolveProjectTitle(projectCode: string): Promise<string> {
 
         // Try querying by project_no field
         try {
-            const r = await fetch("/api/method/frappe.client.get_list", {
+            const r = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
@@ -647,7 +648,7 @@ const msg = saveResult?.message;
             if (formData.declaration_rate_contract !== undefined) patchFields.declaration_rate_contract = formData.declaration_rate_contract;
             if (formData.amount_in_words) patchFields.amount_in_words = formData.amount_in_words;
             if (Object.keys(patchFields).length > 0) {
-                await fetch("/api/method/frappe.client.set_value", {
+                await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.set_value`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     credentials: "include",

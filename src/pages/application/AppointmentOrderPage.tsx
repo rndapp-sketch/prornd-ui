@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useFrappePostCall } from 'frappe-react-sdk';
@@ -118,6 +119,7 @@ type PostDetail = {
     upfa_designation: string;
     upfa_duration_months: number;
     upfa_hra_percent?: string;
+    upfa_medical_required?: number | boolean | string | null;
 };
 
 const capitalizeName = (value: string) =>
@@ -157,6 +159,8 @@ const AppointmentOrderPage: React.FC = () => {
     const [candidateEmail, setCandidateEmail] = useState('');
     const [piDept, setPiDept] = useState('');
     const [dateOfInterview, setDateOfInterview] = useState('');
+    // Selects the wording of the medical-facility clause from the Selection Committee Report.
+    const [medicalRequired, setMedicalRequired] = useState(true);
 
     const [scdDocName, setScdDocName] = useState('');
     const [saving, setSaving] = useState(false);
@@ -205,6 +209,12 @@ const AppointmentOrderPage: React.FC = () => {
                         );
                         setDuration(post?.upfa_duration_months ?? 0);
                         setPostHra(post?.upfa_hra_percent || '');
+                        // Empty / "No" / 0 on the post's Medical Required switches to the "Not Applicable" wording.
+                        // If the post can't be matched at all, keep the standard wording.
+                        const isYes = (v: unknown) =>
+                            v === true || v === 1 ||
+                            ['1', 'yes', 'true'].includes(String(v ?? '').trim().toLowerCase());
+                        if (post) setMedicalRequired(isYes(post.upfa_medical_required));
                     }
 
                     const piLookup = prefill.principal_investigator
@@ -361,7 +371,7 @@ const AppointmentOrderPage: React.FC = () => {
                                 <td style={{ width: '64%', verticalAlign: 'top', padding: '6px 10px 10px 0', borderBottom: '2px solid black' }}>
                                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
                                         <img
-                                            src={`http://${import.meta.env.VITE_APP_BACKEND_HOST || '172.16.131.206'}:${import.meta.env.VITE_APP_BACKEND_PORT || '8000'}/files/IITG_logo.png`}
+                                            src={`${FRAPPE_BASE_URL}/files/IITG_logo.png`}
                                             alt="IITG"
                                             style={{ width: '55px', height: 'auto', flexShrink: 0 }}
                                             onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -541,8 +551,9 @@ const AppointmentOrderPage: React.FC = () => {
                                 <td style={{ width: '130px', verticalAlign: 'top', paddingBottom: '8px', paddingRight: '4px' }}><strong>4.&nbsp;Medical facility</strong></td>
                                 <td style={{ width: '16px', verticalAlign: 'top', paddingBottom: '8px' }}>:</td>
                                 <td style={{ textAlign: 'justify', verticalAlign: 'top', paddingBottom: '8px' }}>
-                                    As per institute norms for treatment in the institute hospital only
-                                    (exclusively for self and no dependants).
+                                    {medicalRequired
+                                        ? 'As per institute norms for treatment in the institute hospital only (exclusively for self and no dependants).'
+                                        : 'Not Applicable. A fixed amount of Rs. 1250/- pm will be deducted if medical OPD facility is availed.'}
                                 </td>
                             </tr>
                             <tr>

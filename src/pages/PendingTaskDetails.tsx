@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import BudgetHeadBalance from "@/components/BudgetHeadBalance";
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
@@ -27,6 +28,7 @@ import {
     ChevronDown,
     ChevronRight,
     Printer,
+    RotateCcw,
     CreditCardIcon,
     AlertTriangleIcon,
     CalendarIcon,
@@ -60,12 +62,13 @@ import {
     directPurchaseAPI,
     tadaAPI,
     recruitmentAdhocContractualAPI,
+    putBackAPI,
 } from "@/services/apiService";
 import { DepartmentName } from "@/components/DepartmentName";
 import { BudgetHeadName } from "@/components/BudgetHeadName";
 import TravelApplicantSummary from "@/components/TravelApplicantSummary";
 
-import { ActivityLog } from "@/components/ActivityLog";
+import { ActivityLog, clearActivityLogCache } from "@/components/ActivityLog";
 import { BudgetActionsSidebar } from "@/components/BudgetActionsSidebar";
 import TemporaryAdvanceActionButtons from "@/components/TemporaryAdvanceActionButtons";
 import TADASettlementActionButtons from "@/components/TADASettlementActionButtons";
@@ -900,7 +903,7 @@ const TopUpFellowshipWorkflowActions = ({
     const isPendingStaff = workflowState === "Pending Staff Approval";
 
     const downloadGeneratedPdf = () => {
-        const url = `/api/method/frappe.utils.print_format.download_pdf?doctype=${encodeURIComponent("Top Up Fellowship")}&name=${encodeURIComponent(docname)}&format=Standard&no_letterhead=0`;
+        const url = `${FRAPPE_BASE_URL}/api/method/frappe.utils.print_format.download_pdf?doctype=${encodeURIComponent("Top Up Fellowship")}&name=${encodeURIComponent(docname)}&format=Standard&no_letterhead=0`;
         window.open(url, "_blank");
     };
 
@@ -1185,11 +1188,14 @@ const RecruitmentAdhocContractualWorkflowActions = ({
     docname,
     onActionComplete,
     commitRequired = false,
+    canPutBack = false,
 }: {
     docname: string;
     onActionComplete: () => void;
     commitRequired?: boolean;
+    canPutBack?: boolean;
 }) => {
+    const { currentUser } = useFrappeAuth();
     const { data, isLoading: actionsLoading } = useFrappeGetCall<{
         message: string[];
     }>(recruitmentAdhocContractualAPI.getWorkflowActions, { docname });
@@ -1198,6 +1204,52 @@ const RecruitmentAdhocContractualWorkflowActions = ({
         recruitmentAdhocContractualAPI.performAction,
     );
     const { call: addComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
+
+    // Universal put-back: valid targets come from the workflow's transition graph.
+    const { data: putBackResp } = useFrappeGetCall<{
+        message: { status: string; states?: string[] };
+    }>(canPutBack ? putBackAPI.getStates : null, {
+        doctype: "Recruitment Adhoc Contractual",
+        docname,
+    });
+    const { call: setPutBackState, loading: putBackLoading } = useFrappePostCall<{
+        message: { status: string; message?: string };
+    }>(putBackAPI.setState);
+    const putBackStates =
+        canPutBack && putBackResp?.message?.status === "success" ? putBackResp.message.states || [] : [];
+    const [putBackTarget, setPutBackTarget] = React.useState<string | null>(null);
+
+    const handleConfirmPutBack = async (comment: string) => {
+        if (!putBackTarget) return;
+        try {
+            const res = await setPutBackState({
+                doctype: "Recruitment Adhoc Contractual",
+                docname,
+                state: putBackTarget,
+                username: currentUser || "",
+                comment,
+            });
+            if (res?.message?.status !== "success") {
+                alert(res?.message?.message || "Put Back failed");
+                return;
+            }
+            if (comment.trim()) {
+                try {
+                    await addComment({
+                        doctype: "Recruitment Adhoc Contractual",
+                        docname,
+                        content: comment.trim(),
+                    });
+                } catch {
+                    // comment failure is non-fatal
+                }
+            }
+            clearActivityLogCache("Recruitment Adhoc Contractual", docname);
+            setPutBackTarget(null);
+            onActionComplete();
+        } catch (error) {
+        }
+    };
 
     const [modalOpen, setModalOpen] = React.useState(false);
     const [selectedAction, setSelectedAction] = React.useState("");
@@ -1233,9 +1285,9 @@ const RecruitmentAdhocContractualWorkflowActions = ({
         }
     };
 
-    if (actionsLoading || !data?.message?.length) return null;
+    if (actionsLoading || (!data?.message?.length && !putBackStates.length)) return null;
 
-    if (commitRequired) {
+    if (commitRequired && !putBackStates.length) {
         return (
             <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300 font-medium">
                 A commitment must be submitted before forwarding this application.
@@ -1250,7 +1302,7 @@ const RecruitmentAdhocContractualWorkflowActions = ({
         return "neutral";
     };
 
-    const visibleActions = data.message;
+    const visibleActions = commitRequired ? [] : data?.message || [];
     const forwardActions = visibleActions.filter(a => categorise(a) === "forward");
     const neutralActions = visibleActions.filter(a => categorise(a) === "neutral");
     const rejectActions  = visibleActions.filter(a => categorise(a) === "reject");
@@ -1312,6 +1364,11 @@ const RecruitmentAdhocContractualWorkflowActions = ({
                                 Workflow Actions
                             </span>
                         </div>
+                        {commitRequired && (
+                            <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                                A commitment must be submitted before forwarding.
+                            </div>
+                        )}
                         {groups.map((group, gi) => (
                             <React.Fragment key={gi}>
                                 {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
@@ -1334,6 +1391,28 @@ const RecruitmentAdhocContractualWorkflowActions = ({
                                 })}
                             </React.Fragment>
                         ))}
+                        {putBackStates.length > 0 && (
+                            <>
+                                {groups.length > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
+                                <div className="px-4 pt-2 pb-1 text-[10px] font-extrabold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                                    Put Back
+                                </div>
+                                {putBackStates.map((st) => (
+                                    <button
+                                        key={st}
+                                        onClick={() => {
+                                            setDropdownOpen(false);
+                                            setPutBackTarget(st);
+                                        }}
+                                        disabled={putBackLoading}
+                                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left transition-colors disabled:cursor-not-allowed text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                                    >
+                                        <RotateCcw className="h-3.5 w-3.5" />
+                                        Put back to {st === "Draft" ? "PI" : st}
+                                    </button>
+                                ))}
+                            </>
+                        )}
                     </div>,
                     document.body,
                 )}
@@ -1344,6 +1423,13 @@ const RecruitmentAdhocContractualWorkflowActions = ({
                 onSubmit={handleConfirmAction}
                 action={selectedAction}
                 isLoading={actionLoading}
+            />
+            <CommentModal
+                isOpen={!!putBackTarget}
+                onClose={() => setPutBackTarget(null)}
+                onSubmit={handleConfirmPutBack}
+                action={`Put Back to ${putBackTarget === "Draft" ? "PI" : putBackTarget ?? ""}`}
+                isLoading={putBackLoading}
             />
         </>
     );
@@ -1553,7 +1639,7 @@ const OriginalCommitmentSidebar = ({ refName, refDoctype }: { refName?: string; 
         setLoading(true);
         const fetchStaging = async () => {
             try {
-                const url = `/api/method/rndopsapp.rndopsapp.cancellation_api.get_original_commitment?reference_doctype=${encodeURIComponent(refDoctype || '')}&reference_name=${encodeURIComponent(refName)}`;
+                const url = `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.cancellation_api.get_original_commitment?reference_doctype=${encodeURIComponent(refDoctype || '')}&reference_name=${encodeURIComponent(refName)}`;
                 const res = await fetch(url, { credentials: "include" });
                 if (res.ok) {
                     const json = await res.json();
@@ -2171,7 +2257,7 @@ const DirectPurchaseTabView = ({
             try {
                 const filters = JSON.stringify([["app_id", "=", docName]]);
                 const listRes = await fetch(
-                    `/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`,
+                    `${FRAPPE_BASE_URL}/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`,
                     {
                         credentials: "include",
                         headers: { Accept: "application/json" },
@@ -2183,7 +2269,7 @@ const DirectPurchaseTabView = ({
                 const ssName = listRes?.data?.[0]?.name;
                 if (ssName) {
                     const docRes = await fetch(
-                        `/api/method/frappe.client.get`,
+                        `${FRAPPE_BASE_URL}/api/method/frappe.client.get`,
                         {
                             method: "POST",
                             credentials: "include",
@@ -2218,7 +2304,7 @@ const DirectPurchaseTabView = ({
         try {
             const filters = JSON.stringify([["app_id", "=", docName]]);
             const res = await fetch(
-                `/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=["name"]`,
+                `${FRAPPE_BASE_URL}/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=["name"]`,
                 {
                     credentials: "include",
                     headers: { Accept: "application/json" },
@@ -2364,7 +2450,7 @@ const DirectPurchaseTabView = ({
                                         poSanctionData.project_no || "",
                                     );
                                     const res = await fetch(
-                                        "/api/method/rndopsapp.rndopsapp.doctype.direct_purchase.direct_purchase.upload_po_document",
+                                        `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.direct_purchase.direct_purchase.upload_po_document`,
                                         {
                                             method: "POST",
                                             credentials: "include",
@@ -2636,7 +2722,7 @@ const PendingTaskDetails: React.FC = () => {
 
     useEffect(() => {
         if (doctype !== 'Fund Sanction') return;
-        fetch('/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0')
+        fetch(`${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0`)
             .then(r => r.json())
             .then(j => { if (j?.data) setBudgetHeadList(j.data.map((x: any) => x.budget_head).filter(Boolean)); })
             .catch(() => {});
@@ -2669,7 +2755,7 @@ const PendingTaskDetails: React.FC = () => {
         setBudgetMsg(null);
         try {
             const res = await fetch(
-                '/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.update_sanctioned_budget_breakup',
+                `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.update_sanctioned_budget_breakup`,
                 {
                     method: 'POST',
                     credentials: 'include',
@@ -2685,7 +2771,7 @@ const PendingTaskDetails: React.FC = () => {
             if (!res.ok) throw new Error(json?.exception || `HTTP ${res.status}`);
 
             if (comment.trim()) {
-                await fetch('/api/method/rndopsapp.rndopsapp.api.add_project_comment', {
+                await fetch(`${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.api.add_project_comment`, {
                     method: 'POST',
                     credentials: 'include',
                     headers: {
@@ -2745,7 +2831,7 @@ const PendingTaskDetails: React.FC = () => {
         setIsSavingAcctDetails(true);
         try {
             const res = await fetch(
-                '/api/method/rndopsapp.rndopsapp.doctype.project_registration.project_registration.update_project_fields',
+                `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.project_registration.project_registration.update_project_fields`,
                 {
                     method: 'POST',
                     credentials: 'include',
@@ -2842,7 +2928,7 @@ const PendingTaskDetails: React.FC = () => {
                     fieldname: '',
                 }));
             const res = await fetch(
-                '/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.update_fund_sanction_files',
+                `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.update_fund_sanction_files`,
                 {
                     method: 'POST',
                     credentials: 'include',
@@ -3115,7 +3201,7 @@ const PendingTaskDetails: React.FC = () => {
         if (doctype === "Temporary Advance" && data) {
             // Account Head
             if (data.account_head) {
-                fetch(`/api/v2/document/Budget%20Head/${data.account_head}`)
+                fetch(`${FRAPPE_BASE_URL}/api/v2/document/Budget%20Head/${data.account_head}`)
                     .then(r => r.json())
                     .then(res => {
                         if (res.data) setResolvedAccountHead(res.data.budget_head || res.data.name);
@@ -3126,7 +3212,7 @@ const PendingTaskDetails: React.FC = () => {
             // Department — resolve raw ID to human-readable name for print
             const deptId = data.applicant_department;
             if (deptId) {
-                fetch(`/api/v2/document/Department_prornd/${encodeURIComponent(deptId)}`, { credentials: "include" })
+                fetch(`${FRAPPE_BASE_URL}/api/v2/document/Department_prornd/${encodeURIComponent(deptId)}`, { credentials: "include" })
                     .then(r => r.json())
                     .then(res => {
                         const name = res.data?.dept_name;
@@ -3138,7 +3224,7 @@ const PendingTaskDetails: React.FC = () => {
             // Applicant full name — applicant_name may store email; resolve from User
             const email = data.applicant_webmail || data.owner || "";
             if (email) {
-                fetch(`/api/method/frappe.client.get_value?doctype=User&filters=${encodeURIComponent(email)}&fieldname=full_name`, { credentials: "include" })
+                fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_value?doctype=User&filters=${encodeURIComponent(email)}&fieldname=full_name`, { credentials: "include" })
                     .then(r => r.json())
                     .then(res => {
                         const fullName = res.message?.full_name;
@@ -3163,11 +3249,11 @@ const PendingTaskDetails: React.FC = () => {
                     }
                     try {
                         const postOpts = { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include" as RequestCredentials };
-                        let res = await fetch("/api/method/frappe.client.get_list", { ...postOpts, body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
+                        let res = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, { ...postOpts, body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
                         let json = await res.json();
                         let title = json?.message?.[0]?.project_title || "";
                         if (!title) {
-                            res = await fetch("/api/method/frappe.client.get_list", { ...postOpts, body: JSON.stringify({ doctype: "Project Proposal", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
+                            res = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, { ...postOpts, body: JSON.stringify({ doctype: "Project Proposal", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
                             json = await res.json();
                             title = json?.message?.[0]?.project_title || "";
                         }
@@ -3229,7 +3315,7 @@ const PendingTaskDetails: React.FC = () => {
 
                 try {
                     // Fetch the linked document using standard fetch API
-                    const res = await fetch(`/api/v2/document/${encodeURIComponent(field.options ?? '')}/${encodeURIComponent(String(value))}`, {
+                    const res = await fetch(`${FRAPPE_BASE_URL}/api/v2/document/${encodeURIComponent(field.options ?? '')}/${encodeURIComponent(String(value))}`, {
                         credentials: "include",
                         headers: { Accept: "application/json" },
                     });
@@ -3845,7 +3931,7 @@ const PendingTaskDetails: React.FC = () => {
                                         fields: JSON.stringify(['name']),
                                         limit: '1',
                                     });
-                                    const res = await fetch(`/api/resource/Project%20Registration?${params}`, { credentials: 'include' }).then(r => r.json());
+                                    const res = await fetch(`${FRAPPE_BASE_URL}/api/resource/Project%20Registration?${params}`, { credentials: 'include' }).then(r => r.json());
                                     const prName = (res?.data ?? res?.message ?? [])[0]?.name;
                                     if (prName) setPrPreviewName(prName);
                                 } finally {
@@ -3957,6 +4043,7 @@ const PendingTaskDetails: React.FC = () => {
                                 docname={name}
                                 onActionComplete={() => window.location.reload()}
                                 commitRequired={isRnDStaff && isCommittedForGate === false}
+                                canPutBack={isRnDStaff && data?.workflow_state === "Pending Staff Approval"}
                             />
                         </div>
                     )}

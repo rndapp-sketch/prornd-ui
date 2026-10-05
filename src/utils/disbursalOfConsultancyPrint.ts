@@ -1,12 +1,10 @@
-import docTemplate from "@/pages/printformat/disbursal_of_consultancy_format.html?raw";
+import docTemplateRaw from "@/pages/printformat/disbursal_of_consultancy_format.html?raw";
+import { withFrappeBase } from "@/utils/frappeUrl";
+const docTemplate = withFrappeBase(docTemplateRaw);
 import { getFileUrl } from "@/utils/fileUtils";
 
 import type { ActivityItem } from "@/utils/disbursalOfHonorariumPrint";
 
-// The .html?raw template is static text pulled in at build time, so it can't
-// reference import.meta.env itself; substitute the asset host here instead.
-const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.131.206";
-const ASSET_PORT = import.meta.env.VITE_ASSET_PORT || "8000";
 
 function buildActivityLogHtml(items: ActivityItem[], formData?: Record<string, any>): string {
     const filtered = (items || []).filter(
@@ -206,7 +204,6 @@ export function generateDisbursalOfConsultancyHtml(
     }
 
     return docTemplate
-        .replace(/http:\/\/172\.16\.117\.39:8000/g, `http://${ASSET_HOST}:${ASSET_PORT}`)
         .replace("{{DOC_REF}}", formData.name || "")
         .replace("{{WORKFLOW_STATE}}", formData.workflow_state || "Draft")
         .replace("{{DATE}}", creation)

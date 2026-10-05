@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import { ArrowLeft, FileText, Building2, Printer, Pencil, Save, X, Calculator } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -355,7 +356,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
             }
 
             const csrfToken = (window as any).csrf_token || "";
-            const res = await fetch(`/api/method/${updateMethod}`, {
+            const res = await fetch(`${FRAPPE_BASE_URL}/api/method/${updateMethod}`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -418,7 +419,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
             try {
                 // Fetch using v2 API to ensure we get exactly what the server returns
                 const response = await fetch(
-                    `/api/v2/document/Fund%20Received/${encodeURIComponent(fundReceivedName)}`,
+                    `${FRAPPE_BASE_URL}/api/v2/document/Fund%20Received/${encodeURIComponent(fundReceivedName)}`,
                     {
                         credentials: "include",
                     },
@@ -453,7 +454,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
     useEffect(() => {
         const prjregName = fundReceived?.prjreg_title || fundReceived?.project_reference;
         if (!prjregName) return;
-        fetch(`/api/v2/document/Project%20Registration/${encodeURIComponent(prjregName)}?fields=["project_no"]`, {
+        fetch(`${FRAPPE_BASE_URL}/api/v2/document/Project%20Registration/${encodeURIComponent(prjregName)}?fields=["project_no"]`, {
             credentials: "include",
         })
             .then((r) => r.ok ? r.json() : null)
@@ -488,7 +489,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
             // sets state, and returns true so the caller can stop searching.
             const tryMatch = async (doctype: string, filters: any[]) => {
                 try {
-                    const res = await fetch("/api/method/frappe.client.get_list", {
+                    const res = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json",
@@ -512,7 +513,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                     if (json.message?.length > 0) {
                         const docName = json.message[0].name;
                         // Fetch full document via frappe.client.get
-                        const docRes = await fetch("/api/method/frappe.client.get", {
+                        const docRes = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get`, {
                             method: "POST",
                             headers: {
                                 "Content-Type": "application/json",

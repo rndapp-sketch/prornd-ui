@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate, useParams } from "react-router-dom";
 import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
@@ -402,7 +403,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                         (prefill_data?.designation_type as string) || "Project Staff"
                     );
                     const desigRes = await fetch(
-                        `/api/method/rndopsapp.rndopsapp.doctype.recruitment_adhoc_contractual.recruitment_adhoc_contractual.get_filtered_designations?designation_type=${seedType}`
+                        `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.recruitment_adhoc_contractual.recruitment_adhoc_contractual.get_filtered_designations?designation_type=${seedType}`
                     );
                     const desigJson = await desigRes.json();
                     const designations = desigJson?.message?.data || desigJson?.data || [];
@@ -677,7 +678,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
             try {
                 const type = encodeURIComponent(formData.designation_type as string);
                 const res = await fetch(
-                    `/api/method/rndopsapp.rndopsapp.doctype.recruitment_adhoc_contractual.recruitment_adhoc_contractual.get_filtered_designations?designation_type=${type}`
+                    `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.recruitment_adhoc_contractual.recruitment_adhoc_contractual.get_filtered_designations?designation_type=${type}`
                 );
                 const json = await res.json();
                 const designations = json?.message?.data || json?.data || [];
@@ -1034,7 +1035,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
         const fetchBudgetHeads = async () => {
             try {
                 const response = await fetch(
-                    '/api/resource/Budget%20Head?fields=["name","budget_head","id"]&order_by=id%20asc&limit_page_length=0',
+                    `${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["name","budget_head","id"]&order_by=id%20asc&limit_page_length=0`,
                     { credentials: "include" },
                 );
                 const result = await response.json();

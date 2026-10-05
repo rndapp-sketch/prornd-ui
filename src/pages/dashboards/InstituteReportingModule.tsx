@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import * as React from "react";
 import {
     Printer,
@@ -395,7 +396,7 @@ export default function InstituteReportingModule({
                     try {
                         const csrf = (window as any).csrf_token || "";
                         const headers = { "X-Frappe-CSRF-Token": csrf, "Content-Type": "application/json" };
-                        const res = await fetch(`/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg?prjreg_title=${encodeURIComponent(p.name)}&limit=10&start=0`, { headers }).then(r => r.json()).catch(() => null);
+                        const res = await fetch(`${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg?prjreg_title=${encodeURIComponent(p.name)}&limit=10&start=0`, { headers }).then(r => r.json()).catch(() => null);
                         
                         const fundsRaw = res?.message || res?.data || [];
                         const funds = Array.isArray(fundsRaw) ? fundsRaw : (fundsRaw.message || []);

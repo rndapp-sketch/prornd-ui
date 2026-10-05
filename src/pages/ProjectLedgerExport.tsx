@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import { useState, useEffect, useMemo } from "react";
 import { useFrappeGetCall } from "frappe-react-sdk";
 import { useDebounce } from "use-debounce";
@@ -199,7 +200,7 @@ export function ProjectLedgerExport() {
             }
 
             const headsResponse = await fetch(
-                '/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0',
+                `${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0`,
             );
             const headsResult = await headsResponse.json();
             const heads: BudgetHead[] = (headsResult?.data || []).map((h: { budget_head: string; id: number }) => ({

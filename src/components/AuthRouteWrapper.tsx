@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useFrappeAuth } from 'frappe-react-sdk';
@@ -17,7 +18,7 @@ let studentProfileCache: { user: string; promise: Promise<StudentProfileCheck> }
 function checkStudentProfileOnce(user: string): Promise<StudentProfileCheck> {
   if (studentProfileCache?.user === user) return studentProfileCache.promise;
   const promise = fetch(
-    '/api/method/rndopsapp.rndopsapp.user_api.student_api.get_my_student_profile',
+    `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.user_api.student_api.get_my_student_profile`,
     { credentials: 'include' },
   )
     .then((res) => (res.ok ? res.json() : null))

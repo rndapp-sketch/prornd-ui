@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { getFileUrl } from "@/utils/fileUtils";
 import { useParams, useNavigate } from 'react-router-dom';
@@ -511,7 +512,7 @@ const TravelDetails: React.FC = () => {
         const fetchBudgetHeads = async () => {
             try {
                 const response = await fetch(
-                    '/api/resource/Budget%20Head?fields=["name","budget_head","id"]&order_by=id%20asc&limit_page_length=0',
+                    `${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["name","budget_head","id"]&order_by=id%20asc&limit_page_length=0`,
                     { credentials: "include" },
                 );
                 const result = await response.json();
@@ -665,7 +666,7 @@ const TravelDetails: React.FC = () => {
             fd.append("docname", docName);
             fd.append("fieldname", "director_signed_pdf");
             fd.append("is_private", "1");
-            const uploadRes = await fetch("/api/method/upload_file", {
+            const uploadRes = await fetch(`${FRAPPE_BASE_URL}/api/method/upload_file`, {
                 method: "POST",
                 body: fd,
                 credentials: "include",

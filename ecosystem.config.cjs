@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: "pragati_v0.07",
+      name: "pragati_v0.08",
       script: "./deploy-prod.sh",
       // Resolved relative to this config file's own location, so it works
       // regardless of which machine/user path this repo is checked out to
@@ -16,4 +16,4 @@ module.exports = {
   ]
 };
 
-// git clone -b pragati_v0.07 --single-branch https://github.com/rndapp-sketch/prornd-ui.git
+// git clone -b pragati_v0.08 --single-branch https://github.com/rndapp-sketch/prornd-ui.git

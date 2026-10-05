@@ -1,3 +1,5 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
+
 /**
  * Resolves a Budget Head reference (either the Frappe doc `name` or the
  * legacy short custom `id` field — the same two formats the app stores
@@ -17,7 +19,7 @@ export async function resolveBudgetHeadLabel(
     const byDocName = async (): Promise<string | null> => {
         try {
             const res = await fetch(
-                `/api/resource/Budget%20Head/${encodeURIComponent(key)}`,
+                `${FRAPPE_BASE_URL}/api/resource/Budget%20Head/${encodeURIComponent(key)}`,
                 { credentials: "include" },
             );
             if (!res.ok) return null;
@@ -36,7 +38,7 @@ export async function resolveBudgetHeadLabel(
                 limit_page_length: "1",
             });
             const res = await fetch(
-                `/api/resource/Budget%20Head?${params.toString()}`,
+                `${FRAPPE_BASE_URL}/api/resource/Budget%20Head?${params.toString()}`,
                 { credentials: "include" },
             );
             if (!res.ok) return null;

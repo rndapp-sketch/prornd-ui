@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback } from 'react';
 import { FaExclamationCircle, FaArrowLeft, FaSearch } from 'react-icons/fa';
 import { X } from 'lucide-react';
@@ -170,7 +171,7 @@ const Payments: React.FC = () => {
             // commits, so it resolves to an empty list rather than rejecting.
             // See docs/pdf-project-implementation.md §5.8.2 and docs/dpf-project-implementation.md §5.8.2.
             const overheadCommits = fetch(
-                `/api/method/${overheadFundAPI.getCommits}`,
+                `${FRAPPE_BASE_URL}/api/method/${overheadFundAPI.getCommits}`,
                 { credentials: 'include', headers: { Accept: 'application/json' } },
             )
                 .then(r => r.json())
@@ -202,7 +203,7 @@ const Payments: React.FC = () => {
     // Fetch Budget Heads for mapping
     const fetchBudgetHeads = useCallback(async () => {
         try {
-            const response = await fetch('/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0', {
+            const response = await fetch(`${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0`, {
                 credentials: "include",
                 headers: { Accept: "application/json" },
             });
@@ -251,7 +252,7 @@ const Payments: React.FC = () => {
         try {
             // Use GET to avoid CSRF requirements in dev/proxy environments
             const response = await fetch(
-                '/api/method/frappe.client.get?doctype=Module%20Registry&name=pending-task',
+                `${FRAPPE_BASE_URL}/api/method/frappe.client.get?doctype=Module%20Registry&name=pending-task`,
                 { credentials: 'include', headers: { Accept: 'application/json' } },
             );
             const data = await response.json();
@@ -285,7 +286,7 @@ const Payments: React.FC = () => {
             // rather than rejecting, so it can never blank the project payments.
             // See docs/dpf-project-implementation.md §5.10.8.
             const overheadPayments = fetch(
-                `/api/method/${overheadFundAPI.getPayments}`,
+                `${FRAPPE_BASE_URL}/api/method/${overheadFundAPI.getPayments}`,
                 { credentials: 'include', headers: { Accept: 'application/json' } },
             )
                 .then(r => r.json())

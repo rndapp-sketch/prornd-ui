@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL, frappeUrl } from "@/utils/frappeUrl";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
     useFrappeAuth,
@@ -10,13 +11,12 @@ import {
     Briefcase,
     Building2,
     Calendar,
-    ImageIcon,
+    Camera,
     Mail,
     MapPin,
     Phone,
     Save,
     Shield,
-    Upload,
     User,
     X,
 } from "lucide-react";
@@ -24,7 +24,6 @@ import { useSWRConfig } from "swr";
 
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -149,8 +148,7 @@ const emptyForm: ProfileForm = {
 
 const getImageUrl = (image?: string) => {
     if (!image) return "";
-    if (image.startsWith("http")) return image;
-    return image;
+    return frappeUrl(image);
 };
 
 const toForm = (user?: UserDoc): ProfileForm => ({
@@ -189,16 +187,41 @@ const Field = ({
     icon: React.ElementType;
     children: React.ReactNode;
 }) => (
-    <div className="space-y-1.5">
-        <Label
-            htmlFor={id}
-            className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-[#3F3F46] dark:text-[#E4E4E7]"
-        >
-            <Icon className="h-3.5 w-3.5 text-[#4A6CF7]" />
+    <div className="space-y-1">
+        <Label htmlFor={id} className="flex items-center gap-1.5 text-[12px] font-medium text-zinc-600 dark:text-zinc-400">
+            <Icon className="h-3.5 w-3.5 text-[#2563EB]/70" />
             {label}
         </Label>
         {children}
     </div>
+);
+
+const SECTION_TONES = {
+    blue: { head: "bg-blue-50/70 dark:bg-blue-950/20", icon: "text-blue-600 dark:text-blue-400", title: "text-blue-900 dark:text-blue-200" },
+    emerald: { head: "bg-emerald-50/70 dark:bg-emerald-950/20", icon: "text-emerald-600 dark:text-emerald-400", title: "text-emerald-900 dark:text-emerald-200" },
+    violet: { head: "bg-violet-50/70 dark:bg-violet-950/20", icon: "text-violet-600 dark:text-violet-400", title: "text-violet-900 dark:text-violet-200" },
+    amber: { head: "bg-amber-50/70 dark:bg-amber-950/20", icon: "text-amber-600 dark:text-amber-400", title: "text-amber-900 dark:text-amber-200" },
+    orange: { head: "bg-orange-50/70 dark:bg-orange-950/20", icon: "text-[#D97757]", title: "text-orange-900 dark:text-orange-200" },
+};
+
+const Section = ({
+    title,
+    icon: Icon,
+    tone,
+    children,
+}: {
+    title: string;
+    icon: React.ElementType;
+    tone: keyof typeof SECTION_TONES;
+    children: React.ReactNode;
+}) => (
+    <section className="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-[#27272A]">
+        <header className={cn("flex items-center gap-2 border-b border-zinc-100 px-5 py-2.5 dark:border-zinc-800", SECTION_TONES[tone].head)}>
+            <Icon className={cn("h-4 w-4", SECTION_TONES[tone].icon)} />
+            <h2 className={cn("text-[13px] font-semibold", SECTION_TONES[tone].title)}>{title}</h2>
+        </header>
+        <div className="p-5">{children}</div>
+    </section>
 );
 
 const ReadOnlyDetail = ({
@@ -210,18 +233,40 @@ const ReadOnlyDetail = ({
     label: string;
     value?: React.ReactNode;
 }) => (
-    <div className="flex items-start gap-3 rounded-lg border border-[#E5E7EB] bg-zinc-50/50 p-3 dark:border-[#374151] dark:bg-[#27272A]/60">
-        <Icon className="mt-0.5 h-4 w-4 text-[#4A6CF7] dark:text-[#818CF8] flex-shrink-0" />
+    <div className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
+        <Icon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
         <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">
-                {label}
-            </p>
-            <p className="mt-1 break-words text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
-                {value || "Not set"}
-            </p>
+            <dt className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">{label}</dt>
+            <dd className="mt-0.5 break-words text-[13px] font-medium text-zinc-900 dark:text-zinc-100">
+                {value || <span className="font-normal text-zinc-400">Not set</span>}
+            </dd>
         </div>
     </div>
 );
+
+const PERSONAL_FIELDS: Array<{
+    name: keyof ProfileForm;
+    label: string;
+    icon: React.ElementType;
+    type?: string;
+    readOnly?: boolean;
+    required?: boolean;
+}> = [
+    { name: "first_name", label: "First Name", icon: User },
+    { name: "middle_name", label: "Middle Name", icon: User },
+    { name: "last_name", label: "Last Name", icon: User },
+    { name: "full_name", label: "Full Name", icon: BadgeCheck, required: true },
+    { name: "username", label: "Username", icon: User, readOnly: true },
+    { name: "pi_initials", label: "PI Initials", icon: BadgeCheck, readOnly: true },
+    { name: "gender", label: "Gender", icon: User },
+    { name: "birth_date", label: "Birth Date", icon: Calendar, type: "date" },
+];
+
+const CONTACT_FIELDS: Array<{ name: keyof ProfileForm; label: string; icon: React.ElementType }> = [
+    { name: "phone", label: "Phone", icon: Phone },
+    { name: "mobile_no", label: "Mobile Number", icon: Phone },
+    { name: "location", label: "Location", icon: MapPin },
+];
 
 export default function Profile() {
     const { currentUser } = useFrappeAuth();
@@ -353,7 +398,7 @@ export default function Profile() {
 
             const csrfToken = (window as Window & { csrf_token?: string })
                 .csrf_token;
-            const response = await fetch("/api/method/upload_file", {
+            const response = await fetch(`${FRAPPE_BASE_URL}/api/method/upload_file`, {
                 method: "POST",
                 body: data,
                 credentials: "include",
@@ -446,149 +491,106 @@ export default function Profile() {
         );
     }
 
-    return (
-        <div className="space-y-6 text-[#3F3F46] dark:text-[#E4E4E7] min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] -m-6 p-6">
-            <PageHeader title="Profile" showBack={false}>
-                <div
-                    className={cn(
-                        "rounded-md border px-3 py-1 text-sm font-bold",
-                        isDirty
-                            ? "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
-                            : "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300",
-                    )}
-                >
-                    {isDirty ? "Unsaved changes" : "Up to date"}
-                </div>
-            </PageHeader>
+    const dirty = isStudent ? studentDirty : isDirty;
 
+    return (
+        <div className="-m-6 min-h-screen bg-[#FAFAF9] p-4 text-[#3F3F46] dark:bg-[#18181B] dark:text-[#E4E4E7] md:p-6">
             <form
                 onSubmit={handleSave}
-                className="grid gap-6 lg:grid-cols-[320px_1fr]"
+                className="w-full space-y-4 [&_input]:h-9 [&_input]:text-[13px] [&_select]:h-9 [&_select]:text-[13px] [&_textarea]:text-[13px]"
             >
-                <div className="space-y-6">
-                    <Card className="overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm bg-white dark:bg-[#27272A]">
-                        <CardContent className="p-6">
-                            <div className="flex flex-col items-center text-center">
-                                <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-[3px] border-[#4A6CF7]/30 bg-[#EEF2FF] text-2xl font-bold text-[#4A6CF7] dark:border-[#4A6CF7]/40 dark:bg-[#1C2434] dark:text-[#818CF8]">
+                {/* Identity */}
+                <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-[#27272A]">
+                    <div className="h-1 bg-gradient-to-r from-[#2563EB] via-[#7C3AED] to-[#D97757]" />
+                    <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+                        <div className="flex min-w-0 items-center gap-4">
+                            <div className="relative shrink-0">
+                                <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-blue-200 bg-blue-50 text-lg font-semibold text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
                                     {form.user_image ? (
                                         <img
                                             src={getImageUrl(form.user_image)}
                                             alt={form.full_name || "Profile"}
                                             className="h-full w-full object-cover"
                                             onError={(event) => {
-                                                event.currentTarget.style.display =
-                                                    "none";
+                                                event.currentTarget.style.display = "none";
                                             }}
                                         />
                                     ) : (
                                         initials
                                     )}
                                 </div>
-                                <h2 className="mt-4 text-xl font-bold">
-                                    {form.full_name || "User"}
-                                </h2>
-                                <p className="mt-1 break-all text-sm font-medium text-[#71717A] dark:text-[#A1A1AA]">
-                                    {currentUser}
-                                </p>
-                                <div
-                                    className={cn(
-                                        "mt-4 rounded-md border px-3 py-1 text-xs font-bold",
-                                        user?.enabled
-                                            ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
-                                            : "border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300",
-                                    )}
-                                >
-                                    {user?.enabled ? "Enabled" : "Disabled"}
-                                </div>
                                 <input
                                     ref={fileInputRef}
                                     type="file"
                                     accept="image/*"
                                     className="hidden"
-                                    onChange={(event) =>
-                                        handleProfileImageUpload(
-                                            event.target.files?.[0],
-                                        )
-                                    }
+                                    onChange={(event) => handleProfileImageUpload(event.target.files?.[0])}
                                 />
-                                <Button
+                                <button
                                     type="button"
-                                    variant="outline"
-                                    className="mt-5 w-full"
-                                    onClick={() =>
-                                        fileInputRef.current?.click()
-                                    }
+                                    onClick={() => fileInputRef.current?.click()}
                                     disabled={isUploadingImage || isSaving}
+                                    title="Change profile picture"
+                                    className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600 shadow-sm transition hover:text-[#2563EB] disabled:opacity-60 dark:border-zinc-600 dark:bg-[#27272A] dark:text-zinc-300"
                                 >
-                                    <Upload className="mr-2 h-4 w-4" />
-                                    {isUploadingImage
-                                        ? "Uploading..."
-                                        : "Upload Profile Picture"}
-                                </Button>
-                                {isDirty && form.user_image && (
-                                    <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">
-                                        Save profile to apply the uploaded
-                                        picture.
-                                    </p>
-                                )}
+                                    {isUploadingImage ? (
+                                        <span className="h-3 w-3 animate-spin rounded-full border-2 border-zinc-500 border-t-transparent" />
+                                    ) : (
+                                        <Camera className="h-3 w-3" />
+                                    )}
+                                </button>
                             </div>
-                        </CardContent>
-                    </Card>
-
-                    {/*<Card className="rounded-lg shadow-sm">
-                        <CardHeader>
-                            <CardTitle className="flex items-center justify-between gap-2 text-base font-bold">
-                                <span className="flex items-center gap-2">
-                                    <Shield className="h-4 w-4" />
-                                    Assigned Roles
-                                </span>
-                                <span className="rounded-md border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-xs font-bold text-zinc-600 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-300">
-                                    {roles.length}
-                                </span>
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                            {isRolesLoading ? (
-                                <p className="text-sm font-medium text-zinc-500">
-                                    Loading roles...
-                                </p>
-                            ) : roles.length ? (
-                                roles.map((role) => (
-                                    <div
-                                        key={role}
-                                        className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-semibold dark:border-zinc-800 dark:bg-zinc-800/50"
-                                    >
-                                        {role}
-                                    </div>
-                                ))
-                            ) : (
-                                <p className="text-sm font-medium text-zinc-500">
-                                    No roles assigned.
-                                </p>
-                            )}
-                        </CardContent>
-                    </Card>*/}
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h1 className="truncate text-[17px] font-semibold text-zinc-900 dark:text-white">
+                                        {form.full_name || "User"}
+                                    </h1>
+                                    <span className={cn("rounded px-1.5 py-0.5 text-[11px] font-medium", user?.enabled ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" : "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400")}>
+                                        {user?.enabled ? "Active" : "Disabled"}
+                                    </span>
+                                </div>
+                                <p className="mt-0.5 break-all text-[13px] text-zinc-500 dark:text-zinc-400">{currentUser}</p>
+                                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                    {user?.designation_name && (
+                                        <span className="rounded bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700 dark:bg-violet-950/30 dark:text-violet-300">
+                                            {user.designation_name}
+                                        </span>
+                                    )}
+                                    {user?.department_name && (
+                                        <span className="rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
+                                            <DepartmentName name={user.department_name} />
+                                        </span>
+                                    )}
+                                    {user?.employee_id && (
+                                        <span className="rounded bg-blue-50 px-2 py-0.5 font-mono text-[11px] font-medium text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
+                                            {user.employee_id}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        <span className={cn("text-[12px] font-medium", dirty ? "text-amber-700 dark:text-amber-400" : "text-zinc-400")}>
+                            {dirty ? "Unsaved changes" : "All changes saved"}
+                        </span>
+                    </div>
+                    {isDirty && form.user_image && !isStudent && (
+                        <p className="border-t border-zinc-100 px-5 py-2 text-[12px] text-amber-700 dark:border-zinc-800 dark:text-amber-400">
+                            Save the profile to apply the new picture.
+                        </p>
+                    )}
                 </div>
 
-                <div className="space-y-6">
-                    {/* Students edit their own `student_details` record here; the
-                        User-doc fields below are hidden for them. */}
-                    {isStudent && (
-                        <Card className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm bg-white dark:bg-[#27272A]">
-                            <CardHeader className="border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] px-6 py-4">
-                                <CardTitle className="flex items-center gap-2.5 text-base font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
-                                    <div className="w-1 h-5 rounded-full bg-[#D97757]" />
-                                    Student Details
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-6">
-                                <div className="grid gap-5 md:grid-cols-2">
+                <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+                    <div className="space-y-4">
+                        {isStudent ? (
+                            <Section title="Student Details" icon={BadgeCheck} tone="orange">
+                                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                                     {STUDENT_PROFILE_FIELDS.map((f) => (
                                         <Field key={f.name} id={f.name} label={f.label} icon={f.icon}>
                                             {f.options ? (
                                                 <select
                                                     id={f.name}
-                                                    className="flex h-10 w-full rounded-md border border-[#E4E4E7] bg-white px-3 py-2 text-sm dark:border-[#3F3F46] dark:bg-[#18181B] dark:text-[#E4E4E7]"
+                                                    className="flex h-10 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-[#18181B] dark:text-[#E4E4E7]"
                                                     value={studentForm[f.name] || ""}
                                                     onChange={(e) => setStudentField(f.name, e.target.value)}
                                                 >
@@ -615,293 +617,99 @@ export default function Profile() {
                                         </Field>
                                     ))}
                                 </div>
-                                <div className="mt-6 flex items-center justify-end gap-3">
-                                    <span className="mr-auto text-xs font-medium text-[#A1A1AA] dark:text-[#71717A]">
+                                <div className="mt-6 flex items-center justify-end gap-3 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+                                    <span className="mr-auto text-xs font-medium text-zinc-500">
                                         {studentDirty ? "You have unsaved changes" : "All changes saved"}
                                     </span>
                                     <Button
                                         type="button"
                                         onClick={handleStudentSave}
                                         disabled={!studentDirty || studentSaving}
-                                        className="bg-[#D97757] hover:bg-[#c66a4e] text-white font-semibold"
+                                        className="bg-[#D97757] font-semibold text-white hover:bg-[#c66a4e]"
                                     >
                                         <Save className="mr-2 h-4 w-4" />
                                         {studentSaving ? "Saving..." : "Save Student Details"}
                                     </Button>
                                 </div>
-                            </CardContent>
-                        </Card>
-                    )}
+                            </Section>
+                        ) : (
+                            <>
+                                <Section title="Personal Information" icon={User} tone="blue">
+                                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                        {PERSONAL_FIELDS.map((f) => (
+                                            <Field key={f.name} id={f.name} label={f.label} icon={f.icon}>
+                                                <Input
+                                                    id={f.name}
+                                                    type={f.type || "text"}
+                                                    value={form[f.name]}
+                                                    readOnly={f.readOnly}
+                                                    required={f.required}
+                                                    onChange={(event) => updateField(f.name, event.target.value)}
+                                                    className={f.readOnly ? "cursor-not-allowed bg-zinc-100 font-semibold text-zinc-500 dark:bg-[#18181B]" : undefined}
+                                                />
+                                            </Field>
+                                        ))}
+                                    </div>
+                                </Section>
 
-                    {!isStudent && (
-                    <Card className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm bg-white dark:bg-[#27272A]">
-                        <CardHeader className="border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] px-6 py-4">
-                            <CardTitle className="flex items-center gap-2.5 text-base font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
-                                <div className="w-1 h-5 rounded-full bg-[#4A6CF7]" />
-                                Editable Details
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-6">
-                            <div className="grid gap-5 md:grid-cols-2">
-                                <Field
-                                    id="first_name"
-                                    label="First Name"
-                                    icon={User}
-                                >
-                                    <Input
-                                        id="first_name"
-                                        value={form.first_name}
-                                        onChange={(event) =>
-                                            updateField(
-                                                "first_name",
-                                                event.target.value,
-                                            )
-                                        }
-                                    />
-                                </Field>
-                                <Field
-                                    id="middle_name"
-                                    label="Middle Name"
-                                    icon={User}
-                                >
-                                    <Input
-                                        id="middle_name"
-                                        value={form.middle_name}
-                                        onChange={(event) =>
-                                            updateField(
-                                                "middle_name",
-                                                event.target.value,
-                                            )
-                                        }
-                                    />
-                                </Field>
-                                <Field
-                                    id="last_name"
-                                    label="Last Name"
-                                    icon={User}
-                                >
-                                    <Input
-                                        id="last_name"
-                                        value={form.last_name}
-                                        onChange={(event) =>
-                                            updateField(
-                                                "last_name",
-                                                event.target.value,
-                                            )
-                                        }
-                                    />
-                                </Field>
-                                <Field
-                                    id="full_name"
-                                    label="Full Name"
-                                    icon={BadgeCheck}
-                                >
-                                    <Input
-                                        id="full_name"
-                                        value={form.full_name}
-                                        onChange={(event) =>
-                                            updateField(
-                                                "full_name",
-                                                event.target.value,
-                                            )
-                                        }
-                                        required
-                                    />
-                                </Field>
-                                <Field
-                                    id="username"
-                                    label="Username"
-                                    icon={User}
-                                >
-                                    <Input
-                                        id="username"
-                                        value={form.username}
-                                        readOnly
-                                        className="bg-[#F1F5F9] dark:bg-[#18181B] font-semibold text-[#71717A] dark:text-[#A1A1AA] cursor-not-allowed border-[#D1D5DB] dark:border-[#334155]"
-                                    />
-                                </Field>
-                                <Field id="gender" label="Gender" icon={User}>
-                                    <Input
-                                        id="gender"
-                                        value={form.gender}
-                                        onChange={(event) =>
-                                            updateField(
-                                                "gender",
-                                                event.target.value,
-                                            )
-                                        }
-                                    />
-                                </Field>
-                                <Field
-                                    id="pi_initials"
-                                    label="PI Initials"
-                                    icon={BadgeCheck}
-                                >
-                                    <Input
-                                        id="pi_initials"
-                                        value={form.pi_initials}
-                                        readOnly
-                                        className="bg-muted cursor-not-allowed opacity-70"
-                                    />
-                                </Field>
-                                <Field id="phone" label="Phone" icon={Phone}>
-                                    <Input
-                                        id="phone"
-                                        value={form.phone}
-                                        onChange={(event) =>
-                                            updateField(
-                                                "phone",
-                                                event.target.value,
-                                            )
-                                        }
-                                    />
-                                </Field>
-                                <Field
-                                    id="mobile_no"
-                                    label="Mobile Number"
-                                    icon={Phone}
-                                >
-                                    <Input
-                                        id="mobile_no"
-                                        value={form.mobile_no}
-                                        onChange={(event) =>
-                                            updateField(
-                                                "mobile_no",
-                                                event.target.value,
-                                            )
-                                        }
-                                    />
-                                </Field>
-                                <Field
-                                    id="birth_date"
-                                    label="Birth Date"
-                                    icon={Calendar}
-                                >
-                                    <Input
-                                        id="birth_date"
-                                        type="date"
-                                        value={form.birth_date}
-                                        onChange={(event) =>
-                                            updateField(
-                                                "birth_date",
-                                                event.target.value,
-                                            )
-                                        }
-                                    />
-                                </Field>
-                                <Field
-                                    id="location"
-                                    label="Location"
-                                    icon={MapPin}
-                                >
-                                    <Input
-                                        id="location"
-                                        value={form.location}
-                                        onChange={(event) =>
-                                            updateField(
-                                                "location",
-                                                event.target.value,
-                                            )
-                                        }
-                                    />
-                                </Field>
-                                <div className="md:col-span-2">
-                                    <Field
-                                        id="user_image"
-                                        label="Profile Image Path"
-                                        icon={ImageIcon}
-                                    >
-                                        <Input
-                                            id="user_image"
-                                            value={form.user_image}
-                                            onChange={(event) =>
-                                                updateField(
-                                                    "user_image",
-                                                    event.target.value,
-                                                )
-                                            }
-                                            placeholder="/files/profile.jpg"
-                                        />
-                                    </Field>
-                                </div>
-                                <div className="md:col-span-2">
-                                    <Field id="bio" label="Bio" icon={User}>
-                                        <Textarea
-                                            id="bio"
-                                            value={form.bio}
-                                            onChange={(event) =>
-                                                updateField(
-                                                    "bio",
-                                                    event.target.value,
-                                                )
-                                            }
-                                            className="min-h-28"
-                                        />
-                                    </Field>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                    )}
+                                <Section title="Contact" icon={Phone} tone="emerald">
+                                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                        {CONTACT_FIELDS.map((f) => (
+                                            <Field key={f.name} id={f.name} label={f.label} icon={f.icon}>
+                                                <Input
+                                                    id={f.name}
+                                                    value={form[f.name]}
+                                                    onChange={(event) => updateField(f.name, event.target.value)}
+                                                />
+                                            </Field>
+                                        ))}
+                                    </div>
+                                </Section>
 
-                    <Card className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm bg-white dark:bg-[#27272A]">
-                        <CardHeader className="border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] px-6 py-4">
-                            <CardTitle className="flex items-center gap-2.5 text-base font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
-                                <div className="w-1 h-5 rounded-full bg-[#4A6CF7]" />
-                                Account Details
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="grid gap-4 p-6 md:grid-cols-2">
-                            <ReadOnlyDetail
-                                icon={Mail}
-                                label="Email"
-                                value={user?.email || user?.name || currentUser}
-                            />
-                            <ReadOnlyDetail
-                                icon={Briefcase}
-                                label="Employee ID"
-                                value={user?.employee_id}
-                            />
+                                <Section title="About" icon={User} tone="violet">
+                                    <div className="space-y-4">
+                                        <Field id="bio" label="Bio" icon={User}>
+                                            <Textarea
+                                                id="bio"
+                                                value={form.bio}
+                                                onChange={(event) => updateField("bio", event.target.value)}
+                                                className="min-h-24 text-[13px]"
+                                            />
+                                        </Field>
+                                    </div>
+                                </Section>
+                            </>
+                        )}
+                    </div>
+
+                    <Section title="Account" icon={Shield} tone="amber">
+                        <dl className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                            <ReadOnlyDetail icon={Mail} label="Email" value={user?.email || user?.name || currentUser} />
+                            <ReadOnlyDetail icon={Briefcase} label="Employee ID" value={user?.employee_id} />
                             <ReadOnlyDetail
                                 icon={Building2}
                                 label="Department"
-                                value={
-                                    user?.department_name ? (
-                                        <DepartmentName
-                                            name={user.department_name}
-                                        />
-                                    ) : null
-                                }
+                                value={user?.department_name ? <DepartmentName name={user.department_name} /> : null}
                             />
-                            <ReadOnlyDetail
-                                icon={Briefcase}
-                                label="Designation"
-                                value={user?.designation_name}
-                            />
-                            <ReadOnlyDetail
-                                icon={User}
-                                label="Employee Class"
-                                value={resolvedEmpclass || undefined}
-                            />
-                            <ReadOnlyDetail
-                                icon={Calendar}
-                                label="Time Zone"
-                                value={user?.time_zone}
-                            />
-                        </CardContent>
-                    </Card>
+                            <ReadOnlyDetail icon={Briefcase} label="Designation" value={user?.designation_name} />
+                            <ReadOnlyDetail icon={User} label="Employee Class" value={resolvedEmpclass || undefined} />
+                            <ReadOnlyDetail icon={Calendar} label="Time Zone" value={user?.time_zone} />
+                        </dl>
+                    </Section>
+                </div>
 
-                    <div className="sticky bottom-4 flex flex-col-reverse gap-3 rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white/95 dark:bg-[#27272A]/95 px-4 py-3 shadow-lg shadow-black/5 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
-                        <p className="hidden sm:block text-xs font-medium text-[#A1A1AA] dark:text-[#71717A]">
+                {!isStudent && (
+                    <div className="sticky bottom-3 flex flex-col-reverse gap-3 rounded-lg border border-zinc-200 bg-white/95 px-4 py-2.5 shadow-md backdrop-blur-sm dark:border-zinc-800 dark:bg-[#27272A]/95 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="hidden text-xs font-medium text-zinc-500 sm:block">
                             {isDirty ? "You have unsaved changes" : "All changes saved"}
                         </p>
-                        <div className="flex gap-3 sm:flex-row flex-col-reverse">
+                        <div className="flex flex-col-reverse gap-3 sm:flex-row">
                             <Button
                                 type="button"
                                 variant="outline"
                                 onClick={resetForm}
                                 disabled={!isDirty || isSaving}
-                                className="border-[#E4E4E7] dark:border-[#3F3F46] text-zinc-600 dark:text-zinc-300 hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] font-semibold"
+                                className="font-semibold"
                             >
                                 <X className="mr-2 h-4 w-4" />
                                 Discard
@@ -909,14 +717,14 @@ export default function Profile() {
                             <Button
                                 type="submit"
                                 disabled={!isDirty || isSaving}
-                                className="bg-[#4A6CF7] hover:bg-[#3558E8] text-white font-semibold shadow-sm hover:shadow-md hover:shadow-[#4A6CF7]/25 transition-all"
+                                className="bg-[#2563EB] text-[13px] font-medium text-white hover:bg-[#1D4ED8]"
                             >
                                 <Save className="mr-2 h-4 w-4" />
                                 {isSaving ? "Saving..." : "Save Profile"}
                             </Button>
                         </div>
                     </div>
-                </div>
+                )}
             </form>
         </div>
     );

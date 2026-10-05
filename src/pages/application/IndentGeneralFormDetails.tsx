@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { getFileUrl } from "@/utils/fileUtils";
 import { useParams, useNavigate } from "react-router-dom";
@@ -332,7 +333,7 @@ const IndentGeneralFormDetails: React.FC = () => {
 
     useEffect(() => {
         fetch(
-            '/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0',
+            `${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0`,
             { credentials: "include" },
         )
             .then((r) => r.json())
@@ -378,13 +379,13 @@ const IndentGeneralFormDetails: React.FC = () => {
                 const [res, budgetHeadRes, userRes] = await Promise.all([
                     fetchFields({ doc_name: id }),
                     fetch(
-                        '/api/resource/Budget%20Head?fields=["name","budget_head"]&order_by=budget_head asc&limit_page_length=0',
+                        `${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["name","budget_head"]&order_by=budget_head asc&limit_page_length=0`,
                         { credentials: "include", headers: { Accept: "application/json" } },
                     )
                         .then((r) => r.json())
                         .catch(() => ({ data: [] })),
                     fetch(
-                        '/api/resource/User?fields=["name","full_name"]&filters=[["enabled","=",1]]&limit_page_length=0',
+                        `${FRAPPE_BASE_URL}/api/resource/User?fields=["name","full_name"]&filters=[["enabled","=",1]]&limit_page_length=0`,
                         { credentials: "include", headers: { Accept: "application/json" } },
                     )
                         .then((r) => r.json())
@@ -608,7 +609,7 @@ const IndentGeneralFormDetails: React.FC = () => {
             fd.append("docname", id);
             fd.append("fieldname", "director_signed_pdf");
             const csrfToken = (window as any).csrf_token;
-            const uploadRes = await fetch("/api/method/upload_file", {
+            const uploadRes = await fetch(`${FRAPPE_BASE_URL}/api/method/upload_file`, {
                 method: "POST", body: fd, credentials: "include",
                 headers: csrfToken ? { "X-Frappe-CSRF-Token": csrfToken } : undefined,
             });
@@ -616,7 +617,7 @@ const IndentGeneralFormDetails: React.FC = () => {
             const uploadJson = await uploadRes.json();
             const fileUrl: string = uploadJson?.message?.file_url;
             if (!fileUrl) throw new Error("Upload returned no file_url");
-            const bindRes = await fetch(`/api/method/${indentGeneralFormAPI.attachDirectorPdf}`, {
+            const bindRes = await fetch(`${FRAPPE_BASE_URL}/api/method/${indentGeneralFormAPI.attachDirectorPdf}`, {
                 method: "POST", credentials: "include",
                 headers: { "Content-Type": "application/json", ...(csrfToken ? { "X-Frappe-CSRF-Token": csrfToken } : {}) },
                 body: JSON.stringify({ docname: id, file_url: fileUrl }),

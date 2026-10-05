@@ -1,5 +1,6 @@
 
 
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useRef } from 'react';
 import { useFrappeAuth } from 'frappe-react-sdk';
 
@@ -100,7 +101,7 @@ const Login: React.FC = () => {
     while (attempt < maxAttempts) {
       try {
         attempt++;
-        const res = await fetch('/api/method/login', {
+        const res = await fetch(`${FRAPPE_BASE_URL}/api/method/login`, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },

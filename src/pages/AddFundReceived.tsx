@@ -1,4 +1,5 @@
 // -=-=-=-=-=-=
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, memo } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
@@ -1562,7 +1563,7 @@ const AddFundReceived: React.FC = () => {
 
             try {
                 const response = await fetch(
-                    `/api/v2/document/Fund%20Received/${encodeURIComponent(editDocName)}`,
+                    `${FRAPPE_BASE_URL}/api/v2/document/Fund%20Received/${encodeURIComponent(editDocName)}`,
                     {
                         credentials: "include",
                     },
@@ -1939,7 +1940,7 @@ const AddFundReceived: React.FC = () => {
         // formData.append('doctype', 'Fund Transaction'); // Optional: Link to doctype if known, but generic upload is fine
         // formData.append('docname', ...); // We don't have the docname yet for new docs
 
-        const response = await fetch("/api/method/upload_file", {
+        const response = await fetch(`${FRAPPE_BASE_URL}/api/method/upload_file`, {
             method: "POST",
             body: formData,
             headers: {

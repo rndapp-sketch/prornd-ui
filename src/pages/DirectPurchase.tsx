@@ -916,7 +916,7 @@
 //         const fetchDesignations = async () => {
 //             for (const { row, idx } of rowsToPopulate) {
 //                 try {
-//                     const response = await fetch('/api/method/' + directPurchaseAPI.getUserDetails, {
+//                     const response = await fetch(`${FRAPPE_BASE_URL}/api/method/` + directPurchaseAPI.getUserDetails, {
 //                         method: 'POST',
 //                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Frappe-CSRF-Token': (window as any).csrf_token || '' },
 //                         credentials: 'include',
@@ -1071,7 +1071,7 @@
 
 //         if (value) {
 //             try {
-//                 const response = await fetch('/api/method/' + directPurchaseAPI.getUserDetails, {
+//                 const response = await fetch(`${FRAPPE_BASE_URL}/api/method/` + directPurchaseAPI.getUserDetails, {
 //                     method: 'POST',
 //                     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Frappe-CSRF-Token': (window as any).csrf_token || '' },
 //                     credentials: 'include',
@@ -1565,6 +1565,7 @@
 // =-=-=-=====================================================
 
 
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -2374,7 +2375,7 @@ const DirectPurchase: React.FC = () => {
         const fetchDesignations = async () => {
             for (const { row, idx } of rowsToPopulate) {
                 try {
-                    const response = await fetch('/api/method/' + directPurchaseAPI.getUserDetails, {
+                    const response = await fetch(`${FRAPPE_BASE_URL}/api/method/` + directPurchaseAPI.getUserDetails, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Frappe-CSRF-Token': (window as any).csrf_token || '' },
                         credentials: 'include',
@@ -2524,7 +2525,7 @@ const DirectPurchase: React.FC = () => {
 
         if (value) {
             try {
-                const response = await fetch('/api/method/' + directPurchaseAPI.getUserDetails, {
+                const response = await fetch(`${FRAPPE_BASE_URL}/api/method/` + directPurchaseAPI.getUserDetails, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Frappe-CSRF-Token': (window as any).csrf_token || '' },
                     credentials: 'include',

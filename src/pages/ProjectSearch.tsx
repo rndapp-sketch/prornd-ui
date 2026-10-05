@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import type { ElementType } from "react";
 import { useFrappeGetCall } from "frappe-react-sdk";
@@ -140,7 +141,7 @@ function ProjectLedgerPanel({ projectNo }: { projectNo: string }) {
 
   // Fetch budget heads
   useEffect(() => {
-    fetch('/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0')
+    fetch(`${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0`)
       .then(r => r.json())
       .then(result => {
         if (result?.data) {

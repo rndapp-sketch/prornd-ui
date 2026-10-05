@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useFrappePostCall, useFrappeGetCall } from "frappe-react-sdk";
@@ -336,7 +337,7 @@ const AdvanceSettlementDetails: React.FC = () => {
     const fetchBudgetHeads = async () => {
       try {
         const response = await fetch(
-          '/api/resource/Budget%20Head?fields=["budget_head","id","name"]&order_by=id%20asc&limit_page_length=0',
+          `${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id","name"]&order_by=id%20asc&limit_page_length=0`,
         );
         const result = await response.json();
         if (result?.data) {
@@ -375,7 +376,7 @@ const AdvanceSettlementDetails: React.FC = () => {
       for (const doctype of doctypes) {
         try {
           const r1 = await fetch(
-            `/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(codeToResolve)}`,
+            `${FRAPPE_BASE_URL}/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(codeToResolve)}`,
             { credentials: "include" }
           );
           if (r1.ok) {
@@ -389,7 +390,7 @@ const AdvanceSettlementDetails: React.FC = () => {
           }
         } catch { /* ignore */ }
         try {
-          const r2 = await fetch("/api/method/frappe.client.get_list", {
+          const r2 = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",

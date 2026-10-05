@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import BudgetHeadBalance from "@/components/BudgetHeadBalance";
 import React, { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -638,7 +639,7 @@ const ReimbursementDetails: React.FC = () => {
     const fetchBudgetHeads = async () => {
       try {
         const response = await fetch(
-          '/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0',
+          `${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0`,
         );
         const result = await response.json();
         if (result?.data) {
@@ -813,7 +814,7 @@ const ReimbursementDetails: React.FC = () => {
       if (!data?.project_name) return;
       try {
         const response = await fetch(
-          `/api/v2/document/Project%20Proposal/${data.project_name}?fields=["project_no","project_title"]`,
+          `${FRAPPE_BASE_URL}/api/v2/document/Project%20Proposal/${data.project_name}?fields=["project_no","project_title"]`,
         );
         if (response.ok) {
           const json = await response.json();
@@ -1036,7 +1037,7 @@ const ReimbursementDetails: React.FC = () => {
 
     <!-- Header -->
     <div class="header">
-        <img src="http://${import.meta.env.VITE_ASSET_HOST || '172.16.131.206'}:${import.meta.env.VITE_ASSET_PORT || '8000'}/files/IITG_logo.png" alt="IITG Logo" class="logo-img" />
+        <img src="${FRAPPE_BASE_URL}/files/IITG_logo.png" alt="IITG Logo" class="logo-img" />
         <div class="header-text">
             <div class="inst-hi">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
             <div class="inst-en">Indian Institute of Technology Guwahati</div>

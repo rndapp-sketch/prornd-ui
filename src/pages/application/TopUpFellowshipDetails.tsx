@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getFileUrl } from "@/utils/fileUtils";
 import { useParams } from 'react-router-dom';
@@ -287,7 +288,7 @@ const TopUpFellowshipDetails: React.FC = () => {
     const handleRefresh = () => setRefreshKey(k => k + 1);
 
     useEffect(() => {
-        fetch('/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0', { credentials: 'include' })
+        fetch(`${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0`, { credentials: 'include' })
             .then(r => r.json())
             .then(result => {
                 if (result?.data)

@@ -398,7 +398,7 @@
 //             body.append('direct_purchase_ref', igf?.name ?? docId);
 //             body.append('niq_data', niqHtml);
 //             const res = await fetch(
-//                 '/api/method/rndopsapp.rndopsapp.doctype.niq.niq.save_niq_data',
+//                 `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.niq.niq.save_niq_data`,
 //                 { method: 'POST', credentials: 'include', headers: { Accept: 'application/json' }, body }
 //             );
 //             if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -417,7 +417,7 @@
 //             try {
 //                 // Check if a NIQ has already been saved for this direct_purchase_ref
 //                 const niqCheck = await fetch(
-//                     `/api/resource/Niq?filters=${encodeURIComponent(JSON.stringify([["direct_purchase_ref", "=", docId]]))}&fields=${encodeURIComponent(JSON.stringify(["niq_data", "name"]))}`,
+//                     `${FRAPPE_BASE_URL}/api/resource/Niq?filters=${encodeURIComponent(JSON.stringify([["direct_purchase_ref", "=", docId]]))}&fields=${encodeURIComponent(JSON.stringify(["niq_data", "name"]))}`,
 //                     { headers: { Accept: 'application/json' }, credentials: 'include' }
 //                 );
 //                 if (niqCheck.ok) {
@@ -431,7 +431,7 @@
 //                 }
 
 //                 const res = await fetch(
-//                     `/api/resource/Indent%20General%20Form/${encodeURIComponent(docId)}`,
+//                     `${FRAPPE_BASE_URL}/api/resource/Indent%20General%20Form/${encodeURIComponent(docId)}`,
 //                     { headers: { Accept: 'application/json' }, credentials: 'include' }
 //                 );
 //                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -444,7 +444,7 @@
 //                 if (deptId) {
 //                     try {
 //                         const dRes = await fetch(
-//                             `/api/method/frappe.client.get_value?doctype=Department_prornd&filters=${encodeURIComponent(deptId)}&fieldname=dept_name`,
+//                             `${FRAPPE_BASE_URL}/api/method/frappe.client.get_value?doctype=Department_prornd&filters=${encodeURIComponent(deptId)}&fieldname=dept_name`,
 //                             { headers: { Accept: 'application/json' }, credentials: 'include' }
 //                         );
 //                         if (dRes.ok) {
@@ -470,7 +470,7 @@
 //                 if (emailToFetch) {
 //                     try {
 //                         const uRes = await fetch(
-//                             '/api/method/rndopsapp.rndopsapp.api.get_user_details',
+//                             `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.api.get_user_details`,
 //                             {
 //                                 method: 'POST',
 //                                 headers: {
@@ -1055,6 +1055,7 @@
 // -=-=-=-=-=-=-
 
 
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
@@ -1385,7 +1386,7 @@ const NIQPage: React.FC = () => {
             body.append('direct_purchase_ref', igf?.name ?? docId);
             body.append('niq_data', niqHtml);
             const res = await fetch(
-                '/api/method/rndopsapp.rndopsapp.doctype.niq.niq.save_niq_data',
+                `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.niq.niq.save_niq_data`,
                 { method: 'POST', credentials: 'include', headers: { Accept: 'application/json' }, body }
             );
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1404,7 +1405,7 @@ const NIQPage: React.FC = () => {
             try {
                 // Check if a NIQ has already been saved for this direct_purchase_ref
                 const niqCheck = await fetch(
-                    `/api/resource/Niq?filters=${encodeURIComponent(JSON.stringify([["direct_purchase_ref", "=", docId]]))}&fields=${encodeURIComponent(JSON.stringify(["niq_data", "name"]))}`,
+                    `${FRAPPE_BASE_URL}/api/resource/Niq?filters=${encodeURIComponent(JSON.stringify([["direct_purchase_ref", "=", docId]]))}&fields=${encodeURIComponent(JSON.stringify(["niq_data", "name"]))}`,
                     { headers: { Accept: 'application/json' }, credentials: 'include' }
                 );
                 if (niqCheck.ok) {
@@ -1417,7 +1418,7 @@ const NIQPage: React.FC = () => {
                     }
                 }
 
-                const res = await fetch(`/api/resource/Indent%20General%20Form/${encodeURIComponent(docId)}`,
+                const res = await fetch(`${FRAPPE_BASE_URL}/api/resource/Indent%20General%20Form/${encodeURIComponent(docId)}`,
                     { headers: { Accept: 'application/json' }, credentials: 'include' });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const json = await res.json();
@@ -1428,7 +1429,7 @@ const NIQPage: React.FC = () => {
                 if (deptId) {
                     try {
                         const dRes = await fetch(
-                            `/api/method/frappe.client.get_value?doctype=Department_prornd&filters=${encodeURIComponent(deptId)}&fieldname=dept_name`,
+                            `${FRAPPE_BASE_URL}/api/method/frappe.client.get_value?doctype=Department_prornd&filters=${encodeURIComponent(deptId)}&fieldname=dept_name`,
                             { headers: { Accept: 'application/json' }, credentials: 'include' });
                         setDeptLabel((dRes.ok ? (await dRes.json())?.message?.dept_name : null) || deptId);
                     } catch { setDeptLabel(deptId); }
@@ -1438,7 +1439,7 @@ const NIQPage: React.FC = () => {
                 const emailToFetch = normalizeEmail(data.igf_webmail_id) || normalizeEmail(data.igf_webmail_user_id) || normalizeEmail(piMember?.igf_webmail_id);
                 if (emailToFetch) {
                     try {
-                        const uRes = await fetch('/api/method/rndopsapp.rndopsapp.api.get_user_details', {
+                        const uRes = await fetch(`${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.api.get_user_details`, {
                             method: 'POST',
                             headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
                             credentials: 'include',
@@ -1617,7 +1618,7 @@ const NIQPage: React.FC = () => {
                                                 <tr>
                                                     <td style={{ width: '65%', verticalAlign: 'top', padding: '6px 10px 10px 0', borderBottom: '2px solid black' }}>
                                                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                                                            <img src={`http://${import.meta.env.VITE_APP_BACKEND_HOST || '172.16.131.206'}:${import.meta.env.VITE_APP_BACKEND_PORT || '8000'}/files/IITG_logo.png`} alt="IITG"
+                                                            <img src={`${FRAPPE_BASE_URL}/files/IITG_logo.png`} alt="IITG"
                                                                 style={{ width: '55px', height: 'auto', flexShrink: 0 }}
                                                                 onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                                                             <div>

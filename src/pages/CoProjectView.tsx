@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import * as React from "react";
 import { useFrappeAuth, useFrappeGetDoc, useFrappeGetDocList } from "frappe-react-sdk";
 import { useNavigate } from "react-router-dom";
@@ -179,7 +180,7 @@ export default function CoProjectView() {
             setUsedBackendMethod(false);
 
             const fetchBackendCoProjects = async () => {
-                const url = "/api/method/rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_co_projects";
+                const url = `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_co_projects`;
                 const response = await fetch(url, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -234,7 +235,7 @@ export default function CoProjectView() {
                                 filters: JSON.stringify([[childDoctype, fieldname, "=", email]]),
                                 limit_page_length: "0",
                             });
-                            const url = `/api/resource/Project%20Registration?${params.toString()}`;
+                            const url = `${FRAPPE_BASE_URL}/api/resource/Project%20Registration?${params.toString()}`;
                             const response = await fetch(url, { credentials: "include" });
                             return { response, url };
                         },
@@ -247,7 +248,7 @@ export default function CoProjectView() {
                                 filters: JSON.stringify([[`${childTableFieldname}.${fieldname}`, "=", email]]),
                                 limit_page_length: "0",
                             });
-                            const url = `/api/resource/Project%20Registration?${params.toString()}`;
+                            const url = `${FRAPPE_BASE_URL}/api/resource/Project%20Registration?${params.toString()}`;
                             const response = await fetch(url, { credentials: "include" });
                             return { response, url };
                         },
@@ -255,7 +256,7 @@ export default function CoProjectView() {
                     {
                         name: "method-child-doctype-filter",
                         request: async () => {
-                            const url = "/api/method/frappe.client.get_list";
+                            const url = `${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`;
                             const response = await fetch(url, {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
@@ -273,7 +274,7 @@ export default function CoProjectView() {
                     {
                         name: "method-child-table-dot-filter",
                         request: async () => {
-                            const url = "/api/method/frappe.client.get_list";
+                            const url = `${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`;
                             const response = await fetch(url, {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
@@ -407,7 +408,7 @@ export default function CoProjectView() {
                     projectNamesToLoad.map(async (projectName) => {
                         try {
                             const response = await fetch(
-                                `/api/resource/Project%20Registration/${encodeURIComponent(projectName)}`,
+                                `${FRAPPE_BASE_URL}/api/resource/Project%20Registration/${encodeURIComponent(projectName)}`,
                                 { credentials: "include" },
                             );
                             debugCoProjects("project detail request", {

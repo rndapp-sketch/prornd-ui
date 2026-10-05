@@ -20,6 +20,10 @@ async function countUnreadByConversation(
         if (
             conversationIds.has(message.conversation_id) &&
             message.sender_id !== myUserId &&
+            // A message the sender deleted for everyone has nothing left to read.
+            !message.deleted_for_everyone &&
+            // "Delete for me" hides the message in the thread, so it can never be opened/marked read.
+            !(message.deleted_for_user_ids ?? []).includes(myUserId) &&
             !(message.read_by ?? []).includes(myUserId)
         ) {
             counts[message.conversation_id] = (counts[message.conversation_id] ?? 0) + 1;

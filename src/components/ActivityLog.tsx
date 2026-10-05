@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
@@ -152,7 +153,7 @@ const LogItem: React.FC<{ entry: ActivityLogEntry; isLast: boolean }> = ({
         
         const email = encodeURIComponent(entry.user_email);
 
-        fetch(`/api/resource/Employee?filters=[["user_id","=","${email}"]]&fields=["designation","employee_name"]`, { credentials: "include" })
+        fetch(`${FRAPPE_BASE_URL}/api/resource/Employee?filters=[["user_id","=","${email}"]]&fields=["designation","employee_name"]`, { credentials: "include" })
             .then(res => res.json())
             .then(json => {
                 let nameSet = false;
@@ -166,7 +167,7 @@ const LogItem: React.FC<{ entry: ActivityLogEntry; isLast: boolean }> = ({
                 
                 // Fallback to User doctype if Employee record doesn't exist
                 if (!nameSet) {
-                    fetch(`/api/resource/User/${email}?fields=["full_name"]`, { credentials: "include" })
+                    fetch(`${FRAPPE_BASE_URL}/api/resource/User/${email}?fields=["full_name"]`, { credentials: "include" })
                         .then(r => r.json())
                         .then(j => {
                             if (j?.data?.full_name) setFullName(j.data.full_name);
@@ -282,8 +283,8 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({
         setError(null);
 
         const params = new URLSearchParams({ doctype: dt, docname: dn });
-        const docActivityUrl = `/api/method/rndopsapp.rndopsapp.api.get_document_activity?${params}`;
-        const projActivityUrl = `/api/method/rndopsapp.rndopsapp.api.get_project_activity?${params}`;
+        const docActivityUrl = `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.api.get_document_activity?${params}`;
+        const projActivityUrl = `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.api.get_project_activity?${params}`;
 
         Promise.all([
             fetch(docActivityUrl, { method: "GET", credentials: "include", signal: controller.signal }),

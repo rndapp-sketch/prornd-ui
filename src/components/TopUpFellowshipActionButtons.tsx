@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState } from "react";
 import { getFileUrl } from "@/utils/fileUtils";
 import { createPortal } from "react-dom";
@@ -153,7 +154,7 @@ const TopUpFellowshipActionButtons: React.FC<Props> = ({
                 alert(res.message.message || "Could not mark as sent.");
                 return;
             }
-            const url = `/api/method/frappe.utils.print_format.download_pdf?doctype=${encodeURIComponent("Top Up Fellowship")}&name=${encodeURIComponent(docname)}&format=Standard&no_letterhead=0`;
+            const url = `${FRAPPE_BASE_URL}/api/method/frappe.utils.print_format.download_pdf?doctype=${encodeURIComponent("Top Up Fellowship")}&name=${encodeURIComponent(docname)}&format=Standard&no_letterhead=0`;
             window.open(url, "_blank");
             onActionComplete();
         } catch (err: any) {

@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import { useRef, useState, useMemo, useEffect } from "react";
 import { getFileUrl } from "@/utils/fileUtils";
 import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
@@ -560,7 +561,7 @@ const TableRow = ({ doc, onDone }: { doc: PendingDoc; onDone: () => void }) => {
             const csrfToken = (window as Window & { csrf_token?: string }).csrf_token;
             const headers = csrfToken ? { "X-Frappe-CSRF-Token": csrfToken } : undefined;
 
-            const res = await fetch("/api/method/upload_file", {
+            const res = await fetch(`${FRAPPE_BASE_URL}/api/method/upload_file`, {
                 method: "POST",
                 body: fd,
                 credentials: "include",
@@ -571,7 +572,7 @@ const TableRow = ({ doc, onDone }: { doc: PendingDoc; onDone: () => void }) => {
             const fileUrl: string | undefined = j?.message?.file_url;
             if (!fileUrl) throw new Error("Upload returned no file_url");
 
-            const bindRes = await fetch(`/api/method/${doc._attachApi}`, {
+            const bindRes = await fetch(`${FRAPPE_BASE_URL}/api/method/${doc._attachApi}`, {
                 method: "POST",
                 credentials: "include",
                 headers: {

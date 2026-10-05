@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useFrappePostCall } from "frappe-react-sdk";
@@ -33,7 +34,7 @@ async function frappeSearch(
         limit_page_length: limit,
     };
     if (query) body.filters = [[labelField, "like", `%${query}%`]];
-    const res = await fetch("/api/method/frappe.client.get_list", {
+    const res = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -237,7 +238,7 @@ const SanctionSheetForm: React.FC = () => {
                                 name: appId,
                             }),
                             fetch(
-                                `/api/v2/document/P_11%20Form?filters=${p11Filter}&fields=${encodeURIComponent('["name"]')}`,
+                                `${FRAPPE_BASE_URL}/api/v2/document/P_11%20Form?filters=${p11Filter}&fields=${encodeURIComponent('["name"]')}`,
                                 {
                                     credentials: "include",
                                     headers: { Accept: "application/json" },

@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFrappeGetDoc, useFrappePostCall, useFrappeAuth, useFrappeGetCall } from 'frappe-react-sdk';
@@ -281,7 +282,7 @@ const OriginalCommitmentSidebar = ({ refName, refDoctype }: { refName?: string; 
         setLoading(true);
         const fetchStaging = async () => {
             try {
-                const url = `/api/method/rndopsapp.rndopsapp.cancellation_api.get_original_commitment?reference_doctype=${encodeURIComponent(refDoctype || '')}&reference_name=${encodeURIComponent(refName)}`;
+                const url = `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.cancellation_api.get_original_commitment?reference_doctype=${encodeURIComponent(refDoctype || '')}&reference_name=${encodeURIComponent(refName)}`;
                 const res = await fetch(url, { credentials: "include" });
                 if (res.ok) {
                     const json = await res.json();
@@ -614,7 +615,7 @@ const DPLinkedDocTab = ({ doctype, filterField, filterValue, emptyTitle, emptyDe
 
     React.useEffect(() => {
         setListLoading(true);
-        fetch(`/api/v2/document/${doctype}?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`, {
+        fetch(`${FRAPPE_BASE_URL}/api/v2/document/${doctype}?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`, {
             credentials: 'include', headers: { Accept: 'application/json' },
         }).then(r => r.json()).then(res => {
             setDocName(res?.data?.[0]?.name || null);
@@ -768,13 +769,13 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
         const csrf = (window as any).csrf_token || '';
         const load = async () => {
             const filters = JSON.stringify([["app_id", "=", docName]]);
-            const ssRes = await fetch(`/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`, {
+            const ssRes = await fetch(`${FRAPPE_BASE_URL}/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`, {
                 credentials: 'include', headers: { Accept: 'application/json' },
             }).then(r => r.json()).catch(() => null);
             const ssName = ssRes?.data?.[0]?.name;
             if (!ssName) return;
 
-            const docRes = await fetch('/api/method/frappe.client.get', {
+            const docRes = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get`, {
                 method: 'POST', credentials: 'include',
                 headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Frappe-CSRF-Token': csrf },
                 body: JSON.stringify({ doctype: 'sanction_sheet', name: ssName }),
@@ -784,7 +785,7 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
 
             // Read-only lookup — unlike the Direct Purchase application page, this
             // view must NOT auto-create a dp_po doc if one doesn't exist yet.
-            const dpPoRes = await fetch(`/api/method/${dpPoAPI.getByDirectPurchase}`, {
+            const dpPoRes = await fetch(`${FRAPPE_BASE_URL}/api/method/${dpPoAPI.getByDirectPurchase}`, {
                 method: 'POST', credentials: 'include',
                 headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Frappe-CSRF-Token': csrf },
                 body: JSON.stringify({ dp_docname: docName }),
@@ -799,14 +800,14 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
             let signeeDesignation = dpPoData?.signee_designation || "";
             if (!signeeName) {
                 try {
-                    const roleRes = await fetch("/api/method/frappe.client.get_list", {
+                    const roleRes = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, {
                         method: "POST", credentials: "include",
                         headers: { "Content-Type": "application/json", Accept: "application/json", "X-Frappe-CSRF-Token": csrf },
                         body: JSON.stringify({ doctype: "Has Role", filters: [["role", "=", "Hos, RnD (Head of Section, RnD)"], ["parenttype", "=", "User"]], fields: ["parent"], limit_page_length: 1 }),
                     }).then(r => r.json()).catch(() => null);
                     const hosEmail = roleRes?.message?.[0]?.parent || "";
                     const targetEmail = hosEmail || "rndadmin@iitg.ac.in";
-                    const detailsRes = await fetch(`/api/method/${directPurchaseAPI.getUserDetails}`, {
+                    const detailsRes = await fetch(`${FRAPPE_BASE_URL}/api/method/${directPurchaseAPI.getUserDetails}`, {
                         method: "POST", credentials: "include",
                         headers: { "Content-Type": "application/json", Accept: "application/json", "X-Frappe-CSRF-Token": csrf },
                         body: JSON.stringify({ user_email: targetEmail }),
@@ -845,12 +846,12 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
     React.useEffect(() => {
         if (activeTab !== 'sanction' || !docName || ssSanctionData) return;
         const filters = JSON.stringify([["app_id", "=", docName]]);
-        fetch(`/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`, {
+        fetch(`${FRAPPE_BASE_URL}/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`, {
             credentials: 'include', headers: { Accept: 'application/json' },
         }).then(r => r.json()).then(async res => {
             const ssName = res?.data?.[0]?.name;
             if (ssName) {
-                const docRes = await fetch('/api/method/frappe.client.get', {
+                const docRes = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get`, {
                     method: 'POST', credentials: 'include',
                     headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Frappe-CSRF-Token': (window as any).csrf_token || '' },
                     body: JSON.stringify({ doctype: 'sanction_sheet', name: ssName }),
@@ -1239,7 +1240,7 @@ const FundSanctionView = ({ data, docname, canEdit, onRefresh }: {
     const [budgetHeadList, setBudgetHeadList] = useState<string[]>([]);
 
     useEffect(() => {
-        fetch('/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0')
+        fetch(`${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0`)
             .then(r => r.json())
             .then(j => { if (j?.data) setBudgetHeadList(j.data.map((x: any) => x.budget_head).filter(Boolean)); })
             .catch(() => { });
@@ -1271,7 +1272,7 @@ const FundSanctionView = ({ data, docname, canEdit, onRefresh }: {
         setBudgetMsg(null);
         try {
             const res = await fetch(
-                '/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.update_sanctioned_budget_breakup',
+                `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.update_sanctioned_budget_breakup`,
                 {
                     method: 'POST',
                     credentials: 'include',
@@ -1346,7 +1347,7 @@ const FundSanctionView = ({ data, docname, canEdit, onRefresh }: {
                 fieldname: '',
             }));
             const res = await fetch(
-                '/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.update_fund_sanction_files',
+                `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.update_fund_sanction_files`,
                 {
                     method: 'POST',
                     credentials: 'include',
@@ -1800,7 +1801,7 @@ const TaskRegistryDetails: React.FC = () => {
                 if (!value) return;
 
                 try {
-                    const res = await fetch(`/api/v2/document/${encodeURIComponent(field.options ?? '')}/${encodeURIComponent(String(value))}`, {
+                    const res = await fetch(`${FRAPPE_BASE_URL}/api/v2/document/${encodeURIComponent(field.options ?? '')}/${encodeURIComponent(String(value))}`, {
                         credentials: "include",
                         headers: { Accept: "application/json" },
                     });
@@ -1878,7 +1879,7 @@ const TaskRegistryDetails: React.FC = () => {
         if (doctype === "Temporary Advance" && data) {
             // Account Head
             if (data.account_head) {
-                fetch(`/api/v2/document/Budget%20Head/${data.account_head}`)
+                fetch(`${FRAPPE_BASE_URL}/api/v2/document/Budget%20Head/${data.account_head}`)
                     .then(r => r.json())
                     .then(res => {
                         if (res.data) setResolvedAccountHead(res.data.budget_head || res.data.name);
@@ -1889,7 +1890,7 @@ const TaskRegistryDetails: React.FC = () => {
             // Department — resolve raw ID to human-readable name for print
             const deptId = data.applicant_department;
             if (deptId) {
-                fetch(`/api/v2/document/Department_prornd/${encodeURIComponent(deptId)}`, { credentials: "include" })
+                fetch(`${FRAPPE_BASE_URL}/api/v2/document/Department_prornd/${encodeURIComponent(deptId)}`, { credentials: "include" })
                     .then(r => r.json())
                     .then(res => {
                         const name = res.data?.dept_name;
@@ -1901,7 +1902,7 @@ const TaskRegistryDetails: React.FC = () => {
             // Applicant full name — applicant_name may store email; resolve from User
             const email = data.applicant_webmail || data.owner || "";
             if (email) {
-                fetch(`/api/method/frappe.client.get_value?doctype=User&filters=${encodeURIComponent(email)}&fieldname=full_name`, { credentials: "include" })
+                fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_value?doctype=User&filters=${encodeURIComponent(email)}&fieldname=full_name`, { credentials: "include" })
                     .then(r => r.json())
                     .then(res => {
                         const fullName = res.message?.full_name;
@@ -1928,12 +1929,12 @@ const TaskRegistryDetails: React.FC = () => {
                     // 2. Search Project Registration by project_no using POST (GET with encoded filters is unreliable)
                     try {
                         const postOpts = { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include" as RequestCredentials };
-                        let res = await fetch("/api/method/frappe.client.get_list", { ...postOpts, body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
+                        let res = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, { ...postOpts, body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
                         let json = await res.json();
                         let title = json?.message?.[0]?.project_title || "";
                         // 3. Fall back to Project Proposal
                         if (!title) {
-                            res = await fetch("/api/method/frappe.client.get_list", { ...postOpts, body: JSON.stringify({ doctype: "Project Proposal", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
+                            res = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, { ...postOpts, body: JSON.stringify({ doctype: "Project Proposal", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
                             json = await res.json();
                             title = json?.message?.[0]?.project_title || "";
                         }
@@ -1961,11 +1962,11 @@ const TaskRegistryDetails: React.FC = () => {
         if (projectRef) {
             (async () => {
                 try {
-                    let res = await fetch("/api/method/frappe.client.get_list", { ...postOpts, body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
+                    let res = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, { ...postOpts, body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
                     let json = await res.json();
                     let title = json?.message?.[0]?.project_title || "";
                     if (!title) {
-                        res = await fetch("/api/method/frappe.client.get_list", { ...postOpts, body: JSON.stringify({ doctype: "Project Proposal", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
+                        res = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, { ...postOpts, body: JSON.stringify({ doctype: "Project Proposal", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
                         json = await res.json();
                         title = json?.message?.[0]?.project_title || "";
                     }
@@ -1977,7 +1978,7 @@ const TaskRegistryDetails: React.FC = () => {
         // Applicant full name — webmail_id holds the email
         const email = data.webmail_id || data.web_mail_id;
         if (email) {
-            fetch(`/api/method/frappe.client.get_value?doctype=User&filters=${encodeURIComponent(email)}&fieldname=full_name`, { credentials: "include" })
+            fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_value?doctype=User&filters=${encodeURIComponent(email)}&fieldname=full_name`, { credentials: "include" })
                 .then(r => r.json())
                 .then(res => {
                     const fullName = res.message?.full_name;
@@ -2107,7 +2108,7 @@ const TaskRegistryDetails: React.FC = () => {
             setIsDohLoading(true);
 
             const postList = (doctype: string, fields: string[]) =>
-                fetch('/api/method/frappe.client.get_list', {
+                fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, {
                     method: 'POST', credentials: 'include',
                     headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': (window as any).csrf_token || '' },
                     body: JSON.stringify({ doctype, fields, limit_page_length: 0 }),
@@ -2323,7 +2324,7 @@ const TaskRegistryDetails: React.FC = () => {
                                                 fields: JSON.stringify(['name']),
                                                 limit: '1',
                                             });
-                                            const res = await fetch(`/api/resource/Project%20Registration?${params}`, { credentials: 'include' }).then(r => r.json());
+                                            const res = await fetch(`${FRAPPE_BASE_URL}/api/resource/Project%20Registration?${params}`, { credentials: 'include' }).then(r => r.json());
                                             const prName = (res?.data ?? res?.message ?? [])[0]?.name;
                                             if (prName) setPrPreviewName(prName);
                                         } finally {

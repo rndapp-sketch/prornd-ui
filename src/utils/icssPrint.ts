@@ -1,4 +1,6 @@
-import icssTemplate from "@/pages/printformat/icss_format.html?raw";
+import icssTemplateRaw from "@/pages/printformat/icss_format.html?raw";
+import { withFrappeBase } from "@/utils/frappeUrl";
+const icssTemplate = withFrappeBase(icssTemplateRaw);
 import { getFileUrl } from "./fileUtils";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -418,7 +420,7 @@ export function generateIcssHtml(
             safeUrl = safeUrl.replace(/^\/files\/(standerdized_purchase|direct_purchase|indent_cum_sanction_sheet)/, "/prod-rnd-files/$1");
 
             // For raw relative paths like standerdized_purchase/..., prepend /prod-rnd-files/
-            if (!safeUrl.startsWith("http") && !safeUrl.startsWith("/files") && !safeUrl.startsWith("/private") && !safeUrl.startsWith("/prod-rnd-files") && !safeUrl.startsWith("/appwrite")) {
+            if (!safeUrl.startsWith("http") && !safeUrl.startsWith("/files") && !safeUrl.startsWith("/private") && !safeUrl.startsWith("/prod-rnd-files") && !safeUrl.startsWith("/appwrite") && !safeUrl.startsWith("/chat-api")) {
                 safeUrl = "/prod-rnd-files" + (safeUrl.startsWith("/") ? "" : "/") + safeUrl;
             }
 

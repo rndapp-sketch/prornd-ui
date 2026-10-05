@@ -1,6 +1,7 @@
 
 // -=-=-=-=-=-=-=-=-=-==-=-=-=
 
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, memo, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 
@@ -39,7 +40,7 @@ async function resolveUniqueSanctionLetterNo(
     docname?: string,
 ): Promise<{ isDuplicate: boolean; finalValue: string; existingDoc: string | null }> {
     const res = await fetch(
-        "/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.check_sanctioned_letter_no",
+        `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.check_sanctioned_letter_no`,
         {
             method: "POST",
             headers: {

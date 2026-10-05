@@ -1,4 +1,6 @@
-import loanTemplate from "@/pages/printformat/loan_request_format.html?raw";
+import loanTemplateRaw from "@/pages/printformat/loan_request_format.html?raw";
+import { withFrappeBase } from "@/utils/frappeUrl";
+const loanTemplate = withFrappeBase(loanTemplateRaw);
 import { ToWords } from "to-words";
 
 const toWords = new ToWords({ localeCode: "en-IN", converterOptions: { ignoreDecimal: false } });

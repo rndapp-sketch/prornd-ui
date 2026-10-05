@@ -35,24 +35,12 @@ function getOldestConversation(a: Conversation, b: Conversation) {
     return new Date(a.$createdAt).getTime() <= new Date(b.$createdAt).getTime() ? a : b;
 }
 
-export function ConversationList({
-    conversations,
-    activeId,
-    onSelect,
-    onNew,
-    isLoading,
-    searchTerm,
-    onSearch,
-    myUserId,
-    myEmail,
-    unreadCounts,
-    isCollapsed,
-    onToggleCollapse,
-    userProfiles = {},
-    pinnedAdmin,
-    onSelectPinnedAdmin,
-}: ConversationListProps) {
-    const uniqueConversations = conversations.reduce<Conversation[]>((acc, conversation) => {
+/**
+ * The conversations the list actually shows: drops self-only / no-counterpart DMs and
+ * collapses duplicate DMs with the same person. Also used for the header thread count.
+ */
+export function getUniqueConversations(conversations: Conversation[], myEmail: string): Conversation[] {
+    return conversations.reduce<Conversation[]>((acc, conversation) => {
         if (conversation.type !== "dm") {
             acc.push(conversation);
             return acc;
@@ -91,6 +79,26 @@ export function ConversationList({
         acc[existingIndex] = getOldestConversation(acc[existingIndex], conversation);
         return acc;
     }, []);
+}
+
+export function ConversationList({
+    conversations,
+    activeId,
+    onSelect,
+    onNew,
+    isLoading,
+    searchTerm,
+    onSearch,
+    myUserId,
+    myEmail,
+    unreadCounts,
+    isCollapsed,
+    onToggleCollapse,
+    userProfiles = {},
+    pinnedAdmin,
+    onSelectPinnedAdmin,
+}: ConversationListProps) {
+    const uniqueConversations = getUniqueConversations(conversations, myEmail);
 
     const pinnedAdminEmail = normalizeEmail(pinnedAdmin?.email);
     const pinnedAdminConversation = pinnedAdminEmail

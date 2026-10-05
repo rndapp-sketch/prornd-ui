@@ -1,12 +1,10 @@
-import tempTemplate from "@/pages/printformat/temporary_advance_format.html?raw";
+import tempTemplateRaw from "@/pages/printformat/temporary_advance_format.html?raw";
+import { withFrappeBase } from "@/utils/frappeUrl";
+const tempTemplate = withFrappeBase(tempTemplateRaw);
 import { ToWords } from "to-words";
 
 // Activity Log will be generated inline via DOM scraping.
 
-// The .html?raw template is static text pulled in at build time, so it can't
-// reference import.meta.env itself; substitute the asset host here instead.
-const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.131.206";
-const ASSET_PORT = import.meta.env.VITE_ASSET_PORT || "8000";
 
 const toWords = new ToWords({ localeCode: "en-IN", converterOptions: { ignoreDecimal: false } });
 
@@ -115,7 +113,6 @@ export function generateTemporaryAdvanceHtml(
         </table>`;
 
     const cleanHtml = tempTemplate
-        .replace(/http:\/\/172\.16\.117\.39:8000/g, `http://${ASSET_HOST}:${ASSET_PORT}`)
         .replace("{{DOC_REF}}", data.name || "")
         .replace("{{WORKFLOW_STATE}}", data.workflow_state || "")
         .replace("{{DATE}}", creation)

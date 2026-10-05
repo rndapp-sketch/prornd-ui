@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Eye,
@@ -98,7 +99,7 @@ const AdminLogin: React.FC = () => {
       } catch (err) {
       }
 
-      const res = await fetch('/api/method/login', {
+      const res = await fetch(`${FRAPPE_BASE_URL}/api/method/login`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -147,7 +148,7 @@ const AdminLogin: React.FC = () => {
         fields: JSON.stringify(['name', 'full_name', 'username']),
         limit: '10',
       });
-      const res = await fetch(`/api/resource/User?${params}`, {
+      const res = await fetch(`${FRAPPE_BASE_URL}/api/resource/User?${params}`, {
         credentials: 'include',
         headers: { 'X-Frappe-CSRF-Token': getCookie('X-Frappe-CSRF-Token') },
       });
@@ -185,7 +186,7 @@ const AdminLogin: React.FC = () => {
     setPhase2Loading(true);
     try {
       const csrf = getCookie('X-Frappe-CSRF-Token');
-      const res = await fetch('/api/method/rndopsapp.external_auth.impersonate_user', {
+      const res = await fetch(`${FRAPPE_BASE_URL}/api/method/rndopsapp.external_auth.impersonate_user`, {
         method: 'POST',
         credentials: 'include',
         headers: {

@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useNavigate, useParams } from "react-router-dom";
 import {
@@ -989,7 +990,7 @@ const buildDirectorApprovalPrintHtml = ({
     <div class="page">
         <div class="letterhead">
             <div class="brand">
-                <img src="http://${import.meta.env.VITE_ASSET_HOST || '172.16.131.206'}:${import.meta.env.VITE_ASSET_PORT || '8000'}/files/IITG_logo.png" alt="IITG Logo" onerror="this.style.display='none'" />
+                <img src="${FRAPPE_BASE_URL}/files/IITG_logo.png" alt="IITG Logo" onerror="this.style.display='none'" />
                 <div>
                     <div class="inst-en">Indian Institute of Technology Guwahati</div>
                     <div class="inst-hi">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
@@ -2215,7 +2216,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     const fetchBudgetHeads = async () => {
       try {
         const response = await fetch(
-          '/api/resource/Budget%20Head?fields=["name","budget_head","id"]&order_by=id%20asc&limit_page_length=0',
+          `${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["name","budget_head","id"]&order_by=id%20asc&limit_page_length=0`,
           { credentials: "include" },
         );
         const result = await response.json();
@@ -4470,7 +4471,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         limit: "1",
       });
       const res = await fetch(
-        `/api/resource/Project%20Registration?${params}`,
+        `${FRAPPE_BASE_URL}/api/resource/Project%20Registration?${params}`,
         {
           credentials: "include",
         },
@@ -4709,7 +4710,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       );
       const fields = encodeURIComponent(JSON.stringify(["name"]));
       const listResponse = await fetch(
-        `/api/resource/ICSS_PO?filters=${filters}&fields=${fields}&order_by=modified%20desc&limit_page_length=1`,
+        `${FRAPPE_BASE_URL}/api/resource/ICSS_PO?filters=${filters}&fields=${fields}&order_by=modified%20desc&limit_page_length=1`,
         { credentials: "include" },
       );
 
@@ -4726,7 +4727,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
       setSavedIcssPoDocName(poDocName);
 
       const detailResponse = await fetch(
-        `/api/resource/ICSS_PO/${encodeURIComponent(poDocName)}`,
+        `${FRAPPE_BASE_URL}/api/resource/ICSS_PO/${encodeURIComponent(poDocName)}`,
         { credentials: "include" },
       );
 
@@ -4787,7 +4788,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         JSON.stringify(["name", "file_url", "file_name", "creation"]),
       );
       const response = await fetch(
-        `/api/resource/File?filters=${filters}&fields=${fields}&order_by=creation%20desc&limit_page_length=10`,
+        `${FRAPPE_BASE_URL}/api/resource/File?filters=${filters}&fields=${fields}&order_by=creation%20desc&limit_page_length=10`,
         { credentials: "include" },
       );
       if (!response.ok) return;
@@ -4826,7 +4827,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         uploadData.append("is_private", "1");
         uploadData.append("folder", "Home/Attachments");
 
-        const uploadResponse = await fetch("/api/method/upload_file", {
+        const uploadResponse = await fetch(`${FRAPPE_BASE_URL}/api/method/upload_file`, {
           method: "POST",
           body: uploadData,
           credentials: "include",
@@ -5031,7 +5032,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
 
       let icssPoResponse;
       try {
-        const insertResponse = await fetch("/api/resource/ICSS_PO", {
+        const insertResponse = await fetch(`${FRAPPE_BASE_URL}/api/resource/ICSS_PO`, {
           method: "POST",
           credentials: "include",
           headers: {

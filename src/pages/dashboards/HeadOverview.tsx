@@ -4,6 +4,7 @@
 
 
 
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import * as React from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import {
@@ -95,7 +96,7 @@ function usePIFundReceivedTotal(projects: any[]) {
             projectNames.map((docname: string) => {
                 if (!fundReceivedPromiseCache[docname]) {
                     fundReceivedPromiseCache[docname] = fetch(
-                        `/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg?prjreg_title=${encodeURIComponent(docname)}&limit=200&start=0`,
+                        `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg?prjreg_title=${encodeURIComponent(docname)}&limit=200&start=0`,
                         { headers: { "X-Frappe-CSRF-Token": (window as any).csrf_token || "" } }
                     )
                         .then(r => r.json())
@@ -749,7 +750,7 @@ export function HeadOverview() {
                     try {
                         const csrf = (window as any).csrf_token || "";
                         const headers = { "X-Frappe-CSRF-Token": csrf, "Content-Type": "application/json" };
-                        const res = await fetch(`/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg?prjreg_title=${encodeURIComponent(p.name)}&limit=10&start=0`, { headers }).then(r => r.json()).catch(() => null);
+                        const res = await fetch(`${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg?prjreg_title=${encodeURIComponent(p.name)}&limit=10&start=0`, { headers }).then(r => r.json()).catch(() => null);
 
                         const fundsRaw = res?.message || res?.data || [];
                         const funds = Array.isArray(fundsRaw) ? fundsRaw : (fundsRaw.message || []);

@@ -2,6 +2,7 @@
 
 // -=-=-=-=-=-=
 
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useRef } from 'react';
 import { FaExclamationCircle, FaArrowLeft } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
@@ -510,7 +511,7 @@ const PendingTask: React.FC = () => {
             limit: String(psdIds.length),
         });
 
-        fetch(`/api/resource/Project%20Staff%20Details?${params}`, { credentials: "include" })
+        fetch(`${FRAPPE_BASE_URL}/api/resource/Project%20Staff%20Details?${params}`, { credentials: "include" })
             .then(r => r.json())
             .then(async (result) => {
                 const docs: any[] = result?.data ?? [];
@@ -527,7 +528,7 @@ const PendingTask: React.FC = () => {
                     filters: JSON.stringify([["project_no", "in", projectNos.join(",")]]),
                     limit: String(projectNos.length),
                 });
-                const prRes = await fetch(`/api/resource/Project%20Registration?${prParams}`, { credentials: "include" });
+                const prRes = await fetch(`${FRAPPE_BASE_URL}/api/resource/Project%20Registration?${prParams}`, { credentials: "include" });
                 const prResult = await prRes.json();
                 const titleByNo = new Map<string, string>();
                 (prResult?.data ?? []).forEach((pr: any) => {
@@ -564,7 +565,7 @@ const PendingTask: React.FC = () => {
                 filters: JSON.stringify([["name", "in", ids.join(",")]]),
                 limit: String(ids.length),
             });
-            return fetch(`/api/resource/${encodeURIComponent(doctype)}?${params}`, { credentials: "include" })
+            return fetch(`${FRAPPE_BASE_URL}/api/resource/${encodeURIComponent(doctype)}?${params}`, { credentials: "include" })
                 .then(r => r.json())
                 .then(result => {
                     (result?.data ?? result?.message ?? []).forEach((rec: any) => {

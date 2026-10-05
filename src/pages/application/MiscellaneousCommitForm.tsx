@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
@@ -47,7 +48,7 @@ async function searchProjects(query: string): Promise<LinkOption[]> {
             ['project_title', 'like', `%${query}%`],
         ];
     }
-    const res = await fetch('/api/method/frappe.client.get_list', {
+    const res = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, {
         method: 'POST',
         credentials: 'include',
         headers: {

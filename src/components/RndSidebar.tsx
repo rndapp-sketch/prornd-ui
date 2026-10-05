@@ -1,4 +1,5 @@
 
+import { FRAPPE_BASE_URL, frappeUrl } from "@/utils/frappeUrl";
 import React from "react";
 import {
     Sidebar,
@@ -94,6 +95,7 @@ export function AppSidebar() {
     const isHeadApprover = roles?.includes("head_approver_1") ?? false;
     const isPermanentEmployee = roles?.includes("Permanent Employee") ?? false;
     const canUploadDirectorPdf = roles?.includes("staff, RnD") ?? false;
+    const isRndStaffRole = roles?.includes("staff, RnD") ?? false;
     const isHosRnd = roles?.includes("Hos, RnD (Head of Section, RnD)") ?? false;
     const isAdoRnd = roles?.includes("Ado_RnD") ?? false;
     const isDoRnd = roles?.includes("Dean, RnD") ?? false;
@@ -353,20 +355,15 @@ export function AppSidebar() {
             icon: FileText,
             path: "/top-up-fellowship-faculty-admission",
         },
+        ...(isRndStaffRole ? [{
+            label: "Project Staff Details",
+            icon: UsersIcon,
+            path: "/project-staff-details",
+        }] : []),
         {
             label: "Project Staff",
             icon: UsersIcon,
-            action: () => {
-                const username = currentUser ? currentUser.split("@")[0] : "";
-                const timestamp = Date.now();
-                const jsonString = JSON.stringify({ username, projectCodes: [], timestamp });
-                const encodedJson = btoa(
-                    Array.from(new TextEncoder().encode(jsonString), (b) =>
-                        String.fromCharCode(b),
-                    ).join(""),
-                );
-                window.open(`http://${import.meta.env.VITE_ATTENDANCE_HOST || "172.16.135.27"}:${import.meta.env.VITE_ATTENDANCE_SSO_PORT || "7079"}/sso?token=${encodedJson}`, "_blank");
-            },
+            path: "/project-staff-attendance",
         },
         {
             label: "Add Student",
@@ -532,8 +529,8 @@ export function AppSidebar() {
         } catch (error) {
             const csrfToken = (window as any).csrf_token || "";
             const requests: Array<{ method: "POST" | "GET"; url: string }> = [
-                { method: "POST", url: "/api/method/logout" },
-                { method: "GET", url: "/api/method/logout" },
+                { method: "POST", url: `${FRAPPE_BASE_URL}/api/method/logout` },
+                { method: "GET", url: `${FRAPPE_BASE_URL}/api/method/logout` },
             ];
             for (const req of requests) {
                 try {
@@ -891,7 +888,7 @@ export function AppSidebar() {
                             >
                                 <div className="flex items-center justify-center flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-[#EEF2FF] to-[#C7D2FE] text-[#4A6CF7] font-bold text-[11px] border border-[#C7D2FE] dark:from-[#4A6CF7]/20 dark:to-[#1E3A8A]/30 dark:text-[#93C5FD] dark:border-[#4A6CF7]/30">
                                     {userDoc?.user_image ? (
-                                        <img src={userDoc.user_image} alt="Profile" className="w-full h-full rounded-full object-cover" />
+                                        <img src={frappeUrl(userDoc.user_image)} alt="Profile" className="w-full h-full rounded-full object-cover" />
                                     ) : (
                                         userDoc?.full_name?.charAt(0).toUpperCase() || "U"
                                     )}

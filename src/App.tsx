@@ -1,5 +1,6 @@
 // ======================================
 
+import { FRAPPE_BASE_URL, frappeUrl } from "@/utils/frappeUrl";
 import {
   FrappeProvider,
   useFrappeAuth,
@@ -79,8 +80,8 @@ function AppContent() {
   const forceServerLogout = async () => {
     const csrfToken = (window as any).csrf_token || "";
     const requests: Array<{ method: "POST" | "GET"; url: string }> = [
-      { method: "POST", url: "/api/method/logout" },
-      { method: "GET", url: "/api/method/logout" },
+      { method: "POST", url: `${FRAPPE_BASE_URL}/api/method/logout` },
+      { method: "GET", url: `${FRAPPE_BASE_URL}/api/method/logout` },
     ];
     for (const req of requests) {
       try {
@@ -149,7 +150,7 @@ function AppContent() {
     }
   }
 
-  const userImageUrl = actualUserData?.user_image || null;
+  const userImageUrl = actualUserData?.user_image ? frappeUrl(actualUserData.user_image) : null;
 
   return (
     <div className="App bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
@@ -167,7 +168,12 @@ function AppContent() {
         {isPublicPage ? (
           <Outlet />
         ) : (
-          <SidebarProvider className="flex min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
+          // Width vars live on the provider: the layout spacer next to the fixed sidebar reads
+          // them from here, so they must match the sidebar or it overlaps the content.
+          <SidebarProvider
+            className="flex min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]"
+            style={{ "--sidebar-width": "13.5rem", "--sidebar-width-icon": "3.5rem" } as React.CSSProperties}
+          >
             {currentUser && <AppSidebar />}
 
             <SidebarInset className="bg-[#FAFAF9] dark:bg-[#18181B] flex flex-col min-h-screen">
@@ -362,7 +368,7 @@ function AppContent() {
 function App() {
   return (
     <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
-      <FrappeProvider siteName="prornd.local" enableSocket={false}>
+      <FrappeProvider url={FRAPPE_BASE_URL} siteName="prornd.local" enableSocket={false}>
         <AppContent />
       </FrappeProvider>
     </ThemeProvider>

@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -178,7 +179,7 @@ const MiscellaneousCommit: React.FC = () => {
         setLoading(true);
         try {
             const response = await fetch(
-                '/api/resource/Miscellaneous Commit?fields=["name","creation","workflow_state","commit_amount","commit_decommit","commit_particular","project_number","applicant_department","applicant_webmail","owner"]&order_by=creation desc&limit_page_length=0',
+                `${FRAPPE_BASE_URL}/api/resource/Miscellaneous Commit?fields=["name","creation","workflow_state","commit_amount","commit_decommit","commit_particular","project_number","applicant_department","applicant_webmail","owner"]&order_by=creation desc&limit_page_length=0`,
             );
             const data = await response.json();
             if (data.data) {

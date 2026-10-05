@@ -1,5 +1,6 @@
 // =-=-=-=-=-=
 
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
@@ -126,6 +127,9 @@ import MessagesPage from './pages/messages/MessagesPage.tsx';
 import DirectorPdfUpload from './pages/application/DirectorPdfUpload.tsx';
 import TopUpFellowshipFacultyAdmission from './pages/application/TopUpFellowshipFacultyAdmission.tsx';
 import SalaryModule from './pages/application/SalaryModule';
+import ProjectStaffAttendance from './pages/ProjectStaffAttendance';
+import ProjectStaffDetailsList from './pages/ProjectStaffDetailsList';
+import ProjectStaffDetailView from './pages/ProjectStaffDetailView';
 import SalaryRegisterFull from './pages/application/SalaryRegisterFull';
 import DelegateUser from './pages/DelegateUser.tsx';
 import DelegatedToMe from './pages/DelegatedToMe.tsx';
@@ -1076,6 +1080,30 @@ const router = createBrowserRouter(
                     ),
                 },
                 {
+                    path: "project-staff-details",
+                    element: (
+                        <AuthRouteWrapper allowedRole="staff, RnD">
+                            <ProjectStaffDetailsList />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "project-staff-details/:name",
+                    element: (
+                        <AuthRouteWrapper allowedRole="staff, RnD">
+                            <ProjectStaffDetailView />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "project-staff-attendance",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <ProjectStaffAttendance />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
                     path: "salary-module",
                     element: (
                         <AuthRouteWrapper allowedRole="staff, RnD">
@@ -1135,7 +1163,7 @@ createRoot(document.getElementById('root') as HTMLElement).render(
           http://<host>/socket.io/...), retrying forever. Nothing in this
           app currently relies on real-time socket updates.
         */}
-        <FrappeProvider url={import.meta.env.VITE_FRAPPE_URL || 'http://localhost:8000'} enableSocket={false}>
+        <FrappeProvider url={FRAPPE_BASE_URL} enableSocket={false}>
             <RouterProvider router={router} />
         </FrappeProvider>
     </StrictMode>

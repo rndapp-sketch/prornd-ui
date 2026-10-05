@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useMemo } from 'react';
 import { getFileUrl } from "@/utils/fileUtils";
 import { useParams, useNavigate } from 'react-router-dom';
@@ -188,7 +189,7 @@ const LeaveModuleDetails = () => {
         if (!doc || !confirm('Are you sure you want to delete this draft?')) return;
         setIsDeleting(true);
         try {
-            const res = await fetch(`/api/resource/Leave Module/${doc.name}`, { method: 'DELETE' });
+            const res = await fetch(`${FRAPPE_BASE_URL}/api/resource/Leave Module/${doc.name}`, { method: 'DELETE' });
             if (res.ok) {
                 alert('Draft deleted successfully.');
                 navigate('/leave-module');
