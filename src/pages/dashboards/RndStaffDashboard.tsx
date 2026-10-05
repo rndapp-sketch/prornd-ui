@@ -1,8 +1,9 @@
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect, useState, useRef } from "react";
 import type { ElementType } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetDoc, useFrappeGetCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
+import { getPendingTaskRoute } from "@/utils/applicationRoutes";
 import {
   FolderKanban, ClipboardList, Layers, Activity,
   AlertCircle, Zap, BarChart3, ChevronRight, Search,
@@ -49,17 +50,6 @@ const getStatusStyle = (s: string) => {
   if (l.includes("forwarded") || l.includes("processed"))
     return "bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-400 border border-violet-200 dark:border-violet-800/40";
   return "bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800/40";
-};
-
-const getTaskRoute = (doctype: string, id: string) => {
-  if (doctype === "Fund Received")         return `/fund-received/${id}`;
-  if (doctype === "Reimbursement")         return `/reimbursement/${id}`;
-  if (doctype === "Advance Settlement")    return `/advance-settlement/${id}`;
-  if (doctype === "Temporary Advance")     return `/pending-tasks/${encodeURIComponent(doctype)}/${id}`;
-  if (doctype === "Project Staff Details") return `/project-staff-joining?docname=${encodeURIComponent(id)}`;
-  if (doctype === "Miscellaneous Commit") return `/miscellaneous-commit/${id}`;
-  if (doctype === "Loan Request") return `/loan-request/${id}`;
-  return `/pending-tasks/${doctype}/${id}`;
 };
 
 const fmtTime = (dateStr: string) => {
@@ -137,6 +127,17 @@ export function RndStaffDashboard() {
 
   const [liveTime, setLiveTime] = useState(new Date());
   const [search, setSearch]           = useState("");
+  const [notifOpen, setNotifOpen]       = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!notifOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!notifRef.current?.contains(e.target as Node)) setNotifOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [notifOpen]);
   const [moduleFilter, setModuleFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
@@ -180,6 +181,7 @@ export function RndStaffDashboard() {
   const totalPending   = pendingTasks.length;
   const totalProcessed = registryTasks.length;
   const staleCount     = useMemo(() => pendingTasks.filter(t => getAgeDays(t.modified) > 3).length, [pendingTasks]);
+  const staleTasks     = useMemo(() => pendingTasks.filter(t => getAgeDays(t.modified) > 3).sort((a, b) => getAgeDays(b.modified) - getAgeDays(a.modified)), [pendingTasks]);
   const freshCount     = useMemo(() => pendingTasks.filter(t => getAgeDays(t.modified) < 1).length, [pendingTasks]);
   const agingCount     = useMemo(() => pendingTasks.filter(t => { const a = getAgeDays(t.modified); return a >= 1 && a <= 3; }).length, [pendingTasks]);
   const todayCount     = useMemo(() => {
@@ -261,15 +263,49 @@ export function RndStaffDashboard() {
               )}
             </div>
 
-            {/* Notifications */}
-            <button className="relative w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] text-[#71717A] dark:text-[#A1A1AA] hover:border-[#D97757] transition-colors">
-              <Bell className="h-4 w-4" />
-              {staleCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[9px] font-extrabold text-white flex items-center justify-center">
-                  {staleCount > 9 ? "9+" : staleCount}
-                </span>
+            {/* Notifications — overdue pending tasks (older than 3 days) */}
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={() => setNotifOpen(o => !o)}
+                aria-label="Notifications"
+                aria-expanded={notifOpen}
+                className={cn(
+                  "relative w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-[#27272A] border text-[#71717A] dark:text-[#A1A1AA] hover:border-[#D97757] transition-colors",
+                  notifOpen ? "border-[#D97757]" : "border-[#E4E4E7] dark:border-[#3F3F46]",
+                )}
+              >
+                <Bell className="h-4 w-4" />
+                {staleCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[9px] font-extrabold text-white flex items-center justify-center">
+                    {staleCount > 9 ? "9+" : staleCount}
+                  </span>
+                )}
+              </button>
+              {notifOpen && (
+                <div className="absolute right-0 top-11 z-50 w-80 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl shadow-2xl overflow-hidden">
+                  <div className="px-4 py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">Notifications</span>
+                    <span className="text-[10px] text-[#A1A1AA]">{staleCount} overdue</span>
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {staleTasks.length === 0 ? (
+                      <p className="px-4 py-6 text-center text-[12px] text-[#A1A1AA]">No new notifications</p>
+                    ) : staleTasks.map(t => (
+                      <button
+                        key={`${t.doctype}-${t.name}`}
+                        onClick={() => { setNotifOpen(false); navigate(getPendingTaskRoute(t.doctype, t.name)); }}
+                        className="w-full text-left px-4 py-2.5 border-b last:border-b-0 border-[#F4F4F5] dark:border-[#3F3F46] hover:bg-[#FFF7ED] dark:hover:bg-[#D97757]/10 transition-colors"
+                      >
+                        <p className="text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{t.title || t.name}</p>
+                        <p className="text-[10px] text-[#71717A] dark:text-[#A1A1AA] mt-0.5">
+                          {t.doctype} · <span className="text-red-500 font-semibold">pending {Math.floor(getAgeDays(t.modified))} days</span>
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
-            </button>
+            </div>
 
             {/* Live clock */}
             <div className="hidden sm:flex items-center gap-1.5 text-[10px] text-[#71717A] dark:text-[#A1A1AA] font-mono bg-white dark:bg-[#27272A] px-3 py-2 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46]">
@@ -486,7 +522,7 @@ export function RndStaffDashboard() {
 
                           {/* CTA */}
                           <button
-                            onClick={() => navigate(getTaskRoute(task.doctype, task.name))}
+                            onClick={() => navigate(getPendingTaskRoute(task.doctype, task.name))}
                             className="flex items-center gap-1 text-[11px] font-bold px-3 py-1.5 bg-[#D97757]/10 text-[#D97757] hover:bg-[#D97757] hover:text-white rounded-lg transition-all flex-shrink-0"
                           >
                             Review <ArrowRight className="h-3 w-3" />

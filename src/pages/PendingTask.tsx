@@ -2,6 +2,7 @@
 
 // -=-=-=-=-=-=
 
+import { getPendingTaskRoute } from "@/utils/applicationRoutes";
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useRef } from 'react';
 import { FaExclamationCircle, FaArrowLeft } from 'react-icons/fa';
@@ -945,39 +946,7 @@ const PendingTask: React.FC = () => {
                                                     <FrappeButton
                                                         variant="primary"
                                                         onClick={() => {
-                                                            if (task.doctype === "Fund Received") {
-                                                                navigate(`/fund-received/${task.id}`);
-                                                            } else if (task.doctype === "Reimbursement") {
-                                                                navigate(`/reimbursement/${task.id}`);
-                                                            } else if (task.doctype === "Advance Settlement") {
-                                                                navigate(`/advance-settlement/${task.id}`);
-                                                            } else if (task.doctype === "Temporary Advance") {
-                                                                navigate(`/pending-tasks/${encodeURIComponent(task.doctype)}/${task.id}`);
-                                                            } else if (task.doctype === "Direct Purchase") {
-                                                                navigate(`/direct-purchase/${task.id}`);
-                                                            } else if (task.doctype === "Disbursal of Consultancy") {
-                                                                navigate(`/disbursal-of-consultancy/${task.id}`);
-                                                            } else if (task.doctype === "Travel") {
-                                                                navigate(`/travel/${task.id}`);
-                                                            } else if (task.doctype === "Selection Committee Report") {
-                                                                navigate(`/selection-committee-report/${task.id}`);
-                                                            } else if (task.doctype === "Project Staff Details") {
-                                                                navigate(`/project-staff-joining?docname=${encodeURIComponent(task.id)}`);
-                                                            } else if (task.doctype === "Project Staff Resignation") {
-                                                                navigate(`/project-staff-resignation?edit=${encodeURIComponent(task.id)}`);
-                                                            } else if (task.doctype === "Project Staff Extension") {
-                                                                navigate(`/project-staff-extension?edit=${encodeURIComponent(task.id)}`);
-                                                            } else if (task.doctype === "Proforma_Invoice") {
-                                                                navigate(`/proforma-invoice/${task.id}`);
-                                                            } else if (task.doctype === "Miscellaneous Commit") {
-                                                                navigate(`/miscellaneous-commit/${task.id}`);
-                                                            } else if (task.doctype === "Loan Request") {
-                                                                navigate(`/loan-request/${task.id}`);
-                                                            } else if (task.doctype === "Loan Settlement") {
-                                                                navigate(`/loan-settlement/${task.id}`);
-                                                            } else {
-                                                                navigate(`/pending-tasks/${task.doctype}/${task.id}`);
-                                                            }
+                                                            navigate(getPendingTaskRoute(task.doctype, task.id));
                                                         }}
                                                         className="px-3 py-1.5 text-xs h-8 shadow-sm"
                                                     >

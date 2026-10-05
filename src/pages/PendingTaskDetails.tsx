@@ -83,6 +83,7 @@ import { DeclarationFields } from "@/components/DeclarationFields";
 import { AutocompleteEmail } from "@/components/AutocompleteEmail";
 import { getFileUrl } from "@/utils/fileUtils";
 import { resolveBudgetHeadLabel } from "@/utils/resolveBudgetHeadLabel";
+import { resolveDepartmentLabel } from "@/utils/resolveDepartmentLabel";
 import { CancellationStatusBanner } from "../components/CancellationStatusBanner";
 
 // Fields to hide from the overview
@@ -3042,6 +3043,30 @@ const PendingTaskDetails: React.FC = () => {
     // Kafka Staging Commit Status Gate
     const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
 
+    // Forwarding is blocked for staff until the office-use figures are saved and a
+    // commitment has been submitted (same gate the other Pending Staff Approval
+    // screens use).
+    const tadaOfficeUseNeverSaved =
+        !((parseFloat((data as any)?.total_admissible_amount) || 0) > 0);
+    const tadaOfficeUseDirty = TADA_OFFICE_USE_INPUT_FIELDNAMES.some(
+        (f) =>
+            (parseFloat(tadaOfficeUseDraft[f]) || 0) !== (parseFloat((data as any)?.[f]) || 0),
+    );
+    const tadaForwardBlockedReasons: string[] = [];
+    if (doctype === "TA DA Settlement" && tadaOfficeUseEditable) {
+        if (tadaOfficeUseDirty || tadaOfficeUseNeverSaved) {
+            tadaForwardBlockedReasons.push(
+                tadaOfficeUseDirty
+                    ? 'Save the "For Office Use" figures (you have unsaved changes) before forwarding.'
+                    : 'Fill in and save the "For Office Use" figures before forwarding.',
+            );
+        }
+        if (isCommittedForGate === false) {
+            tadaForwardBlockedReasons.push("A commitment must be submitted before forwarding.");
+        }
+    }
+
+
     // Comment handler for action buttons
 
     // Top Up Fellowship → Students.dept_centre is a Link to Department_prornd.
@@ -3176,6 +3201,22 @@ const PendingTaskDetails: React.FC = () => {
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tadaFields, isTadaOfficeUseViewer, tadaOfficeUseEditable]);
+
+    // TA DA Settlement — Department/Section can be stored as the raw Department_prornd
+    // id (e.g. "otgh263a0u"); resolve it to dept_name for display.
+    useEffect(() => {
+        const dept = (data as any)?.ta_da_department_section;
+        if (doctype !== "TA DA Settlement" || !dept) return;
+        let cancelled = false;
+        resolveDepartmentLabel(dept).then((label) => {
+            if (!cancelled && label && label !== dept) {
+                setDisplayData((prev) => ({ ...prev, ta_da_department_section: label }));
+            }
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [doctype, (data as any)?.ta_da_department_section]);
 
     const [resolvedAccountHead, setResolvedAccountHead] = useState<string>("");
     const [resolvedProjectTitle, setResolvedProjectTitle] = useState<string>("");
@@ -4022,6 +4063,7 @@ const PendingTaskDetails: React.FC = () => {
                         <TADASettlementActionButtons
                             docName={name}
                             onActionComplete={() => window.location.reload()}
+                            forwardBlockedReasons={tadaForwardBlockedReasons}
                         />
                     )}
                     {doctype === "Recruitment Adhoc Contractual" && name && !cancellationStatus?.message?.has_pending && (
@@ -4188,6 +4230,11 @@ const PendingTaskDetails: React.FC = () => {
                                         onAddTableRow={() => { }}
                                         onDeleteTableRow={() => { }}
                                         readOnly={!tadaOfficeUseEditable}
+                                        highlightSections={
+                                            isTadaOfficeUseViewer
+                                                ? { "for office use": tadaOfficeUseEditable ? "Action required" : "Staff section" }
+                                                : undefined
+                                        }
                                     />
                                     {tadaOfficeUseEditable && (
                                         <div className="mt-6 flex flex-col items-end gap-2 border-t border-zinc-100 dark:border-zinc-800 pt-4">
@@ -4198,8 +4245,17 @@ const PendingTaskDetails: React.FC = () => {
                                             >
                                                 {isSavingTadaOfficeUse ? "Saving..." : "Save Office Use Details"}
                                             </button>
-                                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                                                Save these figures before forwarding this settlement.
+                                            <p className={cn(
+                                                "text-[11px] font-semibold",
+                                                tadaOfficeUseDirty || tadaOfficeUseNeverSaved
+                                                    ? "text-red-600 dark:text-red-400"
+                                                    : "text-emerald-600 dark:text-emerald-400",
+                                            )}>
+                                                {tadaOfficeUseDirty
+                                                    ? "Unsaved changes — save before forwarding this settlement."
+                                                    : tadaOfficeUseNeverSaved
+                                                        ? "Save these figures before forwarding this settlement."
+                                                        : "Saved."}
                                             </p>
                                         </div>
                                     )}
@@ -5193,6 +5249,7 @@ const PendingTaskDetails: React.FC = () => {
                                         isStaff={true}
                                         docName={name}
                                         doctype={doctype}
+                                        onStagingStatusChange={setIsCommittedForGate}
                                         parentAppId={data?.ta_da_travel_application || undefined}
                                         billAmount={data?.ta_da_total_claimed ?? data?.total_claimed ?? undefined}
                                         defaultBudgetHead={resolvedTadaAccountHead || undefined}
