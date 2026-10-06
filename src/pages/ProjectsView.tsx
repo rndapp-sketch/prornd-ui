@@ -1,4 +1,4 @@
-import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
+import { FRAPPE_BASE_URL, toSameOriginFileUrl } from "@/utils/frappeUrl";
 import * as React from "react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -107,20 +107,7 @@ const normalizeProjectType = (raw?: string): ProjectTypeTab => {
   return 'Others';
 };
 
-const APP_BACKEND_HOST = import.meta.env.VITE_APP_BACKEND_HOST || "172.16.131.206";
 const DORND_SIGNATURE_SEAL_URL = `${FRAPPE_BASE_URL}/files/Sign_dornd_stamp_rnd.jpg`;
-
-const toSameOriginFileUrl = (src: string) => {
-  try {
-    const url = new URL(src, window.location.origin);
-    if (url.hostname === APP_BACKEND_HOST || url.hostname === window.location.hostname) {
-      return `${url.pathname}${url.search}${url.hash}`;
-    }
-  } catch {
-    return src;
-  }
-  return src;
-};
 
 const normalizeEndorsementHtmlForDownload = (html: string, projectName: string) => {
   const parser = new DOMParser();

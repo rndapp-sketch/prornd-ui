@@ -24,6 +24,31 @@ export default function ProjectStaffAttendance() {
 
     if (!url) return null;
 
+    // An http:// frame inside an https:// page is blocked as mixed active content, but a
+    // new tab is a top-level navigation and is allowed — so fall back to a launcher.
+    const frameBlocked = window.location.protocol === "https:" && url.startsWith("http:");
+
+    if (frameBlocked) {
+        return (
+            <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+                <div className="max-w-md rounded-xl border border-zinc-200 bg-white p-8 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+                    <h2 className="mb-2 text-lg font-semibold">Project Staff</h2>
+                    <p className="mb-5 text-sm text-zinc-600 dark:text-zinc-400">
+                        This application opens in a separate tab.
+                    </p>
+                    <a
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#D97757] px-5 text-xs font-bold uppercase tracking-wide text-white shadow-sm hover:bg-[#c66a4e]"
+                    >
+                        <ExternalLink className="h-4 w-4" /> Open Project Staff
+                    </a>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="flex h-[calc(100vh-4rem)] flex-col">
             <div className="flex items-center justify-between border-b px-4 py-2">

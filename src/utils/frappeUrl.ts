@@ -52,3 +52,28 @@ export const FRAPPE_BASE_PLACEHOLDER = "__FRAPPE_BASE_URL__";
 export function withFrappeBase(html: string): string {
     return html.split(FRAPPE_BASE_PLACEHOLDER).join(FRAPPE_BASE_URL);
 }
+
+const FRAPPE_FILE_PATH = /^\/(private\/files|files|assets)\//;
+const RAW_IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
+
+/**
+ * Rewrite a file/image URL to a same-origin path so html2canvas/PDF export can
+ * load it. Links saved in old documents point at the raw backend IP
+ * (http://<ip>:8000/files/x.jpg); those are re-routed through the Frappe base
+ * (/bk-api) instead of matching a configured host. Other absolute URLs are
+ * returned unchanged.
+ */
+export function toSameOriginFileUrl(src: string): string {
+    try {
+        const url = new URL(src, window.location.origin);
+        if (url.hostname === window.location.hostname) {
+            return `${url.pathname}${url.search}${url.hash}`;
+        }
+        if (RAW_IPV4.test(url.hostname) && FRAPPE_FILE_PATH.test(url.pathname)) {
+            return frappeUrl(`${url.pathname}${url.search}${url.hash}`).replace(window.location.origin, "");
+        }
+    } catch {
+        return src;
+    }
+    return src;
+}
