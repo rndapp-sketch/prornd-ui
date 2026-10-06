@@ -9,6 +9,8 @@ interface PageHeaderProps {
     projectName?: string;
     status?: string;
     showBack?: boolean;
+    /** Where Back goes when there is no in-app history (page opened directly / in a new tab). */
+    backFallback?: string;
     children?: React.ReactNode;
     className?: string;
 }
@@ -19,10 +21,16 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
     projectName,
     status,
     showBack = true,
+    backFallback = '/',
     children,
     className
 }) => {
     const navigate = useNavigate();
+    const handleBack = () => {
+        // react-router stores the entry index in history.state; 0 means nothing to go back to.
+        if ((window.history.state?.idx ?? 0) > 0) navigate(-1);
+        else navigate(backFallback);
+    };
 
     const getStatusStyle = (s: string) => {
         const lower = s?.toLowerCase() || "";
@@ -62,7 +70,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
                     <div className="flex items-start gap-3.5">
                         {showBack && (
                             <button
-                                onClick={() => navigate(-1)}
+                                onClick={handleBack}
                                 className="mt-0.5 p-2 rounded-xl border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] hover:bg-[#EFF6FF] dark:hover:bg-[#2563EB]/10 hover:border-[#2563EB]/40 transition-all duration-150 flex-shrink-0 shadow-sm"
                                 title="Go Back"
                             >

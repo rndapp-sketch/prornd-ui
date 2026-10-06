@@ -16,9 +16,10 @@ import {
   FolderOpen, CalendarDays, FileText, AlertCircle, CheckCircle2,
   ChevronDown, Loader2, Clock,
   ArrowRightCircle, CheckCircle, XCircle, IndianRupee,
-  UserCheck, TrendingUp,
+  UserCheck, TrendingUp, Printer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { printExtensionOrder } from "@/utils/extensionOrderPrint";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
 import { INT_MAX_LENGTH, CURRENCY_MAX_LENGTH } from "@/utils/fieldLimits";
 import { parseISO, subMonths, isBefore, startOfDay, isValid, format } from "date-fns";
@@ -820,6 +821,41 @@ const ProjectStaffExtensionForm: React.FC = () => {
         ? [{ joining_date: dateOfJoining, term_completion_date: expiryOfTenure }]
         : [];
 
+  const { call: fetchValue } = useFrappePostCall<{ message: any }>("frappe.client.get_value");
+  const [printing, setPrinting] = useState(false);
+
+  const handlePrintOrder = async () => {
+    setPrinting(true);
+    try {
+      let piName = "";
+      if (projectNo) {
+        const pr = await fetchValue({ doctype: "Project Registration", filters: { project_no: projectNo }, fieldname: "principal_investigator" }).catch(() => null);
+        const piUser = pr?.message?.principal_investigator;
+        if (piUser) {
+          const u = await fetchValue({ doctype: "User", filters: piUser, fieldname: "full_name" }).catch(() => null);
+          piName = u?.message?.full_name || piUser;
+        }
+      }
+      const ext = loadedExtension;
+      const increment = ext?.increment_by_staff || ext?.increment_by_pi || 0;
+      const ok = printExtensionOrder({
+        ref: `${projectNo || ""}/ ${docName || ""}`,
+        issueDate: format(new Date(), "yyyy-MM-dd"),
+        staffName: fullName,
+        designation: ext?.ex_designation || applicantSource?.ps_designation || basic?.ps_designation || "",
+        projectTitle,
+        piName,
+        department: applicantDepartment,
+        fromDate: ext?.ex_final_new_joining_date || ext?.ex_computed_new_joining_date || "",
+        toDate: ext?.ex_final_new_completion_date || ext?.ex_computed_new_completion_date || "",
+        increment,
+      });
+      if (!ok) setToast({ type: "error", msg: "Pop-up blocked. Allow pop-ups to print the order." });
+    } finally {
+      setPrinting(false);
+    }
+  };
+
   const isTerminal = workflowState === "Approved" || workflowState === "Rejected" || workflowState === "Cancelled";
   const isEditable = workflowState === "Draft" && docstatus === 0;
   const canEdit = isEditable && isEditing;
@@ -1068,9 +1104,21 @@ const ProjectStaffExtensionForm: React.FC = () => {
 
           <PageHeader
             title="Extension Form"
+            backFallback="/project-staff-extension"
             status={workflowState || undefined}
             projectNumber={projectNo || undefined}
           >
+              {workflowState === "Approved" && docName && (
+                <button
+                  type="button"
+                  onClick={handlePrintOrder}
+                  disabled={printing}
+                  className="inline-flex items-center gap-2 rounded-lg border border-[#4A6CF7] px-4 py-2 text-sm font-semibold text-[#4A6CF7] hover:bg-[#4A6CF7]/10 disabled:opacity-60"
+                >
+                  {printing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+                  Print Office Order
+                </button>
+              )}
               {isRnDStaff && projectNo && (
                 <ViewProjectButton
                   doctype="Project Staff Extension"
