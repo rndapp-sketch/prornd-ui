@@ -175,7 +175,7 @@ function AppContent() {
           // them from here, so they must match the sidebar or it overlaps the content.
           <SidebarProvider
             className="flex min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]"
-            style={{ "--sidebar-width": "13.5rem", "--sidebar-width-icon": "3.5rem" } as React.CSSProperties}
+            style={{ "--sidebar-width": "16.25rem", "--sidebar-width-icon": "4rem" } as React.CSSProperties}
           >
             {currentUser && <AppSidebar />}
 

@@ -20,6 +20,7 @@ import {
     HomeIcon,
     FileText,
     ChevronDownIcon,
+    ChevronRightIcon,
     LogOutIcon,
     ListTodo,
     ClipboardCheck,
@@ -593,32 +594,116 @@ export function AppSidebar() {
         return location.pathname.startsWith(path) && path !== "/";
     };
 
+    // --- Presentation helpers ---
+    const expanded = state === "expanded";
+
+    // Subtle section dividers before these groups (skipped when first in list)
+    const DIVIDER_BEFORE = new Set([
+        "Stakeholder Registration",
+        "Pending Task (as Approver)",
+        "Track Application",
+        "Upload Director PDF",
+        "Salary Module",
+    ]);
+
+    // Right-aligned notification badges: orange = pending, red = secondary
+    const getBadge = (label: string): { count: number; tone: "orange" | "red" } | null => {
+        const map: Record<string, { count: number; tone: "orange" | "red" }> = {
+            "Pending Task (as Approver)": { count: pendingTaskCount, tone: "orange" },
+            "Pending Application (as PI)": { count: pendingApplicationCount, tone: "orange" },
+            "Upload Director PDF": { count: pendingDirectorPdfCount, tone: "orange" },
+            "ID Card Management": { count: pendingIdCardCount, tone: "red" },
+            "ID Card Request": { count: returnedIdCardCount, tone: "red" },
+        };
+        const badge = map[label];
+        return badge && badge.count > 0 ? badge : null;
+    };
+
+    const NavBadge = ({ count, tone }: { count: number; tone: "orange" | "red" }) => (
+        <span
+            className={cn(
+                "ml-auto inline-flex items-center justify-center min-w-[20px] h-[18px] px-1.5 rounded-full text-[10px] font-bold leading-none text-white",
+                tone === "orange" ? "bg-[#F97316]" : "bg-[#EF4444]",
+            )}
+        >
+            {count > 99 ? "99+" : count}
+        </span>
+    );
+
+    const navButtonClass = (active: boolean) =>
+        cn(
+            "relative w-full rounded-[10px] text-[12px] transition-colors duration-150",
+            expanded ? "px-3 py-2 !h-auto min-h-[42px] justify-start items-center "+"[&>span:last-child]:whitespace-normal [&>span:last-child]:overflow-visible [&>span:last-child]:text-clip" : "px-0 justify-center",
+            active
+                ? "bg-[#E8F0FF] text-[#1D4ED8] font-semibold dark:bg-[#2563EB]/20 dark:text-[#93C5FD]"
+                : "text-[#0F172A] font-medium hover:bg-[#DCE4F0] hover:text-[#123B7A] dark:text-[#A1A1AA] dark:hover:bg-[#27272A] dark:hover:text-[#E4E4E7]",
+        );
+
+    const UTIL_TONES = {
+        manual: {
+            idle: "text-[#1E293B] hover:bg-[#C7D2FE] hover:text-[#3730A3] dark:text-[#A5B4FC]",
+            active: "bg-[#C7D2FE] text-[#3730A3] font-semibold",
+            icon: "text-[#4F46E5]",
+        },
+        support: {
+            idle: "text-[#1E293B] hover:bg-[#A7F3D0] hover:text-[#065F46] dark:text-[#6EE7B7]",
+            active: "bg-[#A7F3D0] text-[#065F46] font-semibold",
+            icon: "text-[#059669]",
+        },
+    } as const;
+
+    const utilButtonClass = (active: boolean, tone?: keyof typeof UTIL_TONES) =>
+        cn(
+            "relative w-full rounded-[10px] text-[12px] transition-colors duration-150",
+            expanded ? "px-3 py-2 !h-auto min-h-[40px] justify-start gap-3 "+"[&>span:last-child]:whitespace-normal [&>span:last-child]:overflow-visible [&>span:last-child]:text-clip" : "px-0 justify-center",
+            tone
+                ? cn("font-medium", active ? UTIL_TONES[tone].active : UTIL_TONES[tone].idle)
+                : active
+                ? "bg-[#E8F0FF] text-[#1D4ED8] font-semibold dark:bg-[#2563EB]/20 dark:text-[#93C5FD]"
+                : "text-[#1E293B] font-medium hover:bg-[#DCE4F0] hover:text-[#123B7A] dark:text-[#A1A1AA] dark:hover:bg-[#27272A] dark:hover:text-[#E4E4E7]",
+        );
+
+    const subButtonClass = (active: boolean) =>
+        cn(
+            "w-full h-auto px-3 py-2 text-[11px] rounded-[10px] whitespace-normal break-words transition-colors duration-150",
+            active
+                ? "bg-[#E8F0FF] text-[#1D4ED8] font-semibold dark:bg-[#2563EB]/20 dark:text-[#93C5FD]"
+                : "text-[#1E293B] font-medium hover:bg-[#DCE4F0] hover:text-[#123B7A] dark:text-[#A1A1AA] dark:hover:bg-[#27272A] dark:hover:text-[#E4E4E7]",
+        );
+
+    const subListClass = "ml-[1.6rem] mt-0.5 pl-3 border-l border-[#CBD5E1] dark:border-[#3F3F46] space-y-0.5";
+
+    const ActiveBar = () => (
+        <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-[#2563EB]" />
+    );
+
+    const sidebarBg = "bg-[#FAFAFA] dark:bg-[#18181B]";
+
     return (
         <>
             <GlobalLoader isLoading={isLoggingOut} />
             <Sidebar
                 collapsible="icon"
                 variant="sidebar"
-                className="border-r border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#18181B] z-50 [&_[data-slot=sidebar-container]]:z-50"
-                style={{ "--sidebar-width": "13.5rem", "--sidebar-width-icon": "3.5rem" } as React.CSSProperties}
+                className={cn("border-r border-[#CBD5E1] dark:border-[#3F3F46] z-50 [&_[data-slot=sidebar-container]]:z-50", sidebarBg)}
+                style={{ "--sidebar-width": "16.25rem", "--sidebar-width-icon": "4rem" } as React.CSSProperties}
             >
-                {/* Header */}
-                <SidebarHeader className="gap-0 p-0 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#18181B]">
-                    <div className="h-[2px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-transparent" />
+                {/* Header / Branding */}
+                <SidebarHeader className={cn("sidebar-glass-header gap-0 p-0 h-[55px] box-border justify-center")}>
                     <div className={cn(
-                        "flex items-center h-[3.5rem] transition-all duration-200",
-                        state === "expanded" ? "px-3 gap-2.5" : "justify-center px-0",
+                        "flex items-center transition-all duration-200",
+                        expanded ? "px-[18px] gap-3 h-full" : "justify-center px-0 h-full",
                     )}>
-                        <div className="flex items-center justify-center h-10 w-auto flex-shrink-0">
+                        <div className="flex items-center justify-center h-9 w-auto flex-shrink-0">
                             <img src={`${import.meta.env.BASE_URL}pragati_rnd_logo_light.png`} alt="PRAGATI R&D Logo" className="h-full w-auto object-contain dark:hidden" />
                             <img src={`${import.meta.env.BASE_URL}pragati_rnd_logo_dark.png`} alt="PRAGATI R&D Logo" className="hidden h-full w-auto object-contain dark:block" />
                         </div>
-                        {state === "expanded" && (
+                        {expanded && (
                             <div className="flex flex-col overflow-hidden min-w-0">
-                                <span className="text-[12px] font-extrabold tracking-tight text-[#0F3C6F] dark:text-[#93C5FD] whitespace-nowrap leading-tight">
+                                <span className="text-[13px] font-bold tracking-tight text-[#123B7A] dark:text-[#93C5FD] whitespace-nowrap leading-tight">
                                     PRAGATI R&D
                                 </span>
-                                <span className="text-[10px] font-semibold text-[#D97757] dark:text-[#E88B6A] whitespace-nowrap leading-tight">
+                                <span className="text-[9px] font-semibold tracking-[0.12em] text-[#475569] whitespace-nowrap leading-tight mt-0.5">
                                     IIT GUWAHATI
                                 </span>
                             </div>
@@ -627,29 +712,25 @@ export function AppSidebar() {
                 </SidebarHeader>
 
                 {/* Navigation */}
-                <SidebarContent className="bg-white dark:bg-[#18181B] px-2 py-3">
-                    <SidebarGroup>
-                        <SidebarMenu className="space-y-0.5">
+                <SidebarContent className={cn("px-3 py-4", sidebarBg)}>
+                    <SidebarGroup className="p-0">
+                        {expanded && (
+                            <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#64748B]">
+                                Main
+                            </div>
+                        )}
+                        <SidebarMenu className="gap-0.5">
                             {menuItems.map((item, index) => {
                                 if (item.isSubOf) {
-                                    if (state !== "expanded") return null;
+                                    if (!expanded) return null;
                                     const isSubActive = item.path ? isActivePath(item.path) : false;
-                                    const endsGroup = !menuItems[index + 1]?.isSubOf && index !== menuItems.length - 1;
                                     return (
-                                        <SidebarMenuItem
-                                            key={item.label}
-                                            className={cn(endsGroup && "border-b-2 border-[#D4D4D8] dark:border-[#52525B] pb-1 mb-1")}
-                                        >
-                                            <SidebarMenuSub className="ml-[1.875rem] pl-3 border-l-[1.5px] border-[#C7D2FE] dark:border-[#4A6CF7]/30 space-y-0.5">
+                                        <SidebarMenuItem key={item.label}>
+                                            <SidebarMenuSub className={cn(subListClass, "mt-0")}>
                                                 <SidebarMenuSubItem>
                                                     <SidebarMenuSubButton
                                                         onClick={() => item.path && navigate(item.path)}
-                                                        className={cn(
-                                                            "w-full px-2.5 py-1.5 text-[11px] rounded-lg font-semibold transition-all duration-150",
-                                                            isSubActive
-                                                                ? "bg-[#EEF2FF] text-[#1E3A8A] dark:bg-[#4A6CF7]/15 dark:text-[#93C5FD]"
-                                                                : "text-[#52525B] dark:text-[#71717A] hover:bg-[#F4F4F5] dark:hover:bg-[#27272A] hover:text-[#18181B] dark:hover:text-[#E4E4E7]",
-                                                        )}
+                                                        className={subButtonClass(isSubActive)}
                                                     >
                                                         {item.label}
                                                     </SidebarMenuSubButton>
@@ -660,114 +741,44 @@ export function AppSidebar() {
                                 }
 
                                 const isAnySubMenuActive = item.subMenu?.some((sub) => isActivePath(sub.path)) ?? false;
-                                const isActive = (item.path && isActivePath(item.path)) || isAnySubMenuActive;
+                                const isActive = !!((item.path && isActivePath(item.path)) || isAnySubMenuActive);
                                 const isSubMenuOpen = openSubMenus.includes(item.label);
-
-                                const hasSubOfChild = !!menuItems[index + 1]?.isSubOf;
-                                const isLastItem = index === menuItems.length - 1;
+                                const badge = getBadge(item.label);
+                                const showDivider = index > 0 && DIVIDER_BEFORE.has(item.label);
 
                                 return (
                                     <SidebarMenuItem
                                         key={item.label}
-                                        className={cn(
-                                            !hasSubOfChild && !isLastItem && state === "expanded" &&
-                                                "border-b-2 border-[#D4D4D8] dark:border-[#52525B] pb-1 mb-1",
-                                        )}
+                                        className={cn(showDivider && "border-t border-[#CBD5E1] dark:border-[#52525B] mt-2 pt-2")}
                                     >
                                         <SidebarMenuButton
                                             onClick={() => handleMenuItemClick(item)}
-                                            className={cn(
-                                                "w-full h-8 rounded-lg text-[12px] font-semibold transition-all duration-150",
-                                                state === "expanded" ? "px-2.5 justify-start" : "px-0 justify-center",
-                                                isActive
-                                                    ? "bg-[#EEF2FF] text-[#1E3A8A] dark:bg-[#4A6CF7]/15 dark:text-[#93C5FD] font-bold"
-                                                    : "text-[#3F3F46] dark:text-[#A1A1AA] hover:bg-[#F4F4F5] dark:hover:bg-[#27272A] hover:text-[#18181B] dark:hover:text-[#E4E4E7]",
-                                            )}
+                                            className={cn(navButtonClass(isActive), expanded && "gap-3")}
                                             tooltip={item.label}
                                         >
-                                            <div className={cn(
-                                                "flex items-center",
-                                                state === "expanded" ? "gap-2.5 w-full" : "justify-center",
-                                            )}>
-                                                <item.icon
-                                                    className={cn(
-                                                        state === "expanded" ? "w-[15px] h-[15px]" : "w-5 h-5",
-                                                        "flex-shrink-0",
-                                                        isActive
-                                                            ? "text-[#4A6CF7] dark:text-[#93C5FD]"
-                                                            : "text-[#71717A] dark:text-[#71717A]",
-                                                    )}
-                                                    strokeWidth={isActive ? 2 : 1.75}
-                                                />
-                                                {state === "expanded" && <span className="break-words leading-tight">{item.label}</span>}
-                                            </div>
+                                            {isActive && expanded && <ActiveBar />}
+                                            <item.icon
+                                                className={cn(
+                                                    "!w-5 !h-5 flex-shrink-0",
+                                                    isActive ? "text-[#2563EB] dark:text-[#93C5FD]" : "text-[#475569]",
+                                                )}
+                                                strokeWidth={1.75}
+                                            />
+                                            {expanded && <span className="leading-snug break-words min-w-0">{item.label}</span>}
 
-                                            {item.label === "Pending Task (as Approver)" && pendingTaskCount > 0 && state === "expanded" && (
+                                            {badge && expanded && <NavBadge {...badge} />}
+                                            {badge && !expanded && (
                                                 <span className={cn(
-                                                    "ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold leading-none",
-                                                    isActive
-                                                        ? "bg-[#4A6CF7] text-white"
-                                                        : "bg-[#D97757] text-white",
-                                                )}>
-                                                    {pendingTaskCount > 99 ? "99+" : pendingTaskCount}
-                                                </span>
+                                                    "absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full",
+                                                    badge.tone === "orange" ? "bg-[#F97316]" : "bg-[#EF4444]",
+                                                )} />
                                             )}
 
-                                            {item.label === "Pending Application (as PI)" && pendingApplicationCount > 0 && state === "expanded" && (
-                                                <span className={cn(
-                                                    "ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold leading-none",
-                                                    isActive
-                                                        ? "bg-[#4A6CF7] text-white"
-                                                        : "bg-[#D97757] text-white",
-                                                )}>
-                                                    {pendingApplicationCount > 99 ? "99+" : pendingApplicationCount}
-                                                </span>
-                                            )}
-
-                                            {item.label === "Upload Director PDF" && pendingDirectorPdfCount > 0 && state === "expanded" && (
-                                                <span className={cn(
-                                                    "ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold leading-none",
-                                                    isActive
-                                                        ? "bg-[#4A6CF7] text-white"
-                                                        : "bg-[#D97757] text-white",
-                                                )}>
-                                                    {pendingDirectorPdfCount > 99 ? "99+" : pendingDirectorPdfCount}
-                                                </span>
-                                            )}
-
-                                            {item.label === "ID Card Management" && pendingIdCardCount > 0 && state === "expanded" && (
-                                                <span className={cn(
-                                                    "ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold leading-none",
-                                                    isActive
-                                                        ? "bg-[#4A6CF7] text-white"
-                                                        : "bg-[#D97757] text-white",
-                                                )}>
-                                                    {pendingIdCardCount > 99 ? "99+" : pendingIdCardCount}
-                                                </span>
-                                            )}
-                                            {item.label === "ID Card Management" && pendingIdCardCount > 0 && state !== "expanded" && (
-                                                <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-[#D97757]" />
-                                            )}
-
-                                            {item.label === "ID Card Request" && returnedIdCardCount > 0 && state === "expanded" && (
-                                                <span className={cn(
-                                                    "ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold leading-none",
-                                                    isActive
-                                                        ? "bg-[#4A6CF7] text-white"
-                                                        : "bg-[#D97757] text-white",
-                                                )}>
-                                                    {returnedIdCardCount > 99 ? "99+" : returnedIdCardCount}
-                                                </span>
-                                            )}
-                                            {item.label === "ID Card Request" && returnedIdCardCount > 0 && state !== "expanded" && (
-                                                <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-[#D97757]" />
-                                            )}
-
-                                            {item.subMenu && !item.alwaysOpen && state === "expanded" && (
+                                            {item.subMenu && !item.alwaysOpen && expanded && (
                                                 <ChevronDownIcon
                                                     className={cn(
-                                                        "w-3.5 h-3.5 transition-transform flex-shrink-0 ml-auto",
-                                                        isActive ? "text-[#4A6CF7] dark:text-[#93C5FD]" : "text-[#A1A1AA]",
+                                                        "w-4 h-4 transition-transform flex-shrink-0 ml-auto",
+                                                        isActive ? "text-[#2563EB]" : "text-[#64748B]",
                                                         isSubMenuOpen && "rotate-180",
                                                     )}
                                                     strokeWidth={2}
@@ -775,30 +786,18 @@ export function AppSidebar() {
                                             )}
                                         </SidebarMenuButton>
 
-                                        {item.subMenu && (isSubMenuOpen || item.alwaysOpen) && state === "expanded" && (
-                                            <SidebarMenuSub className="ml-[1.875rem] mt-0.5 space-y-0.5 pl-3 border-l-[1.5px] border-[#C7D2FE] dark:border-[#4A6CF7]/30">
-                                                {item.subMenu.map((subItem, subIndex) => {
-                                                    const isSubActive = isActivePath(subItem.path);
-                                                    const isLastSub = subIndex === item.subMenu!.length - 1;
-                                                    return (
-                                                        <SidebarMenuSubItem
-                                                            key={subItem.label}
-                                                            className={cn(!isLastSub && "border-b border-[#A1A1AA] dark:border-[#52525B] pb-0.5 mb-0.5")}
+                                        {item.subMenu && (isSubMenuOpen || item.alwaysOpen) && expanded && (
+                                            <SidebarMenuSub className={subListClass}>
+                                                {item.subMenu.map((subItem) => (
+                                                    <SidebarMenuSubItem key={subItem.label}>
+                                                        <SidebarMenuSubButton
+                                                            onClick={() => handleSubMenuItemClick(subItem)}
+                                                            className={subButtonClass(isActivePath(subItem.path))}
                                                         >
-                                                            <SidebarMenuSubButton
-                                                                onClick={() => handleSubMenuItemClick(subItem)}
-                                                                className={cn(
-                                                                    "w-full px-2.5 py-1.5 text-[11px] rounded-lg font-medium transition-all duration-150",
-                                                                    isSubActive
-                                                                        ? "bg-[#EEF2FF] text-[#1E3A8A] dark:bg-[#4A6CF7]/15 dark:text-[#93C5FD] font-semibold"
-                                                                        : "text-[#52525B] dark:text-[#71717A] hover:bg-[#F4F4F5] dark:hover:bg-[#27272A] hover:text-[#18181B] dark:hover:text-[#E4E4E7]",
-                                                                )}
-                                                            >
-                                                                {subItem.label}
-                                                            </SidebarMenuSubButton>
-                                                        </SidebarMenuSubItem>
-                                                    );
-                                                })}
+                                                            {subItem.label}
+                                                        </SidebarMenuSubButton>
+                                                    </SidebarMenuSubItem>
+                                                ))}
                                             </SidebarMenuSub>
                                         )}
                                     </SidebarMenuItem>
@@ -808,53 +807,30 @@ export function AppSidebar() {
                     </SidebarGroup>
                 </SidebarContent>
 
-                {/* Footer */}
-                <SidebarFooter className="p-0 border-t border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#18181B]">
-                    <div className="px-2 py-2 space-y-0.5">
+                {/* Footer: utility links + profile */}
+                <SidebarFooter className={cn("p-0 border-t border-[#CBD5E1] dark:border-[#3F3F46]", sidebarBg)}>
+                    <div className="mx-3 mt-3 mb-2 p-1.5 space-y-0.5 rounded-xl bg-[#EEF2F7] dark:bg-[#27272A]">
                         <SidebarMenuItem>
                             <SidebarMenuButton
                                 onClick={() => setIsHelpOpen(true)}
-                                className={cn(
-                                    "relative w-full h-8 rounded-lg text-[12px] font-medium transition-all duration-150 text-[#3F3F46] dark:text-[#A1A1AA] hover:bg-[#F4F4F5] dark:hover:bg-[#27272A] hover:text-[#18181B] dark:hover:text-[#E4E4E7]",
-                                    isHelpOpen && "bg-[#EEF2FF] text-[#1E3A8A] dark:bg-[#4A6CF7]/15 dark:text-[#93C5FD] font-semibold",
-                                    state === "expanded" ? "px-2.5 justify-start gap-2.5" : "px-0 justify-center",
-                                )}
+                                className={utilButtonClass(isHelpOpen, "manual")}
                                 tooltip="User Manual"
                             >
-                                <HelpCircle
-                                    className={cn(state === "expanded" ? "w-[15px] h-[15px]" : "w-5 h-5", "flex-shrink-0 text-[#71717A]")}
-                                    strokeWidth={1.75}
-                                />
-                                {state === "expanded" && <span>User Manual</span>}
+                                <HelpCircle className={cn("!w-5 !h-5 flex-shrink-0", UTIL_TONES.manual.icon)} strokeWidth={1.75} />
+                                {expanded && <span>User Manual</span>}
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                         <SidebarMenuItem>
                             <SidebarMenuButton
                                 onClick={() => navigate("/messages")}
-                                className={cn(
-                                    "relative w-full h-8 rounded-lg text-[12px] font-medium transition-all duration-150 text-[#3F3F46] dark:text-[#A1A1AA] hover:bg-[#F4F4F5] dark:hover:bg-[#27272A] hover:text-[#18181B] dark:hover:text-[#E4E4E7]",
-                                    isActivePath("/messages") && "bg-[#EEF2FF] text-[#1E3A8A] dark:bg-[#4A6CF7]/15 dark:text-[#93C5FD] font-semibold",
-                                    state === "expanded" ? "px-2.5 justify-start gap-2.5" : "px-0 justify-center",
-                                )}
+                                className={utilButtonClass(isActivePath("/messages"), "support")}
                                 tooltip="Help and Support"
                             >
-                                <MessageCircle
-                                    className={cn(state === "expanded" ? "w-[15px] h-[15px]" : "w-5 h-5", "flex-shrink-0 text-[#71717A]")}
-                                    strokeWidth={1.75}
-                                />
-                                {state === "expanded" && <span>Help and Support</span>}
-                                {unreadCount > 0 && state === "expanded" && (
-                                    <span className={cn(
-                                        "ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold leading-none",
-                                        isActivePath("/messages")
-                                            ? "bg-[#4A6CF7] text-white"
-                                            : "bg-[#D97757] text-white",
-                                    )}>
-                                        {unreadCount > 99 ? "99+" : unreadCount}
-                                    </span>
-                                )}
-                                {unreadCount > 0 && state !== "expanded" && (
-                                    <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-[#D97757]" />
+                                <MessageCircle className={cn("!w-5 !h-5 flex-shrink-0", UTIL_TONES.support.icon)} strokeWidth={1.75} />
+                                {expanded && <span>Help and Support</span>}
+                                {unreadCount > 0 && expanded && <NavBadge count={unreadCount} tone="orange" />}
+                                {unreadCount > 0 && !expanded && (
+                                    <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-[#F97316]" />
                                 )}
                             </SidebarMenuButton>
                         </SidebarMenuItem>
@@ -862,47 +838,49 @@ export function AppSidebar() {
                             <SidebarMenuButton
                                 onClick={handleLogout}
                                 className={cn(
-                                    "w-full h-8 rounded-lg text-[12px] font-medium transition-all duration-150 text-[#3F3F46] dark:text-[#A1A1AA] hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-600 dark:hover:text-red-400",
-                                    state === "expanded" ? "px-2.5 justify-start gap-2.5" : "px-0 justify-center",
+                                    utilButtonClass(false),
+                                    "hover:!bg-red-200 hover:!text-red-700 dark:hover:!bg-red-950/20 dark:hover:!text-red-400",
                                 )}
                                 tooltip="Log out"
                             >
-                                <LogOutIcon
-                                    className={cn(state === "expanded" ? "w-[15px] h-[15px]" : "w-5 h-5", "flex-shrink-0 text-[#71717A]")}
-                                    strokeWidth={1.75}
-                                />
-                                {state === "expanded" && <span>Log out</span>}
+                                <LogOutIcon className="!w-5 !h-5 flex-shrink-0 text-[#475569]" strokeWidth={1.75} />
+                                {expanded && <span>Log out</span>}
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                     </div>
 
-                    <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] px-2 py-2">
+                    <div className="px-3 pb-3 pt-1">
                         {isLoading || isLoadingUserDoc ? (
-                            <div className={cn("h-9 rounded-lg bg-[#F4F4F5] dark:bg-[#27272A] animate-pulse", state !== "expanded" && "w-9 mx-auto")} />
+                            <div className={cn("h-[58px] rounded-xl bg-[#F1F5F9] dark:bg-[#27272A] animate-pulse", !expanded && "w-9 h-9 mx-auto")} />
                         ) : (
                             <div
                                 onClick={() => navigate("/profile")}
                                 className={cn(
-                                    "flex items-center gap-2.5 p-1.5 rounded-lg cursor-pointer transition-all duration-150 hover:bg-[#F4F4F5] dark:hover:bg-[#27272A] border border-transparent hover:border-[#E4E4E7] dark:hover:border-[#3F3F46]",
-                                    state === "expanded" ? "justify-start" : "justify-center",
+                                    "flex items-center cursor-pointer transition-colors duration-150",
+                                    expanded
+                                        ? "gap-3 px-3 py-2.5 rounded-xl bg-white border border-[#E2E8F0] hover:bg-[#F4F4F5] dark:bg-[#27272A] dark:border-[#3F3F46]"
+                                        : "justify-center",
                                 )}
                             >
-                                <div className="flex items-center justify-center flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-[#EEF2FF] to-[#C7D2FE] text-[#4A6CF7] font-bold text-[11px] border border-[#C7D2FE] dark:from-[#4A6CF7]/20 dark:to-[#1E3A8A]/30 dark:text-[#93C5FD] dark:border-[#4A6CF7]/30">
+                                <div className="flex items-center justify-center flex-shrink-0 w-9 h-9 rounded-full bg-[#DBEAFE] text-[#2563EB] font-semibold text-[14px]">
                                     {userDoc?.user_image ? (
                                         <img src={frappeUrl(userDoc.user_image)} alt="Profile" className="w-full h-full rounded-full object-cover" />
                                     ) : (
                                         userDoc?.full_name?.charAt(0).toUpperCase() || "U"
                                     )}
                                 </div>
-                                {state === "expanded" && (
-                                    <div className="flex-1 min-w-0 text-left">
-                                        <div className="truncate text-[12px] font-bold text-[#18181B] dark:text-[#E4E4E7] leading-tight">
-                                            {userDoc?.full_name || "User Name"}
+                                {expanded && (
+                                    <>
+                                        <div className="flex-1 min-w-0 text-left">
+                                            <div className="truncate text-[12px] font-semibold text-[#1E293B] dark:text-[#E4E4E7] leading-tight">
+                                                {userDoc?.full_name || "User Name"}
+                                            </div>
+                                            <div className="truncate text-[9px] text-[#475569] leading-tight mt-0.5">
+                                                {userDoc?.email || ""}
+                                            </div>
                                         </div>
-                                        <div className="truncate text-[10px] font-medium text-[#71717A] dark:text-[#71717A] leading-tight">
-                                            {userDoc?.email || ""}
-                                        </div>
-                                    </div>
+                                        <ChevronRightIcon className="w-4 h-4 flex-shrink-0 text-[#475569]" strokeWidth={2} />
+                                    </>
                                 )}
                             </div>
                         )}
