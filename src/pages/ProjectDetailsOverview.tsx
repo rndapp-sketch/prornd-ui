@@ -6265,6 +6265,18 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                             </div>
                                                                         </div>
 
+                                                                        {!hideActions &&
+                                                                            !isOverheadProject &&
+                                                                            sanction.sanction_workflow_status?.toLowerCase() ===
+                                                                            "sanction approved" && (
+                                                                                <FrappeButton
+                                                                                    onClick={handleAddFunds}
+                                                                                    aria-label="Add fund received"
+                                                                                >
+                                                                                    <PlusIcon className="h-4 w-4" />
+                                                                                    Add Fund Received
+                                                                                </FrappeButton>
+                                                                            )}
                                                                         {(isDraft || isSanctionOwner) && (
                                                                             <div className="flex-shrink-0 flex items-center gap-2">
                                                                                 {isSanctionOwner && !isEditingSB && (

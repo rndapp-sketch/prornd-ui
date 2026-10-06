@@ -5,6 +5,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useFrappePostCall, useFrappeGetDoc } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { Save, Send } from 'lucide-react';
+import ViewProjectButton from '@/components/ViewProjectButton';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { commonAPI, disbursalOfConsultancyAPI, prepareFormDataForApi } from '@/services/apiService';
@@ -190,8 +191,9 @@ const DisbursalOfConsultancyForm: React.FC = () => {
     const { data: currentUserData } = useFrappeGetDoc("User", "");
     // Hook to fetch user details by email for auto-fill in consultancy table
     const { call: fetchUserDetails } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
-    // Hook to fetch users list for dropdown
     const { call: fetchUsersList } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
+    // Hook to search User + Universal Registration profiles for the web_mail_id dropdown
+    const { call: fetchUserProfile } = useFrappePostCall<{ message: any }>(commonAPI.getUserRegistrationProfile);
 
     // --- DATA FETCHING ---
     useEffect(() => {
@@ -244,25 +246,6 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                             value: head.name,
                             label: head.budget_head || head.name
                         }));
-                    }
-                } catch (err) {
-                }
-
-                // Fetch Users list for the consultancy table dropdown (web_mail_id is Link to User)
-                try {
-                    const usersRes = await fetchUsersList({
-                        doctype: 'User',
-                        fields: ['name', 'full_name', 'email'],
-                        filters: [['enabled', '=', 1]],
-                        limit_page_length: 0
-                    });
-                    if (usersRes?.message) {
-                        baseLinkOptions['web_mail_id'] = usersRes.message.map((user: any) => ({
-                            value: user.name,
-                            label: user.full_name ? `${user.full_name} (${user.name})` : user.name
-                        }));
-                        // Also add as 'User' key for generic Link field support
-                        baseLinkOptions['User'] = baseLinkOptions['web_mail_id'];
                     }
                 } catch (err) {
                 }
@@ -398,7 +381,23 @@ const DisbursalOfConsultancyForm: React.FC = () => {
     // --- EVENT HANDLERS ---
     const handleChange = useCallback((fieldname: string, value: any) => {
         setFormData(prev => ({ ...prev, [fieldname]: value }));
-    }, []);
+
+        // Top-level Webmail ID picked via search: auto-fill the applicant's details
+        if (fieldname === 'webmail_id' && value) {
+            fetchUserDetails({ user_email: value })
+                .then(res => {
+                    const d = res?.message;
+                    if (!d) return;
+                    setFormData(prev => prev.webmail_id !== value ? prev : ({
+                        ...prev,
+                        pi_name: d.full_name || prev.pi_name || '',
+                        designation: d.designation_name || d.designation || prev.designation || '',
+                        department: d.department_name || prev.department || '',
+                    }));
+                })
+                .catch(err => console.error('Webmail ID autofill failed', err));
+        }
+    }, [fetchUserDetails]);
 
     const handleFileChange = useCallback((fieldname: string, file: File | null) => {
         setFormData(prev => ({ ...prev, [fieldname]: file }));
@@ -467,28 +466,64 @@ const DisbursalOfConsultancyForm: React.FC = () => {
 
     // --- Handler for Link field selection in child tables (auto-fetch user details) ---
     // When web_mail_id is selected in any child table row, auto-fill name, emp_id, designation, department
+    const userSearch = useMemo(() => async (query: string) => {
+            if (!query || query.length < 2) return [];
+            try {
+                const result = await fetchUserProfile({ search: query });
+                const list: any[] = Array.isArray(result?.message)
+                    ? result.message
+                    : result?.message ? [result.message] : [];
+                return list.map((p: any) => {
+                    const email = p.email || p.email_address_u_r || p.name || '';
+                    const name = p.full_name || p.full_name_u_r || '';
+                    return { value: email, label: name ? `${name} (${email})` : email };
+                }).filter((o: any) => o.value);
+            } catch {
+                return [];
+            }
+    }, [fetchUserProfile]);
+    const tableAsyncSearch = useMemo(() => ({ web_mail_id: userSearch }), [userSearch]);
+    const topLevelAsyncSearch = useMemo(() => ({ webmail_id: userSearch }), [userSearch]);
+
     const handleTableLinkChange = useCallback(async (tableName: string, rowIndex: number, fieldname: string, value: string) => {
         if (fieldname === 'web_mail_id' && value) {
             try {
-                const result = await fetchUserDetails({ user_email: value });
-                const details = result?.message;
+                // Profile search covers Users and Universal-Registration-only people;
+                // get_user_details supplies the bank rows.
+                const [profileRes, detailsRes] = await Promise.all([
+                    fetchUserProfile({ search: value }).catch(() => null),
+                    fetchUserDetails({ user_email: value }).catch(() => null),
+                ]);
+                const list: any[] = Array.isArray(profileRes?.message)
+                    ? profileRes.message
+                    : profileRes?.message ? [profileRes.message] : [];
+                const profile =
+                    list.find((p: any) => (p.email || p.email_address_u_r || p.name || '').toLowerCase() === value.toLowerCase()) ||
+                    list[0] || {};
+                const details = detailsRes?.message || {};
+                const bank = details.bank_details?.[0];
+                const pick = (...v: any[]) => v.find((x) => x) || '';
 
-                if (details) {
-                    setFormData(prev => {
-                        const table = [...(prev[tableName] || [])];
-                        table[rowIndex] = {
-                            ...table[rowIndex],
-                            web_mail_id: value,
-                            name1: details.full_name || '',
-                            emp_id: details.employee_id || '',
-                            designation: details.designation_name || details.designation || '',
-                            department_section: details.department_name || ''
-                        };
-                        return { ...prev, [tableName]: table };
-                    });
-                    return;
-                }
+                setFormData(prev => {
+                    const table = [...(prev[tableName] || [])];
+                    table[rowIndex] = {
+                        ...table[rowIndex],
+                        web_mail_id: value,
+                        name1: pick(bank?.beneficiary_name, details.full_name, profile.full_name, profile.full_name_u_r),
+                        emp_id: pick(details.employee_id, profile.employee_id),
+                        designation: pick(details.designation_name, details.designation, profile.designation_name, profile.designation),
+                        department_section: pick(details.department_name, profile.department_name),
+                        ...(bank && {
+                            disbursal_pdf_no_or_bank_account_no: bank.account_number || '',
+                            bank_account_number: bank.account_number || '',
+                            ifsc_code: bank.ifsc_code || '',
+                        }),
+                    };
+                    return { ...prev, [tableName]: table };
+                });
+                return;
             } catch (err) {
+                console.error('Consultancy web_mail_id autofill failed', err);
             }
         }
 
@@ -498,7 +533,7 @@ const DisbursalOfConsultancyForm: React.FC = () => {
             table[rowIndex] = { ...table[rowIndex], [fieldname]: value };
             return { ...prev, [tableName]: table };
         });
-    }, [fetchUserDetails]);
+    }, [fetchUserDetails, fetchUserProfile]);
 
     // --- Computed: Aggregate totals and institute share breakdown from details_of_disbursal ---
     const disbursalTotals = useMemo(() => {
@@ -642,6 +677,7 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                     projectName={formData.project_title}
                     projectNumber={formData.disbursal_project_number}
                 >
+                    <ViewProjectButton doctype="Disbursal of Consultancy" data={formData} />
                     {id && (
                         <button
                             type="button"
@@ -669,6 +705,8 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                             onAddTableRow={addTableRow}
                             onDeleteTableRow={deleteTableRow}
                             onTableLinkChange={handleTableLinkChange}
+                            asyncSearchFnsForTables={tableAsyncSearch}
+                            asyncSearchFields={topLevelAsyncSearch}
                             readOnly={formData.docstatus === 1}
                         />
                     </FrappeCard>
