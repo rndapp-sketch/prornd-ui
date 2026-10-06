@@ -1,3 +1,4 @@
+import { getConsultancyBudgetHead } from "@/utils/budgetHead";
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -612,7 +613,7 @@ const DisbursalOfConsultancyForm: React.FC = () => {
                         name: docname,
                         project_name: formData.disbursal_project_number || "",
                         commit_amount: disbursalTotals.total_disbursal_amount,
-                        budget_head: "Consultancy",
+                        budget_head: await getConsultancyBudgetHead(),
                     });
                 } catch (commitErr) {
                 }
