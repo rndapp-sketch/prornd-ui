@@ -207,16 +207,16 @@ export function HeadDashboard() {
 
   return (
     <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] font-sans">
-      <div className="flex-1 p-4 md:p-8">
-        <div className="w-full max-w-7xl mx-auto">
+      <div className="flex-1 p-0">
+        <div className="w-full">
 
           {/* Header */}
-          <header className="mb-8">
+          <header className="mb-3">
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <div className="w-1 h-6 rounded-full bg-[#4A6CF7]" />
-                  <h1 className="text-2xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
+                  <h1 className="text-[18px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
                     Head's Dashboard
                   </h1>
                 </div>
@@ -229,11 +229,11 @@ export function HeadDashboard() {
           </header>
 
           {/* Quick Action Cards */}
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
             {/* Pending Approvals */}
             <button
               onClick={() => navigate("/pending-task")}
-              className="group relative bg-white dark:bg-[#27272A] p-5 rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm hover:shadow-md hover:border-[#4A6CF7]/40 transition-all text-left overflow-hidden"
+              className="group relative bg-white dark:bg-[#27272A] p-5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm hover:shadow-md hover:border-[#4A6CF7]/40 transition-all text-left overflow-hidden"
             >
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-400 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="flex items-center justify-between mb-3">
@@ -256,7 +256,7 @@ export function HeadDashboard() {
             {/* Department Projects */}
             <button
               onClick={() => navigate("/department-projects")}
-              className="group relative bg-white dark:bg-[#27272A] p-5 rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm hover:shadow-md hover:border-[#4A6CF7]/40 transition-all text-left overflow-hidden"
+              className="group relative bg-white dark:bg-[#27272A] p-5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm hover:shadow-md hover:border-[#4A6CF7]/40 transition-all text-left overflow-hidden"
             >
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-400 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="flex items-center justify-between mb-3">
@@ -272,7 +272,7 @@ export function HeadDashboard() {
             {/* Task Registry */}
             <button
               onClick={() => navigate("/task-registry")}
-              className="group relative bg-white dark:bg-[#27272A] p-5 rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm hover:shadow-md hover:border-[#4A6CF7]/40 transition-all text-left overflow-hidden"
+              className="group relative bg-white dark:bg-[#27272A] p-5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm hover:shadow-md hover:border-[#4A6CF7]/40 transition-all text-left overflow-hidden"
             >
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-400 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="flex items-center justify-between mb-3">
@@ -294,8 +294,8 @@ export function HeadDashboard() {
           </section>
 
           {/* Stats Row */}
-          <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm stat-card stat-card-amber">
+          <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-3">
+            <div className="bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm stat-card stat-card-amber">
               <AnalyticsCard
                 title="Pending"
                 value={isLoading ? "—" : String(totalPending)}
@@ -304,7 +304,7 @@ export function HeadDashboard() {
                 accentColor="#D97706"
               />
             </div>
-            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm stat-card stat-card-green">
+            <div className="bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm stat-card stat-card-green">
               <AnalyticsCard
                 title="Processed"
                 value={isLoading ? "—" : String(totalProcessed)}
@@ -313,7 +313,7 @@ export function HeadDashboard() {
                 accentColor="#059669"
               />
             </div>
-            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm stat-card stat-card-blue">
+            <div className="bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm stat-card stat-card-blue">
               <AnalyticsCard
                 title="Active Modules"
                 value={isLoading ? "—" : String(activeModules)}
@@ -322,7 +322,7 @@ export function HeadDashboard() {
                 accentColor="#4A6CF7"
               />
             </div>
-            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm stat-card stat-card-purple">
+            <div className="bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm stat-card stat-card-purple">
               <AnalyticsCard
                 title="Today's Activity"
                 value={isLoading ? "—" : String(recentActivityCount)}
@@ -334,9 +334,9 @@ export function HeadDashboard() {
           </section>
 
           {/* Two-Column: Recent Pending + Recently Processed */}
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
             {/* Recent Pending Approvals */}
-            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
               <div className="px-5 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <ClipboardCheck className="h-4 w-4 text-[#D97757]" />
@@ -392,7 +392,7 @@ export function HeadDashboard() {
             </div>
 
             {/* Recently Processed */}
-            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
               <div className="px-5 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <BarChart className="h-4 w-4 text-[#D97757]" />
@@ -453,7 +453,7 @@ export function HeadDashboard() {
 
           {/* Module Breakdown */}
           {moduleBreakdown.length > 0 && (
-            <section className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden mb-6">
+            <section className="bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden mb-3">
               <div className="px-5 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] flex items-center gap-2">
                 <Clock className="h-4 w-4 text-[#D97757]" />
                 <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-[11px] uppercase tracking-widest">

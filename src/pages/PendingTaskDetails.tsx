@@ -3934,7 +3934,7 @@ const PendingTaskDetails: React.FC = () => {
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
 
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+            <main className="flex-1 p-0 w-full overflow-hidden">
                 {cancellationStatus?.message?.has_cancellation && (
                     <CancellationStatusBanner
                         requests={cancellationStatus?.message?.cancellation_requests}
@@ -4105,9 +4105,9 @@ const PendingTaskDetails: React.FC = () => {
                 </PageHeader>
 
                 {/* Content Grid with Sidebar */}
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
                     {/* Left Column: Main Detail View */}
-                    <div className="lg:col-span-3 space-y-6">
+                    <div className="lg:col-span-3 space-y-3">
                         {doctype === "Leave Module" && name && (
                             <ApplicantLeaveBalance docname={name} />
                         )}
@@ -4894,12 +4894,12 @@ const PendingTaskDetails: React.FC = () => {
                                 )}
                             </div>
                         ) : doctype === "Cancellation Request" && data ? (
-                            <div className="space-y-5">
+                            <div className="space-y-3">
                                 {/* Reference Document Banner */}
-                                <div className="relative overflow-hidden rounded-xl border border-amber-200 dark:border-amber-800/40 bg-gradient-to-br from-amber-50 via-orange-50/60 to-amber-50/30 dark:from-amber-900/10 dark:via-orange-900/5 dark:to-zinc-900/0 p-5 sm:p-6">
+                                <div className="relative overflow-hidden rounded-lg border border-amber-200 dark:border-amber-800/40 bg-gradient-to-br from-amber-50 via-orange-50/60 to-amber-50/30 dark:from-amber-900/10 dark:via-orange-900/5 dark:to-zinc-900/0 p-3 sm:p-4">
                                     <div className="absolute top-0 right-0 w-56 h-56 bg-amber-100/40 dark:bg-amber-800/10 rounded-full -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-                                    <div className="relative flex items-start gap-4">
-                                        <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-amber-100 dark:bg-amber-900/30 border border-amber-200/70 dark:border-amber-700/40 flex items-center justify-center shadow-sm">
+                                    <div className="relative flex items-start gap-3">
+                                        <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/30 border border-amber-200/70 dark:border-amber-700/40 flex items-center justify-center shadow-sm">
                                             <XCircleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -4942,10 +4942,10 @@ const PendingTaskDetails: React.FC = () => {
 
                                 {/* Reason for Cancellation */}
                                 {(data.reason || data.cancellation_reason || data.remarks) && (
-                                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-6">
+                                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-4">
                                         <div className="flex items-center gap-2 mb-3">
                                             <div className="w-1 h-4 rounded-full bg-[#D97757]" />
-                                            <h3 className="text-[11px] font-extrabold text-zinc-700 dark:text-zinc-300 uppercase tracking-widest">
+                                            <h3 className="text-[12px] font-extrabold text-zinc-800 dark:text-zinc-200 uppercase tracking-wide">
                                                 Reason for Cancellation
                                             </h3>
                                         </div>
@@ -4957,12 +4957,12 @@ const PendingTaskDetails: React.FC = () => {
 
                                 {/* Request Details */}
                                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
-                                    <div className="px-6 py-3.5 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30">
-                                        <h3 className="text-[11px] font-extrabold text-zinc-700 dark:text-zinc-300 uppercase tracking-widest">
+                                    <div className="px-4 py-2 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30">
+                                        <h3 className="text-[12px] font-extrabold text-zinc-800 dark:text-zinc-200 uppercase tracking-wide">
                                             Request Details
                                         </h3>
                                     </div>
-                                    <div className="p-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-6">
+                                    <div className="p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-3">
                                         {[
                                             { label: "Applicant", value: data.applicant_name || data.applicant },
                                             { label: "Department", value: data.department || data.applicant_department },
@@ -5003,12 +5003,12 @@ const PendingTaskDetails: React.FC = () => {
                                     if (extras.length === 0) return null;
                                     return (
                                         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
-                                            <div className="px-6 py-3.5 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30">
-                                                <h3 className="text-[11px] font-extrabold text-zinc-700 dark:text-zinc-300 uppercase tracking-widest">
+                                            <div className="px-4 py-2 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30">
+                                                <h3 className="text-[12px] font-extrabold text-zinc-800 dark:text-zinc-200 uppercase tracking-wide">
                                                     Additional Information
                                                 </h3>
                                             </div>
-                                            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-6">
+                                            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-3">
                                                 {extras.map(([key, value]) => {
                                                     const isFile = isFilePath(String(value));
                                                     return (
@@ -5047,8 +5047,8 @@ const PendingTaskDetails: React.FC = () => {
                                         );
                                         return (
                                             <div key={key} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
-                                                <div className="px-6 py-3.5 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30">
-                                                    <h3 className="text-[11px] font-extrabold text-zinc-700 dark:text-zinc-300 uppercase tracking-widest">
+                                                <div className="px-4 py-2 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30">
+                                                    <h3 className="text-[12px] font-extrabold text-zinc-800 dark:text-zinc-200 uppercase tracking-wide">
                                                         {key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
                                                     </h3>
                                                 </div>
@@ -5056,9 +5056,9 @@ const PendingTaskDetails: React.FC = () => {
                                                     <table className="w-full text-sm">
                                                         <thead>
                                                             <tr className="border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/50">
-                                                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 w-10">#</th>
+                                                                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 w-10">#</th>
                                                                 {cols.map((col) => (
-                                                                    <th key={col} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                                                                    <th key={col} className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                                                                         {col.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
                                                                     </th>
                                                                 ))}
@@ -5067,9 +5067,9 @@ const PendingTaskDetails: React.FC = () => {
                                                         <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                                                             {(rows as any[]).map((row, idx) => (
                                                                 <tr key={idx} className={cn("hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors", idx % 2 === 1 && "bg-zinc-50/40 dark:bg-zinc-800/10")}>
-                                                                    <td className="px-4 py-3 text-xs text-zinc-400 font-mono">{idx + 1}</td>
+                                                                    <td className="px-3 py-2 text-xs text-zinc-400 font-mono">{idx + 1}</td>
                                                                     {cols.map((k) => (
-                                                                        <td key={k} className="px-4 py-3 text-[13px] text-zinc-700 dark:text-zinc-300">
+                                                                        <td key={k} className="px-3 py-2 text-[13px] text-zinc-700 dark:text-zinc-300">
                                                                             {row[k] != null ? String(row[k]) : "—"}
                                                                         </td>
                                                                     ))}
@@ -5083,7 +5083,7 @@ const PendingTaskDetails: React.FC = () => {
                                     })}
                             </div>
                         ) : doctype === "Leave Module" && data ? (
-                            <div className="space-y-5">
+                            <div className="space-y-3">
                                 {/* Applicant */}
                                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
                                     <div className="flex items-center gap-3 px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
@@ -5199,8 +5199,8 @@ const PendingTaskDetails: React.FC = () => {
                     </div>
 
                     {/* Right Column: Activity Stream Sidebar */}
-                    <div className="lg:col-span-1 space-y-6">
-                        <div className="sticky top-6 space-y-6">
+                    <div className="lg:col-span-1 space-y-3">
+                        <div className="sticky top-3 space-y-3">
                             {/* Budget Actions */}
                             {/* Setup for Travel */}
                             {doctype === "Travel" &&

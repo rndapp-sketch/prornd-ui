@@ -226,10 +226,10 @@ export function RndStaffDashboard() {
 
   return (
     <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans text-[14px] text-[#3F3F46] dark:text-[#E4E4E7]">
-      <div className="px-4 md:px-6 xl:px-8 pt-6 pb-12">
+      <div className="px-0 pt-0 pb-4">
 
         {/* ─── Header ─── */}
-        <div className="flex items-center justify-between gap-4 mb-7">
+        <div className="flex items-center justify-between gap-4 mb-4">
           {/* Left: logo + title */}
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-9 h-9 bg-[#D97757] rounded-xl flex items-center justify-center text-white shadow-sm flex-shrink-0">
@@ -321,7 +321,7 @@ export function RndStaffDashboard() {
         </div>
 
         {/* ─── KPI Cards ─── */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-7">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
           <KpiCard
             title="Pending Tasks"
             value={isLoading ? "—" : String(totalPending)}
@@ -372,16 +372,16 @@ export function RndStaffDashboard() {
         </div>
 
         {/* ─── Content Grid ─── */}
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_268px] gap-5">
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_268px] gap-3">
 
           {/* Left: Pending Tasks + Recent Activity */}
-          <div className="space-y-5 min-w-0">
+          <div className="space-y-3 min-w-0">
 
             {/* My Pending Tasks */}
             <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
 
               {/* Card header */}
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
                 <div className="flex items-center gap-2.5 flex-wrap">
                   <div className="w-6 h-6 bg-orange-50 dark:bg-orange-950/20 rounded-lg flex items-center justify-center flex-shrink-0">
                     <ClipboardList className="h-3.5 w-3.5 text-[#D97757]" />
@@ -425,7 +425,7 @@ export function RndStaffDashboard() {
 
               {/* Filters panel */}
               {showFilters && (
-                <div className="px-5 py-3 border-b border-[#F4F4F5] dark:border-[#3F3F46]/60 bg-[#FAFAF9] dark:bg-[#1C1C1F] flex flex-wrap gap-2 items-center">
+                <div className="px-4 py-2 border-b border-[#F4F4F5] dark:border-[#3F3F46]/60 bg-[#FAFAF9] dark:bg-[#1C1C1F] flex flex-wrap gap-2 items-center">
                   {/* Mobile search */}
                   <div className="flex md:hidden items-center gap-2 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-3 py-1.5 flex-1 min-w-[140px]">
                     <Search className="h-3 w-3 text-[#A1A1AA] flex-shrink-0" />
@@ -491,7 +491,7 @@ export function RndStaffDashboard() {
                       return (
                         <div
                           key={task.name}
-                          className="flex items-center gap-3 px-5 py-3.5 hover:bg-[#FAFAF9] dark:hover:bg-[#3F3F46]/20 transition-colors"
+                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#FAFAF9] dark:hover:bg-[#3F3F46]/20 transition-colors"
                         >
                           {/* Priority dot */}
                           <span className={cn("w-2 h-2 rounded-full flex-shrink-0 mt-0.5", priority.dot)} />
@@ -532,7 +532,7 @@ export function RndStaffDashboard() {
                     })}
                   </div>
                   {filteredTasks.length > 6 && (
-                    <div className="px-5 py-2.5 border-t border-[#F4F4F5] dark:border-[#3F3F46]/60 bg-[#FAFAF9]/70 dark:bg-[#27272A]/70">
+                    <div className="px-4 py-2 border-t border-[#F4F4F5] dark:border-[#3F3F46]/60 bg-[#FAFAF9]/70 dark:bg-[#27272A]/70">
                       <button onClick={() => navigate("/pending-task")} className="text-[11px] font-bold text-[#4A6CF7] hover:text-[#3b5cf6] transition-colors">
                         + {filteredTasks.length - 6} more tasks →
                       </button>
@@ -544,7 +544,7 @@ export function RndStaffDashboard() {
 
             {/* Recent Activity */}
             <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
                 <div className="flex items-center gap-2.5">
                   <div className="w-6 h-6 bg-blue-50 dark:bg-blue-950/20 rounded-lg flex items-center justify-center">
                     <FolderKanban className="h-3.5 w-3.5 text-[#4A6CF7]" />
@@ -570,7 +570,7 @@ export function RndStaffDashboard() {
                         else if (task.doctype === "Reimbursement") navigate(`/reimbursement/${task.name}`);
                         else navigate(`/task-registry/${task.doctype}/${task.name}`);
                       }}
-                      className="w-full flex items-center gap-3 px-5 py-3 hover:bg-[#FAFAF9] dark:hover:bg-[#3F3F46]/20 transition-colors group text-left"
+                      className="w-full flex items-center gap-3 px-4 py-2 hover:bg-[#FAFAF9] dark:hover:bg-[#3F3F46]/20 transition-colors group text-left"
                     >
                       <div className="w-7 h-7 rounded-lg bg-[#F4F4F5] dark:bg-[#3F3F46] flex items-center justify-center flex-shrink-0">
                         <FileText className="h-3.5 w-3.5 text-[#A1A1AA] dark:text-[#71717A]" />
@@ -592,11 +592,11 @@ export function RndStaffDashboard() {
           </div>
 
           {/* ─── Right Sidebar ─── */}
-          <div className="space-y-4">
+          <div className="space-y-3">
 
             {/* Quick Actions */}
             <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
-              <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+              <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
                 <div className="w-6 h-6 bg-zinc-100 dark:bg-zinc-800 rounded-lg flex items-center justify-center">
                   <Zap className="h-3.5 w-3.5 text-[#71717A] dark:text-[#A1A1AA]" />
                 </div>
@@ -625,18 +625,18 @@ export function RndStaffDashboard() {
 
             {/* Pending by Module */}
             <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
-              <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+              <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
                 <div className="w-6 h-6 bg-violet-50 dark:bg-violet-950/20 rounded-lg flex items-center justify-center">
                   <BarChart3 className="h-3.5 w-3.5 text-[#8B5CF6]" />
                 </div>
                 <span className="text-[13px] font-bold text-[#27272A] dark:text-[#F4F4F5]">Pending by Module</span>
               </div>
-              <div className="p-5">
+              <div className="p-4">
                 {isLoading ? <Spinner /> : moduleBreakdown.length === 0 ? (
                   <EmptyState icon={BarChart3} message="Nothing pending" />
                 ) : (
                   <>
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {moduleBreakdown.map(({ doctype, count }) => (
                         <div key={doctype}>
                           <div className="flex items-center justify-between mb-1.5">
@@ -672,7 +672,7 @@ export function RndStaffDashboard() {
             </div>
 
             {/* Workload Summary */}
-            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-5">
+            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-4">
               <div className="flex items-center gap-2 mb-4">
                 <TrendingUp className="h-4 w-4 text-[#71717A] dark:text-[#A1A1AA]" />
                 <span className="text-[12px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Workload Summary</span>

@@ -645,7 +645,7 @@ const Reimbursement: React.FC = () => {
 
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+            <main className="flex-1 p-0 w-full overflow-hidden">
                 <PageHeader
                     title={editDocName ? `Edit Reimbursement` : 'Reimbursement Application'}
                     projectName={projectTitle || linkOptions['project_name']?.find(opt => opt.value === formData.project_name)?.label || formData.project_name}

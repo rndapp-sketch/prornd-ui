@@ -64,7 +64,7 @@ const DisbursalOfHonorarium: React.FC = () => {
   return (
     <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
 
-      <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+      <main className="flex-1 p-0 w-full overflow-hidden">
         {/* Header */}
         <header className="mb-6 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
           <div className="flex items-center justify-between">

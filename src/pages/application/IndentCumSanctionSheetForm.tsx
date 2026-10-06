@@ -5658,7 +5658,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
 
   return (
     <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-      <main className="max-w-8xl mx-auto p-4 md:p-8 w-full overflow-hidden">
+      <main className="max-w-8xl mx-auto p-0 w-full overflow-hidden">
         {/* Header */}
         <div className="mb-8 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
           <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">

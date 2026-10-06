@@ -336,7 +336,7 @@ function TermProgress({ start, end }: { start?: string; end?: string }) {
 
 function ProfileRow({ label, mono, children }: { label: string; mono?: boolean; children: React.ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-6 py-3">
+    <div className="flex items-baseline justify-between gap-3 py-3">
       <dt className="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">{label}</dt>
       <dd
         className={cn(
@@ -919,10 +919,10 @@ export function ProjectStaffDashboard() {
 
   return (
     <div className="relative min-h-[100dvh] overflow-x-clip bg-[#FAFAF9] font-sans text-zinc-900 dark:bg-[#18181B] dark:text-zinc-100">
-      <div className="relative w-full px-4 pb-12 pt-6 md:px-6 xl:px-8">
+      <div className="relative w-full px-0 pb-4 pt-0">
 
         {/* Header */}
-        <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <header className="mb-3 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#D97757] text-[11px] font-extrabold text-white shadow-sm">
               {getInitials(displayName)}
@@ -1073,7 +1073,7 @@ export function ProjectStaffDashboard() {
               />
             </section>
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:gap-8">
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:gap-8">
               {/* Recent Submissions */}
               <section className={cn(SURFACE, "overflow-hidden")}>
                 <div className="flex items-end justify-between gap-4 px-6 pb-4 pt-6">
@@ -1109,7 +1109,7 @@ export function ProjectStaffDashboard() {
                   </div>
                 ) : trackingItems.length === 0 ? (
                   <div className="flex flex-col items-center border-t border-zinc-100 px-6 py-16 text-center dark:border-zinc-800">
-                    <div className="grid size-14 place-items-center rounded-2xl border border-dashed border-zinc-300 text-zinc-400 dark:border-zinc-700">
+                    <div className="grid size-14 place-items-center rounded-lg border border-dashed border-zinc-300 text-zinc-400 dark:border-zinc-700">
                       <Inbox className="size-6" strokeWidth={1.5} />
                     </div>
                     <p className="mt-5 text-sm font-medium text-zinc-900 dark:text-zinc-100">Nothing submitted yet</p>
@@ -1174,14 +1174,14 @@ export function ProjectStaffDashboard() {
                   <div className="mt-6 space-y-4">
                     <Skeleton className="h-10 w-full" />
                     {[0, 1, 2, 3, 4, 5].map((i) => (
-                      <div key={i} className="flex justify-between gap-6">
+                      <div key={i} className="flex justify-between gap-3">
                         <Skeleton className="h-3.5 w-20" />
                         <Skeleton className="h-3.5 w-32" />
                       </div>
                     ))}
                   </div>
                 ) : !basic ? (
-                  <div className="mt-6 flex flex-col items-center rounded-2xl border border-dashed border-zinc-300 px-4 py-10 text-center dark:border-zinc-700">
+                  <div className="mt-6 flex flex-col items-center rounded-lg border border-dashed border-zinc-300 px-4 py-10 text-center dark:border-zinc-700">
                     <UserIcon className="size-6 text-zinc-400" strokeWidth={1.5} />
                     <p className="mt-3 text-sm font-medium text-zinc-900 dark:text-zinc-100">No record linked</p>
                     <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
@@ -1376,7 +1376,7 @@ export function ProjectStaffDashboard() {
                 <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                   <div className="h-11 bg-zinc-50/70 dark:bg-zinc-900" />
                   {[0, 1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="flex items-center gap-6 px-5 py-4">
+                    <div key={i} className="flex items-center gap-3 px-5 py-4">
                       <div className="flex-1 space-y-2">
                         <Skeleton className="h-3.5 w-40" />
                         <Skeleton className="h-3 w-28" />
@@ -1388,7 +1388,7 @@ export function ProjectStaffDashboard() {
                 </div>
               ) : filteredItems.length === 0 ? (
                 <div className="flex flex-col items-center px-6 py-20 text-center">
-                  <div className="grid size-14 place-items-center rounded-2xl border border-dashed border-zinc-300 text-zinc-400 dark:border-zinc-700">
+                  <div className="grid size-14 place-items-center rounded-lg border border-dashed border-zinc-300 text-zinc-400 dark:border-zinc-700">
                     <Search className="size-6" strokeWidth={1.5} />
                   </div>
                   <p className="mt-5 text-sm font-medium text-zinc-900 dark:text-zinc-100">No applications match</p>
@@ -1508,7 +1508,7 @@ export function ProjectStaffDashboard() {
 
           {/* Quick Action Cards */}
           {false && (
-            <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
               {/* Pending Approvals */}
               <button
                 onClick={() => navigate("/pending-task")}
@@ -1572,7 +1572,7 @@ export function ProjectStaffDashboard() {
 
           {/* Stats Row */}
           {false && (
-            <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-3">
               <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm">
                 <AnalyticsCard
                   title="Pending"
@@ -1610,9 +1610,9 @@ export function ProjectStaffDashboard() {
 
           {/* Two-Column: Recent Pending + Recently Processed */}
           {false && (
-            <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <section className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
               {/* Recent Pending Approvals */}
-              <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
+              <div className="bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
                 <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <ClipboardCheck className="h-4 w-4 text-[#D97757]" />
@@ -1668,7 +1668,7 @@ export function ProjectStaffDashboard() {
               </div>
 
               {/* Recently Processed */}
-              <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
+              <div className="bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
                 <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <BarChart className="h-4 w-4 text-[#D97757]" />

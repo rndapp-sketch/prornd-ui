@@ -495,7 +495,11 @@ export function AppSidebar() {
             const allowedRoles = ["project staff", "IF - Inspired Faculty", "Independent Researcher"];
             return roles ? allowedRoles.some((role) => roles.includes(role)) : false;
         }
-        if (item.label === "Resignation" || item.label === "Extension" || item.label === "ID Card Request") {
+        if (item.label === "ID Card Request") {
+            // Students never apply for a project-staff ID card, even if they also carry "project staff".
+            return (roles?.includes("project staff") ?? false) && !roles?.includes("Student");
+        }
+        if (item.label === "Resignation" || item.label === "Extension") {
             return roles?.includes("project staff") ?? false;
         }
         if (item.label === "ID Card Management") {
@@ -633,7 +637,7 @@ export function AppSidebar() {
     const navButtonClass = (active: boolean) =>
         cn(
             "relative w-full rounded-[10px] text-[12px] transition-colors duration-150",
-            expanded ? "px-3 py-2 !h-auto min-h-[42px] justify-start items-center "+"[&>span:last-child]:whitespace-normal [&>span:last-child]:overflow-visible [&>span:last-child]:text-clip" : "px-0 justify-center",
+            expanded ? "px-3 py-1.5 !h-auto min-h-[34px] justify-start items-center "+"[&>span:last-child]:whitespace-normal [&>span:last-child]:overflow-visible [&>span:last-child]:text-clip" : "px-0 justify-center",
             active
                 ? "bg-[#E8F0FF] text-[#1D4ED8] font-semibold dark:bg-[#2563EB]/20 dark:text-[#93C5FD]"
                 : "text-[#0F172A] font-medium hover:bg-[#DCE4F0] hover:text-[#123B7A] dark:text-[#A1A1AA] dark:hover:bg-[#27272A] dark:hover:text-[#E4E4E7]",
@@ -655,7 +659,7 @@ export function AppSidebar() {
     const utilButtonClass = (active: boolean, tone?: keyof typeof UTIL_TONES) =>
         cn(
             "relative w-full rounded-[10px] text-[12px] transition-colors duration-150",
-            expanded ? "px-3 py-2 !h-auto min-h-[40px] justify-start gap-3 "+"[&>span:last-child]:whitespace-normal [&>span:last-child]:overflow-visible [&>span:last-child]:text-clip" : "px-0 justify-center",
+            expanded ? "px-3 py-1.5 !h-auto min-h-[34px] justify-start gap-3 "+"[&>span:last-child]:whitespace-normal [&>span:last-child]:overflow-visible [&>span:last-child]:text-clip" : "px-0 justify-center",
             tone
                 ? cn("font-medium", active ? UTIL_TONES[tone].active : UTIL_TONES[tone].idle)
                 : active
@@ -665,7 +669,7 @@ export function AppSidebar() {
 
     const subButtonClass = (active: boolean) =>
         cn(
-            "w-full h-auto px-3 py-2 text-[11px] rounded-[10px] whitespace-normal break-words transition-colors duration-150",
+            "w-full h-auto px-3 py-1.5 text-[11px] rounded-[10px] whitespace-normal break-words transition-colors duration-150",
             active
                 ? "bg-[#E8F0FF] text-[#1D4ED8] font-semibold dark:bg-[#2563EB]/20 dark:text-[#93C5FD]"
                 : "text-[#1E293B] font-medium hover:bg-[#DCE4F0] hover:text-[#123B7A] dark:text-[#A1A1AA] dark:hover:bg-[#27272A] dark:hover:text-[#E4E4E7]",
@@ -686,7 +690,7 @@ export function AppSidebar() {
                 collapsible="icon"
                 variant="sidebar"
                 className={cn("border-r border-[#CBD5E1] dark:border-[#3F3F46] z-50 [&_[data-slot=sidebar-container]]:z-50", sidebarBg)}
-                style={{ "--sidebar-width": "16.25rem", "--sidebar-width-icon": "4rem" } as React.CSSProperties}
+                style={{ "--sidebar-width": "14.5rem", "--sidebar-width-icon": "4rem" } as React.CSSProperties}
             >
                 {/* Header / Branding */}
                 <SidebarHeader className={cn("sidebar-glass-header gap-0 p-0 h-[55px] box-border justify-center")}>
@@ -712,7 +716,7 @@ export function AppSidebar() {
                 </SidebarHeader>
 
                 {/* Navigation */}
-                <SidebarContent className={cn("px-3 py-4", sidebarBg)}>
+                <SidebarContent className={cn("px-3 py-3", sidebarBg)}>
                     <SidebarGroup className="p-0">
                         {expanded && (
                             <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#64748B]">
@@ -749,7 +753,7 @@ export function AppSidebar() {
                                 return (
                                     <SidebarMenuItem
                                         key={item.label}
-                                        className={cn(showDivider && "border-t border-[#CBD5E1] dark:border-[#52525B] mt-2 pt-2")}
+                                        className={cn(showDivider && "border-t border-[#CBD5E1] dark:border-[#52525B] mt-1.5 pt-1.5")}
                                     >
                                         <SidebarMenuButton
                                             onClick={() => handleMenuItemClick(item)}

@@ -408,17 +408,17 @@ export function AdoRndDashboard() {
 
   return (
     <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] font-sans">
-      <div className="flex-1 p-4 md:p-8">
-        <div className="w-full max-w-[1600px] mx-auto">
+      <div className="flex-1 p-0">
+        <div className="w-full">
           {/* ==================== HEADER ==================== */}
-          <header className="mb-8">
+          <header className="mb-3">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
               <div>
                 <div className="flex items-center gap-3 mb-2">
                   <div className="p-2.5 bg-[#D97757]/10 rounded-lg">
                     <Shield className="h-6 w-6 text-[#D97757]" />
                   </div>
-                  <h1 className="text-2xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
+                  <h1 className="text-[18px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
                     Administrative Officer Dashboard
                   </h1>
                 </div>
@@ -454,7 +454,7 @@ export function AdoRndDashboard() {
 
 
           {/* ==================== QUICK ACTION CARDS ==================== */}
-          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-3">
             {/* Pending Approvals */}
             <button
               onClick={() => navigate("/pending-task")}
@@ -549,7 +549,7 @@ export function AdoRndDashboard() {
           </section>
 
           {/* ==================== STATS OVERVIEW ==================== */}
-          <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-3">
             <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm">
               <AnalyticsCard
                 title="Pending"
@@ -586,7 +586,7 @@ export function AdoRndDashboard() {
 
           {/* ==================== FINANCIAL OVERVIEW (Permission-Based) ==================== */}
           <PermissionBasedWidget permission={permissions.can_view_financials && showSensitiveData}>
-            <section className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
+            <section className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-3">
               <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-xl border border-emerald-200 dark:border-emerald-800 shadow-sm p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <IndianRupee className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -638,7 +638,7 @@ export function AdoRndDashboard() {
           </PermissionBasedWidget>
 
           {/* ==================== OPERATIONS BREAKDOWN ==================== */}
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
             {/* Pending Operations */}
             <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-6">
               <div className="flex items-center gap-2 mb-5">
@@ -728,9 +728,9 @@ export function AdoRndDashboard() {
           </section>
 
           {/* ==================== PENDING & PROCESSED TASKS ==================== */}
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
             {/* Recent Pending Tasks */}
-            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
               <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <ClipboardList className="h-4 w-4 text-[#D97757]" />
@@ -786,7 +786,7 @@ export function AdoRndDashboard() {
             </div>
 
             {/* Recently Processed */}
-            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
               <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <FolderKanban className="h-4 w-4 text-[#D97757]" />
@@ -847,7 +847,7 @@ export function AdoRndDashboard() {
 
           {/* ==================== MODULE BREAKDOWN ==================== */}
           {moduleBreakdown.length > 0 && (
-            <section className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-6 mb-6">
+            <section className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-6 mb-3">
               <div className="flex items-center gap-2 mb-5">
                 <Clock className="h-5 w-5 text-[#D97757]" />
                 <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-lg">Pending by Module</h3>

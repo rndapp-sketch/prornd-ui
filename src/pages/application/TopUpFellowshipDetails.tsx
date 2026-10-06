@@ -365,7 +365,7 @@ const TopUpFellowshipDetails: React.FC = () => {
     return (
         <div className="min-h-screen bg-[#FAFAF9] font-sans dark:bg-[#18181B]">
 
-            <main className="w-full overflow-hidden px-5 py-6 md:px-8 md:py-7">
+            <main className="w-full overflow-hidden px-0 py-0">
                 <PageHeader
                     title={docName || 'Top Up Fellowship'}
                     status={workflowState}

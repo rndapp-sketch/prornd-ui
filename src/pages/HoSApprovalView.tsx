@@ -579,7 +579,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
     if (fundError || !fundReceived) {
         return (
             <div className="bg-zinc-100 dark:bg-zinc-800 min-h-screen">
-                <main className="flex-1 p-4 md:p-8">
+                <main className="flex-1 p-0">
                     <FrappeCard className="text-center py-16">
                         <FileText className="w-16 h-16 mx-auto text-zinc-400 dark:text-zinc-500 mb-4" />
                         <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2 uppercase">
@@ -606,7 +606,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
     if (slipError || !depositSlip) {
         return (
             <div className="bg-zinc-100 dark:bg-zinc-800 min-h-screen">
-                <main className="flex-1 p-4 md:p-8">
+                <main className="flex-1 p-0">
                     <FrappeCard className="text-center py-16">
                         <FileText className="w-16 h-16 mx-auto text-zinc-400 dark:text-zinc-500 mb-4" />
                         <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2 uppercase">

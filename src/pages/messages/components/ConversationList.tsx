@@ -237,7 +237,7 @@ export function ConversationList({
                             </div>
                             {pinnedAdminConversation &&
                                 (unreadCounts[pinnedAdminConversation.$id] ?? 0) > 0 && (
-                                    <span className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#D97757] px-1 text-[9px] font-extrabold text-white shadow-sm">
+                                    <span className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#D97757] px-1 text-[10px] font-extrabold text-white shadow-sm">
                                         {(unreadCounts[pinnedAdminConversation.$id] ?? 0) > 99
                                             ? "99+"
                                             : unreadCounts[pinnedAdminConversation.$id]}
@@ -250,7 +250,7 @@ export function ConversationList({
                                     <span className="truncate text-[13px] font-extrabold text-[#1E3A8A] dark:text-[#93C5FD]">
                                         {pinnedAdmin.name}
                                     </span>
-                                    <span className="rounded-full bg-[#EEF2FF] px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-[#4A6CF7] dark:bg-[#4A6CF7]/15 dark:text-[#93C5FD]">
+                                    <span className="rounded-full bg-[#EEF2FF] px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-[#4A6CF7] dark:bg-[#4A6CF7]/15 dark:text-[#93C5FD]">
                                         Admin
                                     </span>
                                 </div>
@@ -258,7 +258,7 @@ export function ConversationList({
                                     {pinnedAdminConversation?.last_message_preview ||
                                         pinnedAdmin.subtitle}
                                 </p>
-                                <p className="mt-0.5 truncate text-[10px] font-semibold text-[#A16207] dark:text-[#FDBA74]">
+                                <p className="mt-0.5 truncate text-[11px] font-semibold text-[#A16207] dark:text-[#FDBA74]">
                                     {pinnedAdmin.email}
                                 </p>
                             </div>
@@ -326,7 +326,7 @@ export function ConversationList({
                                     {displayTitle?.charAt(0)?.toUpperCase() ?? "?"}
                                 </div>
                                 {isCollapsed && hasUnread && (
-                                    <span className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#D97757] px-1 text-[9px] font-extrabold text-white shadow-sm">
+                                    <span className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#D97757] px-1 text-[10px] font-extrabold text-white shadow-sm">
                                         {unreadCount > 99 ? "99+" : unreadCount}
                                     </span>
                                 )}
@@ -348,7 +348,7 @@ export function ConversationList({
                                             {when && (
                                                 <span
                                                     className={cn(
-                                                        "text-[10px] font-medium",
+                                                        "text-[11px] font-medium",
                                                         hasUnread
                                                             ? "text-[#A16207] dark:text-[#FDBA74]"
                                                             : "text-[#A1A1AA]",
@@ -376,7 +376,7 @@ export function ConversationList({
                                         {subtitle}
                                     </p>
                                     {userDetail && (
-                                        <p className="mt-0.5 truncate text-[10px] font-semibold text-[#A16207] dark:text-[#FDBA74]">
+                                        <p className="mt-0.5 truncate text-[11px] font-semibold text-[#A16207] dark:text-[#FDBA74]">
                                             {userDetail}
                                         </p>
                                     )}

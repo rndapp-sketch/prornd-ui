@@ -219,7 +219,7 @@ const LeaveModuleDetails = () => {
     if (!doc) {
         return (
             <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-                <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+                <main className="flex-1 p-0 w-full overflow-hidden">
                     <PageHeader title="Leave Application" />
                     <div className="mt-16 text-center text-zinc-500 dark:text-zinc-400">
                         Leave application not found.
@@ -231,7 +231,7 @@ const LeaveModuleDetails = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+            <main className="flex-1 p-0 w-full overflow-hidden">
                 <PageHeader
                     title={`${doc.name} — ${doc.leave_type || 'Leave'} Application`}
                     status={workflowState}

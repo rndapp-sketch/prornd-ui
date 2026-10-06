@@ -3359,7 +3359,7 @@ const DirectPurchaseDetails: React.FC = () => {
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans overflow-x-hidden">
 
 
-            <main className="transition-all duration-300 ease-in-out px-5 py-6 md:px-8 md:py-7 overflow-x-hidden">
+            <main className="transition-all duration-300 ease-in-out px-0 py-0 overflow-x-hidden">
                 {/* Page Header */}
                 <PageHeader
                     title={data.name}

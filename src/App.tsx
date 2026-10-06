@@ -1,6 +1,7 @@
 // ======================================
 
 import { DomainReminder } from "@/components/DomainReminder";
+import { AnnouncementBell } from "@/components/AnnouncementBell";
 import { FRAPPE_BASE_URL, frappeUrl } from "@/utils/frappeUrl";
 import {
   FrappeProvider,
@@ -175,7 +176,7 @@ function AppContent() {
           // them from here, so they must match the sidebar or it overlaps the content.
           <SidebarProvider
             className="flex min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]"
-            style={{ "--sidebar-width": "16.25rem", "--sidebar-width-icon": "4rem" } as React.CSSProperties}
+            style={{ "--sidebar-width": "14.5rem", "--sidebar-width-icon": "4rem" } as React.CSSProperties}
           >
             {currentUser && <AppSidebar />}
 
@@ -235,6 +236,9 @@ function AppContent() {
                             ⌘K
                           </kbd>
                         </button>
+
+                        {/* Announcements (Announcement Pragati) */}
+                        <AnnouncementBell user={currentUser} />
 
                         {/* What's New */}
                         <Tooltip>

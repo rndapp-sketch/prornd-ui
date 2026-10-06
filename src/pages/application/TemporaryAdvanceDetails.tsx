@@ -651,7 +651,7 @@ const TemporaryAdvanceDetails: React.FC = () => {
     if (error || !data) {
         return (
             <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-                <main className="flex-1 p-4 md:p-8">
+                <main className="flex-1 p-0">
                     <FrappeCard className="text-center py-16">
                         <FileTextIcon className="w-16 h-16 mx-auto text-zinc-400 dark:text-zinc-500 mb-4" />
                         <h2 className="text-xl font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-2 uppercase">
@@ -671,7 +671,7 @@ const TemporaryAdvanceDetails: React.FC = () => {
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
             <GlobalLoader isLoading={isSubmitting} />
-            <main className="flex-1 p-4 md:p-8">
+            <main className="flex-1 p-0">
                 {/* Header */}
                 <PageHeader
                     title={data.name}

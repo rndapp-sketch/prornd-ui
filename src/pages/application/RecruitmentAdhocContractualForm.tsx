@@ -1270,7 +1270,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-            <main className="max-w-8xl mx-auto p-4 md:p-8 w-full overflow-hidden">
+            <main className="max-w-8xl mx-auto p-0 w-full overflow-hidden">
                 <div className="mb-6 overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
                     <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
                     <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">

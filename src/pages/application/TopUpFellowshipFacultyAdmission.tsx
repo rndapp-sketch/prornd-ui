@@ -95,19 +95,19 @@ const TopUpFellowshipFacultyAdmission = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
-            <main className="px-6 md:px-8 pt-7 pb-10 w-full">
+            <main className="px-0 pt-0 pb-4 w-full">
                 {/* Page header */}
-                <FrappeCard className="mb-5 overflow-hidden p-0">
+                <FrappeCard className="mb-3 overflow-hidden p-0">
                     <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#7C3AED] to-[#D97757]" />
-                    <div className="flex items-center justify-between px-5 py-4">
+                    <div className="flex items-center justify-between px-4 py-2.5">
                         <div>
                             <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#4A6CF7]">
                                 R&amp;D Staff
                             </span>
-                            <h1 className="mt-1 text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
+                            <h1 className="text-[18px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
                                 Faculty Admission PDF Upload
                             </h1>
-                            <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+                            <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
                                 Download the application PDF, get it signed by Faculty Admission, and upload the signed scan. Forwarding to HoS is blocked until the signed PDF is uploaded.
                             </p>
                         </div>
@@ -122,7 +122,7 @@ const TopUpFellowshipFacultyAdmission = () => {
 
                 {/* Stat row */}
                 {!isLoading && !error && (
-                    <div className="grid grid-cols-3 gap-3 mb-5">
+                    <div className="grid grid-cols-3 gap-3 mb-3">
                         <StatPill
                             label="Total"
                             value={allDocs.length}
@@ -147,7 +147,7 @@ const TopUpFellowshipFacultyAdmission = () => {
                 )}
 
                 {/* Search toolbar */}
-                <FrappeCard className="mb-4 p-3">
+                <FrappeCard className="mb-3 px-3 py-2">
                     <div className="flex items-center gap-3 justify-between">
                         <div className="relative w-full md:w-72">
                             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#A1A1AA]" />
@@ -174,7 +174,7 @@ const TopUpFellowshipFacultyAdmission = () => {
                 </FrappeCard>
 
                 {/* Table */}
-                <FrappeCard className="overflow-hidden p-3">
+                <FrappeCard className="overflow-hidden p-0">
                     {isLoading && (
                         <div className="flex items-center justify-center gap-2 py-16 text-[13px] text-[#71717A] dark:text-[#A1A1AA]">
                             <RefreshCwIcon className="w-4 h-4 animate-spin" /> Loading documents…
@@ -232,7 +232,7 @@ const TopUpFellowshipFacultyAdmission = () => {
 
                     {/* Pagination */}
                     {!isLoading && !error && filteredDocs.length > ITEMS_PER_PAGE && (
-                        <div className="flex items-center justify-between mt-4 px-1">
+                        <div className="flex items-center justify-between mt-2 px-1">
                             <span className="text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
                                 Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredDocs.length)} of {filteredDocs.length}
                             </span>
@@ -274,7 +274,7 @@ const StatPill = ({
     bg: string;
     icon?: React.ReactNode;
 }) => (
-    <div className={cn("flex items-center gap-3 px-4 py-3 rounded-xl border", bg)}>
+    <div className={cn("flex items-center gap-3 px-4 py-3 rounded-lg border", bg)}>
         {icon}
         <div>
             <div className={cn("text-xl font-extrabold leading-none", color)}>{value}</div>
@@ -374,7 +374,7 @@ const TableRow = ({ doc, onDone }: { doc: TopUpDoc; onDone: () => void }) => {
     return (
         <tr className="hover:bg-[#FAFAF9] dark:hover:bg-[#1E1E24] transition-colors">
             {/* Doc ID */}
-            <td className="px-3 py-2.5 border-r border-[#E4E4E7] dark:border-[#3F3F46] font-mono text-[11px] text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
+            <td className="px-3 py-2 border-r border-[#E4E4E7] dark:border-[#3F3F46] font-mono text-[11px] text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
                 <div className="flex items-center gap-1.5">
                     <FileTextIcon className="w-3.5 h-3.5 text-[#A1A1AA] shrink-0" />
                     {doc.name}
@@ -382,43 +382,43 @@ const TableRow = ({ doc, onDone }: { doc: TopUpDoc; onDone: () => void }) => {
             </td>
 
             {/* Project Code */}
-            <td className="px-3 py-2.5 border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
+            <td className="px-3 py-2 border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
                 {doc.project_code ?? <span className="text-[#A1A1AA]">—</span>}
             </td>
 
             {/* Project Title */}
-            <td className="px-3 py-2.5 border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] max-w-[200px]">
+            <td className="px-3 py-2 border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] max-w-[200px]">
                 <span className="line-clamp-2 leading-snug">
                     {doc.project_title ?? <span className="text-[#A1A1AA]">—</span>}
                 </span>
             </td>
 
             {/* Supervisor PI */}
-            <td className="px-3 py-2.5 border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
+            <td className="px-3 py-2 border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
                 {doc.pi_webmail ?? <span className="text-[#A1A1AA]">—</span>}
             </td>
 
             {/* Coordinating PI */}
-            <td className="px-3 py-2.5 border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
+            <td className="px-3 py-2 border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
                 {doc.coordinating_pi_webmail ?? <span className="text-[#A1A1AA]">—</span>}
             </td>
 
             {/* Workflow State */}
-            <td className="px-3 py-2.5 border-r border-[#E4E4E7] dark:border-[#3F3F46] whitespace-nowrap">
+            <td className="px-3 py-2 border-r border-[#E4E4E7] dark:border-[#3F3F46] whitespace-nowrap">
                 {doc.workflow_state
                     ? <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">{doc.workflow_state}</span>
                     : <span className="text-[#A1A1AA]">—</span>}
             </td>
 
             {/* Last Modified */}
-            <td className="px-3 py-2.5 border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[#71717A] dark:text-[#A1A1AA] whitespace-nowrap">
+            <td className="px-3 py-2 border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[#71717A] dark:text-[#A1A1AA] whitespace-nowrap">
                 {doc.modified
                     ? new Date(doc.modified).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
                     : <span className="text-[#A1A1AA]">—</span>}
             </td>
 
             {/* Upload Status */}
-            <td className="px-3 py-2.5 border-r border-[#E4E4E7] dark:border-[#3F3F46] whitespace-nowrap">
+            <td className="px-3 py-2 border-r border-[#E4E4E7] dark:border-[#3F3F46] whitespace-nowrap">
                 {uploaded ? (
                     <span className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 w-fit">
                         <CheckCircle2Icon className="w-3 h-3" /> Uploaded

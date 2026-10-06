@@ -177,7 +177,7 @@ export function RndStaffDashboardV2() {
 
   return (
     <div className="min-h-screen bg-[#FAFAF9] font-sans text-[14px] text-zinc-800 dark:bg-[#18181B] dark:text-zinc-200">
-      <div className="w-full space-y-5 px-4 pb-12 pt-6 md:px-6 xl:px-8">
+      <div className="w-full space-y-3 px-0 pb-4 pt-0">
         {/* Title */}
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>

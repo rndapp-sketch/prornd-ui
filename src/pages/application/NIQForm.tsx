@@ -540,7 +540,7 @@ const NIQPage: React.FC = () => {
                 </div>
             )}
 
-            <main className="p-4 md:p-8 w-full">
+            <main className="p-0 w-full">
                 <div className="niq-scroll-wrapper flex justify-center items-start gap-4 max-h-[calc(100vh-4rem)] overflow-y-auto">
                     <div className="niq-toolbar-wrapper sticky top-4">
                         <Toolbar onClose={() => navigate(-1)} onSave={handleSave} isSaving={isSaving} />

@@ -55,29 +55,28 @@ interface FormDataResponse {
 // --- UI PRIMITIVES ---
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
     <div className={cn(
-        'bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden',
+        'bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden',
         className,
     )}>
         {children}
     </div>
 );
 
-const CardHeader = ({ icon: Icon, label, accent = false }: {
+const CardHeader = ({ icon: Icon, label }: {
     icon: React.ElementType;
     label: string;
     accent?: boolean;
 }) => (
     <div className={cn(
-        'flex items-center gap-2.5 px-5 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46]',
-        accent ? 'bg-[#FFF7F4] dark:bg-[#3F3F46]/40' : 'bg-[#FAFAF9] dark:bg-[#27272A]',
+        'flex items-center gap-2.5 px-4 py-2 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30',
+        'bg-[#EEF2FF] dark:bg-[#1E3A8A]/18',
     )}>
         <span className={cn(
-            'flex h-7 w-7 items-center justify-center rounded-lg',
-            accent ? 'bg-[#D97757]/10 text-[#D97757]' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400',
+            'flex h-6 w-6 items-center justify-center rounded-md bg-white text-[#4A6CF7] dark:bg-[#18181B] dark:text-[#93C5FD]',
         )}>
             <Icon className="w-3.5 h-3.5" />
         </span>
-        <h3 className="text-[11.5px] font-extrabold uppercase tracking-[0.08em] text-[#52525B] dark:text-[#A1A1AA]">
+        <h3 className="text-[12px] font-extrabold uppercase tracking-wide text-[#1E3A8A] dark:text-[#C7D2FE]">
             {label}
         </h3>
     </div>
@@ -85,7 +84,7 @@ const CardHeader = ({ icon: Icon, label, accent = false }: {
 
 const InfoRow = ({ label, value, children }: { label: string; value?: string; children?: React.ReactNode }) => (
     <div className="space-y-0.5">
-        <p className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-[#A1A1AA] dark:text-[#71717A]">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-[#52525B] dark:text-[#A1A1AA]">
             {label}
         </p>
         <div className="text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] leading-snug min-h-[1.25rem]">
@@ -277,12 +276,12 @@ const MiscellaneousCommitDetails: React.FC = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-            <main className="flex-1 px-4 md:px-8 pt-6 pb-12 w-full overflow-hidden">
+            <main className="flex-1 px-0 pt-0 pb-4 w-full overflow-hidden">
 
                 {/* ── Header ────────────────────────────────────── */}
-                <FrappeCard className="mb-5">
+                <FrappeCard className="mb-3">
                     <div className="h-[3px] bg-gradient-to-r from-[#D97757] via-[#c66a4e] to-[#4A6CF7]" />
-                    <div className="px-5 py-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="px-4 py-2.5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex items-start gap-3 min-w-0">
                             {/* Back button */}
                             <button
@@ -349,21 +348,21 @@ const MiscellaneousCommitDetails: React.FC = () => {
                     </div>
 
                     {/* ── Compact Workflow Timeline ── */}
-                    <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] px-5 py-3">
+                    <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] px-4 py-2">
                         <WorkflowTimeline currentState={workflowState} />
                     </div>
                 </FrappeCard>
 
                 {/* ── Main Grid ─────────────────────────────────── */}
-                <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_300px] gap-5">
+                <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_300px] gap-3">
 
                     {/* Left column */}
-                    <div className="space-y-5">
+                    <div className="space-y-3">
 
                         {/* Applicant & Project */}
                         <FrappeCard>
                             <CardHeader icon={UserIcon} label="Applicant & Project" />
-                            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-5">
+                            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <InfoRow label="Project Number">
                                     {resolvedProjectNo
                                         ? <span className="font-mono text-[12.5px]">{resolvedProjectNo}</span>
@@ -389,11 +388,11 @@ const MiscellaneousCommitDetails: React.FC = () => {
                         {/* Commit Details */}
                         <FrappeCard>
                             <CardHeader icon={IndianRupeeIcon} label="Commit Details" accent />
-                            <div className="p-5 space-y-5">
+                            <div className="p-4 space-y-3">
 
                                 {/* Amount highlight */}
                                 {commitAmountFmt && (
-                                    <div className="flex items-center gap-3 p-4 rounded-xl bg-[#FFF7F4] dark:bg-[#D97757]/10 border border-[#D97757]/20">
+                                    <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-[#FFF7F4] dark:bg-[#D97757]/10 border border-[#D97757]/20">
                                         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#D97757]/15 text-[#D97757] flex-shrink-0">
                                             <IndianRupeeIcon className="w-5 h-5" />
                                         </span>
@@ -407,7 +406,7 @@ const MiscellaneousCommitDetails: React.FC = () => {
                                     </div>
                                 )}
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <InfoRow label="Budget Head">
                                         {budgetHeadLabel
                                             ? <span>{budgetHeadLabel}</span>
@@ -439,18 +438,18 @@ const MiscellaneousCommitDetails: React.FC = () => {
                     </div>
 
                     {/* Right sidebar */}
-                    <aside className="space-y-4">
+                    <aside className="space-y-3">
                         {/* Meta */}
                         <FrappeCard>
                             <CardHeader icon={Briefcase} label="Document Info" />
-                            <div className="p-4 space-y-3.5">
+                            <div className="p-3 space-y-3">
                                 <div className="flex justify-between items-center">
-                                    <span className="text-[11.5px] text-[#71717A] dark:text-[#A1A1AA]">Status</span>
+                                    <span className="text-[12px] font-medium text-[#52525B] dark:text-[#A1A1AA]">Status</span>
                                     <StateBadge state={workflowState} />
                                 </div>
 
                                 {workflowState && !isDraft && workflowState !== 'Approved' && workflowState !== 'Rejected' && (
-                                    <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                                    <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
                                         <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-0.5">
                                             Pending at
                                         </p>
@@ -461,7 +460,7 @@ const MiscellaneousCommitDetails: React.FC = () => {
                                 )}
 
                                 {workflowState === 'Approved' && (
-                                    <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                                    <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
                                         <p className="text-[13px] font-extrabold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
                                             <CheckCircle2 className="w-4 h-4" />
                                             Commit Approved
@@ -472,16 +471,16 @@ const MiscellaneousCommitDetails: React.FC = () => {
                                 <div className="pt-2 space-y-3 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
                                     {formData.owner && (
                                         <div className="flex justify-between items-start gap-2">
-                                            <span className="text-[11.5px] text-[#71717A] dark:text-[#A1A1AA] flex-shrink-0">Applicant</span>
-                                            <span className="text-[11.5px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] text-right break-all">
+                                            <span className="text-[12px] font-medium text-[#52525B] dark:text-[#A1A1AA] flex-shrink-0">Applicant</span>
+                                            <span className="text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] text-right break-all">
                                                 {formData.owner}
                                             </span>
                                         </div>
                                     )}
                                     {creationDate && (
                                         <div className="flex justify-between items-center">
-                                            <span className="text-[11.5px] text-[#71717A] dark:text-[#A1A1AA]">Created</span>
-                                            <span className="text-[11.5px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-1">
+                                            <span className="text-[12px] font-medium text-[#52525B] dark:text-[#A1A1AA]">Created</span>
+                                            <span className="text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-1">
                                                 <CalendarIcon className="w-3 h-3 text-[#A1A1AA]" />
                                                 {creationDate}
                                             </span>
@@ -489,8 +488,8 @@ const MiscellaneousCommitDetails: React.FC = () => {
                                     )}
                                     {modifiedDate && (
                                         <div className="flex justify-between items-center">
-                                            <span className="text-[11.5px] text-[#71717A] dark:text-[#A1A1AA]">Modified</span>
-                                            <span className="text-[11.5px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-1">
+                                            <span className="text-[12px] font-medium text-[#52525B] dark:text-[#A1A1AA]">Modified</span>
+                                            <span className="text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-1">
                                                 <CalendarIcon className="w-3 h-3 text-[#A1A1AA]" />
                                                 {modifiedDate}
                                             </span>
@@ -498,7 +497,7 @@ const MiscellaneousCommitDetails: React.FC = () => {
                                     )}
                                     {commitAmountFmt && (
                                         <div className="flex justify-between items-center pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-                                            <span className="text-[11.5px] text-[#71717A] dark:text-[#A1A1AA]">Amount</span>
+                                            <span className="text-[12px] font-medium text-[#52525B] dark:text-[#A1A1AA]">Amount</span>
                                             <span className="text-[13px] font-extrabold text-[#D97757]">{commitAmountFmt}</span>
                                         </div>
                                     )}

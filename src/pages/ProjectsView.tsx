@@ -1123,7 +1123,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
   };
 
   const renderProjectsTable = () => (
-    <div className="space-y-4 animate-in fade-in duration-500">
+    <div className="space-y-3 animate-in fade-in duration-500">
       <>
         {/* Project Type Tabs */}
         <div className="flex items-center gap-2 overflow-x-auto">
@@ -1159,7 +1159,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
           })}
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-between items-center rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-3 shadow-sm">
+        <div className="flex flex-col sm:flex-row gap-3 justify-between items-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] px-3 py-2 shadow-sm">
           <div className="relative w-full sm:w-72">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#71717A]" />
             <Input
@@ -1209,26 +1209,26 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
 
         <Card className="border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden rounded-xl">
           <CardContent className="p-0">
-            <div className="overflow-x-auto p-3">
-              <Table className="border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table className="w-full">
                 <TableHeader className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
                   <TableRow className="border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 hover:bg-transparent">
-                    <TableHead className="w-[80px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                    <TableHead className="w-[80px] whitespace-nowrap px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                       Number
                     </TableHead>
-                    <TableHead className="min-w-[150px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                    <TableHead className="w-full min-w-[260px] whitespace-nowrap px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                       Project Title
                     </TableHead>
-                    <TableHead className="w-[120px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                    <TableHead className="min-w-[150px] whitespace-nowrap px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                       Funding Agency
                     </TableHead>
-                    <TableHead className="w-[90px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                    <TableHead className="w-[90px] whitespace-nowrap px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                       Date
                     </TableHead>
-                    <TableHead className="w-[100px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                    <TableHead className="w-[100px] whitespace-nowrap px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                       Status
                     </TableHead>
-                    <TableHead className="text-right w-[60px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">
+                    <TableHead className="text-right w-[60px] whitespace-nowrap px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">
                       Action
                     </TableHead>
                   </TableRow>
@@ -1281,7 +1281,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                     paginatedProjects.map((p: any) => (
                       <TableRow
                         key={p.name}
-                        className="cursor-pointer hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-b-0"
+                        className="cursor-pointer even:bg-[#FAFAFA] dark:even:bg-[#27272A]/60 hover:bg-[#EEF2FF] dark:hover:bg-[#3F3F46]/40 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-b-0"
                         onClick={() => {
                           const targetPath =
                             p.workflow_state ===
@@ -1299,21 +1299,21 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                           });
                         }}
                       >
-                        <TableCell className="px-4 py-3 font-mono text-xs font-semibold text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                        <TableCell className="px-3 py-2 font-mono text-xs font-semibold text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
                           {p.project_no || p.name}
                         </TableCell>
-                        <TableCell className="px-4 py-3 font-semibold text-[#3F3F46] dark:text-[#E4E4E7] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                        <TableCell className="px-3 py-2 font-semibold text-[#3F3F46] dark:text-[#E4E4E7] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
                           <div
-                            className="line-clamp-2 min-w-[150px] max-w-[300px]"
+                            className="line-clamp-2 text-[13px] leading-snug"
                             title={p.project_title}
                           >
                             {p.project_title}
                           </div>
                         </TableCell>
-                        <TableCell className="px-4 py-3 text-[#52525B] dark:text-[#A1A1AA] text-xs whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                        <TableCell className="px-3 py-2 text-[#52525B] dark:text-[#A1A1AA] text-xs whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
                           {fundingAgencyNameMap.get(p.funding_agen) || p.funding_agen || "-"}
                         </TableCell>
-                        <TableCell className="px-4 py-3 text-[#71717A] text-xs whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                        <TableCell className="px-3 py-2 text-[#71717A] text-xs whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
                           {p.creation
                             ? format(
                               new Date(p.creation),
@@ -1321,7 +1321,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                             )
                             : "-"}
                         </TableCell>
-                        <TableCell className="px-4 py-3 whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                        <TableCell className="px-3 py-2 whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
                           <div className="flex flex-col gap-0.5">
                             {getStatusBadge(p.workflow_state)}
                             {p.workflow_state === "Approved" && showsSanctionState(p) && (
@@ -1337,7 +1337,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="px-4 py-3 text-right whitespace-nowrap">
+                        <TableCell className="px-3 py-2 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1">
                             {p.workflow_state === "Draft" &&
                               p.owner === currentUser && (
@@ -1424,7 +1424,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
         </Card>
 
         {totalPages > 1 && (
-          <div className="flex items-center justify-between py-4">
+          <div className="flex items-center justify-between py-1">
             <div className="text-sm text-zinc-500">
               Page {currentPage} of {totalPages}
             </div>
@@ -1459,8 +1459,8 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
   );
 
   return (
-    <div className="w-full mx-auto space-y-5 animate-in fade-in duration-500">
-      <div className="flex flex-wrap gap-2 rounded-xl border border-[#E4E4E7] bg-white p-2 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+    <div className="w-full mx-auto space-y-3 animate-in fade-in duration-500">
+      <div className="flex flex-wrap gap-2 rounded-lg border border-[#E4E4E7] bg-white p-1.5 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
         {[
           { id: "myProjects", label: "My Projects", count: myProjects?.length || 0 },
           { id: "delegated", label: "Delegated", count: visibleDelegatedProjects.length },
@@ -1496,7 +1496,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
         })}
       </div>
 
-      <div className="border-t-2 border-[#4A6CF7]/35 pt-4 dark:border-[#818CF8]/35">
+      <div className="border-t-2 border-[#4A6CF7]/35 pt-3 dark:border-[#818CF8]/35">
         {activeTab === "pending"
           ? renderPendingTasks()
           : renderProjectsTable()}

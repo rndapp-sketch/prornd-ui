@@ -197,11 +197,11 @@ const Field = ({
 );
 
 const SECTION_TONES = {
-    blue: { head: "bg-blue-50/70 dark:bg-blue-950/20", icon: "text-blue-600 dark:text-blue-400", title: "text-blue-900 dark:text-blue-200" },
-    emerald: { head: "bg-emerald-50/70 dark:bg-emerald-950/20", icon: "text-emerald-600 dark:text-emerald-400", title: "text-emerald-900 dark:text-emerald-200" },
-    violet: { head: "bg-violet-50/70 dark:bg-violet-950/20", icon: "text-violet-600 dark:text-violet-400", title: "text-violet-900 dark:text-violet-200" },
-    amber: { head: "bg-amber-50/70 dark:bg-amber-950/20", icon: "text-amber-600 dark:text-amber-400", title: "text-amber-900 dark:text-amber-200" },
-    orange: { head: "bg-orange-50/70 dark:bg-orange-950/20", icon: "text-[#D97757]", title: "text-orange-900 dark:text-orange-200" },
+    blue: { head: "bg-[#EEF2FF] dark:bg-[#1E3A8A]/18", icon: "text-[#4A6CF7] dark:text-[#93C5FD]", title: "text-[#1E3A8A] dark:text-[#C7D2FE]" },
+    emerald: { head: "bg-[#EEF2FF] dark:bg-[#1E3A8A]/18", icon: "text-[#4A6CF7] dark:text-[#93C5FD]", title: "text-[#1E3A8A] dark:text-[#C7D2FE]" },
+    violet: { head: "bg-[#EEF2FF] dark:bg-[#1E3A8A]/18", icon: "text-[#4A6CF7] dark:text-[#93C5FD]", title: "text-[#1E3A8A] dark:text-[#C7D2FE]" },
+    amber: { head: "bg-[#EEF2FF] dark:bg-[#1E3A8A]/18", icon: "text-[#4A6CF7] dark:text-[#93C5FD]", title: "text-[#1E3A8A] dark:text-[#C7D2FE]" },
+    orange: { head: "bg-[#EEF2FF] dark:bg-[#1E3A8A]/18", icon: "text-[#4A6CF7] dark:text-[#93C5FD]", title: "text-[#1E3A8A] dark:text-[#C7D2FE]" },
 };
 
 const Section = ({
@@ -216,11 +216,11 @@ const Section = ({
     children: React.ReactNode;
 }) => (
     <section className="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-[#27272A]">
-        <header className={cn("flex items-center gap-2 border-b border-zinc-100 px-5 py-2.5 dark:border-zinc-800", SECTION_TONES[tone].head)}>
+        <header className={cn("flex items-center gap-2 border-b border-[#C7D2FE] px-4 py-2 dark:border-zinc-800", SECTION_TONES[tone].head)}>
             <Icon className={cn("h-4 w-4", SECTION_TONES[tone].icon)} />
-            <h2 className={cn("text-[13px] font-semibold", SECTION_TONES[tone].title)}>{title}</h2>
+            <h2 className={cn("text-[13px] font-extrabold uppercase tracking-wide", SECTION_TONES[tone].title)}>{title}</h2>
         </header>
-        <div className="p-5">{children}</div>
+        <div className="p-4">{children}</div>
     </section>
 );
 
@@ -233,10 +233,10 @@ const ReadOnlyDetail = ({
     label: string;
     value?: React.ReactNode;
 }) => (
-    <div className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
+    <div className="flex items-start gap-3 py-2 first:pt-0 last:pb-0">
         <Icon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
         <div className="min-w-0">
-            <dt className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">{label}</dt>
+            <dt className="text-[12px] font-semibold text-zinc-600 dark:text-zinc-400">{label}</dt>
             <dd className="mt-0.5 break-words text-[13px] font-medium text-zinc-900 dark:text-zinc-100">
                 {value || <span className="font-normal text-zinc-400">Not set</span>}
             </dd>
@@ -474,11 +474,11 @@ export default function Profile() {
 
     if (isLoading) {
         return (
-            <div className="space-y-6">
+            <div className="space-y-3">
                 <PageHeader title="Profile" showBack={false} />
-                <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-                    <div className="h-80 animate-pulse rounded-2xl border border-[#E4E4E7] bg-white dark:border-[#3F3F46] dark:bg-[#27272A]" />
-                    <div className="h-96 animate-pulse rounded-2xl border border-[#E4E4E7] bg-white dark:border-[#3F3F46] dark:bg-[#27272A]" />
+                <div className="grid gap-3 lg:grid-cols-[320px_1fr]">
+                    <div className="h-80 animate-pulse rounded-lg border border-[#E4E4E7] bg-white dark:border-[#3F3F46] dark:bg-[#27272A]" />
+                    <div className="h-96 animate-pulse rounded-lg border border-[#E4E4E7] bg-white dark:border-[#3F3F46] dark:bg-[#27272A]" />
                 </div>
             </div>
         );
@@ -495,18 +495,18 @@ export default function Profile() {
     const dirty = isStudent ? studentDirty : isDirty;
 
     return (
-        <div className="-m-6 min-h-screen bg-[#FAFAF9] p-4 text-[#3F3F46] dark:bg-[#18181B] dark:text-[#E4E4E7] md:p-6">
+        <div className="w-full text-[#3F3F46] dark:text-[#E4E4E7]">
             <form
                 onSubmit={handleSave}
-                className="w-full space-y-4 [&_input]:h-9 [&_input]:text-[13px] [&_select]:h-9 [&_select]:text-[13px] [&_textarea]:text-[13px]"
+                className="w-full space-y-3 [&_input]:h-9 [&_input]:text-[13px] [&_select]:h-9 [&_select]:text-[13px] [&_textarea]:text-[13px]"
             >
                 {/* Identity */}
                 <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-[#27272A]">
-                    <div className="h-1 bg-gradient-to-r from-[#2563EB] via-[#7C3AED] to-[#D97757]" />
-                    <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
-                        <div className="flex min-w-0 items-center gap-4">
+                    <div className="h-[3px] bg-gradient-to-r from-[#2563EB] via-[#7C3AED] to-[#D97757]" />
+                    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5">
+                        <div className="flex min-w-0 items-center gap-3">
                             <div className="relative shrink-0">
-                                <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-blue-200 bg-blue-50 text-lg font-semibold text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
+                                <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 border-blue-200 bg-blue-50 text-lg font-semibold text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
                                     {form.user_image ? (
                                         <img
                                             src={getImageUrl(form.user_image)}
@@ -543,7 +543,7 @@ export default function Profile() {
                             </div>
                             <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <h1 className="truncate text-[17px] font-semibold text-zinc-900 dark:text-white">
+                                    <h1 className="truncate text-[18px] font-extrabold text-zinc-900 dark:text-white">
                                         {form.full_name || "User"}
                                     </h1>
                                     <span className={cn("rounded px-1.5 py-0.5 text-[11px] font-medium", user?.enabled ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" : "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400")}>
@@ -575,17 +575,17 @@ export default function Profile() {
                         </span>
                     </div>
                     {isDirty && form.user_image && !isStudent && (
-                        <p className="border-t border-zinc-100 px-5 py-2 text-[12px] text-amber-700 dark:border-zinc-800 dark:text-amber-400">
+                        <p className="border-t border-zinc-100 px-4 py-1.5 text-[12px] text-amber-700 dark:border-zinc-800 dark:text-amber-400">
                             Save the profile to apply the new picture.
                         </p>
                     )}
                 </div>
 
-                <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-                    <div className="space-y-4">
+                <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
+                    <div className="space-y-3">
                         {isStudent ? (
                             <Section title="Student Details" icon={BadgeCheck} tone="orange">
-                                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                                     {STUDENT_PROFILE_FIELDS.map((f) => (
                                         <Field key={f.name} id={f.name} label={f.label} icon={f.icon}>
                                             {f.options ? (
@@ -618,7 +618,7 @@ export default function Profile() {
                                         </Field>
                                     ))}
                                 </div>
-                                <div className="mt-6 flex items-center justify-end gap-3 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+                                <div className="mt-4 flex items-center justify-end gap-3 border-t border-zinc-100 pt-3 dark:border-zinc-800">
                                     <span className="mr-auto text-xs font-medium text-zinc-500">
                                         {studentDirty ? "You have unsaved changes" : "All changes saved"}
                                     </span>
@@ -636,7 +636,7 @@ export default function Profile() {
                         ) : (
                             <>
                                 <Section title="Personal Information" icon={User} tone="blue">
-                                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                                         {PERSONAL_FIELDS.map((f) => (
                                             <Field key={f.name} id={f.name} label={f.label} icon={f.icon}>
                                                 {f.options ? (
@@ -672,7 +672,7 @@ export default function Profile() {
                                 </Section>
 
                                 <Section title="Contact" icon={Phone} tone="emerald">
-                                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                                         {CONTACT_FIELDS.map((f) => (
                                             <Field key={f.name} id={f.name} label={f.label} icon={f.icon}>
                                                 <Input
@@ -718,7 +718,7 @@ export default function Profile() {
                 </div>
 
                 {!isStudent && (
-                    <div className="sticky bottom-3 flex flex-col-reverse gap-3 rounded-lg border border-zinc-200 bg-white/95 px-4 py-2.5 shadow-md backdrop-blur-sm dark:border-zinc-800 dark:bg-[#27272A]/95 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="sticky bottom-2 flex flex-col-reverse gap-2 rounded-lg border border-zinc-200 bg-white/95 px-4 py-2.5 shadow-md backdrop-blur-sm dark:border-zinc-800 dark:bg-[#27272A]/95 sm:flex-row sm:items-center sm:justify-between">
                         <p className="hidden text-xs font-medium text-zinc-500 sm:block">
                             {isDirty ? "You have unsaved changes" : "All changes saved"}
                         </p>

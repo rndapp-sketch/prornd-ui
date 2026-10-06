@@ -159,8 +159,8 @@ export default function ProjectStaffDetailsList() {
 
     return (
         <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
-            <main className="w-full space-y-3 p-4 md:p-6">
-                <header className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white px-5 py-3 shadow-sm dark:border-zinc-800 dark:bg-[#27272A] md:flex-row md:items-center md:justify-between">
+            <main className="w-full space-y-3 p-0">
+                <header className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white px-4 py-2 shadow-sm dark:border-zinc-800 dark:bg-[#27272A] md:flex-row md:items-center md:justify-between">
                     <div className="flex items-center gap-4">
                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-[#2563EB] to-[#D97757] text-white shadow-sm">
                             <Users className="h-5 w-5" />
@@ -188,8 +188,8 @@ export default function ProjectStaffDetailsList() {
                     <StatCard label="In Workflow / Other" value={counts.other} tone="border-violet-200 bg-violet-50 text-violet-900 dark:border-violet-900 dark:bg-violet-950/30 dark:text-violet-200" />
                 </div>
 
-                <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-[#27272A]">
-                    <div className="flex flex-col gap-2 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between">
+                <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-[#27272A]">
+                    <div className="flex flex-col gap-2 border-b border-zinc-200 px-3 py-2 dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between">
                         <div className="relative w-full sm:max-w-md">
                             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
                             <input

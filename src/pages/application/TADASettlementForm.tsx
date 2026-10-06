@@ -1062,7 +1062,7 @@ const TADASettlementForm: React.FC = () => {
 
   return (
     <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-      <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+      <main className="flex-1 p-0 w-full overflow-hidden">
         <PageHeader
           title={
             editDocName

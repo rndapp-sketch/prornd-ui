@@ -3126,10 +3126,10 @@ Endorsement is optional. You may continue completing Project Registration while 
 
         return (
             <div className="flex-1 w-full bg-[#F4F4F5] dark:bg-[#0F0F10] min-h-screen">
-                <div className="w-full px-4 md:px-8 py-8 mx-auto">
+                <div className="w-full px-0 py-0 mx-auto">
 
                     {/* Page header */}
-                    <div className="flex items-center gap-3 mb-6">
+                    <div className="flex items-center gap-3 mb-3">
                         <button
                             type="button"
                             onClick={() => navigate(-1)}
@@ -3570,7 +3570,7 @@ Endorsement is optional. You may continue completing Project Registration while 
             )}
             <main className="w-full overflow-hidden bg-[#FAFAF9] dark:bg-[#18181B]">
                 {/* Page header */}
-                <header className="mb-5 flex items-start justify-between gap-4">
+                <header className="mb-3 flex items-start justify-between gap-4">
                     <div>
                         <h1 className="font-sans text-[21px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7]">
                             {docname ? "Project Registration" : "New Project Registration"}
@@ -3641,7 +3641,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                         </nav>
                     </div>
 
-                    <div className="bg-zinc-100 dark:bg-zinc-800 p-4 md:p-5">
+                    <div className="bg-zinc-100 dark:bg-zinc-800 p-3">
                         {/* Form loading skeleton — shown until fields arrive */}
                         {(loading || fields.length === 0) && (
                             <div className="space-y-4">
@@ -3688,7 +3688,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                             {renderField("project_type")}
                                             {formData.project_type ===
                                                 "Research" && (
-                                                    <div className="space-y-8">
+                                                    <div className="space-y-4">
                                                         {renderField("involves_international_travel")}
                                                         <FrappeCard className="overflow-hidden p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
                                                             <div className="flex items-center justify-between flex-wrap gap-4">
@@ -3724,7 +3724,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                 )}
                                             {formData.project_type ===
                                                 "Consultancy" && (
-                                                    <div className="space-y-8">
+                                                    <div className="space-y-4">
                                                         <div className="space-y-4">
                                                             {renderField(
                                                                 "consultancy_category",

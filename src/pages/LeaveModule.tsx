@@ -248,7 +248,7 @@ const LeaveModule = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-            <main className="flex-1 px-6 md:px-8 pt-7 pb-10 w-full overflow-hidden">
+            <main className="flex-1 px-0 pt-0 pb-4 w-full overflow-hidden">
                 {/* Header */}
                 <div className="mb-5 overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
                     <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />

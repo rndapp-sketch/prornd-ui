@@ -541,7 +541,7 @@ const AdvanceSettlementDetails: React.FC = () => {
   if (error || !data) {
     return (
       <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-        <main className="flex-1 p-4 md:p-8">
+        <main className="flex-1 p-0">
           <FrappeCard className="text-center py-16">
             <FileTextIcon className="w-16 h-16 mx-auto text-zinc-400 dark:text-zinc-500 mb-4" />
             <h2 className="text-xl font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-2 uppercase">
@@ -573,7 +573,7 @@ const AdvanceSettlementDetails: React.FC = () => {
 
   return (
     <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
-      <main className="flex-1 px-4 py-6 md:px-8 md:py-8 max-w-[1600px] mx-auto">
+      <main className="flex-1 px-0 py-0 w-full">
         {/* Header */}
         <PageHeader
           title={data.name}

@@ -232,14 +232,14 @@ export function StudentDashboard() {
 
     return (
         <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] font-sans">
-            <div className="flex-1 p-4 md:p-8">
-                <div className="w-full max-w-7xl mx-auto">
+            <div className="flex-1 p-0">
+                <div className="w-full">
 
                     {/* Header */}
-                    <header className="mb-8">
+                    <header className="mb-3">
                         <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                             <div>
-                                <h1 className="text-2xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
+                                <h1 className="text-[18px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
                                     Student Dashboard
                                 </h1>
                                 <p className="text-sm text-zinc-600 dark:text-[#A1A1AA] mt-1">
@@ -337,7 +337,7 @@ export function StudentDashboard() {
                     </section>
 
                     {/* Quick Action Cards */}
-                    <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
                         {/* Pending Approvals */}
                         <button
                             onClick={() => navigate("/pending-task")}
@@ -399,7 +399,7 @@ export function StudentDashboard() {
                     </section>
 
                     {/* Stats Row */}
-                    <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-3">
                         <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm">
                             <AnalyticsCard
                                 title="Pending"
@@ -435,9 +435,9 @@ export function StudentDashboard() {
                     </section>
 
                     {/* Two-Column: Recent Pending + Recently Processed */}
-                    <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <section className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
                         {/* Recent Pending Approvals */}
-                        <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
+                        <div className="bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
                             <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <ClipboardCheck className="h-4 w-4 text-[#D97757]" />
@@ -493,7 +493,7 @@ export function StudentDashboard() {
                         </div>
 
                         {/* Recently Processed */}
-                        <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
+                        <div className="bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
                             <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <BarChart className="h-4 w-4 text-[#D97757]" />
@@ -554,7 +554,7 @@ export function StudentDashboard() {
 
                     {/* Module Breakdown */}
                     {moduleBreakdown.length > 0 && (
-                        <section className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-5 mb-6">
+                        <section className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-5 mb-3">
                             <div className="flex items-center gap-2 mb-4">
                                 <Clock className="h-4 w-4 text-[#D97757]" />
                                 <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-sm uppercase tracking-wide">

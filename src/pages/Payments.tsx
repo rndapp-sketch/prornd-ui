@@ -662,11 +662,11 @@ const Payments: React.FC = () => {
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
             <GlobalLoader isLoading={isLoading} />
 
-            <main className="flex-1 px-6 md:px-8 pt-7 pb-10 w-full overflow-hidden">
+            <main className="flex-1 px-0 pt-0 pb-4 w-full overflow-hidden">
                 {/* Header */}
-                <FrappeCard className="mb-5 overflow-hidden p-0">
+                <FrappeCard className="mb-3 overflow-hidden p-0">
                     <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
-                    <div className="flex items-start gap-3 px-5 py-4">
+                    <div className="flex items-start gap-3 px-4 py-2.5">
                         <button
                             onClick={() => navigate(-1)}
                             className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
@@ -676,14 +676,14 @@ const Payments: React.FC = () => {
                         </button>
                         <div className="min-w-0">
                             <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">Finance Operations</span>
-                            <h1 className="mt-1 text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Payments</h1>
-                            <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">View and manage payment records.</p>
+                            <h1 className="text-[18px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Payments</h1>
+                            <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">View and manage payment records.</p>
                         </div>
                     </div>
                 </FrappeCard>
 
                 {/* Tabs */}
-                <div className="mb-4 flex gap-2 border-t-2 border-[#4A6CF7]/35 pt-4 dark:border-[#818CF8]/35 overflow-x-auto">
+                <div className="mb-3 flex gap-2 border-t-2 border-[#4A6CF7]/35 pt-3 dark:border-[#818CF8]/35 overflow-x-auto">
                     <button
                         onClick={() => setActiveTab('commits')}
                         className={cn(
@@ -711,7 +711,7 @@ const Payments: React.FC = () => {
 
                 {activeTab === 'commits' && (
                     <FrappeCard className="overflow-hidden p-0">
-                        <div className="bg-[#FAFAF9] dark:bg-[#27272A] p-4 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                        <div className="bg-[#FAFAF9] dark:bg-[#27272A] px-3 py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
                             <p className="text-[12px] uppercase tracking-[0.12em] text-[#1E3A8A] dark:text-[#C7D2FE] font-extrabold">
                                 Pending Commits from Ledger
                             </p>
@@ -721,7 +721,7 @@ const Payments: React.FC = () => {
                         </div>
 
                         {/* Search + Module Filter */}
-                        <div className="p-3 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                        <div className="px-3 py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
                             <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
                                 <div className="flex flex-1 items-center gap-4 w-full flex-wrap">
                                     <div className="relative w-full md:w-64">
@@ -770,19 +770,19 @@ const Payments: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="overflow-x-auto p-3">
+                        <div className="overflow-x-auto">
                             <table className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg overflow-hidden">
                                 <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
                                     <tr>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Project No.</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Account Head</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Module</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">App ID</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Particulars</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Ref Details</th>
-                                        <th className="px-4 py-3 text-right text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Amount</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Project No.</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Account Head</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Module</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">App ID</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Particulars</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Ref Details</th>
+                                        <th className="px-3 py-2 text-right text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Amount</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -794,24 +794,24 @@ const Payments: React.FC = () => {
                                                     ? commitPaymentInfo.get(commit.transactionCommitNumber)
                                                     : undefined;
                                                 return (
-                                                <tr key={idx} className="hover:bg-zinc-50 dark:bg-zinc-800/50">
-                                                    <td className="p-4 text-sm font-mono font-medium">{commit.projectNumber}</td>
-                                                    <td className="p-4 text-sm text-zinc-700 dark:text-zinc-300 font-bold">
+                                                <tr key={idx} className="even:bg-[#FAFAFA] hover:bg-[#EEF2FF] dark:bg-zinc-800/50">
+                                                    <td className="px-3 py-2 text-sm font-mono font-medium">{commit.projectNumber}</td>
+                                                    <td className="px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 font-bold">
                                                         {budgetHeadMap[String(commit.accountHeadId)] || commit.accountHeadId}
                                                     </td>
-                                                    <td className="p-4 text-sm text-zinc-700 dark:text-zinc-300">
+                                                    <td className="px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300">
                                                         {commit.moduleId ? (moduleNameMap[String(commit.moduleId)] || commit.moduleId) : '-'}
                                                     </td>
-                                                    <td className="p-4 text-sm font-mono text-zinc-600 dark:text-zinc-400">
+                                                    <td className="px-3 py-2 text-sm font-mono text-zinc-600 dark:text-zinc-400">
                                                         {commit.frapAppId || '-'}
                                                     </td>
-                                                    <td className="p-4 text-sm">{commit.commitDate}</td>
-                                                    <td className="p-4 text-sm">{commit.commitParticular}</td>
-                                                    <td className="p-4 text-sm text-zinc-600 dark:text-zinc-400">{commit.refDetails}</td>
-                                                    <td className="p-4 text-right font-bold text-zinc-900 dark:text-zinc-100 text-sm">
+                                                    <td className="px-3 py-2 text-sm">{commit.commitDate}</td>
+                                                    <td className="px-3 py-2 text-sm">{commit.commitParticular}</td>
+                                                    <td className="px-3 py-2 text-sm text-zinc-600 dark:text-zinc-400">{commit.refDetails}</td>
+                                                    <td className="px-3 py-2 text-right font-bold text-zinc-900 dark:text-zinc-100 text-sm">
                                                         ₹{commit.commitAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                                     </td>
-                                                    <td className="p-4">
+                                                    <td className="px-3 py-2">
                                                         <div className="flex gap-2 items-center">
                                                             {isRnDStaff && (
                                                                 existingPayment ? (
@@ -877,7 +877,7 @@ const Payments: React.FC = () => {
 
                         {/* Commits Pagination */}
                         {searchedPendingCommits.length > commitsPerPage && (
-                            <div className="p-4 border-t border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex justify-between items-center">
+                            <div className="px-4 py-2 border-t border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex justify-between items-center">
                                 <div className="text-sm text-zinc-900 dark:text-zinc-100 font-medium">
                                     Showing {(commitPage - 1) * commitsPerPage + 1} to {Math.min(commitPage * commitsPerPage, searchedPendingCommits.length)} of {searchedPendingCommits.length} commits
                                 </div>
@@ -904,7 +904,7 @@ const Payments: React.FC = () => {
 
                 {activeTab === 'misc' && (
                     <FrappeCard className="overflow-hidden p-0">
-                        <div className="bg-[#FAFAF9] dark:bg-[#27272A] p-4 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                        <div className="bg-[#FAFAF9] dark:bg-[#27272A] px-3 py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
                             <p className="text-[12px] uppercase tracking-[0.12em] text-[#1E3A8A] dark:text-[#C7D2FE] font-extrabold">
                                 Miscellaneous &amp; Recruitment Commits
                             </p>
@@ -914,7 +914,7 @@ const Payments: React.FC = () => {
                         </div>
 
                         {/* Search + Type Filter */}
-                        <div className="p-3 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                        <div className="px-3 py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
                             <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
                                 <div className="flex flex-1 items-center gap-4 w-full flex-wrap">
                                     <div className="relative w-full md:w-64">
@@ -962,20 +962,20 @@ const Payments: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="overflow-x-auto p-3">
+                        <div className="overflow-x-auto">
                             <table className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg overflow-hidden">
                                 <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
                                     <tr>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Type</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Project No.</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Budget Head</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">App ID</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Particulars</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Ref / Linked App</th>
-                                        <th className="px-4 py-3 text-right text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Amount</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Type</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Project No.</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Budget Head</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">App ID</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Particulars</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Ref / Linked App</th>
+                                        <th className="px-3 py-2 text-right text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Amount</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -987,8 +987,8 @@ const Payments: React.FC = () => {
                                                     ? commitPaymentInfo.get(row.commit.transactionCommitNumber)
                                                     : undefined;
                                                 return (
-                                                <tr key={row.key} className="hover:bg-zinc-50 dark:bg-zinc-800/50">
-                                                    <td className="p-4 text-sm">
+                                                <tr key={row.key} className="even:bg-[#FAFAFA] hover:bg-[#EEF2FF] dark:bg-zinc-800/50">
+                                                    <td className="px-3 py-2 text-sm">
                                                         <span className={cn(
                                                             "px-2 py-0.5 rounded-full text-[10px] font-bold border",
                                                             row.type === 'Miscellaneous Commit'
@@ -998,19 +998,19 @@ const Payments: React.FC = () => {
                                                             {row.type}
                                                         </span>
                                                     </td>
-                                                    <td className="p-4 text-sm font-mono font-medium">{row.projectNumber}</td>
-                                                    <td className="p-4 text-sm text-zinc-700 dark:text-zinc-300 font-bold">{row.budgetHead}</td>
-                                                    <td className="p-4 text-sm font-mono text-zinc-600 dark:text-zinc-400">{row.appId}</td>
-                                                    <td className="p-4 text-sm">{row.date}</td>
-                                                    <td className="p-4 text-sm">{row.particulars}</td>
-                                                    <td className="p-4 text-sm text-zinc-600 dark:text-zinc-400">{row.refDetails}</td>
-                                                    <td className="p-4 text-right font-bold text-zinc-900 dark:text-zinc-100 text-sm">
+                                                    <td className="px-3 py-2 text-sm font-mono font-medium">{row.projectNumber}</td>
+                                                    <td className="px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 font-bold">{row.budgetHead}</td>
+                                                    <td className="px-3 py-2 text-sm font-mono text-zinc-600 dark:text-zinc-400">{row.appId}</td>
+                                                    <td className="px-3 py-2 text-sm">{row.date}</td>
+                                                    <td className="px-3 py-2 text-sm">{row.particulars}</td>
+                                                    <td className="px-3 py-2 text-sm text-zinc-600 dark:text-zinc-400">{row.refDetails}</td>
+                                                    <td className="px-3 py-2 text-right font-bold text-zinc-900 dark:text-zinc-100 text-sm">
                                                         ₹{row.amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                                     </td>
-                                                    <td className="p-4">
+                                                    <td className="px-3 py-2">
                                                         <span className={getStatusBadge(row.status)}>{row.status}</span>
                                                     </td>
-                                                    <td className="p-4">
+                                                    <td className="px-3 py-2">
                                                         {isRnDStaff && (
                                                             existingPayment ? (
                                                                 <span
@@ -1045,7 +1045,7 @@ const Payments: React.FC = () => {
                         </div>
 
                         {filteredMiscTabRows.length > miscPerPage && (
-                            <div className="p-4 border-t border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex justify-between items-center">
+                            <div className="px-4 py-2 border-t border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex justify-between items-center">
                                 <div className="text-sm text-zinc-900 dark:text-zinc-100 font-medium">
                                     Showing {(miscPage - 1) * miscPerPage + 1} to {Math.min(miscPage * miscPerPage, filteredMiscTabRows.length)} of {filteredMiscTabRows.length} records
                                 </div>
@@ -1073,7 +1073,7 @@ const Payments: React.FC = () => {
                 {activeTab === 'history' && (
                     <>
                         {/* Filter & Search Section */}
-                        <FrappeCard className="mb-4 p-3">
+                        <FrappeCard className="mb-3 px-3 py-2">
                             <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
                                 <div className="flex flex-1 items-center gap-4 w-full flex-wrap">
                                     {/* Search Input */}
@@ -1153,19 +1153,19 @@ const Payments: React.FC = () => {
                         </FrappeCard>
 
                         {/* Table */}
-                        <FrappeCard className="overflow-hidden p-3">
+                        <FrappeCard className="overflow-hidden p-0">
                             <div className="overflow-x-auto rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
                                 <table className="w-full">
                                     <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
                                         <tr>
-                                            <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
-                                            <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Module</th>
-                                            <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Particulars</th>
-                                            <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Project No.</th>
-                                            <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
-                                            <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Owner</th>
-                                            <th className="px-4 py-3 text-right text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Amount</th>
-                                            <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
+                                            <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
+                                            <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Module</th>
+                                            <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Particulars</th>
+                                            <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Project No.</th>
+                                            <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
+                                            <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Owner</th>
+                                            <th className="px-3 py-2 text-right text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Amount</th>
+                                            <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -1175,38 +1175,38 @@ const Payments: React.FC = () => {
                                                     key={payment.name}
                                                     className="hover:bg-zinc-50 dark:bg-zinc-800/50 cursor-pointer transition-colors"
                                                 >
-                                                    <td className="p-4">
+                                                    <td className="px-3 py-2">
                                                         <span className={getStatusBadge(payment.payment_status)}>
                                                             {payment.payment_status}
                                                         </span>
                                                     </td>
-                                                    <td className="p-4 font-bold text-zinc-900 dark:text-zinc-100 text-sm">
+                                                    <td className="px-3 py-2 font-bold text-zinc-900 dark:text-zinc-100 text-sm">
                                                         {payment.doctype || 'AccountHeadPayment'}
                                                     </td>
-                                                    <td className="p-4 font-medium text-zinc-900 dark:text-zinc-100 text-sm">
+                                                    <td className="px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100 text-sm">
                                                         {payment.payment_particular?.length > 30
                                                             ? `${payment.payment_particular.substring(0, 30)}...`
                                                             : payment.payment_particular || '-'}
                                                     </td>
-                                                    <td className="p-4 text-sm font-mono text-zinc-900 dark:text-zinc-100">
+                                                    <td className="px-3 py-2 text-sm font-mono text-zinc-900 dark:text-zinc-100">
                                                         {payment.project_ref_number?.length > 25
                                                             ? `${payment.project_ref_number.substring(0, 25)}...`
                                                             : payment.project_ref_number || '-'}
                                                     </td>
-                                                    <td className="p-4 text-sm font-mono text-zinc-900 dark:text-zinc-100">
+                                                    <td className="px-3 py-2 text-sm font-mono text-zinc-900 dark:text-zinc-100">
                                                         {payment.payment_date
                                                             ? new Date(payment.payment_date).toLocaleDateString("en-IN")
                                                             : "-"}
                                                     </td>
-                                                    <td className="p-4 text-sm text-zinc-900 dark:text-zinc-100">
+                                                    <td className="px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100">
                                                         {payment.owner?.length > 20
                                                             ? `${payment.owner.substring(0, 20)}...`
                                                             : payment.owner || '-'}
                                                     </td>
-                                                    <td className="p-4 text-right font-bold text-zinc-900 dark:text-zinc-100 text-sm">
+                                                    <td className="px-3 py-2 text-right font-bold text-zinc-900 dark:text-zinc-100 text-sm">
                                                         ₹{payment.payment_amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}
                                                     </td>
-                                                    <td className="p-4">
+                                                    <td className="px-3 py-2">
                                                         {isRnDStaff && payment.payment_status !== 'PAID' && (
                                                             <FrappeButton
                                                                 variant="action"
@@ -1235,7 +1235,7 @@ const Payments: React.FC = () => {
 
                             {/* Pagination Controls */}
                             {payments.length > 0 && (
-                                <div className="p-4 border-t border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex justify-between items-center">
+                                <div className="px-4 py-2 border-t border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex justify-between items-center">
                                     <div>
                                         <div className="text-sm text-zinc-900 dark:text-zinc-100 font-medium">
                                             Showing {indexOfFirstPayment + 1} to {indexOfFirstPayment + currentCount} of {totalCount} entries

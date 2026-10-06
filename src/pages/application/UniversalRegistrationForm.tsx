@@ -1586,19 +1586,19 @@ export default function UniversalRegistrationForm({
     if (isLoadingFields) {
         return (
             <div className="flex-1 w-full bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-                <div className="w-full px-6 md:px-10 py-8 md:py-10">
-                    <div className="flex items-center gap-4 mb-8">
+                <div className="w-full px-0 py-0">
+                    <div className="flex items-center gap-3 mb-3">
                         <Skeleton className="h-9 w-9 rounded-lg" />
                         <div className="space-y-2">
                             <Skeleton className="h-7 w-[250px] rounded-xl" />
                             <Skeleton className="h-3.5 w-[200px] rounded-lg" />
                         </div>
                     </div>
-                    <div className="bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-2xl shadow-sm overflow-hidden">
+                    <div className="bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-lg shadow-sm overflow-hidden">
                         <div className="section-header-lg">
                             <Skeleton className="h-5 w-[200px]" />
                         </div>
-                        <div className="p-8 space-y-8">
+                        <div className="p-5 space-y-4">
                             {Array.from({ length: 3 }).map((_, i) => (
                                 <div key={i} className="space-y-4">
                                     <Skeleton className="h-4 w-[150px] rounded-lg" />
@@ -1619,10 +1619,10 @@ export default function UniversalRegistrationForm({
     if (step === 'instructions') {
         return (
             <div className="flex-1 w-full bg-[#F4F4F5] dark:bg-[#0F0F10] min-h-screen">
-                <div className="w-full px-4 md:px-8 py-8">
+                <div className="w-full px-0 py-0">
 
                     {/* Page header */}
-                    <div className="flex items-center gap-3 mb-6">
+                    <div className="flex items-center gap-3 mb-3">
                         <button onClick={() => navigate(-1)}
                             className="p-1.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] transition-colors">
                             <ArrowLeft className="h-4 w-4 text-[#71717A] dark:text-[#A1A1AA]" />
@@ -1706,7 +1706,7 @@ export default function UniversalRegistrationForm({
                         <div className="lg:col-span-3 space-y-4">
 
                             {/* Step 1 — Profile type */}
-                            <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-[#E4E4E7] dark:border-[#2E2E30] overflow-hidden">
+                            <div className="bg-white dark:bg-[#1C1C1E] rounded-lg border border-[#E4E4E7] dark:border-[#2E2E30] overflow-hidden">
                                 <div className="bg-[#4A6CF7] px-5 py-3.5 flex items-center gap-2.5">
                                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white text-[12px] font-extrabold">1</span>
                                     <div>
@@ -1767,7 +1767,7 @@ export default function UniversalRegistrationForm({
                             </div>
 
                             {/* Steps 2–4 */}
-                            <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-[#E4E4E7] dark:border-[#2E2E30] overflow-hidden">
+                            <div className="bg-white dark:bg-[#1C1C1E] rounded-lg border border-[#E4E4E7] dark:border-[#2E2E30] overflow-hidden">
                                 <div className="bg-emerald-600 px-5 py-3.5 flex items-center gap-2.5">
                                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white text-[12px] font-extrabold">→</span>
                                     <div>
@@ -1802,7 +1802,7 @@ export default function UniversalRegistrationForm({
                         <div className="lg:col-span-2 space-y-4">
 
                             {/* Documents checklist */}
-                            <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-[#E4E4E7] dark:border-[#2E2E30] overflow-hidden">
+                            <div className="bg-white dark:bg-[#1C1C1E] rounded-lg border border-[#E4E4E7] dark:border-[#2E2E30] overflow-hidden">
                                 <div className="px-5 py-3.5 border-b border-[#F4F4F5] dark:border-[#2E2E30] bg-slate-100 dark:bg-slate-800/50">
                                     <p className="text-[13px] font-extrabold text-[#18181B] dark:text-[#FAFAFA]">Documents Checklist</p>
                                     <p className="text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA] mt-0.5">Keep these ready before you begin</p>
@@ -1845,7 +1845,7 @@ export default function UniversalRegistrationForm({
                             </div>
 
                             {/* Quick tips */}
-                            <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl border border-[#E4E4E7] dark:border-[#2E2E30] px-5 py-4">
+                            <div className="bg-white dark:bg-[#1C1C1E] rounded-lg border border-[#E4E4E7] dark:border-[#2E2E30] px-5 py-4">
                                 <p className="text-[13px] font-extrabold text-[#27272A] dark:text-[#E4E4E7] mb-2.5">Quick Tips</p>
                                 <ul className="space-y-2">
                                     {[
@@ -1892,9 +1892,9 @@ export default function UniversalRegistrationForm({
     // ── Step 2: The Registration Form ────────────────────────────────────────
     return (
         <div className="flex-1 w-full bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen text-[#3F3F46] dark:text-[#E4E4E7]">
-            <div className="w-full px-6 md:px-10 py-8 md:py-10 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
+            <div className="w-full px-0 py-0 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
                 {/* --- Header Section --- */}
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8 mt-4">
+                <div className="flex flex-col md:flex-row md:items-start justify-between gap-3 mb-3 mt-0">
                     <div className="flex items-start gap-4">
                         <button
                             onClick={() => setStep('instructions')}
@@ -1903,7 +1903,7 @@ export default function UniversalRegistrationForm({
                             <ArrowLeft className="h-4 w-4 text-[#2563EB] dark:text-[#60A5FA]" />
                         </button>
                         <div>
-                            <h1 className="text-[22px] font-extrabold tracking-[-0.02em] text-[#3F3F46] dark:text-[#E4E4E7] leading-tight mb-1 flex items-center gap-3">
+                            <h1 className="text-[18px] font-extrabold tracking-[-0.02em] text-[#3F3F46] dark:text-[#E4E4E7] leading-tight mb-1 flex items-center gap-3">
                                 Stakeholder Registration
                                 {formData.status_u_r && (
                                     <span className="status-progress text-[9px]">
@@ -1931,7 +1931,7 @@ export default function UniversalRegistrationForm({
                 </div>
 
                 {/* --- Main Application Form Card --- */}
-                <div className="bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-2xl shadow-sm overflow-visible">
+                <div className="bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-lg shadow-sm overflow-visible">
                     {/* Card header accent */}
                     <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-transparent" />
                     {/* Section header */}
@@ -1949,7 +1949,7 @@ export default function UniversalRegistrationForm({
                     </div>
 
                     <div className="p-0">
-                        <div className="p-8">
+                        <div className="p-5">
                             <DynamicFormRenderer
                                 fields={filteredFields}
                                 formData={formData}

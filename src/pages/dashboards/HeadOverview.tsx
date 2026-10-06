@@ -1621,7 +1621,7 @@ export function HeadOverview() {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans text-[14px] leading-relaxed text-[#3F3F46] dark:text-[#E4E4E7]">
-            <div className="px-6 md:px-8 pt-7 pb-10 max-w-[1600px] mx-auto">
+            <div className="px-0 pt-0 pb-4 w-full">
 
                 {/* ── Header ── */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 w-full">

@@ -1574,7 +1574,7 @@ const FundReceivedDetails = () => {
                         onDismiss={() => setAccountPortalAlertDismissed(true)}
                         onOpen={() => { setAccountPortalAlertDismissed(true); setShowActivityLog(true); }} />
                 )}
-                <main className="px-6 md:px-8 pt-7 pb-10">
+                <main className="px-0 pt-0 pb-4">
                     <div className="mb-4 flex items-center gap-3 flex-wrap">
                         <FundReceivedWorkflowActions docname={name || ""} onActionComplete={(result) => { const s = result?.message?.workflow_state ?? result?.workflow_state; if (s) setOptimisticWorkflowState(s); globalMutate(() => true); mutateDoc(); mutate(); setSlipRefreshKey(k => k + 1); setActiveTab("deposit_slip"); }} onBeforeAction={handleBeforeAction} />
                     </div>
@@ -1626,7 +1626,7 @@ const FundReceivedDetails = () => {
             )}
             <GlobalLoader isLoading={isSubmitting} />
 
-            <main className="px-6 md:px-8 pt-7 pb-16">
+            <main className="px-0 pt-0 pb-4">
 
                 {/* ── Page Header + KPI strip hidden when printing from Deposit Slip tab ── */}
                 <div className={activeTab === "deposit_slip" ? "deposit-slip-non-print" : undefined}>

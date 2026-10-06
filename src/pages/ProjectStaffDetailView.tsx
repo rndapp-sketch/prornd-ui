@@ -260,7 +260,7 @@ export default function ProjectStaffDetailView() {
 
     return (
         <div className="min-h-screen bg-[#FAFAF9] font-sans dark:bg-[#18181B]">
-            <main className="w-full space-y-5 p-4 md:p-6 lg:p-8">
+            <main className="w-full space-y-3 p-0">
                 {/* Header */}
                 <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-md dark:border-zinc-800 dark:bg-[#27272A]">
                     <div className="relative h-14 bg-gradient-to-r from-[#1E3A8A] via-[#2563EB] to-[#D97757]">

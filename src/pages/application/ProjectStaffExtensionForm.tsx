@@ -1000,7 +1000,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
     return (
       <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
 
-        <main className="flex-1 p-4 md:p-8">
+        <main className="flex-1 p-0">
           <div className="w-full">
             <PageHeader title="Project Staff Extension — My Applications">
               <button
@@ -1099,7 +1099,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
 
-      <main className="flex-1 p-4 md:p-8">
+      <main className="flex-1 p-0">
         <div className="w-full">
 
           <PageHeader

@@ -608,7 +608,7 @@ const IndentGeneralForm: React.FC = () => {
             {/* Full-page blocking overlay during save — prevents any pointer event from reaching buttons */}
             {isSaving && <div className="fixed inset-0 z-[99] cursor-wait" aria-hidden="true" />}
             <GlobalLoader isLoading={isSaving} />
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+            <main className="flex-1 p-0 w-full overflow-hidden">
                 <PageHeader
                     title="Indent General Form"
                     status={workflowState}

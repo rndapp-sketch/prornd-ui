@@ -676,10 +676,10 @@ export function ProjectSearch() {
 
   return (
     <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
-      <div className="px-4 md:px-6 xl:px-8 pt-6 pb-12">
+      <div className="px-0 pt-0 pb-4">
 
         {/* ─── Header ─── */}
-        <div className="mb-6">
+        <div className="mb-3">
           <div className="flex items-center gap-3 mb-1">
             <div className="w-9 h-9 bg-[#D97757] rounded-xl flex items-center justify-center text-white shadow-sm flex-shrink-0">
               <Search size={17} />
@@ -696,7 +696,7 @@ export function ProjectSearch() {
         </div>
 
         {/* ─── Search Bar ─── */}
-        <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-4 mb-5">
+        <div className="bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-3 mb-3">
           <div className="flex items-center gap-3">
             <div className="flex-1 flex items-center gap-3 bg-[#FAFAF9] dark:bg-[#1C1C1F] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl px-4 py-2.5 focus-within:border-[#D97757] dark:focus-within:border-[#D97757] transition-colors">
               <Search className="h-4 w-4 text-[#A1A1AA] dark:text-[#71717A] flex-shrink-0" />
@@ -737,13 +737,13 @@ export function ProjectSearch() {
         {/* ─── Results ─── */}
         <div className="space-y-3">
           {isLoading ? (
-            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
+            <div className="bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
               <div className="flex items-center justify-center py-16 gap-3 text-[#A1A1AA]">
                 <Spinner /> <span className="text-[13px]">{isSearching ? "Searching…" : "Loading projects…"}</span>
               </div>
             </div>
           ) : projects.length === 0 ? (
-            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
+            <div className="bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
               <EmptyState
                 icon={isSearching ? AlertCircle : Layers}
                 title={isSearching ? "No projects found" : "No projects available"}

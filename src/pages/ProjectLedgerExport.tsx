@@ -386,8 +386,8 @@ export function ProjectLedgerExport() {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
-            <div className="px-4 md:px-6 xl:px-8 pt-6 pb-12">
-                <div className="mb-6 flex items-center gap-3">
+            <div className="px-0 pt-0 pb-4">
+                <div className="mb-3 flex items-center gap-3">
                     <div className="w-9 h-9 bg-[#D97757] rounded-xl flex items-center justify-center text-white shadow-sm flex-shrink-0">
                         <FileSpreadsheet size={17} />
                     </div>
@@ -401,7 +401,7 @@ export function ProjectLedgerExport() {
                     </div>
                 </div>
 
-                <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-4 mb-5">
+                <div className="bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-3 mb-3">
                     <div className="flex flex-col sm:flex-row gap-3">
                         <div className="relative flex-1">
                             <div className="flex items-center gap-3 bg-[#FAFAF9] dark:bg-[#1C1C1F] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl px-4 py-2.5 focus-within:border-[#D97757] transition-colors">
@@ -472,7 +472,7 @@ export function ProjectLedgerExport() {
                 </div>
 
                 {error && (
-                    <div className="flex items-center gap-2 mb-5 px-4 py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-900/20 dark:text-red-300 text-[13px] font-medium">
+                    <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl border border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-900/20 dark:text-red-300 text-[13px] font-medium">
                         <AlertCircle className="h-4 w-4 flex-shrink-0" />
                         {error}
                     </div>
@@ -482,7 +482,7 @@ export function ProjectLedgerExport() {
 
                 {!loading && ledgers.length > 0 && activeLedger && (
                     <>
-                        <div className="mb-4 flex flex-wrap items-center gap-2 text-[12px] font-semibold text-[#52525B] dark:text-[#A1A1AA]">
+                        <div className="mb-3 flex flex-wrap items-center gap-2 text-[12px] font-semibold text-[#52525B] dark:text-[#A1A1AA]">
                             <span className="inline-flex items-center rounded-full bg-[#1E3A8A] px-3 py-1 text-[12px] font-extrabold text-white shadow-sm">
                                 {loadedProjectNo}
                             </span>
@@ -491,7 +491,7 @@ export function ProjectLedgerExport() {
                             </span>
                         </div>
 
-                        <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                        <div className="mb-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
                             {[
                                 { label: "Fund Received", value: totals.received, tone: "emerald" },
                                 { label: "Committed", value: totals.commit, tone: "amber" },
@@ -500,7 +500,7 @@ export function ProjectLedgerExport() {
                             ].map((card) => (
                                 <div
                                     key={card.label}
-                                    className={cn("rounded-2xl border p-4 shadow-sm", SUMMARY_TONES[card.tone].card)}
+                                    className={cn("rounded-lg border p-3 shadow-sm", SUMMARY_TONES[card.tone].card)}
                                 >
                                     <p className={cn("text-[10px] font-extrabold uppercase tracking-[0.12em]", SUMMARY_TONES[card.tone].label)}>
                                         {card.label}
@@ -515,8 +515,8 @@ export function ProjectLedgerExport() {
                             ))}
                         </div>
 
-                        <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
-                            <div className="flex flex-wrap gap-1.5 border-b border-[#E4E4E7] bg-[#FAFAF9] px-4 py-3 dark:border-[#3F3F46] dark:bg-[#1C1C1F]">
+                        <div className="overflow-hidden rounded-lg border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+                            <div className="flex flex-wrap gap-1.5 border-b border-[#E4E4E7] bg-[#FAFAF9] px-3 py-2 dark:border-[#3F3F46] dark:bg-[#1C1C1F]">
                                 {ledgers.map(({ head, transactions }) => (
                                     <button
                                         key={head.id}

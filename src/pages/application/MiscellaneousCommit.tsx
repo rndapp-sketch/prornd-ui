@@ -231,26 +231,26 @@ const MiscellaneousCommit: React.FC = () => {
     }
 
     return (
-        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
          
             {/* pb-24: extra clearance so the pagination bar's Next button never
                 sits under the floating "Module Guide" button (fixed bottom-8 right-7). */}
-            <main className="flex-1 p-4 md:p-8 pb-24 w-full overflow-hidden">
+            <main className="flex-1 p-0 pb-4 w-full overflow-hidden">
                 {/* Header */}
-                <header className="mb-6 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
+                <header className="mb-3 px-4 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <button
                                 onClick={() => navigate(-1)}
-                                className="p-2.5 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                                className="p-2 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                             >
                                 <ArrowLeftIcon className="h-4 w-4 text-zinc-900 dark:text-zinc-100" />
                             </button>
                             <div>
-                                <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">
+                                <h1 className="text-[18px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
                                     Commit / De-Commit
                                 </h1>
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                <p className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
                                     View and manage Miscellaneous Commit applications
                                 </p>
                             </div>
@@ -258,8 +258,8 @@ const MiscellaneousCommit: React.FC = () => {
                         <button
                             onClick={() => navigate("/miscellaneous-commit-form")}
                             className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm",
-                                "bg-[#D97757] text-white hover:bg-[#D97757]",
+                                "flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold text-[13px]",
+                                "bg-[#2563EB] text-white hover:bg-[#1D4ED8]",
                                 "shadow-sm transition-all duration-150",
                             )}
                         >
@@ -270,137 +270,147 @@ const MiscellaneousCommit: React.FC = () => {
                 </header>
 
                 {/* Search */}
-                <div className="mb-4 relative max-w-sm">
+                <div className="mb-3 relative max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                     <input
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search any field..."
-                        className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#D97757]/40"
+                        className="w-full pl-9 pr-3 py-1.5 text-[13px] rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#D97757]/40"
                     />
                 </div>
 
                 {/* Table */}
-                <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                <div className="overflow-hidden rounded-lg border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
                     {list.length === 0 ? (
-                        <div className="p-12 text-center">
-                            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
-                                <Plus className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
+                        <div className="p-10 text-center">
+                            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#EEF2FF] dark:bg-[#4A6CF7]/15">
+                                <Plus className="h-6 w-6 text-[#4A6CF7]" />
                             </div>
-                            <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-1">
-                                No applications yet
-                            </h4>
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                            <h4 className="mb-1 text-[14px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">No applications yet</h4>
+                            <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
                                 Click "Apply New" to create your first application.
                             </p>
                         </div>
                     ) : filteredList.length === 0 ? (
-                        <div className="p-12 text-center">
-                            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
-                                <Search className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
+                        <div className="p-10 text-center">
+                            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#EEF2FF] dark:bg-[#4A6CF7]/15">
+                                <Search className="h-6 w-6 text-[#4A6CF7]" />
                             </div>
-                            <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-1">
-                                No matching applications
-                            </h4>
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                                Try a different search term.
-                            </p>
+                            <h4 className="mb-1 text-[14px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">No matching applications</h4>
+                            <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA]">Try a different search term.</p>
                         </div>
                     ) : (
-                        <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
-                            <thead className="bg-zinc-50 dark:bg-zinc-800/50">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                        Application ID
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                        Date
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                        Project
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                        Type
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                        Commit Particular
-                                    </th>
-                                    <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                        Amount
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                        Status
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                        Actions
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                {paginatedList.map((item) => (
-                                    <tr
-                                        key={item.name}
-                                        className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer"
-                                        onClick={() => navigate(`/miscellaneous-commit/${item.name}`)}
-                                    >
-                                        <td className="px-4 py-3 align-top text-sm text-zinc-900 dark:text-zinc-100 font-medium">
-                                            {item.name}
-                                        </td>
-                                        <td className="px-4 py-3 align-top text-sm text-zinc-600 dark:text-zinc-400">
-                                            {formatDate(item.creation)}
-                                        </td>
-                                        <td className="px-4 py-3 align-top text-sm text-zinc-600 dark:text-zinc-400">
-                                            {item.project_number || "-"}
-                                        </td>
-                                        <td className="px-4 py-3 align-top text-sm text-zinc-600 dark:text-zinc-400">
-                                            {item.commit_decommit || "-"}
-                                        </td>
-                                        <td className="px-4 py-3 align-top text-sm text-zinc-600 dark:text-zinc-400 whitespace-normal break-words min-w-[16rem]">
-                                            {item.commit_particular || "-"}
-                                        </td>
-                                        <td className="px-4 py-3 align-top text-sm text-zinc-900 dark:text-zinc-100 text-right font-medium">
-                                            ₹{(item.commit_amount || 0).toLocaleString("en-IN")}
-                                        </td>
-                                        <td className="px-4 py-3 align-top">
-                                            <span
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-full">
+                                <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                                    <tr className="border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30">
+                                        {[
+                                            ["Application ID", "text-left"],
+                                            ["Date", "text-left"],
+                                            ["Project", "text-left"],
+                                            ["Type", "text-left"],
+                                            ["Commit Particular", "text-left"],
+                                            ["Amount", "text-right"],
+                                            ["Status", "text-left"],
+                                            ["Action", "text-right"],
+                                        ].map(([label, align]) => (
+                                            <th
+                                                key={label}
                                                 className={cn(
-                                                    "inline-flex px-2 py-1 text-xs font-medium rounded-full",
-                                                    item.workflow_state === "Approved" &&
-                                                    "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-                                                    item.workflow_state === "Rejected" &&
-                                                    "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-                                                    item.workflow_state === "Draft" &&
-                                                    "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
-                                                    (item.workflow_state?.startsWith("Pending") ||
-                                                        false) &&
-                                                    "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+                                                    "whitespace-nowrap border-r border-[#C7D2FE]/70 px-3 py-2 text-[11px] font-extrabold uppercase tracking-wider text-[#1E3A8A] last:border-r-0 dark:border-[#4A6CF7]/25 dark:text-[#C7D2FE]",
+                                                    align,
                                                 )}
                                             >
-                                                {item.workflow_state || "Draft"}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 align-top">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    navigate(`/miscellaneous-commit/${item.name}`);
-                                                }}
-                                                className="text-sm text-[#D97757] hover:underline whitespace-nowrap"
-                                            >
-                                                View
-                                            </button>
-                                        </td>
+                                                {label}
+                                            </th>
+                                        ))}
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {paginatedList.map((item) => {
+                                        const state = item.workflow_state || "Draft";
+                                        const isCommit = item.commit_decommit === "Commit";
+                                        const cell = "border-r border-[#F4F4F5] px-3 py-2 align-middle text-[12px] last:border-r-0 dark:border-[#3F3F46]/80";
+                                        return (
+                                            <tr
+                                                key={item.name}
+                                                className="cursor-pointer border-b border-[#E4E4E7] even:bg-[#FAFAFA] last:border-b-0 hover:bg-[#EEF2FF] dark:border-[#3F3F46] dark:even:bg-[#27272A]/60 dark:hover:bg-[#3F3F46]/40"
+                                                onClick={() => navigate(`/miscellaneous-commit/${item.name}`)}
+                                            >
+                                                <td className={cn(cell, "whitespace-nowrap font-mono font-semibold text-[#3F3F46] dark:text-[#E4E4E7]")}>
+                                                    {item.name}
+                                                </td>
+                                                <td className={cn(cell, "whitespace-nowrap text-[#52525B] dark:text-[#A1A1AA]")}>
+                                                    {formatDate(item.creation)}
+                                                </td>
+                                                <td className={cn(cell, "whitespace-nowrap font-medium text-[#3F3F46] dark:text-[#E4E4E7]")}>
+                                                    {item.project_number || "-"}
+                                                </td>
+                                                <td className={cell}>
+                                                    {item.commit_decommit ? (
+                                                        <span
+                                                            className={cn(
+                                                                "inline-flex rounded-md border px-2 py-0.5 text-[11px] font-bold",
+                                                                isCommit
+                                                                    ? "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-400"
+                                                                    : "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-400",
+                                                            )}
+                                                        >
+                                                            {item.commit_decommit}
+                                                        </span>
+                                                    ) : (
+                                                        "-"
+                                                    )}
+                                                </td>
+                                                <td className={cn(cell, "min-w-[16rem] whitespace-normal break-words text-[#3F3F46] dark:text-[#E4E4E7]")}>
+                                                    {item.commit_particular || "-"}
+                                                </td>
+                                                <td className={cn(cell, "whitespace-nowrap text-right font-bold tabular-nums text-[#3F3F46] dark:text-[#E4E4E7]")}>
+                                                    ₹{(item.commit_amount || 0).toLocaleString("en-IN")}
+                                                </td>
+                                                <td className={cell}>
+                                                    <span
+                                                        className={cn(
+                                                            "inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold",
+                                                            state === "Approved" &&
+                                                                "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-400",
+                                                            state === "Rejected" &&
+                                                                "border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-400",
+                                                            state === "Draft" &&
+                                                                "border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+                                                            state.startsWith("Pending") &&
+                                                                "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-400",
+                                                        )}
+                                                    >
+                                                        {state}
+                                                    </span>
+                                                </td>
+                                                <td className={cn(cell, "text-right")}>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            navigate(`/miscellaneous-commit/${item.name}`);
+                                                        }}
+                                                        className="inline-flex items-center gap-1 whitespace-nowrap text-[12px] font-semibold text-[#4A6CF7] hover:underline"
+                                                    >
+                                                        View
+                                                        <ChevronRight className="h-3.5 w-3.5" />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
                     )}
                 </div>
 
                 {/* Pagination */}
                 {filteredList.length > 0 && (
-                    <div className="mt-4 flex items-center justify-between text-sm text-zinc-600 dark:text-zinc-400">
+                    <div className="mt-3 flex items-center justify-between text-[13px] text-zinc-600 dark:text-zinc-400">
                         <p>
                             Showing {(currentPage - 1) * PAGE_SIZE + 1}
                             –{Math.min(currentPage * PAGE_SIZE, filteredList.length)} of {filteredList.length}

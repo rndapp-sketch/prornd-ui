@@ -448,7 +448,7 @@ const ProjectProposal: React.FC = () => {
 
     return (
         <div className="bg-claude-bg dark:bg-zinc-900">
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden bg-claude-bg dark:bg-zinc-900">
+            <main className="flex-1 p-0 w-full overflow-hidden bg-claude-bg dark:bg-zinc-900">
                 <header className="mb-3">
                     <h1 className="text-3xl md:text-4xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight ">New Endorsement</h1>
                     <p className="text-zinc-700 dark:text-zinc-300 mt-2 ">Fill all sections to submit a new endorsement.</p>

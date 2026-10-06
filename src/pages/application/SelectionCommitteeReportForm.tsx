@@ -1273,7 +1273,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
             }
         `}</style>
             <div id="scr-print-root" className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-                <main className="max-w-8xl mx-auto p-4 md:p-8 w-full overflow-hidden">
+                <main className="max-w-8xl mx-auto p-0 w-full overflow-hidden">
                     {/* ============================================================
                      PRINT-ONLY PROFESSIONAL DOCUMENT LAYOUT
                      Hidden on screen, shown only during window.print()

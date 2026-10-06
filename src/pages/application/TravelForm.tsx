@@ -81,7 +81,7 @@ const buildTravelerAddress = (user: Record<string, any>): string => {
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-[#FFFFFF] dark:bg-[#27272A] p-4 md:p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow", className)}>
+    <div className={cn("bg-[#FFFFFF] dark:bg-[#27272A] p-3 md:p-4 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow", className)}>
         {children}
     </div>
 );
@@ -895,7 +895,7 @@ const TravelForm: React.FC = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+            <main className="flex-1 p-0 w-full overflow-hidden">
                 <PageHeader
                     title={editDocName ? `Edit Travel: ${editDocName}` : 'Travel Application'}
                     projectName={projectName}
@@ -903,7 +903,7 @@ const TravelForm: React.FC = () => {
 
                 {/* Validation Errors */}
                 {validationErrors.length > 0 && (
-                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+                    <div className="mb-3 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-[13px]">
                         <h4 className="font-semibold text-red-800 mb-2 flex items-center gap-2">
                             <AlertCircle className="h-5 w-5" />
                             Please fix the following errors:
@@ -920,16 +920,16 @@ const TravelForm: React.FC = () => {
                     <div className="w-full">
                         <div className="w-full">
                             <TravelApplicantSummary
-                                className="mb-6"
+                                className="mb-3"
                                 webmail={formData.webmail_id_travel}
                                 fullName={formData.applicant_name_travel}
                                 department={formData.department_travel}
                                 designation={formData.designation_travel}
                                 projectNo={formData.travel_project_number}
                             />
-                            <FrappeCard className="space-y-6">
+                            <FrappeCard className="space-y-4">
                                 {formData.if_traveler === 'Other' && (
-                                    <div className="flex items-start justify-between gap-4 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200">
+                                    <div className="flex items-start justify-between gap-3 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200">
                                         <p className="text-xs text-blue-700 leading-relaxed">
                                             <span className="font-semibold">Note:</span> Search and select the traveler from the institute user list. If the traveler is not available, register the user first and then return to this form.
                                         </p>
@@ -964,7 +964,7 @@ const TravelForm: React.FC = () => {
                             </FrappeCard>
 
                             {(!editDocName || !formData.workflow_state || formData.workflow_state === "Draft") && (
-                                <div className="mt-8 flex justify-end gap-3">
+                                <div className="mt-3 flex justify-end gap-2">
                                     <FrappeButton
                                         onClick={handleSave}
                                         disabled={isSubmitting}

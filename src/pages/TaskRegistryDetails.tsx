@@ -1088,14 +1088,14 @@ const GenericDocViewer = ({ data, doctype }: { data: Record<string, any>; doctyp
     const fmt = (key: string) => key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-3">
             {simpleFields.length > 0 && (
                 <div>
                     <SectionHeading icon={<LayoutGridIcon />} title="Information" />
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                         {simpleFields.map(([key, value]) => (
-                            <div key={key} className="flex min-w-0 flex-col gap-2 rounded-xl border border-[#E4E4E7] bg-[#FAFAF9] px-3.5 py-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
-                                <div className="inline-flex w-fit max-w-full items-center rounded-md bg-white px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#2563EB] ring-1 ring-[#E4E4E7] dark:bg-[#27272A] dark:text-blue-300 dark:ring-[#3F3F46]">
+                            <div key={key} className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-[#E4E4E7] bg-[#FAFAF9] px-3 py-2 dark:border-[#3F3F46] dark:bg-[#18181B]">
+                                <div className="inline-flex w-fit max-w-full items-center text-[11px] font-bold uppercase tracking-wide text-[#52525B] dark:text-[#A1A1AA]">
                                     <span className="truncate">{fmt(key)}</span>
                                 </div>
                                 {isFilePath(String(value)) ? (
@@ -1138,12 +1138,12 @@ const GenericDocViewer = ({ data, doctype }: { data: Record<string, any>; doctyp
                 return (
                     <div key={key}>
                         <SectionHeading icon={<FileTextIcon />} title={fmt(key)} />
-                        <div className="overflow-hidden rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
-                            <table className="w-full table-fixed text-[11px]">
+                        <div className="overflow-hidden rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
+                            <table className="w-full table-fixed text-[12px]">
                                 <thead>
                                     <tr className="border-b border-[#E4E4E7] bg-[#EEF2FF] dark:border-[#3F3F46] dark:bg-[#1E3A8A]/20">
                                         {headers.map(h => (
-                                            <th key={h} className="px-2.5 py-2 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] break-words">{fmt(h)}</th>
+                                            <th key={h} className="px-2.5 py-2 text-left text-[11px] font-extrabold uppercase tracking-wider text-[#1E3A8A] dark:text-[#C7D2FE] break-words">{fmt(h)}</th>
                                         ))}
                                         {isBudget && <th className="px-2.5 py-2 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#D97757]">Row Total</th>}
                                     </tr>
@@ -1197,11 +1197,11 @@ const GenericDocViewer = ({ data, doctype }: { data: Record<string, any>; doctyp
 
 // ── RegistryPanel ─────────────────────────────────────────────────────────────
 const RegistryPanel = ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
-        <div className="px-5 py-3 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
+    <div className="overflow-hidden rounded-lg border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+        <div className="px-4 py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
             <h3 className="text-[13px] font-extrabold tracking-wide text-[#3F3F46] dark:text-[#E4E4E7] uppercase">{title}</h3>
         </div>
-        <div className="p-5 md:p-6">{children}</div>
+        <div className="p-3">{children}</div>
     </div>
 );
 
@@ -2261,11 +2261,11 @@ const TaskRegistryDetails: React.FC = () => {
         }
 
         return (
-            <div className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden">
-                <div className="px-5 py-3 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
+            <div className="rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden">
+                <div className="px-4 py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
                     <h3 className="text-[13px] font-extrabold tracking-wide text-[#3F3F46] dark:text-[#E4E4E7] uppercase">{doctype}</h3>
                 </div>
-                <div className="p-5 md:p-6">
+                <div className="p-3">
                     <GenericDocViewer data={displayData} doctype={doctype} />
                 </div>
             </div>
@@ -2275,7 +2275,7 @@ const TaskRegistryDetails: React.FC = () => {
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans overflow-x-hidden">
 
-            <main className="transition-all duration-300 ease-in-out px-5 py-6 md:px-8 md:py-7 overflow-x-hidden">
+            <main className="transition-all duration-300 ease-in-out px-0 py-0 overflow-x-hidden">
                 <PageHeader
                     title={name || ''}
                     status={data?.workflow_state}
@@ -2388,12 +2388,12 @@ const TaskRegistryDetails: React.FC = () => {
                 </PageHeader>
 
                 {doctype === "Cancellation Request" ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                        <div className="lg:col-span-3 space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+                        <div className="lg:col-span-3 space-y-3">
                             {renderContent()}
                         </div>
-                        <div className="lg:col-span-1 space-y-6">
-                            <div className="sticky top-6 space-y-6">
+                        <div className="lg:col-span-1 space-y-3">
+                            <div className="sticky top-6 space-y-3">
                                 <OriginalCommitmentSidebar
                                     refName={data?.reference_name}
                                     refDoctype={data?.reference_doctype}
@@ -2402,7 +2402,7 @@ const TaskRegistryDetails: React.FC = () => {
                         </div>
                     </div>
                 ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                         {renderContent()}
                     </div>
                 )}

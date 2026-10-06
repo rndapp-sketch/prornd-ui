@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { format, isToday, isYesterday } from "date-fns";
-import { ChevronDown, Download, FileText, Forward, ImageIcon, Reply, Trash2 } from "lucide-react";
+import { ChevronDown, Download, FileText, Forward, ImageIcon, MessageCircle, Reply, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
     formatMessageUserDetail,
@@ -205,6 +205,9 @@ export function MessageThread({
         return (
             <div className="flex-1 flex items-center justify-center bg-[#FAFAF9] dark:bg-[#18181B]">
                 <div className="text-center">
+                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-[#EEF2FF] text-[#4A6CF7] dark:bg-[#4A6CF7]/15">
+                        <MessageCircle className="h-6 w-6" />
+                    </div>
                     <p className="text-[14px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
                         Select a conversation
                     </p>
@@ -220,7 +223,7 @@ export function MessageThread({
         <>
         <div
             ref={scrollRef}
-            className="flex-1 overflow-y-auto custom-scrollbar bg-[radial-gradient(circle_at_top_left,#EEF2FF_0,transparent_280px),#FAFAF9] px-5 py-5 dark:bg-[radial-gradient(circle_at_top_left,rgba(74,108,247,0.18)_0,transparent_300px),#18181B]"
+            className="flex-1 overflow-y-auto custom-scrollbar bg-[#F1F5F9] px-4 py-3 dark:bg-[#18181B]"
         >
             {isLoading && (
                 <div className="text-center text-[12px] text-[#71717A]">Loading messages…</div>
@@ -232,7 +235,7 @@ export function MessageThread({
                 </div>
             )}
 
-            <div className="mx-auto max-w-[820px] space-y-4">
+            <div className="w-full space-y-2.5">
                 {messages.map((m, idx) => {
                     const isMine = m.sender_id === myUserId;
                     const prev = messages[idx - 1];
@@ -263,11 +266,11 @@ export function MessageThread({
                         >
                             {showSenderHeader && (
                                 <div className="mb-1 px-1">
-                                    <div className="text-[10px] font-bold uppercase tracking-wide text-[#71717A]">
+                                    <div className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
                                         {senderName}
                                     </div>
                                     {senderDetail && (
-                                        <div className="mt-0.5 text-[10px] font-semibold text-[#A16207] dark:text-[#FDBA74]">
+                                        <div className="mt-0.5 text-[11px] font-semibold text-[#A16207] dark:text-[#FDBA74]">
                                             {senderDetail}
                                         </div>
                                     )}
@@ -281,16 +284,16 @@ export function MessageThread({
                             >
                                 <div
                                     className={cn(
-                                        "relative max-w-[78%] rounded-2xl px-3.5 py-2.5 shadow-sm",
+                                        "relative max-w-[75%] rounded-xl px-3 py-2 shadow-sm",
                                         isMine
-                                            ? "rounded-br-md bg-[#4A6CF7] text-white"
-                                            : "rounded-bl-md border border-[#E4E4E7] bg-white text-[#3F3F46] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#E4E4E7]",
+                                            ? "rounded-br-sm bg-[#2563EB] text-white"
+                                            : "rounded-bl-sm border border-[#E2E8F0] bg-white text-[#1F2937] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#E4E4E7]",
                                     )}
                                 >
                                     {m.reply_to_message_id && (
                                         <div
                                             className={cn(
-                                                "mb-2 rounded-lg border-l-2 px-2.5 py-1.5",
+                                                "mb-1.5 rounded-md border-l-[3px] px-2.5 py-1",
                                                 isMine
                                                     ? "border-white/70 bg-white/10"
                                                     : "border-[#4A6CF7] bg-[#EEF2FF] dark:bg-[#18181B]",
@@ -321,7 +324,7 @@ export function MessageThread({
                                             This message was deleted
                                         </p>
                                     ) : m.body && (
-                                        <p className="whitespace-pre-wrap break-words text-[13px] leading-relaxed">
+                                        <p className="whitespace-pre-wrap break-words text-[14px] leading-snug">
                                             {m.body}
                                         </p>
                                     )}
@@ -370,7 +373,7 @@ export function MessageThread({
                                     </button>
                                     <div
                                         className={cn(
-                                            "invisible absolute top-8 z-20 min-w-[150px] rounded-xl border border-[#E4E4E7] bg-white p-1.5 opacity-0 shadow-xl transition-all peer-hover:visible peer-hover:opacity-100 hover:visible hover:opacity-100 dark:border-[#3F3F46] dark:bg-[#27272A]",
+                                            "invisible absolute top-8 z-20 min-w-[150px] rounded-lg border border-[#E4E4E7] bg-white p-1.5 opacity-0 shadow-xl transition-all peer-hover:visible peer-hover:opacity-100 hover:visible hover:opacity-100 dark:border-[#3F3F46] dark:bg-[#27272A]",
                                             isMine ? "right-0" : "left-0",
                                         )}
                                     >
@@ -432,7 +435,7 @@ export function MessageThread({
                             </div>
                             <span
                                 className={cn(
-                                    "mt-1 text-[10px] font-medium px-1",
+                                    "mt-0.5 text-[11px] font-medium px-1",
                                     isMine
                                         ? "text-[#71717A]"
                                         : "text-[#A1A1AA] dark:text-[#71717A]",
@@ -450,7 +453,7 @@ export function MessageThread({
                 })}
                 {typingEmails.length > 0 && (
                     <div className="flex items-start">
-                        <div className="rounded-2xl rounded-bl-md border border-[#E4E4E7] bg-white px-3.5 py-2.5 text-[#71717A] shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#A1A1AA]">
+                        <div className="rounded-xl rounded-bl-sm border border-[#E2E8F0] bg-white px-3 py-2 text-[#71717A] shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#A1A1AA]">
                             <div className="mb-1 text-[10px] font-bold uppercase tracking-wide">
                                 {typingEmails.join(", ")}
                             </div>

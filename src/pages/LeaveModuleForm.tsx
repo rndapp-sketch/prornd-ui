@@ -395,7 +395,7 @@ const LeaveModuleForm = () => {
     if (balanceLoaded && !canApplyLeave) {
         return (
             <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-                <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+                <main className="flex-1 p-0 w-full overflow-hidden">
                     <PageHeader title={editDocName ? `Edit Leave Application — ${editDocName}` : "New Leave Application"} />
                     <div className="max-w-xl mx-auto mt-16 text-center">
                         <div className="bg-white dark:bg-zinc-900 border border-red-200 dark:border-red-800 rounded-2xl p-8 shadow-sm">
@@ -448,7 +448,7 @@ const LeaveModuleForm = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+            <main className="flex-1 p-0 w-full overflow-hidden">
                 <PageHeader title={editDocName ? `Edit Leave Application — ${editDocName}` : "New Leave Application"} />
 
                 {/* Validation Errors */}

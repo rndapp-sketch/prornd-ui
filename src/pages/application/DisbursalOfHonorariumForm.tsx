@@ -634,7 +634,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
 
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+            <main className="flex-1 p-0 w-full overflow-hidden">
                 <PageHeader
                     title={id ? `Edit Disbursal: ${id}` : 'New Disbursal of Honorarium'}
                     projectName={formData.project_title}

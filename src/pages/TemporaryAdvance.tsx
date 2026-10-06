@@ -783,7 +783,7 @@ const msg = saveResult?.message;
 
     return (
         <div className="min-h-screen bg-[#FAFAF9] font-sans dark:bg-[#18181B]">
-            <main className="flex-1 px-5 py-6 md:px-8 md:py-7">
+            <main className="flex-1 px-0 py-0">
                 <PageHeader
                     title="Temporary Advance Application"
                     projectName={formData.project_name || projectTitle || ''}

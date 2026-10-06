@@ -59,13 +59,13 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
 
     return (
         <header className={cn(
-            "mb-6 bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-2xl shadow-sm overflow-hidden",
+            "mb-3 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg shadow-sm overflow-hidden",
             className
         )}>
             {/* Top accent bar */}
             <div className="h-[3px] bg-gradient-to-r from-[#2563EB] via-[#4A6CF7] to-transparent" />
 
-            <div className="px-6 py-5">
+            <div className="px-4 py-2.5">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-start gap-3.5">
                         {showBack && (
@@ -79,7 +79,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
                         )}
                         <div>
                             <div className="flex items-center gap-3 flex-wrap">
-                                <h1 className="text-[20px] font-extrabold tracking-[-0.02em] text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
+                                <h1 className="text-[18px] font-extrabold tracking-[-0.02em] text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
                                     {title}
                                 </h1>
                                 {status && (
@@ -94,7 +94,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
                             </div>
 
                             {(projectName || projectNumber) ? (
-                                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                                <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
                                     {projectName && (
                                         <span className="text-[13px] font-medium text-[#71717A] dark:text-[#A1A1AA]">{projectName}</span>
                                     )}
@@ -108,7 +108,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
                                     )}
                                 </div>
                             ) : (
-                                <p className="text-[#A1A1AA] dark:text-[#71717A] mt-1 text-[11px] font-medium">
+                                <p className="text-[#71717A] dark:text-[#A1A1AA] mt-0.5 text-[12px] font-medium">
                                     Fill in the details below and save.
                                 </p>
                             )}
