@@ -135,6 +135,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
                     budgetHeadIds={budgetHeadIds}
                     actualBalance={actualBalance}
                     commitableBalance={commitableBalance}
+                    displayHeadBalances={headBalances}
                     billAmount={billAmount}
                     parentAppId={parentAppId}
                     defaultBudgetHead={defaultBudgetHead}

@@ -53,6 +53,22 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost
     </button>
 );
 
+// Shown in place of a StatTile while the balance / absent figures are still being fetched.
+const StatTilePlaceholder = ({ icon: Icon, label }: { icon: React.ElementType; label: string }) => (
+    <FrappeCard className="flex items-center gap-3 p-4" >
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800">
+            <Icon className="h-5 w-5 text-zinc-400" />
+        </div>
+        <div className="min-w-0">
+            <p className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
+            <p className="mt-0.5 flex items-center gap-1.5 text-[13px] font-semibold text-zinc-400 dark:text-zinc-500">
+                <span className="h-3 w-3 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-500 dark:border-zinc-600 dark:border-t-zinc-300" />
+                Fetching…
+            </p>
+        </div>
+    </FrappeCard>
+);
+
 const StatTile = ({ icon: Icon, label, value, hint, tone = 'default' }: {
     icon: React.ElementType;
     label: string;
@@ -89,9 +105,10 @@ const LeaveModule = () => {
     const searchQuery = searchParams.get('q') ?? '';
     const searchInputRef = useRef<HTMLInputElement>(null);
     const [totalAbsents, setTotalAbsents] = useState<number | null>(null);
+    const [absentsLoading, setAbsentsLoading] = useState(true);
 
     // Fetch Leave Data balance via whitelisted API (bypasses permissions)
-    const { data: leaveBalanceData } = useFrappeGetCall<{
+    const { data: leaveBalanceData, isLoading: balanceLoading } = useFrappeGetCall<{
         message: { el: number; cl: number; emp_id: string; emp_class: string } | null;
     }>(
         leaveModuleAPI.getLeaveBalance,
@@ -143,7 +160,8 @@ const LeaveModule = () => {
             })
             .catch(() => {
                 // silently ignore – card just won't show
-            });
+            })
+            .finally(() => setAbsentsLoading(false));
     }, [currentUser]);
 
     // Fetch leave applications
@@ -275,7 +293,17 @@ const LeaveModule = () => {
                 )}
 
                 {/* Leave Balance Cards */}
-                {(leaveBalance || totalAbsents !== null) && (
+                {(balanceLoading || absentsLoading) && (
+                    <div className="mb-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3" aria-busy="true">
+                        <StatTilePlaceholder icon={CalendarDays} label="Earned Leave (EL)" />
+                        <StatTilePlaceholder icon={CalendarDays} label="Casual Leave (CL)" />
+                        <StatTilePlaceholder icon={UserX} label="Total Absent" />
+                        <StatTilePlaceholder icon={ShieldCheck} label="Actual CL Available" />
+                        <StatTilePlaceholder icon={ShieldCheck} label="Actual EL Available" />
+                    </div>
+                )}
+
+                {!(balanceLoading || absentsLoading) && (leaveBalance || totalAbsents !== null) && (
                     <div className="mb-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                         {leaveBalance && (
                             <>

@@ -251,6 +251,7 @@ const PERSONAL_FIELDS: Array<{
     type?: string;
     readOnly?: boolean;
     required?: boolean;
+    options?: string[];
 }> = [
     { name: "first_name", label: "First Name", icon: User },
     { name: "middle_name", label: "Middle Name", icon: User },
@@ -258,7 +259,7 @@ const PERSONAL_FIELDS: Array<{
     { name: "full_name", label: "Full Name", icon: BadgeCheck, required: true },
     { name: "username", label: "Username", icon: User, readOnly: true },
     { name: "pi_initials", label: "PI Initials", icon: BadgeCheck, readOnly: true },
-    { name: "gender", label: "Gender", icon: User },
+    { name: "gender", label: "Gender", icon: User, options: ["Male", "Female", "Other"] },
     { name: "birth_date", label: "Birth Date", icon: Calendar, type: "date" },
 ];
 
@@ -638,6 +639,23 @@ export default function Profile() {
                                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                                         {PERSONAL_FIELDS.map((f) => (
                                             <Field key={f.name} id={f.name} label={f.label} icon={f.icon}>
+                                                {f.options ? (
+                                                    <select
+                                                        id={f.name}
+                                                        value={form[f.name]}
+                                                        onChange={(event) => updateField(f.name, event.target.value)}
+                                                        className="flex h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-[13px] dark:border-zinc-700 dark:bg-[#18181B] dark:text-[#E4E4E7]"
+                                                    >
+                                                        <option value="">Select…</option>
+                                                        {/* keep a stored value that isn't one of the standard options selectable */}
+                                                        {form[f.name] && !f.options.includes(form[f.name]) && (
+                                                            <option value={form[f.name]}>{form[f.name]}</option>
+                                                        )}
+                                                        {f.options.map((o) => (
+                                                            <option key={o} value={o}>{o}</option>
+                                                        ))}
+                                                    </select>
+                                                ) : (
                                                 <Input
                                                     id={f.name}
                                                     type={f.type || "text"}
@@ -647,6 +665,7 @@ export default function Profile() {
                                                     onChange={(event) => updateField(f.name, event.target.value)}
                                                     className={f.readOnly ? "cursor-not-allowed bg-zinc-100 font-semibold text-zinc-500 dark:bg-[#18181B]" : undefined}
                                                 />
+                                                )}
                                             </Field>
                                         ))}
                                     </div>

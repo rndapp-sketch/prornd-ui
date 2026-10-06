@@ -5250,6 +5250,7 @@ const PendingTaskDetails: React.FC = () => {
                                         docName={name}
                                         doctype={doctype}
                                         onStagingStatusChange={setIsCommittedForGate}
+                                        showPayment={false}
                                         parentAppId={data?.ta_da_travel_application || undefined}
                                         billAmount={data?.ta_da_total_claimed ?? data?.total_claimed ?? undefined}
                                         defaultBudgetHead={resolvedTadaAccountHead || undefined}

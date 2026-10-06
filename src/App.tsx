@@ -1,5 +1,6 @@
 // ======================================
 
+import { DomainReminder } from "@/components/DomainReminder";
 import { FRAPPE_BASE_URL, frappeUrl } from "@/utils/frappeUrl";
 import {
   FrappeProvider,
@@ -155,6 +156,7 @@ function AppContent() {
   return (
     <div className="App bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
       <GlobalLoaderHost />
+      <DomainReminder />
       <GlobalLoader isLoading={showGlobalLoader} />
 
       <SWRConfig

@@ -7,13 +7,14 @@ import { CommitPayment } from "@/components/CommitPayment";
 import { useUserRoles } from "@/components/UserRole";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { extensionAPI } from "@/services/apiService";
+import { PageHeader } from "@/components/common/PageHeader";
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import { CommentModal } from "@/components/CommentModal";
 import {
   User as UserIcon, IdCard, Building2, Briefcase,
   FolderOpen, CalendarDays, FileText, AlertCircle, CheckCircle2,
-  ChevronLeft, ChevronDown, Loader2, Clock,
+  ChevronDown, Loader2, Clock,
   ArrowRightCircle, CheckCircle, XCircle, IndianRupee,
   UserCheck, TrendingUp,
 } from "lucide-react";
@@ -943,31 +944,16 @@ const ProjectStaffExtensionForm: React.FC = () => {
       <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
 
         <main className="flex-1 p-4 md:p-8">
-          <div className="w-full max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <button
-                  onClick={() => navigate("/project-staff-dashboard")}
-                  className="flex items-center gap-1.5 text-sm text-[#71717A] hover:text-[#3F3F46] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] mb-2 transition-colors"
-                >
-                  <ChevronLeft className="h-4 w-4" /> Back to Dashboard
-                </button>
-                <h1 className="text-2xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
-                  Project Staff Extension — My Applications
-                </h1>
-                <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] mt-1">
-                  You have existing extension applications. Click <strong>Edit</strong> to view or edit an application, or create a new one.
-                </p>
-              </div>
+          <div className="w-full">
+            <PageHeader title="Project Staff Extension — My Applications">
               <button
                 type="button"
                 onClick={() => setIsCreatingNew(true)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold text-white bg-[#4A6CF7] hover:bg-[#3b5cf6] transition-all shadow-sm"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] transition-colors shadow-sm"
               >
                 + Create New Application
               </button>
-            </div>
+            </PageHeader>
 
             {/* List Table */}
             <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden">
@@ -1057,36 +1043,13 @@ const ProjectStaffExtensionForm: React.FC = () => {
     <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
 
       <main className="flex-1 p-4 md:p-8">
-        <div className="w-full max-w-9xl mx-auto">
+        <div className="w-full">
 
-          {/* Back + Header */}
-          <div className="mb-6">
-            <button
-              onClick={() => navigate("/project-staff-dashboard")}
-              className="flex items-center gap-1.5 text-sm text-[#71717A] hover:text-[#3F3F46] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] mb-3 transition-colors"
-            >
-              <ChevronLeft className="h-4 w-4" /> Back to Dashboard
-            </button>
-            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-5">
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <div>
-                  <h1 className="text-2xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
-                    Extension Form
-                  </h1>
-                  <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] mt-0.5">
-                    Project Staff Re-Engagement / Extension Request
-                  </p>
-                </div>
-                {workflowState && (
-                  <span className={cn(
-                    "px-3 py-1 rounded-full text-xs font-semibold",
-                    stateBadgeClass(workflowState),
-                  )}>
-                    {workflowState}
-                  </span>
-                )}
-              </div>
-
+          <PageHeader
+            title="Extension Form"
+            status={workflowState || undefined}
+            projectNumber={projectNo || undefined}
+          >
               {/* Action Row — Save Draft/Save Changes + Workflow actions dropdown, same pattern as the Pending Task action menus */}
               {!isLoading && hasFormData && !isTerminal && !isFromRegistry && (() => {
                 const fallbackSubmitAvailable = !!docName && isEditable && !availableActions.some(
@@ -1113,7 +1076,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                 ].filter((g) => g.length > 0);
 
                 return (
-                  <div className="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                  <div className="flex flex-wrap items-center justify-end gap-2.5">
                     {/* Edit — switch from read-only to edit mode while in Draft */}
                     {isEditable && !isEditing && (
                       <button
@@ -1236,8 +1199,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                   </div>
                 );
               })()}
-            </div>
-          </div>
+          </PageHeader>
 
           <CommentModal
             isOpen={!!modalAction}
