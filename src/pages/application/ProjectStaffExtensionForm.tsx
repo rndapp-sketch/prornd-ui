@@ -121,13 +121,34 @@ const getStageStatus = (stageName: string, currentState: string) => {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const InfoRow = ({ icon, label, value }: { icon: React.ReactNode; label: string; value?: React.ReactNode }) => (
-  <div className="flex items-start gap-3">
-    <div className="mt-0.5 flex-shrink-0 text-[#A1A1AA]">{icon}</div>
+const InfoRow = ({
+  icon, label, value, wrap = false, className,
+}: { icon: React.ReactNode; label: string; value?: React.ReactNode; wrap?: boolean; className?: string }) => (
+  <div className={cn("flex items-start gap-3 rounded-lg bg-zinc-50/70 dark:bg-zinc-900/40 border border-zinc-100 dark:border-zinc-700/60 px-3.5 py-3", className)}>
+    <div className="mt-0.5 flex-shrink-0 text-[#4A6CF7]/70">{icon}</div>
     <div className="min-w-0 flex-1">
-      <p className="text-xs text-[#71717A] dark:text-[#A1A1AA]">{label}</p>
-      <div className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7] truncate">{value || "—"}</div>
+      <p className="text-[10px] font-bold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">{label}</p>
+      <div className={cn("mt-0.5 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]", wrap ? "break-words leading-snug" : "truncate")}>{value || "—"}</div>
     </div>
+  </div>
+);
+
+// Headline figure shown in the summary strip at the top of the page.
+const StatTile = ({
+  label, value, hint, tone = "default",
+}: { label: string; value: React.ReactNode; hint?: string; tone?: "default" | "success" }) => (
+  <div className={cn(
+    "rounded-xl border px-4 py-3 min-w-0",
+    tone === "success"
+      ? "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20"
+      : "border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800",
+  )}>
+    <p className="text-[10px] font-bold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">{label}</p>
+    <p className={cn(
+      "mt-1 text-base font-extrabold leading-tight break-words",
+      tone === "success" ? "text-emerald-700 dark:text-emerald-300" : "text-[#27272A] dark:text-[#E4E4E7]",
+    )}>{value}</p>
+    {hint && <p className="mt-0.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA] break-words">{hint}</p>}
   </div>
 );
 
@@ -1050,6 +1071,12 @@ const ProjectStaffExtensionForm: React.FC = () => {
             status={workflowState || undefined}
             projectNumber={projectNo || undefined}
           >
+              {isRnDStaff && projectNo && (
+                <ViewProjectButton
+                  doctype="Project Staff Extension"
+                  data={loadedExtension || { ex_proj_no: projectNo }}
+                />
+              )}
               {/* Action Row — Save Draft/Save Changes + Workflow actions dropdown, same pattern as the Pending Task action menus */}
               {!isLoading && hasFormData && !isTerminal && !isFromRegistry && (() => {
                 const fallbackSubmitAvailable = !!docName && isEditable && !availableActions.some(
@@ -1242,6 +1269,67 @@ const ProjectStaffExtensionForm: React.FC = () => {
               </p>
             </div>
           ) : (
+            <>
+              {/* Summary hero — who/what at a glance, plus headline figures */}
+              {docName && (
+                <section className="mb-5 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden">
+                  <div className="p-5 flex flex-col gap-4 sm:flex-row sm:items-start">
+                    <div className="h-12 w-12 flex-shrink-0 rounded-full bg-gradient-to-br from-[#4A6CF7] to-[#2563EB] text-white flex items-center justify-center text-base font-bold shadow-sm">
+                      {(fullName || "?").trim().split(/\s+/).slice(0, 2).map((w: string) => w[0]?.toUpperCase()).join("")}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="!font-sans text-lg font-extrabold text-[#27272A] dark:text-[#E4E4E7] leading-tight">{fullName || "—"}</h2>
+                        {workflowState && (
+                          <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold", stateBadgeClass(workflowState))}>
+                            {workflowState}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-sm text-[#71717A] dark:text-[#A1A1AA]">
+                        {[applicantDesignation, applicantDepartment].filter(Boolean).join(" · ") || "—"}
+                      </p>
+                      <p className="mt-2 text-sm text-[#3F3F46] dark:text-[#D4D4D8] leading-snug break-words">
+                        <span className="font-mono text-xs font-semibold text-[#4A6CF7] mr-2">{projectNo}</span>
+                        {projectTitle}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="px-5 pb-5 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+                    <StatTile label="Current term ends" value={expiryOfTenure || "—"} />
+                    <StatTile label="Sought" value={extensionPeriod ? `${extensionPeriod} Months` : "—"} />
+                    <StatTile label="PI suggested" value={extensionPeriodPI ? `${extensionPeriodPI} Months` : "—"} />
+                    <StatTile label="Staff allowed" value={extensionPeriodStaff ? `${extensionPeriodStaff} Months` : "—"} />
+                    <StatTile
+                      label="New term"
+                      tone={workflowState === "Approved" ? "success" : "default"}
+                      value={
+                        (finalNewJoiningDate || computedNewJoiningDate) && (finalNewCompletionDate || computedNewCompletionDate)
+                          ? `${finalNewJoiningDate || computedNewJoiningDate} → ${finalNewCompletionDate || computedNewCompletionDate}`
+                          : "—"
+                      }
+                    />
+                  </div>
+
+                  {isTerminal && (
+                    <div className={cn(
+                      "flex items-center gap-2.5 px-5 py-3 text-sm border-t",
+                      workflowState === "Approved"
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-300"
+                        : "bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300",
+                    )}>
+                      {workflowState === "Approved"
+                        ? <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                        : <AlertCircle className="h-4 w-4 flex-shrink-0" />}
+                      {workflowState === "Approved"
+                        ? "Your extension request has been approved."
+                        : `Your extension request has been ${workflowState.toLowerCase()}. No further actions are available.`}
+                    </div>
+                  )}
+                </section>
+              )}
+
             <div className={cn(showCommitSection ? "grid grid-cols-1 lg:grid-cols-4 gap-6" : "space-y-5")}>
               <div className={cn("space-y-5", showCommitSection && "lg:col-span-3")}>
 
@@ -1273,21 +1361,13 @@ const ProjectStaffExtensionForm: React.FC = () => {
                       icon={<FolderOpen className="h-4 w-4" />}
                       label="Project No."
                       value={
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span>{projectNo}</span>
-                          {isRnDStaff && projectNo && (
-                            <ViewProjectButton
-                              doctype="Project Staff Extension"
-                              data={loadedExtension || { ex_proj_no: projectNo }}
-                            />
-                          )}
-                        </div>
+                        <span>{projectNo}</span>
                       }
                     />
-                    <InfoRow icon={<FileText className="h-4 w-4" />} label="Project Name" value={projectTitle} />
+                    <InfoRow icon={<FileText className="h-4 w-4" />} label="Project Name" value={projectTitle} wrap className="sm:col-span-2" />
                     <InfoRow icon={<Briefcase className="h-4 w-4" />} label="Designation" value={applicantDesignation} />
                     <InfoRow icon={<Building2 className="h-4 w-4" />} label="Department" value={applicantDepartment} />
-                    <InfoRow icon={<IndianRupee className="h-4 w-4" />} label="Current Basic Pay" value={currentBasic} />
+                    <InfoRow icon={<IndianRupee className="h-4 w-4" />} label="Current Basic Pay" value={currentBasic ? `₹${Number(currentBasic).toLocaleString("en-IN")}` : ""} />
                   </div>
 
                   {/* Tenure history — joining & term completion date for each term */}
@@ -1386,7 +1466,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             )}
                           />
                         ) : (
-                          <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                          <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                             {lastExtensionDate || "—"}
                           </p>
                         )}
@@ -1416,7 +1496,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             <CharLimitAlert value={noOfMonthsWorked} maxLength={INT_MAX_LENGTH} className="mt-1" />
                           </>
                         ) : (
-                          <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                          <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                             {noOfMonthsWorked || "—"}
                           </p>
                         )}
@@ -1447,7 +1527,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                               <CharLimitAlert value={noOfDaysWorked} maxLength={INT_MAX_LENGTH} className="mt-1" />
                             </>
                           ) : (
-                            <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                            <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                               {noOfDaysWorked || "—"}
                             </p>
                           )}
@@ -1482,7 +1562,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                           ))}
                         </select>
                       ) : (
-                        <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                        <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                           {extensionPeriod ? `${extensionPeriod} Months` : "—"}
                         </p>
                       )}
@@ -1535,7 +1615,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             ))}
                           </select>
                         ) : (
-                          <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                          <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                             {extensionPeriodPI ? `${extensionPeriodPI} Months` : "—"}
                           </p>
                         )}
@@ -1570,7 +1650,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             />
                           </div>
                         ) : (
-                          <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                          <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                             {incrementPI ? `₹${incrementPI}` : "—"}
                           </p>
                         )}
@@ -1640,7 +1720,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             ))}
                           </select>
                         ) : (
-                          <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                          <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                             {extensionPeriodStaff ? `${extensionPeriodStaff} Months` : "—"}
                           </p>
                         )}
@@ -1675,7 +1755,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             />
                           </div>
                         ) : (
-                          <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                          <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                             {incrementStaff ? `₹${incrementStaff}` : "—"}
                           </p>
                         )}
@@ -1704,7 +1784,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             )}
                           />
                         ) : (
-                          <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                          <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                             {committeeId || "—"}
                           </p>
                         )}
@@ -1776,7 +1856,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                                 )}
                               />
                             ) : (
-                              <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                              <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                                 {finalNewJoiningDate || computedNewJoiningDate || "—"}
                               </p>
                             )}
@@ -1806,7 +1886,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                                 )}
                               />
                             ) : (
-                              <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                              <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                                 {finalNewCompletionDate || computedNewCompletionDate || "—"}
                               </p>
                             )}
@@ -1839,23 +1919,6 @@ const ProjectStaffExtensionForm: React.FC = () => {
                     )}
                   </div>
                 )}
-
-                {/* Terminal state notice */}
-                {isTerminal && (
-                  <div className={cn(
-                    "flex items-center gap-2.5 px-4 py-3 rounded-lg text-sm border",
-                    workflowState === "Approved"
-                      ? "bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-300"
-                      : "bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300",
-                  )}>
-                    {workflowState === "Approved"
-                      ? <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
-                      : <AlertCircle className="h-4 w-4 flex-shrink-0" />}
-                    {workflowState === "Approved"
-                      ? "Your extension request has been approved."
-                      : `Your extension request has been ${workflowState.toLowerCase()}. No further actions are available.`}
-                  </div>
-                )}
               </div>
 
               {/* Right Sidebar Column: Commit window */}
@@ -1875,6 +1938,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                 </aside>
               )}
             </div>
+            </>
           )}
         </div>
       </main>
