@@ -1,4 +1,5 @@
 
+import { safeStorage } from "@/lib/safeStorage";
 import { FRAPPE_BASE_URL, frappeUrl } from "@/utils/frappeUrl";
 import React from "react";
 import {
@@ -150,9 +151,9 @@ export function AppSidebar() {
     const pendingTaskCount = React.useMemo(() => {
         if (!pendingTaskData?.message) return 0;
         const records = [
-            ...pendingTaskData.message.research,
-            ...pendingTaskData.message.consultancy,
-            ...pendingTaskData.message.others,
+            ...(pendingTaskData.message.research ?? []),
+            ...(pendingTaskData.message.consultancy ?? []),
+            ...(pendingTaskData.message.others ?? []),
         ];
         let count = 0;
         records.forEach((record) => {
@@ -556,7 +557,7 @@ export function AppSidebar() {
                 undefined, // No data to update
                 { revalidate: false }, // Do not revalidate
             );
-            localStorage.removeItem("prornd_last_user");
+            safeStorage.removeItem("prornd_last_user");
             navigate("/login", { replace: true });
             // Hard reload for a clean slate (fresh Frappe session/socket state) — must
             // use the configured base path, not a bare "/login": under a non-root base

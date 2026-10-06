@@ -119,7 +119,7 @@ export function RndStaffDashboardV2() {
   const pending = useMemo<Task[]>(() => {
     const m = pendingData?.message;
     if (!m) return [];
-    return [...m.research, ...m.consultancy, ...m.others]
+    return [...(m.research ?? []), ...(m.consultancy ?? []), ...(m.others ?? [])]
       .filter((r) => r.mod_vis || r.doctype === "Advance Settlement")
       .map((r) => ({ name: r.name, title: r.title, status: r.status, creation: r.date, modified: r.date, owner: r.owner, doctype: r.doctype }))
       .sort((a, b) => new Date(a.modified).getTime() - new Date(b.modified).getTime()); // oldest first

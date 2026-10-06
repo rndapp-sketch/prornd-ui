@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useFrappeAuth } from 'frappe-react-sdk';
 import { useUserRoles } from './UserRole';
+import { safeStorage } from '@/lib/safeStorage';
 import { GlobalLoader } from '@/components/ui/global-loader';
 
 type StudentProfileCheck = { is_student: boolean; is_complete: boolean } | null;
@@ -104,12 +105,12 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, blocke
   const maxRetries = 3;
 
   // Get last known user from localStorage
-  const lastKnownUser = localStorage.getItem(AUTH_STORAGE_KEY);
+  const lastKnownUser = safeStorage.getItem(AUTH_STORAGE_KEY);
 
   // Save current user to localStorage when available
   useEffect(() => {
     if (currentUser) {
-      localStorage.setItem(AUTH_STORAGE_KEY, currentUser);
+      safeStorage.setItem(AUTH_STORAGE_KEY, currentUser);
     }
   }, [currentUser]);
 
@@ -135,7 +136,7 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, blocke
       }
 
       // Clear stored user and redirect to login
-      localStorage.removeItem(AUTH_STORAGE_KEY);
+      safeStorage.removeItem(AUTH_STORAGE_KEY);
       navigate('/login');
       return;
     }

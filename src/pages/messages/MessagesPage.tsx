@@ -1,3 +1,4 @@
+import { safeStorage } from "@/lib/safeStorage";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -161,7 +162,7 @@ export default function MessagesPage() {
             : "denied",
     );
     const [notificationsEnabled, setNotificationsEnabled] = useState(
-        () => localStorage.getItem("messageNotificationsEnabled") !== "0",
+        () => safeStorage.getItem("messageNotificationsEnabled") !== "0",
     );
     const seenMessageIdsRef = useRef<Set<string>>(new Set());
     const unreadTotalRef = useRef<number | null>(null);
@@ -208,7 +209,7 @@ export default function MessagesPage() {
     const handleNotifyToggle = useCallback(async () => {
         const next = !notificationsEnabled;
         setNotificationsEnabled(next);
-        localStorage.setItem("messageNotificationsEnabled", next ? "1" : "0");
+        safeStorage.setItem("messageNotificationsEnabled", next ? "1" : "0");
         if (!next) return;
         if ("Notification" in window && Notification.permission === "default") {
             try {

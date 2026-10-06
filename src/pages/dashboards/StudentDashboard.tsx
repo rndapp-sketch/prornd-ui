@@ -168,9 +168,9 @@ export function StudentDashboard() {
     const pendingTasks = React.useMemo(() => {
         if (!pendingData?.message) return [];
         const records = [
-            ...pendingData.message.research,
-            ...pendingData.message.consultancy,
-            ...pendingData.message.others,
+            ...(pendingData.message.research ?? []),
+            ...(pendingData.message.consultancy ?? []),
+            ...(pendingData.message.others ?? []),
         ];
         const tasks: (TaskRecord & { doctype: string })[] = records
             .filter((r) => r.mod_vis || r.doctype === "Advance Settlement")

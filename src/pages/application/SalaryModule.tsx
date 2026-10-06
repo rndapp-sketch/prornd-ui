@@ -1,4 +1,5 @@
 
+import { safeStorage } from "@/lib/safeStorage";
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -386,7 +387,7 @@ const SalaryModule: React.FC = () => {
 
     // Prepared status for monthly salary cycles (stored in localStorage)
     const [preparedCycles, setPreparedCycles] = useState<Record<string, boolean>>(() => {
-        const saved = localStorage.getItem("rnd_prepared_salary_cycles");
+        const saved = safeStorage.getItem("rnd_prepared_salary_cycles");
         if (saved) {
             try { return JSON.parse(saved); } catch (e) { }
         }
@@ -1624,10 +1625,10 @@ const SalaryModule: React.FC = () => {
                                         setPreparedCycles(prev => {
                                             const next = { ...prev };
                                             delete next[cycleKey];
-                                            localStorage.setItem("rnd_prepared_salary_cycles", JSON.stringify(next));
+                                            safeStorage.setItem("rnd_prepared_salary_cycles", JSON.stringify(next));
                                             return next;
                                         });
-                                        localStorage.removeItem(`rnd_processed_salaries_${selectedYear}-${selectedMonth}`);
+                                        safeStorage.removeItem(`rnd_processed_salaries_${selectedYear}-${selectedMonth}`);
                                         setProcessedEmployees(new Set());
                                     }}
                                     className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-[#E4E4E7] bg-white px-3 text-[12px] font-bold text-[#3F3F46] transition-all hover:bg-[#FAFAF9] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8] dark:hover:bg-[#3F3F46]"
@@ -2819,7 +2820,7 @@ const SalaryModule: React.FC = () => {
 
                                     setPreparedCycles(prev => {
                                         const next = { ...prev, [cycleKey]: true };
-                                        localStorage.setItem("rnd_prepared_salary_cycles", JSON.stringify(next));
+                                        safeStorage.setItem("rnd_prepared_salary_cycles", JSON.stringify(next));
                                         return next;
                                     });
                                 }}

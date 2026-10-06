@@ -28,6 +28,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { SWRConfig, useSWRConfig } from "swr";
 import { useRef, useEffect, useState } from "react";
 import CommandPalette, { useCommandPalette } from "@/components/CommandPalette";
+import { safeStorage } from "@/lib/safeStorage";
 import { ThemeProvider, useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -111,7 +112,7 @@ function AppContent() {
       await forceServerLogout();
     } finally {
       await mutate(() => true, undefined, { revalidate: false });
-      localStorage.removeItem("prornd_last_user");
+      safeStorage.removeItem("prornd_last_user");
       navigate("/login", { replace: true });
       // Hard reload for a clean slate (fresh Frappe session/socket state) — must use
       // the configured base path, not a bare "/login": under a non-root base (e.g.
@@ -349,7 +350,7 @@ function AppContent() {
 
               {/* Main Content Area */}
               <main className="flex-1 px-5 py-3 lg:px-7 lg:py-4">
-                <div className="mx-auto w-full max-w-[1600px] animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <div className="mx-auto w-full max-w-[1600px]">
                   <Outlet />
                 </div>
               </main>

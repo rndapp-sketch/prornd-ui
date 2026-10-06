@@ -8,6 +8,8 @@ import { FrappeProvider } from 'frappe-react-sdk';
 import { decodeCredit } from '@/lib/credit';
 import { getGitLeaderboard } from '@/lib/leaderboard';
 
+import { ErrorBoundary, RouteErrorFallback } from '@/components/ErrorBoundary';
+
 import './index.css';
 
 if (typeof window !== 'undefined') {
@@ -147,6 +149,7 @@ const router = createBrowserRouter(
         {
             path: "/",
             element: <App />, // Your main layout component (with navbar, etc.)
+            errorElement: <RouteErrorFallback />,
             children: [
                 {
                     path: "temporary-advance/:id",
@@ -1152,6 +1155,7 @@ const router = createBrowserRouter(
 
 createRoot(document.getElementById('root') as HTMLElement).render(
     <StrictMode>
+      <ErrorBoundary>
         {/*
           enableSocket={false}: this outer provider mounts its own socket.io
           client independently of any nested <FrappeProvider> (App.tsx wraps
@@ -1166,6 +1170,7 @@ createRoot(document.getElementById('root') as HTMLElement).render(
         <FrappeProvider url={FRAPPE_BASE_URL} enableSocket={false}>
             <RouterProvider router={router} />
         </FrappeProvider>
+      </ErrorBoundary>
     </StrictMode>
 );
 
