@@ -463,7 +463,7 @@ export function AppSidebar() {
             return roles ? allowedRoles.some((role) => roles.includes(role)) : false;
         }
         if (item.label === "Delegated to Me") {
-            return roles?.includes("project staff") ?? false;
+            return (roles?.includes("project staff") || roles?.includes("Student")) ?? false;
         }
         if (item.label === "Leave Module") {
             const allowedRoles = ["project staff", "IF - Inspired Faculty", "Independent Researcher"];
