@@ -182,6 +182,8 @@ export const projectStaffDetailsAPI = {
     submit: `${API_BASE}.project_staff_details.project_staff_details.submit_project_staff_details`,
     getWorkflowActions: `${API_BASE}.project_staff_details.project_staff_details.get_project_staff_details_workflow_actions`,
     performAction: `${API_BASE}.project_staff_details.project_staff_details.perform_project_staff_details_action`,
+    createEntry: `${API_BASE}.project_staff_details.project_staff_details.create_project_staff_details_entry`,
+    searchProjects: `${API_BASE}.project_registration.project_registration.search_projects`,
 };
 
 // Indent Cum Sanction Sheet API endpoints

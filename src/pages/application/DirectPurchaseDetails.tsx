@@ -4,6 +4,7 @@
 
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { getFileUrl } from "@/utils/fileUtils";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
@@ -37,6 +38,7 @@ import {
     ActivityIcon,
     Clock,
     ChevronRight,
+    ChevronDown,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlobalLoader } from "@/components/ui/global-loader";
@@ -1148,6 +1150,19 @@ const DirectPurchaseActionButtons = ({
     const [showCommentModal, setShowCommentModal] = useState(false);
     const [selectedAction, setSelectedAction] = useState("");
     const [comment, setComment] = useState("");
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
+    const menuRef = useRef<HTMLDivElement>(null);
+    const portalRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (!menuOpen) return;
+        const onDown = (e: MouseEvent) => {
+            const t = e.target as Node;
+            if (!menuRef.current?.contains(t) && !portalRef.current?.contains(t)) setMenuOpen(false);
+        };
+        document.addEventListener("mousedown", onDown);
+        return () => document.removeEventListener("mousedown", onDown);
+    }, [menuOpen]);
     const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Action Failed", message: "" });
     const { call: fetchActions } = useFrappePostCall<{ message: string[] }>(
         directPurchaseAPI.getWorkflowActions,
@@ -1238,7 +1253,7 @@ const DirectPurchaseActionButtons = ({
             onP11Missing?.();
             return;
         }
-        if (sanctionRequired) {
+        if (sanctionRequired && isBlocked(action)) {
             onSanctionMissing?.();
             return;
         }
@@ -1249,47 +1264,73 @@ const DirectPurchaseActionButtons = ({
     const handleActionConfirm = (actionComment: string) =>
         runAction(selectedAction, actionComment);
 
+    // Put Back / Reject stay enabled; only forwarding-type actions wait on commitment/sanction.
+    const isBlocked = (action: string) =>
+        (commitRequired || sanctionRequired) && !/put\s*back|reject/i.test(action);
+
     if (!actions.length) return null;
 
     return (
         <>
-            <div className="flex flex-col gap-2">
-                {sanctionRequired && (
-                    <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300 font-medium">
-                        Create the Sanction Sheet first — go to the <strong>Sanction Sheet</strong> tab.
-                    </div>
-                )}
-                {commitRequired && !sanctionRequired && (
-                    <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300 font-medium">
-                        A commitment must be submitted before forwarding this application.
-                    </div>
-                )}
-                <div className="flex flex-wrap gap-2">
-                    {actions.map((action) => (
-                        <ClaudeButton
-                            key={action}
-                            data-action={action}
-                            variant="action"
-                            onClick={() => handleActionClick(action)}
-                            disabled={isPerforming || commitRequired || sanctionRequired}
-                            className={cn(
-                                action === "Submit P-11" && !p11DocName
-                                    ? "opacity-60 cursor-not-allowed"
-                                    : undefined,
-                                (commitRequired || sanctionRequired) && "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed border-0",
-                                highlight && !commitRequired && !sanctionRequired && "animate-pulse ring-2 ring-offset-2 ring-amber-400"
-                            )}
-                            title={
-                                sanctionRequired
-                                    ? "Create the Sanction Sheet first"
-                                    : commitRequired
-                                        ? "Submit a commitment first"
-                                        : undefined
-                            }
+            <div className="flex flex-col items-end gap-2 max-w-[320px]">
+                <div className="relative" ref={menuRef}>
+                    <ClaudeButton
+                        variant="action"
+                        onClick={() => {
+                            const r = menuRef.current?.getBoundingClientRect();
+                            if (r) setMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+                            setMenuOpen((o) => !o);
+                        }}
+                        disabled={isPerforming}
+                        className={cn(highlight && !isBlocked("Forward") && "animate-pulse ring-2 ring-offset-2 ring-amber-400")}
+                    >
+                        {isPerforming ? "Processing…" : "Actions"}
+                        <ChevronDown className={cn("h-3.5 w-3.5 ml-2 transition-transform", menuOpen && "rotate-180")} />
+                    </ClaudeButton>
+                    {menuOpen && createPortal(
+                        <div
+                            ref={portalRef}
+                            style={{ position: "fixed", top: menuPos.top, right: menuPos.right, zIndex: 9999 }}
+                            className="min-w-[210px] max-w-[300px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden"
                         >
-                            {isPerforming ? "Processing…" : action}
-                        </ClaudeButton>
-                    ))}
+                            {sanctionRequired ? (
+                                <div className="mx-3 mt-3 mb-1 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+                                    Create the Sanction Sheet first — go to the <strong>Sanction Sheet</strong> tab.
+                                </div>
+                            ) : commitRequired ? (
+                                <div className="mx-3 mt-3 mb-1 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+                                    A commitment must be submitted before forwarding this application.
+                                </div>
+                            ) : null}
+                            {actions.map((action) => {
+                                const blocked = isBlocked(action) || (action === "Submit P-11" && !p11DocName);
+                                return (
+                                    <button
+                                        key={action}
+                                        data-action={action}
+                                        disabled={isPerforming || blocked}
+                                        onClick={() => { setMenuOpen(false); handleActionClick(action); }}
+                                        title={
+                                            blocked && sanctionRequired ? "Create the Sanction Sheet first"
+                                                : blocked && commitRequired ? "Submit a commitment first"
+                                                    : undefined
+                                        }
+                                        className={cn(
+                                            "w-full px-4 py-2.5 text-[12px] font-semibold text-left transition-colors",
+                                            blocked
+                                                ? "text-zinc-300 dark:text-zinc-600 cursor-not-allowed"
+                                                : /reject|put back/i.test(action)
+                                                    ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                                    : "text-[#D97757] hover:bg-orange-50 dark:hover:bg-orange-900/20",
+                                        )}
+                                    >
+                                        {action}
+                                    </button>
+                                );
+                            })}
+                        </div>,
+                        document.body,
+                    )}
                 </div>
             </div>
 
@@ -2862,6 +2903,7 @@ const DirectPurchaseDetails: React.FC = () => {
         heads: budgetHeadsFromLedger,
         actualBalance,
         commitableBalance,
+        headBalances: ledgerHeadBalances,
     } = useProjectBudget(projectTitle);
 
     // Fetch Budget Heads directly (matching DisbursalOfHonorariumDetails / TravelDetails pattern)
@@ -3366,7 +3408,7 @@ const DirectPurchaseDetails: React.FC = () => {
                     status={data.workflow_state}
                     projectName={data.project_name}
                 >
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-start justify-end gap-2 flex-wrap">
                         <ViewProjectButton doctype="Direct Purchase" data={data} />
                         {data.workflow_state === "Draft" && id && (
                             <ClaudeButton
@@ -3973,6 +4015,7 @@ const DirectPurchaseDetails: React.FC = () => {
                             budgetHeads={budgetHeads}
                             actualBalance={actualBalance}
                             commitableBalance={commitableBalance}
+                            displayHeadBalances={ledgerHeadBalances}
                             onCommitSuccess={() => loadData()}
                             onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
                         />

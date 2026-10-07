@@ -29,7 +29,10 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { fetchOverheadLedger, isOverheadProjectNo } from "@/services/overheadLedger";
 import { createPortal } from "react-dom";
 import { useFrappePostCall } from "frappe-react-sdk";
-import { CheckCircle2, AlertCircle, Loader2, CreditCard, ShieldAlert, X } from "lucide-react";
+import { CheckCircle2, AlertCircle, Loader2, CreditCard, ShieldAlert, X, BookOpen } from "lucide-react";
+import { useProjectBudget } from "@/hooks/useProjectBudget";
+import { ProjectLedgerModal } from "@/components/ProjectLedgerModal";
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -91,7 +94,11 @@ export interface CommitPaymentProps {
      * amount legitimately replaces an earlier commitment (e.g. TA DA Settlement) can show the right
      * head figure without being blocked.
      */
-    displayHeadBalances?: Record<string, { commitable: number }>;
+    displayHeadBalances?: Record<string, HeadBalanceLike>;
+    /** Optional: hide the project-wide "Commitable Balance" list shown under the form (default: shown) */
+    showBalanceList?: boolean;
+    /** Optional: adds a "View Project Ledger" button to the balance list */
+    onViewLedger?: () => void;
     /** Optional: disable the form externally while still showing it */
     disabled?: boolean;
     /** Optional: reason shown when disabled externally */
@@ -398,6 +405,143 @@ const CommittedDataCard: React.FC<CommittedDataCardProps> = ({ stagingRecord }) 
 };
 
 // ---------------------------------------------------------------------------
+// Head-wise balance helpers
+// ---------------------------------------------------------------------------
+export type HeadBalanceLike = {
+    commitable: number;
+    received?: number;
+    committed?: number;
+    payment?: number;
+    actual?: number;
+};
+
+const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
+
+/**
+ * Project-wide "Commitable Balance" list: one row per budget head showing what can still
+ * be committed against it, the selected head highlighted, and a total that is the sum of
+ * the rows shown (so the figures always add up).
+ */
+export const ProjectBalanceList: React.FC<{
+    balances: Record<string, HeadBalanceLike>;
+    selectedHead?: string;
+    onViewLedger?: () => void;
+    className?: string;
+}> = ({ balances, selectedHead, onViewLedger, className }) => {
+    const rows = Object.entries(balances).filter(
+        ([, b]) => (b.received ?? 0) !== 0 || (b.committed ?? 0) !== 0 || (b.payment ?? 0) !== 0 || b.commitable !== 0,
+    );
+    if (rows.length === 0) return null;
+    const total = rows.reduce((sum, [, b]) => sum + b.commitable, 0);
+    return (
+        <div className={cn("bg-white dark:bg-zinc-900 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm", className)}>
+            <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Commitable Balance
+                </span>
+                <span className={cn("text-sm font-bold", total < 0 ? "text-red-500" : "text-[#D97757]")}>
+                    {inr(total)}
+                </span>
+            </div>
+            <div className="mb-2 divide-y divide-zinc-100 dark:divide-zinc-800 border border-zinc-100 dark:border-zinc-800 rounded-lg overflow-hidden">
+                {rows.map(([head, b]) => {
+                    const isSelected = head === selectedHead;
+                    return (
+                        <div
+                            key={head}
+                            className={cn(
+                                "flex items-center justify-between px-3 py-1.5",
+                                isSelected
+                                    ? "bg-[#D97757]/10 dark:bg-[#D97757]/15 ring-inset ring-1 ring-[#D97757]/30"
+                                    : "bg-zinc-50 dark:bg-zinc-900/50",
+                            )}
+                        >
+                            <span
+                                title={head}
+                                className={cn(
+                                    "text-[11px] truncate max-w-[130px]",
+                                    isSelected ? "font-semibold text-zinc-700 dark:text-zinc-200" : "text-zinc-500 dark:text-zinc-400",
+                                )}
+                            >
+                                {head}
+                            </span>
+                            <span className={cn("text-[11px] font-bold tabular-nums", b.commitable < 0 ? "text-red-500" : "text-emerald-600 dark:text-emerald-400")}>
+                                {inr(b.commitable)}
+                            </span>
+                        </div>
+                    );
+                })}
+                <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 border-t border-zinc-200 dark:border-zinc-700">
+                    <span className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-300 uppercase tracking-wide">Total</span>
+                    <span className={cn("text-[11px] font-bold tabular-nums", total < 0 ? "text-red-500" : "text-[#D97757]")}>
+                        {inr(total)}
+                    </span>
+                </div>
+            </div>
+            {onViewLedger && (
+                <button
+                    onClick={onViewLedger}
+                    className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-[#D97757] font-semibold text-xs hover:bg-orange-50 dark:hover:bg-orange-950/20 transition-colors"
+                >
+                    <BookOpen className="w-3 h-3" />
+                    View Project Ledger
+                </button>
+            )}
+        </div>
+    );
+};
+
+/** Selected-head card: the Available figure, how it is derived, and why it may be zero/negative. */
+const SelectedHeadBalance: React.FC<{ head: string; balance?: HeadBalanceLike; fallbackAvailable: number }> = ({ head, balance, fallbackAvailable }) => {
+    const available = balance ? balance.commitable : fallbackAvailable;
+    const hasBreakup = balance?.received != null;
+    const rows: { label: string; hint: string; value: number; sign: string }[] = hasBreakup
+        ? [
+            { label: "Received", hint: "Funds released for this head", value: balance!.received ?? 0, sign: "" },
+            { label: "Committed", hint: "Already committed against this head", value: balance!.committed ?? 0, sign: "−" },
+            { label: "Paid", hint: "Paid out of commitments — not deducted again", value: balance!.payment ?? 0, sign: "" },
+        ]
+        : [];
+    return (
+        <div className="mt-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2.5">
+            <div className="flex items-baseline justify-between">
+                <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">Available to commit</span>
+                <span className={cn("text-base font-bold tabular-nums", available <= 0 ? "text-red-500" : "text-[#D97757]")}>
+                    {inr(available)}
+                </span>
+            </div>
+            {hasBreakup && (
+                <div className="mt-2 space-y-1 border-t border-dashed border-zinc-200 dark:border-zinc-700 pt-2">
+                    {rows.map((r) => (
+                        <div key={r.label} className="flex items-start justify-between gap-2 text-xs">
+                            <div className="min-w-0">
+                                <div className="text-zinc-600 dark:text-zinc-300">{r.label}</div>
+                                <div className="text-[10px] text-zinc-400 dark:text-zinc-500">{r.hint}</div>
+                            </div>
+                            <span className="font-medium tabular-nums text-zinc-800 dark:text-zinc-200">{r.sign}{inr(r.value)}</span>
+                        </div>
+                    ))}
+                    <div className="flex items-center justify-between border-t border-zinc-200 dark:border-zinc-700 pt-1 text-[10px] text-zinc-400 dark:text-zinc-500">
+                        <span>Available = Received − Committed (per ledger)</span>
+                    </div>
+                </div>
+            )}
+            {available < 0 && (
+                <p className="mt-2 flex items-start gap-1.5 text-[11px] font-medium text-red-600 dark:text-red-400">
+                    <AlertCircle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                    {head} is over-committed by {inr(Math.abs(available))}. Commitments already exceed the funds received for this head.
+                </p>
+            )}
+            {available === 0 && hasBreakup && (
+                <p className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+                    Nothing left to commit under {head}.
+                </p>
+            )}
+        </div>
+    );
+};
+
+// ---------------------------------------------------------------------------
 // Main CommitPayment component
 // ---------------------------------------------------------------------------
 export const CommitPayment: React.FC<CommitPaymentProps> = ({
@@ -426,6 +570,8 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     submitLabel = "Submit Commitment",
     headBalances,
     displayHeadBalances,
+    showBalanceList = true,
+    onViewLedger,
     onHeadChange,
     disabled = false,
     disabledReason,
@@ -574,6 +720,35 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
         : commitHead && displayHeadBalances?.[commitHead] != null
             ? Math.max(0, displayHeadBalances[commitHead].commitable)
             : (commitableBalance ?? actualBalance);
+
+    // Per-head figures: use what the page supplied, otherwise load the project's own ledger so
+    // every commit form shows the same balance breakup without each page wiring it up.
+    const suppliedBalances = headBalances ?? displayHeadBalances;
+    const ledger = useProjectBudget(suppliedBalances ? "" : projectName || "");
+    const balanceMap: Record<string, HeadBalanceLike> = suppliedBalances ?? ledger.headBalances;
+    const selectedBalance = commitHead ? balanceMap[commitHead] : undefined;
+
+    // "View Project Ledger": pages that own a ledger modal pass onViewLedger; every other form
+    // gets one here, so the button shows wherever a commitment can be made.
+    const [ownLedgerOpen, setOwnLedgerOpen] = useState(false);
+    const [ownLedgerHeads, setOwnLedgerHeads] = useState<{ name: string; id: number | string }[]>([]);
+    const openOwnLedger = useCallback(async () => {
+        setOwnLedgerOpen(true);
+        if (ownLedgerHeads.length > 0) return;
+        try {
+            const res = await fetch(
+                `${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["*"]&order_by=name%20asc&limit_page_length=0`,
+                { credentials: "include" },
+            );
+            const json = await res.json();
+            setOwnLedgerHeads(
+                (json?.data || []).map((h: any) => ({ name: h.title || h.budget_head || h.name, id: h.id })),
+            );
+        } catch {
+            // modal shows its own empty state
+        }
+    }, [ownLedgerHeads.length]);
+    const viewLedgerHandler = onViewLedger ?? (projectName ? openOwnLedger : undefined);
 
     // ── Validate & open confirmation dialog ─────────────────────────────────
     const handleSubmitClick = () => {
@@ -802,6 +977,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
         parsedCommitAmount > headBalances[commitHead].commitable;
 
     return (
+        <>
         <div className={cn("bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm", className)}>
             {/* Title */}
             <div className="flex items-center gap-2 mb-4">
@@ -859,12 +1035,9 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                             </>
                         )}
                     </select>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                        Available:{" "}
-                        <span className={`font-medium ${selectedHeadBalance < 0 ? "text-red-500" : "text-[#D97757]"}`}>
-                            ₹{selectedHeadBalance.toLocaleString("en-IN")}
-                        </span>
-                    </p>
+                    {commitHead && (
+                        <SelectedHeadBalance head={commitHead} balance={selectedBalance} fallbackAvailable={selectedHeadBalance} />
+                    )}
                 </div>
 
                 {/* Amount */}
@@ -971,6 +1144,18 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                 />
             )}
         </div>
+        {showBalanceList && (
+            <ProjectBalanceList balances={balanceMap} selectedHead={commitHead} onViewLedger={viewLedgerHandler} className="mt-4" />
+        )}
+        {ownLedgerOpen && projectName && (
+            <ProjectLedgerModal
+                isOpen
+                onClose={() => setOwnLedgerOpen(false)}
+                projectName={projectName}
+                budgetHeadList={ownLedgerHeads}
+            />
+        )}
+        </>
     );
 };
 

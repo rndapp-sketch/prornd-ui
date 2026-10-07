@@ -373,6 +373,17 @@ const TopUpFellowshipDetails: React.FC = () => {
                     projectNumber={projectCode}
                 >
                     <ViewProjectButton doctype="Top Up Fellowship" data={formData} />
+                    {docName && (
+                        <button
+                            type="button"
+                            onClick={() => setIsPrintOpen(true)}
+                            className="inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 transition-colors"
+                            title="Print this document"
+                        >
+                            <Printer className="h-3.5 w-3.5" />
+                            Print
+                        </button>
+                    )}
                     {facultyPdfUrl && isPendingStaff && (
                         <a
                             href={getFileUrl(facultyPdfUrl)}
@@ -422,17 +433,6 @@ const TopUpFellowshipDetails: React.FC = () => {
                             <GroupCard
                                 icon={UserIcon}
                                 label="Application Summary"
-                                action={
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsPrintOpen(true)}
-                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
-                                        title="Print this document"
-                                    >
-                                        <Printer className="w-4 h-4" />
-                                        Print
-                                    </button>
-                                }
                             >
                                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                                     {summaryFields.map(({ key, value }) =>
