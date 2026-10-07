@@ -655,22 +655,6 @@ const ReimbursementDetails: React.FC = () => {
 
   const { budgetData, heads: budgetHeads, actualBalance, commitableBalance } = useProjectBudget(projectTitle);
 
-  const balanceApiParams = React.useMemo(() => ({ project_number: projectTitle }), [projectTitle]);
-  const balanceApiOptions = React.useMemo(
-    () => ({ revalidateOnFocus: false, isPaused: () => !projectTitle }),
-    [projectTitle],
-  );
-  const { data: projectAmountsData } = useFrappeGetCall<{
-    message: { status: string; data: { availableCommitAmount: number; availablePaymentAmount: number } };
-  }>(
-    "rndopsapp.rndopsapp.commitPayment.get_project_available_amounts",
-    balanceApiParams,
-    balanceApiOptions,
-  );
-  const projectAmountsResult =
-    (projectAmountsData as any)?.message?.data ?? (projectAmountsData as any)?.data ?? {};
-  const totalCommitableBalance = projectAmountsResult?.availableCommitAmount ?? 0;
-
   const linkedCommitment = budgetData.find(
     (e) => (e.ref === (id || "") || e.frapAppId === (id || "")) && e.type === "commitment",
   );
@@ -1547,40 +1531,17 @@ const ReimbursementDetails: React.FC = () => {
 
           {/* Right Sidebar */}
           <aside className="xl:col-span-1 space-y-6">
-            {/* Project Budget */}
-            <div className="bg-white dark:bg-[#27272A] p-5 rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
-              <h3 className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-4">
-                Project Budget
-              </h3>
-              <div className="flex flex-col gap-4">
-                <div className="flex justify-between items-center bg-[#FAFAF9] dark:bg-[#18181B] p-3 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46]">
-                  <p className="text-sm font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
-                    Commitable Balance
-                  </p>
-                  <p className="text-xl font-bold text-[#D97757]">
-                    ₹ {totalCommitableBalance.toLocaleString("en-IN")}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setIsLedgerOpen(true)}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] text-[#D97757] font-bold text-sm hover:bg-[#F4F4F5] dark:hover:bg-[#27272A] transition-colors"
-                >
-                  <LedgerIcon className="w-4 h-4" />
-                  View Project Ledger
-                </button>
-              </div>
-            </div>
-
             {/* Commit & Payment (Staff only) */}
             {(data.workflow_state === "Approved" || data.workflow_state === "Pending Staff Approval") && isRnDStaff && (
               <>
                 <CommitPayment
                   doctype="Reimbursement"
                   docName={id || ""}
-                  projectName={data.project_name}
+                  projectName={projectTitle}
                   budgetHeads={budgetHeads}
                   actualBalance={actualBalance}
                   commitableBalance={commitableBalance}
+                  onViewLedger={() => setIsLedgerOpen(true)}
                   onCommitSuccess={() => window.location.reload()}
                   onStagingStatusChange={(status) => setIsCommittedForGate(status)}
                 />

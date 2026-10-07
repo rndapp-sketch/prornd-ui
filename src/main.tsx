@@ -131,6 +131,7 @@ import TopUpFellowshipFacultyAdmission from './pages/application/TopUpFellowship
 import SalaryModule from './pages/application/SalaryModule';
 import ProjectStaffAttendance from './pages/ProjectStaffAttendance';
 import ProjectStaffDetailsList from './pages/ProjectStaffDetailsList';
+import ProjectStaffCreate from './pages/ProjectStaffCreate';
 import ProjectStaffDetailView from './pages/ProjectStaffDetailView';
 import SalaryRegisterFull from './pages/application/SalaryRegisterFull';
 import DelegateUser from './pages/DelegateUser.tsx';
@@ -1087,6 +1088,14 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="staff, RnD">
                             <ProjectStaffDetailsList />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "project-staff-details/new",
+                    element: (
+                        <AuthRouteWrapper allowedRole="staff, RnD">
+                            <ProjectStaffCreate />
                         </AuthRouteWrapper>
                     ),
                 },

@@ -24,7 +24,6 @@ import {
     LogOutIcon,
     ListTodo,
     ClipboardCheck,
-    CreditCard,
     BarChart3,
     MessageCircle,
     Users as UsersIcon,
@@ -36,7 +35,6 @@ import {
     Share2 as Share2Icon,
     GraduationCap,
     IdCard,
-    FileSpreadsheet,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -46,7 +44,7 @@ import {
     useFrappeGetDocList,
 } from "frappe-react-sdk";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { useSWRConfig } from "swr";
@@ -61,7 +59,11 @@ import { AddStudentModal } from "./AddStudentModal";
 interface SubMenuItem {
     label: string;
     path: string;
+    visible?: boolean;
 }
+
+const TASK_GROUP_LABEL = "Task Management";
+const FINANCE_GROUP_LABEL = "Finance & Ledger";
 
 interface MenuItem {
     label: string;
@@ -225,6 +227,48 @@ export function AppSidebar() {
     const isDirector = roles?.includes("Director");
     const hasOverviewAccess = roles?.some(r => ["Director", "Dean, RnD", "Ado_RnD", "Hos, RnD (Head of Section, RnD)"].includes(r));
 
+    // One collapsible group for the approver/staff work queues; each entry keeps its own role gate.
+    const hasAnyRole = (allowed: string[]) => !!roles && allowed.some((role) => roles.includes(role));
+    const taskGroupSubMenu: SubMenuItem[] = [
+        {
+            label: "Pending Task (as Approver)",
+            path: "/pending-task",
+            visible: hasAnyRole([
+                "Dean, RnD",
+                "Ado_RnD",
+                "head_approver_1",
+                "Hos, RnD (Head of Section, RnD)",
+                "staff, RnD",
+            ]),
+        },
+        {
+            // Not for permanent employees
+            label: "Task Registry",
+            path: "/task-registry",
+            visible: hasAnyRole([
+                "staff, RnD",
+                "Hos, RnD (Head of Section, RnD)",
+                "Dean, RnD",
+                "Ado_RnD",
+                "head_approver_1",
+            ]),
+        },
+        { label: "ID Card Management", path: "/hr-id-card-management", visible: hasAnyRole(["staff, RnD"]) },
+        { label: "Upload Director PDF", path: "/director-pdf-upload", visible: canUploadDirectorPdf },
+        { label: "Faculty Admission PDF Upload", path: "/top-up-fellowship-faculty-admission", visible: canUploadDirectorPdf },
+    ].filter((sub) => sub.visible);
+
+    const financeGroupSubMenu: SubMenuItem[] = [
+        {
+            label: "Payments",
+            path: "/payments",
+            visible: hasAnyRole(["staff, RnD", "Hos, RnD (Head of Section, RnD)"]),
+        },
+        { label: "Salary Module", path: "/salary-module", visible: isRndStaffRole },
+        { label: "Commit / De-Commit", path: "/miscellaneous-commit", visible: isRndStaffRole },
+        { label: "Ledger Export", path: "/project-ledger-export", visible: isRndStaffRole },
+    ].filter((sub) => sub.visible);
+
     const menuItems: MenuItem[] = [
         ...(!isDirector ? [{
             label: "Home",
@@ -278,11 +322,6 @@ export function AppSidebar() {
         //   path: "/reimbursement",
         // },
         {
-            label: "Stakeholder Registration",
-            icon: FileText,
-            path: "/universal-registration",
-        },
-        {
             label: "Delegate User",
             icon: UserCheck,
             path: "/delegate-user",
@@ -318,9 +357,9 @@ export function AppSidebar() {
             path: "/form-application",
         }] : []),
         {
-            label: "Pending Task (as Approver)",
+            label: TASK_GROUP_LABEL,
             icon: ListTodo,
-            path: "/pending-task",
+            subMenu: taskGroupSubMenu,
         },
         ...(isPermanentEmployee || isHeadApprover || isDoRnd ? [{
             label: "Pending Application (as PI)",
@@ -328,40 +367,10 @@ export function AppSidebar() {
             path: "/pending-application",
         }] : []),
         {
-            label: "Task Registry",
-            icon: FileText,
-            path: "/task-registry",
+            label: FINANCE_GROUP_LABEL,
+            icon: IndianRupee,
+            subMenu: financeGroupSubMenu,
         },
-        {
-            label: "ID Card Management",
-            icon: IdCard,
-            path: "/hr-id-card-management",
-        },
-        {
-            label: "Track Application",
-            icon: Search,
-            path: "/track-application",
-        },
-        {
-            label: "Payments",
-            icon: CreditCard,
-            path: "/payments",
-        },
-        {
-            label: "Upload Director PDF",
-            icon: FileText,
-            path: "/director-pdf-upload",
-        },
-        {
-            label: "Faculty Admission PDF Upload",
-            icon: FileText,
-            path: "/top-up-fellowship-faculty-admission",
-        },
-        ...(isRndStaffRole ? [{
-            label: "Project Staff Details",
-            icon: UsersIcon,
-            path: "/project-staff-details",
-        }] : []),
         {
             label: "Project Staff",
             icon: UsersIcon,
@@ -373,39 +382,33 @@ export function AppSidebar() {
             action: () => setIsAddStudentOpen(true),
         },
         {
-            label: "Salary Module",
-            icon: IndianRupee,
-            path: "/salary-module",
+            label: "Track Application",
+            icon: Search,
+            path: "/track-application",
         },
-        {
-            label: "Commit / De-Commit",
-            icon: CreditCard,
-            path: "/miscellaneous-commit",
-        },
+        ...(isRndStaffRole ? [{
+            label: "Project Staff Details",
+            icon: UsersIcon,
+            path: "/project-staff-details",
+        }] : []),
         {
             label: "Project Search",
             icon: Search,
             path: "/project-search",
         },
         {
-            label: "Ledger Export",
-            icon: FileSpreadsheet,
-            path: "/project-ledger-export",
+            label: "Stakeholder Registration",
+            icon: FileText,
+            path: "/universal-registration",
         },
     ].filter((item) => {
-        if (item.label === "Upload Director PDF") {
-            return canUploadDirectorPdf;
+        if (item.label === TASK_GROUP_LABEL) {
+            return (item.subMenu?.length ?? 0) > 0;
         }
-        if (item.label === "Faculty Admission PDF Upload") {
-            return canUploadDirectorPdf;
+        if (item.label === FINANCE_GROUP_LABEL) {
+            return (item.subMenu?.length ?? 0) > 0;
         }
-        if (item.label === "Salary Module") {
-            return roles?.includes("staff, RnD") ?? false;
-        }
-        if (item.label === "Commit / De-Commit") {
-            return roles?.includes("staff, RnD") ?? false;
-        }
-        if (item.label === "Project Search" || item.label === "Ledger Export") {
+        if (item.label === "Project Search") {
             return roles?.includes("staff, RnD") ?? false;
         }
         if (item.label === "Universal Forms") {
@@ -417,27 +420,6 @@ export function AppSidebar() {
             const allowedRoles = ["staff, RnD", "Permanent Employee"];
             return roles && allowedRoles.some((role) => roles.includes(role));
         }
-        if (item.label === "Pending Task (as Approver)") {
-            const allowedRoles = [
-                "Dean, RnD",
-                "Ado_RnD",
-                "head_approver_1",
-                "Hos, RnD (Head of Section, RnD)",
-                "staff, RnD",
-            ];
-            return roles && allowedRoles.some((role) => roles.includes(role));
-        }
-        if (item.label === "Task Registry") {
-            // Visible to staff, HOS, Dean, DoRnD, Head Approver, Ado_RnD - NOT permanent employees
-            const allowedRoles = [
-                "staff, RnD",
-                "Hos, RnD (Head of Section, RnD)",
-                "Dean, RnD",
-                "Ado_RnD",
-                "head_approver_1",
-            ];
-            return roles && allowedRoles.some((role) => roles.includes(role));
-        }
         if (item.label === "Track Application") {
             const allowedRoles = [
                 "staff, RnD",
@@ -446,14 +428,6 @@ export function AppSidebar() {
                 "Hos, RnD (Head of Section, RnD)",
                 "Dean, RnD",
                 "Ado_RnD",
-            ];
-            return roles && allowedRoles.some((role) => roles.includes(role));
-        }
-        if (item.label === "Payments") {
-            // Visible only to staff
-            const allowedRoles = [
-                "staff, RnD",
-                "Hos, RnD (Head of Section, RnD)",
             ];
             return roles && allowedRoles.some((role) => roles.includes(role));
         }
@@ -502,15 +476,24 @@ export function AppSidebar() {
         if (item.label === "Resignation" || item.label === "Extension") {
             return roles?.includes("project staff") ?? false;
         }
-        if (item.label === "ID Card Management") {
-            return roles?.includes("staff, RnD") ?? false;
-        }
         return true;
     });
+
+    // Open the group that owns the current page so the active entry is visible
+    useEffect(() => {
+        const owner = menuItems.find((m) => m.subMenu?.some((sub) => isActivePath(sub.path)));
+        if (owner && !owner.alwaysOpen) {
+            setOpenSubMenus((prev) => (prev.includes(owner.label) ? prev : [...prev, owner.label]));
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.pathname, roles]);
 
     const handleMenuItemClick = (item: MenuItem) => {
         if (item.action) {
             item.action();
+        } else if (item.subMenu && !item.alwaysOpen && state !== "expanded" && item.subMenu[0]) {
+            // Icon-only sidebar has no room to show the group, so open its first entry
+            navigate(item.subMenu[0].path);
         } else if (item.subMenu && !item.alwaysOpen) {
             setOpenSubMenus((prev) =>
                 prev.includes(item.label)
@@ -603,12 +586,16 @@ export function AppSidebar() {
 
     // Subtle section dividers before these groups (skipped when first in list)
     const DIVIDER_BEFORE = new Set([
-        "Stakeholder Registration",
-        "Pending Task (as Approver)",
+        TASK_GROUP_LABEL,
+        FINANCE_GROUP_LABEL,
         "Track Application",
-        "Upload Director PDF",
-        "Salary Module",
     ]);
+
+    // Groups get a tinted panel so they read as one block instead of loose items
+    const GROUP_TINT: Record<string, string> = {
+        [TASK_GROUP_LABEL]: "bg-[#EEF2FF] ring-1 ring-[#C7D2FE] dark:bg-[#312E81]/20 dark:ring-[#4338CA]/40",
+        [FINANCE_GROUP_LABEL]: "bg-[#ECFDF5] ring-1 ring-[#A7F3D0] dark:bg-[#064E3B]/20 dark:ring-[#047857]/40",
+    };
 
     // Right-aligned notification badges: orange = pending, red = secondary
     const getBadge = (label: string): { count: number; tone: "orange" | "red" } | null => {
@@ -619,6 +606,11 @@ export function AppSidebar() {
             "ID Card Management": { count: pendingIdCardCount, tone: "red" },
             "ID Card Request": { count: returnedIdCardCount, tone: "red" },
         };
+        if (label === TASK_GROUP_LABEL) {
+            // Group badge = sum of its entries, so pending work is visible while collapsed
+            const total = taskGroupSubMenu.reduce((sum, sub) => sum + (map[sub.label]?.count ?? 0), 0);
+            return total > 0 ? { count: total, tone: "orange" } : null;
+        }
         const badge = map[label];
         return badge && badge.count > 0 ? badge : null;
     };
@@ -669,7 +661,7 @@ export function AppSidebar() {
 
     const subButtonClass = (active: boolean) =>
         cn(
-            "w-full h-auto px-3 py-1.5 text-[11px] rounded-[10px] whitespace-normal break-words transition-colors duration-150",
+            "w-full h-auto min-h-[28px] px-3 py-1.5 text-[11px] rounded-[10px] whitespace-normal break-words transition-colors duration-150 !overflow-visible [&>span]:!overflow-visible [&>span]:!whitespace-normal [&>span]:![text-overflow:clip]",
             active
                 ? "bg-[#E8F0FF] text-[#1D4ED8] font-semibold dark:bg-[#2563EB]/20 dark:text-[#93C5FD]"
                 : "text-[#1E293B] font-medium hover:bg-[#DCE4F0] hover:text-[#123B7A] dark:text-[#A1A1AA] dark:hover:bg-[#27272A] dark:hover:text-[#E4E4E7]",
@@ -748,12 +740,16 @@ export function AppSidebar() {
                                 const isActive = !!((item.path && isActivePath(item.path)) || isAnySubMenuActive);
                                 const isSubMenuOpen = openSubMenus.includes(item.label);
                                 const badge = getBadge(item.label);
-                                const showDivider = index > 0 && DIVIDER_BEFORE.has(item.label);
+                                const groupTint = GROUP_TINT[item.label];
+                                const showDivider = index > 0 && DIVIDER_BEFORE.has(item.label) && !groupTint;
 
                                 return (
                                     <SidebarMenuItem
                                         key={item.label}
-                                        className={cn(showDivider && "border-t border-[#CBD5E1] dark:border-[#52525B] mt-1.5 pt-1.5")}
+                                        className={cn(
+                                            showDivider && "border-t border-[#CBD5E1] dark:border-[#52525B] mt-1.5 pt-1.5",
+                                            expanded && groupTint && cn("rounded-xl p-1 my-1", groupTint),
+                                        )}
                                     >
                                         <SidebarMenuButton
                                             onClick={() => handleMenuItemClick(item)}
@@ -798,7 +794,11 @@ export function AppSidebar() {
                                                             onClick={() => handleSubMenuItemClick(subItem)}
                                                             className={subButtonClass(isActivePath(subItem.path))}
                                                         >
-                                                            {subItem.label}
+                                                            <span className="min-w-0 break-words">{subItem.label}</span>
+                                                            {(() => {
+                                                                const subBadge = getBadge(subItem.label);
+                                                                return subBadge ? <NavBadge {...subBadge} /> : null;
+                                                            })()}
                                                         </SidebarMenuSubButton>
                                                     </SidebarMenuSubItem>
                                                 ))}

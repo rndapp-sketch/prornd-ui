@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFrappePostCall } from "frappe-react-sdk";
-import { ChevronRight, Loader2, Mail, RefreshCw, Search, Users } from "lucide-react";
+import { ChevronRight, Plus, Loader2, Mail, RefreshCw, Search, Users } from "lucide-react";
 import { getFileUrl } from "@/utils/fileUtils";
 import { projectStaffDetailsAPI } from "@/services/apiService";
 
@@ -172,6 +172,14 @@ export default function ProjectStaffDetailsList() {
                             </p>
                         </div>
                     </div>
+                    <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => navigate("/project-staff-details/new")}
+                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1D4ED8]"
+                    >
+                        <Plus className="h-4 w-4" /> Create New
+                    </button>
                     <button
                         type="button"
                         onClick={() => void load()}
@@ -179,6 +187,7 @@ export default function ProjectStaffDetailsList() {
                     >
                         <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Refresh
                     </button>
+                    </div>
                 </header>
 
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

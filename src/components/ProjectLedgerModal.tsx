@@ -1,6 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { usePersistentPopups } from '@/lib/persistentPopups';
+import { useFloatingWindow } from '@/hooks/useFloatingWindow';
+import { ResizeEdges } from '@/components/ResizeEdges';
 import { createPortal } from 'react-dom';
-import { FileSpreadsheet as LedgerIcon, FileText } from 'lucide-react';
+import { FileSpreadsheet as LedgerIcon, FileText, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { fetchOverheadLedger, isOverheadProjectNo, OVERHEAD_BUDGET_HEAD_ID } from "@/services/overheadLedger";
 
@@ -48,6 +51,8 @@ interface ProjectLedgerModalProps {
     budgetHeadList: { name: string; id: number | string }[];
     manualCommitments?: any[];
     onPaymentClick?: (row: BudgetEntry) => void;
+    /** When the page that opened this popup goes away, hand it to the global host so it stays open (default true). */
+    persistOnNavigate?: boolean;
 }
 
 export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
@@ -55,7 +60,8 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
     onClose,
     projectName,
     budgetHeadList,
-    onPaymentClick
+    onPaymentClick,
+    persistOnNavigate = true,
 }) => {
     const [activeLedgerHeadId, setActiveLedgerHeadId] = useState<string | number>('');
     const [ledgerTransactions, setLedgerTransactions] = useState<LedgerTransaction[]>([]);
@@ -69,6 +75,24 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
     const [headsWithData, setHeadsWithData] = useState<Set<string | number>>(new Set());
     const [isCheckingHeads, setIsCheckingHeads] = useState(false);
     const [showAllHeads, setShowAllHeads] = useState(false);
+
+    // Floating window: draggable by the header, resizable from the corner; page behind stays usable.
+    const { rect, moveHandlers, edgeHandlers } = useFloatingWindow({ isOpen, persistKey: 'project-ledger' });
+
+    // Stay open across page navigation: if the page unmounts us while open and the route
+    // changed (not just a normal close), the global host takes over rendering this popup.
+    const mountPath = useRef(window.location.pathname);
+    const live = useRef({ isOpen, projectName, budgetHeadList });
+    live.current = { isOpen, projectName, budgetHeadList };
+    useEffect(() => {
+        if (isOpen && persistOnNavigate) usePersistentPopups.getState().setLedger(null);
+    }, [isOpen, persistOnNavigate]);
+    useEffect(() => () => {
+        const l = live.current;
+        if (persistOnNavigate && l.isOpen && window.location.pathname !== mountPath.current) {
+            usePersistentPopups.getState().setLedger({ projectName: l.projectName, budgetHeadList: l.budgetHeadList });
+        }
+    }, [persistOnNavigate]);
 
     // Check which heads have data
     useEffect(() => {
@@ -181,6 +205,9 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
         );
     }, [ledgerTransactions, selectedYear]);
 
+    const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`;
+    const activeHeadName = budgetHeadList.find((h) => h.id === activeLedgerHeadId)?.name;
+
     // Fetch Ledger Data
     const fetchLedgerData = async (headId: string | number) => {
         if (!headId) return;
@@ -260,223 +287,202 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
 
     if (!isOpen) return null;
 
+    const statusStyle = (status: string) =>
+        status === 'PAID' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
+            : status === 'PARTIALLY_PAID' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'
+                : status === 'PENDING' ? 'bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400'
+                    : status === 'CANCELLED' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
+                        : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300';
+
+    const chip = (active: boolean) => cn(
+        "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
+        active
+            ? "bg-[#D97757] border-[#D97757] text-white shadow-sm"
+            : "bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 hover:border-[#D97757]/50 hover:text-[#D97757]",
+    );
+
     return createPortal(
-        <div className="frappe-modal-backdrop" onClick={onClose} role="dialog" aria-modal="true">
-            <div className="frappe-modal w-[95%] max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
-                <header className="frappe-modal-header">
-                    <h2 className="text-xl font-bold flex items-center gap-2">
-                        <LedgerIcon className="w-5 h-5 text-[#D97757]" />
-                        Project Budget Ledger
-                    </h2>
-                    <button onClick={onClose} className="frappe-modal-close" aria-label="Close modal">×</button>
+        <div className="fixed inset-0 z-[9999] pointer-events-none" role="dialog" aria-modal="false">
+            <div
+                className="frappe-modal pointer-events-auto absolute shadow-2xl border-2 border-zinc-400 dark:border-zinc-500"
+                style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h, maxHeight: 'none', maxWidth: 'none', border: '2px solid #A1A1AA' }}
+            >
+                <header
+                    {...moveHandlers}
+                    className="flex items-center justify-between gap-3 px-5 py-3 cursor-move select-none touch-none border-b border-zinc-300 dark:border-zinc-600 bg-[#FAFAF9] dark:bg-zinc-900/60">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#D97757]/10 text-[#D97757]">
+                            <LedgerIcon className="w-5 h-5" />
+                        </span>
+                        <div className="min-w-0">
+                            <h2 className="text-base font-bold leading-tight text-zinc-900 dark:text-zinc-100">Project Budget Ledger</h2>
+                            <p className="text-xs font-mono text-zinc-500 dark:text-zinc-400 truncate">{projectName}</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="h-8 w-8 flex items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-200/70 dark:hover:bg-zinc-800 transition-colors"
+                        aria-label="Close modal"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
                 </header>
-                <div className="frappe-modal-body p-6">
-                    {/* Tabs */}
-                    <div className="mb-6 border-b border-zinc-200 dark:border-zinc-700">
+
+                <div className="frappe-modal-body flex-1 min-h-0 overflow-y-auto p-5 space-y-4">
+                    {/* Budget head selector */}
+                    <div>
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Budget Head</span>
+                            {!isCheckingHeads && visibleHeads.length > 0 && (!showAllHeads && budgetHeadList.length > visibleHeads.length ? (
+                                <button onClick={() => setShowAllHeads(true)} className="text-xs text-[#D97757] hover:underline">
+                                    Show all heads ({budgetHeadList.length})
+                                </button>
+                            ) : showAllHeads ? (
+                                <button onClick={() => setShowAllHeads(false)} className="text-xs text-zinc-500 hover:underline">
+                                    Hide empty heads
+                                </button>
+                            ) : null)}
+                        </div>
                         {isCheckingHeads ? (
-                            <div className="flex items-center space-x-2 text-sm text-zinc-500 dark:text-zinc-400 py-2">
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#D97757]"></div>
-                                <span>Checking available heads...</span>
+                            <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400 py-1">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#D97757]" />
+                                Checking available heads…
                             </div>
                         ) : visibleHeads.length > 0 ? (
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                <nav className="flex flex-wrap gap-2">
-                                    {visibleHeads.map((head) => (
-                                        <button
-                                            key={head.id}
-                                            onClick={() => setActiveLedgerHeadId(head.id)}
-                                            className={cn(
-                                                "px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors",
-                                                activeLedgerHeadId === head.id
-                                                    ? "border-[#D97757] text-[#D97757] bg-[#F0FDFD] dark:bg-[#D97757]/10"
-                                                    : "border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                                            )}
-                                        >
-                                            {head.name}
-                                        </button>
-                                    ))}
-                                </nav>
-                                {!showAllHeads && budgetHeadList.length > visibleHeads.length && (
-                                    <button
-                                        onClick={() => setShowAllHeads(true)}
-                                        className="text-xs text-[#D97757] hover:underline whitespace-nowrap"
-                                    >
-                                        Show All Heads ({budgetHeadList.length})
+                            <nav className="flex flex-wrap gap-1.5">
+                                {visibleHeads.map((head) => (
+                                    <button key={head.id} onClick={() => setActiveLedgerHeadId(head.id)} className={chip(activeLedgerHeadId === head.id)}>
+                                        {head.name}
                                     </button>
-                                )}
-                                {showAllHeads && (
-                                    <button
-                                        onClick={() => setShowAllHeads(false)}
-                                        className="text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 hover:underline whitespace-nowrap"
-                                    >
-                                        Hide Empty Heads
-                                    </button>
-                                )}
-                            </div>
+                                ))}
+                            </nav>
                         ) : (
-                            <div className="py-2 flex items-center gap-4">
-                                <span className="text-sm text-zinc-500 dark:text-zinc-400">No budget heads with transactions found.</span>
-                                <button
-                                    onClick={() => setShowAllHeads(true)}
-                                    className="text-sm text-[#D97757] font-medium hover:underline"
-                                >
-                                    Show All Budget Heads
+                            <div className="flex items-center gap-3 text-sm text-zinc-500 dark:text-zinc-400">
+                                No budget heads with transactions found.
+                                <button onClick={() => setShowAllHeads(true)} className="text-[#D97757] font-medium hover:underline">
+                                    Show all budget heads
                                 </button>
                             </div>
                         )}
                     </div>
 
-                    {/* View Toggle */}
-                    <div className="flex items-center gap-2 mb-4">
-                        <button
-                            onClick={() => setLedgerView('transactions')}
-                            className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
-                                ledgerView === 'transactions' ? "bg-[#D97757] text-white" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200"
-                            )}
-                        >Transactions</button>
-                        <button
-                            onClick={() => setLedgerView('yearly')}
-                            className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
-                                ledgerView === 'yearly' ? "bg-[#D97757] text-white" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200"
-                            )}
-                        >Yearly Summary</button>
-                    </div>
-
-                    {/* Year Filter */}
-                    {ledgerView === 'transactions' && availableYears.length > 0 && (
-                        <div className="mb-4 flex items-center gap-2">
-                            <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Financial Year:</span>
-                            <div className="flex gap-2 flex-wrap">
+                    {/* View + year controls */}
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="inline-flex rounded-lg bg-zinc-100 dark:bg-zinc-800 p-0.5">
+                            {([['transactions', 'Transactions'], ['yearly', 'Yearly Summary']] as const).map(([key, label]) => (
                                 <button
-                                    onClick={() => setSelectedYear("all")}
+                                    key={key}
+                                    onClick={() => setLedgerView(key)}
                                     className={cn(
-                                        "px-3 py-1 rounded-full text-xs font-medium transition-colors",
-                                        selectedYear === "all"
-                                            ? "bg-[#D97757] text-white"
-                                            : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                        "px-3 py-1.5 rounded-md text-xs font-semibold transition-colors",
+                                        ledgerView === key
+                                            ? "bg-white dark:bg-zinc-900 text-[#D97757] shadow-sm"
+                                            : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200",
                                     )}
                                 >
-                                    All
+                                    {label}
                                 </button>
+                            ))}
+                        </div>
+                        {ledgerView === 'transactions' && availableYears.length > 0 && (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mr-1">Financial Year</span>
+                                <button onClick={() => setSelectedYear('all')} className={chip(selectedYear === 'all')}>All</button>
                                 {availableYears.map((yr) => (
-                                    <button
-                                        key={yr}
-                                        onClick={() => setSelectedYear(yr)}
-                                        className={cn(
-                                            "px-3 py-1 rounded-full text-xs font-medium transition-colors",
-                                            selectedYear === yr
-                                                ? "bg-[#D97757] text-white"
-                                                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                                        )}
-                                    >
-                                        FY {yr}
-                                    </button>
+                                    <button key={yr} onClick={() => setSelectedYear(yr)} className={chip(selectedYear === yr)}>FY {yr}</button>
                                 ))}
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
 
-                    {/* Table */}
+                    {/* Transactions table */}
                     {ledgerView === 'transactions' && (
-                        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden min-h-[300px]">
+                        <div className="rounded-xl border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 overflow-hidden">
                             {isLedgerLoading ? (
-                                <div className="flex flex-col items-center justify-center py-20">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757] mb-4"></div>
-                                    <p className="text-zinc-500 dark:text-zinc-400">Loading ledger...</p>
+                                <div className="flex flex-col items-center justify-center py-16">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757] mb-3" />
+                                    <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading ledger…</p>
                                 </div>
                             ) : ledgerError ? (
-                                <div className="flex flex-col items-center justify-center py-20">
-                                    <p className="text-red-500 font-medium mb-2">Failed to load data</p>
+                                <div className="flex flex-col items-center justify-center py-16">
+                                    <p className="text-red-500 font-medium mb-1">Failed to load data</p>
                                     <p className="text-sm text-zinc-500 dark:text-zinc-400">{ledgerError}</p>
-                                    <button onClick={() => fetchLedgerData(activeLedgerHeadId)} className="mt-4 text-[#D97757] hover:underline text-sm font-medium">Try Again</button>
+                                    <button onClick={() => fetchLedgerData(activeLedgerHeadId)} className="mt-3 text-[#D97757] hover:underline text-sm font-medium">Try again</button>
                                 </div>
                             ) : filteredLedgerTransactions.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-20">
-                                    <FileText className="h-10 w-10 text-zinc-300 dark:text-zinc-600 mb-3" />
-                                    <p className="text-zinc-500 dark:text-zinc-400">
-                                        {selectedYear !== "all" ? `No transactions found for FY ${selectedYear}` : "No transactions found for this head"}
+                                <div className="flex flex-col items-center justify-center py-16">
+                                    <FileText className="h-9 w-9 text-zinc-300 dark:text-zinc-600 mb-2" />
+                                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                                        {selectedYear !== 'all' ? `No transactions found for FY ${selectedYear}` : `No transactions found${activeHeadName ? ` for ${activeHeadName}` : ' for this head'}`}
                                     </p>
                                 </div>
                             ) : (
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm text-left">
-                                        <thead className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 uppercase text-xs font-semibold sticky top-0 z-10 shadow-sm">
-                                            <tr>
-                                                <th className="px-6 py-3 whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">TID</th>
-                                                <th className="px-6 py-3 whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">App ID</th>
-                                                <th className="px-6 py-3 whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">Date</th>
-                                                <th className="px-6 py-3 whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">Particulars</th>
-                                                <th className="px-6 py-3 whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">BMR</th>
-                                                <th className="px-6 py-3 text-right whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">Fund Received</th>
-                                                <th className="px-6 py-3 text-right whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">Commit Amt</th>
-                                                <th className="px-6 py-3 text-right whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">Commitable Bal</th>
-                                                <th className="px-6 py-3 text-right whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">Payment Amt</th>
-                                                <th className="px-6 py-3 text-right whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">Payment Bal</th>
-                                                <th className="px-6 py-3 text-center whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">Status</th>
-                                                <th className="px-6 py-3 whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">Actions</th>
+                                <div className="overflow-auto">
+                                    <table className="w-full text-[13px] text-left">
+                                        <thead className="sticky top-0 z-10">
+                                            <tr className="bg-zinc-50 dark:bg-zinc-800 text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 border-b border-zinc-300 dark:border-zinc-600">
+                                                {['TID', 'App ID', 'Date', 'Particulars', 'BMR'].map((h) => (
+                                                    <th key={h} className="px-4 py-2.5 whitespace-nowrap">{h}</th>
+                                                ))}
+                                                {['Received', 'Commit', 'Commitable', 'Payment', 'Balance'].map((h) => (
+                                                    <th key={h} className="px-4 py-2.5 text-right whitespace-nowrap">{h}</th>
+                                                ))}
+                                                <th className="px-4 py-2.5 text-center">Status</th>
+                                                {onPaymentClick && <th className="px-4 py-2.5" />}
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                        <tbody className="divide-y divide-zinc-300 dark:divide-zinc-700">
                                             {filteredLedgerTransactions.map((txn) => (
-                                                <tr key={txn.transactionId} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30">
-                                                    <td className="px-6 py-3 text-zinc-500 dark:text-zinc-400 font-mono">{txn.transactionId || '-'}</td>
-                                                    <td className="px-6 py-3 text-zinc-900 dark:text-zinc-100 whitespace-nowrap font-mono text-xs">
-                                                        {txn.frapAppId || '-'}
-                                                    </td>
-                                                    <td className="px-6 py-3 text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
+                                                <tr key={txn.transactionId} className="hover:bg-[#D97757]/5 transition-colors">
+                                                    <td className="px-4 py-2 font-mono text-xs text-zinc-500 dark:text-zinc-400">{txn.transactionId || '-'}</td>
+                                                    <td className="px-4 py-2 font-mono text-xs whitespace-nowrap text-zinc-700 dark:text-zinc-300">{txn.frapAppId || '-'}</td>
+                                                    <td className="px-4 py-2 whitespace-nowrap text-zinc-700 dark:text-zinc-300">
                                                         {txn.transactionDate ? new Date(txn.transactionDate).toLocaleDateString('en-IN') : '-'}
                                                     </td>
-                                                    <td className="px-6 py-3 text-zinc-900 dark:text-zinc-100 max-w-xs truncate" title={txn.particulars}>
-                                                        {txn.particulars}
-                                                        {txn.refDetails && <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{txn.refDetails}</div>}
+                                                    <td className="px-4 py-2 max-w-[260px] text-zinc-900 dark:text-zinc-100" title={txn.particulars}>
+                                                        <div className="truncate">{txn.particulars}</div>
+                                                        {txn.refDetails && <div className="text-[11px] text-zinc-400 dark:text-zinc-500 truncate">{txn.refDetails}</div>}
                                                     </td>
-                                                    <td className="px-6 py-3 text-zinc-600 dark:text-zinc-400">{txn.bmr || '-'}</td>
-                                                    <td className="px-6 py-3 text-right font-medium text-green-600 dark:text-green-400">
-                                                        {txn.fundReceivedAmount ? `₹${txn.fundReceivedAmount.toLocaleString('en-IN')}` : '-'}
+                                                    <td className="px-4 py-2 text-zinc-500 dark:text-zinc-400">{txn.bmr || '-'}</td>
+                                                    <td className="px-4 py-2 text-right tabular-nums font-medium text-emerald-600 dark:text-emerald-400">
+                                                        {txn.fundReceivedAmount ? inr(txn.fundReceivedAmount) : '-'}
                                                     </td>
-                                                    <td className="px-6 py-3 text-right font-medium text-red-600 dark:text-red-400">
-                                                        {txn.commitAmount ? `₹${txn.commitAmount.toLocaleString('en-IN')}` : '-'}
+                                                    <td className="px-4 py-2 text-right tabular-nums font-medium text-orange-600 dark:text-orange-400">
+                                                        {txn.commitAmount ? inr(txn.commitAmount) : '-'}
                                                     </td>
-                                                    <td className="px-6 py-3 text-right font-bold text-zinc-900 dark:text-zinc-100">
-                                                        {txn.commitableBalance ? `₹${txn.commitableBalance.toLocaleString('en-IN')}` : '-'}
+                                                    <td className={cn("px-4 py-2 text-right tabular-nums font-semibold", txn.commitableBalance < 0 ? "text-red-500" : "text-zinc-900 dark:text-zinc-100")}>
+                                                        {txn.commitableBalance ? inr(txn.commitableBalance) : '-'}
                                                     </td>
-                                                    <td className="px-6 py-3 text-right font-medium text-red-600 dark:text-red-400">
-                                                        {txn.paymentAmount ? `₹${txn.paymentAmount.toLocaleString('en-IN')}` : '-'}
+                                                    <td className="px-4 py-2 text-right tabular-nums font-medium text-red-600 dark:text-red-400">
+                                                        {txn.paymentAmount ? inr(txn.paymentAmount) : '-'}
                                                     </td>
-                                                    <td className="px-6 py-3 text-right font-bold text-[#D97757]">
-                                                        {txn.paymentBalance ? `₹${txn.paymentBalance.toLocaleString('en-IN')}` : '0'}
+                                                    <td className={cn("px-4 py-2 text-right tabular-nums font-bold", txn.paymentBalance < 0 ? "text-red-500" : "text-[#D97757]")}>
+                                                        {inr(txn.paymentBalance || 0)}
                                                     </td>
-                                                    <td className="px-6 py-3 text-center">
-                                                        <span className={cn(
-                                                            "inline-flex px-2.5 py-1 rounded-full text-xs font-semibold",
-                                                            txn.status === 'PAID' ? 'bg-green-100 text-green-700' :
-                                                                txn.status === 'PARTIALLY_PAID' ? 'bg-yellow-100 text-yellow-700' :
-                                                                    txn.status === 'PENDING' ? 'bg-orange-100 text-orange-700' :
-                                                                        'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 dark:bg-zinc-800 dark:text-zinc-300'
-                                                        )}>
-                                                            {txn.status}
+                                                    <td className="px-4 py-2 text-center">
+                                                        <span className={cn("inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide", statusStyle(txn.status))}>
+                                                            {txn.status?.replace(/_/g, ' ')}
                                                         </span>
                                                     </td>
-                                                    <td className="px-6 py-3">
-                                                        {((txn.commitAmount || 0) > 0) && (!txn.paymentAmount) && onPaymentClick && (
-                                                            <button
-                                                                onClick={() => {
-                                                                    const mockEntry: BudgetEntry = {
+                                                    {onPaymentClick && (
+                                                        <td className="px-4 py-2">
+                                                            {(txn.commitAmount || 0) > 0 && !txn.paymentAmount && (
+                                                                <button
+                                                                    onClick={() => onPaymentClick({
                                                                         sl: 0,
                                                                         committed: txn.commitAmount || 0,
                                                                         transactionId: txn.transactionId,
                                                                         particulars: txn.particulars,
                                                                         bmr: txn.bmr || '',
-                                                                        head: budgetHeadList.find(h => h.id === activeLedgerHeadId)?.name
-                                                                    };
-                                                                    onPaymentClick(mockEntry);
-                                                                }}
-                                                                className="px-2 py-1 text-xs bg-[#D97757] text-white rounded hover:bg-[#0D9494] transition-colors"
-                                                            >
-                                                                Pay
-                                                            </button>
-                                                        )}
-                                                    </td>
+                                                                        head: activeHeadName,
+                                                                    })}
+                                                                    className="px-2.5 py-1 text-xs font-semibold bg-[#D97757] text-white rounded-md hover:bg-[#c66a4e] transition-colors"
+                                                                >
+                                                                    Pay
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                    )}
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -487,7 +493,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                     )}
 
                     {ledgerView === 'yearly' && (
-                        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden min-h-[300px]">
+                        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-300 dark:border-zinc-600 shadow-sm overflow-hidden min-h-[300px]">
                             <table className="w-full text-sm">
                                 <thead className="bg-zinc-50 dark:bg-zinc-800/50">
                                     <tr>
@@ -500,7 +506,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                                         <th className="px-3 py-2 text-center text-xs font-semibold text-zinc-600 uppercase">Txns</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                <tbody className="divide-y divide-zinc-300 dark:divide-zinc-700">
                                     {yearlyLedgerData.map((row) => {
                                         const isExp = expandedYear === row.fy;
                                         return (
@@ -538,7 +544,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                                                                             <th className="px-3 py-1.5 text-right text-[10px] font-semibold text-blue-600 uppercase">Balance</th>
                                                                         </tr>
                                                                     </thead>
-                                                                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
+                                                                    <tbody className="divide-y divide-zinc-300 dark:divide-zinc-700">
                                                                         {row.txns.map((txn, i) => (
                                                                             <tr key={i} className="hover:bg-zinc-100 dark:hover:bg-zinc-800/50">
                                                                                 <td className="px-3 py-1.5 whitespace-nowrap text-zinc-700 dark:text-zinc-300">
@@ -581,6 +587,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                         </div>
                     )}
                 </div>
+                <ResizeEdges edgeHandlers={edgeHandlers} />
             </div>
         </div>,
         document.body

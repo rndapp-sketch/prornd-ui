@@ -723,7 +723,7 @@ export function ApproverDashboard({ title, queueLabel, quickLinks, includePendin
                         </div>
                     </section>
 
-                    <section className="space-y-2">
+                    {quickLinks.length > 0 && <section className="space-y-2">
                         {quickLinks.map((l) => (
                             <button
                                 key={l.path + l.label}
@@ -741,7 +741,7 @@ export function ApproverDashboard({ title, queueLabel, quickLinks, includePendin
                                 <ChevronRight className="h-4 w-4 shrink-0 text-[#D4D4D8] group-hover:text-[#4A6CF7]" />
                             </button>
                         ))}
-                    </section>
+                    </section>}
                 </aside>
             </div>
 
