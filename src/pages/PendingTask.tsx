@@ -2,6 +2,8 @@
 
 // -=-=-=-=-=-=
 
+import { getPendingTaskRoute } from "@/utils/applicationRoutes";
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useRef } from 'react';
 import { FaExclamationCircle, FaArrowLeft } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
@@ -510,7 +512,7 @@ const PendingTask: React.FC = () => {
             limit: String(psdIds.length),
         });
 
-        fetch(`/api/resource/Project%20Staff%20Details?${params}`, { credentials: "include" })
+        fetch(`${FRAPPE_BASE_URL}/api/resource/Project%20Staff%20Details?${params}`, { credentials: "include" })
             .then(r => r.json())
             .then(async (result) => {
                 const docs: any[] = result?.data ?? [];
@@ -527,7 +529,7 @@ const PendingTask: React.FC = () => {
                     filters: JSON.stringify([["project_no", "in", projectNos.join(",")]]),
                     limit: String(projectNos.length),
                 });
-                const prRes = await fetch(`/api/resource/Project%20Registration?${prParams}`, { credentials: "include" });
+                const prRes = await fetch(`${FRAPPE_BASE_URL}/api/resource/Project%20Registration?${prParams}`, { credentials: "include" });
                 const prResult = await prRes.json();
                 const titleByNo = new Map<string, string>();
                 (prResult?.data ?? []).forEach((pr: any) => {
@@ -564,7 +566,7 @@ const PendingTask: React.FC = () => {
                 filters: JSON.stringify([["name", "in", ids.join(",")]]),
                 limit: String(ids.length),
             });
-            return fetch(`/api/resource/${encodeURIComponent(doctype)}?${params}`, { credentials: "include" })
+            return fetch(`${FRAPPE_BASE_URL}/api/resource/${encodeURIComponent(doctype)}?${params}`, { credentials: "include" })
                 .then(r => r.json())
                 .then(result => {
                     (result?.data ?? result?.message ?? []).forEach((rec: any) => {
@@ -705,28 +707,27 @@ const PendingTask: React.FC = () => {
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans text-[#3F3F46] dark:text-[#E4E4E7]">
             <GlobalLoader isLoading={isLoading} />
 
-            <main className="flex-1 px-6 md:px-8 pt-7 pb-10 w-full overflow-hidden">
+            <main className="flex-1 px-0 pt-0 pb-4 w-full overflow-hidden">
                 {/* Header */}
-                <div className="mb-5 overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
+                <div className="mb-3 overflow-hidden rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
                     <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
-                    <div className="flex items-start gap-3 px-5 py-4">
+                    <div className="flex items-center gap-3 px-4 py-2.5">
                         <button
                             onClick={() => navigate(-1)}
-                            className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
                             aria-label="Back to dashboard"
                         >
                             <FaArrowLeft className="h-3.5 w-3.5" />
                         </button>
                         <div className="min-w-0">
-                            <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">Workflow Inbox</span>
-                            <h1 className="mt-1 font-sans text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Pending Tasks</h1>
-                            <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">Manage and track pending approvals.</p>
+                            <h1 className="font-sans text-[18px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Pending Tasks</h1>
+                            <p className="truncate text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">Manage and track pending approvals.</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Info banner */}
-                <div className="mb-5 flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-800/50 dark:bg-blue-950/30">
+                <div className="mb-3 flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-800/50 dark:bg-blue-950/30">
                     <div className="mt-0.5 flex-shrink-0 flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/40">
                         <svg className="h-4 w-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
@@ -739,7 +740,7 @@ const PendingTask: React.FC = () => {
                 </div>
 
                 {/* Project Type Filter */}
-                <div className="mb-4 border-t-2 border-[#4A6CF7]/35 pt-4 dark:border-[#818CF8]/35">
+                <div className="mb-3 border-t-2 border-[#4A6CF7]/35 pt-3 dark:border-[#818CF8]/35">
                     <div className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#71717A] dark:text-[#A1A1AA]">
                         Project Type
                     </div>
@@ -778,7 +779,7 @@ const PendingTask: React.FC = () => {
                 </div>
 
                 {/* Filter Section */}
-                <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-3 shadow-sm">
+                <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] px-3 py-2 shadow-sm">
                     <div className="flex items-center gap-3">
                         <ModuleFilterSelect
                             value={selectedModule}
@@ -853,28 +854,28 @@ const PendingTask: React.FC = () => {
                 </div>
 
                 {/* Table */}
-                <FrappeCard className="overflow-hidden p-3">
-                    <div className="overflow-x-auto rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
+                <FrappeCard className="overflow-hidden p-0">
+                    <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
                                 <tr>
-                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
-                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Module</th>
-                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Title/Document ID</th>
+                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
+                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Module</th>
+                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Title/Document ID</th>
                                     {showFundingAgencyColumn && (
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Funding Agency</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Funding Agency</th>
                                     )}
-                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Project No.</th>
-                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
-                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Owner</th>
-                                    <th className="px-4 py-3 text-end text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
+                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Project No.</th>
+                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
+                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Owner</th>
+                                    <th className="px-3 py-2 text-end text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800 bg-white dark:bg-zinc-800 text-xs">
                                 {currentTasks.length > 0 ? (
                                     currentTasks.map((task) => (
-                                        <tr key={task.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors group">
-                                            <td className="p-3 align-middle">
+                                        <tr key={task.id} className="even:bg-[#FAFAFA] dark:even:bg-zinc-800/60 hover:bg-[#EEF2FF] dark:hover:bg-zinc-700/50 transition-colors group">
+                                            <td className="px-3 py-2 align-middle">
                                                 <span className={getStatusBadge(task.status)}>
                                                     {task.status}
                                                 </span>
@@ -887,10 +888,10 @@ const PendingTask: React.FC = () => {
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="p-3 align-middle text-zinc-600 dark:text-zinc-400 font-medium">
+                                            <td className="px-3 py-2 align-middle text-zinc-600 dark:text-zinc-400 font-medium">
                                                 {task.doctype}
                                             </td>
-                                            <td className="p-3 align-middle font-medium text-zinc-900 dark:text-zinc-200">
+                                            <td className="px-3 py-2 align-middle font-medium text-zinc-900 dark:text-zinc-200">
                                                 <button
                                                     className="text-left hover:text-[#D97757] transition-colors flex items-center gap-1.5 group/title"
                                                     onClick={() => setSelectedTask({ doctype: task.doctype, docname: task.id, title: task.title })}
@@ -904,7 +905,7 @@ const PendingTask: React.FC = () => {
                                                 </button>
                                             </td>
                                             {showFundingAgencyColumn && (
-                                                <td className="p-3 align-middle text-zinc-600 dark:text-zinc-400">
+                                                <td className="px-3 py-2 align-middle text-zinc-600 dark:text-zinc-400">
                                                     {(() => {
                                                         // Resolved through the task's own project, so this works for
                                                         // every application form, not just Project Registration.
@@ -914,7 +915,7 @@ const PendingTask: React.FC = () => {
                                                     })()}
                                                 </td>
                                             )}
-                                            <td className="p-3 align-middle font-mono text-zinc-500 dark:text-zinc-400 text-xs">
+                                            <td className="px-3 py-2 align-middle font-mono text-zinc-500 dark:text-zinc-400 text-xs">
                                                 {task.doctype === "Fund Received" ? (
                                                     <div className="flex flex-col gap-0.5">
                                                         <span>{task.projectNo || "-"}</span>
@@ -928,10 +929,10 @@ const PendingTask: React.FC = () => {
                                                     psdProjectNos.get(task.id) || task.projectNo || task.id
                                                 )}
                                             </td>
-                                            <td className="p-3 align-middle text-zinc-500 dark:text-zinc-400">
+                                            <td className="px-3 py-2 align-middle text-zinc-500 dark:text-zinc-400">
                                                 {task.creation ? new Date(task.creation).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "-"}
                                             </td>
-                                            <td className="p-3 align-middle text-zinc-600 dark:text-zinc-400">
+                                            <td className="px-3 py-2 align-middle text-zinc-600 dark:text-zinc-400">
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-6 h-6 rounded-full bg-zinc-100 flex items-center justify-center text-xs font-bold text-zinc-500">
                                                         {task.owner.charAt(0).toUpperCase()}
@@ -939,44 +940,12 @@ const PendingTask: React.FC = () => {
                                                     <span className="truncate max-w-[100px]">{task.owner}</span>
                                                 </div>
                                             </td>
-                                            <td className="p-3 align-middle text-right">
+                                            <td className="px-3 py-2 align-middle text-right">
                                                 <div className="flex items-center justify-end gap-2">
                                                     <FrappeButton
                                                         variant="primary"
                                                         onClick={() => {
-                                                            if (task.doctype === "Fund Received") {
-                                                                navigate(`/fund-received/${task.id}`);
-                                                            } else if (task.doctype === "Reimbursement") {
-                                                                navigate(`/reimbursement/${task.id}`);
-                                                            } else if (task.doctype === "Advance Settlement") {
-                                                                navigate(`/advance-settlement/${task.id}`);
-                                                            } else if (task.doctype === "Temporary Advance") {
-                                                                navigate(`/pending-tasks/${encodeURIComponent(task.doctype)}/${task.id}`);
-                                                            } else if (task.doctype === "Direct Purchase") {
-                                                                navigate(`/direct-purchase/${task.id}`);
-                                                            } else if (task.doctype === "Disbursal of Consultancy") {
-                                                                navigate(`/disbursal-of-consultancy/${task.id}`);
-                                                            } else if (task.doctype === "Travel") {
-                                                                navigate(`/travel/${task.id}`);
-                                                            } else if (task.doctype === "Selection Committee Report") {
-                                                                navigate(`/selection-committee-report/${task.id}`);
-                                                            } else if (task.doctype === "Project Staff Details") {
-                                                                navigate(`/project-staff-joining?docname=${encodeURIComponent(task.id)}`);
-                                                            } else if (task.doctype === "Project Staff Resignation") {
-                                                                navigate(`/project-staff-resignation?edit=${encodeURIComponent(task.id)}`);
-                                                            } else if (task.doctype === "Project Staff Extension") {
-                                                                navigate(`/project-staff-extension?edit=${encodeURIComponent(task.id)}`);
-                                                            } else if (task.doctype === "Proforma_Invoice") {
-                                                                navigate(`/proforma-invoice/${task.id}`);
-                                                            } else if (task.doctype === "Miscellaneous Commit") {
-                                                                navigate(`/miscellaneous-commit/${task.id}`);
-                                                            } else if (task.doctype === "Loan Request") {
-                                                                navigate(`/loan-request/${task.id}`);
-                                                            } else if (task.doctype === "Loan Settlement") {
-                                                                navigate(`/loan-settlement/${task.id}`);
-                                                            } else {
-                                                                navigate(`/pending-tasks/${task.doctype}/${task.id}`);
-                                                            }
+                                                            navigate(getPendingTaskRoute(task.doctype, task.id));
                                                         }}
                                                         className="px-3 py-1.5 text-xs h-8 shadow-sm"
                                                     >
@@ -1009,7 +978,7 @@ const PendingTask: React.FC = () => {
                     </div>
 
                     {filteredTasks.length > 0 && (
-                        <div className="p-4 border-t border-zinc-200 dark:border-zinc-700 flex justify-between items-center bg-white dark:bg-zinc-800">
+                        <div className="px-4 py-2 border-t border-zinc-200 dark:border-zinc-700 flex justify-between items-center bg-white dark:bg-zinc-800">
                             <div className="text-sm text-zinc-500 dark:text-zinc-400">
                                 Showing <span className="font-medium text-zinc-900 dark:text-zinc-200">{indexOfFirstTask + 1}</span> to <span className="font-medium text-zinc-900 dark:text-zinc-200">{Math.min(indexOfLastTask, filteredTasks.length)}</span> of {filteredTasks.length} entries
                             </div>

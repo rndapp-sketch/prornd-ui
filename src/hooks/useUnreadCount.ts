@@ -19,6 +19,10 @@ async function countUnread(myUserId: string): Promise<number> {
         (m) =>
             conversationIds.has(m.conversation_id) &&
             m.sender_id !== myUserId &&
+            // A message the sender deleted for everyone has nothing left to read.
+            !m.deleted_for_everyone &&
+            // Hidden by "Delete for me": not shown in the thread, so it can never be marked read.
+            !(m.deleted_for_user_ids ?? []).includes(myUserId) &&
             !(m.read_by ?? []).includes(myUserId),
     ).length;
 }

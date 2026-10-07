@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { ErrorModal } from './ErrorModal';
@@ -33,7 +34,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             const fetchFields = async () => {
                 setIsLoadingFields(true);
                 try {
-                    const response = await fetch('/api/method/rndopsapp.rndopsapp.commitPayment.get_account_head_payment_fields');
+                    const response = await fetch(`${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.commitPayment.get_account_head_payment_fields`);
                     const result = await response.json();
                     if (result?.message) {
                         const { fields, prefill_data, link_options } = result.message;
@@ -66,7 +67,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     const handleSubmitPayment = async () => {
         setIsPaymentSubmitting(true);
         try {
-            const response = await fetch('/api/method/rndopsapp.rndopsapp.doctype.accountheadpayment.accountheadpayment.submit_payment_data', {
+            const response = await fetch(`${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.accountheadpayment.accountheadpayment.submit_payment_data`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

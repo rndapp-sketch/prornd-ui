@@ -170,7 +170,7 @@ const DynamicFormPage: React.FC<DynamicFormPageProps> = ({
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <main className="flex-1 p-4 md:p-8 w-full overflow-hidden max-w-7xl mx-auto">
+      <main className="flex-1 p-0 w-full overflow-hidden max-w-7xl mx-auto">
         {showBackButton && (
           <header className="mb-8 p-4 bg-white dark:bg-zinc-900 border-2 border-slate-800 rounded-lg shadow-[2px_2px_0px_rgba(20,20,30,0.1)]">
             <div className="flex items-center gap-4">

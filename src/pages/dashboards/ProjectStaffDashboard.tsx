@@ -203,7 +203,7 @@ const DOCTYPE_ICONS: Record<string, React.ElementType> = {
 
 // Shared surface: tinted, wide-spreading shadow instead of a hard drop shadow
 const SURFACE =
-  "rounded-3xl border border-zinc-200/70 bg-white shadow-[0_1px_2px_rgba(24,24,27,0.04),0_18px_40px_-24px_rgba(24,24,27,0.12)] dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-none";
+  "rounded-xl border border-[#E4E4E7] bg-white dark:border-[#3F3F46] dark:bg-[#27272A]";
 
 const REVEAL = "animate-in fade-in slide-in-from-bottom-1 fill-mode-both duration-500 motion-reduce:animate-none";
 
@@ -336,7 +336,7 @@ function TermProgress({ start, end }: { start?: string; end?: string }) {
 
 function ProfileRow({ label, mono, children }: { label: string; mono?: boolean; children: React.ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-6 py-3">
+    <div className="flex items-baseline justify-between gap-3 py-3">
       <dt className="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">{label}</dt>
       <dd
         className={cn(
@@ -823,9 +823,9 @@ export function ProjectStaffDashboard() {
   const pendingTasks = React.useMemo(() => {
     if (!pendingData?.message) return [];
     const records = [
-      ...pendingData.message.research,
-      ...pendingData.message.consultancy,
-      ...pendingData.message.others,
+      ...(pendingData.message.research ?? []),
+      ...(pendingData.message.consultancy ?? []),
+      ...(pendingData.message.others ?? []),
     ];
     const tasks: (TaskRecord & { doctype: string })[] = records
       .filter((r) => r.mod_vis || r.doctype === "Advance Settlement")
@@ -919,48 +919,37 @@ export function ProjectStaffDashboard() {
 
   return (
     <div className="relative min-h-[100dvh] overflow-x-clip bg-[#FAFAF9] font-sans text-zinc-900 dark:bg-[#18181B] dark:text-zinc-100">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[26rem] bg-[radial-gradient(48rem_22rem_at_8%_-8%,rgba(16,185,129,0.08),transparent_70%)] dark:bg-[radial-gradient(48rem_22rem_at_8%_-8%,rgba(16,185,129,0.10),transparent_70%)]"
-      />
-
-      <div className="relative mx-auto w-full max-w-7xl px-4 py-8 md:px-8 md:py-12">
+      <div className="relative w-full px-0 pb-4 pt-0">
 
         {/* Header */}
-        <header className="mb-8 flex flex-col gap-5 md:mb-10 md:flex-row md:items-end md:justify-between">
-          <div className="flex items-center gap-4 md:gap-5">
-            <div className="relative grid size-14 shrink-0 place-items-center rounded-2xl bg-zinc-900 text-lg font-semibold tracking-tight text-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] dark:bg-zinc-100 dark:text-zinc-900 md:size-16 md:text-xl">
+        <header className="mb-3 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#D97757] text-[11px] font-extrabold text-white shadow-sm">
               {getInitials(displayName)}
-              <span className="absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full bg-emerald-500 ring-[3px] ring-[#FAFAF9] dark:ring-[#18181B]" />
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+              <h1 className="text-[18px] font-extrabold leading-none tracking-[-0.02em] text-[#27272A] dark:text-[#F4F4F5]">
                 Project Staff Dashboard
-              </p>
-              <h1 className="mt-1 truncate text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-3xl">
-                {getGreeting()}, {firstName}
               </h1>
-              {(basic?.ps_designation || basic?.project_no) && (
-                <p className="mt-1 truncate text-sm text-zinc-500 dark:text-zinc-400">
-                  {basic?.ps_designation}
-                  {basic?.ps_designation && basic?.project_no && <span className="mx-2 text-zinc-300 dark:text-zinc-600">/</span>}
-                  {basic?.project_no && <span className="font-mono text-[13px]">{basic.project_no}</span>}
-                </p>
-              )}
+              <p className="mt-1 truncate text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
+                {getGreeting()}, <span className="font-semibold text-[#3F3F46] dark:text-[#D4D4D8]">{firstName}</span>
+                {basic?.ps_designation && <span> · {basic.ps_designation}</span>}
+                {basic?.project_no && <span className="font-mono"> · {basic.project_no}</span>}
+              </p>
             </div>
           </div>
           <CurrentTime />
         </header>
 
         {/* Internal Navigation Tabs */}
-        <nav className="mb-8 inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-full bg-zinc-200/60 p-1 dark:bg-zinc-800/80">
+        <nav className="mb-6 inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border border-[#E4E4E7] bg-white p-1 dark:border-[#3F3F46] dark:bg-[#27272A]">
           <button
             onClick={() => navigate("/project-staff-dashboard")}
             className={cn(
-              "inline-flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/50 active:scale-[0.98]",
+              "inline-flex items-center gap-2 whitespace-nowrap rounded-md px-3.5 py-1.5 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/40",
               isOverview
-                ? "bg-white text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.08)] dark:bg-zinc-700 dark:text-zinc-50"
-                : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+                ? "bg-blue-50 text-[#1D4ED8] dark:bg-blue-500/15 dark:text-blue-300"
+                : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
             )}
           >
             <LayoutGrid className="size-4" strokeWidth={1.75} />
@@ -983,10 +972,10 @@ export function ProjectStaffDashboard() {
           <button
             onClick={() => navigate("/project-staff-dashboard?tab=tracking")}
             className={cn(
-              "inline-flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/50 active:scale-[0.98]",
+              "inline-flex items-center gap-2 whitespace-nowrap rounded-md px-3.5 py-1.5 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/40",
               activeTab === "tracking"
-                ? "bg-white text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.08)] dark:bg-zinc-700 dark:text-zinc-50"
-                : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+                ? "bg-blue-50 text-[#1D4ED8] dark:bg-blue-500/15 dark:text-blue-300"
+                : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
             )}
           >
             <ListTodo className="size-4" strokeWidth={1.75} />
@@ -1051,7 +1040,7 @@ export function ProjectStaffDashboard() {
               className={cn(
                 SURFACE,
                 REVEAL,
-                "grid grid-cols-2 gap-px overflow-hidden !rounded-2xl bg-zinc-200/70 dark:bg-zinc-800 md:grid-cols-4"
+                "grid grid-cols-2 gap-px overflow-hidden !rounded-xl bg-zinc-200/70 dark:bg-zinc-800 md:grid-cols-4"
               )}
             >
               <StatCell
@@ -1084,7 +1073,7 @@ export function ProjectStaffDashboard() {
               />
             </section>
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:gap-8">
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:gap-8">
               {/* Recent Submissions */}
               <section className={cn(SURFACE, "overflow-hidden")}>
                 <div className="flex items-end justify-between gap-4 px-6 pb-4 pt-6">
@@ -1120,7 +1109,7 @@ export function ProjectStaffDashboard() {
                   </div>
                 ) : trackingItems.length === 0 ? (
                   <div className="flex flex-col items-center border-t border-zinc-100 px-6 py-16 text-center dark:border-zinc-800">
-                    <div className="grid size-14 place-items-center rounded-2xl border border-dashed border-zinc-300 text-zinc-400 dark:border-zinc-700">
+                    <div className="grid size-14 place-items-center rounded-lg border border-dashed border-zinc-300 text-zinc-400 dark:border-zinc-700">
                       <Inbox className="size-6" strokeWidth={1.5} />
                     </div>
                     <p className="mt-5 text-sm font-medium text-zinc-900 dark:text-zinc-100">Nothing submitted yet</p>
@@ -1185,14 +1174,14 @@ export function ProjectStaffDashboard() {
                   <div className="mt-6 space-y-4">
                     <Skeleton className="h-10 w-full" />
                     {[0, 1, 2, 3, 4, 5].map((i) => (
-                      <div key={i} className="flex justify-between gap-6">
+                      <div key={i} className="flex justify-between gap-3">
                         <Skeleton className="h-3.5 w-20" />
                         <Skeleton className="h-3.5 w-32" />
                       </div>
                     ))}
                   </div>
                 ) : !basic ? (
-                  <div className="mt-6 flex flex-col items-center rounded-2xl border border-dashed border-zinc-300 px-4 py-10 text-center dark:border-zinc-700">
+                  <div className="mt-6 flex flex-col items-center rounded-lg border border-dashed border-zinc-300 px-4 py-10 text-center dark:border-zinc-700">
                     <UserIcon className="size-6 text-zinc-400" strokeWidth={1.5} />
                     <p className="mt-3 text-sm font-medium text-zinc-900 dark:text-zinc-100">No record linked</p>
                     <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
@@ -1387,7 +1376,7 @@ export function ProjectStaffDashboard() {
                 <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                   <div className="h-11 bg-zinc-50/70 dark:bg-zinc-900" />
                   {[0, 1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="flex items-center gap-6 px-5 py-4">
+                    <div key={i} className="flex items-center gap-3 px-5 py-4">
                       <div className="flex-1 space-y-2">
                         <Skeleton className="h-3.5 w-40" />
                         <Skeleton className="h-3 w-28" />
@@ -1399,7 +1388,7 @@ export function ProjectStaffDashboard() {
                 </div>
               ) : filteredItems.length === 0 ? (
                 <div className="flex flex-col items-center px-6 py-20 text-center">
-                  <div className="grid size-14 place-items-center rounded-2xl border border-dashed border-zinc-300 text-zinc-400 dark:border-zinc-700">
+                  <div className="grid size-14 place-items-center rounded-lg border border-dashed border-zinc-300 text-zinc-400 dark:border-zinc-700">
                     <Search className="size-6" strokeWidth={1.5} />
                   </div>
                   <p className="mt-5 text-sm font-medium text-zinc-900 dark:text-zinc-100">No applications match</p>
@@ -1519,7 +1508,7 @@ export function ProjectStaffDashboard() {
 
           {/* Quick Action Cards */}
           {false && (
-            <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
               {/* Pending Approvals */}
               <button
                 onClick={() => navigate("/pending-task")}
@@ -1583,7 +1572,7 @@ export function ProjectStaffDashboard() {
 
           {/* Stats Row */}
           {false && (
-            <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-3">
               <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm">
                 <AnalyticsCard
                   title="Pending"
@@ -1621,9 +1610,9 @@ export function ProjectStaffDashboard() {
 
           {/* Two-Column: Recent Pending + Recently Processed */}
           {false && (
-            <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <section className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
               {/* Recent Pending Approvals */}
-              <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
+              <div className="bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
                 <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <ClipboardCheck className="h-4 w-4 text-[#D97757]" />
@@ -1679,7 +1668,7 @@ export function ProjectStaffDashboard() {
               </div>
 
               {/* Recently Processed */}
-              <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
+              <div className="bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
                 <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <BarChart className="h-4 w-4 text-[#D97757]" />

@@ -1,6 +1,7 @@
 
 // -=-=-=-=-=-=-=-=-=-==-=-=-=
 
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, memo, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 
@@ -39,7 +40,7 @@ async function resolveUniqueSanctionLetterNo(
     docname?: string,
 ): Promise<{ isDuplicate: boolean; finalValue: string; existingDoc: string | null }> {
     const res = await fetch(
-        "/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.check_sanctioned_letter_no",
+        `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.check_sanctioned_letter_no`,
         {
             method: "POST",
             headers: {
@@ -658,7 +659,7 @@ const AddFundSanction: React.FC = () => {
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
          
-            <main className="flex-1 px-6 md:px-8 pt-7 pb-10 w-full overflow-hidden">
+            <main className="flex-1 px-0 pt-0 pb-4 w-full overflow-hidden">
                 <header className="mb-5 overflow-hidden bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm">
                     <div className="h-1.5 bg-[linear-gradient(to_right,#4A6CF7,#2563EB,#D97757)]" />
                     <div className="p-5 flex items-center gap-3">

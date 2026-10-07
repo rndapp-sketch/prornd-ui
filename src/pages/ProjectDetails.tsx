@@ -1,5 +1,6 @@
 // -=-=-=-=--= v4
 
+import { FRAPPE_BASE_URL, toSameOriginFileUrl } from "@/utils/frappeUrl";
 import { getFileUrl } from "@/utils/fileUtils";
 import React, {
     useState,
@@ -103,9 +104,7 @@ interface ProjectDetailsProps {
     backLabel?: string;
 }
 
-const APP_BACKEND_HOST = import.meta.env.VITE_APP_BACKEND_HOST || "172.16.131.206";
-const APP_BACKEND_PORT = import.meta.env.VITE_APP_BACKEND_PORT || "8000";
-const DORND_SIGNATURE_SEAL_URL = `http://${APP_BACKEND_HOST}:${APP_BACKEND_PORT}/files/Sign_dornd_stamp_rnd.jpg`;
+const DORND_SIGNATURE_SEAL_URL = `${FRAPPE_BASE_URL}/files/Sign_dornd_stamp_rnd.jpg`;
 
 const waitForDocumentAssets = async (document: Document) => {
     if (document.fonts?.ready) {
@@ -325,21 +324,6 @@ const EndorsementModal = ({
             </div>
         </div>
     );
-};
-
-const toSameOriginFileUrl = (src: string) => {
-    try {
-        const url = new URL(src, window.location.origin);
-        if (
-            url.hostname === APP_BACKEND_HOST ||
-            url.hostname === window.location.hostname
-        ) {
-            return `${url.pathname}${url.search}${url.hash}`;
-        }
-    } catch {
-        return src;
-    }
-    return src;
 };
 
 const normalizeEndorsementHtmlForProject = (
@@ -1076,7 +1060,7 @@ function usePutBackAlert(doctype: string, docname?: string) {
         if (!docname) return;
         let cancelled = false;
         fetch(
-            `/api/method/rndopsapp.rndopsapp.api.get_project_activity?doctype=${encodeURIComponent(doctype)}&docname=${encodeURIComponent(docname)}`,
+            `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.api.get_project_activity?doctype=${encodeURIComponent(doctype)}&docname=${encodeURIComponent(docname)}`,
             { credentials: "include" },
         )
             .then((res) => (res.ok ? res.json() : null))
@@ -1648,7 +1632,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
         const fetchBudgetHeads = async () => {
             try {
                 const response = await fetch(
-                    '/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0',
+                    `${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0`,
                 );
                 const result = await response.json();
                 if (result?.data) {

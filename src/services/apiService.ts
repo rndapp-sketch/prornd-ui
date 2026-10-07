@@ -259,6 +259,12 @@ export const disbursalOfHonorariumAPI = {
     getPendingDirectorUploads: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.get_pending_director_uploads_honorarium`,
 };
 
+// Universal Put Back API endpoints (rndopsapp/rndopsapp/put_back_action.py)
+export const putBackAPI = {
+    getStates: 'rndopsapp.rndopsapp.put_back_action.get_put_back_document_states',
+    setState: 'rndopsapp.rndopsapp.put_back_action.set_put_back_workflow_state',
+};
+
 // Universal User API endpoints
 export const universalUserAPI = {
     getFields: `${API_BASE}.universal_user__.universal_user__.get_universal_user___fields`,

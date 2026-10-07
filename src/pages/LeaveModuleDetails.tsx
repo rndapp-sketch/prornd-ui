@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useMemo } from 'react';
 import { getFileUrl } from "@/utils/fileUtils";
 import { useParams, useNavigate } from 'react-router-dom';
@@ -188,7 +189,7 @@ const LeaveModuleDetails = () => {
         if (!doc || !confirm('Are you sure you want to delete this draft?')) return;
         setIsDeleting(true);
         try {
-            const res = await fetch(`/api/resource/Leave Module/${doc.name}`, { method: 'DELETE' });
+            const res = await fetch(`${FRAPPE_BASE_URL}/api/resource/Leave Module/${doc.name}`, { method: 'DELETE' });
             if (res.ok) {
                 alert('Draft deleted successfully.');
                 navigate('/leave-module');
@@ -218,7 +219,7 @@ const LeaveModuleDetails = () => {
     if (!doc) {
         return (
             <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-                <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+                <main className="flex-1 p-0 w-full overflow-hidden">
                     <PageHeader title="Leave Application" />
                     <div className="mt-16 text-center text-zinc-500 dark:text-zinc-400">
                         Leave application not found.
@@ -230,7 +231,7 @@ const LeaveModuleDetails = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+            <main className="flex-1 p-0 w-full overflow-hidden">
                 <PageHeader
                     title={`${doc.name} — ${doc.leave_type || 'Leave'} Application`}
                     status={workflowState}

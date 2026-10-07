@@ -33,6 +33,7 @@ import {
     X,
     Pencil,
     ReceiptIndianRupee,
+    RefreshCw,
 } from "lucide-react";
 import {
     EndorsementCertificate,
@@ -358,6 +359,11 @@ const MemoizedFormField = memo(
                                         : "text"
                             }
                             {...commonProps}
+                            className={
+                                field.fieldname === "project_title"
+                                    ? cn(inputClasses, "h-14 text-base font-semibold px-4")
+                                    : commonProps.className
+                            }
                             value={value || ""}
                             onChange={(e) =>
                                 onChange(field.fieldname, e.target.value)
@@ -2082,10 +2088,39 @@ const ProjectRegistration: React.FC = () => {
                             details?.designation ||
                             "";
                     }
-                    department =
+                    // Resolve to the Department_prornd record's actual name/dept_id (not a
+                    // raw/displayed label) the same way the PI's own department is resolved
+                    // in handleFieldChangeWithSideEffects — otherwise a value like a bare
+                    // hash autoname can end up stored verbatim and never resolve to a
+                    // readable name downstream (DepartmentName looks it up by name/dept_id).
+                    const deptName =
                         details?.department_name ||
+                        details?.department ||
                         details?.applicant_department ||
                         "";
+                    if (deptName) {
+                        const normalize = (s: string) => s.trim().toLowerCase();
+                        const deptOptions = linkOptions["applicant_department"] || [];
+                        const matchedOption = deptOptions.find(
+                            (opt) =>
+                                normalize(opt.label) === normalize(deptName) ||
+                                normalize(opt.value) === normalize(deptName),
+                        );
+                        if (matchedOption) {
+                            department = matchedOption.label;
+                        } else {
+                            try {
+                                const deptLookup = await fetchDeptHead({
+                                    doctype: "Department_prornd",
+                                    fieldname: "dept_name",
+                                    filters: { name: deptName },
+                                });
+                                department = deptLookup?.message?.dept_name || deptName;
+                            } catch (e) {
+                                department = deptName;
+                            }
+                        }
+                    }
                     address =
                         details?.inst_name_address ||
                         details?.copi_address ||
@@ -2114,7 +2149,7 @@ const ProjectRegistration: React.FC = () => {
                 return { ...prev, [tableName]: t };
             });
         },
-        [linkOptions, fetchPiDetails],
+        [linkOptions, fetchPiDetails, fetchDeptHead],
     );
 
     const addBudgetRow = useCallback(
@@ -2298,6 +2333,49 @@ const ProjectRegistration: React.FC = () => {
 
     const renderFields = (fieldnames: string[]) =>
         fieldnames.map((fn) => renderField(fn));
+
+    // Re-runs the pi_webmail fetch that populates Name, Employee ID, Designation
+    // and Department — used when one of those fields didn't get auto-filled.
+    const refetchPiDetails = useCallback(() => {
+        const webmail = formData.pi_webmail || currentUser;
+        if (webmail) {
+            handleFieldChangeWithSideEffects("pi_webmail", webmail);
+        }
+    }, [formData.pi_webmail, currentUser, handleFieldChangeWithSideEffects]);
+
+    // Wraps a PI field with a small refresh icon and, when it has no value yet,
+    // a placeholder nudging the user to refetch it.
+    const renderPiField = (fieldname: string) => {
+        const field = renderField(fieldname);
+        if (!field) return null;
+        const isEmpty = !formData[fieldname];
+        return (
+            <div key={fieldname} className="relative">
+                {field}
+                {isEditMode && (
+                    <button
+                        type="button"
+                        title="Refetch from PI webmail"
+                        disabled={isFetchingPiDetails}
+                        onClick={refetchPiDetails}
+                        className="absolute right-0 top-0 rounded p-0.5 text-[#4A6CF7] transition-colors hover:bg-[#4A6CF7]/10 disabled:opacity-40 dark:text-[#93C5FD]"
+                    >
+                        <RefreshCw
+                            className={cn(
+                                "h-3 w-3",
+                                isFetchingPiDetails && "animate-spin",
+                            )}
+                        />
+                    </button>
+                )}
+                {isEmpty && !isFetchingPiDetails && (
+                    <p className="mt-1 text-[11px] italic text-amber-600 dark:text-amber-400">
+                        Not filled in — click the refresh icon above to fetch it.
+                    </p>
+                )}
+            </div>
+        );
+    };
 
     const fileToBase64 = (
         file: File,
@@ -3048,10 +3126,10 @@ Endorsement is optional. You may continue completing Project Registration while 
 
         return (
             <div className="flex-1 w-full bg-[#F4F4F5] dark:bg-[#0F0F10] min-h-screen">
-                <div className="w-full px-4 md:px-8 py-8 mx-auto">
+                <div className="w-full px-0 py-0 mx-auto">
 
                     {/* Page header */}
-                    <div className="flex items-center gap-3 mb-6">
+                    <div className="flex items-center gap-3 mb-3">
                         <button
                             type="button"
                             onClick={() => navigate(-1)}
@@ -3492,7 +3570,7 @@ Endorsement is optional. You may continue completing Project Registration while 
             )}
             <main className="w-full overflow-hidden bg-[#FAFAF9] dark:bg-[#18181B]">
                 {/* Page header */}
-                <header className="mb-5 flex items-start justify-between gap-4">
+                <header className="mb-3 flex items-start justify-between gap-4">
                     <div>
                         <h1 className="font-sans text-[21px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7]">
                             {docname ? "Project Registration" : "New Project Registration"}
@@ -3563,7 +3641,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                         </nav>
                     </div>
 
-                    <div className="bg-zinc-100 dark:bg-zinc-800 p-4 md:p-5">
+                    <div className="bg-zinc-100 dark:bg-zinc-800 p-3">
                         {/* Form loading skeleton — shown until fields arrive */}
                         {(loading || fields.length === 0) && (
                             <div className="space-y-4">
@@ -3610,7 +3688,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                             {renderField("project_type")}
                                             {formData.project_type ===
                                                 "Research" && (
-                                                    <div className="space-y-8">
+                                                    <div className="space-y-4">
                                                         {renderField("involves_international_travel")}
                                                         <FrappeCard className="overflow-hidden p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
                                                             <div className="flex items-center justify-between flex-wrap gap-4">
@@ -3646,7 +3724,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                 )}
                                             {formData.project_type ===
                                                 "Consultancy" && (
-                                                    <div className="space-y-8">
+                                                    <div className="space-y-4">
                                                         <div className="space-y-4">
                                                             {renderField(
                                                                 "consultancy_category",
@@ -4076,18 +4154,18 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                     )}
                                                 </div>
                                                 <div className="p-5 space-y-8">
-                                                    {renderField("pi_webmail")}
+                                                    {renderPiField("pi_webmail")}
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-4 border-t border-dashed border-zinc-400 dark:border-zinc-600">
-                                                        {renderField(
+                                                        {renderPiField(
                                                             "principal_investigator_name",
                                                         )}
-                                                        {renderField(
+                                                        {renderPiField(
                                                             "pi_employee_id",
                                                         )}
-                                                        {renderField(
+                                                        {renderPiField(
                                                             "designation",
                                                         )}
-                                                        {renderField(
+                                                        {renderPiField(
                                                             "applicant_department",
                                                         )}
                                                         {renderField(
@@ -4157,7 +4235,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                                     </p>
                                                                     <button
                                                                         type="button"
-                                                                        onClick={() => window.open(`http://${import.meta.env.VITE_APP_BACKEND_HOST || "172.16.131.206"}:${import.meta.env.VITE_APP_BACKEND_REGISTRATION_PORT || "8081"}/universal-registration`, "_blank")}
+                                                                        onClick={() => window.open(`${window.location.origin}/universal-registration`, "_blank")}
                                                                         className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm"
                                                                     >
                                                                         <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
@@ -4209,7 +4287,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                                 </p>
                                                                 <button
                                                                     type="button"
-                                                                    onClick={() => window.open(`http://${import.meta.env.VITE_APP_BACKEND_HOST || "172.16.131.206"}:${import.meta.env.VITE_APP_BACKEND_REGISTRATION_PORT || "8081"}/universal-registration`, "_blank")}
+                                                                    onClick={() => window.open(`${window.location.origin}/universal-registration`, "_blank")}
                                                                     className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm"
                                                                 >
                                                                     <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>

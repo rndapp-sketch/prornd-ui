@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Ban, CheckCircle2, Clock, FileText, XCircle } from "lucide-react";
@@ -79,7 +80,7 @@ export const MyCancellationRequests: React.FC<{ rows: CancellationRequestRow[] }
                         reference_name: r.reference_docname!,
                     });
                     const res = await fetch(
-                        `/api/method/rndopsapp.rndopsapp.cancellation_api.get_cancellation_status?${params}`,
+                        `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.cancellation_api.get_cancellation_status?${params}`,
                         { credentials: "include" },
                     ).then((res) => res.json());
                     const list: EnrichedInfo[] = res?.message?.cancellation_requests || [];

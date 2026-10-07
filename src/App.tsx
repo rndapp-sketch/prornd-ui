@@ -1,5 +1,8 @@
 // ======================================
 
+import { DomainReminder } from "@/components/DomainReminder";
+import { AnnouncementBell } from "@/components/AnnouncementBell";
+import { FRAPPE_BASE_URL, frappeUrl } from "@/utils/frappeUrl";
 import {
   FrappeProvider,
   useFrappeAuth,
@@ -21,11 +24,12 @@ import {
   UserCircle,
   Sparkles,
 } from "lucide-react";
-import { GlobalLoader } from "@/components/ui/global-loader";
+import { GlobalLoader, GlobalLoaderHost } from "@/components/ui/global-loader";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { SWRConfig, useSWRConfig } from "swr";
 import { useRef, useEffect, useState } from "react";
 import CommandPalette, { useCommandPalette } from "@/components/CommandPalette";
+import { safeStorage } from "@/lib/safeStorage";
 import { ThemeProvider, useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -79,8 +83,8 @@ function AppContent() {
   const forceServerLogout = async () => {
     const csrfToken = (window as any).csrf_token || "";
     const requests: Array<{ method: "POST" | "GET"; url: string }> = [
-      { method: "POST", url: "/api/method/logout" },
-      { method: "GET", url: "/api/method/logout" },
+      { method: "POST", url: `${FRAPPE_BASE_URL}/api/method/logout` },
+      { method: "GET", url: `${FRAPPE_BASE_URL}/api/method/logout` },
     ];
     for (const req of requests) {
       try {
@@ -109,7 +113,7 @@ function AppContent() {
       await forceServerLogout();
     } finally {
       await mutate(() => true, undefined, { revalidate: false });
-      localStorage.removeItem("prornd_last_user");
+      safeStorage.removeItem("prornd_last_user");
       navigate("/login", { replace: true });
       // Hard reload for a clean slate (fresh Frappe session/socket state) — must use
       // the configured base path, not a bare "/login": under a non-root base (e.g.
@@ -149,10 +153,12 @@ function AppContent() {
     }
   }
 
-  const userImageUrl = actualUserData?.user_image || null;
+  const userImageUrl = actualUserData?.user_image ? frappeUrl(actualUserData.user_image) : null;
 
   return (
     <div className="App bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
+      <GlobalLoaderHost />
+      <DomainReminder />
       <GlobalLoader isLoading={showGlobalLoader} />
 
       <SWRConfig
@@ -166,7 +172,12 @@ function AppContent() {
         {isPublicPage ? (
           <Outlet />
         ) : (
-          <SidebarProvider className="flex min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
+          // Width vars live on the provider: the layout spacer next to the fixed sidebar reads
+          // them from here, so they must match the sidebar or it overlaps the content.
+          <SidebarProvider
+            className="flex min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]"
+            style={{ "--sidebar-width": "14.5rem", "--sidebar-width-icon": "4rem" } as React.CSSProperties}
+          >
             {currentUser && <AppSidebar />}
 
             <SidebarInset className="bg-[#FAFAF9] dark:bg-[#18181B] flex flex-col min-h-screen">
@@ -225,6 +236,9 @@ function AppContent() {
                             ⌘K
                           </kbd>
                         </button>
+
+                        {/* Announcements (Announcement Pragati) */}
+                        <AnnouncementBell user={currentUser} />
 
                         {/* What's New */}
                         <Tooltip>
@@ -340,7 +354,7 @@ function AppContent() {
 
               {/* Main Content Area */}
               <main className="flex-1 px-5 py-3 lg:px-7 lg:py-4">
-                <div className="mx-auto w-full max-w-[1600px] animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <div className="mx-auto w-full max-w-[1600px]">
                   <Outlet />
                 </div>
               </main>
@@ -361,7 +375,7 @@ function AppContent() {
 function App() {
   return (
     <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
-      <FrappeProvider siteName="prornd.local" enableSocket={false}>
+      <FrappeProvider url={FRAPPE_BASE_URL} siteName="prornd.local" enableSocket={false}>
         <AppContent />
       </FrappeProvider>
     </ThemeProvider>

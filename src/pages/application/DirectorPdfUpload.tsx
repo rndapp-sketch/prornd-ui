@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import { useRef, useState, useMemo, useEffect } from "react";
 import { getFileUrl } from "@/utils/fileUtils";
 import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
@@ -297,19 +298,19 @@ const DirectorPdfUpload = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
-            <main className="px-6 md:px-8 pt-7 pb-10 w-full">
+            <main className="px-0 pt-0 pb-4 w-full">
                 {/* Page header */}
-                <FrappeCard className="mb-5 overflow-hidden p-0">
+                <FrappeCard className="mb-3 overflow-hidden p-0">
                     <div className="h-[3px] bg-gradient-to-r from-[#D97757] via-[#c66a4e] to-[#4A6CF7]" />
-                    <div className="flex items-center justify-between px-5 py-4">
+                    <div className="flex items-center justify-between px-4 py-2.5">
                         <div>
                             <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">
                                 R&amp;D Staff
                             </span>
-                            <h1 className="mt-1 text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
+                            <h1 className="text-[18px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
                                 Director-Signed PDF Upload
                             </h1>
-                            <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+                            <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
                                 Upload Director-signed scans for documents awaiting approval.
                             </p>
                         </div>
@@ -325,7 +326,7 @@ const DirectorPdfUpload = () => {
                 {/* Partial-failure notice — one module's endpoint being down
                     shouldn't hide data from the others */}
                 {!isLoading && !error && partiallyFailedModules.length > 0 && (
-                    <div className="mb-5 flex items-center gap-2 px-4 py-2.5 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 text-[12px] font-medium text-amber-800 dark:text-amber-300">
+                    <div className="mb-3 flex items-center gap-2 px-4 py-2 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 text-[12px] font-medium text-amber-800 dark:text-amber-300">
                         <AlertCircleIcon className="w-4 h-4 shrink-0" />
                         Could not load: {partiallyFailedModules.join(", ")}. Other modules are shown below.
                     </div>
@@ -333,7 +334,7 @@ const DirectorPdfUpload = () => {
 
                 {/* Stat row */}
                 {!isLoading && !error && (
-                    <div className="grid grid-cols-3 gap-3 mb-5">
+                    <div className="grid grid-cols-3 gap-3 mb-3">
                         <StatPill label="Total" value={allDocs.length} color="text-[#3F3F46] dark:text-[#E4E4E7]" bg="bg-white dark:bg-[#27272A] border-[#E4E4E7] dark:border-[#3F3F46]" />
                         <StatPill label="Pending Upload" value={pendingCount} color="text-amber-700 dark:text-amber-400" bg="bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800" icon={<ClockIcon className="w-4 h-4 text-amber-500" />} />
                         <StatPill label="Uploaded" value={uploadedCount} color="text-emerald-700 dark:text-emerald-400" bg="bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800" icon={<CheckCircle2Icon className="w-4 h-4 text-emerald-500" />} />
@@ -341,7 +342,7 @@ const DirectorPdfUpload = () => {
                 )}
 
                 {/* Filter toolbar */}
-                <FrappeCard className="mb-4 p-3">
+                <FrappeCard className="mb-3 px-3 py-2">
                     <div className="flex flex-col md:flex-row items-center gap-3 justify-between">
                         <div className="flex items-center gap-3 flex-wrap w-full">
                             {/* Module filter tabs */}
@@ -395,7 +396,7 @@ const DirectorPdfUpload = () => {
                 </FrappeCard>
 
                 {/* Table */}
-                <FrappeCard className="overflow-hidden p-3">
+                <FrappeCard className="overflow-hidden p-0">
                     {isLoading && (
                         <div className="flex items-center justify-center gap-2 py-16 text-[13px] text-[#71717A] dark:text-[#A1A1AA]">
                             <RefreshCwIcon className="w-4 h-4 animate-spin" /> Loading documents…
@@ -444,7 +445,7 @@ const DirectorPdfUpload = () => {
 
                     {/* Pagination */}
                     {!isLoading && !error && filteredDocs.length > ITEMS_PER_PAGE && (
-                        <div className="flex items-center justify-between mt-4 px-1">
+                        <div className="flex items-center justify-between mt-2 px-1">
                             <span className="text-[11px] text-[#71717A] dark:text-[#A1A1AA]">
                                 Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredDocs.length)} of {filteredDocs.length}
                             </span>
@@ -496,7 +497,7 @@ const StatPill = ({
     bg: string;
     icon?: React.ReactNode;
 }) => (
-    <div className={cn("flex items-center gap-3 px-4 py-3 rounded-xl border", bg)}>
+    <div className={cn("flex items-center gap-3 px-4 py-3 rounded-lg border", bg)}>
         {icon}
         <div>
             <div className={cn("text-xl font-extrabold leading-none", color)}>{value}</div>
@@ -560,7 +561,7 @@ const TableRow = ({ doc, onDone }: { doc: PendingDoc; onDone: () => void }) => {
             const csrfToken = (window as Window & { csrf_token?: string }).csrf_token;
             const headers = csrfToken ? { "X-Frappe-CSRF-Token": csrfToken } : undefined;
 
-            const res = await fetch("/api/method/upload_file", {
+            const res = await fetch(`${FRAPPE_BASE_URL}/api/method/upload_file`, {
                 method: "POST",
                 body: fd,
                 credentials: "include",
@@ -571,7 +572,7 @@ const TableRow = ({ doc, onDone }: { doc: PendingDoc; onDone: () => void }) => {
             const fileUrl: string | undefined = j?.message?.file_url;
             if (!fileUrl) throw new Error("Upload returned no file_url");
 
-            const bindRes = await fetch(`/api/method/${doc._attachApi}`, {
+            const bindRes = await fetch(`${FRAPPE_BASE_URL}/api/method/${doc._attachApi}`, {
                 method: "POST",
                 credentials: "include",
                 headers: {
@@ -593,57 +594,57 @@ const TableRow = ({ doc, onDone }: { doc: PendingDoc; onDone: () => void }) => {
     return (
         <tr className="hover:bg-[#FAFAF9] dark:hover:bg-[#1E1E24] transition-colors">
             {/* Module */}
-            <td className="px-3 py-2.5 border-r border-[#E4E4E7] dark:border-[#3F3F46]">
+            <td className="px-3 py-2 border-r border-[#E4E4E7] dark:border-[#3F3F46]">
                 <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold", badge?.bg, badge?.text)}>
                     {short}
                 </span>
             </td>
 
             {/* Doc ID */}
-            <td className="px-3 py-2.5 border-r border-[#E4E4E7] dark:border-[#3F3F46] font-mono text-[11px] text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
+            <td className="px-3 py-2 border-r border-[#E4E4E7] dark:border-[#3F3F46] font-mono text-[11px] text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
                 {doc.name}
             </td>
 
             {/* Project Code */}
-            <td className="px-3 py-2.5 border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
+            <td className="px-3 py-2 border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
                 {doc.project_number ?? <span className="text-[#A1A1AA]">—</span>}
             </td>
 
             {/* Project Title */}
-            <td className="px-3 py-2.5 border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] max-w-[200px]">
+            <td className="px-3 py-2 border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] max-w-[200px]">
                 <span className="line-clamp-2 leading-snug">
                     {doc.project_name ?? <span className="text-[#A1A1AA]">—</span>}
                 </span>
             </td>
 
             {/* PI / Interview Ref */}
-            <td className="px-3 py-2.5 border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
+            <td className="px-3 py-2 border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
                 {doc.principal_investigator ?? doc.interview_id ?? <span className="text-[#A1A1AA]">—</span>}
             </td>
 
             {/* Department */}
-            <td className="px-3 py-2.5 border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
+            <td className="px-3 py-2 border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">
                 {doc.upfa_department
                     ? <DepartmentName name={doc.upfa_department} />
                     : <span className="text-[#A1A1AA]">—</span>}
             </td>
 
             {/* Workflow State */}
-            <td className="px-3 py-2.5 border-r border-[#E4E4E7] dark:border-[#3F3F46] whitespace-nowrap">
+            <td className="px-3 py-2 border-r border-[#E4E4E7] dark:border-[#3F3F46] whitespace-nowrap">
                 {doc.workflow_state
                     ? <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">{doc.workflow_state}</span>
                     : <span className="text-[#A1A1AA]">—</span>}
             </td>
 
             {/* Last Modified */}
-            <td className="px-3 py-2.5 border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[#71717A] dark:text-[#A1A1AA] whitespace-nowrap">
+            <td className="px-3 py-2 border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[#71717A] dark:text-[#A1A1AA] whitespace-nowrap">
                 {doc.modified
                     ? new Date(doc.modified).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
                     : <span className="text-[#A1A1AA]">—</span>}
             </td>
 
             {/* Upload Status */}
-            <td className="px-3 py-2.5 border-r border-[#E4E4E7] dark:border-[#3F3F46] whitespace-nowrap">
+            <td className="px-3 py-2 border-r border-[#E4E4E7] dark:border-[#3F3F46] whitespace-nowrap">
                 {uploaded ? (
                     <span className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 w-fit">
                         <CheckCircle2Icon className="w-3 h-3" /> Uploaded

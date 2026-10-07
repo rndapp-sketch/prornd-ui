@@ -1,3 +1,5 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
+import BudgetHeadBalance from "@/components/BudgetHeadBalance";
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useSWRConfig } from "swr";
@@ -26,6 +28,7 @@ import {
     ChevronDown,
     ChevronRight,
     Printer,
+    RotateCcw,
     CreditCardIcon,
     AlertTriangleIcon,
     CalendarIcon,
@@ -59,12 +62,13 @@ import {
     directPurchaseAPI,
     tadaAPI,
     recruitmentAdhocContractualAPI,
+    putBackAPI,
 } from "@/services/apiService";
 import { DepartmentName } from "@/components/DepartmentName";
 import { BudgetHeadName } from "@/components/BudgetHeadName";
 import TravelApplicantSummary from "@/components/TravelApplicantSummary";
 
-import { ActivityLog } from "@/components/ActivityLog";
+import { ActivityLog, clearActivityLogCache } from "@/components/ActivityLog";
 import { BudgetActionsSidebar } from "@/components/BudgetActionsSidebar";
 import TemporaryAdvanceActionButtons from "@/components/TemporaryAdvanceActionButtons";
 import TADASettlementActionButtons from "@/components/TADASettlementActionButtons";
@@ -79,6 +83,7 @@ import { DeclarationFields } from "@/components/DeclarationFields";
 import { AutocompleteEmail } from "@/components/AutocompleteEmail";
 import { getFileUrl } from "@/utils/fileUtils";
 import { resolveBudgetHeadLabel } from "@/utils/resolveBudgetHeadLabel";
+import { resolveDepartmentLabel } from "@/utils/resolveDepartmentLabel";
 import { CancellationStatusBanner } from "../components/CancellationStatusBanner";
 
 // Fields to hide from the overview
@@ -135,12 +140,16 @@ const CommentModal = ({
     onSubmit,
     action,
     isLoading,
+    extra,
+    confirmDisabled = false,
 }: {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (comment: string) => void;
     action: string;
     isLoading: boolean;
+    extra?: React.ReactNode;
+    confirmDisabled?: boolean;
 }) => {
     const [comment, setComment] = React.useState("");
 
@@ -156,6 +165,7 @@ const CommentModal = ({
                 <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
                     Confirm {action}
                 </h3>
+                {extra}
                 <textarea
                     className="w-full border border-zinc-300 dark:border-zinc-700 p-3 rounded-lg text-sm mb-1 resize-none focus:outline-none focus:ring-2 focus:ring-[rgba(217,119,87,0.25)] focus:border-[#D97757]"
                     rows={4}
@@ -176,7 +186,7 @@ const CommentModal = ({
                     </FrappeButton>
                     <FrappeButton
                         onClick={() => onSubmit(comment)}
-                        disabled={isLoading || comment.trim().length === 0}
+                        disabled={isLoading || confirmDisabled || comment.trim().length === 0}
                         className="bg-[#D97757] hover:bg-[#c66a4e] text-white"
                     >
                         {isLoading ? "Processing..." : "Confirm"}
@@ -186,6 +196,9 @@ const CommentModal = ({
         </div>
     );
 };
+
+// The Other-PI approval action ("Approve", "Approve and Forward", ...), but never a reject / put back
+const isPiApproveAction = (action: string) => /approve|forward/i.test(action) && !/reject|put back|cancel/i.test(action);
 
 const ReimbursementWorkflowActions = ({
     docname,
@@ -217,6 +230,7 @@ const ReimbursementWorkflowActions = ({
     const { call: fetchProjectHeads } = useFrappePostCall(
         "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_project_account_heads",
     );
+    const { call: fetchProjectDoc } = useFrappePostCall<{ message: any }>("frappe.client.get");
     const { currentUser } = useFrappeAuth();
 
     const [modalOpen, setModalOpen] = React.useState(false);
@@ -233,6 +247,21 @@ const ReimbursementWorkflowActions = ({
     const [heads, setHeads] = React.useState<any[]>([]);
     const [selectedProject, setSelectedProject] = React.useState("");
     const [selectedHead, setSelectedHead] = React.useState("");
+    const [selectedProjectNo, setSelectedProjectNo] = React.useState("");
+
+    // Auto-fill the project number of the chosen project
+    React.useEffect(() => {
+        const proj = projects.find((p) => p.value === selectedProject);
+        setSelectedProjectNo(selectedProject ? proj?.project_number || proj?.project_no || "" : "");
+        if (!selectedProject) return;
+        fetchProjectDoc({ doctype: "Project Registration", name: selectedProject })
+            .then((res: any) => {
+                const no = res?.message?.project_no;
+                if (no) setSelectedProjectNo(no);
+            })
+            .catch(() => { });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedProject, projects]);
 
     React.useEffect(() => {
         if (!isPiStep) return;
@@ -250,10 +279,6 @@ const ReimbursementWorkflowActions = ({
     }, [selectedProject]);
 
     const handleActionClick = (action: string) => {
-        if (isPiStep && action === "Approve" && (!selectedProject || !selectedHead)) {
-            alert("Please select a project and account head before approving.");
-            return;
-        }
         setSelectedAction(action);
         setModalOpen(true);
     };
@@ -261,11 +286,11 @@ const ReimbursementWorkflowActions = ({
     const handleConfirmAction = async (comment: string) => {
         try {
             const payload: Record<string, any> = { docname, action: selectedAction, comment };
-            if (isPiStep && selectedAction === "Approve") {
+            if (isPiStep && isPiApproveAction(selectedAction)) {
                 const proj = projects.find((p) => p.value === selectedProject);
                 payload.extra_data = JSON.stringify({
                     project_name: selectedProject,
-                    project_number: proj?.project_number || proj?.project_no || "",
+                    project_number: selectedProjectNo || proj?.project_number || proj?.project_no || selectedProject,
                     account_head: selectedHead,
                 });
             }
@@ -280,36 +305,6 @@ const ReimbursementWorkflowActions = ({
 
     return (
         <>
-            {isPiStep && (
-                <div className="flex flex-col gap-2 mb-2 p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
-                    <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">
-                        Approve against one of your projects
-                    </span>
-                    <div className="flex flex-col sm:flex-row gap-2 min-w-0 w-full">
-                        <select
-                            value={selectedProject}
-                            onChange={(e) => setSelectedProject(e.target.value)}
-                            className="min-w-0 w-full flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100"
-                        >
-                            <option value="">Select project…</option>
-                            {projects.map((p) => (
-                                <option key={p.value} value={p.value}>{p.label}</option>
-                            ))}
-                        </select>
-                        <select
-                            value={selectedHead}
-                            onChange={(e) => setSelectedHead(e.target.value)}
-                            disabled={!selectedProject}
-                            className="min-w-0 w-full flex-1 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
-                        >
-                            <option value="">Select account head…</option>
-                            {heads.map((h) => (
-                                <option key={h.value} value={h.value}>{h.label}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-            )}
             <div className="flex gap-2">
                 {data.message.map((action) => (
                     <FrappeButton
@@ -328,6 +323,49 @@ const ReimbursementWorkflowActions = ({
                 onSubmit={handleConfirmAction}
                 action={selectedAction}
                 isLoading={actionLoading}
+                confirmDisabled={isPiStep && isPiApproveAction(selectedAction) && (!selectedProject || !selectedHead)}
+                extra={
+                    isPiStep && isPiApproveAction(selectedAction) ? (
+                        <div className="mb-3 flex flex-col gap-2">
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                            To approve this request, select one of your projects and an account head. The available balance of the head is shown before you confirm.
+                          </p>
+                          <select
+                            value={selectedProject}
+                            onChange={(e) => setSelectedProject(e.target.value)}
+                            className="w-full min-w-0 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+                          >
+                            <option value="">Select project…</option>
+                            {projects.map((p) => (
+                              <option key={p.value} value={p.value}>{p.label}</option>
+                            ))}
+                          </select>
+                          {selectedProject && (
+                            <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                              Project number: <span className="font-mono">{selectedProjectNo || "…"}</span>
+                            </span>
+                          )}
+                          <select
+                            value={selectedHead}
+                            onChange={(e) => setSelectedHead(e.target.value)}
+                            disabled={!selectedProject}
+                            className="w-full min-w-0 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1.5 text-sm text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+                          >
+                            <option value="">Select account head…</option>
+                            {heads.map((h) => (
+                              <option key={h.value} value={h.value}>{h.label}</option>
+                            ))}
+                          </select>
+                          {selectedProject && selectedHead && (
+                            <BudgetHeadBalance
+                              projectNumber={selectedProjectNo || selectedProject}
+                              headValue={selectedHead}
+                              headLabel={heads.find((h) => h.value === selectedHead)?.label}
+                            />
+                          )}
+                        </div>
+                    ) : undefined
+                }
             />
         </>
     );
@@ -866,7 +904,7 @@ const TopUpFellowshipWorkflowActions = ({
     const isPendingStaff = workflowState === "Pending Staff Approval";
 
     const downloadGeneratedPdf = () => {
-        const url = `/api/method/frappe.utils.print_format.download_pdf?doctype=${encodeURIComponent("Top Up Fellowship")}&name=${encodeURIComponent(docname)}&format=Standard&no_letterhead=0`;
+        const url = `${FRAPPE_BASE_URL}/api/method/frappe.utils.print_format.download_pdf?doctype=${encodeURIComponent("Top Up Fellowship")}&name=${encodeURIComponent(docname)}&format=Standard&no_letterhead=0`;
         window.open(url, "_blank");
     };
 
@@ -1151,11 +1189,14 @@ const RecruitmentAdhocContractualWorkflowActions = ({
     docname,
     onActionComplete,
     commitRequired = false,
+    canPutBack = false,
 }: {
     docname: string;
     onActionComplete: () => void;
     commitRequired?: boolean;
+    canPutBack?: boolean;
 }) => {
+    const { currentUser } = useFrappeAuth();
     const { data, isLoading: actionsLoading } = useFrappeGetCall<{
         message: string[];
     }>(recruitmentAdhocContractualAPI.getWorkflowActions, { docname });
@@ -1164,6 +1205,52 @@ const RecruitmentAdhocContractualWorkflowActions = ({
         recruitmentAdhocContractualAPI.performAction,
     );
     const { call: addComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
+
+    // Universal put-back: valid targets come from the workflow's transition graph.
+    const { data: putBackResp } = useFrappeGetCall<{
+        message: { status: string; states?: string[] };
+    }>(canPutBack ? putBackAPI.getStates : null, {
+        doctype: "Recruitment Adhoc Contractual",
+        docname,
+    });
+    const { call: setPutBackState, loading: putBackLoading } = useFrappePostCall<{
+        message: { status: string; message?: string };
+    }>(putBackAPI.setState);
+    const putBackStates =
+        canPutBack && putBackResp?.message?.status === "success" ? putBackResp.message.states || [] : [];
+    const [putBackTarget, setPutBackTarget] = React.useState<string | null>(null);
+
+    const handleConfirmPutBack = async (comment: string) => {
+        if (!putBackTarget) return;
+        try {
+            const res = await setPutBackState({
+                doctype: "Recruitment Adhoc Contractual",
+                docname,
+                state: putBackTarget,
+                username: currentUser || "",
+                comment,
+            });
+            if (res?.message?.status !== "success") {
+                alert(res?.message?.message || "Put Back failed");
+                return;
+            }
+            if (comment.trim()) {
+                try {
+                    await addComment({
+                        doctype: "Recruitment Adhoc Contractual",
+                        docname,
+                        content: comment.trim(),
+                    });
+                } catch {
+                    // comment failure is non-fatal
+                }
+            }
+            clearActivityLogCache("Recruitment Adhoc Contractual", docname);
+            setPutBackTarget(null);
+            onActionComplete();
+        } catch (error) {
+        }
+    };
 
     const [modalOpen, setModalOpen] = React.useState(false);
     const [selectedAction, setSelectedAction] = React.useState("");
@@ -1199,9 +1286,9 @@ const RecruitmentAdhocContractualWorkflowActions = ({
         }
     };
 
-    if (actionsLoading || !data?.message?.length) return null;
+    if (actionsLoading || (!data?.message?.length && !putBackStates.length)) return null;
 
-    if (commitRequired) {
+    if (commitRequired && !putBackStates.length) {
         return (
             <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300 font-medium">
                 A commitment must be submitted before forwarding this application.
@@ -1216,7 +1303,7 @@ const RecruitmentAdhocContractualWorkflowActions = ({
         return "neutral";
     };
 
-    const visibleActions = data.message;
+    const visibleActions = commitRequired ? [] : data?.message || [];
     const forwardActions = visibleActions.filter(a => categorise(a) === "forward");
     const neutralActions = visibleActions.filter(a => categorise(a) === "neutral");
     const rejectActions  = visibleActions.filter(a => categorise(a) === "reject");
@@ -1278,6 +1365,11 @@ const RecruitmentAdhocContractualWorkflowActions = ({
                                 Workflow Actions
                             </span>
                         </div>
+                        {commitRequired && (
+                            <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                                A commitment must be submitted before forwarding.
+                            </div>
+                        )}
                         {groups.map((group, gi) => (
                             <React.Fragment key={gi}>
                                 {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
@@ -1300,6 +1392,28 @@ const RecruitmentAdhocContractualWorkflowActions = ({
                                 })}
                             </React.Fragment>
                         ))}
+                        {putBackStates.length > 0 && (
+                            <>
+                                {groups.length > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
+                                <div className="px-4 pt-2 pb-1 text-[10px] font-extrabold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                                    Put Back
+                                </div>
+                                {putBackStates.map((st) => (
+                                    <button
+                                        key={st}
+                                        onClick={() => {
+                                            setDropdownOpen(false);
+                                            setPutBackTarget(st);
+                                        }}
+                                        disabled={putBackLoading}
+                                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left transition-colors disabled:cursor-not-allowed text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                                    >
+                                        <RotateCcw className="h-3.5 w-3.5" />
+                                        Put back to {st === "Draft" ? "PI" : st}
+                                    </button>
+                                ))}
+                            </>
+                        )}
                     </div>,
                     document.body,
                 )}
@@ -1310,6 +1424,13 @@ const RecruitmentAdhocContractualWorkflowActions = ({
                 onSubmit={handleConfirmAction}
                 action={selectedAction}
                 isLoading={actionLoading}
+            />
+            <CommentModal
+                isOpen={!!putBackTarget}
+                onClose={() => setPutBackTarget(null)}
+                onSubmit={handleConfirmPutBack}
+                action={`Put Back to ${putBackTarget === "Draft" ? "PI" : putBackTarget ?? ""}`}
+                isLoading={putBackLoading}
             />
         </>
     );
@@ -1519,7 +1640,7 @@ const OriginalCommitmentSidebar = ({ refName, refDoctype }: { refName?: string; 
         setLoading(true);
         const fetchStaging = async () => {
             try {
-                const url = `/api/method/rndopsapp.rndopsapp.cancellation_api.get_original_commitment?reference_doctype=${encodeURIComponent(refDoctype || '')}&reference_name=${encodeURIComponent(refName)}`;
+                const url = `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.cancellation_api.get_original_commitment?reference_doctype=${encodeURIComponent(refDoctype || '')}&reference_name=${encodeURIComponent(refName)}`;
                 const res = await fetch(url, { credentials: "include" });
                 if (res.ok) {
                     const json = await res.json();
@@ -1676,7 +1797,7 @@ const ProjectPreviewModal = ({
             </div>
             {/* Scrollable body */}
             <div className="flex-1 overflow-y-auto">
-                <ProjectDetailsOverview projectName={projectName} embedded />
+                <ProjectDetailsOverview projectName={projectName} embedded hideActions />
             </div>
         </div>
     </div>
@@ -2137,7 +2258,7 @@ const DirectPurchaseTabView = ({
             try {
                 const filters = JSON.stringify([["app_id", "=", docName]]);
                 const listRes = await fetch(
-                    `/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`,
+                    `${FRAPPE_BASE_URL}/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`,
                     {
                         credentials: "include",
                         headers: { Accept: "application/json" },
@@ -2149,7 +2270,7 @@ const DirectPurchaseTabView = ({
                 const ssName = listRes?.data?.[0]?.name;
                 if (ssName) {
                     const docRes = await fetch(
-                        `/api/method/frappe.client.get`,
+                        `${FRAPPE_BASE_URL}/api/method/frappe.client.get`,
                         {
                             method: "POST",
                             credentials: "include",
@@ -2184,7 +2305,7 @@ const DirectPurchaseTabView = ({
         try {
             const filters = JSON.stringify([["app_id", "=", docName]]);
             const res = await fetch(
-                `/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=["name"]`,
+                `${FRAPPE_BASE_URL}/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=["name"]`,
                 {
                     credentials: "include",
                     headers: { Accept: "application/json" },
@@ -2330,7 +2451,7 @@ const DirectPurchaseTabView = ({
                                         poSanctionData.project_no || "",
                                     );
                                     const res = await fetch(
-                                        "/api/method/rndopsapp.rndopsapp.doctype.direct_purchase.direct_purchase.upload_po_document",
+                                        `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.direct_purchase.direct_purchase.upload_po_document`,
                                         {
                                             method: "POST",
                                             credentials: "include",
@@ -2602,7 +2723,7 @@ const PendingTaskDetails: React.FC = () => {
 
     useEffect(() => {
         if (doctype !== 'Fund Sanction') return;
-        fetch('/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0')
+        fetch(`${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0`)
             .then(r => r.json())
             .then(j => { if (j?.data) setBudgetHeadList(j.data.map((x: any) => x.budget_head).filter(Boolean)); })
             .catch(() => {});
@@ -2635,7 +2756,7 @@ const PendingTaskDetails: React.FC = () => {
         setBudgetMsg(null);
         try {
             const res = await fetch(
-                '/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.update_sanctioned_budget_breakup',
+                `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.update_sanctioned_budget_breakup`,
                 {
                     method: 'POST',
                     credentials: 'include',
@@ -2651,7 +2772,7 @@ const PendingTaskDetails: React.FC = () => {
             if (!res.ok) throw new Error(json?.exception || `HTTP ${res.status}`);
 
             if (comment.trim()) {
-                await fetch('/api/method/rndopsapp.rndopsapp.api.add_project_comment', {
+                await fetch(`${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.api.add_project_comment`, {
                     method: 'POST',
                     credentials: 'include',
                     headers: {
@@ -2711,7 +2832,7 @@ const PendingTaskDetails: React.FC = () => {
         setIsSavingAcctDetails(true);
         try {
             const res = await fetch(
-                '/api/method/rndopsapp.rndopsapp.doctype.project_registration.project_registration.update_project_fields',
+                `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.project_registration.project_registration.update_project_fields`,
                 {
                     method: 'POST',
                     credentials: 'include',
@@ -2808,7 +2929,7 @@ const PendingTaskDetails: React.FC = () => {
                     fieldname: '',
                 }));
             const res = await fetch(
-                '/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.update_fund_sanction_files',
+                `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.update_fund_sanction_files`,
                 {
                     method: 'POST',
                     credentials: 'include',
@@ -2921,6 +3042,30 @@ const PendingTaskDetails: React.FC = () => {
     const [prPreviewLoading, setPrPreviewLoading] = useState(false);
     // Kafka Staging Commit Status Gate
     const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
+
+    // Forwarding is blocked for staff until the office-use figures are saved and a
+    // commitment has been submitted (same gate the other Pending Staff Approval
+    // screens use).
+    const tadaOfficeUseNeverSaved =
+        !((parseFloat((data as any)?.total_admissible_amount) || 0) > 0);
+    const tadaOfficeUseDirty = TADA_OFFICE_USE_INPUT_FIELDNAMES.some(
+        (f) =>
+            (parseFloat(tadaOfficeUseDraft[f]) || 0) !== (parseFloat((data as any)?.[f]) || 0),
+    );
+    const tadaForwardBlockedReasons: string[] = [];
+    if (doctype === "TA DA Settlement" && tadaOfficeUseEditable) {
+        if (tadaOfficeUseDirty || tadaOfficeUseNeverSaved) {
+            tadaForwardBlockedReasons.push(
+                tadaOfficeUseDirty
+                    ? 'Save the "For Office Use" figures (you have unsaved changes) before forwarding.'
+                    : 'Fill in and save the "For Office Use" figures before forwarding.',
+            );
+        }
+        if (isCommittedForGate === false) {
+            tadaForwardBlockedReasons.push("A commitment must be submitted before forwarding.");
+        }
+    }
+
 
     // Comment handler for action buttons
 
@@ -3057,6 +3202,22 @@ const PendingTaskDetails: React.FC = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tadaFields, isTadaOfficeUseViewer, tadaOfficeUseEditable]);
 
+    // TA DA Settlement — Department/Section can be stored as the raw Department_prornd
+    // id (e.g. "otgh263a0u"); resolve it to dept_name for display.
+    useEffect(() => {
+        const dept = (data as any)?.ta_da_department_section;
+        if (doctype !== "TA DA Settlement" || !dept) return;
+        let cancelled = false;
+        resolveDepartmentLabel(dept).then((label) => {
+            if (!cancelled && label && label !== dept) {
+                setDisplayData((prev) => ({ ...prev, ta_da_department_section: label }));
+            }
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [doctype, (data as any)?.ta_da_department_section]);
+
     const [resolvedAccountHead, setResolvedAccountHead] = useState<string>("");
     const [resolvedProjectTitle, setResolvedProjectTitle] = useState<string>("");
     const [resolvedApplicantName, setResolvedApplicantName] = useState<string>("");
@@ -3081,7 +3242,7 @@ const PendingTaskDetails: React.FC = () => {
         if (doctype === "Temporary Advance" && data) {
             // Account Head
             if (data.account_head) {
-                fetch(`/api/v2/document/Budget%20Head/${data.account_head}`)
+                fetch(`${FRAPPE_BASE_URL}/api/v2/document/Budget%20Head/${data.account_head}`)
                     .then(r => r.json())
                     .then(res => {
                         if (res.data) setResolvedAccountHead(res.data.budget_head || res.data.name);
@@ -3092,7 +3253,7 @@ const PendingTaskDetails: React.FC = () => {
             // Department — resolve raw ID to human-readable name for print
             const deptId = data.applicant_department;
             if (deptId) {
-                fetch(`/api/v2/document/Department_prornd/${encodeURIComponent(deptId)}`, { credentials: "include" })
+                fetch(`${FRAPPE_BASE_URL}/api/v2/document/Department_prornd/${encodeURIComponent(deptId)}`, { credentials: "include" })
                     .then(r => r.json())
                     .then(res => {
                         const name = res.data?.dept_name;
@@ -3104,7 +3265,7 @@ const PendingTaskDetails: React.FC = () => {
             // Applicant full name — applicant_name may store email; resolve from User
             const email = data.applicant_webmail || data.owner || "";
             if (email) {
-                fetch(`/api/method/frappe.client.get_value?doctype=User&filters=${encodeURIComponent(email)}&fieldname=full_name`, { credentials: "include" })
+                fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_value?doctype=User&filters=${encodeURIComponent(email)}&fieldname=full_name`, { credentials: "include" })
                     .then(r => r.json())
                     .then(res => {
                         const fullName = res.message?.full_name;
@@ -3129,11 +3290,11 @@ const PendingTaskDetails: React.FC = () => {
                     }
                     try {
                         const postOpts = { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include" as RequestCredentials };
-                        let res = await fetch("/api/method/frappe.client.get_list", { ...postOpts, body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
+                        let res = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, { ...postOpts, body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
                         let json = await res.json();
                         let title = json?.message?.[0]?.project_title || "";
                         if (!title) {
-                            res = await fetch("/api/method/frappe.client.get_list", { ...postOpts, body: JSON.stringify({ doctype: "Project Proposal", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
+                            res = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, { ...postOpts, body: JSON.stringify({ doctype: "Project Proposal", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
                             json = await res.json();
                             title = json?.message?.[0]?.project_title || "";
                         }
@@ -3195,7 +3356,7 @@ const PendingTaskDetails: React.FC = () => {
 
                 try {
                     // Fetch the linked document using standard fetch API
-                    const res = await fetch(`/api/v2/document/${encodeURIComponent(field.options ?? '')}/${encodeURIComponent(String(value))}`, {
+                    const res = await fetch(`${FRAPPE_BASE_URL}/api/v2/document/${encodeURIComponent(field.options ?? '')}/${encodeURIComponent(String(value))}`, {
                         credentials: "include",
                         headers: { Accept: "application/json" },
                     });
@@ -3773,7 +3934,7 @@ const PendingTaskDetails: React.FC = () => {
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
 
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+            <main className="flex-1 p-0 w-full overflow-hidden">
                 {cancellationStatus?.message?.has_cancellation && (
                     <CancellationStatusBanner
                         requests={cancellationStatus?.message?.cancellation_requests}
@@ -3811,7 +3972,7 @@ const PendingTaskDetails: React.FC = () => {
                                         fields: JSON.stringify(['name']),
                                         limit: '1',
                                     });
-                                    const res = await fetch(`/api/resource/Project%20Registration?${params}`, { credentials: 'include' }).then(r => r.json());
+                                    const res = await fetch(`${FRAPPE_BASE_URL}/api/resource/Project%20Registration?${params}`, { credentials: 'include' }).then(r => r.json());
                                     const prName = (res?.data ?? res?.message ?? [])[0]?.name;
                                     if (prName) setPrPreviewName(prName);
                                 } finally {
@@ -3902,6 +4063,7 @@ const PendingTaskDetails: React.FC = () => {
                         <TADASettlementActionButtons
                             docName={name}
                             onActionComplete={() => window.location.reload()}
+                            forwardBlockedReasons={tadaForwardBlockedReasons}
                         />
                     )}
                     {doctype === "Recruitment Adhoc Contractual" && name && !cancellationStatus?.message?.has_pending && (
@@ -3923,6 +4085,7 @@ const PendingTaskDetails: React.FC = () => {
                                 docname={name}
                                 onActionComplete={() => window.location.reload()}
                                 commitRequired={isRnDStaff && isCommittedForGate === false}
+                                canPutBack={isRnDStaff && data?.workflow_state === "Pending Staff Approval"}
                             />
                         </div>
                     )}
@@ -3942,9 +4105,9 @@ const PendingTaskDetails: React.FC = () => {
                 </PageHeader>
 
                 {/* Content Grid with Sidebar */}
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
                     {/* Left Column: Main Detail View */}
-                    <div className="lg:col-span-3 space-y-6">
+                    <div className="lg:col-span-3 space-y-3">
                         {doctype === "Leave Module" && name && (
                             <ApplicantLeaveBalance docname={name} />
                         )}
@@ -4067,6 +4230,11 @@ const PendingTaskDetails: React.FC = () => {
                                         onAddTableRow={() => { }}
                                         onDeleteTableRow={() => { }}
                                         readOnly={!tadaOfficeUseEditable}
+                                        highlightSections={
+                                            isTadaOfficeUseViewer
+                                                ? { "for office use": tadaOfficeUseEditable ? "Action required" : "Staff section" }
+                                                : undefined
+                                        }
                                     />
                                     {tadaOfficeUseEditable && (
                                         <div className="mt-6 flex flex-col items-end gap-2 border-t border-zinc-100 dark:border-zinc-800 pt-4">
@@ -4077,8 +4245,17 @@ const PendingTaskDetails: React.FC = () => {
                                             >
                                                 {isSavingTadaOfficeUse ? "Saving..." : "Save Office Use Details"}
                                             </button>
-                                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                                                Save these figures before forwarding this settlement.
+                                            <p className={cn(
+                                                "text-[11px] font-semibold",
+                                                tadaOfficeUseDirty || tadaOfficeUseNeverSaved
+                                                    ? "text-red-600 dark:text-red-400"
+                                                    : "text-emerald-600 dark:text-emerald-400",
+                                            )}>
+                                                {tadaOfficeUseDirty
+                                                    ? "Unsaved changes — save before forwarding this settlement."
+                                                    : tadaOfficeUseNeverSaved
+                                                        ? "Save these figures before forwarding this settlement."
+                                                        : "Saved."}
                                             </p>
                                         </div>
                                     )}
@@ -4717,12 +4894,12 @@ const PendingTaskDetails: React.FC = () => {
                                 )}
                             </div>
                         ) : doctype === "Cancellation Request" && data ? (
-                            <div className="space-y-5">
+                            <div className="space-y-3">
                                 {/* Reference Document Banner */}
-                                <div className="relative overflow-hidden rounded-xl border border-amber-200 dark:border-amber-800/40 bg-gradient-to-br from-amber-50 via-orange-50/60 to-amber-50/30 dark:from-amber-900/10 dark:via-orange-900/5 dark:to-zinc-900/0 p-5 sm:p-6">
+                                <div className="relative overflow-hidden rounded-lg border border-amber-200 dark:border-amber-800/40 bg-gradient-to-br from-amber-50 via-orange-50/60 to-amber-50/30 dark:from-amber-900/10 dark:via-orange-900/5 dark:to-zinc-900/0 p-3 sm:p-4">
                                     <div className="absolute top-0 right-0 w-56 h-56 bg-amber-100/40 dark:bg-amber-800/10 rounded-full -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-                                    <div className="relative flex items-start gap-4">
-                                        <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-amber-100 dark:bg-amber-900/30 border border-amber-200/70 dark:border-amber-700/40 flex items-center justify-center shadow-sm">
+                                    <div className="relative flex items-start gap-3">
+                                        <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/30 border border-amber-200/70 dark:border-amber-700/40 flex items-center justify-center shadow-sm">
                                             <XCircleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -4765,10 +4942,10 @@ const PendingTaskDetails: React.FC = () => {
 
                                 {/* Reason for Cancellation */}
                                 {(data.reason || data.cancellation_reason || data.remarks) && (
-                                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-6">
+                                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-4">
                                         <div className="flex items-center gap-2 mb-3">
                                             <div className="w-1 h-4 rounded-full bg-[#D97757]" />
-                                            <h3 className="text-[11px] font-extrabold text-zinc-700 dark:text-zinc-300 uppercase tracking-widest">
+                                            <h3 className="text-[12px] font-extrabold text-zinc-800 dark:text-zinc-200 uppercase tracking-wide">
                                                 Reason for Cancellation
                                             </h3>
                                         </div>
@@ -4780,12 +4957,12 @@ const PendingTaskDetails: React.FC = () => {
 
                                 {/* Request Details */}
                                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
-                                    <div className="px-6 py-3.5 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30">
-                                        <h3 className="text-[11px] font-extrabold text-zinc-700 dark:text-zinc-300 uppercase tracking-widest">
+                                    <div className="px-4 py-2 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30">
+                                        <h3 className="text-[12px] font-extrabold text-zinc-800 dark:text-zinc-200 uppercase tracking-wide">
                                             Request Details
                                         </h3>
                                     </div>
-                                    <div className="p-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-6">
+                                    <div className="p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-3">
                                         {[
                                             { label: "Applicant", value: data.applicant_name || data.applicant },
                                             { label: "Department", value: data.department || data.applicant_department },
@@ -4826,12 +5003,12 @@ const PendingTaskDetails: React.FC = () => {
                                     if (extras.length === 0) return null;
                                     return (
                                         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
-                                            <div className="px-6 py-3.5 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30">
-                                                <h3 className="text-[11px] font-extrabold text-zinc-700 dark:text-zinc-300 uppercase tracking-widest">
+                                            <div className="px-4 py-2 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30">
+                                                <h3 className="text-[12px] font-extrabold text-zinc-800 dark:text-zinc-200 uppercase tracking-wide">
                                                     Additional Information
                                                 </h3>
                                             </div>
-                                            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-6">
+                                            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-3">
                                                 {extras.map(([key, value]) => {
                                                     const isFile = isFilePath(String(value));
                                                     return (
@@ -4870,8 +5047,8 @@ const PendingTaskDetails: React.FC = () => {
                                         );
                                         return (
                                             <div key={key} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
-                                                <div className="px-6 py-3.5 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30">
-                                                    <h3 className="text-[11px] font-extrabold text-zinc-700 dark:text-zinc-300 uppercase tracking-widest">
+                                                <div className="px-4 py-2 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30">
+                                                    <h3 className="text-[12px] font-extrabold text-zinc-800 dark:text-zinc-200 uppercase tracking-wide">
                                                         {key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
                                                     </h3>
                                                 </div>
@@ -4879,9 +5056,9 @@ const PendingTaskDetails: React.FC = () => {
                                                     <table className="w-full text-sm">
                                                         <thead>
                                                             <tr className="border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/50">
-                                                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 w-10">#</th>
+                                                                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 w-10">#</th>
                                                                 {cols.map((col) => (
-                                                                    <th key={col} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                                                                    <th key={col} className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                                                                         {col.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
                                                                     </th>
                                                                 ))}
@@ -4890,9 +5067,9 @@ const PendingTaskDetails: React.FC = () => {
                                                         <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                                                             {(rows as any[]).map((row, idx) => (
                                                                 <tr key={idx} className={cn("hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors", idx % 2 === 1 && "bg-zinc-50/40 dark:bg-zinc-800/10")}>
-                                                                    <td className="px-4 py-3 text-xs text-zinc-400 font-mono">{idx + 1}</td>
+                                                                    <td className="px-3 py-2 text-xs text-zinc-400 font-mono">{idx + 1}</td>
                                                                     {cols.map((k) => (
-                                                                        <td key={k} className="px-4 py-3 text-[13px] text-zinc-700 dark:text-zinc-300">
+                                                                        <td key={k} className="px-3 py-2 text-[13px] text-zinc-700 dark:text-zinc-300">
                                                                             {row[k] != null ? String(row[k]) : "—"}
                                                                         </td>
                                                                     ))}
@@ -4906,7 +5083,7 @@ const PendingTaskDetails: React.FC = () => {
                                     })}
                             </div>
                         ) : doctype === "Leave Module" && data ? (
-                            <div className="space-y-5">
+                            <div className="space-y-3">
                                 {/* Applicant */}
                                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
                                     <div className="flex items-center gap-3 px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
@@ -5022,8 +5199,8 @@ const PendingTaskDetails: React.FC = () => {
                     </div>
 
                     {/* Right Column: Activity Stream Sidebar */}
-                    <div className="lg:col-span-1 space-y-6">
-                        <div className="sticky top-6 space-y-6">
+                    <div className="lg:col-span-1 space-y-3">
+                        <div className="sticky top-3 space-y-3">
                             {/* Budget Actions */}
                             {/* Setup for Travel */}
                             {doctype === "Travel" &&
@@ -5072,6 +5249,8 @@ const PendingTaskDetails: React.FC = () => {
                                         isStaff={true}
                                         docName={name}
                                         doctype={doctype}
+                                        onStagingStatusChange={setIsCommittedForGate}
+                                        showPayment={false}
                                         parentAppId={data?.ta_da_travel_application || undefined}
                                         billAmount={data?.ta_da_total_claimed ?? data?.total_claimed ?? undefined}
                                         defaultBudgetHead={resolvedTadaAccountHead || undefined}

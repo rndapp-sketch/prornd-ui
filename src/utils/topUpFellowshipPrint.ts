@@ -1,4 +1,6 @@
-import tufTemplate from "@/pages/printformat/top_up_fellowship_format.html?raw";
+import tufTemplateRaw from "@/pages/printformat/top_up_fellowship_format.html?raw";
+import { withFrappeBase } from "@/utils/frappeUrl";
+const tufTemplate = withFrappeBase(tufTemplateRaw);
 import { getFileUrl } from "@/utils/fileUtils";
 
 export interface ActivityItem {

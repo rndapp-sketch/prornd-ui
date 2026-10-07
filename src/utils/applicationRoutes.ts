@@ -99,3 +99,41 @@ export const DELEGABLE_APPLICATION_DOCTYPES: DelegableApplicationDoctype[] = [
         ownerField: "webmail_id",
     },
 ];
+
+/** Route a pending task opens when clicked — shared by the Pending Tasks page and dashboard notifications. */
+export const getPendingTaskRoute = (doctype: string, id: string) => {
+    switch (doctype) {
+        case "Fund Received":
+            return `/fund-received/${id}`;
+        case "Reimbursement":
+            return `/reimbursement/${id}`;
+        case "Advance Settlement":
+            return `/advance-settlement/${id}`;
+        case "Temporary Advance":
+            return `/pending-tasks/${encodeURIComponent(doctype)}/${id}`;
+        case "Direct Purchase":
+            return `/direct-purchase/${id}`;
+        case "Disbursal of Consultancy":
+            return `/disbursal-of-consultancy/${id}`;
+        case "Travel":
+            return `/travel/${id}`;
+        case "Selection Committee Report":
+            return `/selection-committee-report/${id}`;
+        case "Project Staff Details":
+            return `/project-staff-joining?docname=${encodeURIComponent(id)}`;
+        case "Project Staff Resignation":
+            return `/project-staff-resignation?edit=${encodeURIComponent(id)}`;
+        case "Project Staff Extension":
+            return `/project-staff-extension?edit=${encodeURIComponent(id)}`;
+        case "Proforma_Invoice":
+            return `/proforma-invoice/${id}`;
+        case "Miscellaneous Commit":
+            return `/miscellaneous-commit/${id}`;
+        case "Loan Request":
+            return `/loan-request/${id}`;
+        case "Loan Settlement":
+            return `/loan-settlement/${id}`;
+        default:
+            return `/pending-tasks/${doctype}/${id}`;
+    }
+};

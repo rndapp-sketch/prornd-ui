@@ -1,3 +1,5 @@
+import { FRAPPE_BASE_URL, frappeUrl } from "@/utils/frappeUrl";
+
 /**
  * Utility for building correct file URLs from Frappe file_url values.
  *
@@ -93,7 +95,7 @@ export function getMinioKey(path: string | null | undefined): string | null {
 /** The authenticated Frappe route that serves a MinIO object key. */
 export function getMinioFileUrl(key: string): string {
     // Encoded exactly once — the route does not decode a second time.
-    return `${window.location.origin}/api/method/${FILE_API_METHOD}?file_url=${encodeURIComponent(`/${key.replace(/^\/+/, "")}`)}`;
+    return `${FRAPPE_BASE_URL}/api/method/${FILE_API_METHOD}?file_url=${encodeURIComponent(`/${key.replace(/^\/+/, "")}`)}`;
 }
 
 // Paths Frappe itself serves; never treated as a MinIO object key.
@@ -141,16 +143,16 @@ export function getFileUrl(path: string | null | undefined, options?: GetFileUrl
     // where a relative path like "/private/files/..." doesn't reliably resolve
     // against the real page origin the way it does on a normal page.
     if (path.startsWith("/files/") || path.startsWith("/private/files/")) {
-        return `${window.location.origin}${path}`;
+        return frappeUrl(path);
     }
 
     // Other path starting with "/" — avoid double slash
     if (path.startsWith("/")) {
-        return `${window.location.origin}/files${path}`;
+        return `${FRAPPE_BASE_URL}/files${path}`;
     }
 
     // Plain path without leading slash
-    return `${window.location.origin}/files/${path}`;
+    return `${FRAPPE_BASE_URL}/files/${path}`;
 }
 
 /** An uploaded image (ID card photo / signature) — see GetFileUrlOptions.assumeMinio. */

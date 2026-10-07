@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { getFileUrl } from "@/utils/fileUtils";
 import { useParams, useNavigate } from 'react-router-dom';
@@ -49,18 +50,18 @@ const FrappeCard = ({
 }) => (
     <div
         className={cn(
-            "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm",
+            "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm",
             className,
         )}
     >
         {title && (
-            <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">
+            <div className="px-4 py-2 border-b border-zinc-200 dark:border-zinc-800">
                 <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
                     {title}
                 </h3>
             </div>
         )}
-        <div className="p-6">{children}</div>
+        <div className="p-4">{children}</div>
     </div>
 );
 
@@ -179,7 +180,7 @@ const WorkflowTimeline: React.FC<{ currentState: string; isInternational?: boole
         status === 'completed' ? 'bg-emerald-400' : 'bg-zinc-200 dark:bg-zinc-700';
 
     return (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-5">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm p-3">
             <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
                 Workflow Progress
             </h3>
@@ -511,7 +512,7 @@ const TravelDetails: React.FC = () => {
         const fetchBudgetHeads = async () => {
             try {
                 const response = await fetch(
-                    '/api/resource/Budget%20Head?fields=["name","budget_head","id"]&order_by=id%20asc&limit_page_length=0',
+                    `${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["name","budget_head","id"]&order_by=id%20asc&limit_page_length=0`,
                     { credentials: "include" },
                 );
                 const result = await response.json();
@@ -665,7 +666,7 @@ const TravelDetails: React.FC = () => {
             fd.append("docname", docName);
             fd.append("fieldname", "director_signed_pdf");
             fd.append("is_private", "1");
-            const uploadRes = await fetch("/api/method/upload_file", {
+            const uploadRes = await fetch(`${FRAPPE_BASE_URL}/api/method/upload_file`, {
                 method: "POST",
                 body: fd,
                 credentials: "include",
@@ -717,7 +718,7 @@ const TravelDetails: React.FC = () => {
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
             
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+            <main className="flex-1 p-0 w-full overflow-hidden">
                 {/* Header */}
                 <PageHeader
                     title={formData.name || docName || "Travel"}
@@ -769,7 +770,7 @@ const TravelDetails: React.FC = () => {
                 </PageHeader>
 
                 {/* Workflow Timeline */}
-                <div className="mt-6 mb-6">
+                <div className="mt-0 mb-3">
                     <WorkflowTimeline currentState={formData.workflow_state || 'Draft'} isInternational={isInternational} />
                 </div>
 
@@ -783,7 +784,7 @@ const TravelDetails: React.FC = () => {
 
                 {/* Other-PI approval: pick which of your projects funds this travel */}
                 {isOtherPiStep && (
-                    <div className="mb-6 p-4 rounded-xl border border-[#D97757]/30 bg-[#FFF7ED] dark:bg-[#D97757]/10 shadow-sm">
+                    <div className="mb-3 px-3 py-2 rounded-lg border border-[#D97757]/30 bg-[#FFF7ED] dark:bg-[#D97757]/10 shadow-sm">
                         <div className="text-sm font-bold text-zinc-800 dark:text-zinc-100 mb-1">
                             Approve against one of your projects
                         </div>
@@ -826,10 +827,10 @@ const TravelDetails: React.FC = () => {
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
                     {/* Main Content — read-only form */}
                     <div className="lg:col-span-3">
-                        <FrappeCard className="space-y-6">
+                        <FrappeCard className="space-y-4">
                             <TravelApplicantSummary
                                 webmail={formData.webmail_id_travel}
                                 fullName={formData.applicant_name_travel}
@@ -853,10 +854,10 @@ const TravelDetails: React.FC = () => {
                     </div>
 
                     {/* Sidebar */}
-                    <aside className="lg:col-span-1 space-y-5">
+                    <aside className="lg:col-span-1 space-y-3">
                         {/* Status */}
-                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
+                        <div className="bg-white dark:bg-zinc-900 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            <h3 className="text-[12px] font-extrabold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide mb-2">
                                 Status
                             </h3>
                             <div className="space-y-2 text-sm">
@@ -913,8 +914,8 @@ const TravelDetails: React.FC = () => {
                         {/* Director Approval — International travel only.
                             See docs/travel-director-approval-implementation.md */}
                         {showDirectorPanel && (
-                            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                                <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
+                            <div className="bg-white dark:bg-zinc-900 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                <h3 className="text-[12px] font-extrabold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide mb-2">
                                     Director Approval
                                 </h3>
                                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4 leading-relaxed">
@@ -1057,7 +1058,7 @@ const TravelDetails: React.FC = () => {
 
                         {/* HoS read-only commitment view */}
                         {showCommitReadOnly && (
-                            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            <div className="bg-white dark:bg-zinc-900 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
                                 <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
                                     Commitment by R&D Staff
                                 </h3>
@@ -1079,7 +1080,7 @@ const TravelDetails: React.FC = () => {
 
                         {/* Record Payment */}
                         {showCommitSection && (
-                            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            <div className="bg-white dark:bg-zinc-900 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
                                 <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
                                     Record Payment
                                 </h3>

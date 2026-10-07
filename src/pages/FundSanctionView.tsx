@@ -93,7 +93,7 @@ const FundSanctionView: React.FC = () => {
 
     return (
         <div className="flex min-h-screen w-full bg-claude-bg">
-            <main className="flex-1 p-4 md:p-8">
+            <main className="flex-1 p-0">
                 {/* Header */}
                 <header className="mb-6 p-4 flex items-center justify-between bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
                     <div className="flex items-center gap-4">

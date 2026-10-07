@@ -603,7 +603,7 @@ const HRIDCardManagement: React.FC = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+            <main className="flex-1 p-0 w-full overflow-hidden">
                 <PageHeader title="ID Card Management" />
 
                 {/* Stats Cards */}
@@ -615,7 +615,7 @@ const HRIDCardManagement: React.FC = () => {
                         { label: 'ID Generated', value: statusCounts.generated, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/20' },
                     ].map(stat => (
                         <div key={stat.label} className="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 shadow-sm px-3 py-1.5 flex items-center justify-between gap-2">
-                            <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide truncate">{stat.label}</p>
+                            <p className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide truncate">{stat.label}</p>
                             <p className={cn("text-base font-bold leading-none", stat.color)}>{stat.value}</p>
                         </div>
                     ))}
@@ -628,10 +628,10 @@ const HRIDCardManagement: React.FC = () => {
                             key={tab.key}
                             onClick={() => setActiveTab(tab.key)}
                             className={cn(
-                                "px-3 py-1.5 text-xs font-semibold whitespace-nowrap border-b-2 -mb-px transition-colors flex items-center gap-2",
+                                "px-3 py-1.5 text-[13px] font-semibold whitespace-nowrap border-b-2 -mb-px transition-colors flex items-center gap-2",
                                 activeTab === tab.key
                                     ? "border-[#4A6CF7] text-[#4A6CF7]"
-                                    : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                                    : "border-transparent text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100"
                             )}
                         >
                             {tab.label}
@@ -639,7 +639,7 @@ const HRIDCardManagement: React.FC = () => {
                                 "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
                                 activeTab === tab.key
                                     ? "bg-[#4A6CF7]/10 text-[#4A6CF7]"
-                                    : "bg-zinc-100 dark:bg-zinc-700 text-zinc-500"
+                                    : "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300"
                             )}>
                                 {tabCounts[tab.key]}
                             </span>
@@ -656,13 +656,13 @@ const HRIDCardManagement: React.FC = () => {
                             placeholder="Search by name, ID, department..."
                             value={searchTerm}
                             onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
-                            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]"
+                            className="w-full pl-9 pr-3 py-1.5 text-[13px] rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]"
                         />
                     </div>
                     <select
                         value={statusFilter}
                         onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-                        className="px-3 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 min-w-[140px]"
+                        className="px-3 py-1.5 text-[13px] rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 min-w-[140px]"
                     >
                         <option value="All">All Statuses</option>
                         <option value="Draft">Draft</option>
@@ -684,12 +684,12 @@ const HRIDCardManagement: React.FC = () => {
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-300 dark:border-zinc-600">
+                                    <tr className="bg-zinc-100 dark:bg-zinc-900/60 border-b border-zinc-300 dark:border-zinc-600">
                                         {['#', 'Employee', 'Emp ID', 'Designation', 'Department', 'Project No.', 'Status', 'Modified', 'Actions'].map((h) => (
                                             <th
                                                 key={h}
                                                 className={cn(
-                                                    "px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 whitespace-nowrap border-r border-zinc-200 dark:border-zinc-700 last:border-r-0",
+                                                    "px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-zinc-800 dark:text-zinc-200 whitespace-nowrap border-r border-zinc-200 dark:border-zinc-700 last:border-r-0",
                                                     h === 'Actions' && 'text-right'
                                                 )}
                                             >
@@ -700,13 +700,13 @@ const HRIDCardManagement: React.FC = () => {
                                 </thead>
                                 <tbody>
                                     {pagedCards.map((card, idx) => {
-                                        const cellCls = "px-2.5 py-1.5 text-[11px] text-zinc-700 dark:text-zinc-300 border-r border-zinc-200 dark:border-zinc-700 last:border-r-0 align-middle";
+                                        const cellCls = "px-3 py-2 text-[12px] text-zinc-900 dark:text-zinc-100 border-r border-zinc-200 dark:border-zinc-700 last:border-r-0 align-middle";
                                         return (
                                             <tr
                                                 key={card.name}
                                                 className="border-b border-zinc-200 dark:border-zinc-700 last:border-b-0 hover:bg-zinc-50 dark:hover:bg-zinc-750 transition-colors"
                                             >
-                                                <td className={cn(cellCls, "text-zinc-400 w-8")}>{(currentPage - 1) * pageSize + idx + 1}</td>
+                                                <td className={cn(cellCls, "text-zinc-600 dark:text-zinc-400 w-8")}>{(currentPage - 1) * pageSize + idx + 1}</td>
                                                 <td className={cellCls}>
                                                     <div className="flex items-center gap-2 min-w-[140px]">
                                                         <div className="w-6 h-6 rounded-full bg-[#4A6CF7]/10 dark:bg-[#4A6CF7]/20 flex items-center justify-center flex-shrink-0">
@@ -718,7 +718,7 @@ const HRIDCardManagement: React.FC = () => {
                                                         </div>
                                                         <div className="min-w-0">
                                                             <p className="font-semibold text-[#27272A] dark:text-[#E4E4E7] truncate">{card.full_name__}</p>
-                                                            <p className="text-[10px] text-zinc-400 leading-tight">{card.name}</p>
+                                                            <p className="text-[11px] text-zinc-600 dark:text-zinc-400 leading-tight">{card.name}</p>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -727,17 +727,17 @@ const HRIDCardManagement: React.FC = () => {
                                                 <td className={cellCls}>{card.department_name__ || '—'}</td>
                                                 <td className={cn(cellCls, "font-medium whitespace-nowrap")}>{card.project_number__ || '—'}</td>
                                                 <td className={cellCls}>
-                                                    <Badge className={cn("text-[9px] font-bold px-1.5 py-0 border whitespace-nowrap", getStatusStyle(card.workflow_state))}>
+                                                    <Badge className={cn("text-[10px] font-bold px-2 py-0.5 border whitespace-nowrap", getStatusStyle(card.workflow_state))}>
                                                         {card.workflow_state}
                                                     </Badge>
                                                 </td>
-                                                <td className={cn(cellCls, "whitespace-nowrap text-zinc-500")}>{formatDate(card.modified)}</td>
+                                                <td className={cn(cellCls, "whitespace-nowrap text-zinc-700 dark:text-zinc-300")}>{formatDate(card.modified)}</td>
                                                 <td className={cellCls}>
                                                     <div className="flex items-center justify-end gap-1.5">
                                                         {/* View Details */}
                                                         <button
                                                             onClick={() => { setSelectedCard(card); setIsEditing(false); }}
-                                                            className="px-2 py-1 text-[11px] font-semibold text-[#4A6CF7] hover:text-white hover:bg-[#4A6CF7] border border-[#4A6CF7]/20 hover:border-[#4A6CF7] rounded-md transition-all flex items-center gap-1"
+                                                            className="px-2 py-1 text-[12px] font-semibold text-[#4A6CF7] hover:text-white hover:bg-[#4A6CF7] border border-[#4A6CF7]/20 hover:border-[#4A6CF7] rounded-md transition-all flex items-center gap-1"
                                                         >
                                                             <Eye className="h-3 w-3" /> View
                                                         </button>
@@ -746,7 +746,7 @@ const HRIDCardManagement: React.FC = () => {
                                                         {card.workflow_state !== 'Draft' && (
                                                             <button
                                                                 onClick={() => { setSelectedCard(card); setPutBackComment(''); setShowPutBackModal(true); }}
-                                                                className="px-2 py-1 text-[11px] font-semibold text-amber-600 hover:text-white hover:bg-amber-600 border border-amber-200 hover:border-amber-600 rounded-md transition-all flex items-center gap-1"
+                                                                className="px-2 py-1 text-[12px] font-semibold text-amber-600 hover:text-white hover:bg-amber-600 border border-amber-200 hover:border-amber-600 rounded-md transition-all flex items-center gap-1"
                                                             >
                                                                 <RotateCcw className="h-3 w-3" /> Put Back
                                                             </button>
@@ -757,7 +757,7 @@ const HRIDCardManagement: React.FC = () => {
                                                             <button
                                                                 onClick={() => handleVerify(card.name)}
                                                                 disabled={isActioning}
-                                                                className="px-2 py-1 text-[11px] font-semibold text-emerald-600 hover:text-white hover:bg-emerald-600 border border-emerald-200 hover:border-emerald-600 rounded-md transition-all flex items-center gap-1 disabled:opacity-50"
+                                                                className="px-2 py-1 text-[12px] font-semibold text-emerald-600 hover:text-white hover:bg-emerald-600 border border-emerald-200 hover:border-emerald-600 rounded-md transition-all flex items-center gap-1 disabled:opacity-50"
                                                             >
                                                                 <CheckCircle2 className="h-3 w-3" /> Verify
                                                             </button>
@@ -767,7 +767,7 @@ const HRIDCardManagement: React.FC = () => {
                                                         {isVerifiedOrGeneratedState(card.workflow_state) && (
                                                             <button
                                                                 onClick={() => handleGenerateAndPrint(card)}
-                                                                className="px-2 py-1 text-[11px] font-semibold text-blue-600 hover:text-white hover:bg-blue-600 border border-blue-200 hover:border-blue-600 rounded-md transition-all flex items-center gap-1"
+                                                                className="px-2 py-1 text-[12px] font-semibold text-blue-600 hover:text-white hover:bg-blue-600 border border-blue-200 hover:border-blue-600 rounded-md transition-all flex items-center gap-1"
                                                             >
                                                                 <Printer className="h-3 w-3" /> Print ID
                                                             </button>
@@ -785,7 +785,7 @@ const HRIDCardManagement: React.FC = () => {
                     {/* Pagination */}
                     {filteredCards.length > 0 && (
                         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-zinc-100 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/50">
-                            <div className="flex items-center gap-3 text-xs text-zinc-500">
+                            <div className="flex items-center gap-3 text-[13px] text-zinc-700 dark:text-zinc-300">
                                 <span>
                                     Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filteredCards.length)} of {filteredCards.length}
                                 </span>
@@ -808,7 +808,7 @@ const HRIDCardManagement: React.FC = () => {
                                 >
                                     <ChevronLeft className="h-4 w-4" />
                                 </button>
-                                <span className="px-3 text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                                <span className="px-3 text-[13px] font-medium text-zinc-800 dark:text-zinc-200">
                                     Page {currentPage} of {totalPages}
                                 </span>
                                 <button

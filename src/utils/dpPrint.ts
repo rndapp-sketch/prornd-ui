@@ -1,4 +1,6 @@
-import dpTemplate from "@/pages/printformat/dp_format.html?raw";
+import dpTemplateRaw from "@/pages/printformat/dp_format.html?raw";
+import { withFrappeBase } from "@/utils/frappeUrl";
+const dpTemplate = withFrappeBase(dpTemplateRaw);
 import { getFileUrl } from "./fileUtils";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -69,7 +71,7 @@ const isFilePath = (val: any): boolean => {
     if (typeof val !== "string") return false;
     const isUrl = val.startsWith("http://") || val.startsWith("https://");
     const isFrappeFile = val.startsWith("/private/files/") || val.startsWith("/files/");
-    const isAppwriteFile = val.startsWith("/appwrite/");
+    const isAppwriteFile = val.startsWith("/appwrite/") || val.startsWith("/chat-api/");
     
     // Only treat as a file if it has a valid file path structure AND ends with a file extension
     return (isUrl || isFrappeFile || isAppwriteFile) && /\.(pdf|jpg|jpeg|png|gif|webp)$/i.test(val);
@@ -316,7 +318,7 @@ export function generateDpHtml(
             safeUrl = safeUrl.replace(/^\/files\/(standerdized_purchase|direct_purchase|indent_cum_sanction_sheet)/, "/prod-rnd-files/$1");
 
             // For raw relative paths like standerdized_purchase/..., prepend /prod-rnd-files/
-            if (!safeUrl.startsWith("http") && !safeUrl.startsWith("/files") && !safeUrl.startsWith("/private") && !safeUrl.startsWith("/prod-rnd-files") && !safeUrl.startsWith("/appwrite")) {
+            if (!safeUrl.startsWith("http") && !safeUrl.startsWith("/files") && !safeUrl.startsWith("/private") && !safeUrl.startsWith("/prod-rnd-files") && !safeUrl.startsWith("/appwrite") && !safeUrl.startsWith("/chat-api")) {
                 safeUrl = "/prod-rnd-files" + (safeUrl.startsWith("/") ? "" : "/") + safeUrl;
             }
 

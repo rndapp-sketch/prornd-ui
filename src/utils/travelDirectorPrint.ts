@@ -1,9 +1,7 @@
-import travelDirectorTemplate from "@/pages/printformat/travel_director_review_format.html?raw";
+import travelDirectorTemplateRaw from "@/pages/printformat/travel_director_review_format.html?raw";
+import { withFrappeBase } from "@/utils/frappeUrl";
+const travelDirectorTemplate = withFrappeBase(travelDirectorTemplateRaw);
 
-// The .html?raw template is static text pulled in at build time, so it can't
-// reference import.meta.env itself; substitute the asset host here instead.
-const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.131.206";
-const ASSET_PORT = import.meta.env.VITE_ASSET_PORT || "8000";
 
 const fmtDate = (val: any): string => {
     if (!val) return "-";
@@ -99,7 +97,6 @@ export function generateTravelDirectorReviewHtml(
     resolvedProjectTitle = "",
 ): string {
     return travelDirectorTemplate
-        .replace(/http:\/\/172\.16\.117\.39:8000/g, `http://${ASSET_HOST}:${ASSET_PORT}`)
         // Function replacer — all raw HTML fetched/built from elsewhere (doctype
         // HTML-fieldtype content / activity log comments / SCL balance row) and
         // may contain "$" characters, which String.replace would otherwise

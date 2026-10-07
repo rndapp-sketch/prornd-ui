@@ -1,8 +1,10 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useFrappePostCall, useFrappeGetDoc } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { Save, Send, Printer } from 'lucide-react';
+import ViewProjectButton from '@/components/ViewProjectButton';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { commonAPI, disbursalOfHonorariumAPI, prepareFormDataForApi } from '@/services/apiService';
@@ -62,7 +64,7 @@ const uploadFileToFrappe = async (file: File): Promise<string> => {
     const fd = new FormData();
     fd.append("file", file, file.name);
     fd.append("is_private", "0");
-    const response = await fetch("/api/method/upload_file", {
+    const response = await fetch(`${FRAPPE_BASE_URL}/api/method/upload_file`, {
         method: "POST",
         body: fd,
         headers: {
@@ -120,7 +122,7 @@ const callSaveApi = async (endpoint: string, formData: Record<string, any>): Pro
     const fd = new globalThis.FormData();
     fd.append('data', JSON.stringify(data));
 
-    const response = await fetch(`/api/method/${endpoint}`, {
+    const response = await fetch(`${FRAPPE_BASE_URL}/api/method/${endpoint}`, {
         method: 'POST',
         body: fd,
         headers: {
@@ -231,7 +233,8 @@ const DisbursalOfHonorariumForm: React.FC = () => {
 
 
                 // Merge child_fields into the Table fields
-                const enhancedFields = (apiFields || []).map((field: FormField) => {
+                // send_to_director is a Dean R&D action (set from the details page), not applicant input
+                const enhancedFields = (apiFields || []).filter((f: FormField) => f.fieldname !== 'send_to_director').map((field: FormField) => {
                     if (field.fieldtype === 'Table' && child_table_fields && child_table_fields[field.fieldname]) {
                         // Force web_mail_id to be a Link field so the Auto-fill dropdown works,
                         // and force department_section to be a Link so it shows human-readable names instead of IDs.
@@ -479,6 +482,13 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                     details = result.message;
                 }
 
+                // Bank details come from get_user_details (Universal Registration bank rows)
+                let bank: any = null;
+                try {
+                    const d = await getOwnerDetails({ user_email: value });
+                    bank = d?.message?.bank_details?.[0] || null;
+                } catch (_) { }
+
                 if (details) {
                     // Normalise field names: prefer User fields, fall back to
                     // Universal Registration__ suffixed variants (_u_r).
@@ -496,6 +506,10 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                             emp_id:             employeeId,
                             designation:        designation,
                             department_section: department,
+                            ...(bank && {
+                                bank_account_number: bank.account_number || '',
+                                ifsc_code:           bank.ifsc_code || '',
+                            }),
                         };
                         return { ...prev, [tableName]: table };
                     });
@@ -511,7 +525,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
             table[rowIndex] = { ...table[rowIndex], [fieldname]: value };
             return { ...prev, [tableName]: table };
         });
-    }, [fetchUserProfile]);
+    }, [fetchUserProfile, getOwnerDetails]);
 
     // --- Async search function map passed to the honorarium child table ---
     // When the user types in the web_mail_id autocomplete, this fires a live
@@ -633,12 +647,13 @@ const DisbursalOfHonorariumForm: React.FC = () => {
 
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+            <main className="flex-1 p-0 w-full overflow-hidden">
                 <PageHeader
                     title={id ? `Edit Disbursal: ${id}` : 'New Disbursal of Honorarium'}
                     projectName={formData.project_title}
                     projectNumber={formData.project_number}
                 >
+                    <ViewProjectButton doctype="Disbursal of Honorarium" data={{ ...formData, project_no: formData.project_no || formData.project_number }} />
                     {id && (
                         <button
                             type="button"

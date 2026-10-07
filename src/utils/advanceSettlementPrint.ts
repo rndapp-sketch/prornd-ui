@@ -1,4 +1,6 @@
-import tempTemplate from "@/pages/printformat/advance_settlement_format.html?raw";
+import tempTemplateRaw from "@/pages/printformat/advance_settlement_format.html?raw";
+import { withFrappeBase } from "@/utils/frappeUrl";
+const tempTemplate = withFrappeBase(tempTemplateRaw);
 import { ToWords } from "to-words";
 
 // Activity Log will be generated inline via DOM scraping.

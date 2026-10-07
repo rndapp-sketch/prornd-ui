@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -13,7 +14,7 @@ const uploadFileToFrappe = async (file: File): Promise<string> => {
     const fd = new FormData();
     fd.append("file", file, file.name);
     fd.append("is_private", "0");
-    const response = await fetch("/api/method/upload_file", {
+    const response = await fetch(`${FRAPPE_BASE_URL}/api/method/upload_file`, {
         method: "POST",
         body: fd,
         headers: {
@@ -65,7 +66,7 @@ const callSaveApi = async (endpoint: string, formData: Record<string, any>): Pro
     const fd = new globalThis.FormData();
     fd.append('data', JSON.stringify(data));
 
-    const response = await fetch(`/api/method/${endpoint}`, {
+    const response = await fetch(`${FRAPPE_BASE_URL}/api/method/${endpoint}`, {
         method: 'POST',
         body: fd,
         headers: { 'X-Frappe-CSRF-Token': (window as any).csrf_token || '' },
@@ -307,7 +308,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
         const fetchBudgetHeads = async () => {
             try {
                 const response = await fetch(
-                    '/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0',
+                    `${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0`,
                     { credentials: "include" },
                 );
                 const result = await response.json();
@@ -613,7 +614,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
         try {
             const fileUrl = await uploadFileToFrappe(file);
             const csrfToken = (window as any).csrf_token;
-            const bindRes = await fetch(`/api/method/${disbursalOfHonorariumAPI.attachDirectorPdf}`, {
+            const bindRes = await fetch(`${FRAPPE_BASE_URL}/api/method/${disbursalOfHonorariumAPI.attachDirectorPdf}`, {
                 method: "POST",
                 credentials: "include",
                 headers: { "Content-Type": "application/json", ...(csrfToken ? { "X-Frappe-CSRF-Token": csrfToken } : {}) },
@@ -639,7 +640,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
 
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+            <main className="flex-1 p-0 w-full overflow-hidden">
                 {/* Header */}
                 <PageHeader
                     title={formData.name || id || "Disbursal of Honorarium"}

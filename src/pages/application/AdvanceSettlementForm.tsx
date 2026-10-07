@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useFrappePostCall } from 'frappe-react-sdk';
@@ -214,7 +215,7 @@ const AdvanceSettlementForm: React.FC = () => {
         const fetchBudgetHeads = async () => {
             try {
                 // Fetch all budget heads to populate the Account Head field
-                const response = await fetch('/api/resource/Budget%20Head?fields=["budget_head","name"]&limit_page_length=0');
+                const response = await fetch(`${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","name"]&limit_page_length=0`);
                 if (response.ok) {
                     const result = await response.json();
                     if (result.data) {
@@ -479,7 +480,7 @@ const AdvanceSettlementForm: React.FC = () => {
 
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+            <main className="flex-1 p-0 w-full overflow-hidden">
                 <PageHeader
                     title={editDocName ? `Edit Advance Settlement: ${editDocName}` : 'Advance Settlement'}
                     projectName={formData.project_name}
