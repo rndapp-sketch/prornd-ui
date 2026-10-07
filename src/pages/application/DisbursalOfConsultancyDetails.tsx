@@ -24,6 +24,7 @@ import {
     type LinkOption,
 } from "@/components/forms/DynamicFormRenderer";
 import DisbursalOfConsultancyActionButtons from "@/components/DisbursalOfConsultancyActionButtons";
+import { ledgerService } from "@/services/ledgerService";
 import { CommitPayment } from "@/components/CommitPayment";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { useUserRoles } from "@/components/UserRole";
@@ -245,10 +246,31 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
             (e.frapAppId === (id || "") || e.ref === (id || "")),
     );
     const totalPaid = paidEntries.reduce((sum, e) => sum + (e.payment || 0), 0);
+    // A payment has been raised against this application's commit but Accounts hasn't settled it.
+    const [hasRaisedPayment, setHasRaisedPayment] = useState(false);
+    useEffect(() => {
+        if (!id) return;
+        let cancelled = false;
+        Promise.all([
+            Promise.all(["COMMITTED", "PARTIALLY_PAID", "OVERPAYMENT"].map((st) => ledgerService.getCommitsByStatus(st))),
+            ledgerService.getAllPayments(),
+        ])
+            .then(([commits, payments]) => {
+                if (cancelled) return;
+                const commit = commits.flat().find((c) => c?.frapAppId === id);
+                const raised =
+                    !!commit &&
+                    commit.transactionCommitNumber != null &&
+                    (Array.isArray(payments) ? payments : []).some(
+                        (p: any) => p.transactionCommitNumber === commit.transactionCommitNumber,
+                    );
+                setHasRaisedPayment(raised);
+            })
+            .catch(() => {});
+        return () => { cancelled = true; };
+    }, [id]);
     const isPendingAccVerification =
-        !!linkedCommitment &&
-        formData.workflow_state === "Approved" &&
-        totalPaid < Number(linkedCommitment.committed || 0);
+        hasRaisedPayment && formData.workflow_state === "Approved";
 
     // Unified commitment display: prefer ledger data (linkedCommitment), fall back to staged
     const displayCommitment = linkedCommitment

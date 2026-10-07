@@ -212,16 +212,28 @@ const TaskRegistry: React.FC = () => {
         orderBy: { field: "modified", order: "desc" },
     });
 
-    // App IDs whose commit is still awaiting payment (the Payments queue). An approved
-    // task in this set has not cleared Accounts yet, so it reads "Pending Acc. Verification".
+    // App IDs whose commit already has a payment raised but is still open (the "Payment Pending"
+    // rows in Payments). An approved task in this set has not cleared Accounts yet, so it reads "Pending Acc. Verification".
     const [unpaidCommitAppIds, setUnpaidCommitAppIds] = useState<Set<string>>(new Set());
     useEffect(() => {
         let cancelled = false;
-        Promise.all(['COMMITTED', 'PARTIALLY_PAID', 'OVERPAYMENT'].map(s => ledgerService.getCommitsByStatus(s)))
-            .then(results => {
+        Promise.all([
+            Promise.all(['COMMITTED', 'PARTIALLY_PAID', 'OVERPAYMENT'].map(s => ledgerService.getCommitsByStatus(s))),
+            ledgerService.getAllPayments(),
+        ])
+            .then(([results, payments]) => {
                 if (cancelled) return;
+                const paidCommitNos = new Set<number>(
+                    (Array.isArray(payments) ? payments : [])
+                        .map((p: any) => p.transactionCommitNumber)
+                        .filter((n: unknown): n is number => n != null),
+                );
                 const ids = new Set<string>();
-                results.flat().forEach(c => { if (c?.frapAppId) ids.add(String(c.frapAppId)); });
+                results.flat().forEach(c => {
+                    if (c?.frapAppId && c.transactionCommitNumber != null && paidCommitNos.has(c.transactionCommitNumber)) {
+                        ids.add(String(c.frapAppId));
+                    }
+                });
                 setUnpaidCommitAppIds(ids);
             })
             .catch(() => { /* ledger unavailable: keep the workflow status as is */ });
