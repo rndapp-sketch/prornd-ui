@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ExternalLinkIcon } from 'lucide-react';
 import { getMinioKey, getMinioFileUrl } from '@/utils/fileUtils';
+import { frappeUrl } from '@/utils/frappeUrl';
 
 interface FileDownloadLinkProps {
     fileUrl: string;
@@ -28,13 +29,7 @@ export const FileDownloadLink: React.FC<FileDownloadLinkProps> = ({
             const minioKey = getMinioKey(fileUrl);
             let urlToFetch = minioKey ? getMinioFileUrl(minioKey) : fileUrl;
             if (!urlToFetch.startsWith('http')) {
-                let baseUrl = import.meta.env.VITE_FRAPPE_URL;
-                if (!baseUrl) {
-                    baseUrl = window.location.origin;
-                } else if (baseUrl.startsWith('/')) {
-                    baseUrl = `${window.location.origin}${baseUrl}`;
-                }
-                urlToFetch = `${baseUrl.replace(/\/$/, '')}/${urlToFetch.replace(/^\//, '')}`;
+                urlToFetch = frappeUrl(urlToFetch);
             }
 
             // Fetch the file with credentials included so Frappe recognizes the session/token

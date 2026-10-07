@@ -1,3 +1,5 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
+
 /**
  * Builds the printable "Activity Log" section (approver name & designation —
  * comment — time) for a document, reusing the same backend endpoint the
@@ -56,7 +58,7 @@ async function resolveDesignation(email: string): Promise<string> {
         // (e.g. Dean, RnD), silently leaving the designation blank.
         const params = new URLSearchParams({ email });
         const res = await fetch(
-            `/api/method/rndopsapp.rndopsapp.api.get_user_designation?${params.toString()}`,
+            `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.api.get_user_designation?${params.toString()}`,
             { credentials: "include" },
         );
         if (!res.ok) return "";
@@ -76,7 +78,7 @@ export async function fetchActivityLogHtml(doctype: string, docname: string): Pr
     try {
         const params = new URLSearchParams({ doctype, docname });
         const res = await fetch(
-            `/api/method/rndopsapp.rndopsapp.api.get_document_activity?${params.toString()}`,
+            `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.api.get_document_activity?${params.toString()}`,
             { credentials: "include" },
         );
         if (!res.ok) return "";

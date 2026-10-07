@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
@@ -47,7 +48,7 @@ async function searchProjects(query: string): Promise<LinkOption[]> {
             ['project_title', 'like', `%${query}%`],
         ];
     }
-    const res = await fetch('/api/method/frappe.client.get_list', {
+    const res = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -345,7 +346,7 @@ const MiscellaneousCommitForm: React.FC = () => {
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
 
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+            <main className="flex-1 p-0 w-full overflow-hidden">
                 <PageHeader
                     title="Miscellaneous Commit"
                     status={savedDocName ? 'Draft' : 'New'}

@@ -578,7 +578,7 @@ const RateContractForm: React.FC = () => {
 
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+            <main className="flex-1 p-0 w-full overflow-hidden">
                 <PageHeader
                     title={editDocName ? `Edit Rate Contract: ${editDocName}` : 'Rate Contract Application'}
                     projectName={projectName}

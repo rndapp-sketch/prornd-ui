@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useEffect, useRef, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useFrappePostCall } from "frappe-react-sdk";
@@ -504,7 +505,7 @@ const JoiningReportPage: React.FC = () => {
             }}
           >
             <img
-              src={`http://${import.meta.env.VITE_APP_BACKEND_HOST || '172.16.131.206'}:${import.meta.env.VITE_APP_BACKEND_PORT || '8000'}/files/IITG_logo.png`}
+              src={`${FRAPPE_BASE_URL}/files/IITG_logo.png`}
               alt="IITG"
               style={{ width: "55px", height: "auto", flexShrink: 0 }}
               onError={(e) => {

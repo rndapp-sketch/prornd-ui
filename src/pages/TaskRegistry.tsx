@@ -402,28 +402,27 @@ const TaskRegistry: React.FC = () => {
             <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
                 <GlobalLoader isLoading={isLoading} />
 
-                <main className="flex-1 px-6 md:px-8 pt-7 pb-10 w-full overflow-hidden">
+                <main className="flex-1 px-0 pt-0 pb-4 w-full overflow-hidden">
                     {/* Header */}
-                    <FrappeCard className="mb-5 overflow-hidden p-0">
+                    <FrappeCard className="mb-3 overflow-hidden p-0">
                         <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
-                        <div className="flex items-start gap-3 px-5 py-4">
+                        <div className="flex items-center gap-3 px-4 py-2.5">
                             <button
                                 onClick={() => navigate(-1)}
-                                className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
                                 aria-label="Go back"
                             >
                                 <FaArrowLeft className="h-3.5 w-3.5" />
                             </button>
                             <div className="min-w-0">
-                                <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">Processed Documents</span>
-                                <h1 className="mt-1 text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Task Registry</h1>
-                                <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">View processed and forwarded documents.</p>
+                                <h1 className="text-[18px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Task Registry</h1>
+                                <p className="truncate text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">View processed and forwarded documents.</p>
                             </div>
                         </div>
                     </FrappeCard>
 
                     {/* Info banner */}
-                    <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800/50 dark:bg-amber-950/30">
+                    <div className="mb-3 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-800/50 dark:bg-amber-950/30">
                         <div className="mt-0.5 flex-shrink-0 flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/40">
                             <svg className="h-4 w-4 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
@@ -436,7 +435,7 @@ const TaskRegistry: React.FC = () => {
                     </div>
 
                     {/* Project Type Filter */}
-                    <div className="mb-4 border-t-2 border-[#4A6CF7]/35 pt-4 dark:border-[#818CF8]/35">
+                    <div className="mb-3 border-t-2 border-[#4A6CF7]/35 pt-3 dark:border-[#818CF8]/35">
                         <div className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#71717A] dark:text-[#A1A1AA]">
                             Project Type
                         </div>
@@ -475,8 +474,8 @@ const TaskRegistry: React.FC = () => {
                     </div>
 
                     {/* Filter & Search Section */}
-                    <div className="mb-4">
-                        <FrappeCard className="p-3">
+                    <div className="mb-3">
+                        <FrappeCard className="px-3 py-2">
                             <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
                                 <div className="flex flex-1 items-center gap-3 w-full flex-wrap">
                                     {/* Search Input */}
@@ -525,20 +524,20 @@ const TaskRegistry: React.FC = () => {
                     </div>
 
                     {/* Table */}
-                    <FrappeCard className="overflow-hidden p-3">
-                        <div className="overflow-x-auto rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
+                    <FrappeCard className="overflow-hidden p-0">
+                        <div className="overflow-x-auto">
                             <table className="w-full">
                                 <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
                                     <tr>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Module</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Title/Document ID</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Funding Agency</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Document ID</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Created</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Modified</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Owner</th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Module</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Title/Document ID</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Funding Agency</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Document ID</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Created</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Modified</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Owner</th>
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 text-xs">
@@ -579,17 +578,17 @@ const TaskRegistry: React.FC = () => {
                                                         navigate(`/task-registry/${task.doctype}/${task.id}`);
                                                     }
                                                 }}
-                                                className="hover:bg-zinc-50 dark:bg-zinc-800/50 cursor-pointer transition-colors"
+                                                className="even:bg-[#FAFAFA] hover:bg-[#EEF2FF] dark:bg-zinc-800/50 cursor-pointer transition-colors"
                                             >
-                                                <td className="p-3">
+                                                <td className="px-3 py-2">
                                                     <span className={getStatusBadge(task.status)}>
                                                         {task.status}
                                                     </span>
                                                 </td>
-                                                <td className="p-3 font-bold text-zinc-900 dark:text-zinc-100">
+                                                <td className="px-3 py-2 font-bold text-zinc-900 dark:text-zinc-100">
                                                     {task.doctype}
                                                 </td>
-                                                <td className="p-3 font-medium text-zinc-900 dark:text-zinc-100">
+                                                <td className="px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">
                                                     <button
                                                         className="text-left hover:text-[#D97757] transition-colors flex items-center gap-1.5 group"
                                                         onClick={(e) => {
@@ -607,7 +606,7 @@ const TaskRegistry: React.FC = () => {
                                                         <ActivityIcon className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-[#D97757] flex-shrink-0 transition-opacity" />
                                                     </button>
                                                 </td>
-                                                <td className="p-3 align-middle text-zinc-600 dark:text-zinc-400">
+                                                <td className="px-3 py-2 align-middle text-zinc-600 dark:text-zinc-400">
                                                     {(() => {
                                                         // Resolved through the task's own project, so this works for
                                                         // every application form, not just Project Registration.
@@ -616,7 +615,7 @@ const TaskRegistry: React.FC = () => {
                                                         return fundingAgencyNameMap.get(fundingAgen) || fundingAgen;
                                                     })()}
                                                 </td>
-                                                <td className="p-3 font-mono text-zinc-900 dark:text-zinc-100">
+                                                <td className="px-3 py-2 font-mono text-zinc-900 dark:text-zinc-100">
                                                     {task.doctype === "Fund Received" ? (
                                                         <div className="flex flex-col gap-0.5">
                                                             <span>{task.projectNo || (task.id.length > 25 ? `${task.id.substring(0, 25)}...` : task.id)}</span>
@@ -630,16 +629,16 @@ const TaskRegistry: React.FC = () => {
                                                         task.id.length > 25 ? `${task.id.substring(0, 25)}...` : task.id
                                                     )}
                                                 </td>
-                                                <td className="p-3 font-mono text-zinc-900 dark:text-zinc-100">
+                                                <td className="px-3 py-2 font-mono text-zinc-900 dark:text-zinc-100">
                                                     {task.creation ? new Date(task.creation).toLocaleDateString("en-IN") : "-"}
                                                 </td>
-                                                <td className="p-3 font-mono text-zinc-900 dark:text-zinc-100">
+                                                <td className="px-3 py-2 font-mono text-zinc-900 dark:text-zinc-100">
                                                     {task.modified ? new Date(task.modified).toLocaleDateString("en-IN") : "-"}
                                                 </td>
-                                                <td className="p-3 text-zinc-900 dark:text-zinc-100">
+                                                <td className="px-3 py-2 text-zinc-900 dark:text-zinc-100">
                                                     {task.owner.length > 20 ? `${task.owner.substring(0, 20)}...` : task.owner}
                                                 </td>
-                                                <td className="p-3">
+                                                <td className="px-3 py-2">
                                                     <FrappeButton
                                                         variant="action"
                                                         onClick={(e) => {
@@ -696,7 +695,7 @@ const TaskRegistry: React.FC = () => {
 
                         {/* Pagination Controls */}
                         {allTasks.length > 0 && (
-                            <div className="p-4 border-t border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex justify-between items-center">
+                            <div className="px-4 py-2 border-t border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex justify-between items-center">
                                 <div>
                                     <div className="text-sm text-zinc-900 dark:text-zinc-100 font-medium">
                                         Showing {indexOfFirstTask + 1} to {indexOfFirstTask + currentCount} of {totalCount} entries

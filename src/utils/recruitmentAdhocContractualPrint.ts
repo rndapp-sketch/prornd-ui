@@ -1,4 +1,6 @@
-import racTemplate from "@/pages/printformat/recruitment_adhoc_contractual_format.html?raw";
+import racTemplateRaw from "@/pages/printformat/recruitment_adhoc_contractual_format.html?raw";
+import { withFrappeBase } from "@/utils/frappeUrl";
+const racTemplate = withFrappeBase(racTemplateRaw);
 import { getFileUrl } from "@/utils/fileUtils";
 
 interface ChildFieldMeta {

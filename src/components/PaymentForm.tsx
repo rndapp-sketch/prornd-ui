@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect } from 'react';
 import { FormRender } from './FormRender';
 import type { CommitRecord } from '@/types/ledgerTypes';
@@ -28,7 +29,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
             try {
                 // If editing, use docName. If creating new, use empty string.
                 const docParam = docName ? `doc_name=${docName}` : 'doc_name=';
-                const response = await fetch(`/api/method/rndopsapp.rndopsapp.doctype.accountheadpayment.accountheadpayment.get_account_head_payment_fields?${docParam}`);
+                const response = await fetch(`${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.accountheadpayment.accountheadpayment.get_account_head_payment_fields?${docParam}`);
                 const result = await response.json();
 
                 if (result?.message) {
@@ -63,7 +64,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
                         let docNameValue = commitData.projectNumber;
                         let titleValue = '';
                         try {
-                            const prRes = await fetch(`/api/resource/Project%20Registration?filters=[["project_no","=","${commitData.projectNumber}"]]&fields=["name","project_title"]`);
+                            const prRes = await fetch(`${FRAPPE_BASE_URL}/api/resource/Project%20Registration?filters=[["project_no","=","${commitData.projectNumber}"]]&fields=["name","project_title"]`);
                             if (prRes.ok) {
                                 const prData = await prRes.json();
                                 if (prData?.data && prData.data.length > 0) {
@@ -118,8 +119,8 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
             const isAdvanceSettlement = commitData?.moduleId && String(commitData.moduleId) === '8';
             const isSalaryPayment = commitData?.moduleId && String(commitData.moduleId) === '11';
             const paymentEndpoint = isAdvanceSettlement
-                ? '/api/method/rndopsapp.rndopsapp.doctype.advance_settlement.advance_settlement.submit_advance_settlement_payment'
-                : '/api/method/rndopsapp.rndopsapp.commitPayment.submit_payment_data';
+                ? `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.advance_settlement.advance_settlement.submit_advance_settlement_payment`
+                : `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.commitPayment.submit_payment_data`;
 
             // Build body matching the target endpoint's function signature
             const body = isAdvanceSettlement

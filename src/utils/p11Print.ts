@@ -1,11 +1,9 @@
 // -=========================v3
 
-import p11Template from "@/pages/printformat/p_11_format.html?raw";
+import p11TemplateRaw from "@/pages/printformat/p_11_format.html?raw";
+import { withFrappeBase } from "@/utils/frappeUrl";
+const p11Template = withFrappeBase(p11TemplateRaw);
 
-// The .html?raw template is static text pulled in at build time, so it can't
-// reference import.meta.env itself; substitute the asset host here instead.
-const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.131.206";
-const ASSET_PORT = import.meta.env.VITE_ASSET_PORT || "8000";
 
 const fmtNum = (val: any) => {
   const n = Number(val) || 0;
@@ -187,7 +185,6 @@ export function generateP11Html(formData: Record<string, any>): string {
 
   // ── Assemble final HTML ───────────────────────────────────────────────────
   return p11Template
-    .replace(/http:\/\/172\.16\.117\.39:8000/g, `http://${ASSET_HOST}:${ASSET_PORT}`)
     .replace("{{DOC_REF}}", formData.name || "")
     .replace("{{WORKFLOW_STATE}}", formData.workflow_state || "Draft")
     .replace("{{DIRECT_PURCHASE_REF}}", formData.app_id || "")

@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ToWords } from "to-words";
@@ -92,7 +93,7 @@ const SIGNATURE_SLOT = "<!--SIGNATURE_SLOT-->";
 // Official IITG emblem used on the Endorsement Certificate (see
 // EndorsementCertificate.tsx). Shown in the invoice header next to the existing
 // top-left logo.
-const ENDORSEMENT_LOGO_URL = `http://${import.meta.env.VITE_APP_BACKEND_HOST || "172.16.131.206"}:${import.meta.env.VITE_APP_BACKEND_PORT || "8000"}/files/IITG_logo.png`;
+const ENDORSEMENT_LOGO_URL = `${FRAPPE_BASE_URL}/files/IITG_logo.png`;
 
 // Backend API (rndopsapp `proforma_invoice` doctype). The form now persists to
 // these instead of localStorage so the invoice enters the real workflow and

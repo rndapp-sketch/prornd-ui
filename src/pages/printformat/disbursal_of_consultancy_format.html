@@ -292,7 +292,7 @@
         <div class="content"> <!-- HEADER -->
             <div class="header-row">
                 <div class="logo-left">
-                    <img src="http://172.16.131.206:8000/files/IITG_logo.png" alt="IITG"
+                    <img src="__FRAPPE_BASE_URL__/files/IITG_logo.png" alt="IITG"
                         onerror="this.style.display='none'">
                 </div>
                 <div class="header-center">
@@ -309,8 +309,6 @@
                 </div>
                 <div class="doc-ref-right" style="margin: 0;">
                     <span class="doc-ref-label">Doc Ref: </span><span>{{DOC_REF}}</span>
-                    &nbsp;&nbsp;
-                    <span class="doc-ref-label">Status: </span><span>{{WORKFLOW_STATE}}</span>
                 </div>
             </div>
             <div style="text-align: right; font-size: 9.5pt; margin-bottom: 10px;">
@@ -382,27 +380,13 @@
                     <td class="label">Total Institute Share</td>
                     <td colspan="3">{{TOTAL_INSTITUTE_SHARE}}</td>
                 </tr> -->
-            </table> <!-- INSTITUTE SHARE BREAKDOWN -->
-            <div class="section-heading">Institute Share Breakdown</div>
-            <table class="info-table">
-                <tr>
-                    <td class="label">IDF (40% of Inst. Share)</td>
-                    <td>{{IDF}}</td>
-                    <td class="label">DPF (50% of Inst. Share)</td>
-                    <td>{{DPF}}</td>
-                </tr>
-                <tr>
-                    <td class="label">Staff Welfare Fund (5%)</td>
-                    <td>{{STAFF_WELFARE_FUND}}</td>
-                    <td class="label">Student Welfare Fund (5%)</td>
-                    <td>{{STUDENT_WELFARE_FUND}}</td>
-                </tr>
-            </table> <!-- ACTIVITY LOG -->
+            </table>
+ <!-- ACTIVITY LOG -->
             {{ACTIVITY_LOG_SECTION}}
             {{ATTACHMENTS_SECTION}}
         </div>
     </div>
-    <div class="watermark"> <img src="http://172.16.131.206:8000/files/IITG_logo.png" alt="IITG Logo"
+    <div class="watermark"> <img src="__FRAPPE_BASE_URL__/files/IITG_logo.png" alt="IITG Logo"
             onerror="this.style.display = 'none'" /> </div>
 </body>
 

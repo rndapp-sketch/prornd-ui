@@ -70,12 +70,12 @@ const sharedProxyEntries = {
     changeOrigin: true,
   },
   // Proxy for Appwrite (messaging backend) to avoid CORS in dev
-  // Browser hits /appwrite/v1/... and Vite forwards to the Appwrite endpoint
-  "/appwrite": {
+  // Browser hits /chat-api/v1/... (same prefix nginx uses in production) and Vite forwards to the Appwrite endpoint
+  "/chat-api": {
     target: `http://${APPWRITE_HOST}:${APPWRITE_PORT}`,
     changeOrigin: true,
     ws: true,
-    rewrite: (path: string) => path.replace(/^\/appwrite/, ""),
+    rewrite: (path: string) => path.replace(/^\/chat-api/, ""),
   },
   // Proxy for Attendance API (PresenceBackend) to avoid CORS in dev
   "/attendance-api": {
@@ -114,20 +114,23 @@ const appBackendProxy = {
   },
 };
 
+// Frappe lives under the /bk-api prefix (https://pragati.iitg.ac.in/bk-api). The
+// SPA owns the site root, so root /api, /login, /assets and /files are NOT proxied
+// to Frappe; the prefix is stripped before forwarding to the Frappe bench.
+const frappeProxy = {
+  ...appBackendProxy,
+  rewrite: (path: string) => path.replace(/^\/bk-api/, ""),
+};
+
 export default {
-  "^/(app|api|assets|files|private)(/|$)": appBackendProxy,
+  "^/bk-api(/|$)": frappeProxy,
   ...sharedProxyEntries,
 };
 
-// vite preview (`vite preview --mode production`, used by deploy-prod.sh) falls
-// back to this same server.proxy config if no preview-specific proxy is given.
-// That's a problem: the built SPA's own bundle is served from /assets/*, which
-// collides with the "/assets" prefix meant for Frappe's own static assets — so
-// without this override, vite preview proxies our own JS/CSS bundle away to the
-// Frappe backend instead of serving it from disk. Preview therefore excludes
-// "assets" from the proxied prefixes; everything else behaves the same as dev.
+// vite preview uses the same Frappe proxy; the SPA's own /assets bundle is no
+// longer shadowed because Frappe's assets are reached via /bk-api/assets.
 export const previewProxyOptions = {
-  "^/(app|api|files|private)(/|$)": appBackendProxy,
+  "^/bk-api(/|$)": frappeProxy,
   ...sharedProxyEntries,
 };
 

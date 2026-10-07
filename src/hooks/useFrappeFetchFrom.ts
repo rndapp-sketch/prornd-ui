@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import { useEffect, useRef } from "react";
 
 interface Field {
@@ -99,7 +100,7 @@ export const useFrappeFetchFrom = (
 
           // 4. Fetch the linked document values using Frappe API
           // We use the generic generic get_value or get_doc call
-          fetch(`/api/method/frappe.client.get_value`, {
+          fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_value`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",

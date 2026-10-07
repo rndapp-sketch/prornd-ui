@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect } from 'react';
 import { ProjectTitle } from './ProjectTitle';
 import { FundingAgencyName } from './FundingAgencyName';
@@ -9,7 +10,7 @@ const ProjectNo: React.FC<{ projectId?: string }> = ({ projectId }) => {
 
     useEffect(() => {
         if (!projectId) return;
-        fetch(`/api/v2/document/Project Registration/${encodeURIComponent(projectId)}`, { credentials: 'include' })
+        fetch(`${FRAPPE_BASE_URL}/api/v2/document/Project Registration/${encodeURIComponent(projectId)}`, { credentials: 'include' })
             .then(r => r.ok ? r.json() : null)
             .then(json => { if (json?.data?.project_no) setProjectNo(json.data.project_no); })
             .catch(() => { })

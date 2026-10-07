@@ -121,7 +121,7 @@ export function MessageComposer({
     };
 
     return (
-        <div className="border-t border-[#E4E4E7] bg-white/95 px-4 py-3 backdrop-blur dark:border-[#3F3F46] dark:bg-[#27272A]/95">
+        <div className="border-t border-[#E2E8F0] bg-white px-3 py-2 dark:border-[#3F3F46] dark:bg-[#27272A]/95">
             {error && (
                 <p className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-[11px] font-semibold text-red-700 dark:bg-red-950/30 dark:text-red-400">
                     {error}
@@ -152,7 +152,7 @@ export function MessageComposer({
             )}
 
             {replyTo && (
-                <div className="mb-2 flex items-start gap-2 rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] px-3 py-2 text-[#1E3A8A] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/15 dark:text-[#93C5FD]">
+                <div className="mb-2 flex items-start gap-2 rounded-lg border border-[#C7D2FE] bg-[#EEF2FF] px-3 py-2 text-[#1E3A8A] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/15 dark:text-[#93C5FD]">
                     <Reply className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
                     <div className="min-w-0 flex-1">
                         <p className="text-[10px] font-extrabold uppercase tracking-wide">
@@ -173,11 +173,11 @@ export function MessageComposer({
                 </div>
             )}
 
-            <div className="flex items-end gap-2 rounded-2xl border border-[#E4E4E7] bg-[#FAFAF9] p-2 shadow-sm dark:border-[#3F3F46] dark:bg-[#18181B]">
+            <div className="flex items-end gap-2 rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] p-1.5 focus-within:border-[#4A6CF7] focus-within:bg-white dark:border-[#3F3F46] dark:bg-[#18181B]">
                 <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-[#E4E4E7] bg-white text-[#71717A] transition-colors hover:border-[#4A6CF7]/40 hover:text-[#4A6CF7] dark:border-[#3F3F46] dark:bg-[#27272A]"
+                    className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] bg-white text-[#71717A] transition-colors hover:border-[#4A6CF7]/40 hover:text-[#4A6CF7] dark:border-[#3F3F46] dark:bg-[#27272A]"
                     title="Attach files"
                 >
                     <Paperclip className="w-4 h-4" />
@@ -201,7 +201,7 @@ export function MessageComposer({
                     onKeyDown={handleKeyDown}
                     placeholder="Type a message…"
                     rows={1}
-                    className="min-h-[40px] max-h-[140px] flex-1 resize-none border-0 bg-transparent px-2 py-2 text-[13px] font-medium text-[#3F3F46] outline-none placeholder:text-[#A1A1AA] dark:text-[#E4E4E7]"
+                    className="min-h-[36px] max-h-[140px] flex-1 resize-none border-0 bg-transparent px-2 py-2 text-[14px] font-medium text-[#3F3F46] outline-none placeholder:text-[#A1A1AA] dark:text-[#E4E4E7]"
                 />
 
                 <button
@@ -209,7 +209,7 @@ export function MessageComposer({
                     onClick={handleSend}
                     disabled={!canSend}
                     className={cn(
-                        "flex h-10 items-center gap-1.5 rounded-xl px-4 text-[12px] font-bold transition-all shadow-sm",
+                        "flex h-9 items-center gap-1.5 rounded-lg px-4 text-[13px] font-bold transition-all shadow-sm",
                         canSend
                             ? "bg-[#4A6CF7] hover:bg-[#3558E8] text-white hover:shadow-md hover:shadow-[#4A6CF7]/25"
                             : "bg-[#E4E4E7] dark:bg-[#3F3F46] text-[#71717A] cursor-not-allowed",

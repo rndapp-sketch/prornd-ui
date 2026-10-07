@@ -137,7 +137,7 @@ const HRPortal: React.FC = () => {
         <div className=" bg-claude-bg min-h-screen font-sans">
             <div className="flex-1 flex flex-col">
                 {/* Main Content */}
-                <main className="flex-1 p-4 md:p-6">
+                <main className="flex-1 p-0">
                     <div className="flex flex-col lg:flex-row gap-6">
                         {/* Primary Content Area */}
                         <div className="flex-1 bg-[#F5F5F5] p-5 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm">

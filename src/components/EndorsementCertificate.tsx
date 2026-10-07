@@ -2,6 +2,7 @@
 
 // -=-=-=-=-=
 
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useRef, useEffect } from 'react';
 import {
     Bold, Italic, Underline, Strikethrough,
@@ -31,9 +32,7 @@ interface EndorsementCertificateProps {
     onHtmlChange?: (html: string) => void;
 }
 
-const APP_BACKEND_HOST = import.meta.env.VITE_APP_BACKEND_HOST || "172.16.131.206";
-const APP_BACKEND_PORT = import.meta.env.VITE_APP_BACKEND_PORT || "8000";
-const DORND_SIGNATURE_SEAL_URL = `http://${APP_BACKEND_HOST}:${APP_BACKEND_PORT}/files/Sign_dornd_stamp_rnd.jpg`;
+const DORND_SIGNATURE_SEAL_URL = `${FRAPPE_BASE_URL}/files/Sign_dornd_stamp_rnd.jpg`;
 
 const getEndorsementRefNo = (proposalId?: string) => {
     if (!proposalId) return "IITG/RND/____";
@@ -294,7 +293,7 @@ export const getEndorsementHtml = (props: EndorsementCertificateProps & { bodyHt
         <table class="header-table">
             <tr>
                 <td style="width:100px;">
-                    <img src="http://${APP_BACKEND_HOST}:${APP_BACKEND_PORT}/files/IITG_logo.png" alt="IITG Logo" class="logo"/>
+                    <img src="${FRAPPE_BASE_URL}/files/IITG_logo.png" alt="IITG Logo" class="logo"/>
                 </td>
                 <td style="padding-left:16px;">
                     <div class="institute-name">Indian Institute of Technology Guwahati,</div>
@@ -307,7 +306,7 @@ export const getEndorsementHtml = (props: EndorsementCertificateProps & { bodyHt
 
                 </td>
                 <td style="padding-left:16px;">
-                    <img src="http://${APP_BACKEND_HOST}:${APP_BACKEND_PORT}/files/yellow_office_name.png" alt="Office of R&D" class="office-logo"/>
+                    <img src="${FRAPPE_BASE_URL}/files/yellow_office_name.png" alt="Office of R&D" class="office-logo"/>
                 </td>
             </tr>
         </table>
@@ -430,7 +429,7 @@ export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (pr
                                 <tr>
                                     <td className="w-[100px] align-top">
                                         <img
-                                            src={`http://${APP_BACKEND_HOST}:${APP_BACKEND_PORT}/files/IITG_logo.png`}
+                                            src={`${FRAPPE_BASE_URL}/files/IITG_logo.png`}
                                             alt="IITG Logo"
                                             className="w-[90px] h-auto"
                                         />

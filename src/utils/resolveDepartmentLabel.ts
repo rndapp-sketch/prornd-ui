@@ -1,3 +1,5 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
+
 /**
  * Resolves a Department_prornd reference (either the Frappe doc `name` or the
  * short custom `dept_id` field — the same dual-format ambiguity as Budget
@@ -16,7 +18,7 @@ export async function resolveDepartmentLabel(
     const byDocName = async (): Promise<string | null> => {
         try {
             const res = await fetch(
-                `/api/resource/Department_prornd/${encodeURIComponent(key)}`,
+                `${FRAPPE_BASE_URL}/api/resource/Department_prornd/${encodeURIComponent(key)}`,
                 { credentials: "include" },
             );
             if (!res.ok) return null;
@@ -35,7 +37,7 @@ export async function resolveDepartmentLabel(
                 limit_page_length: "1",
             });
             const res = await fetch(
-                `/api/resource/Department_prornd?${params.toString()}`,
+                `${FRAPPE_BASE_URL}/api/resource/Department_prornd?${params.toString()}`,
                 { credentials: "include" },
             );
             if (!res.ok) return null;

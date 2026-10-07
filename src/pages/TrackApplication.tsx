@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useFrappePostCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
+import { ThinkingOrbs } from "@/components/ui/thinking-orbs";
 import {
     Search,
     Activity,
@@ -116,43 +117,21 @@ const FrappeCard = ({
 }) => (
     <div
         className={cn(
-            "bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] border-t-4 shadow-sm overflow-hidden",
+            "bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] border-t-4 shadow-sm overflow-hidden",
             accent,
             className,
         )}
     >
         {title && (
-            <div className="px-5 py-4 border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center gap-2.5 bg-[#FAFAF9]/70 dark:bg-black/10">
+            <div className="px-4 py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center gap-2.5 bg-[#FAFAF9]/70 dark:bg-black/10">
                 {Icon && <Icon className="w-4.5 h-4.5 text-[#D97757]" />}
                 <h3 className="text-[13.5px] font-extrabold text-[#27272A] dark:text-[#F4F4F5] tracking-tight">
                     {title}
                 </h3>
             </div>
         )}
-        <div className="p-5">{children}</div>
+        <div className="p-4">{children}</div>
     </div>
-);
-
-// Three orbs pulsing/bouncing in sequence — used in place of plain
-// "Tracking…" text while the lookup is in flight.
-const ThinkingOrbs = ({
-    size = "w-2 h-2",
-    color = "bg-white",
-    className,
-}: {
-    size?: string;
-    color?: string;
-    className?: string;
-}) => (
-    <span className={cn("inline-flex items-center gap-1", className)}>
-        {[0, 1, 2].map((i) => (
-            <span
-                key={i}
-                className={cn("rounded-full animate-bounce", size, color)}
-                style={{ animationDelay: `${i * 0.15}s`, animationDuration: "0.8s" }}
-            />
-        ))}
-    </span>
 );
 
 const InfoTile = ({
@@ -224,15 +203,15 @@ const TrackApplication: React.FC = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
-            <main className="flex-1 px-6 md:px-8 pt-7 pb-10 w-full overflow-hidden">
-                <div className="mb-5 rounded-2xl overflow-hidden shadow-sm border border-[#E4E4E7] dark:border-[#3F3F46]">
+            <main className="flex-1 px-0 pt-0 pb-4 w-full overflow-hidden">
+                <div className="mb-3 rounded-lg overflow-hidden shadow-sm border border-[#E4E4E7] dark:border-[#3F3F46]">
                     <div className="h-1.5 bg-gradient-to-r from-[#D97757] via-[#c66a4e] to-[#4A6CF7]" />
-                    <div className="px-5 py-4 bg-white dark:bg-[#27272A] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="px-4 py-2.5 bg-white dark:bg-[#27272A] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
                             <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">
                                 Track
                             </span>
-                            <h1 className="mt-1 text-[24px] font-black tracking-tight text-[#18181B] dark:text-[#FAFAF9] leading-tight flex items-center gap-2.5">
+                            <h1 className="text-[20px] font-black tracking-tight text-[#18181B] dark:text-[#FAFAF9] leading-tight flex items-center gap-2.5">
                                 <Activity className="w-5.5 h-5.5 text-[#D97757]" />
                                 Track Application
                             </h1>
@@ -256,7 +235,7 @@ const TrackApplication: React.FC = () => {
                     </div>
                 </div>
 
-                <FrappeCard className="mb-5" accent="border-t-[#4A6CF7]">
+                <FrappeCard className="mb-3" accent="border-t-[#4A6CF7]">
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                         <div className="relative flex-1">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A1A1AA]" />
@@ -284,8 +263,8 @@ const TrackApplication: React.FC = () => {
                 </FrappeCard>
 
                 {showGuide && (
-                    <FrappeCard title="How to Use Application Tracking" icon={BookOpen} accent="border-t-[#4A6CF7]" className="mb-5">
-                        <div className="space-y-5">
+                    <FrappeCard title="How to Use Application Tracking" icon={BookOpen} accent="border-t-[#4A6CF7]" className="mb-3">
+                        <div className="space-y-3">
                             <div>
                                 <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-[#A1A1AA] mb-3">
                                     Quick 3-Step Process
@@ -375,7 +354,7 @@ const TrackApplication: React.FC = () => {
                 )}
 
                 {error && (
-                    <div className="mb-5 flex items-center gap-2.5 px-4 py-3.5 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 text-[13px] font-semibold text-red-700 dark:text-red-400">
+                    <div className="mb-3 flex items-center gap-2.5 px-4 py-3.5 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 text-[13px] font-semibold text-red-700 dark:text-red-400">
                         <AlertCircle className="w-4.5 h-4.5 shrink-0" />
                         {error}
                     </div>
@@ -383,7 +362,7 @@ const TrackApplication: React.FC = () => {
 
                 {result && (
                     <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-                        <div className="xl:col-span-2 space-y-5">
+                        <div className="xl:col-span-2 space-y-3">
                             {/* Overview */}
                             <FrappeCard title="Application" icon={FileText} accent="border-t-[#D97757]">
                                 <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
@@ -481,7 +460,7 @@ const TrackApplication: React.FC = () => {
                             )}
                         </div>
 
-                        <div className="space-y-5">
+                        <div className="space-y-3">
                             {/* Pending With */}
                             {result.pending_with && (
                                 <FrappeCard title="Pending With" icon={UserIcon} accent="border-t-amber-400">
@@ -607,7 +586,7 @@ const TrackApplication: React.FC = () => {
                 )}
 
                 {!result && !error && !loading && (
-                    <div className="py-12 px-6 text-center bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
+                    <div className="py-12 px-6 text-center bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
                         <Search className="w-9 h-9 mx-auto mb-3 text-[#D97757]" />
                         <h3 className="text-[15px] font-extrabold text-[#18181B] dark:text-[#FAFAF9]">
                             Search Application Status

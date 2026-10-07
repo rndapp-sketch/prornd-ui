@@ -88,6 +88,8 @@ export interface DynamicFormRendererProps {
   fieldMessages?: Record<string, FieldMessage>;
   /** Hide section-break headers when this renderer is embedded inside an already titled card */
   hideSectionHeaders?: boolean;
+  /** Section titles (case-insensitive) to visually emphasise, mapped to the badge text shown beside the title */
+  highlightSections?: Record<string, string>;
   /** Hide child table field labels when the surrounding card already provides the title */
   hideTableLabels?: boolean;
   /**
@@ -974,21 +976,33 @@ MemoizedFormField.displayName = "MemoizedFormField";
 const FormSection = ({
   title,
   description,
+  highlight,
   children,
 }: {
   title: string;
   description?: string | null;
+  highlight?: string | null;
   children: React.ReactNode;
 }) => (
   !title && !description ? (
     <>{children}</>
   ) : (
-    <div className="form-section-card">
+    <div
+      className={cn(
+        "form-section-card",
+        highlight && "!border-2 !border-[#D97757] bg-orange-50/60 dark:bg-[#D97757]/10 shadow-lg ring-4 ring-[#D97757]/15",
+      )}
+    >
       <div className="form-section-header">
         <div className="form-section-header-accent" />
-        <div>
+        <div className="flex flex-wrap items-center gap-2">
           {title && (
-            <h2 className="form-section-title">{title}</h2>
+            <h2 className={cn("form-section-title", highlight && "!text-[#D97757] !text-base font-extrabold uppercase tracking-wide")}>{title}</h2>
+          )}
+          {highlight && (
+            <span className="px-2 py-0.5 rounded-full bg-[#D97757] text-white text-[10px] font-extrabold uppercase tracking-wider">
+              {highlight}
+            </span>
           )}
           {description && (
             <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-0.5 leading-relaxed">
@@ -1023,6 +1037,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   asyncSearchFnsForTables,
   fieldMessages,
   hideSectionHeaders = false,
+  highlightSections,
   hideTableLabels = false,
   overheadFund = false,
 }) => {
@@ -1304,6 +1319,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
             key={idx}
             title={hideSectionHeaders ? "" : section.title}
             description={hideSectionHeaders ? null : section.description}
+            highlight={highlightSections?.[section.title.trim().toLowerCase()] ?? null}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-5">
               {section.fields.map((field) => renderField(field))}

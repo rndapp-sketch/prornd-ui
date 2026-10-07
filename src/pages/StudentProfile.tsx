@@ -50,8 +50,8 @@ const FIELDS: FieldDef[] = [
 ];
 
 const inputClass =
-    "w-full min-w-0 rounded-lg border border-[#E4E4E7] bg-white px-3 py-2 text-sm text-[#3F3F46] " +
-    "focus:border-[#D97757] focus:outline-none dark:border-[#3F3F46] dark:bg-[#18181B] dark:text-[#E4E4E7]";
+    "w-full min-w-0 rounded-lg border border-[#D4D4D8] bg-white px-3 py-1.5 text-[13px] text-[#3F3F46] " +
+    "focus:border-[#4A6CF7] focus:ring-2 focus:ring-[#4A6CF7]/20 focus:outline-none dark:border-[#3F3F46] dark:bg-[#18181B] dark:text-[#E4E4E7]";
 
 export default function StudentProfile() {
     const { data, isLoading, mutate } = useFrappeGetCall<ProfileResponse>(
@@ -120,19 +120,19 @@ export default function StudentProfile() {
     }
 
     return (
-        <div className="min-h-screen bg-[#FAFAF9] px-6 py-10 dark:bg-[#18181B]">
+        <div className="w-full">
             <div className="w-full">
-                <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+                <div className="overflow-hidden rounded-lg border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
                     <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
-                    <div className="flex items-start gap-3 px-6 py-5">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EEF2FF] dark:bg-[#4A6CF7]/15">
+                    <div className="flex items-center gap-3 px-4 py-2.5">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#EEF2FF] dark:bg-[#4A6CF7]/15">
                             <GraduationCap className="h-5 w-5 text-[#4A6CF7] dark:text-[#93C5FD]" />
                         </div>
                         <div>
-                            <h1 className="text-[20px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
+                            <h1 className="text-[18px] font-extrabold leading-tight text-[#3F3F46] dark:text-[#E4E4E7]">
                                 Complete your profile
                             </h1>
-                            <p className="mt-0.5 text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
+                            <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
                                 {isComplete
                                     ? "Your details are on file. You can update them here."
                                     : "Fill in your details to continue to the portal. All fields are required."}
@@ -142,13 +142,13 @@ export default function StudentProfile() {
                 </div>
 
                 {error && (
-                    <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800/40 dark:bg-red-950/20 dark:text-red-300">
+                    <div className="mt-3 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700 dark:border-red-800/40 dark:bg-red-950/20 dark:text-red-300">
                         <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                         <span>{error}</span>
                     </div>
                 )}
                 {saved && (
-                    <div className="mt-4 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700 dark:border-emerald-800/40 dark:bg-emerald-950/20 dark:text-emerald-300">
+                    <div className="mt-3 flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[13px] text-emerald-700 dark:border-emerald-800/40 dark:bg-emerald-950/20 dark:text-emerald-300">
                         <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
                         <span>Profile saved — taking you to the portal…</span>
                     </div>
@@ -156,15 +156,31 @@ export default function StudentProfile() {
 
                 <form
                     onSubmit={handleSubmit}
-                    className="mt-4 rounded-2xl border border-[#E4E4E7] bg-white p-6 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]"
+                    className="mt-3 overflow-hidden rounded-lg border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]"
                 >
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    <div className="flex items-center justify-between gap-3 border-b border-[#C7D2FE] bg-[#EEF2FF] px-4 py-2 dark:border-[#4A6CF7]/30 dark:bg-[#1E3A8A]/18">
+                        <h2 className="text-[13px] font-extrabold uppercase tracking-wide text-[#1E3A8A] dark:text-[#C7D2FE]">
+                            Student details
+                        </h2>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-bold text-[#1E3A8A] dark:text-[#C7D2FE]">
+                                {FIELDS.length - missing.length}/{FIELDS.length} complete
+                            </span>
+                            <div className="h-1.5 w-24 overflow-hidden rounded-full bg-white dark:bg-[#18181B]">
+                                <div
+                                    className="h-full rounded-full bg-[#4A6CF7] transition-all"
+                                    style={{ width: `${((FIELDS.length - missing.length) / FIELDS.length) * 100}%` }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
                         {FIELDS.map((field) => (
                             <div
                                 key={field.name}
                                 className={field.type === "textarea" ? "sm:col-span-2 xl:col-span-3" : ""}
                             >
-                                <label className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-[#71717A] dark:text-[#A1A1AA]">
+                                <label className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-[#52525B] dark:text-[#A1A1AA]">
                                     {field.label} <span className="text-[#D97757]">*</span>
                                 </label>
                                 {field.type === "select" ? (
@@ -205,7 +221,7 @@ export default function StudentProfile() {
                         ))}
                     </div>
 
-                    <div className="mt-6 flex items-center justify-between gap-3">
+                    <div className="flex items-center justify-between gap-3 border-t border-[#E4E4E7] bg-[#FAFAF9] px-4 py-2.5 dark:border-[#3F3F46] dark:bg-[#18181B]">
                         <span className="text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
                             {missing.length
                                 ? `${missing.length} field${missing.length === 1 ? "" : "s"} remaining`
@@ -214,7 +230,7 @@ export default function StudentProfile() {
                         <button
                             type="submit"
                             disabled={saving || missing.length > 0}
-                            className="inline-flex items-center gap-2 rounded-lg bg-[#D97757] px-5 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#c66a4e] disabled:cursor-not-allowed disabled:opacity-50"
+                            className="inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-4 py-1.5 text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
                             Save and continue

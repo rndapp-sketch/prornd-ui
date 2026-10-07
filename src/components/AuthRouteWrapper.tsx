@@ -1,7 +1,9 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useFrappeAuth } from 'frappe-react-sdk';
 import { useUserRoles } from './UserRole';
+import { safeStorage } from '@/lib/safeStorage';
 import { GlobalLoader } from '@/components/ui/global-loader';
 
 type StudentProfileCheck = { is_student: boolean; is_complete: boolean } | null;
@@ -17,7 +19,7 @@ let studentProfileCache: { user: string; promise: Promise<StudentProfileCheck> }
 function checkStudentProfileOnce(user: string): Promise<StudentProfileCheck> {
   if (studentProfileCache?.user === user) return studentProfileCache.promise;
   const promise = fetch(
-    '/api/method/rndopsapp.rndopsapp.user_api.student_api.get_my_student_profile',
+    `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.user_api.student_api.get_my_student_profile`,
     { credentials: 'include' },
   )
     .then((res) => (res.ok ? res.json() : null))
@@ -103,12 +105,12 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, blocke
   const maxRetries = 3;
 
   // Get last known user from localStorage
-  const lastKnownUser = localStorage.getItem(AUTH_STORAGE_KEY);
+  const lastKnownUser = safeStorage.getItem(AUTH_STORAGE_KEY);
 
   // Save current user to localStorage when available
   useEffect(() => {
     if (currentUser) {
-      localStorage.setItem(AUTH_STORAGE_KEY, currentUser);
+      safeStorage.setItem(AUTH_STORAGE_KEY, currentUser);
     }
   }, [currentUser]);
 
@@ -134,7 +136,7 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, blocke
       }
 
       // Clear stored user and redirect to login
-      localStorage.removeItem(AUTH_STORAGE_KEY);
+      safeStorage.removeItem(AUTH_STORAGE_KEY);
       navigate('/login');
       return;
     }

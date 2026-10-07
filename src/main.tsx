@@ -1,11 +1,14 @@
 // =-=-=-=-=-=
 
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { FrappeProvider } from 'frappe-react-sdk';
 import { decodeCredit } from '@/lib/credit';
 import { getGitLeaderboard } from '@/lib/leaderboard';
+
+import { ErrorBoundary, RouteErrorFallback } from '@/components/ErrorBoundary';
 
 import './index.css';
 
@@ -126,6 +129,9 @@ import MessagesPage from './pages/messages/MessagesPage.tsx';
 import DirectorPdfUpload from './pages/application/DirectorPdfUpload.tsx';
 import TopUpFellowshipFacultyAdmission from './pages/application/TopUpFellowshipFacultyAdmission.tsx';
 import SalaryModule from './pages/application/SalaryModule';
+import ProjectStaffAttendance from './pages/ProjectStaffAttendance';
+import ProjectStaffDetailsList from './pages/ProjectStaffDetailsList';
+import ProjectStaffDetailView from './pages/ProjectStaffDetailView';
 import SalaryRegisterFull from './pages/application/SalaryRegisterFull';
 import DelegateUser from './pages/DelegateUser.tsx';
 import DelegatedToMe from './pages/DelegatedToMe.tsx';
@@ -135,6 +141,7 @@ import LeaveModuleForm from './pages/LeaveModuleForm.tsx';
 import LeaveModuleDetails from './pages/LeaveModuleDetails.tsx';
 import FormApplication from './pages/FormApplication.tsx';
 import { ProjectSearch } from './pages/ProjectSearch.tsx';
+import { ProjectLedgerExport } from './pages/ProjectLedgerExport.tsx';
 import NotFound from './pages/NotFound.tsx';
 
 const router = createBrowserRouter(
@@ -142,6 +149,7 @@ const router = createBrowserRouter(
         {
             path: "/",
             element: <App />, // Your main layout component (with navbar, etc.)
+            errorElement: <RouteErrorFallback />,
             children: [
                 {
                     path: "temporary-advance/:id",
@@ -432,6 +440,10 @@ const router = createBrowserRouter(
                     element: (<AuthRouteWrapper allowedRole="staff, RnD"><ProjectSearch /></AuthRouteWrapper>),
                 },
                 {
+                    path: "project-ledger-export",
+                    element: (<AuthRouteWrapper allowedRole="staff, RnD"><ProjectLedgerExport /></AuthRouteWrapper>),
+                },
+                {
                     path: "project-staff-dashboard",
                     element: (<AuthRouteWrapper allowedRole="project staff"><ProjectStaffDashboard /></AuthRouteWrapper>),
                 },
@@ -516,6 +528,26 @@ const router = createBrowserRouter(
                             'Permanent Employee'
                         ]}>
                             <PendingApplication />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    // Project Registration applications surfaced in the PI Inbox (Pending
+                    // Application) open here instead of the editable draft form or the
+                    // generic Pending Task details route — same ProjectDetailsView review
+                    // UI, but scoped under pending-application so "Back" returns there.
+                    path: "pending-application/project-registration/:projectName",
+                    element: (
+                        <AuthRouteWrapper allowedRole={[
+                            'Director',
+                            'Dean, RnD',
+                            'Ado_RnD',
+                            'head_approver_1',
+                            'Hos, RnD (Head of Section, RnD)',
+                            'staff, RnD',
+                            'Permanent Employee'
+                        ]}>
+                            <ProjectDetails backUrl="/pending-application" backLabel="Back to Pending Applications" />
                         </AuthRouteWrapper>
                     ),
                 },
@@ -1051,6 +1083,30 @@ const router = createBrowserRouter(
                     ),
                 },
                 {
+                    path: "project-staff-details",
+                    element: (
+                        <AuthRouteWrapper allowedRole="staff, RnD">
+                            <ProjectStaffDetailsList />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "project-staff-details/:name",
+                    element: (
+                        <AuthRouteWrapper allowedRole="staff, RnD">
+                            <ProjectStaffDetailView />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "project-staff-attendance",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <ProjectStaffAttendance />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
                     path: "salary-module",
                     element: (
                         <AuthRouteWrapper allowedRole="staff, RnD">
@@ -1099,6 +1155,7 @@ const router = createBrowserRouter(
 
 createRoot(document.getElementById('root') as HTMLElement).render(
     <StrictMode>
+      <ErrorBoundary>
         {/*
           enableSocket={false}: this outer provider mounts its own socket.io
           client independently of any nested <FrappeProvider> (App.tsx wraps
@@ -1110,9 +1167,10 @@ createRoot(document.getElementById('root') as HTMLElement).render(
           http://<host>/socket.io/...), retrying forever. Nothing in this
           app currently relies on real-time socket updates.
         */}
-        <FrappeProvider url={import.meta.env.VITE_FRAPPE_URL || 'http://localhost:8000'} enableSocket={false}>
+        <FrappeProvider url={FRAPPE_BASE_URL} enableSocket={false}>
             <RouterProvider router={router} />
         </FrappeProvider>
+      </ErrorBoundary>
     </StrictMode>
 );
 

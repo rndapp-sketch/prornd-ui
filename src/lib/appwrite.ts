@@ -6,7 +6,7 @@ const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID as string | undefined
 if (!rawEndpoint || !projectId) {
 }
 
-// The Appwrite SDK rejects relative URLs. Resolve "/appwrite/v1" against the
+// The Appwrite SDK rejects relative URLs. Resolve "/chat-api/v1" against the
 // current origin so it still flows through the Vite dev proxy.
 function resolveEndpoint(value: string | undefined): string {
     if (!value) return "";

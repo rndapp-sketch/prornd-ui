@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import { useState } from 'react';
 import { FolderOpenIcon, XIcon } from 'lucide-react';
 import ProjectDetailsOverview from '@/pages/ProjectDetailsOverview';
@@ -37,7 +38,7 @@ const ProjectPreviewModal = ({ projectName, onClose }: { projectName: string; on
                 </button>
             </div>
             <div className="flex-1 overflow-y-auto">
-                <ProjectDetailsOverview projectName={projectName} embedded />
+                <ProjectDetailsOverview projectName={projectName} embedded hideActions />
             </div>
         </div>
     </div>
@@ -81,7 +82,7 @@ const ViewProjectButton = ({
                 limit: '1',
             });
             const res = await fetch(
-                `/api/resource/Project%20Registration?${params}`,
+                `${FRAPPE_BASE_URL}/api/resource/Project%20Registration?${params}`,
                 { credentials: 'include' }
             ).then(r => r.json()).catch(() => null);
             const prName = (res?.data ?? res?.message ?? [])[0]?.name;
@@ -89,7 +90,7 @@ const ViewProjectButton = ({
 
             // Strategy 2: direct lookup by name (when value is the PR doc name / autoname)
             const directRes = await fetch(
-                `/api/resource/Project%20Registration/${encodeURIComponent(projectNo)}`,
+                `${FRAPPE_BASE_URL}/api/resource/Project%20Registration/${encodeURIComponent(projectNo)}`,
                 { credentials: 'include' }
             ).then(r => r.json()).catch(() => null);
             const directDocName = directRes?.data?.name ?? directRes?.message?.name;
@@ -102,7 +103,7 @@ const ViewProjectButton = ({
                 limit: '1',
             });
             const res3 = await fetch(
-                `/api/resource/Project%20Registration?${nameParams}`,
+                `${FRAPPE_BASE_URL}/api/resource/Project%20Registration?${nameParams}`,
                 { credentials: 'include' }
             ).then(r => r.json()).catch(() => null);
             const prName3 = (res3?.data ?? res3?.message ?? [])[0]?.name;

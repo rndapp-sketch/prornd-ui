@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFrappeGetDoc, useFrappePostCall, useFrappeAuth, useFrappeGetCall } from 'frappe-react-sdk';
@@ -281,7 +282,7 @@ const OriginalCommitmentSidebar = ({ refName, refDoctype }: { refName?: string; 
         setLoading(true);
         const fetchStaging = async () => {
             try {
-                const url = `/api/method/rndopsapp.rndopsapp.cancellation_api.get_original_commitment?reference_doctype=${encodeURIComponent(refDoctype || '')}&reference_name=${encodeURIComponent(refName)}`;
+                const url = `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.cancellation_api.get_original_commitment?reference_doctype=${encodeURIComponent(refDoctype || '')}&reference_name=${encodeURIComponent(refName)}`;
                 const res = await fetch(url, { credentials: "include" });
                 if (res.ok) {
                     const json = await res.json();
@@ -596,7 +597,7 @@ const ProjectPreviewModal = ({ projectName, onClose }: { projectName: string; on
                 </button>
             </div>
             <div className="flex-1 overflow-y-auto">
-                <ProjectDetailsOverview projectName={projectName} embedded />
+                <ProjectDetailsOverview projectName={projectName} embedded hideActions />
             </div>
         </div>
     </div>
@@ -614,7 +615,7 @@ const DPLinkedDocTab = ({ doctype, filterField, filterValue, emptyTitle, emptyDe
 
     React.useEffect(() => {
         setListLoading(true);
-        fetch(`/api/v2/document/${doctype}?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`, {
+        fetch(`${FRAPPE_BASE_URL}/api/v2/document/${doctype}?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`, {
             credentials: 'include', headers: { Accept: 'application/json' },
         }).then(r => r.json()).then(res => {
             setDocName(res?.data?.[0]?.name || null);
@@ -768,13 +769,13 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
         const csrf = (window as any).csrf_token || '';
         const load = async () => {
             const filters = JSON.stringify([["app_id", "=", docName]]);
-            const ssRes = await fetch(`/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`, {
+            const ssRes = await fetch(`${FRAPPE_BASE_URL}/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`, {
                 credentials: 'include', headers: { Accept: 'application/json' },
             }).then(r => r.json()).catch(() => null);
             const ssName = ssRes?.data?.[0]?.name;
             if (!ssName) return;
 
-            const docRes = await fetch('/api/method/frappe.client.get', {
+            const docRes = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get`, {
                 method: 'POST', credentials: 'include',
                 headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Frappe-CSRF-Token': csrf },
                 body: JSON.stringify({ doctype: 'sanction_sheet', name: ssName }),
@@ -784,7 +785,7 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
 
             // Read-only lookup — unlike the Direct Purchase application page, this
             // view must NOT auto-create a dp_po doc if one doesn't exist yet.
-            const dpPoRes = await fetch(`/api/method/${dpPoAPI.getByDirectPurchase}`, {
+            const dpPoRes = await fetch(`${FRAPPE_BASE_URL}/api/method/${dpPoAPI.getByDirectPurchase}`, {
                 method: 'POST', credentials: 'include',
                 headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Frappe-CSRF-Token': csrf },
                 body: JSON.stringify({ dp_docname: docName }),
@@ -799,14 +800,14 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
             let signeeDesignation = dpPoData?.signee_designation || "";
             if (!signeeName) {
                 try {
-                    const roleRes = await fetch("/api/method/frappe.client.get_list", {
+                    const roleRes = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, {
                         method: "POST", credentials: "include",
                         headers: { "Content-Type": "application/json", Accept: "application/json", "X-Frappe-CSRF-Token": csrf },
                         body: JSON.stringify({ doctype: "Has Role", filters: [["role", "=", "Hos, RnD (Head of Section, RnD)"], ["parenttype", "=", "User"]], fields: ["parent"], limit_page_length: 1 }),
                     }).then(r => r.json()).catch(() => null);
                     const hosEmail = roleRes?.message?.[0]?.parent || "";
                     const targetEmail = hosEmail || "rndadmin@iitg.ac.in";
-                    const detailsRes = await fetch(`/api/method/${directPurchaseAPI.getUserDetails}`, {
+                    const detailsRes = await fetch(`${FRAPPE_BASE_URL}/api/method/${directPurchaseAPI.getUserDetails}`, {
                         method: "POST", credentials: "include",
                         headers: { "Content-Type": "application/json", Accept: "application/json", "X-Frappe-CSRF-Token": csrf },
                         body: JSON.stringify({ user_email: targetEmail }),
@@ -845,12 +846,12 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
     React.useEffect(() => {
         if (activeTab !== 'sanction' || !docName || ssSanctionData) return;
         const filters = JSON.stringify([["app_id", "=", docName]]);
-        fetch(`/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`, {
+        fetch(`${FRAPPE_BASE_URL}/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`, {
             credentials: 'include', headers: { Accept: 'application/json' },
         }).then(r => r.json()).then(async res => {
             const ssName = res?.data?.[0]?.name;
             if (ssName) {
-                const docRes = await fetch('/api/method/frappe.client.get', {
+                const docRes = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get`, {
                     method: 'POST', credentials: 'include',
                     headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Frappe-CSRF-Token': (window as any).csrf_token || '' },
                     body: JSON.stringify({ doctype: 'sanction_sheet', name: ssName }),
@@ -1087,14 +1088,14 @@ const GenericDocViewer = ({ data, doctype }: { data: Record<string, any>; doctyp
     const fmt = (key: string) => key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-3">
             {simpleFields.length > 0 && (
                 <div>
                     <SectionHeading icon={<LayoutGridIcon />} title="Information" />
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                         {simpleFields.map(([key, value]) => (
-                            <div key={key} className="flex min-w-0 flex-col gap-2 rounded-xl border border-[#E4E4E7] bg-[#FAFAF9] px-3.5 py-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
-                                <div className="inline-flex w-fit max-w-full items-center rounded-md bg-white px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#2563EB] ring-1 ring-[#E4E4E7] dark:bg-[#27272A] dark:text-blue-300 dark:ring-[#3F3F46]">
+                            <div key={key} className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-[#E4E4E7] bg-[#FAFAF9] px-3 py-2 dark:border-[#3F3F46] dark:bg-[#18181B]">
+                                <div className="inline-flex w-fit max-w-full items-center text-[11px] font-bold uppercase tracking-wide text-[#52525B] dark:text-[#A1A1AA]">
                                     <span className="truncate">{fmt(key)}</span>
                                 </div>
                                 {isFilePath(String(value)) ? (
@@ -1137,12 +1138,12 @@ const GenericDocViewer = ({ data, doctype }: { data: Record<string, any>; doctyp
                 return (
                     <div key={key}>
                         <SectionHeading icon={<FileTextIcon />} title={fmt(key)} />
-                        <div className="overflow-hidden rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
-                            <table className="w-full table-fixed text-[11px]">
+                        <div className="overflow-hidden rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
+                            <table className="w-full table-fixed text-[12px]">
                                 <thead>
                                     <tr className="border-b border-[#E4E4E7] bg-[#EEF2FF] dark:border-[#3F3F46] dark:bg-[#1E3A8A]/20">
                                         {headers.map(h => (
-                                            <th key={h} className="px-2.5 py-2 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] break-words">{fmt(h)}</th>
+                                            <th key={h} className="px-2.5 py-2 text-left text-[11px] font-extrabold uppercase tracking-wider text-[#1E3A8A] dark:text-[#C7D2FE] break-words">{fmt(h)}</th>
                                         ))}
                                         {isBudget && <th className="px-2.5 py-2 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#D97757]">Row Total</th>}
                                     </tr>
@@ -1196,11 +1197,11 @@ const GenericDocViewer = ({ data, doctype }: { data: Record<string, any>; doctyp
 
 // ── RegistryPanel ─────────────────────────────────────────────────────────────
 const RegistryPanel = ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
-        <div className="px-5 py-3 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
+    <div className="overflow-hidden rounded-lg border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+        <div className="px-4 py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
             <h3 className="text-[13px] font-extrabold tracking-wide text-[#3F3F46] dark:text-[#E4E4E7] uppercase">{title}</h3>
         </div>
-        <div className="p-5 md:p-6">{children}</div>
+        <div className="p-3">{children}</div>
     </div>
 );
 
@@ -1239,7 +1240,7 @@ const FundSanctionView = ({ data, docname, canEdit, onRefresh }: {
     const [budgetHeadList, setBudgetHeadList] = useState<string[]>([]);
 
     useEffect(() => {
-        fetch('/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0')
+        fetch(`${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0`)
             .then(r => r.json())
             .then(j => { if (j?.data) setBudgetHeadList(j.data.map((x: any) => x.budget_head).filter(Boolean)); })
             .catch(() => { });
@@ -1271,7 +1272,7 @@ const FundSanctionView = ({ data, docname, canEdit, onRefresh }: {
         setBudgetMsg(null);
         try {
             const res = await fetch(
-                '/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.update_sanctioned_budget_breakup',
+                `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.update_sanctioned_budget_breakup`,
                 {
                     method: 'POST',
                     credentials: 'include',
@@ -1346,7 +1347,7 @@ const FundSanctionView = ({ data, docname, canEdit, onRefresh }: {
                 fieldname: '',
             }));
             const res = await fetch(
-                '/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.update_fund_sanction_files',
+                `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.update_fund_sanction_files`,
                 {
                     method: 'POST',
                     credentials: 'include',
@@ -1800,7 +1801,7 @@ const TaskRegistryDetails: React.FC = () => {
                 if (!value) return;
 
                 try {
-                    const res = await fetch(`/api/v2/document/${encodeURIComponent(field.options ?? '')}/${encodeURIComponent(String(value))}`, {
+                    const res = await fetch(`${FRAPPE_BASE_URL}/api/v2/document/${encodeURIComponent(field.options ?? '')}/${encodeURIComponent(String(value))}`, {
                         credentials: "include",
                         headers: { Accept: "application/json" },
                     });
@@ -1878,7 +1879,7 @@ const TaskRegistryDetails: React.FC = () => {
         if (doctype === "Temporary Advance" && data) {
             // Account Head
             if (data.account_head) {
-                fetch(`/api/v2/document/Budget%20Head/${data.account_head}`)
+                fetch(`${FRAPPE_BASE_URL}/api/v2/document/Budget%20Head/${data.account_head}`)
                     .then(r => r.json())
                     .then(res => {
                         if (res.data) setResolvedAccountHead(res.data.budget_head || res.data.name);
@@ -1889,7 +1890,7 @@ const TaskRegistryDetails: React.FC = () => {
             // Department — resolve raw ID to human-readable name for print
             const deptId = data.applicant_department;
             if (deptId) {
-                fetch(`/api/v2/document/Department_prornd/${encodeURIComponent(deptId)}`, { credentials: "include" })
+                fetch(`${FRAPPE_BASE_URL}/api/v2/document/Department_prornd/${encodeURIComponent(deptId)}`, { credentials: "include" })
                     .then(r => r.json())
                     .then(res => {
                         const name = res.data?.dept_name;
@@ -1901,7 +1902,7 @@ const TaskRegistryDetails: React.FC = () => {
             // Applicant full name — applicant_name may store email; resolve from User
             const email = data.applicant_webmail || data.owner || "";
             if (email) {
-                fetch(`/api/method/frappe.client.get_value?doctype=User&filters=${encodeURIComponent(email)}&fieldname=full_name`, { credentials: "include" })
+                fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_value?doctype=User&filters=${encodeURIComponent(email)}&fieldname=full_name`, { credentials: "include" })
                     .then(r => r.json())
                     .then(res => {
                         const fullName = res.message?.full_name;
@@ -1928,12 +1929,12 @@ const TaskRegistryDetails: React.FC = () => {
                     // 2. Search Project Registration by project_no using POST (GET with encoded filters is unreliable)
                     try {
                         const postOpts = { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include" as RequestCredentials };
-                        let res = await fetch("/api/method/frappe.client.get_list", { ...postOpts, body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
+                        let res = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, { ...postOpts, body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
                         let json = await res.json();
                         let title = json?.message?.[0]?.project_title || "";
                         // 3. Fall back to Project Proposal
                         if (!title) {
-                            res = await fetch("/api/method/frappe.client.get_list", { ...postOpts, body: JSON.stringify({ doctype: "Project Proposal", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
+                            res = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, { ...postOpts, body: JSON.stringify({ doctype: "Project Proposal", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
                             json = await res.json();
                             title = json?.message?.[0]?.project_title || "";
                         }
@@ -1961,11 +1962,11 @@ const TaskRegistryDetails: React.FC = () => {
         if (projectRef) {
             (async () => {
                 try {
-                    let res = await fetch("/api/method/frappe.client.get_list", { ...postOpts, body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
+                    let res = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, { ...postOpts, body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
                     let json = await res.json();
                     let title = json?.message?.[0]?.project_title || "";
                     if (!title) {
-                        res = await fetch("/api/method/frappe.client.get_list", { ...postOpts, body: JSON.stringify({ doctype: "Project Proposal", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
+                        res = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, { ...postOpts, body: JSON.stringify({ doctype: "Project Proposal", filters: { project_no: projectRef }, fields: ["project_title"], limit_page_length: 1 }) });
                         json = await res.json();
                         title = json?.message?.[0]?.project_title || "";
                     }
@@ -1977,7 +1978,7 @@ const TaskRegistryDetails: React.FC = () => {
         // Applicant full name — webmail_id holds the email
         const email = data.webmail_id || data.web_mail_id;
         if (email) {
-            fetch(`/api/method/frappe.client.get_value?doctype=User&filters=${encodeURIComponent(email)}&fieldname=full_name`, { credentials: "include" })
+            fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_value?doctype=User&filters=${encodeURIComponent(email)}&fieldname=full_name`, { credentials: "include" })
                 .then(r => r.json())
                 .then(res => {
                     const fullName = res.message?.full_name;
@@ -2107,7 +2108,7 @@ const TaskRegistryDetails: React.FC = () => {
             setIsDohLoading(true);
 
             const postList = (doctype: string, fields: string[]) =>
-                fetch('/api/method/frappe.client.get_list', {
+                fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, {
                     method: 'POST', credentials: 'include',
                     headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': (window as any).csrf_token || '' },
                     body: JSON.stringify({ doctype, fields, limit_page_length: 0 }),
@@ -2260,11 +2261,11 @@ const TaskRegistryDetails: React.FC = () => {
         }
 
         return (
-            <div className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden">
-                <div className="px-5 py-3 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
+            <div className="rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden">
+                <div className="px-4 py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
                     <h3 className="text-[13px] font-extrabold tracking-wide text-[#3F3F46] dark:text-[#E4E4E7] uppercase">{doctype}</h3>
                 </div>
-                <div className="p-5 md:p-6">
+                <div className="p-3">
                     <GenericDocViewer data={displayData} doctype={doctype} />
                 </div>
             </div>
@@ -2274,7 +2275,7 @@ const TaskRegistryDetails: React.FC = () => {
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans overflow-x-hidden">
 
-            <main className="transition-all duration-300 ease-in-out px-5 py-6 md:px-8 md:py-7 overflow-x-hidden">
+            <main className="transition-all duration-300 ease-in-out px-0 py-0 overflow-x-hidden">
                 <PageHeader
                     title={name || ''}
                     status={data?.workflow_state}
@@ -2323,7 +2324,7 @@ const TaskRegistryDetails: React.FC = () => {
                                                 fields: JSON.stringify(['name']),
                                                 limit: '1',
                                             });
-                                            const res = await fetch(`/api/resource/Project%20Registration?${params}`, { credentials: 'include' }).then(r => r.json());
+                                            const res = await fetch(`${FRAPPE_BASE_URL}/api/resource/Project%20Registration?${params}`, { credentials: 'include' }).then(r => r.json());
                                             const prName = (res?.data ?? res?.message ?? [])[0]?.name;
                                             if (prName) setPrPreviewName(prName);
                                         } finally {
@@ -2387,12 +2388,12 @@ const TaskRegistryDetails: React.FC = () => {
                 </PageHeader>
 
                 {doctype === "Cancellation Request" ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                        <div className="lg:col-span-3 space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+                        <div className="lg:col-span-3 space-y-3">
                             {renderContent()}
                         </div>
-                        <div className="lg:col-span-1 space-y-6">
-                            <div className="sticky top-6 space-y-6">
+                        <div className="lg:col-span-1 space-y-3">
+                            <div className="sticky top-6 space-y-3">
                                 <OriginalCommitmentSidebar
                                     refName={data?.reference_name}
                                     refDoctype={data?.reference_doctype}
@@ -2401,7 +2402,7 @@ const TaskRegistryDetails: React.FC = () => {
                         </div>
                     </div>
                 ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                         {renderContent()}
                     </div>
                 )}

@@ -106,7 +106,7 @@ const Card = ({
 }) => (
   <div
     className={cn(
-      "bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm transition-all overflow-hidden",
+      "bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg shadow-sm transition-all overflow-hidden",
       className,
     )}
   >
@@ -115,7 +115,7 @@ const Card = ({
 );
 
 const SectionDivider = ({ title }: { title: string }) => (
-  <div className="flex items-center gap-2.5 mb-3 mt-1">
+  <div className="flex items-center gap-2.5 mb-2 mt-0">
     <span className="text-[12px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-[0.1em] whitespace-nowrap">
       {title}
     </span>
@@ -132,9 +132,9 @@ const PanelHeader = ({
   title: string;
   action?: React.ReactNode;
 }) => (
-  <div className="flex items-center justify-between px-[22px] py-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
-    <div className="flex items-center gap-2 text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
-      <div className="w-7 h-7 rounded-md flex items-center justify-center bg-blue-50 dark:bg-blue-950/20 text-[#2563EB] dark:text-blue-400">
+  <div className="flex items-center justify-between px-4 py-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
+    <div className="flex items-center gap-2 text-[14px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
+      <div className="w-6 h-6 rounded-md flex items-center justify-center bg-blue-50 dark:bg-blue-950/20 text-[#2563EB] dark:text-blue-400">
         {React.cloneElement(icon as React.ReactElement<any>, { size: 15 })}
       </div>
       {title}
@@ -182,16 +182,16 @@ const ActionCard: React.FC<ActionCardProps> = ({
   <Card className="hover:-translate-y-0.5 hover:shadow-md cursor-pointer group">
     <button
       onClick={onClick}
-      className="w-full text-left p-5 flex items-start gap-4 h-full"
+      className="w-full text-left p-3 flex items-center gap-3 h-full"
     >
-      <div className="size-10 flex items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/20 text-[#2563EB] dark:text-blue-400 group-hover:bg-[#D97757] group-hover:text-white transition-all duration-200 shrink-0">
+      <div className="size-9 flex items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/20 text-[#2563EB] dark:text-blue-400 group-hover:bg-[#D97757] group-hover:text-white transition-all duration-200 shrink-0">
         {React.cloneElement(icon as React.ReactElement<any>, { size: 19 })}
       </div>
       <div className="min-w-0">
-        <h3 className="text-[15px] text-[#3F3F46] dark:text-[#E4E4E7] font-extrabold mb-1">
+        <h3 className="text-[14px] text-[#3F3F46] dark:text-[#E4E4E7] font-extrabold mb-0.5">
           {title}
         </h3>
-        <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] font-medium leading-relaxed">
+        <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] font-medium leading-snug">
           {description}
         </p>
       </div>
@@ -211,12 +211,12 @@ const AnalyticsCard: React.FC<{
   <div
     onClick={onClick}
     className={cn(
-      "p-4 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] transition-all relative overflow-hidden",
+      "px-3 py-2.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] transition-all relative overflow-hidden",
       onClick ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-sm" : "",
     )}
   >
     <div className="absolute bottom-0 right-0 w-16 h-16 rounded-full translate-x-5 translate-y-5 bg-blue-500/5 pointer-events-none" />
-    <div className="flex items-center justify-between mb-2">
+    <div className="flex items-center justify-between mb-1">
       <span className="text-[11px] uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] font-extrabold">
         {title}
       </span>
@@ -224,7 +224,7 @@ const AnalyticsCard: React.FC<{
         {icon}
       </div>
     </div>
-    <div className="text-[28px] font-extrabold tracking-tight leading-none text-[#2563EB] dark:text-blue-400 mb-2">
+    <div className="text-[24px] font-extrabold tracking-tight leading-none text-[#2563EB] dark:text-blue-400 mb-1">
       {value}
     </div>
     <div className="flex items-center justify-between">
@@ -502,21 +502,21 @@ export function PiHomePage() {
 
   return (
     <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] font-sans transition-colors duration-300">
-      <main className="px-6 md:px-8 pt-7 pb-10 overflow-y-auto w-full">
-        <div className="w-full max-w-[1600px] mx-auto">
+      <main className="px-0 pt-0 pb-4 overflow-y-auto w-full">
+        <div className="w-full">
           {/* Header Section */}
-          <header className="mb-7">
-            <div className="relative overflow-hidden rounded-2xl bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
-              <div className="h-1.5 bg-[linear-gradient(to_right,#4A6CF7,#2563EB,#D97757)]" />
-              <div className="px-5 md:px-6 py-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+          <header className="mb-3">
+            <div className="relative overflow-hidden rounded-lg bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
+              <div className="h-[3px] bg-[linear-gradient(to_right,#4A6CF7,#2563EB,#D97757)]" />
+              <div className="px-4 py-2.5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#71717A] dark:text-[#A1A1AA] mb-1">
                     PI Workspace
                   </div>
-                  <h1 className="text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
+                  <h1 className="text-[18px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
                     Dashboard
                   </h1>
-                  <p className="text-[13px] text-[#71717A] dark:text-[#A1A1AA] font-medium mt-1">
+                  <p className="text-[13px] text-[#71717A] dark:text-[#A1A1AA] font-medium mt-0.5">
                     Welcome back,{" "}
                     <span className="text-[#2563EB] dark:text-blue-400 font-bold">
                       {fullName}
@@ -547,7 +547,7 @@ export function PiHomePage() {
           />
 
           <SectionDivider title="Quick Actions" />
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
             <ActionCard
               icon={<PlusCircle />}
               title="New Project"
@@ -569,7 +569,7 @@ export function PiHomePage() {
           </section>
 
           <SectionDivider title="Overview" />
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
             {/* Project Analytics */}
             <Card>
               <PanelHeader
@@ -584,7 +584,7 @@ export function PiHomePage() {
                   </button>
                 }
               />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-[18px]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3">
                 <AnalyticsCard
                   title="Total Projects"
                   value={
@@ -640,7 +640,7 @@ export function PiHomePage() {
                   </button>
                 }
               />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-[18px]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3">
                 <AnalyticsCard
                   title="Total Allocation"
                   value={
@@ -687,10 +687,10 @@ export function PiHomePage() {
 
           {/* Secondary Information */}
           <SectionDivider title="Updates & Resources" />
-          <section className="grid grid-cols-1 lg:grid-cols-3 gap-5 pb-8">
+          <section className="grid grid-cols-1 lg:grid-cols-3 gap-3 pb-2">
             <Card className="lg:col-span-2">
               <PanelHeader icon={<Megaphone />} title="Recent Updates" />
-              <div className="p-[18px] space-y-3 max-h-[420px] overflow-y-auto">
+              <div className="p-3 space-y-3 max-h-[420px] overflow-y-auto">
                 {dashboardLoading ? (
                   <p className="text-[12px] text-[#A1A1AA] font-medium">
                     Loading updates...
@@ -732,7 +732,7 @@ export function PiHomePage() {
 
             <Card>
               <PanelHeader icon={<LifeBuoy />} title="Quick Resources" />
-              <ul className="p-[18px] space-y-1.5">
+              <ul className="p-3 space-y-1.5">
                 {[
                   { icon: <FileText />, label: "Project Guidelines" },
                   { icon: <LifeBuoy />, label: "Support Portal" },
@@ -760,7 +760,7 @@ export function PiHomePage() {
           </section>
 
           {/* Footer */}
-          <footer className="pt-6 border-t border-[#E4E4E7] dark:border-[#3F3F46] text-center">
+          <footer className="pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46] text-center">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
               <Mail className="size-3.5" />
               <span>For assistance, reach out to</span>

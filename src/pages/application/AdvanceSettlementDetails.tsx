@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useFrappePostCall, useFrappeGetCall } from "frappe-react-sdk";
@@ -336,7 +337,7 @@ const AdvanceSettlementDetails: React.FC = () => {
     const fetchBudgetHeads = async () => {
       try {
         const response = await fetch(
-          '/api/resource/Budget%20Head?fields=["budget_head","id","name"]&order_by=id%20asc&limit_page_length=0',
+          `${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id","name"]&order_by=id%20asc&limit_page_length=0`,
         );
         const result = await response.json();
         if (result?.data) {
@@ -375,7 +376,7 @@ const AdvanceSettlementDetails: React.FC = () => {
       for (const doctype of doctypes) {
         try {
           const r1 = await fetch(
-            `/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(codeToResolve)}`,
+            `${FRAPPE_BASE_URL}/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(codeToResolve)}`,
             { credentials: "include" }
           );
           if (r1.ok) {
@@ -389,7 +390,7 @@ const AdvanceSettlementDetails: React.FC = () => {
           }
         } catch { /* ignore */ }
         try {
-          const r2 = await fetch("/api/method/frappe.client.get_list", {
+          const r2 = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -540,7 +541,7 @@ const AdvanceSettlementDetails: React.FC = () => {
   if (error || !data) {
     return (
       <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-        <main className="flex-1 p-4 md:p-8">
+        <main className="flex-1 p-0">
           <FrappeCard className="text-center py-16">
             <FileTextIcon className="w-16 h-16 mx-auto text-zinc-400 dark:text-zinc-500 mb-4" />
             <h2 className="text-xl font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-2 uppercase">
@@ -572,7 +573,7 @@ const AdvanceSettlementDetails: React.FC = () => {
 
   return (
     <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
-      <main className="flex-1 px-4 py-6 md:px-8 md:py-8 max-w-[1600px] mx-auto">
+      <main className="flex-1 px-0 py-0 w-full">
         {/* Header */}
         <PageHeader
           title={data.name}

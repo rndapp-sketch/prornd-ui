@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -489,7 +490,7 @@ const TemporaryAdvanceDetails: React.FC = () => {
     useEffect(() => {
         const fetchBudgetHeads = async () => {
             try {
-                const res = await fetch('/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0');
+                const res = await fetch(`${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0`);
                 const json = await res.json();
                 if (json?.data) setBudgetHeadList(json.data.map((item: any) => ({ name: item.budget_head, id: item.id })));
             } catch (err) {  }
@@ -578,7 +579,7 @@ const TemporaryAdvanceDetails: React.FC = () => {
 
     useEffect(() => {
         if (!data?.account_head) return;
-        fetch(`/api/v2/document/Budget%20Head/${data.account_head}`, { credentials: "include" })
+        fetch(`${FRAPPE_BASE_URL}/api/v2/document/Budget%20Head/${data.account_head}`, { credentials: "include" })
             .then((r) => r.ok ? r.json() : null)
             .then((json) => setResolvedAccountHead(json?.data?.budget_head || json?.data?.name || data.account_head || ""))
             .catch(() => setResolvedAccountHead(data.account_head || ""));
@@ -593,7 +594,7 @@ const TemporaryAdvanceDetails: React.FC = () => {
                 // Strategy 1: fetch by document name (primary key)
                 try {
                     const r1: Response = await fetch(
-                        `/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(codeToResolve)}`,
+                        `${FRAPPE_BASE_URL}/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(codeToResolve)}`,
                         { credentials: "include" }
                     );
                     if (r1.ok) {
@@ -604,7 +605,7 @@ const TemporaryAdvanceDetails: React.FC = () => {
                 } catch { /* try next */ }
                 // Strategy 2: query by project_no field
                 try {
-                    const r2: Response = await fetch("/api/method/frappe.client.get_list", {
+                    const r2: Response = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         credentials: "include",
@@ -650,7 +651,7 @@ const TemporaryAdvanceDetails: React.FC = () => {
     if (error || !data) {
         return (
             <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-                <main className="flex-1 p-4 md:p-8">
+                <main className="flex-1 p-0">
                     <FrappeCard className="text-center py-16">
                         <FileTextIcon className="w-16 h-16 mx-auto text-zinc-400 dark:text-zinc-500 mb-4" />
                         <h2 className="text-xl font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-2 uppercase">
@@ -670,7 +671,7 @@ const TemporaryAdvanceDetails: React.FC = () => {
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
             <GlobalLoader isLoading={isSubmitting} />
-            <main className="flex-1 p-4 md:p-8">
+            <main className="flex-1 p-0">
                 {/* Header */}
                 <PageHeader
                     title={data.name}
