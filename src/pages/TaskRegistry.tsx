@@ -9,6 +9,7 @@ import { GlobalLoader } from '@/components/ui/global-loader';
 import { ModuleFilterSelect } from '@/components/ModuleFilterSelect';
 import { ActivityLog } from '@/components/ActivityLog';
 import { XIcon, ActivityIcon } from 'lucide-react';
+import { ledgerService } from '@/services/ledgerService';
 import { resolveProjectCategory, projectTypeTabLabel, withOverheadCategory, type ProjectCategory } from '@/utils/projectTypeMapping';
 
 /** The Project Registration fields this page reads, fetched once for every PR. */
@@ -211,7 +212,21 @@ const TaskRegistry: React.FC = () => {
         orderBy: { field: "modified", order: "desc" },
     });
 
-    // import { debounce } from 'lodash'; // Removed unused import
+    // App IDs whose commit is still awaiting payment (the Payments queue). An approved
+    // task in this set has not cleared Accounts yet, so it reads "Pending Acc. Verification".
+    const [unpaidCommitAppIds, setUnpaidCommitAppIds] = useState<Set<string>>(new Set());
+    useEffect(() => {
+        let cancelled = false;
+        Promise.all(['COMMITTED', 'PARTIALLY_PAID', 'OVERPAYMENT'].map(s => ledgerService.getCommitsByStatus(s)))
+            .then(results => {
+                if (cancelled) return;
+                const ids = new Set<string>();
+                results.flat().forEach(c => { if (c?.frapAppId) ids.add(String(c.frapAppId)); });
+                setUnpaidCommitAppIds(ids);
+            })
+            .catch(() => { /* ledger unavailable: keep the workflow status as is */ });
+        return () => { cancelled = true; };
+    }, []);
 
     // ...
 
@@ -275,6 +290,11 @@ const TaskRegistry: React.FC = () => {
 
         return tasks;
     }, [data, recData, prNameToType, prNoToType]);
+
+    const isPendingAccVerification = (task: FlattenedTask) =>
+        task.doctype === 'Disbursal of Consultancy'
+        && !!task.status?.toLowerCase().includes('approved')
+        && unpaidCommitAppIds.has(task.id);
 
     const visibleTasks = React.useMemo(() =>
         allTasks.filter(task => !(task.project_type === 'Others' && HIDDEN_OTHERS_DOCTYPES.has(task.doctype))),
@@ -584,6 +604,11 @@ const TaskRegistry: React.FC = () => {
                                                     <span className={getStatusBadge(task.status)}>
                                                         {task.status}
                                                     </span>
+                                                    {isPendingAccVerification(task) && (
+                                                        <div className="mt-0.5 text-[9px] font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">
+                                                            Pending Acc. Verification
+                                                        </div>
+                                                    )}
                                                 </td>
                                                 <td className="px-3 py-2 font-bold text-zinc-900 dark:text-zinc-100">
                                                     {task.doctype}
