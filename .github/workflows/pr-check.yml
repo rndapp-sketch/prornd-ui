@@ -1,0 +1,128 @@
+# Pre-merge validation for prornd-ui.
+#
+# This runs on GitHub's cloud runners, NOT on the Testing server. That is
+# deliberate: Jenkins on 172.17.1.46 has no public IP, so GitHub cannot trigger
+# it on PR events — it only polls branches every 3 minutes, which is after a
+# merge, too late to block one. So the split is:
+#   GitHub Actions = validate BEFORE merge   (this file)
+#   Jenkins        = deploy AFTER merge      (../Jenkinsfile)
+#
+# The `build` job is meant to be a REQUIRED status check in branch protection.
+# It is deliberately limited to things that are green on current code, so it
+# fails only on genuinely broken changes:
+#   - `npm ci` catches package.json / package-lock.json drift. This is not
+#     hypothetical: border-beam and html-to-image were declared but never
+#     locked, which broke the deploy pipeline on 2026-09-30.
+#   - `npm run build` catches TypeScript and bundler errors.
+#
+# `npm run lint` is NOT included: eslint currently reports ~2964 errors on this
+# codebase, so requiring it would block every merge. Worth fixing separately,
+# then adding here.
+
+name: PR check
+
+on:
+  pull_request:
+    branches:
+      - testing-frontend
+      - production-frontend-live
+
+concurrency:
+  group: pr-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned to the version the Testing server runs, so a build that passes
+      # here cannot fail on the server for node-version reasons.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.20.2'
+          cache: npm
+
+      - name: Install (also verifies the lockfile is in sync)
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify the build actually produced output
+        run: |
+          test -f dist/index.html || { echo "::error::build produced no dist/index.html"; exit 1; }
+          ls dist/assets/*.js >/dev/null 2>&1 || { echo "::error::build produced no JS bundles"; exit 1; }
+          echo "dist/ looks sane:"; ls -la dist/ dist/assets/ | head -20
+
+  size:
+    name: PR size (advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Advisory only — never fails the PR, per the agreed "warning, not a block"
+    # policy. It posts a comment so reviewers can push back on large PRs, since
+    # oversized long-lived branches are what caused the merge pain here.
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Measure changed lines
+        id: measure
+        run: |
+          base="origin/${{ github.base_ref }}"
+          git fetch --no-tags --depth=0 origin "${{ github.base_ref }}" >/dev/null 2>&1 || true
+
+          # Lockfiles and build output inflate the count without adding review
+          # burden, so they are excluded.
+          total=$(git diff --numstat "$base"...HEAD -- . \
+                    ':(exclude)package-lock.json' \
+                    ':(exclude)yarn.lock' \
+                    ':(exclude)dist/**' \
+                  | awk '{ a+=$1; d+=$2 } END { print (a+d)+0 }')
+
+          echo "total=$total" >> "$GITHUB_OUTPUT"
+          echo "Changed lines (excluding lockfiles and dist/): $total"
+
+      - name: Comment if the PR is large
+        if: steps.measure.outputs.total != '' && fromJSON(steps.measure.outputs.total) > 500
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const total = ${{ steps.measure.outputs.total }};
+            const marker = '<!-- pr-size-advisory -->';
+            const body = `${marker}
+            **Large PR: ~${total} changed lines** (excluding lockfiles and \`dist/\`).
+
+            This is advisory, not a block — it will not stop the merge.
+
+            Smaller PRs are easier to review and conflict far less. If this
+            splits naturally, consider splitting it. If it genuinely doesn't
+            (a generated file, a wide rename), say so and carry on.`;
+
+            // Replace our previous comment instead of stacking a new one per push.
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.issue.number, per_page: 100,
+            });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                comment_id: existing.id, body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: context.issue.number, body,
+              });
+            }
