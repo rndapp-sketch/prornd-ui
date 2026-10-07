@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useEffect, useState } from "react";
 import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
 import { ArrowRight, Trash2 } from "lucide-react";
@@ -186,7 +187,7 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
             setDirectError(null);
             setDirectData(null);
 
-            const DIRECT_ENDPOINT = "/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg";
+            const DIRECT_ENDPOINT = `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg`;
 
             fetchViaDirect(DIRECT_ENDPOINT, prjregTitle, apiAuthHeader, 200, 0, controller.signal)
                 .then((json) => {

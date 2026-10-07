@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import * as React from "react";
 import { useFrappeAuth, useFrappeGetDoc, useFrappeGetDocList } from "frappe-react-sdk";
 import { useNavigate } from "react-router-dom";
@@ -179,7 +180,7 @@ export default function CoProjectView() {
             setUsedBackendMethod(false);
 
             const fetchBackendCoProjects = async () => {
-                const url = "/api/method/rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_co_projects";
+                const url = `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_co_projects`;
                 const response = await fetch(url, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -234,7 +235,7 @@ export default function CoProjectView() {
                                 filters: JSON.stringify([[childDoctype, fieldname, "=", email]]),
                                 limit_page_length: "0",
                             });
-                            const url = `/api/resource/Project%20Registration?${params.toString()}`;
+                            const url = `${FRAPPE_BASE_URL}/api/resource/Project%20Registration?${params.toString()}`;
                             const response = await fetch(url, { credentials: "include" });
                             return { response, url };
                         },
@@ -247,7 +248,7 @@ export default function CoProjectView() {
                                 filters: JSON.stringify([[`${childTableFieldname}.${fieldname}`, "=", email]]),
                                 limit_page_length: "0",
                             });
-                            const url = `/api/resource/Project%20Registration?${params.toString()}`;
+                            const url = `${FRAPPE_BASE_URL}/api/resource/Project%20Registration?${params.toString()}`;
                             const response = await fetch(url, { credentials: "include" });
                             return { response, url };
                         },
@@ -255,7 +256,7 @@ export default function CoProjectView() {
                     {
                         name: "method-child-doctype-filter",
                         request: async () => {
-                            const url = "/api/method/frappe.client.get_list";
+                            const url = `${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`;
                             const response = await fetch(url, {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
@@ -273,7 +274,7 @@ export default function CoProjectView() {
                     {
                         name: "method-child-table-dot-filter",
                         request: async () => {
-                            const url = "/api/method/frappe.client.get_list";
+                            const url = `${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`;
                             const response = await fetch(url, {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
@@ -407,7 +408,7 @@ export default function CoProjectView() {
                     projectNamesToLoad.map(async (projectName) => {
                         try {
                             const response = await fetch(
-                                `/api/resource/Project%20Registration/${encodeURIComponent(projectName)}`,
+                                `${FRAPPE_BASE_URL}/api/resource/Project%20Registration/${encodeURIComponent(projectName)}`,
                                 { credentials: "include" },
                             );
                             debugCoProjects("project detail request", {
@@ -566,14 +567,14 @@ export default function CoProjectView() {
     };
 
     return (
-        <div className="w-full mx-auto space-y-5 animate-in fade-in duration-500">
-            <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
+        <div className="w-full mx-auto space-y-3 animate-in fade-in duration-500">
+            <div className="overflow-hidden rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
                 <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
-                <div className="flex flex-col gap-1 px-5 py-4">
+                <div className="flex flex-col gap-1 px-4 py-2.5">
                     <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">
                         Project Registry
                     </span>
-                    <h1 className="font-sans text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
+                    <h1 className="font-sans text-[18px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
                         Co-Projects
                     </h1>
                     <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
@@ -582,7 +583,7 @@ export default function CoProjectView() {
                 </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 justify-between items-center rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-3 shadow-sm">
+            <div className="flex flex-col sm:flex-row gap-3 justify-between items-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] px-3 py-2 shadow-sm">
                 <div className="relative w-full sm:w-80">
                     <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#71717A]" />
                     <Input
@@ -616,9 +617,9 @@ export default function CoProjectView() {
                 </div>
             </div>
 
-            <Card className="border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden rounded-xl">
+            <Card className="border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden rounded-lg">
                 <CardContent className="p-0">
-                    <div className="flex items-center justify-between border-b border-[#E4E4E7] bg-[#FAFAF9] px-4 py-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
+                    <div className="flex items-center justify-between border-b border-[#E4E4E7] bg-[#FAFAF9] px-3 py-2 dark:border-[#3F3F46] dark:bg-[#18181B]">
                         <div className="flex items-center gap-2">
                             <UsersIcon className="h-4 w-4 text-[#4A6CF7]" />
                             <span className="text-[13px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
@@ -626,26 +627,26 @@ export default function CoProjectView() {
                             </span>
                         </div>
                     </div>
-                    <div className="overflow-x-auto p-3">
+                    <div className="overflow-x-auto">
                         <Table className="border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg overflow-hidden">
                             <TableHeader className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
                                 <TableRow className="border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 hover:bg-transparent">
-                                    <TableHead className="w-[120px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                                    <TableHead className="w-[120px] whitespace-nowrap px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                                         Number
                                     </TableHead>
-                                    <TableHead className="min-w-[220px] px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                                    <TableHead className="min-w-[220px] px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                                         Project Title
                                     </TableHead>
-                                    <TableHead className="w-[160px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                                    <TableHead className="w-[160px] whitespace-nowrap px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                                         Funding Agency
                                     </TableHead>
-                                    <TableHead className="w-[110px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                                    <TableHead className="w-[110px] whitespace-nowrap px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                                         Date
                                     </TableHead>
-                                    <TableHead className="w-[130px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                                    <TableHead className="w-[130px] whitespace-nowrap px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                                         Status
                                     </TableHead>
-                                    <TableHead className="text-right w-[70px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">
+                                    <TableHead className="text-right w-[70px] whitespace-nowrap px-3 py-2 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">
                                         Action
                                     </TableHead>
                                 </TableRow>
@@ -655,7 +656,7 @@ export default function CoProjectView() {
                                     Array.from({ length: 5 }).map((_, index) => (
                                         <TableRow key={index}>
                                             {Array.from({ length: 6 }).map((__, cellIndex) => (
-                                                <TableCell key={cellIndex} className="px-4 py-3">
+                                                <TableCell key={cellIndex} className="px-3 py-2">
                                                     <div className="h-4 w-full max-w-32 animate-pulse rounded bg-zinc-100 dark:bg-zinc-800" />
                                                 </TableCell>
                                             ))}
@@ -680,24 +681,24 @@ export default function CoProjectView() {
                                             className="cursor-pointer hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-b-0"
                                             onClick={() => openProject(project)}
                                         >
-                                            <TableCell className="px-4 py-3 font-mono text-xs font-semibold text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                                            <TableCell className="px-3 py-2 font-mono text-xs font-semibold text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
                                                 {project.project_no || project.name}
                                             </TableCell>
-                                            <TableCell className="px-4 py-3 font-semibold text-[#3F3F46] dark:text-[#E4E4E7] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                                            <TableCell className="px-3 py-2 font-semibold text-[#3F3F46] dark:text-[#E4E4E7] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
                                                 <div className="line-clamp-2 min-w-[180px] max-w-[420px]" title={project.project_title}>
                                                     {project.project_title || "-"}
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="px-4 py-3 text-[#52525B] dark:text-[#A1A1AA] text-xs whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                                            <TableCell className="px-3 py-2 text-[#52525B] dark:text-[#A1A1AA] text-xs whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
                                                 {fundingAgencyNameMap.get(project.funding_agen || "") || project.funding_agen || "-"}
                                             </TableCell>
-                                            <TableCell className="px-4 py-3 text-[#71717A] text-xs whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                                            <TableCell className="px-3 py-2 text-[#71717A] text-xs whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
                                                 {project.creation ? format(new Date(project.creation), "MMM dd, yyyy") : "-"}
                                             </TableCell>
-                                            <TableCell className="px-4 py-3 whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                                            <TableCell className="px-3 py-2 whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
                                                 {getStatusBadge(project.workflow_state)}
                                             </TableCell>
-                                            <TableCell className="px-4 py-3 text-right whitespace-nowrap">
+                                            <TableCell className="px-3 py-2 text-right whitespace-nowrap">
                                                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                                                     <ChevronRightIcon className="h-4 w-4" />
                                                     <span className="sr-only">View</span>

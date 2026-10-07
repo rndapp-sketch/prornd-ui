@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetDocList, useFrappePostCall } from "frappe-react-sdk";
@@ -68,7 +69,7 @@ const getErrorMessage = (error: any, fallback: string) =>
  * per selected doctype — so this calls Frappe's whitelisted-method endpoint directly. */
 const callFrappeMethod = async (method: string, params: Record<string, any> = {}) => {
     const csrfToken = (window as any).csrf_token || "";
-    const res = await fetch(`/api/method/${method}`, {
+    const res = await fetch(`${FRAPPE_BASE_URL}/api/method/${method}`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",

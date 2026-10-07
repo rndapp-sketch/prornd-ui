@@ -1,3 +1,4 @@
+import { frappeUrl } from "@/utils/frappeUrl";
 // ==================
 
 import React, { useState } from 'react';
@@ -109,7 +110,7 @@ const UserDetails = () => {
                 <div className="lg:col-span-1">
                     <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-md p-6 text-center">
                         <img
-                            src={user.user_image}
+                            src={frappeUrl(user.user_image)}
                             alt={user.full_name}
                             className="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-white shadow-lg"
                             onError={(e) => {

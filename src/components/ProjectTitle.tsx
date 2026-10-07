@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect } from "react";
 
 interface ProjectTitleProps {
@@ -24,7 +25,7 @@ export const ProjectTitle: React.FC<ProjectTitleProps> = ({ projectId, fallbackT
                 const safeId = projectId || "";
 
                 // Try fetching from Project Registration
-                const res = await fetch(`/api/v2/document/Project Registration/${encodeURIComponent(safeId)}`, {
+                const res = await fetch(`${FRAPPE_BASE_URL}/api/v2/document/Project Registration/${encodeURIComponent(safeId)}`, {
                     credentials: "include"
                 });
 

@@ -86,7 +86,6 @@ const FormApplication: React.FC = () => {
     );
 
     const applicationGroups = data?.message?.results || [];
-    const totalApplications = data?.message?.total_applications || 0;
 
     // Flatten all records with doctype info
     const allRecords = React.useMemo(() => {
@@ -290,11 +289,11 @@ const FormApplication: React.FC = () => {
             <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans text-[#3F3F46] dark:text-[#E4E4E7]">
                 <GlobalLoader isLoading={isLoading} />
 
-                <main className="flex-1 px-6 md:px-8 pt-7 pb-10 w-full overflow-hidden">
+                <main className="flex-1 px-0 pt-0 pb-4 w-full overflow-hidden">
                     {/* Header */}
-                    <div className="mb-5 overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
+                    <div className="mb-3 overflow-hidden rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
                         <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
-                        <div className="flex items-start gap-3 px-5 py-4">
+                        <div className="flex items-start gap-3 px-4 py-2.5">
                             <button
                                 onClick={() => navigate(-1)}
                                 className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
@@ -306,7 +305,7 @@ const FormApplication: React.FC = () => {
                                 <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">
                                     My Submissions
                                 </span>
-                                <h1 className="mt-1 font-sans text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
+                                <h1 className="font-sans text-[18px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
                                     Form Application
                                 </h1>
                                 <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
@@ -314,21 +313,11 @@ const FormApplication: React.FC = () => {
                                     applications that are no longer needed.
                                 </p>
                             </div>
-                            <div className="flex items-center gap-2 mt-1">
-                                <div className="px-3 py-1.5 rounded-xl bg-[#EEF2FF] dark:bg-[#4A6CF7]/15 border border-[#C7D2FE] dark:border-[#4A6CF7]/30">
-                                    <span className="text-[20px] font-extrabold text-[#4A6CF7] dark:text-[#93C5FD]">
-                                        {totalApplications}
-                                    </span>
-                                    <span className="text-[10px] font-bold text-[#4A6CF7] dark:text-[#93C5FD] ml-1.5 uppercase tracking-wider">
-                                        Pending
-                                    </span>
-                                </div>
-                            </div>
                         </div>
                     </div>
 
                     {/* Tabs */}
-                    <div className="mb-4 flex items-center gap-1 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-1 shadow-sm w-fit">
+                    <div className="mb-3 flex items-center gap-1 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-1 shadow-sm w-fit">
                         {([
                             ["applications", "My Applications"],
                             ["cancellations", "Cancellation Requests"],
@@ -352,7 +341,7 @@ const FormApplication: React.FC = () => {
                     ) : (
                     <>
                     {/* Filter Section */}
-                    <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-3 shadow-sm">
+                    <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] px-3 py-2 shadow-sm">
                         <div className="flex items-center gap-3">
                             <div className="relative">
                                 <select
@@ -463,27 +452,27 @@ const FormApplication: React.FC = () => {
                     </div>
 
                     {/* Table */}
-                    <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden p-3">
+                    <div className="bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden p-0">
                         <div className="overflow-x-auto rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
                             <table className="w-full">
                                 <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
                                     <tr>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                                             Status
                                         </th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                                             Module
                                         </th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                                             Title / Document
                                         </th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                                             Created
                                         </th>
-                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                                        <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                                             Last Updated
                                         </th>
-                                        <th className="px-4 py-3 text-end text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">
+                                        <th className="px-3 py-2 text-end text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">
                                             Actions
                                         </th>
                                     </tr>
@@ -495,7 +484,7 @@ const FormApplication: React.FC = () => {
                                                 key={`${record.doctype}-${record.name}`}
                                                 className="hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors group"
                                             >
-                                                <td className="p-3 align-middle">
+                                                <td className="px-3 py-2 align-middle">
                                                     <span
                                                         className={getStatusBadge(
                                                             record.status
@@ -504,13 +493,13 @@ const FormApplication: React.FC = () => {
                                                         {record.status}
                                                     </span>
                                                 </td>
-                                                <td className="p-3 align-middle text-zinc-600 dark:text-zinc-400 font-medium">
+                                                <td className="px-3 py-2 align-middle text-zinc-600 dark:text-zinc-400 font-medium">
                                                     <div className="flex items-center gap-2">
                                                         <FileText className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
                                                         {record.doctype}
                                                     </div>
                                                 </td>
-                                                <td className="p-3 align-middle font-medium text-zinc-900 dark:text-zinc-200">
+                                                <td className="px-3 py-2 align-middle font-medium text-zinc-900 dark:text-zinc-200">
                                                     <div className="flex flex-col gap-0.5">
                                                         <span className="truncate max-w-[250px]">
                                                             {record.title?.length > 45
@@ -522,16 +511,16 @@ const FormApplication: React.FC = () => {
                                                         </span>
                                                     </div>
                                                 </td>
-                                                <td className="p-3 align-middle text-zinc-500 dark:text-zinc-400">
+                                                <td className="px-3 py-2 align-middle text-zinc-500 dark:text-zinc-400">
                                                     <div className="flex items-center gap-1.5">
                                                         <Clock className="w-3 h-3 text-zinc-400" />
                                                         {formatDate(record.creation)}
                                                     </div>
                                                 </td>
-                                                <td className="p-3 align-middle text-zinc-500 dark:text-zinc-400">
+                                                <td className="px-3 py-2 align-middle text-zinc-500 dark:text-zinc-400">
                                                     {formatDate(record.modified)}
                                                 </td>
-                                                <td className="p-3 align-middle text-right">
+                                                <td className="px-3 py-2 align-middle text-right">
                                                     <div className="flex items-center justify-end gap-2">
                                                         <button
                                                             onClick={() => handleViewClick(record)}
@@ -591,7 +580,7 @@ const FormApplication: React.FC = () => {
                                                 className="p-16 text-center"
                                             >
                                                 <div className="flex flex-col items-center gap-3">
-                                                    <div className="w-14 h-14 rounded-2xl bg-[#EEF2FF] dark:bg-[#4A6CF7]/15 flex items-center justify-center">
+                                                    <div className="w-14 h-14 rounded-lg bg-[#EEF2FF] dark:bg-[#4A6CF7]/15 flex items-center justify-center">
                                                         <CheckCircle2 className="w-7 h-7 text-[#4A6CF7] dark:text-[#93C5FD]" />
                                                     </div>
                                                     <div>
@@ -616,7 +605,7 @@ const FormApplication: React.FC = () => {
 
                         {/* Pagination */}
                         {filteredRecords.length > 0 && (
-                            <div className="p-4 border-t border-zinc-200 dark:border-zinc-700 flex justify-between items-center">
+                            <div className="px-4 py-2 border-t border-zinc-200 dark:border-zinc-700 flex justify-between items-center">
                                 <div className="text-sm text-zinc-500 dark:text-zinc-400">
                                     Showing{" "}
                                     <span className="font-medium text-zinc-900 dark:text-zinc-200">

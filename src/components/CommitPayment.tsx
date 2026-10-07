@@ -85,6 +85,13 @@ export interface CommitPaymentProps {
     submitLabel?: string;
     /** Optional: per-head balance map from useProjectBudget — keys are budget head names */
     headBalances?: Record<string, { commitable: number; received: number; actual: number; committed: number; payment: number; id: number }>;
+    /**
+     * Per-head balances used ONLY for the "Available" figure shown under the budget head selector.
+     * Unlike `headBalances` it does not enable the "exceeds available" validation, so callers whose
+     * amount legitimately replaces an earlier commitment (e.g. TA DA Settlement) can show the right
+     * head figure without being blocked.
+     */
+    displayHeadBalances?: Record<string, { commitable: number }>;
     /** Optional: disable the form externally while still showing it */
     disabled?: boolean;
     /** Optional: reason shown when disabled externally */
@@ -418,6 +425,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     description,
     submitLabel = "Submit Commitment",
     headBalances,
+    displayHeadBalances,
     onHeadChange,
     disabled = false,
     disabledReason,
@@ -558,9 +566,14 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     }, [checkStagingRecord]);
 
     // Commitable balance for the currently selected head (falls back to total committable, then actual)
+    // The display-only per-head figure is floored at 0: a head that has been committed against
+    // without any fund received (e.g. Overhead, which is shown as ₹0 in the balance list) has
+    // nothing available, not a negative amount.
     const selectedHeadBalance = commitHead && headBalances?.[commitHead] != null
         ? headBalances[commitHead].commitable
-        : (commitableBalance ?? actualBalance);
+        : commitHead && displayHeadBalances?.[commitHead] != null
+            ? Math.max(0, displayHeadBalances[commitHead].commitable)
+            : (commitableBalance ?? actualBalance);
 
     // ── Validate & open confirmation dialog ─────────────────────────────────
     const handleSubmitClick = () => {

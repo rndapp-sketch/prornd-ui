@@ -1,3 +1,4 @@
+import { safeStorage } from "@/lib/safeStorage";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
@@ -188,7 +189,7 @@ const SalaryRegisterFull: React.FC = () => {
     const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth());
     const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
     const [preparedCycles, setPreparedCycles] = useState<Record<string, boolean>>(() => {
-        const saved = localStorage.getItem("rnd_prepared_salary_cycles");
+        const saved = safeStorage.getItem("rnd_prepared_salary_cycles");
         if (saved) {
             try { return JSON.parse(saved); } catch { }
         }
@@ -209,14 +210,14 @@ const SalaryRegisterFull: React.FC = () => {
 
     // ── Overrides — read/write localStorage so they stay in sync with SalaryModule ──
     const [overrides, setOverrides] = useState<Record<string, Partial<EditableInputs>>>(() => {
-        const saved = localStorage.getItem(LS_OVERRIDES_KEY);
+        const saved = safeStorage.getItem(LS_OVERRIDES_KEY);
         if (saved) { try { return JSON.parse(saved); } catch { } }
         return {};
     });
 
     // Persist overrides to localStorage on every change
     useEffect(() => {
-        localStorage.setItem(LS_OVERRIDES_KEY, JSON.stringify(overrides));
+        safeStorage.setItem(LS_OVERRIDES_KEY, JSON.stringify(overrides));
     }, [overrides]);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -541,7 +542,7 @@ const SalaryRegisterFull: React.FC = () => {
                                 setPreparedCycles(prev => {
                                     const next = { ...prev };
                                     delete next[cycleKey];
-                                    localStorage.setItem("rnd_prepared_salary_cycles", JSON.stringify(next));
+                                    safeStorage.setItem("rnd_prepared_salary_cycles", JSON.stringify(next));
                                     return next;
                                 });
                             }}

@@ -575,7 +575,7 @@ const ProjectStaffResignationForm: React.FC = () => {
   if (!editDocName && !isCreatingNew && !listLoading && userDrafts.length > 0) {
     return (
       <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
-        <main className="flex-1 p-4 md:p-8">
+        <main className="flex-1 p-0">
           <div className="w-full max-w-7xl mx-auto">
             <PageHeader
               title="Resignation — Draft Applications"
@@ -655,7 +655,7 @@ const ProjectStaffResignationForm: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
-      <main className="flex-1 p-4 md:p-8">
+      <main className="flex-1 p-0">
         <div className="w-full max-w-9xl mx-auto">
 
           <PageHeader

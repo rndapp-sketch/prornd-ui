@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useFrappeGetCall } from "frappe-react-sdk";
@@ -83,7 +84,7 @@ const ProjectLedgerFull = () => {
     useEffect(() => {
         const fetchBudgetHeads = async () => {
             try {
-                const response = await fetch('/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0');
+                const response = await fetch(`${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0`);
                 const result = await response.json();
                 if (result?.data) {
                     setBudgetHeadList(result.data.map((item: any) => ({

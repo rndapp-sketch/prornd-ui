@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { commonAPI } from "@/services/apiService";
 
@@ -29,7 +30,7 @@ const fallbackProfile = (email: string): MessageUserProfile => ({
 });
 
 async function fetchUserProfile(email: string): Promise<MessageUserProfile> {
-    const response = await fetch(`/api/method/${commonAPI.getUserDetailsByEmail}`, {
+    const response = await fetch(`${FRAPPE_BASE_URL}/api/method/${commonAPI.getUserDetailsByEmail}`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",

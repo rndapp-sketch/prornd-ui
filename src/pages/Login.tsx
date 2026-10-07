@@ -1,5 +1,7 @@
 
 
+import { safeStorage } from "@/lib/safeStorage";
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useRef } from 'react';
 import { useFrappeAuth } from 'frappe-react-sdk';
 
@@ -26,7 +28,7 @@ const Login: React.FC = () => {
   const DOMAIN_STORAGE_KEY = 'rndops_default_domain';
 
   const getSavedDomain = (): string => {
-    const d = localStorage.getItem(DOMAIN_STORAGE_KEY);
+    const d = safeStorage.getItem(DOMAIN_STORAGE_KEY);
     // Strip '@' if stored with it, to match the select values
     const cleanD = d ? d.replace('@', '') : '';
     return DOMAINS.includes(cleanD) ? cleanD : DOMAINS[0];
@@ -76,7 +78,7 @@ const Login: React.FC = () => {
   }, [currentUser]);
 
   useEffect(() => {
-    localStorage.setItem(DOMAIN_STORAGE_KEY, domain);
+    safeStorage.setItem(DOMAIN_STORAGE_KEY, domain);
   }, [domain]);
 
   // --- LOGIC: Handlers ---
@@ -99,7 +101,7 @@ const Login: React.FC = () => {
     while (attempt < maxAttempts) {
       try {
         attempt++;
-        const res = await fetch('/api/method/login', {
+        const res = await fetch(`${FRAPPE_BASE_URL}/api/method/login`, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
@@ -112,7 +114,7 @@ const Login: React.FC = () => {
           if (res.status === 423) throw { message: 'Too many failed attempts. Please wait 60 seconds.', exc_type: 'RateLimited' };
           throw { message: data.message || 'Login failed. Please try again.' };
         }
-        localStorage.setItem(DOMAIN_STORAGE_KEY, domain);
+        safeStorage.setItem(DOMAIN_STORAGE_KEY, domain);
         window.location.href = '/dashboard';
         return;
       } catch (err: any) {

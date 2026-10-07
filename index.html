@@ -27,11 +27,35 @@
     <title>PRAGATI R&D - IIT Guwahati</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700;800;900&family=Noto+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Web fonts / icon CSS are non-blocking (media="print" swap): a stylesheet <link> or CSS @import
+         to an unreachable CDN would otherwise hold first paint and leave a blank white page. -->
+    <link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700;800;900&family=Noto+Sans:wght@400;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800&display=swap">
+    <link rel="stylesheet" media="print" onload="this.media='all'" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700;800;900&family=Noto+Sans:wght@400;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800&display=swap">
+    </noscript>
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Last-resort watchdog: if the app bundle never renders anything (failed/stale script,
+      // fatal boot error), show a recovery message instead of a blank white page.
+      (function () {
+        function showRecovery(reason) {
+          var root = document.getElementById("root");
+          if (!root || root.childElementCount > 0) return;
+          root.innerHTML =
+            '<div role="alert" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;font-family:system-ui,sans-serif;text-align:center;padding:24px">' +
+            '<h1 style="font-size:20px;margin:0">The app failed to load</h1>' +
+            '<p style="margin:0;font-size:14px;color:#52525B">' + reason + '</p>' +
+            '<button onclick="location.reload()" style="padding:8px 16px;border-radius:8px;border:0;background:#4A6CF7;color:#fff;cursor:pointer">Reload</button></div>';
+        }
+        window.addEventListener("error", function () { setTimeout(function () { showRecovery("A script error stopped the app from starting."); }, 0); });
+        window.addEventListener("load", function () {
+          setTimeout(function () { showRecovery("It is taking unusually long. Please check your connection and reload."); }, 15000);
+        });
+      })();
+    </script>
 		<script>window.csrf_token = '{{ frappe.session.csrf_token }}';</script>
     <script type="module" src="/src/main.tsx"></script>
   </body>

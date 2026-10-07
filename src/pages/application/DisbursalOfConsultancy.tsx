@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -29,7 +30,7 @@ const DisbursalOfConsultancy: React.FC = () => {
         setLoading(true);
         try {
             const response = await fetch(
-                '/api/v2/document/Disbursal of Consultancy?fields=["name","creation","workflow_state","total_disbursal_amount","disbursal_project_number","project_title","department","webmail_id","pi_name","owner"]&order_by=creation desc&limit_page_length=100000&limit=100000',
+                `${FRAPPE_BASE_URL}/api/v2/document/Disbursal of Consultancy?fields=["name","creation","workflow_state","total_disbursal_amount","disbursal_project_number","project_title","department","webmail_id","pi_name","owner"]&order_by=creation desc&limit_page_length=100000&limit=100000`,
                 { credentials: "include" }
             );
             const data = await response.json();
@@ -58,7 +59,7 @@ const DisbursalOfConsultancy: React.FC = () => {
 
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+            <main className="flex-1 p-0 w-full overflow-hidden">
                 {/* Header */}
                 <header className="mb-6 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
                     <div className="flex items-center justify-between">

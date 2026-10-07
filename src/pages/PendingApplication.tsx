@@ -41,6 +41,8 @@ const getAppRoute = (app: PendingApplicationRecord) => {
             return `/reimbursement/${app.name}`;
         case "Direct Purchase":
             return `/direct-purchase/${app.name}`;
+        case "Project Registration":
+            return `/pending-application/project-registration/${encodeURIComponent(app.name)}`;
         // Cancellation Request has no dedicated detail page — it renders inside the generic
         // Pending Task detail view (see PendingTaskDetails.tsx's "Cancellation Request" branch).
         // Previously fell through to the Leave Module default below, which 404'd since a
@@ -203,11 +205,11 @@ const PendingApplication: React.FC = () => {
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans text-[#3F3F46] dark:text-[#E4E4E7]">
             <GlobalLoader isLoading={isLoading} />
 
-            <main className="flex-1 px-6 md:px-8 pt-7 pb-10 w-full overflow-hidden">
+            <main className="flex-1 px-0 pt-0 pb-4 w-full overflow-hidden">
                 {/* Header */}
-                <div className="mb-5 overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
+                <div className="mb-3 overflow-hidden rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
                     <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
-                    <div className="flex items-start gap-3 px-5 py-4">
+                    <div className="flex items-start gap-3 px-4 py-2.5">
                         <button
                             onClick={() => navigate(-1)}
                             className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
@@ -215,19 +217,19 @@ const PendingApplication: React.FC = () => {
                         >
                             <FaArrowLeft className="h-3.5 w-3.5" />
                         </button>
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#EEF2FF] text-[#4A6CF7] dark:bg-[#4A6CF7]/15 dark:text-[#93C5FD]">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#EEF2FF] text-[#4A6CF7] dark:bg-[#4A6CF7]/15 dark:text-[#93C5FD]">
                             <ClipboardCheck className="h-5 w-5" />
                         </div>
                         <div className="min-w-0">
                             <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">PI Inbox</span>
-                            <h1 className="mt-1 font-sans text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Pending Applications</h1>
+                            <h1 className="font-sans text-[18px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Pending Applications</h1>
                             <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">Leave, extension and other-PI applications awaiting your approval as Principal Investigator.</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Info banner */}
-                <div className="mb-5 flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-800/50 dark:bg-blue-950/30">
+                <div className="mb-3 flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-800/50 dark:bg-blue-950/30">
                     <div className="mt-0.5 flex-shrink-0 flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/40">
                         <svg className="h-4 w-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
@@ -240,9 +242,9 @@ const PendingApplication: React.FC = () => {
                 </div>
 
                 {/* Stat cards */}
-                <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <FrappeCard className="flex items-center gap-3 p-4">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400">
+                <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <FrappeCard className="flex items-center gap-3 px-3 py-2.5">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400">
                             <ClipboardCheck className="h-5 w-5" />
                         </div>
                         <div className="min-w-0">
@@ -250,8 +252,8 @@ const PendingApplication: React.FC = () => {
                             <p className="text-lg font-extrabold text-zinc-900 dark:text-zinc-100">{allApplications.length}</p>
                         </div>
                     </FrappeCard>
-                    <FrappeCard className="flex items-center gap-3 p-4">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400">
+                    <FrappeCard className="flex items-center gap-3 px-3 py-2.5">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400">
                             <Users2 className="h-5 w-5" />
                         </div>
                         <div className="min-w-0">
@@ -259,8 +261,8 @@ const PendingApplication: React.FC = () => {
                             <p className="text-lg font-extrabold text-zinc-900 dark:text-zinc-100">{uniqueApplicantCount}</p>
                         </div>
                     </FrappeCard>
-                    <FrappeCard className="flex items-center gap-3 p-4">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-400">
+                    <FrappeCard className="flex items-center gap-3 px-3 py-2.5">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-400">
                             <CalendarClock className="h-5 w-5" />
                         </div>
                         <div className="min-w-0">
@@ -275,7 +277,7 @@ const PendingApplication: React.FC = () => {
                 </div>
 
                 {/* Filter Section */}
-                <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-3 shadow-sm">
+                <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] px-3 py-2 shadow-sm">
                     <div className="text-sm text-zinc-500 dark:text-zinc-400 font-medium whitespace-nowrap">
                         Showing <span className="text-zinc-900 dark:text-zinc-200 font-semibold">{filteredApplications.length}</span> applications
                     </div>
@@ -324,29 +326,29 @@ const PendingApplication: React.FC = () => {
                 </div>
 
                 {/* Table */}
-                <FrappeCard className="overflow-hidden p-3">
+                <FrappeCard className="overflow-hidden p-0">
                     <div className="overflow-x-auto rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
                         <table className="w-full">
                             <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
                                 <tr>
-                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
-                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Type</th>
-                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Application</th>
-                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
-                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Employee</th>
-                                    <th className="px-4 py-3 text-end text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
+                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
+                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Type</th>
+                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Application</th>
+                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
+                                    <th className="px-3 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Employee</th>
+                                    <th className="px-3 py-2 text-end text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800 bg-white dark:bg-zinc-800 text-xs">
                                 {currentApplications.length > 0 ? (
                                     currentApplications.map((app) => (
                                         <tr key={app.name} className="hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors group">
-                                            <td className="p-3 align-middle">
+                                            <td className="px-3 py-2 align-middle">
                                                 <span className={getStatusBadge()}>
                                                     {app.workflow_state}
                                                 </span>
                                             </td>
-                                            <td className="p-3 align-middle text-zinc-600 dark:text-zinc-400 font-medium">
+                                            <td className="px-3 py-2 align-middle text-zinc-600 dark:text-zinc-400 font-medium">
                                                 <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-300 dark:border-indigo-800">
                                                     {getAppDoctype(app)}
                                                 </span>
@@ -354,7 +356,7 @@ const PendingApplication: React.FC = () => {
                                                     <div className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">{app.leave_type}</div>
                                                 )}
                                             </td>
-                                            <td className="p-3 align-middle font-medium text-zinc-900 dark:text-zinc-200">
+                                            <td className="px-3 py-2 align-middle font-medium text-zinc-900 dark:text-zinc-200">
                                                 <button
                                                     className={cn(
                                                         "text-left hover:text-[#D97757] transition-colors flex items-center gap-1.5 group/title",
@@ -370,10 +372,10 @@ const PendingApplication: React.FC = () => {
                                                     )} />
                                                 </button>
                                             </td>
-                                            <td className="p-3 align-middle text-zinc-500 dark:text-zinc-400">
+                                            <td className="px-3 py-2 align-middle text-zinc-500 dark:text-zinc-400">
                                                 {app.creation ? new Date(app.creation).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "-"}
                                             </td>
-                                            <td className="p-3 align-middle text-zinc-600 dark:text-zinc-400">
+                                            <td className="px-3 py-2 align-middle text-zinc-600 dark:text-zinc-400">
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-6 h-6 rounded-full bg-zinc-100 flex items-center justify-center text-xs font-bold text-zinc-500">
                                                         {(app.username || app.owner || "?").charAt(0).toUpperCase()}
@@ -381,7 +383,7 @@ const PendingApplication: React.FC = () => {
                                                     <span className="truncate max-w-[140px]">{app.username || app.owner}</span>
                                                 </div>
                                             </td>
-                                            <td className="p-3 align-middle text-right">
+                                            <td className="px-3 py-2 align-middle text-right">
                                                 <FrappeButton
                                                     variant="primary"
                                                     onClick={() => navigateToApplication(app)}
@@ -404,7 +406,7 @@ const PendingApplication: React.FC = () => {
                     </div>
 
                     {filteredApplications.length > 0 && (
-                        <div className="p-4 border-t border-zinc-200 dark:border-zinc-700 flex justify-between items-center bg-white dark:bg-zinc-800">
+                        <div className="px-4 py-2 border-t border-zinc-200 dark:border-zinc-700 flex justify-between items-center bg-white dark:bg-zinc-800">
                             <div className="text-sm text-zinc-500 dark:text-zinc-400">
                                 Showing <span className="font-medium text-zinc-900 dark:text-zinc-200">{indexOfFirstApp + 1}</span> to <span className="font-medium text-zinc-900 dark:text-zinc-200">{Math.min(indexOfLastApp, filteredApplications.length)}</span> of {filteredApplications.length} entries
                             </div>

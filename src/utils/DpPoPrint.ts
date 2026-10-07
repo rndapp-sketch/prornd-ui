@@ -1,4 +1,6 @@
-import poTemplate from "@/pages/printformat/dp_po_format.html?raw";
+import poTemplateRaw from "@/pages/printformat/dp_po_format.html?raw";
+import { FRAPPE_BASE_URL, withFrappeBase } from "@/utils/frappeUrl";
+const poTemplate = withFrappeBase(poTemplateRaw);
 import { ToWords } from "to-words";
 
 // The logo needs a fully-qualified same-origin URL, not a bare "/files/..."
@@ -8,7 +10,7 @@ import { ToWords } from "to-words";
 // URL. window.location.origin gives the real scheme+host at generation time,
 // which keeps the logo same-origin (avoiding the mixed-content issue the
 // hardcoded intranet IP had) while still resolving correctly everywhere.
-const LOGO_URL = typeof window !== "undefined" ? `${window.location.origin}/files/IITG_logo.png` : "/files/IITG_logo.png";
+const LOGO_URL = typeof window !== "undefined" ? `${FRAPPE_BASE_URL}/files/IITG_logo.png` : "/files/IITG_logo.png";
 
 const toWords = new ToWords({ localeCode: "en-IN", converterOptions: { ignoreDecimal: true } });
 

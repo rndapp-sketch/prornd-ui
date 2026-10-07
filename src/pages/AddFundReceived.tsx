@@ -1,4 +1,5 @@
 // -=-=-=-=-=-=
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, memo } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
@@ -50,7 +51,7 @@ const inputClasses =
 const FrappeCard = ({ children, className }: any) => (
     <div
         className={cn(
-            "bg-white dark:bg-[#27272A] p-5 md:p-6 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm",
+            "bg-white dark:bg-[#27272A] p-3 md:p-4 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg shadow-sm",
             className,
         )}
     >
@@ -77,12 +78,12 @@ const FrappeButton = ({
     </button>
 );
 const NeoSection = ({ title, children }: any) => (
-    <div className="space-y-4 rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] overflow-hidden">
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20">
+    <div className="space-y-3 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20">
             <div className="w-1 h-5 rounded-full bg-[#4A6CF7]" />
             <h2 className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200">{title}</h2>
         </div>
-        <div className="p-4">{children}</div>
+        <div className="p-3">{children}</div>
     </div>
 );
 
@@ -1562,7 +1563,7 @@ const AddFundReceived: React.FC = () => {
 
             try {
                 const response = await fetch(
-                    `/api/v2/document/Fund%20Received/${encodeURIComponent(editDocName)}`,
+                    `${FRAPPE_BASE_URL}/api/v2/document/Fund%20Received/${encodeURIComponent(editDocName)}`,
                     {
                         credentials: "include",
                     },
@@ -1939,7 +1940,7 @@ const AddFundReceived: React.FC = () => {
         // formData.append('doctype', 'Fund Transaction'); // Optional: Link to doctype if known, but generic upload is fine
         // formData.append('docname', ...); // We don't have the docname yet for new docs
 
-        const response = await fetch("/api/method/upload_file", {
+        const response = await fetch(`${FRAPPE_BASE_URL}/api/method/upload_file`, {
             method: "POST",
             body: formData,
             headers: {
@@ -2583,9 +2584,9 @@ const AddFundReceived: React.FC = () => {
                 />
             )}
 
-            <main className="flex-1 px-6 md:px-8 pt-7 pb-10">
+            <main className="flex-1 px-0 pt-0 pb-4">
                 {settlementReq && settlementReq.total > 0 && (
-                    <div className="mb-5 rounded-2xl border border-[#D97757]/40 bg-[#FFF7ED] dark:bg-[#D97757]/10 p-4">
+                    <div className="mb-3 rounded-lg border border-[#D97757]/40 bg-[#FFF7ED] dark:bg-[#D97757]/10 px-3 py-2">
                         <div className="flex items-start justify-between gap-3 mb-1">
                             <h3 className="text-sm font-bold text-[#9A3412] dark:text-[#F7B79B]">
                                 Loan settlement raised from this receipt
@@ -2646,23 +2647,23 @@ const AddFundReceived: React.FC = () => {
                     </div>
                 )}
 
-                <header className="mb-6 overflow-hidden bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm">
-                    <div className="h-1.5 bg-[linear-gradient(to_right,#4A6CF7,#2563EB,#D97757)]" />
-                    <div className="p-5 flex items-center gap-3">
+                <header className="mb-3 overflow-hidden bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg shadow-sm">
+                    <div className="h-[3px] bg-[linear-gradient(to_right,#4A6CF7,#2563EB,#D97757)]" />
+                    <div className="px-4 py-2.5 flex items-center gap-3">
                         <button type="button"
                             onClick={() => navigate(-1)}
-                            className="h-10 w-10 flex items-center justify-center bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl hover:text-[#D97757] transition-colors"
+                            className="h-8 w-8 flex items-center justify-center bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg hover:text-[#D97757] transition-colors"
                         >
                             <ArrowLeftIcon className="h-4 w-4" />
                         </button>
                         <div className="min-w-0">
-                            <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#D97757] mb-1">Fund Received</div>
-                            <h1 className="text-[22px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-normal">
+                            <div className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">Fund Received</div>
+                            <h1 className="text-[18px] font-extrabold leading-tight text-[#3F3F46] dark:text-[#E4E4E7] tracking-normal">
                                 {editDocName
                                     ? "Edit Received Fund"
                                     : "Record Received Fund"}
                             </h1>
-                            <p className="text-[13px] text-[#71717A] dark:text-[#A1A1AA] font-medium mt-1 break-words">
+                            <p className="text-[13px] text-[#71717A] dark:text-[#A1A1AA] font-medium break-words">
                                 For Project:{" "}
                                 {projectNoFromUrl && (
                                     <strong>{projectNoFromUrl}</strong>
@@ -2674,11 +2675,11 @@ const AddFundReceived: React.FC = () => {
                     </div>
                 </header>
 
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-5">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
                     {/* Left: Main Form */}
                     <div className="lg:col-span-3">
                         <form onSubmit={handleSubmit}>
-                            <FrappeCard className="space-y-8">
+                            <FrappeCard className="space-y-4">
                                 {sections.map((section, index) => (
                                     <NeoSection
                                         key={index}
@@ -2686,8 +2687,8 @@ const AddFundReceived: React.FC = () => {
                                     >
                                         {section.title ===
                                             "Transaction & Budget Breakups" ? (
-                                            <div className="space-y-6">
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+                                            <div className="space-y-4">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                                     {section.fields
                                                         .filter((f) =>
                                                             [
@@ -2760,7 +2761,7 @@ const AddFundReceived: React.FC = () => {
                                                 />
                                             </div>
                                         ) : (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                                 {section.fields.map(
                                                     renderFormField,
                                                 )}
@@ -2770,7 +2771,7 @@ const AddFundReceived: React.FC = () => {
                                 ))}
                             </FrappeCard>
 
-                            <div className="mt-6 flex justify-end gap-3 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl p-3 shadow-sm">
+                            <div className="mt-3 flex justify-end gap-2 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-3 py-2 shadow-sm">
                                 <FrappeButton
                                     type="button"
                                     onClick={() => navigate(-1)}
@@ -2793,8 +2794,8 @@ const AddFundReceived: React.FC = () => {
 
                     {/* Right: Sanction Details Panel */}
                     <div className="lg:col-span-1">
-                        <div className="sticky top-4 space-y-4 max-h-[calc(100vh-2rem)] overflow-y-auto">
-                            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-4">
+                        <div className="sticky top-3 space-y-3 max-h-[calc(100vh-2rem)] overflow-y-auto">
+                            <div className="bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-3">
                                 <h3 className="inline-flex items-center gap-2 rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2.5 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200 mb-3">
                                     <span className="p-1 rounded-md bg-zinc-50 dark:bg-zinc-800">
                                         📋
@@ -3096,7 +3097,7 @@ const AddFundReceived: React.FC = () => {
                             </div>
 
                             {/* Validation Summary Panel */}
-                            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-4">
+                            <div className="bg-white dark:bg-[#27272A] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-3">
                                 <h3 className="inline-flex items-center gap-2 rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2.5 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200 mb-3">
                                     <span className="p-1 rounded-md bg-blue-100">
                                         ✓

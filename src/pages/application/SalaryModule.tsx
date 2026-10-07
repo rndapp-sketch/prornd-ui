@@ -1,4 +1,6 @@
 
+import { safeStorage } from "@/lib/safeStorage";
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
@@ -385,7 +387,7 @@ const SalaryModule: React.FC = () => {
 
     // Prepared status for monthly salary cycles (stored in localStorage)
     const [preparedCycles, setPreparedCycles] = useState<Record<string, boolean>>(() => {
-        const saved = localStorage.getItem("rnd_prepared_salary_cycles");
+        const saved = safeStorage.getItem("rnd_prepared_salary_cycles");
         if (saved) {
             try { return JSON.parse(saved); } catch (e) { }
         }
@@ -413,7 +415,7 @@ const SalaryModule: React.FC = () => {
         setDlqCheckResults(prev => ({ ...prev, [rowIndex]: { checking: true, errors: prev[rowIndex]?.errors ?? [] } }));
         try {
             const response = await fetch(
-                "/api/method/rndopsapp.rndopsapp.commitPayment.get_account_head_payment_dlq_errors",
+                `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.commitPayment.get_account_head_payment_dlq_errors`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -555,7 +557,7 @@ const SalaryModule: React.FC = () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let commitFromApi: any = null;
         try {
-            const apiUrl = `/api/method/rndopsapp.rndopsapp.commitPayment.salary_payment_data?ps_emp_id=${r.employee_id}&yyyy_month=${salary_year_month}`;
+            const apiUrl = `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.commitPayment.salary_payment_data?ps_emp_id=${r.employee_id}&yyyy_month=${salary_year_month}`;
             const response = await fetch(apiUrl, { credentials: "include" });
             const json = await response.json();
             if (!response.ok) {
@@ -900,7 +902,7 @@ const SalaryModule: React.FC = () => {
         if (!bmr) { setBmrError("Please enter a BMR number before submitting."); return; }
         setBmrSubmitting(true);
         setBmrError(null);
-        const paymentEndpoint = "/api/method/rndopsapp.rndopsapp.commitPayment.submit_payment_data";
+        const paymentEndpoint = `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.commitPayment.submit_payment_data`;
         const outcomes: PaymentOutcome[] = [];
         // Cache Project Registration doc-name lookups by project_no — the backend
         // needs project_name to be the actual Project Registration document name
@@ -911,7 +913,7 @@ const SalaryModule: React.FC = () => {
             if (!projectNo) return projectNo;
             if (projectRefCache[projectNo]) return projectRefCache[projectNo];
             try {
-                const prRes = await fetch(`/api/resource/Project%20Registration?filters=[["project_no","=","${projectNo}"]]&fields=["name"]`);
+                const prRes = await fetch(`${FRAPPE_BASE_URL}/api/resource/Project%20Registration?filters=[["project_no","=","${projectNo}"]]&fields=["name"]`);
                 if (prRes.ok) {
                     const prData = await prRes.json();
                     const resolved = prData?.data?.[0]?.name;
@@ -1005,7 +1007,7 @@ const SalaryModule: React.FC = () => {
         try {
             // Fetch Salary Staging document by name (e.g. "2026_june")
             const response = await fetch(
-                `/api/resource/Salary%20Staging/${encodeURIComponent(salary_year_month)}`,
+                `${FRAPPE_BASE_URL}/api/resource/Salary%20Staging/${encodeURIComponent(salary_year_month)}`,
                 { credentials: "include", headers: { Accept: "application/json" } }
             );
 
@@ -1552,12 +1554,12 @@ const SalaryModule: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] font-sans text-[#3F3F46] dark:text-[#E4E4E7]">
-            <main className="mx-auto max-w-[1780px] px-4 py-6 md:px-8 md:py-8 space-y-5">
+            <main className="w-full px-0 py-0 space-y-3">
 
                 {/* Header */}
-                <header className="overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+                <header className="overflow-hidden rounded-lg border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
                     <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
-                    <div className="flex flex-col gap-4 px-5 py-4 xl:flex-row xl:items-start xl:justify-between">
+                    <div className="flex flex-col gap-3 px-4 py-2.5 xl:flex-row xl:items-start xl:justify-between">
                         <div className="flex min-w-0 items-start gap-3">
                             <button
                                 onClick={() => navigate(-1)}
@@ -1580,7 +1582,7 @@ const SalaryModule: React.FC = () => {
                                         {isPrepared ? "Prepared & Locked" : "Not Prepared"}
                                     </span>
                                 </div>
-                                <h1 className="text-[22px] font-extrabold leading-tight tracking-normal text-[#3F3F46] dark:text-[#E4E4E7]">
+                                <h1 className="text-[18px] font-extrabold leading-tight tracking-normal text-[#3F3F46] dark:text-[#E4E4E7]">
                                     Salary Module
                                 </h1>
                                 <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
@@ -1623,10 +1625,10 @@ const SalaryModule: React.FC = () => {
                                         setPreparedCycles(prev => {
                                             const next = { ...prev };
                                             delete next[cycleKey];
-                                            localStorage.setItem("rnd_prepared_salary_cycles", JSON.stringify(next));
+                                            safeStorage.setItem("rnd_prepared_salary_cycles", JSON.stringify(next));
                                             return next;
                                         });
-                                        localStorage.removeItem(`rnd_processed_salaries_${selectedYear}-${selectedMonth}`);
+                                        safeStorage.removeItem(`rnd_processed_salaries_${selectedYear}-${selectedMonth}`);
                                         setProcessedEmployees(new Set());
                                     }}
                                     className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-[#E4E4E7] bg-white px-3 text-[12px] font-bold text-[#3F3F46] transition-all hover:bg-[#FAFAF9] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8] dark:hover:bg-[#3F3F46]"
@@ -1710,12 +1712,12 @@ const SalaryModule: React.FC = () => {
                 </header>
 
                 {/* Main Tabs — Research vs Consultancy are fully separate payrolls (month/year, register, exports all scope to whichever is active) */}
-                <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+                <div className="overflow-hidden rounded-lg border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
                     <div className="flex">
                         <button
                             onClick={() => setStaffTypeTab("Research")}
                             className={cn(
-                                "flex flex-1 items-center justify-center gap-2.5 px-5 py-4 text-[15px] font-extrabold transition-all border-b-[3px]",
+                                "flex flex-1 items-center justify-center gap-2.5 px-4 py-2.5 text-[14px] font-extrabold transition-all border-b-[3px]",
                                 staffTypeTab === "Research"
                                     ? "text-[#4A6CF7] border-[#4A6CF7] bg-[#EEF2FF]/50 dark:bg-[#4A6CF7]/10"
                                     : "text-[#71717A] border-transparent hover:text-[#3F3F46] hover:bg-[#FAFAF9] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] dark:hover:bg-[#3F3F46]/50"
@@ -1735,7 +1737,7 @@ const SalaryModule: React.FC = () => {
                         <button
                             onClick={() => setStaffTypeTab("Consultancy")}
                             className={cn(
-                                "flex flex-1 items-center justify-center gap-2.5 px-5 py-4 text-[15px] font-extrabold transition-all border-b-[3px]",
+                                "flex flex-1 items-center justify-center gap-2.5 px-4 py-2.5 text-[14px] font-extrabold transition-all border-b-[3px]",
                                 staffTypeTab === "Consultancy"
                                     ? "text-[#D97757] border-[#D97757] bg-[#D97757]/5"
                                     : "text-[#71717A] border-transparent hover:text-[#3F3F46] hover:bg-[#FAFAF9] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] dark:hover:bg-[#3F3F46]/50"
@@ -1831,13 +1833,13 @@ const SalaryModule: React.FC = () => {
                 {!isLoading && !error && activeStaffRecords.length > 0 && isPrepared && (
                     <>
                         {/* Tab Switcher & Progress Bar */}
-                        <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+                        <div className="overflow-hidden rounded-lg border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
                             <div className="flex items-center justify-between">
                                 <div className="flex">
                                     <button
                                         onClick={() => setActiveTab("pending")}
                                         className={cn(
-                                            "relative flex items-center gap-2 px-5 py-3.5 text-[13px] font-bold transition-all border-b-2",
+                                            "relative flex items-center gap-2 px-4 py-2.5 text-[13px] font-bold transition-all border-b-2",
                                             activeTab === "pending"
                                                 ? "text-[#D97757] border-[#D97757] bg-white dark:bg-[#27272A]"
                                                 : "text-[#71717A] border-transparent hover:text-[#3F3F46] hover:bg-[#FAFAF9] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] dark:hover:bg-[#3F3F46]/50"
@@ -1857,7 +1859,7 @@ const SalaryModule: React.FC = () => {
                                     <button
                                         onClick={() => setActiveTab("processed")}
                                         className={cn(
-                                            "relative flex items-center gap-2 px-5 py-3.5 text-[13px] font-bold transition-all border-b-2",
+                                            "relative flex items-center gap-2 px-4 py-2.5 text-[13px] font-bold transition-all border-b-2",
                                             activeTab === "processed"
                                                 ? "text-emerald-600 border-emerald-500 bg-white dark:bg-[#27272A] dark:text-emerald-400"
                                                 : "text-[#71717A] border-transparent hover:text-[#3F3F46] hover:bg-[#FAFAF9] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] dark:hover:bg-[#3F3F46]/50"
@@ -1877,7 +1879,7 @@ const SalaryModule: React.FC = () => {
                                     <button
                                         onClick={() => setActiveTab("termending")}
                                         className={cn(
-                                            "relative flex items-center gap-2 px-5 py-3.5 text-[13px] font-bold transition-all border-b-2",
+                                            "relative flex items-center gap-2 px-4 py-2.5 text-[13px] font-bold transition-all border-b-2",
                                             activeTab === "termending"
                                                 ? "text-amber-600 border-amber-500 bg-white dark:bg-[#27272A] dark:text-amber-400"
                                                 : "text-[#71717A] border-transparent hover:text-[#3F3F46] hover:bg-[#FAFAF9] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] dark:hover:bg-[#3F3F46]/50"
@@ -1918,7 +1920,7 @@ const SalaryModule: React.FC = () => {
                         </div>
 
                         {/* Filter Toolbar */}
-                        <div className="flex flex-col items-stretch gap-3 rounded-2xl border border-[#E4E4E7] bg-white p-3.5 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A] lg:flex-row lg:items-center">
+                        <div className="flex flex-col items-stretch gap-3 rounded-lg border border-[#E4E4E7] bg-white p-2.5 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A] lg:flex-row lg:items-center">
                             {/* Search */}
                             <div className="relative flex-1">
                                 <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#A1A1AA] dark:text-[#71717A]" />
@@ -2008,8 +2010,41 @@ const SalaryModule: React.FC = () => {
                             })()}
                         </div>
 
+                        {/* Processed summary strip */}
+                        {activeTab === "processed" && !isLoading && !error && filteredStagingRecords.length > 0 && (() => {
+                            let gross = 0, ded = 0, net = 0, paidAmt = 0, paidCount = 0;
+                            filteredStagingRecords.forEach((rec: any) => {
+                                const ud = rec?.salary_user_details ?? {};
+                                gross += Number(ud.gross_pay ?? 0);
+                                net += Number(ud.net_pay ?? 0);
+                                ded += Number(ud.total_deduction ?? ((ud.hra_deduction ?? 0) + (ud.medical_deduction ?? 0) + (ud.p_tax ?? 0) + (ud.ta ?? 0) + (ud.id_card_charge ?? 0) + (ud.electricity_bill ?? 0) + (ud.other_deduction ?? 0)));
+                                if ((rec?.payment_status ?? "").toLowerCase() === "paid") {
+                                    paidCount += 1;
+                                    paidAmt += Number(rec?.payment_amount ?? 0);
+                                }
+                            });
+                            const cards = [
+                                { label: "Employees Processed", value: String(filteredStagingRecords.length), sub: `${paidCount} paid`, tone: "border-l-[#4A6CF7] text-[#1E3A8A] dark:text-[#C7D2FE]" },
+                                { label: "Gross Pay", value: `₹ ${fmt(gross)}`, sub: "Total earnings", tone: "border-l-emerald-500 text-emerald-800 dark:text-emerald-300" },
+                                { label: "Total Deductions", value: `₹ ${fmt(ded)}`, sub: "All deductions", tone: "border-l-rose-500 text-rose-800 dark:text-rose-300" },
+                                { label: "Net Pay", value: `₹ ${fmt(net)}`, sub: "Payable to staff", tone: "border-l-amber-500 text-amber-900 dark:text-amber-300" },
+                                { label: "Amount Paid", value: `₹ ${fmt(paidAmt)}`, sub: `${paidCount} of ${filteredStagingRecords.length} paid`, tone: "border-l-teal-500 text-teal-800 dark:text-teal-300" },
+                            ];
+                            return (
+                                <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-5">
+                                    {cards.map(c => (
+                                        <div key={c.label} className={cn("rounded-lg border border-[#E4E4E7] border-l-4 bg-white px-3 py-2 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]", c.tone.split(" ")[0])}>
+                                            <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">{c.label}</p>
+                                            <p className={cn("mt-0.5 text-[16px] font-extrabold tabular-nums leading-tight", c.tone.split(" ").slice(1).join(" "))}>{c.value}</p>
+                                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{c.sub}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            );
+                        })()}
+
                         {/* Table Container */}
-                        <Card className="overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+                        <Card className="overflow-hidden rounded-lg border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
                             <div className="flex items-center justify-between border-b border-[#E4E4E7] bg-[#FAFAF9] px-[22px] py-[14px] dark:border-[#3F3F46] dark:bg-[#27272A]">
                                 <div className="flex items-center gap-3 text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
                                     <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-50 text-[#2563EB] dark:bg-blue-950/20">
@@ -2060,122 +2095,122 @@ const SalaryModule: React.FC = () => {
                                     ) : (
                                         <div className="overflow-x-auto max-h-[calc(100vh-280px)] overflow-y-auto scroll-smooth">
                                             <table className="min-w-[4600px] table-auto border-collapse divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
-                                                <thead className="sticky top-0 z-20 bg-emerald-50 text-[10px] font-extrabold uppercase tracking-wider text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
+                                                <thead className="border-r border-[#C7D2FE]/70 whitespace-nowrap sticky top-0 z-20 bg-[#EEF2FF] text-[11px] font-extrabold uppercase tracking-wider text-[#1E3A8A]  dark:text-[#1E3A8A] dark:text-[#C7D2FE]">
                                                     <tr className="border-b border-emerald-200 dark:border-emerald-900/40">
                                                         {/* Fixed identity columns */}
-                                                        <th rowSpan={2} className="w-[48px] min-w-[48px] sticky left-0 z-30 bg-emerald-50 dark:bg-emerald-950/30 border-r border-emerald-200 dark:border-emerald-900/40 px-3 py-3 text-left">#</th>
-                                                        <th rowSpan={2} className="w-[120px] min-w-[120px] sticky left-[48px] z-30 bg-emerald-50 dark:bg-emerald-950/30 border-r border-emerald-200 dark:border-emerald-900/40 px-3 py-3 text-left">Emp ID</th>
-                                                        <th rowSpan={2} className="w-[190px] min-w-[190px] sticky left-[168px] z-30 bg-emerald-50 dark:bg-emerald-950/30 border-r border-emerald-200 dark:border-emerald-900/40 px-3 py-3 text-left shadow-[4px_0_8px_-3px_rgba(0,0,0,0.1)]">Name</th>
-                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[200px] border-r border-emerald-200 dark:border-emerald-900/40">Email ID</th>
-                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[160px] border-r border-emerald-200 dark:border-emerald-900/40">Department</th>
-                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[160px] border-r border-emerald-200 dark:border-emerald-900/40">Designation</th>
-                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[100px] border-r border-emerald-200 dark:border-emerald-900/40">Joining Date</th>
-                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[100px] border-r border-emerald-200 dark:border-emerald-900/40">Exit Date</th>
-                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[110px] border-r border-emerald-200 dark:border-emerald-900/40">Project No</th>
-                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[110px] border-r border-emerald-200 dark:border-emerald-900/40">Scheme</th>
-                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[80px] border-r border-emerald-200 dark:border-emerald-900/40">Period</th>
-                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[130px] border-r border-emerald-200 dark:border-emerald-900/40">Bank A/C No</th>
-                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[110px] border-r border-emerald-200 dark:border-emerald-900/40">IFSC Code</th>
-                                                        <th rowSpan={2} className="px-3 py-3 text-center min-w-[70px] border-r border-emerald-200 dark:border-emerald-900/40">Hostel</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap w-[48px] min-w-[48px] sticky left-0 z-30 bg-[#EEF2FF]  border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40 px-3 py-2 text-left">#</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap w-[120px] min-w-[120px] sticky left-[48px] z-30 bg-[#EEF2FF]  border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40 px-3 py-2 text-left">Emp ID</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap w-[190px] min-w-[190px] sticky left-[168px] z-30 bg-[#EEF2FF]  border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40 px-3 py-2 text-left shadow-[4px_0_8px_-3px_rgba(0,0,0,0.1)]">Name</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap px-3 py-2 text-left min-w-[200px] border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40">Email ID</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap px-3 py-2 text-left min-w-[160px] border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40">Department</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap px-3 py-2 text-left min-w-[160px] border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40">Designation</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap px-3 py-2 text-left min-w-[100px] border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40">Joining Date</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap px-3 py-2 text-left min-w-[100px] border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40">Exit Date</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap px-3 py-2 text-left min-w-[110px] border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40">Project No</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap px-3 py-2 text-left min-w-[110px] border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40">Scheme</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap px-3 py-2 text-left min-w-[80px] border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40">Period</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap px-3 py-2 text-left min-w-[130px] border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40">Bank A/C No</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap px-3 py-2 text-left min-w-[110px] border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40">IFSC Code</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap px-3 py-2 text-center min-w-[70px] border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40">Hostel</th>
                                                         {/* Earnings group */}
-                                                        <th colSpan={9} className="px-3 py-2 text-center bg-emerald-100/60 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-400 border-b border-emerald-200 dark:border-emerald-900/40">Earnings (₹)</th>
+                                                        <th colSpan={9} className="border-r border-[#C7D2FE]/70 whitespace-nowrap px-3 py-2 text-center bg-[#EEF2FF] text-[#1E3A8A] dark:text-[#C7D2FE] border-b border-[#C7D2FE] dark:border-[#C7D2FE]/40">Earnings (₹)</th>
                                                         {/* Deductions group */}
-                                                        <th colSpan={8} className="px-3 py-2 text-center bg-rose-50/60 dark:bg-rose-950/20 text-rose-800 dark:text-rose-400 border-b border-emerald-200 dark:border-emerald-900/40">Deductions (₹)</th>
+                                                        <th colSpan={8} className="border-r border-[#C7D2FE]/70 whitespace-nowrap px-3 py-2 text-center bg-[#EEF2FF] text-[#1E3A8A] dark:text-[#C7D2FE] border-b border-[#C7D2FE] dark:border-[#C7D2FE]/40">Deductions (₹)</th>
                                                         {/* Net */}
-                                                        <th rowSpan={2} className="px-3 py-3 text-right min-w-[110px] bg-amber-50/50 dark:bg-amber-900/10 text-amber-900 dark:text-amber-300 border-l border-r border-emerald-200 dark:border-emerald-900/40 font-bold">Net Pay (₹)</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap px-3 py-2 text-right min-w-[110px] bg-[#EEF2FF] text-[#1E3A8A] dark:text-[#C7D2FE] border-l border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40 font-bold">Net Pay (₹)</th>
                                                         {/* Payment info */}
-                                                        <th rowSpan={2} className="px-3 py-3 text-right min-w-[120px] border-r border-emerald-200 dark:border-emerald-900/40">Commit Amt (₹)</th>
-                                                        <th rowSpan={2} className="px-3 py-3 text-right min-w-[120px] border-r border-emerald-200 dark:border-emerald-900/40">Pay Amt (₹)</th>
-                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[160px] border-r border-emerald-200 dark:border-emerald-900/40">Payment Particular</th>
-                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[110px] border-r border-emerald-200 dark:border-emerald-900/40">Payment Date</th>
-                                                        <th rowSpan={2} className="px-3 py-3 text-center min-w-[120px] border-r border-emerald-200 dark:border-emerald-900/40">Payment Status</th>
-                                                        <th rowSpan={2} className="px-3 py-3 text-center min-w-[100px] border-r border-emerald-200 dark:border-emerald-900/40">Status</th>
-                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[110px] border-r border-emerald-200 dark:border-emerald-900/40">BMR</th>
-                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[130px] border-r border-emerald-200 dark:border-emerald-900/40">Frap App ID</th>
-                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[180px] border-r border-emerald-200 dark:border-emerald-900/40">Comment</th>
-                                                        <th rowSpan={2} className="px-3 py-3 text-left min-w-[180px] border-r border-emerald-200 dark:border-emerald-900/40">Remarks</th>
-                                                        <th rowSpan={2} className="px-3 py-3 text-center min-w-[90px]">Payslip</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap px-3 py-2 text-right min-w-[120px] border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40">Commit Amt (₹)</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap px-3 py-2 text-right min-w-[120px] border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40">Pay Amt (₹)</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap px-3 py-2 text-left min-w-[160px] border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40">Payment Particular</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap px-3 py-2 text-left min-w-[110px] border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40">Payment Date</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap px-3 py-2 text-center min-w-[120px] border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40">Payment Status</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap px-3 py-2 text-center min-w-[100px] border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40">Status</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap px-3 py-2 text-left min-w-[110px] border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40">BMR</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap px-3 py-2 text-left min-w-[130px] border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40">Frap App ID</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap px-3 py-2 text-left min-w-[180px] border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40">Comment</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap px-3 py-2 text-left min-w-[180px] border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40">Remarks</th>
+                                                        <th rowSpan={2} className="whitespace-nowrap px-3 py-2 text-center min-w-[90px]">Payslip</th>
                                                     </tr>
-                                                    <tr className="bg-emerald-50 dark:bg-emerald-950/30">
+                                                    <tr className="bg-[#EEF2FF] dark:bg-emerald-950/30">
                                                         {/* Earnings sub-headers */}
-                                                        <th className="px-3 py-2 text-right min-w-[100px] bg-emerald-100/40 dark:bg-emerald-900/15 text-emerald-700 dark:text-emerald-400">Basic</th>
-                                                        <th className="px-3 py-2 text-right min-w-[90px] bg-emerald-100/40 dark:bg-emerald-900/15 text-emerald-700 dark:text-emerald-400">HRA</th>
-                                                        <th className="px-3 py-2 text-center min-w-[70px] bg-emerald-100/40 dark:bg-emerald-900/15 text-emerald-600 dark:text-emerald-500">HRA (%)</th>
-                                                        <th className="px-3 py-2 text-center min-w-[70px] bg-emerald-100/40 dark:bg-emerald-900/15 text-emerald-600 dark:text-emerald-500">Days</th>
-                                                        <th className="px-3 py-2 text-right min-w-[100px] bg-emerald-100/40 dark:bg-emerald-900/15 text-emerald-700 dark:text-emerald-400">Pro Rata Basic</th>
-                                                        <th className="px-3 py-2 text-right min-w-[100px] bg-emerald-100/40 dark:bg-emerald-900/15 text-emerald-700 dark:text-emerald-400">Pro Rata HRA</th>
-                                                        <th className="px-3 py-2 text-right min-w-[100px] bg-emerald-100/40 dark:bg-emerald-900/15 text-emerald-700 dark:text-emerald-400">Pro Rata Medical</th>
-                                                        <th className="px-3 py-2 text-right min-w-[90px] bg-emerald-100/60 dark:bg-emerald-900/20 text-orange-600 dark:text-orange-400">Arrear</th>
-                                                        <th className="px-3 py-2 text-right min-w-[100px] bg-emerald-100/80 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 font-bold border-r border-emerald-200 dark:border-emerald-900/40">Gross</th>
+                                                        <th className="border-r border-[#C7D2FE]/70 whitespace-nowrap px-3 py-2 text-right min-w-[100px] bg-[#EEF2FF] text-[#1E3A8A] dark:text-[#C7D2FE]">Basic</th>
+                                                        <th className="border-r border-[#C7D2FE]/70 whitespace-nowrap px-3 py-2 text-right min-w-[90px] bg-[#EEF2FF] text-[#1E3A8A] dark:text-[#C7D2FE]">HRA</th>
+                                                        <th className="border-r border-[#C7D2FE]/70 whitespace-nowrap px-3 py-2 text-center min-w-[70px] bg-[#EEF2FF] text-[#1E3A8A] dark:text-[#C7D2FE]">HRA (%)</th>
+                                                        <th className="border-r border-[#C7D2FE]/70 whitespace-nowrap px-3 py-2 text-center min-w-[70px] bg-[#EEF2FF] text-[#1E3A8A] dark:text-[#C7D2FE]">Days</th>
+                                                        <th className="border-r border-[#C7D2FE]/70 whitespace-nowrap px-3 py-2 text-right min-w-[100px] bg-[#EEF2FF] text-[#1E3A8A] dark:text-[#C7D2FE]">Pro Rata Basic</th>
+                                                        <th className="border-r border-[#C7D2FE]/70 whitespace-nowrap px-3 py-2 text-right min-w-[100px] bg-[#EEF2FF] text-[#1E3A8A] dark:text-[#C7D2FE]">Pro Rata HRA</th>
+                                                        <th className="border-r border-[#C7D2FE]/70 whitespace-nowrap px-3 py-2 text-right min-w-[100px] bg-[#EEF2FF] text-[#1E3A8A] dark:text-[#C7D2FE]">Pro Rata Medical</th>
+                                                        <th className="border-r border-[#C7D2FE]/70 whitespace-nowrap px-3 py-2 text-right min-w-[90px] bg-[#EEF2FF] text-[#1E3A8A] dark:text-[#C7D2FE]">Arrear</th>
+                                                        <th className="whitespace-nowrap px-3 py-2 text-right min-w-[100px] bg-[#EEF2FF] text-[#1E3A8A] dark:text-[#C7D2FE] font-bold border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40">Gross</th>
                                                         {/* Deductions sub-headers */}
-                                                        <th className="px-3 py-2 text-right min-w-[90px] bg-rose-50/40 dark:bg-rose-950/15 text-rose-600 dark:text-rose-400">HRA Ded</th>
-                                                        <th className="px-3 py-2 text-right min-w-[90px] bg-rose-50/40 dark:bg-rose-950/15 text-rose-600 dark:text-rose-400">Medical</th>
-                                                        <th className="px-3 py-2 text-right min-w-[80px] bg-rose-50/40 dark:bg-rose-950/15 text-rose-600 dark:text-rose-400">P-Tax</th>
-                                                        <th className="px-3 py-2 text-right min-w-[80px] bg-rose-50/40 dark:bg-rose-950/15 text-rose-600 dark:text-rose-400">TA</th>
-                                                        <th className="px-3 py-2 text-right min-w-[80px] bg-rose-50/40 dark:bg-rose-950/15 text-rose-600 dark:text-rose-400">ID Card</th>
-                                                        <th className="px-3 py-2 text-right min-w-[80px] bg-rose-50/40 dark:bg-rose-950/15 text-rose-600 dark:text-rose-400">Electr.</th>
-                                                        <th className="px-3 py-2 text-right min-w-[80px] bg-rose-50/40 dark:bg-rose-950/15 text-rose-600 dark:text-rose-400">Other</th>
-                                                        <th className="px-3 py-2 text-right min-w-[90px] bg-rose-50/60 dark:bg-rose-950/20 text-rose-800 dark:text-rose-300 font-bold border-r border-emerald-200 dark:border-emerald-900/40">Total Ded</th>
+                                                        <th className="border-r border-[#C7D2FE]/70 whitespace-nowrap px-3 py-2 text-right min-w-[90px] bg-[#EEF2FF] text-[#1E3A8A] dark:text-[#C7D2FE]">HRA Ded</th>
+                                                        <th className="border-r border-[#C7D2FE]/70 whitespace-nowrap px-3 py-2 text-right min-w-[90px] bg-[#EEF2FF] text-[#1E3A8A] dark:text-[#C7D2FE]">Medical</th>
+                                                        <th className="border-r border-[#C7D2FE]/70 whitespace-nowrap px-3 py-2 text-right min-w-[80px] bg-[#EEF2FF] text-[#1E3A8A] dark:text-[#C7D2FE]">P-Tax</th>
+                                                        <th className="border-r border-[#C7D2FE]/70 whitespace-nowrap px-3 py-2 text-right min-w-[80px] bg-[#EEF2FF] text-[#1E3A8A] dark:text-[#C7D2FE]">TA</th>
+                                                        <th className="border-r border-[#C7D2FE]/70 whitespace-nowrap px-3 py-2 text-right min-w-[80px] bg-[#EEF2FF] text-[#1E3A8A] dark:text-[#C7D2FE]">ID Card</th>
+                                                        <th className="border-r border-[#C7D2FE]/70 whitespace-nowrap px-3 py-2 text-right min-w-[80px] bg-[#EEF2FF] text-[#1E3A8A] dark:text-[#C7D2FE]">Electr.</th>
+                                                        <th className="border-r border-[#C7D2FE]/70 whitespace-nowrap px-3 py-2 text-right min-w-[80px] bg-[#EEF2FF] text-[#1E3A8A] dark:text-[#C7D2FE]">Other</th>
+                                                        <th className="whitespace-nowrap px-3 py-2 text-right min-w-[90px] bg-[#EEF2FF] text-[#1E3A8A] dark:text-[#C7D2FE] font-bold border-r border-[#C7D2FE] dark:border-[#C7D2FE]/40">Total Ded</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/80 text-[12px]">
+                                                <tbody className="divide-y divide-[#E4E4E7] dark:divide-zinc-800/80 text-[12px]">
                                                     {filteredStagingRecords.map((rec, i) => {
                                                         const ud = rec?.salary_user_details ?? {};
                                                         const isPaid = (rec?.payment_status ?? "").toLowerCase() === "paid";
                                                         const totalDed = ud.total_deduction ?? ((ud.hra_deduction ?? 0) + (ud.medical_deduction ?? 0) + (ud.p_tax ?? 0) + (ud.ta ?? 0) + (ud.id_card_charge ?? 0) + (ud.electricity_bill ?? 0) + (ud.other_deduction ?? 0));
-                                                        const rowBg = i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50/80 dark:bg-zinc-900/60";
+                                                        const rowBg = i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-[#FAFAFA] dark:bg-zinc-900/60";
                                                         return (
-                                                            <tr key={i} className={cn("transition-colors hover:bg-emerald-50/30 dark:hover:bg-emerald-950/10", rowBg)}>
-                                                                <td className={cn("sticky left-0 z-10 px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-xs text-zinc-400 tabular-nums w-[48px] min-w-[48px]", rowBg)}>{i + 1}</td>
-                                                                <td className={cn("sticky left-[48px] z-10 px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 font-mono text-xs text-[#4A6CF7] dark:text-[#A5B4FC] w-[120px] min-w-[120px] whitespace-nowrap", rowBg)}>{ud.employee_id ?? "—"}</td>
-                                                                <td className={cn("sticky left-[168px] z-10 px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 font-semibold text-zinc-900 dark:text-white w-[190px] min-w-[190px] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.05)] whitespace-nowrap", rowBg)}>{ud.first_name ?? "—"}</td>
-                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{ud.email_id ?? "—"}</td>
-                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{ud.department ? <DepartmentName name={ud.department} /> : "—"}</td>
-                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{ud.designation ?? "—"}</td>
-                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{ud.joining_date ?? "—"}</td>
-                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{ud.term_completion_date ?? "—"}</td>
-                                                                <td className={cn("px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 font-mono text-xs whitespace-nowrap", isPaid ? "font-bold text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-950/30" : "text-[#4A6CF7] dark:text-[#A5B4FC]")}>{ud.project_no || rec?.project_no || rec?.projectNumber || "—"}</td>
-                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{ud.scheme || "—"}</td>
-                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{(rec?.salary_year_month ?? "").replace("_", " ")}</td>
-                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 font-mono text-xs text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{ud.bank_account_number || "—"}</td>
-                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 font-mono text-xs text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{ud.ifsc_code || "—"}</td>
-                                                                <td className="px-3 py-2.5 text-center border-r border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{ud.hostel ?? "—"}</td>
+                                                            <tr key={i} className={cn("transition-colors hover:bg-[#EEF2FF] dark:hover:bg-emerald-950/10", rowBg)}>
+                                                                <td className={cn("border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 sticky left-0 z-10 px-3 py-2 text-xs text-zinc-400 tabular-nums w-[48px] min-w-[48px]", rowBg)}>{i + 1}</td>
+                                                                <td className={cn("border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 sticky left-[48px] z-10 px-3 py-2 font-mono text-xs text-[#4A6CF7] dark:text-[#A5B4FC] w-[120px] min-w-[120px] whitespace-nowrap", rowBg)}>{ud.employee_id ?? "—"}</td>
+                                                                <td className={cn("border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 sticky left-[168px] z-10 px-3 py-2 font-semibold text-zinc-900 dark:text-white w-[190px] min-w-[190px] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.05)] whitespace-nowrap", rowBg)}>{ud.first_name ?? "—"}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{ud.email_id ?? "—"}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{ud.department ? <DepartmentName name={ud.department} /> : "—"}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{ud.designation ?? "—"}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{ud.joining_date ?? "—"}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{ud.term_completion_date ?? "—"}</td>
+                                                                <td className={cn("px-3 py-2 border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 font-mono text-xs whitespace-nowrap", isPaid ? "font-bold text-[#3F3F46] dark:text-[#E4E4E7] bg-emerald-50 dark:text-[#3F3F46] dark:text-[#E4E4E7] dark:bg-emerald-950/30" : "text-[#4A6CF7] dark:text-[#A5B4FC]")}>{ud.project_no || rec?.project_no || rec?.projectNumber || "—"}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{ud.scheme || "—"}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-1.5 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{(rec?.salary_year_month ?? "").replace("_", " ")}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-1.5 font-mono text-xs text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{ud.bank_account_number || "—"}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-1.5 font-mono text-xs text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{ud.ifsc_code || "—"}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2.5 text-center text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{ud.hostel ?? "—"}</td>
                                                                 {/* Earnings */}
-                                                                <td className="px-3 py-2.5 text-right tabular-nums text-emerald-800 dark:text-emerald-300 bg-emerald-50/10 dark:bg-emerald-950/10 whitespace-nowrap">{fmt(ud.basic_salary ?? 0)}</td>
-                                                                <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 dark:bg-emerald-950/10 whitespace-nowrap">{fmt(ud.hra ?? 0)}</td>
-                                                                <td className="px-3 py-2.5 text-center tabular-nums text-zinc-600 dark:text-zinc-400 bg-emerald-50/10 dark:bg-emerald-950/10">{ud.hra_percent != null ? `${ud.hra_percent}%` : "—"}</td>
-                                                                <td className="px-3 py-2.5 text-center tabular-nums text-zinc-600 dark:text-zinc-400 bg-emerald-50/10 dark:bg-emerald-950/10">{ud.working_days ?? "—"}</td>
-                                                                <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 dark:bg-emerald-950/10 whitespace-nowrap">{fmt(ud.pro_rata_basic ?? 0)}</td>
-                                                                <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 dark:bg-emerald-950/10 whitespace-nowrap">{fmt(ud.pro_rata_hra ?? 0)}</td>
-                                                                <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 dark:bg-emerald-950/10 whitespace-nowrap">{fmt(ud.pro_rata_medical ?? 0)}</td>
-                                                                <td className="px-3 py-2.5 text-right tabular-nums text-orange-600 dark:text-orange-400 bg-emerald-50/15 dark:bg-emerald-950/15 whitespace-nowrap">{fmt(ud.arrear ?? 0)}</td>
-                                                                <td className="px-3 py-2.5 text-right tabular-nums font-bold text-emerald-900 dark:text-emerald-300 bg-emerald-100/40 dark:bg-emerald-900/20 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(ud.gross_pay ?? 0)}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2.5 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(ud.basic_salary ?? 0)}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2.5 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(ud.hra ?? 0)}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2.5 text-center tabular-nums text-zinc-600 dark:text-zinc-400">{ud.hra_percent != null ? `${ud.hra_percent}%` : "—"}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2.5 text-center tabular-nums text-zinc-600 dark:text-zinc-400">{ud.working_days ?? "—"}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2.5 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(ud.pro_rata_basic ?? 0)}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2.5 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(ud.pro_rata_hra ?? 0)}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2.5 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(ud.pro_rata_medical ?? 0)}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2.5 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(ud.arrear ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 text-right tabular-nums font-bold text-[#3F3F46] dark:text-[#E4E4E7] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 whitespace-nowrap">{fmt(ud.gross_pay ?? 0)}</td>
                                                                 {/* Deductions */}
-                                                                <td className="px-3 py-2.5 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 dark:bg-rose-950/10 whitespace-nowrap">{fmt(ud.hra_deduction ?? 0)}</td>
-                                                                <td className="px-3 py-2.5 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 dark:bg-rose-950/10 whitespace-nowrap">{fmt(ud.medical_deduction ?? 0)}</td>
-                                                                <td className="px-3 py-2.5 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 dark:bg-rose-950/10 whitespace-nowrap">{fmt(ud.p_tax ?? 0)}</td>
-                                                                <td className="px-3 py-2.5 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 dark:bg-rose-950/10 whitespace-nowrap">{fmt(ud.ta ?? 0)}</td>
-                                                                <td className="px-3 py-2.5 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 dark:bg-rose-950/10 whitespace-nowrap">{fmt(ud.id_card_charge ?? 0)}</td>
-                                                                <td className="px-3 py-2.5 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 dark:bg-rose-950/10 whitespace-nowrap">{fmt(ud.electricity_bill ?? 0)}</td>
-                                                                <td className="px-3 py-2.5 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 dark:bg-rose-950/10 whitespace-nowrap">{fmt(ud.other_deduction ?? 0)}</td>
-                                                                <td className="px-3 py-2.5 text-right tabular-nums font-bold text-rose-900 dark:text-rose-300 bg-rose-100/30 dark:bg-rose-900/15 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(totalDed)}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2.5 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(ud.hra_deduction ?? 0)}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2.5 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(ud.medical_deduction ?? 0)}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2.5 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(ud.p_tax ?? 0)}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2.5 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(ud.ta ?? 0)}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2.5 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(ud.id_card_charge ?? 0)}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2.5 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(ud.electricity_bill ?? 0)}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2.5 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(ud.other_deduction ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 text-right tabular-nums font-bold text-[#3F3F46] dark:text-[#E4E4E7] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 whitespace-nowrap">{fmt(totalDed)}</td>
                                                                 {/* Net */}
-                                                                <td className="px-3 py-2.5 text-right tabular-nums font-bold text-amber-900 dark:text-amber-300 bg-amber-50/30 dark:bg-amber-950/15 border-l border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(ud.net_pay ?? 0)}</td>
+                                                                <td className="px-3 py-2.5 text-right tabular-nums font-bold text-[#3F3F46] dark:text-[#E4E4E7] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 whitespace-nowrap">{fmt(ud.net_pay ?? 0)}</td>
                                                                 {/* Payment */}
-                                                                <td className="px-3 py-2.5 text-right tabular-nums text-zinc-700 dark:text-zinc-300 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(rec?.commitAmount ?? 0)}</td>
-                                                                <td className="px-3 py-2.5 text-right tabular-nums text-zinc-700 dark:text-zinc-300 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(rec?.payment_amount ?? 0)}</td>
-                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">{rec?.payment_particular ?? "—"}</td>
-                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{rec?.payment_date ?? "—"}</td>
-                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-center">
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2.5 text-right tabular-nums text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{fmt(rec?.commitAmount ?? 0)}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2.5 text-right tabular-nums text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{fmt(rec?.payment_amount ?? 0)}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-1.5 text-zinc-600 dark:text-zinc-400">{rec?.payment_particular ?? "—"}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-1.5 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{rec?.payment_date ?? "—"}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-1.5 text-center">
                                                                     <div className="flex flex-col items-center gap-1">
-                                                                        <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold", isPaid ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400")}>
+                                                                        <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold", isPaid ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400")}>
                                                                             {isPaid && <CheckCircle2 className="w-3 h-3" />}
                                                                             {rec?.payment_status ?? "—"}
                                                                         </span>
                                                                         {dlqCheckResults[i]?.errors?.length ? (
                                                                             <span
                                                                                 title={dlqCheckResults[i].errors.map((e: any) => e.why || e.error_message).join("\n")}
-                                                                                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400"
+                                                                                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400"
                                                                             >
                                                                                 <XCircle className="w-3 h-3" /> Rejected
                                                                             </span>
@@ -2191,15 +2226,15 @@ const SalaryModule: React.FC = () => {
                                                                         )}
                                                                     </div>
                                                                 </td>
-                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-center">
-                                                                    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{rec?.status ?? "—"}</span>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-1.5 text-center">
+                                                                    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{rec?.status ?? "—"}</span>
                                                                 </td>
-                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400">{rec?.bmr ?? "—"}</td>
-                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 font-mono text-xs text-zinc-500 dark:text-zinc-400">{rec?.frapAppId ?? "—"}</td>
-                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400">{ud.comment ?? "—"}</td>
-                                                                <td className="px-3 py-2.5 border-r border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400">{ud.remarks ?? "—"}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-1.5 text-zinc-500 dark:text-zinc-400">{rec?.bmr ?? "—"}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-1.5 font-mono text-xs text-zinc-500 dark:text-zinc-400">{rec?.frapAppId ?? "—"}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-1.5 text-zinc-500 dark:text-zinc-400">{ud.comment ?? "—"}</td>
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-1.5 text-zinc-500 dark:text-zinc-400">{ud.remarks ?? "—"}</td>
                                                                 {/* Payslip */}
-                                                                <td className="px-3 py-2.5 text-center">
+                                                                <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2.5 text-center">
                                                                     {(() => {
                                                                         const matched = records.find(sr => sr.employee_id === ud.employee_id);
                                                                         return (
@@ -2207,7 +2242,7 @@ const SalaryModule: React.FC = () => {
                                                                                 onClick={() => matched && setSelectedSlipRecord(matched)}
                                                                                 disabled={!matched}
                                                                                 title={matched ? "Generate Pay Slip" : "Staff record not found for this month"}
-                                                                                className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-orange-200 dark:border-orange-900/50 bg-orange-50/40 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 hover:bg-[#D97757] hover:text-white dark:hover:bg-[#D97757] dark:hover:text-white transition-all shadow-sm active:scale-95 text-[10px] font-bold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-orange-50/40 disabled:hover:text-orange-600"
+                                                                                className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-orange-200 dark:border-orange-900/50 bg-orange-50/40 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 hover:bg-[#D97757] hover:text-white dark:hover:bg-[#D97757] dark:hover:text-white transition-all shadow-sm active:scale-95 text-[11px] font-bold disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-orange-50/40 disabled:hover:text-orange-600"
                                                                             >
                                                                                 <Eye className="w-3 h-3" />
                                                                                 Slip
@@ -2221,32 +2256,32 @@ const SalaryModule: React.FC = () => {
                                                 </tbody>
                                                 <tfoot className="sticky bottom-0 z-20 bg-zinc-50 dark:bg-zinc-950 border-t-2 border-zinc-200 dark:border-zinc-700 text-[11px] font-bold uppercase tracking-wide">
                                                     <tr>
-                                                        <td colSpan={13} className="px-3 py-3 sticky left-0 bg-zinc-50 dark:bg-zinc-950 text-zinc-500 dark:text-zinc-400">{filteredStagingRecords.length} payments</td>
+                                                        <td colSpan={13} className="px-3 py-2 sticky left-0 bg-zinc-50 dark:bg-zinc-950 text-zinc-500 dark:text-zinc-400">{filteredStagingRecords.length} payments</td>
                                                         {/* Earnings totals */}
-                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-800 dark:text-emerald-300 bg-emerald-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.basic_salary ?? 0), 0))}</td>
-                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.hra ?? 0), 0))}</td>
-                                                        <td className="px-3 py-3 bg-emerald-50/10"></td>
-                                                        <td className="px-3 py-3 bg-emerald-50/10"></td>
-                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.pro_rata_basic ?? 0), 0))}</td>
-                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.pro_rata_hra ?? 0), 0))}</td>
-                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-700 dark:text-emerald-400 bg-emerald-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.pro_rata_medical ?? 0), 0))}</td>
-                                                        <td className="px-3 py-3 text-right tabular-nums text-orange-600 dark:text-orange-400 bg-emerald-50/15 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.arrear ?? 0), 0))}</td>
-                                                        <td className="px-3 py-3 text-right tabular-nums text-emerald-900 dark:text-emerald-300 bg-emerald-100/40 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.gross_pay ?? 0), 0))}</td>
+                                                        <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.basic_salary ?? 0), 0))}</td>
+                                                        <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.hra ?? 0), 0))}</td>
+                                                        <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2"></td>
+                                                        <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2"></td>
+                                                        <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.pro_rata_basic ?? 0), 0))}</td>
+                                                        <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.pro_rata_hra ?? 0), 0))}</td>
+                                                        <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.pro_rata_medical ?? 0), 0))}</td>
+                                                        <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.arrear ?? 0), 0))}</td>
+                                                        <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.gross_pay ?? 0), 0))}</td>
                                                         {/* Deductions totals */}
-                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.hra_deduction ?? 0), 0))}</td>
-                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.medical_deduction ?? 0), 0))}</td>
-                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.p_tax ?? 0), 0))}</td>
-                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.ta ?? 0), 0))}</td>
-                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.id_card_charge ?? 0), 0))}</td>
-                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.electricity_bill ?? 0), 0))}</td>
-                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-600 dark:text-rose-400 bg-rose-50/10 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.other_deduction ?? 0), 0))}</td>
-                                                        <td className="px-3 py-3 text-right tabular-nums text-rose-900 dark:text-rose-300 bg-rose-100/30 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.total_deduction ?? ((r?.salary_user_details?.hra_deduction ?? 0) + (r?.salary_user_details?.medical_deduction ?? 0) + (r?.salary_user_details?.p_tax ?? 0) + (r?.salary_user_details?.ta ?? 0) + (r?.salary_user_details?.id_card_charge ?? 0) + (r?.salary_user_details?.electricity_bill ?? 0) + (r?.salary_user_details?.other_deduction ?? 0))), 0))}</td>
+                                                        <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.hra_deduction ?? 0), 0))}</td>
+                                                        <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.medical_deduction ?? 0), 0))}</td>
+                                                        <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.p_tax ?? 0), 0))}</td>
+                                                        <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.ta ?? 0), 0))}</td>
+                                                        <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.id_card_charge ?? 0), 0))}</td>
+                                                        <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.electricity_bill ?? 0), 0))}</td>
+                                                        <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.other_deduction ?? 0), 0))}</td>
+                                                        <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.total_deduction ?? ((r?.salary_user_details?.hra_deduction ?? 0) + (r?.salary_user_details?.medical_deduction ?? 0) + (r?.salary_user_details?.p_tax ?? 0) + (r?.salary_user_details?.ta ?? 0) + (r?.salary_user_details?.id_card_charge ?? 0) + (r?.salary_user_details?.electricity_bill ?? 0) + (r?.salary_user_details?.other_deduction ?? 0))), 0))}</td>
                                                         {/* Net total */}
-                                                        <td className="px-3 py-3 text-right tabular-nums text-amber-900 dark:text-amber-300 bg-amber-50/30 border-l border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.net_pay ?? 0), 0))}</td>
+                                                        <td className="px-3 py-2 text-right tabular-nums text-[#3F3F46] dark:text-[#E4E4E7] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.salary_user_details?.net_pay ?? 0), 0))}</td>
                                                         {/* Payment totals */}
-                                                        <td className="px-3 py-3 text-right tabular-nums text-zinc-700 dark:text-zinc-300 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.commitAmount ?? 0), 0))}</td>
-                                                        <td className="px-3 py-3 text-right tabular-nums text-zinc-700 dark:text-zinc-300 border-r border-zinc-200 dark:border-zinc-800 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.payment_amount ?? 0), 0))}</td>
-                                                        <td colSpan={8} className="px-3 py-3 bg-zinc-50 dark:bg-zinc-950"></td>
+                                                        <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-right tabular-nums text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.commitAmount ?? 0), 0))}</td>
+                                                        <td className="border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 px-3 py-2 text-right tabular-nums text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{fmt(filteredStagingRecords.reduce((s, r) => s + (r?.payment_amount ?? 0), 0))}</td>
+                                                        <td colSpan={8} className="px-3 py-2 bg-zinc-50 dark:bg-zinc-950"></td>
                                                     </tr>
                                                 </tfoot>
                                             </table>
@@ -2378,7 +2413,7 @@ const SalaryModule: React.FC = () => {
                                                         <tr key={r.docName || i} className={cn("transition-colors group", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50/80 dark:bg-zinc-900/60", "hover:bg-blue-50/50 dark:hover:bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
                                                             {/* Checkbox — shown on pending and termending tabs */}
                                                             {(activeTab === "pending" || activeTab === "termending") && (
-                                                                <td className={cn("px-3 py-3 text-center border-r border-zinc-200 dark:border-zinc-800 sticky left-0 z-10 w-[44px] min-w-[44px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
+                                                                <td className={cn("px-3 py-2 text-center border-r border-zinc-200 dark:border-zinc-800 sticky left-0 z-10 w-[44px] min-w-[44px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
                                                                     <input
                                                                         type="checkbox"
                                                                         checked={isChecked}
@@ -2396,17 +2431,17 @@ const SalaryModule: React.FC = () => {
                                                             )}
 
                                                             {/* # */}
-                                                            <td className={cn("px-3 py-3 text-xs font-semibold text-zinc-400 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[48px] min-w-[48px]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[44px]" : "sticky left-0", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>{i + 1}</td>
+                                                            <td className={cn("px-3 py-2 text-xs font-semibold text-zinc-400 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[48px] min-w-[48px]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[44px]" : "sticky left-0", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>{i + 1}</td>
 
                                                             {/* Emp ID */}
-                                                            <td className={cn("px-3 py-3 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[120px] min-w-[120px]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[92px]" : "sticky left-[48px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
+                                                            <td className={cn("px-3 py-2 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[120px] min-w-[120px]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[92px]" : "sticky left-[48px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
                                                                 <span className="text-xs font-mono font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-2 py-0.5 rounded border border-zinc-200/50 dark:border-zinc-700/50">
                                                                     {r.employee_id}
                                                                 </span>
                                                             </td>
 
                                                             {/* Full Name */}
-                                                            <td className={cn("px-3 py-3 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[200px] min-w-[200px] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.07)]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[212px]" : "sticky left-[168px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
+                                                            <td className={cn("px-3 py-2 border-r border-zinc-200 dark:border-zinc-800 z-10 w-[200px] min-w-[200px] shadow-[4px_0_8px_-3px_rgba(0,0,0,0.07)]", (activeTab === "pending" || activeTab === "termending") ? "sticky left-[212px]" : "sticky left-[168px]", i % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-slate-50 dark:bg-zinc-900/80", "group-hover:!bg-blue-50/50 dark:group-hover:!bg-[#27272A]", isChecked && "!bg-indigo-50/60 dark:!bg-indigo-950/20")}>
                                                                 <div className="flex items-center gap-2">
                                                                     <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#D97757]/20 to-orange-200/50 dark:from-[#D97757]/30 dark:to-orange-950/30 flex items-center justify-center shrink-0 border border-orange-500/10">
                                                                         <span className="text-[10px] font-bold text-[#D97757]">
@@ -2417,8 +2452,8 @@ const SalaryModule: React.FC = () => {
                                                                 </div>
                                                             </td>
 
-                                                            <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{r.email_id}</td>
-                                                            <td className="px-3 py-3 text-xs font-medium text-zinc-600 dark:text-zinc-300 whitespace-nowrap">
+                                                            <td className="px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{r.email_id}</td>
+                                                            <td className="px-3 py-2 text-xs font-medium text-zinc-600 dark:text-zinc-300 whitespace-nowrap">
                                                                 {r.department && r.department !== "—" ? (
                                                                     <DepartmentName name={r.department} />
                                                                 ) : (
@@ -2430,10 +2465,10 @@ const SalaryModule: React.FC = () => {
                                                                     {r.designation}
                                                                 </span>
                                                             </td>
-                                                            <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap">{fmtDate(r.joining_date)}</td>
-                                                            <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.term_completion_date ? fmtDate(r.term_completion_date) : "—"}</td>
-                                                            <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.project_no || "—"}</td>
-                                                            <td className="px-3 py-3 text-xs whitespace-nowrap">
+                                                            <td className="px-3 py-2 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap">{fmtDate(r.joining_date)}</td>
+                                                            <td className="px-3 py-2 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.term_completion_date ? fmtDate(r.term_completion_date) : "—"}</td>
+                                                            <td className="px-3 py-2 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.project_no || "—"}</td>
+                                                            <td className="px-3 py-2 text-xs whitespace-nowrap">
                                                                 {(() => {
                                                                     const pNo = (r.project_no || "").trim();
                                                                     const schemeNo = pNo && schemeNumberMap[pNo] ? schemeNumberMap[pNo].trim() : "";
@@ -2446,9 +2481,9 @@ const SalaryModule: React.FC = () => {
                                                                     );
                                                                 })()}
                                                             </td>
-                                                            <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.bank_account_number || "—"}</td>
-                                                            <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.ifsc_code || "—"}</td>
-                                                            <td className="px-3 py-3 text-xs whitespace-nowrap">
+                                                            <td className="px-3 py-2 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.bank_account_number || "—"}</td>
+                                                            <td className="px-3 py-2 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.ifsc_code || "—"}</td>
+                                                            <td className="px-3 py-2 text-xs whitespace-nowrap">
                                                                 {(() => {
                                                                     const summary = tenureSummaryMap[r.employee_id];
                                                                     const monthGap: SalaryGap | null = pendingBulkCommits[r.employee_id]?.salary_gap ?? null;
@@ -2481,7 +2516,7 @@ const SalaryModule: React.FC = () => {
                                                                     );
                                                                 })()}
                                                             </td>
-                                                            <td className="px-3 py-3 text-center whitespace-nowrap">
+                                                            <td className="px-3 py-2 text-center whitespace-nowrap">
                                                                 {(() => {
                                                                     if (!r.ps_hostel) return <span className="text-[10px] font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-zinc-200/50 dark:border-zinc-700/50 px-2 py-0.5 rounded-full">No</span>;
                                                                     const raw = String(r.ps_hostel).trim().toLowerCase();
@@ -2511,13 +2546,13 @@ const SalaryModule: React.FC = () => {
                                                                     step="1"
                                                                 />
                                                             </td>
-                                                            <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">{fmt(currentHRA)}</td>
-                                                            <td className="px-3 py-3 text-center tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">
+                                                            <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">{fmt(currentHRA)}</td>
+                                                            <td className="px-3 py-2 text-center tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">
                                                                 <span className="text-[10px] font-bold bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 border border-violet-200/50 dark:border-violet-900/40 px-2 py-0.5 rounded-full">
                                                                     {r.hra_percent}%
                                                                 </span>
                                                             </td>
-                                                            <td className="px-3 py-3 text-center tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">
+                                                            <td className="px-3 py-2 text-center tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">
                                                                 <span className={cn(
                                                                     "text-xs font-bold px-2 py-0.5 rounded-full border",
                                                                     workingDays < daysInMonth
@@ -2527,13 +2562,13 @@ const SalaryModule: React.FC = () => {
                                                                     {workingDays} / {daysInMonth}
                                                                 </span>
                                                             </td>
-                                                            <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">
+                                                            <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">
                                                                 <span className={cn(workingDays < daysInMonth && "text-amber-600 dark:text-amber-400 font-semibold")}>
                                                                     {fmt(proRataBasic)}
                                                                 </span>
                                                             </td>
-                                                            <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">{fmt(proRataHRA)}</td>
-                                                            <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">{fmt(proRataMedical)}</td>
+                                                            <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">{fmt(proRataHRA)}</td>
+                                                            <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">{fmt(proRataMedical)}</td>
 
                                                             {/* Arrear Input */}
                                                             <td className="px-2 py-1.5 bg-emerald-50/10 dark:bg-emerald-950/10 border-l border-zinc-100 dark:border-zinc-800">
@@ -2557,7 +2592,7 @@ const SalaryModule: React.FC = () => {
                                                             </td>
 
                                                             {/* Gross Pay */}
-                                                            <td className="px-3 py-3 text-right font-bold text-emerald-800 dark:text-emerald-400 bg-emerald-50/10 dark:bg-emerald-950/15 tabular-nums whitespace-nowrap border-l border-r border-zinc-200/50 dark:border-zinc-800/80">
+                                                            <td className="px-3 py-2 text-right font-bold text-emerald-800 dark:text-emerald-400 bg-emerald-50/10 dark:bg-emerald-950/15 tabular-nums whitespace-nowrap border-l border-r border-zinc-200/50 dark:border-zinc-800/80">
                                                                 {fmt(grossPay)}
                                                             </td>
 
@@ -2599,7 +2634,7 @@ const SalaryModule: React.FC = () => {
                                                                     step="1"
                                                                 />
                                                             </td>
-                                                            <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap bg-red-50/5 dark:bg-red-950/5">{fmt(pTax)}</td>
+                                                            <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap bg-red-50/5 dark:bg-red-950/5">{fmt(pTax)}</td>
 
                                                             {/* TA Input */}
                                                             <td className="px-2 py-1.5 bg-red-50/10 dark:bg-red-950/10">
@@ -2678,7 +2713,7 @@ const SalaryModule: React.FC = () => {
                                                             </td>
 
                                                             {/* Total Deduction */}
-                                                            <td className="px-3 py-3 text-right font-semibold text-rose-600 dark:text-rose-400 bg-red-50/10 dark:bg-red-950/15 tabular-nums whitespace-nowrap border-l border-r border-zinc-200/50 dark:border-zinc-800/80">
+                                                            <td className="px-3 py-2 text-right font-semibold text-rose-600 dark:text-rose-400 bg-red-50/10 dark:bg-red-950/15 tabular-nums whitespace-nowrap border-l border-r border-zinc-200/50 dark:border-zinc-800/80">
                                                                 {fmt(totalDed)}
                                                             </td>
 
@@ -2718,7 +2753,7 @@ const SalaryModule: React.FC = () => {
                                                             </td>
 
                                                             {/* Payslip Action Button */}
-                                                            <td className="px-3 py-3 text-center bg-white group-hover:bg-blue-50/50 dark:bg-zinc-900 dark:group-hover:bg-[#27272A]">
+                                                            <td className="px-3 py-2 text-center bg-white group-hover:bg-blue-50/50 dark:bg-zinc-900 dark:group-hover:bg-[#27272A]">
                                                                 <div className="flex items-center justify-center gap-1.5">
                                                                     <button
                                                                         onClick={() => setSelectedSlipRecord(r)}
@@ -2790,7 +2825,7 @@ const SalaryModule: React.FC = () => {
 
                 {/* Unprepared Salary Cycle Alert Banner */}
                 {!isLoading && !error && filtered.length > 0 && !isPrepared && (
-                    <div className="mx-auto my-10 max-w-2xl overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white text-center shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+                    <div className="mx-auto my-10 max-w-2xl overflow-hidden rounded-lg border border-[#E4E4E7] bg-white text-center shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
                         <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
                         <div className="flex flex-col items-center px-8 py-10">
                             <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-xl border border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-800/60 dark:bg-amber-950/20 dark:text-amber-400">
@@ -2818,7 +2853,7 @@ const SalaryModule: React.FC = () => {
 
                                     setPreparedCycles(prev => {
                                         const next = { ...prev, [cycleKey]: true };
-                                        localStorage.setItem("rnd_prepared_salary_cycles", JSON.stringify(next));
+                                        safeStorage.setItem("rnd_prepared_salary_cycles", JSON.stringify(next));
                                         return next;
                                     });
                                 }}

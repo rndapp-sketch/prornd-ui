@@ -1,3 +1,5 @@
+import { getConsultancyBudgetHead } from "@/utils/budgetHead";
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -16,7 +18,6 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlobalLoader } from "@/components/ui/global-loader";
-import { Textarea } from "@/components/ui/textarea";
 import {
     DynamicFormRenderer,
     type FormField,
@@ -30,6 +31,7 @@ import { ProjectLedgerModal } from "@/components/ProjectLedgerModal";
 import { ActivityLog } from "@/components/ActivityLog";
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { P11PrintModal } from "@/components/P11PrintModal";
+import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import { getFileUrl } from "@/utils/fileUtils";
 import { generateDisbursalOfConsultancyHtml } from "@/utils/disbursalOfConsultancyPrint";
 import type { ActivityItem } from "@/utils/disbursalOfHonorariumPrint";
@@ -106,51 +108,6 @@ const FrappeButton = ({
     </button>
 );
 
-// --- ACTIVITY STREAM ---
-const ActivityStream = ({
-    doctype,
-    docname,
-}: {
-    doctype: string;
-    docname: string;
-}) => {
-    const { data: activityData, mutate: refetch } = useFrappeGetCall<{
-        message: ActivityItem[];
-    }>("rndopsapp.rndopsapp.api.get_project_activity", { doctype, docname });
-
-    useEffect(() => {
-        refetch();
-    }, [docname]);
-
-    return (
-        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-            {activityData?.message?.length ? (
-                activityData.message.map((item, idx) => (
-                    <div key={idx} className="flex items-start gap-3">
-                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center font-bold text-[#D97757] text-xs">
-                            {item.owner?.charAt(0).toUpperCase() || "U"}
-                        </div>
-                        <div className="min-w-0">
-                            <div
-                                className="text-sm text-zinc-800 dark:text-zinc-200 prose prose-sm max-w-none"
-                                dangerouslySetInnerHTML={{ __html: item.content }}
-                            />
-                            <p className="text-xs text-zinc-500 mt-0.5">
-                                {item.owner} ·{" "}
-                                {item.creation
-                                    ? new Date(item.creation).toLocaleString()
-                                    : ""}
-                            </p>
-                        </div>
-                    </div>
-                ))
-            ) : (
-                <p className="text-sm text-zinc-500 italic">No activity yet.</p>
-            )}
-        </div>
-    );
-};
-
 // --- MAIN COMPONENT ---
 const DisbursalOfConsultancyDetails: React.FC = () => {
     const navigate = useNavigate();
@@ -168,8 +125,6 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
     const activityLogContainerRef = useRef<HTMLDivElement>(null);
 
     // Sidebar state
-    const [sidebarComment, setSidebarComment] = useState("");
-    const [isAddingComment, setIsAddingComment] = useState(false);
     const [isLedgerOpen, setIsLedgerOpen] = useState(false);
 
     // Commit / Payment state
@@ -192,9 +147,6 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
         "frappe.client.get_list",
     );
     const { call: fetchUserDetails } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
-    const { call: addComment } = useFrappePostCall(
-        "rndopsapp.rndopsapp.api.add_project_comment",
-    );
     const { data: activityData } = useFrappeGetCall<{ message: ActivityItem[] }>(
         "rndopsapp.rndopsapp.api.get_project_activity",
         { doctype: "Disbursal of Consultancy", docname: id },
@@ -223,7 +175,7 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
         const fetchBudgetHeads = async () => {
             try {
                 const response = await fetch(
-                    '/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0',
+                    `${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0`,
                     { credentials: "include" },
                 );
                 const result = await response.json();
@@ -456,7 +408,7 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                         name: id,
                         project_name: formData.disbursal_project_number || "",
                         commit_amount: formData.total_disbursal_amount ?? 0,
-                        budget_head: "Consultancy",
+                        budget_head: await getConsultancyBudgetHead(),
                     });
                 } catch (commitErr) {
                 }
@@ -498,24 +450,6 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
     };
 
     // --- COMMENT ---
-    const handleSidebarCommentSubmit = async () => {
-        if (!sidebarComment.trim() || !id) return;
-        setIsAddingComment(true);
-        try {
-            await addComment({
-                doctype: "Disbursal of Consultancy",
-                docname: id,
-                content: sidebarComment,
-            });
-            setSidebarComment("");
-            handleRefresh();
-        } catch {
-            alert("Failed to submit comment.");
-        } finally {
-            setIsAddingComment(false);
-        }
-    };
-
     // No-op handlers for read-only form
     const noOp = () => {};
     const noOpTable = () => {};
@@ -525,7 +459,7 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
 
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+            <main className="flex-1 p-0 w-full overflow-hidden">
                 {/* Header */}
                 <PageHeader
                     title={formData.name || id || "Disbursal of Consultancy"}
@@ -569,20 +503,16 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                                     </button>
                                 </>
                             )}
+                        {id &&
+                            formData.workflow_state &&
+                            formData.workflow_state !== "Draft" && (
+                                <DisbursalOfConsultancyActionButtons
+                                    docname={id}
+                                    onActionComplete={handleRefresh}
+                                />
+                            )}
                     </div>
                 </PageHeader>
-
-                {/* Workflow Action Buttons — only after submission */}
-                {id &&
-                    formData.workflow_state &&
-                    formData.workflow_state !== "Draft" && (
-                        <div className="mb-6">
-                            <DisbursalOfConsultancyActionButtons
-                                docname={id}
-                                onActionComplete={handleRefresh}
-                            />
-                        </div>
-                    )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                     {/* Main Content — read-only form */}
@@ -651,18 +581,6 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
 
                         {/* Project Budget */}
                         <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-                                Project Budget
-                            </h3>
-                            <div className="flex justify-between items-center bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800 mb-3">
-                                <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-                                    Commitable Balance
-                                </p>
-                                <p className="text-lg font-bold text-[#D97757]">
-                                    ₹{" "}
-                                    {totalCommitableBalance.toLocaleString("en-IN")}
-                                </p>
-                            </div>
                             <button
                                 onClick={() => setIsLedgerOpen(true)}
                                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-[#D97757] font-bold text-sm hover:bg-[#B2DFDB] transition-colors"
@@ -672,52 +590,17 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                             </button>
                         </div>
 
-                        {/* Activity Stream */}
-                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-                                Latest Activity
-                            </h3>
+                        {/* Document Activity Log (kept hidden; used only to build the print/PDF export) */}
+                        <div ref={activityLogContainerRef} className="hidden">
                             {id && (
-                                <ActivityStream
+                                <ActivityLog
                                     doctype="Disbursal of Consultancy"
                                     docname={id}
-                                />
-                            )}
-                        </div>
-
-                        {/* Document Activity Log (new endpoint) */}
-                        <div ref={activityLogContainerRef} className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            {id && (
-                                <ActivityLog 
-                                    doctype="Disbursal of Consultancy" 
-                                    docname={id} 
                                     fallbackOwner={formData.owner}
                                     fallbackCreation={formData.creation}
                                     fallbackOwnerName={formData.pi_name || formData.owner}
                                 />
                             )}
-                        </div>
-
-                        {/* Add Comment */}
-                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
-                                Add Comment
-                            </h3>
-                            <Textarea
-                                rows={3}
-                                placeholder="Type your comment here..."
-                                value={sidebarComment}
-                                onChange={(e) => setSidebarComment(e.target.value)}
-                                className="w-full mb-3 text-sm"
-                            />
-                            <FrappeButton
-                                className="w-full"
-                                variant="primary"
-                                onClick={handleSidebarCommentSubmit}
-                                disabled={isAddingComment}
-                            >
-                                {isAddingComment ? "Submitting..." : "Submit Comment"}
-                            </FrappeButton>
                         </div>
 
                         {/* Make a Commitment / Committed Data Display */}
@@ -852,6 +735,7 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                 message={errorModal.message}
                 onClose={() => setErrorModal((prev) => ({ ...prev, open: false }))}
             />
+            {id && <FloatingActivityLogButton doctype="Disbursal of Consultancy" docname={id} />}
         </div>
     );
 };

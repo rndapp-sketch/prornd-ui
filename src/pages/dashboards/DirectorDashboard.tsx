@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import * as React from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import {
@@ -439,7 +440,7 @@ function usePIFundReceivedTotal(projects: any[]) {
             projectNames.map((docname: string) => {
                 if (!fundReceivedPromiseCache[docname]) {
                     fundReceivedPromiseCache[docname] = fetch(
-                        `/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg?prjreg_title=${encodeURIComponent(docname)}&limit=200&start=0`,
+                        `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg?prjreg_title=${encodeURIComponent(docname)}&limit=200&start=0`,
                         { headers: { "X-Frappe-CSRF-Token": (window as any).csrf_token || "" } }
                     )
                         .then(r => r.json())
@@ -1476,7 +1477,7 @@ export function DirectorDashboard() {
                     try {
                         const csrf = (window as any).csrf_token || "";
                         const headers = { "X-Frappe-CSRF-Token": csrf, "Content-Type": "application/json" };
-                        const res = await fetch(`/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg?prjreg_title=${encodeURIComponent(p.name)}&limit=10&start=0`, { headers }).then(r => r.json()).catch(() => null);
+                        const res = await fetch(`${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg?prjreg_title=${encodeURIComponent(p.name)}&limit=10&start=0`, { headers }).then(r => r.json()).catch(() => null);
 
                         const fundsRaw = res?.message || res?.data || [];
                         const funds = Array.isArray(fundsRaw) ? fundsRaw : (fundsRaw.message || []);
@@ -3253,7 +3254,7 @@ export function DirectorDashboard() {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans text-[14px] leading-relaxed text-[#3F3F46] dark:text-[#E4E4E7]">
-            <div className="px-6 md:px-8 pt-0 pb-10 max-w-[1600px] mx-auto">
+            <div className="px-0 pt-0 pb-4 w-full">
                 {/* ── Header ── */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-4 w-full">
                     <div className="relative">

@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate, useParams } from "react-router-dom";
 import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
@@ -402,7 +403,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                         (prefill_data?.designation_type as string) || "Project Staff"
                     );
                     const desigRes = await fetch(
-                        `/api/method/rndopsapp.rndopsapp.doctype.recruitment_adhoc_contractual.recruitment_adhoc_contractual.get_filtered_designations?designation_type=${seedType}`
+                        `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.recruitment_adhoc_contractual.recruitment_adhoc_contractual.get_filtered_designations?designation_type=${seedType}`
                     );
                     const desigJson = await desigRes.json();
                     const designations = desigJson?.message?.data || desigJson?.data || [];
@@ -677,7 +678,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
             try {
                 const type = encodeURIComponent(formData.designation_type as string);
                 const res = await fetch(
-                    `/api/method/rndopsapp.rndopsapp.doctype.recruitment_adhoc_contractual.recruitment_adhoc_contractual.get_filtered_designations?designation_type=${type}`
+                    `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.doctype.recruitment_adhoc_contractual.recruitment_adhoc_contractual.get_filtered_designations?designation_type=${type}`
                 );
                 const json = await res.json();
                 const designations = json?.message?.data || json?.data || [];
@@ -1034,7 +1035,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
         const fetchBudgetHeads = async () => {
             try {
                 const response = await fetch(
-                    '/api/resource/Budget%20Head?fields=["name","budget_head","id"]&order_by=id%20asc&limit_page_length=0',
+                    `${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["name","budget_head","id"]&order_by=id%20asc&limit_page_length=0`,
                     { credentials: "include" },
                 );
                 const result = await response.json();
@@ -1269,7 +1270,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
 
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-            <main className="max-w-8xl mx-auto p-4 md:p-8 w-full overflow-hidden">
+            <main className="max-w-8xl mx-auto p-0 w-full overflow-hidden">
                 <div className="mb-6 overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
                     <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
                     <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">

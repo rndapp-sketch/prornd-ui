@@ -14,6 +14,7 @@
  * modal and the full-page ledger — and each previously had its own `/ledger-api` copy.
  */
 
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import { PDF_BUDGET_HEAD, PDF_BUDGET_HEAD_ID } from "@/hooks/useProjectBudget";
 
 /**
@@ -85,7 +86,7 @@ export const fetchOverheadLedger = async (
     projectNo: string,
 ): Promise<OverheadLedgerRow[]> => {
     const res = await fetch(
-        `/api/method/rndopsapp.rndopsapp.overhead_fund.get_overhead_ledger?project_number=${encodeURIComponent(projectNo)}`,
+        `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.overhead_fund.get_overhead_ledger?project_number=${encodeURIComponent(projectNo)}`,
         { credentials: "include", headers: { Accept: "application/json" } },
     );
     const payload = await res.json();

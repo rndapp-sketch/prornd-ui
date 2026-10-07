@@ -20,6 +20,9 @@ import {
   Loader2,
   CheckCircle2,
   Clock,
+  Check,
+  X as XIcon,
+  Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -29,6 +32,7 @@ import { parseFrappeError } from "@/utils/errorUtils";
 import { getUploadedImageUrl } from "@/utils/fileUtils";
 import { IdCardOptionSelect } from "@/components/IdCardOptionSelect";
 import { ImageCropModal } from "@/components/ImageCropModal";
+import { validatePickedImage, validateCroppedImage } from "@/utils/idCardImageValidation";
 import { useIdCardOptions } from "@/hooks/useIdCardOptions";
 
 // Upload size limits, checked on the chosen file and again on the cropped result
@@ -433,15 +437,23 @@ const IDCardRequestForm = () => {
     [],
   );
 
-  // Returns true (and shows an error) when the file is over the field's size limit
-  const rejectIfTooLarge = useCallback(
-    (field: "photo_path__" | "sign_path__", file: File): boolean => {
-      const limit = IMAGE_SIZE_LIMITS[field];
-      if (file.size <= limit.bytes) return false;
+  // Runs the picked-file (before crop) or cropped-image checks; shows every problem found.
+  // Returns true when the image was rejected.
+  const rejectInvalidImage = useCallback(
+    async (
+      field: "photo_path__" | "sign_path__",
+      file: File,
+      stage: "picked" | "cropped",
+    ): Promise<boolean> => {
+      const errors =
+        stage === "picked"
+          ? await validatePickedImage(field, file)
+          : await validateCroppedImage(field, file);
+      if (errors.length === 0) return false;
       setErrorModal({
         open: true,
-        title: `${limit.name} Too Large`,
-        message: `${limit.name} must be ${limit.label} or smaller. The selected file is ${(file.size / (1024 * 1024)).toFixed(1)}MB.`,
+        title: `${IMAGE_SIZE_LIMITS[field].name} Not Accepted`,
+        message: errors.join("\n"),
       });
       return true;
     },
@@ -597,7 +609,7 @@ const IDCardRequestForm = () => {
 
   return (
     <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-      <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+      <main className="flex-1 p-0 w-full overflow-hidden">
         <PageHeader
           title={
             editDocName
@@ -721,7 +733,8 @@ const IDCardRequestForm = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6 max-w-5xl">
+        <div className="grid max-w-[1400px] items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <form onSubmit={handleSubmit} className="min-w-0 space-y-6">
           {/* Section 1: Basic Identity */}
           <FrappeCard title="Personal Information" icon={UserIcon}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1013,8 +1026,10 @@ const IDCardRequestForm = () => {
                       disabled={isReadOnly}
                       onChange={(e) => {
                         const file = e.target.files?.[0];
-                        if (file && !rejectIfTooLarge("photo_path__", file))
-                          setPendingCrop({ field: "photo_path__", file });
+                        if (file)
+                          void rejectInvalidImage("photo_path__", file, "picked").then((bad) => {
+                            if (!bad) setPendingCrop({ field: "photo_path__", file });
+                          });
                         e.target.value = ""; // allow re-picking the same file
                       }}
                       className="block w-full text-xs text-zinc-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-[#4A6CF7]/10 file:text-[#4A6CF7] hover:file:bg-[#4A6CF7]/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
@@ -1047,8 +1062,10 @@ const IDCardRequestForm = () => {
                       disabled={isReadOnly}
                       onChange={(e) => {
                         const file = e.target.files?.[0];
-                        if (file && !rejectIfTooLarge("sign_path__", file))
-                          setPendingCrop({ field: "sign_path__", file });
+                        if (file)
+                          void rejectInvalidImage("sign_path__", file, "picked").then((bad) => {
+                            if (!bad) setPendingCrop({ field: "sign_path__", file });
+                          });
                         e.target.value = ""; // allow re-picking the same file
                       }}
                       className="block w-full text-xs text-zinc-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-[#4A6CF7]/10 file:text-[#4A6CF7] hover:file:bg-[#4A6CF7]/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
@@ -1076,9 +1093,12 @@ const IDCardRequestForm = () => {
             }
             onCancel={() => setPendingCrop(null)}
             onConfirm={(cropped) => {
-              if (pendingCrop && !rejectIfTooLarge(pendingCrop.field, cropped))
-                handleFileChange(pendingCrop.field, cropped);
+              const target = pendingCrop?.field;
               setPendingCrop(null);
+              if (!target) return;
+              void rejectInvalidImage(target, cropped, "cropped").then((bad) => {
+                if (!bad) handleFileChange(target, cropped);
+              });
             }}
           />
 
@@ -1127,6 +1147,98 @@ const IDCardRequestForm = () => {
             </div>
           </div>
         </form>
+
+        {/* Photo & signature guidelines */}
+        <aside className="space-y-4 xl:sticky xl:top-6">
+          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="flex items-center gap-2 border-b border-zinc-100 bg-blue-50/70 px-5 py-3 dark:border-zinc-800 dark:bg-blue-950/20">
+              <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <h3 className="text-[13px] font-semibold text-blue-900 dark:text-blue-200">Photo &amp; signature guidelines</h3>
+            </div>
+
+            <div className="space-y-5 p-5 text-[13px] text-zinc-700 dark:text-zinc-300">
+              {/* Specs */}
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
+                <dt className="font-semibold text-zinc-900 dark:text-zinc-100">Photo</dt>
+                <dd>Passport size, portrait (105 × 124 frame) · JPEG / PNG · max 2&nbsp;MB</dd>
+                <dt className="font-semibold text-zinc-900 dark:text-zinc-100">Signature</dt>
+                <dd>Wide strip (162 × 36 frame) · JPEG / PNG · max 1&nbsp;MB</dd>
+                <dt className="font-semibold text-zinc-900 dark:text-zinc-100">Background</dt>
+                <dd>Plain white (or very light) for both</dd>
+              </dl>
+
+              {/* Photo */}
+              <div>
+                <h4 className="mb-2 text-[12px] font-bold uppercase tracking-wide text-zinc-500">Passport photo</h4>
+                <ul className="space-y-1.5">
+                  {[
+                    "Use a recent, clear, front-facing photo with your full face visible.",
+                    "Keep the face centred, head and shoulders in the frame.",
+                    "Use a plain white background with even lighting.",
+                    "Keep a neutral expression with both eyes open.",
+                  ].map((t) => (
+                    <li key={t} className="flex gap-2">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                      <span>{t}</span>
+                    </li>
+                  ))}
+                  {[
+                    "Don't use selfies, group photos or photos of a photo.",
+                    "Don't wear sunglasses, a cap or anything covering the face.",
+                    "Don't use filters, heavy editing, or a coloured / patterned background.",
+                    "Don't upload blurred, dark or tilted images.",
+                  ].map((t) => (
+                    <li key={t} className="flex gap-2">
+                      <XIcon className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+                      <span>{t}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Signature */}
+              <div>
+                <h4 className="mb-2 text-[12px] font-bold uppercase tracking-wide text-zinc-500">Signature</h4>
+                <ul className="space-y-1.5">
+                  {[
+                    "Sign with a black or dark-blue pen on plain white paper.",
+                    "Photograph or scan it straight-on in good light.",
+                    "Crop close to the signature so it fills the strip.",
+                  ].map((t) => (
+                    <li key={t} className="flex gap-2">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                      <span>{t}</span>
+                    </li>
+                  ))}
+                  {[
+                    "Don't use typed or digitally drawn text.",
+                    "Don't use ruled / lined paper, stamps or other marks.",
+                    "Don't leave shadows, creases or a coloured background.",
+                  ].map((t) => (
+                    <li key={t} className="flex gap-2">
+                      <XIcon className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+                      <span>{t}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Instructions */}
+              <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800/50">
+                <h4 className="mb-1.5 text-[12px] font-bold uppercase tracking-wide text-zinc-500">How to upload</h4>
+                <ol className="list-decimal space-y-1 pl-4">
+                  <li>Choose the file (JPEG or PNG, within the size limit).</li>
+                  <li>Adjust the crop to the card frame and confirm.</li>
+                  <li>Check the preview, then save the draft.</li>
+                </ol>
+                <p className="mt-2 text-[12px] text-zinc-500">
+                  Files over the limit are rejected before cropping. The cropped result is checked again.
+                </p>
+              </div>
+            </div>
+          </div>
+        </aside>
+        </div>
       </main>
 
       <ErrorModal

@@ -1,10 +1,8 @@
-import dohTemplate from "@/pages/printformat/disbursal_of_honorarium_format.html?raw";
+import dohTemplateRaw from "@/pages/printformat/disbursal_of_honorarium_format.html?raw";
+import { withFrappeBase } from "@/utils/frappeUrl";
+const dohTemplate = withFrappeBase(dohTemplateRaw);
 import { getFileUrl } from "@/utils/fileUtils";
 
-// The .html?raw template is static text pulled in at build time, so it can't
-// reference import.meta.env itself; substitute the asset host here instead.
-const ASSET_HOST = import.meta.env.VITE_ASSET_HOST || "172.16.131.206";
-const ASSET_PORT = import.meta.env.VITE_ASSET_PORT || "8000";
 
 export interface ActivityItem {
     owner: string;
@@ -310,7 +308,6 @@ export function generateDisbursalOfHonorariumHtml(
     }
 
     return dohTemplate
-        .replace(/http:\/\/172\.16\.117\.39:8000/g, `http://${ASSET_HOST}:${ASSET_PORT}`)
         .replace("{{DOC_REF}}", formData.name || "")
         .replace("{{WORKFLOW_STATE}}", formData.workflow_state || "Draft")
         .replace("{{DATE}}", creation)

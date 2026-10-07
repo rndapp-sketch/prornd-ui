@@ -1,3 +1,4 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import { useState, useEffect } from "react";
 
 /**
@@ -80,7 +81,7 @@ export const useProjectBudget = (projectCode: string) => {
         // fan-out below never runs for an overhead fund.
         if (isOverheadProjectCode(projectCode)) {
           const res = await fetch(
-            `/api/method/rndopsapp.rndopsapp.overhead_fund.get_overhead_balance?project_number=${encodeURIComponent(projectCode)}`,
+            `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.overhead_fund.get_overhead_balance?project_number=${encodeURIComponent(projectCode)}`,
             { credentials: "include", headers: { Accept: "application/json" } },
           );
           const payload = await res.json();
@@ -110,7 +111,7 @@ export const useProjectBudget = (projectCode: string) => {
 
         // 1. Fetch Budget Heads
         const headRes = await fetch(
-          '/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0',
+          `${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0`,
           { credentials: "include", headers: { Accept: "application/json" } },
         );
         const headData = await headRes.json();

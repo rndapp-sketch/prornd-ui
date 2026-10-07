@@ -7,17 +7,19 @@ import { CommitPayment } from "@/components/CommitPayment";
 import { useUserRoles } from "@/components/UserRole";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { extensionAPI } from "@/services/apiService";
+import { PageHeader } from "@/components/common/PageHeader";
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import { CommentModal } from "@/components/CommentModal";
 import {
   User as UserIcon, IdCard, Building2, Briefcase,
   FolderOpen, CalendarDays, FileText, AlertCircle, CheckCircle2,
-  ChevronLeft, ChevronDown, Loader2, Clock,
+  ChevronDown, Loader2, Clock,
   ArrowRightCircle, CheckCircle, XCircle, IndianRupee,
-  UserCheck, TrendingUp,
+  UserCheck, TrendingUp, Printer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { printExtensionOrder } from "@/utils/extensionOrderPrint";
 import { CharLimitAlert } from "@/components/CharLimitAlert";
 import { INT_MAX_LENGTH, CURRENCY_MAX_LENGTH } from "@/utils/fieldLimits";
 import { parseISO, subMonths, isBefore, startOfDay, isValid, format } from "date-fns";
@@ -120,13 +122,34 @@ const getStageStatus = (stageName: string, currentState: string) => {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const InfoRow = ({ icon, label, value }: { icon: React.ReactNode; label: string; value?: React.ReactNode }) => (
-  <div className="flex items-start gap-3">
-    <div className="mt-0.5 flex-shrink-0 text-[#A1A1AA]">{icon}</div>
+const InfoRow = ({
+  icon, label, value, wrap = false, className,
+}: { icon: React.ReactNode; label: string; value?: React.ReactNode; wrap?: boolean; className?: string }) => (
+  <div className={cn("flex items-start gap-3 rounded-lg bg-zinc-50/70 dark:bg-zinc-900/40 border border-zinc-100 dark:border-zinc-700/60 px-3.5 py-3", className)}>
+    <div className="mt-0.5 flex-shrink-0 text-[#4A6CF7]/70">{icon}</div>
     <div className="min-w-0 flex-1">
-      <p className="text-xs text-[#71717A] dark:text-[#A1A1AA]">{label}</p>
-      <div className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7] truncate">{value || "—"}</div>
+      <p className="text-[10px] font-bold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">{label}</p>
+      <div className={cn("mt-0.5 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]", wrap ? "break-words leading-snug" : "truncate")}>{value || "—"}</div>
     </div>
+  </div>
+);
+
+// Headline figure shown in the summary strip at the top of the page.
+const StatTile = ({
+  label, value, hint, tone = "default",
+}: { label: string; value: React.ReactNode; hint?: string; tone?: "default" | "success" }) => (
+  <div className={cn(
+    "rounded-xl border px-4 py-3 min-w-0",
+    tone === "success"
+      ? "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20"
+      : "border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800",
+  )}>
+    <p className="text-[10px] font-bold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">{label}</p>
+    <p className={cn(
+      "mt-1 text-base font-extrabold leading-tight break-words",
+      tone === "success" ? "text-emerald-700 dark:text-emerald-300" : "text-[#27272A] dark:text-[#E4E4E7]",
+    )}>{value}</p>
+    {hint && <p className="mt-0.5 text-[11px] text-[#71717A] dark:text-[#A1A1AA] break-words">{hint}</p>}
   </div>
 );
 
@@ -798,6 +821,41 @@ const ProjectStaffExtensionForm: React.FC = () => {
         ? [{ joining_date: dateOfJoining, term_completion_date: expiryOfTenure }]
         : [];
 
+  const { call: fetchValue } = useFrappePostCall<{ message: any }>("frappe.client.get_value");
+  const [printing, setPrinting] = useState(false);
+
+  const handlePrintOrder = async () => {
+    setPrinting(true);
+    try {
+      let piName = "";
+      if (projectNo) {
+        const pr = await fetchValue({ doctype: "Project Registration", filters: { project_no: projectNo }, fieldname: "principal_investigator" }).catch(() => null);
+        const piUser = pr?.message?.principal_investigator;
+        if (piUser) {
+          const u = await fetchValue({ doctype: "User", filters: piUser, fieldname: "full_name" }).catch(() => null);
+          piName = u?.message?.full_name || piUser;
+        }
+      }
+      const ext = loadedExtension;
+      const increment = ext?.increment_by_staff || ext?.increment_by_pi || 0;
+      const ok = printExtensionOrder({
+        ref: `${projectNo || ""}/ ${docName || ""}`,
+        issueDate: format(new Date(), "yyyy-MM-dd"),
+        staffName: fullName,
+        designation: ext?.ex_designation || applicantSource?.ps_designation || basic?.ps_designation || "",
+        projectTitle,
+        piName,
+        department: applicantDepartment,
+        fromDate: ext?.ex_final_new_joining_date || ext?.ex_computed_new_joining_date || "",
+        toDate: ext?.ex_final_new_completion_date || ext?.ex_computed_new_completion_date || "",
+        increment,
+      });
+      if (!ok) setToast({ type: "error", msg: "Pop-up blocked. Allow pop-ups to print the order." });
+    } finally {
+      setPrinting(false);
+    }
+  };
+
   const isTerminal = workflowState === "Approved" || workflowState === "Rejected" || workflowState === "Cancelled";
   const isEditable = workflowState === "Draft" && docstatus === 0;
   const canEdit = isEditable && isEditing;
@@ -942,32 +1000,17 @@ const ProjectStaffExtensionForm: React.FC = () => {
     return (
       <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
 
-        <main className="flex-1 p-4 md:p-8">
-          <div className="w-full max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <button
-                  onClick={() => navigate("/project-staff-dashboard")}
-                  className="flex items-center gap-1.5 text-sm text-[#71717A] hover:text-[#3F3F46] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] mb-2 transition-colors"
-                >
-                  <ChevronLeft className="h-4 w-4" /> Back to Dashboard
-                </button>
-                <h1 className="text-2xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
-                  Project Staff Extension — My Applications
-                </h1>
-                <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] mt-1">
-                  You have existing extension applications. Click <strong>Edit</strong> to view or edit an application, or create a new one.
-                </p>
-              </div>
+        <main className="flex-1 p-0">
+          <div className="w-full">
+            <PageHeader title="Project Staff Extension — My Applications">
               <button
                 type="button"
                 onClick={() => setIsCreatingNew(true)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold text-white bg-[#4A6CF7] hover:bg-[#3b5cf6] transition-all shadow-sm"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] transition-colors shadow-sm"
               >
                 + Create New Application
               </button>
-            </div>
+            </PageHeader>
 
             {/* List Table */}
             <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden">
@@ -1056,37 +1099,32 @@ const ProjectStaffExtensionForm: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
 
-      <main className="flex-1 p-4 md:p-8">
-        <div className="w-full max-w-9xl mx-auto">
+      <main className="flex-1 p-0">
+        <div className="w-full">
 
-          {/* Back + Header */}
-          <div className="mb-6">
-            <button
-              onClick={() => navigate("/project-staff-dashboard")}
-              className="flex items-center gap-1.5 text-sm text-[#71717A] hover:text-[#3F3F46] dark:text-[#A1A1AA] dark:hover:text-[#E4E4E7] mb-3 transition-colors"
-            >
-              <ChevronLeft className="h-4 w-4" /> Back to Dashboard
-            </button>
-            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-5">
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <div>
-                  <h1 className="text-2xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
-                    Extension Form
-                  </h1>
-                  <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] mt-0.5">
-                    Project Staff Re-Engagement / Extension Request
-                  </p>
-                </div>
-                {workflowState && (
-                  <span className={cn(
-                    "px-3 py-1 rounded-full text-xs font-semibold",
-                    stateBadgeClass(workflowState),
-                  )}>
-                    {workflowState}
-                  </span>
-                )}
-              </div>
-
+          <PageHeader
+            title="Extension Form"
+            backFallback="/project-staff-extension"
+            status={workflowState || undefined}
+            projectNumber={projectNo || undefined}
+          >
+              {workflowState === "Approved" && docName && (
+                <button
+                  type="button"
+                  onClick={handlePrintOrder}
+                  disabled={printing}
+                  className="inline-flex items-center gap-2 rounded-lg border border-[#4A6CF7] px-4 py-2 text-sm font-semibold text-[#4A6CF7] hover:bg-[#4A6CF7]/10 disabled:opacity-60"
+                >
+                  {printing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+                  Print Office Order
+                </button>
+              )}
+              {isRnDStaff && projectNo && (
+                <ViewProjectButton
+                  doctype="Project Staff Extension"
+                  data={loadedExtension || { ex_proj_no: projectNo }}
+                />
+              )}
               {/* Action Row — Save Draft/Save Changes + Workflow actions dropdown, same pattern as the Pending Task action menus */}
               {!isLoading && hasFormData && !isTerminal && !isFromRegistry && (() => {
                 const fallbackSubmitAvailable = !!docName && isEditable && !availableActions.some(
@@ -1113,7 +1151,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                 ].filter((g) => g.length > 0);
 
                 return (
-                  <div className="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                  <div className="flex flex-wrap items-center justify-end gap-2.5">
                     {/* Edit — switch from read-only to edit mode while in Draft */}
                     {isEditable && !isEditing && (
                       <button
@@ -1236,8 +1274,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                   </div>
                 );
               })()}
-            </div>
-          </div>
+          </PageHeader>
 
           <CommentModal
             isOpen={!!modalAction}
@@ -1280,6 +1317,67 @@ const ProjectStaffExtensionForm: React.FC = () => {
               </p>
             </div>
           ) : (
+            <>
+              {/* Summary hero — who/what at a glance, plus headline figures */}
+              {docName && (
+                <section className="mb-5 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden">
+                  <div className="p-5 flex flex-col gap-4 sm:flex-row sm:items-start">
+                    <div className="h-12 w-12 flex-shrink-0 rounded-full bg-gradient-to-br from-[#4A6CF7] to-[#2563EB] text-white flex items-center justify-center text-base font-bold shadow-sm">
+                      {(fullName || "?").trim().split(/\s+/).slice(0, 2).map((w: string) => w[0]?.toUpperCase()).join("")}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="!font-sans text-lg font-extrabold text-[#27272A] dark:text-[#E4E4E7] leading-tight">{fullName || "—"}</h2>
+                        {workflowState && (
+                          <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold", stateBadgeClass(workflowState))}>
+                            {workflowState}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-sm text-[#71717A] dark:text-[#A1A1AA]">
+                        {[applicantDesignation, applicantDepartment].filter(Boolean).join(" · ") || "—"}
+                      </p>
+                      <p className="mt-2 text-sm text-[#3F3F46] dark:text-[#D4D4D8] leading-snug break-words">
+                        <span className="font-mono text-xs font-semibold text-[#4A6CF7] mr-2">{projectNo}</span>
+                        {projectTitle}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="px-5 pb-5 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+                    <StatTile label="Current term ends" value={expiryOfTenure || "—"} />
+                    <StatTile label="Sought" value={extensionPeriod ? `${extensionPeriod} Months` : "—"} />
+                    <StatTile label="PI suggested" value={extensionPeriodPI ? `${extensionPeriodPI} Months` : "—"} />
+                    <StatTile label="Staff allowed" value={extensionPeriodStaff ? `${extensionPeriodStaff} Months` : "—"} />
+                    <StatTile
+                      label="New term"
+                      tone={workflowState === "Approved" ? "success" : "default"}
+                      value={
+                        (finalNewJoiningDate || computedNewJoiningDate) && (finalNewCompletionDate || computedNewCompletionDate)
+                          ? `${finalNewJoiningDate || computedNewJoiningDate} → ${finalNewCompletionDate || computedNewCompletionDate}`
+                          : "—"
+                      }
+                    />
+                  </div>
+
+                  {isTerminal && (
+                    <div className={cn(
+                      "flex items-center gap-2.5 px-5 py-3 text-sm border-t",
+                      workflowState === "Approved"
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-300"
+                        : "bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300",
+                    )}>
+                      {workflowState === "Approved"
+                        ? <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                        : <AlertCircle className="h-4 w-4 flex-shrink-0" />}
+                      {workflowState === "Approved"
+                        ? "Your extension request has been approved."
+                        : `Your extension request has been ${workflowState.toLowerCase()}. No further actions are available.`}
+                    </div>
+                  )}
+                </section>
+              )}
+
             <div className={cn(showCommitSection ? "grid grid-cols-1 lg:grid-cols-4 gap-6" : "space-y-5")}>
               <div className={cn("space-y-5", showCommitSection && "lg:col-span-3")}>
 
@@ -1311,21 +1409,13 @@ const ProjectStaffExtensionForm: React.FC = () => {
                       icon={<FolderOpen className="h-4 w-4" />}
                       label="Project No."
                       value={
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span>{projectNo}</span>
-                          {isRnDStaff && projectNo && (
-                            <ViewProjectButton
-                              doctype="Project Staff Extension"
-                              data={loadedExtension || { ex_proj_no: projectNo }}
-                            />
-                          )}
-                        </div>
+                        <span>{projectNo}</span>
                       }
                     />
-                    <InfoRow icon={<FileText className="h-4 w-4" />} label="Project Name" value={projectTitle} />
+                    <InfoRow icon={<FileText className="h-4 w-4" />} label="Project Name" value={projectTitle} wrap className="sm:col-span-2" />
                     <InfoRow icon={<Briefcase className="h-4 w-4" />} label="Designation" value={applicantDesignation} />
                     <InfoRow icon={<Building2 className="h-4 w-4" />} label="Department" value={applicantDepartment} />
-                    <InfoRow icon={<IndianRupee className="h-4 w-4" />} label="Current Basic Pay" value={currentBasic} />
+                    <InfoRow icon={<IndianRupee className="h-4 w-4" />} label="Current Basic Pay" value={currentBasic ? `₹${Number(currentBasic).toLocaleString("en-IN")}` : ""} />
                   </div>
 
                   {/* Tenure history — joining & term completion date for each term */}
@@ -1424,7 +1514,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             )}
                           />
                         ) : (
-                          <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                          <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                             {lastExtensionDate || "—"}
                           </p>
                         )}
@@ -1454,7 +1544,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             <CharLimitAlert value={noOfMonthsWorked} maxLength={INT_MAX_LENGTH} className="mt-1" />
                           </>
                         ) : (
-                          <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                          <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                             {noOfMonthsWorked || "—"}
                           </p>
                         )}
@@ -1485,7 +1575,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                               <CharLimitAlert value={noOfDaysWorked} maxLength={INT_MAX_LENGTH} className="mt-1" />
                             </>
                           ) : (
-                            <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                            <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                               {noOfDaysWorked || "—"}
                             </p>
                           )}
@@ -1520,7 +1610,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                           ))}
                         </select>
                       ) : (
-                        <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                        <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                           {extensionPeriod ? `${extensionPeriod} Months` : "—"}
                         </p>
                       )}
@@ -1573,7 +1663,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             ))}
                           </select>
                         ) : (
-                          <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                          <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                             {extensionPeriodPI ? `${extensionPeriodPI} Months` : "—"}
                           </p>
                         )}
@@ -1608,7 +1698,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             />
                           </div>
                         ) : (
-                          <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                          <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                             {incrementPI ? `₹${incrementPI}` : "—"}
                           </p>
                         )}
@@ -1678,7 +1768,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             ))}
                           </select>
                         ) : (
-                          <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                          <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                             {extensionPeriodStaff ? `${extensionPeriodStaff} Months` : "—"}
                           </p>
                         )}
@@ -1713,7 +1803,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             />
                           </div>
                         ) : (
-                          <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                          <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                             {incrementStaff ? `₹${incrementStaff}` : "—"}
                           </p>
                         )}
@@ -1742,7 +1832,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                             )}
                           />
                         ) : (
-                          <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                          <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                             {committeeId || "—"}
                           </p>
                         )}
@@ -1814,7 +1904,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                                 )}
                               />
                             ) : (
-                              <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                              <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                                 {finalNewJoiningDate || computedNewJoiningDate || "—"}
                               </p>
                             )}
@@ -1844,7 +1934,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                                 )}
                               />
                             ) : (
-                              <p className="text-sm font-medium text-[#27272A] dark:text-[#E4E4E7]">
+                              <p className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-700/60 px-3 py-2 text-sm font-semibold text-[#27272A] dark:text-[#E4E4E7]">
                                 {finalNewCompletionDate || computedNewCompletionDate || "—"}
                               </p>
                             )}
@@ -1877,23 +1967,6 @@ const ProjectStaffExtensionForm: React.FC = () => {
                     )}
                   </div>
                 )}
-
-                {/* Terminal state notice */}
-                {isTerminal && (
-                  <div className={cn(
-                    "flex items-center gap-2.5 px-4 py-3 rounded-lg text-sm border",
-                    workflowState === "Approved"
-                      ? "bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-300"
-                      : "bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300",
-                  )}>
-                    {workflowState === "Approved"
-                      ? <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
-                      : <AlertCircle className="h-4 w-4 flex-shrink-0" />}
-                    {workflowState === "Approved"
-                      ? "Your extension request has been approved."
-                      : `Your extension request has been ${workflowState.toLowerCase()}. No further actions are available.`}
-                  </div>
-                )}
               </div>
 
               {/* Right Sidebar Column: Commit window */}
@@ -1913,6 +1986,7 @@ const ProjectStaffExtensionForm: React.FC = () => {
                 </aside>
               )}
             </div>
+            </>
           )}
         </div>
       </main>

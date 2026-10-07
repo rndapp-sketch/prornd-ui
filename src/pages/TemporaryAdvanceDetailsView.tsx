@@ -1,4 +1,5 @@
 
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, {
     useState,
     useImperativeHandle,
@@ -306,7 +307,7 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
     useEffect(() => {
         const fetchBudgetHeads = async () => {
             try {
-                const response = await fetch('/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0');
+                const response = await fetch(`${FRAPPE_BASE_URL}/api/resource/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc&limit_page_length=0`);
                 const result = await response.json();
                 if (result?.data) {
                     setBudgetHeadList(result.data.map((item: any) => ({
@@ -437,7 +438,7 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
     // Resolve project title
     useEffect(() => {
         if (!data?.project_code) return;
-        fetch(`/api/v2/document/Project%20Proposal/${data.project_code}`)
+        fetch(`${FRAPPE_BASE_URL}/api/v2/document/Project%20Proposal/${data.project_code}`)
             .then(r => r.json())
             .then(res => {
                 if (res.data) setResolvedProjectTitle(res.data.project_title || res.data.name);

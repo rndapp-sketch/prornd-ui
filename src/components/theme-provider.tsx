@@ -1,4 +1,5 @@
-import { createContext, useContext, useLayoutEffect, useState } from "react"
+import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState } from "react"
+import { safeStorage } from "@/lib/safeStorage"
 
 type Theme = "dark" | "light" | "system"
 
@@ -20,9 +21,12 @@ const initialState: ThemeProviderState = {
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
 
+const isTheme = (value: unknown): value is Theme =>
+    value === "dark" || value === "light" || value === "system"
+
 const applyThemeClass = (theme: Theme) => {
     const root = window.document.documentElement
-    const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+    const systemTheme = window.matchMedia?.("(prefers-color-scheme: dark)").matches
         ? "dark"
         : "light"
     const activeTheme = theme === "system" ? systemTheme : theme
@@ -39,10 +43,8 @@ export function ThemeProvider({
 }: ThemeProviderProps) {
     const [theme, setTheme] = useState<Theme>(
         () => {
-            const storedTheme = localStorage.getItem(storageKey) as Theme | null
-            return storedTheme === "dark" || storedTheme === "light" || storedTheme === "system"
-                ? storedTheme
-                : defaultTheme
+            const storedTheme = safeStorage.getItem(storageKey)
+            return isTheme(storedTheme) ? storedTheme : defaultTheme
         }
     )
 
@@ -53,7 +55,8 @@ export function ThemeProvider({
             return
         }
 
-        const media = window.matchMedia("(prefers-color-scheme: dark)")
+        const media = window.matchMedia?.("(prefers-color-scheme: dark)")
+        if (!media) return
         const handleSystemThemeChange = () => applyThemeClass("system")
         media.addEventListener("change", handleSystemThemeChange)
 
@@ -62,13 +65,28 @@ export function ThemeProvider({
         }
     }, [theme])
 
-    const value = {
-        theme,
-        setTheme: (theme: Theme) => {
-            localStorage.setItem(storageKey, theme)
-            setTheme(theme)
+    // Keep other tabs in sync, so one tab never holds a stale class/state.
+    useLayoutEffect(() => {
+        const handleStorage = (event: StorageEvent) => {
+            if (event.key === storageKey && isTheme(event.newValue)) {
+                setTheme(event.newValue)
+            }
+        }
+        window.addEventListener("storage", handleStorage)
+        return () => window.removeEventListener("storage", handleStorage)
+    }, [storageKey])
+
+    const updateTheme = useCallback(
+        (next: Theme) => {
+            safeStorage.setItem(storageKey, next)
+            // Apply synchronously too, so the class is correct even before React re-renders.
+            applyThemeClass(next)
+            setTheme(next)
         },
-    }
+        [storageKey]
+    )
+
+    const value = useMemo(() => ({ theme, setTheme: updateTheme }), [theme, updateTheme])
 
     return (
         <ThemeProviderContext.Provider value={value}>

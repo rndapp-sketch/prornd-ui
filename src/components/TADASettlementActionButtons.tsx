@@ -9,6 +9,8 @@ import { CheckCircleIcon, XCircleIcon, ChevronRight, ChevronDown } from "lucide-
 interface TADASettlementActionButtonsProps {
     docName: string;
     onActionComplete?: () => void;
+    /** When non-empty, forward/approve actions are disabled and these reasons are shown */
+    forwardBlockedReasons?: string[];
 }
 
 // Same grouping/style convention as Project Registration's workflow actions dropdown
@@ -41,7 +43,9 @@ const itemStyle = (action: string) => {
 const TADASettlementActionButtons: React.FC<TADASettlementActionButtonsProps> = ({
     docName,
     onActionComplete,
+    forwardBlockedReasons = [],
 }) => {
+    const forwardBlocked = forwardBlockedReasons.length > 0;
     const [actions, setActions] = useState<string[]>([]);
 
     const { call: fetchActions, result: actionsData, loading: actionsLoading } =
@@ -165,19 +169,27 @@ const TADASettlementActionButtons: React.FC<TADASettlementActionButtonsProps> = 
                                 Workflow Actions
                             </span>
                         </div>
+                        {forwardBlocked && (
+                            <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 text-[11px] font-medium text-amber-700 dark:text-amber-300 max-w-[260px] space-y-1">
+                                {forwardBlockedReasons.map((r) => <p key={r}>{r}</p>)}
+                            </div>
+                        )}
                         {groups.map((group, gi) => (
                             <React.Fragment key={gi}>
                                 {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
                                 {group.map((action) => {
                                     const { icon, cls, iconCls } = itemStyle(action);
+                                    const blocked = forwardBlocked && categorise(action) === "forward";
                                     return (
                                         <button
                                             key={action}
                                             onClick={() => handleActionClick(action)}
-                                            disabled={actionLoading}
+                                            disabled={actionLoading || blocked}
+                                            title={blocked ? forwardBlockedReasons.join(" ") : undefined}
                                             className={cn(
                                                 "w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left transition-colors disabled:cursor-not-allowed",
                                                 cls,
+                                                blocked && "opacity-40",
                                             )}
                                         >
                                             <span className={iconCls}>{icon}</span>

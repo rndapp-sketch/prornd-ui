@@ -82,7 +82,7 @@ const MiniCard: React.FC<{
         </div>
         <div>
             {value !== undefined ? (
-                <div className="text-2xl font-extrabold leading-none text-[#3F3F46] dark:text-[#E4E4E7]">{value}</div>
+                <div className="text-[18px] font-extrabold leading-none text-[#3F3F46] dark:text-[#E4E4E7]">{value}</div>
             ) : null}
             <div className={cn("text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]", value !== undefined && "mt-1.5 font-semibold text-[#71717A] dark:text-[#A1A1AA]")}>
                 {label}
@@ -164,11 +164,11 @@ export function IndependentResearcherDashboard() {
 
     return (
         <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] font-sans transition-colors duration-300">
-            <main className="px-6 md:px-10 pt-7 pb-12 overflow-y-auto w-full">
-                <div className="w-full max-w-[1600px] mx-auto">
+            <main className="px-0 pt-0 pb-4 overflow-y-auto w-full">
+                <div className="w-full">
 
                     {/* Header */}
-                    <header className="mb-6 flex items-center justify-between gap-4">
+                    <header className="mb-3 flex items-center justify-between gap-4">
                         <div className="min-w-0">
                             <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#A1A1AA] mb-1">
                                 Independent Researcher
@@ -220,7 +220,7 @@ export function IndependentResearcherDashboard() {
                     </section>
 
                     {/* Card grid: actions + stats */}
-                    <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+                    <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-3">
                         <MiniCard
                             icon={<PlusCircle className="h-[18px] w-[18px]" />}
                             label="Register Project"
@@ -263,7 +263,7 @@ export function IndependentResearcherDashboard() {
                         ) : projectStatusChart.length === 0 ? (
                             <p className="text-xs text-[#A1A1AA] py-6">No projects registered yet.</p>
                         ) : (
-                            <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-3">
                                 <div className="w-[96px] h-[96px] flex-shrink-0 relative">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <PieChart>

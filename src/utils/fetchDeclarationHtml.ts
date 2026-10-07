@@ -1,3 +1,5 @@
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
+
 /**
  * Fetches the "Declarations" content the <DeclarationFields> widget shows
  * on-screen (all fieldtype="HTML" DocFields on a doctype, keyed by fieldname)
@@ -15,7 +17,7 @@ export async function fetchDeclarationFields(doctype: string): Promise<Record<st
     try {
         const params = new URLSearchParams({ doctype });
         const res = await fetch(
-            `/api/method/rndopsapp.rndopsapp.api.get_declaration_html?${params.toString()}`,
+            `${FRAPPE_BASE_URL}/api/method/rndopsapp.rndopsapp.api.get_declaration_html?${params.toString()}`,
             { credentials: "include" },
         );
         if (!res.ok) return {};

@@ -535,7 +535,7 @@ const ProjectStaffJoiningForm: React.FC = () => {
     return (
         <div className="min-h-screen bg-[#FAFAF9] font-sans dark:bg-[#18181B]">
 
-            <main className="mx-auto max-w-[1600px] p-6 md:p-8">
+            <main className="w-full p-0">
                 <div className="mb-6 overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
                     <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
                     <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">

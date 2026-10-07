@@ -1,4 +1,5 @@
 // Multi-Doctype Deposit Slip Form — Redesigned
+import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -428,7 +429,7 @@ const DepositSlipForm: React.FC = () => {
 
             for (const dt of tryDoctypes) {
                 try {
-                    const resp = await fetch("/api/method/frappe.client.get", {
+                    const resp = await fetch(`${FRAPPE_BASE_URL}/api/method/frappe.client.get`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         credentials: "include",
@@ -618,7 +619,7 @@ const DepositSlipForm: React.FC = () => {
                 if (loaded) continue;
                 try {
                     const listResp = await fetch(
-                        "/api/method/frappe.client.get_list",
+                        `${FRAPPE_BASE_URL}/api/method/frappe.client.get_list`,
                         {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
@@ -677,7 +678,7 @@ const DepositSlipForm: React.FC = () => {
         const methodPath = DEPOSIT_SLIP_TYPES[type].getFields;
 
         try {
-            const response = await fetch(`/api/method/${methodPath}`, {
+            const response = await fetch(`${FRAPPE_BASE_URL}/api/method/${methodPath}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
@@ -893,7 +894,7 @@ const DepositSlipForm: React.FC = () => {
 
 
             const response = await fetch(
-                `/api/method/${DEPOSIT_SLIP_TYPES[selectedType].save}`,
+                `${FRAPPE_BASE_URL}/api/method/${DEPOSIT_SLIP_TYPES[selectedType].save}`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },

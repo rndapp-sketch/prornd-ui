@@ -18,7 +18,6 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
     Select,
@@ -269,173 +268,175 @@ export function OtherPIView() {
 
     const getStatusBadge = (state: string) => {
         const lower = state.toLowerCase();
+        const base = "text-[11px] font-semibold px-2 py-0.5 whitespace-nowrap";
         if (lower.includes("approved")) {
-            return <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 font-medium">Approved</Badge>;
+            return <Badge className={cn(base, "bg-emerald-50 text-emerald-700 border-emerald-200")}>Approved</Badge>;
         }
         if (lower.includes("rejected")) {
-            return <Badge className="bg-rose-500/10 text-rose-600 border-rose-500/20 font-medium">Rejected</Badge>;
+            return <Badge className={cn(base, "bg-rose-50 text-rose-700 border-rose-200")}>Rejected</Badge>;
         }
         if (lower.includes("pending other pi") || lower.includes("pending pi")) {
-            return <Badge className="bg-purple-500/10 text-purple-600 border-purple-500/20 font-medium">{state}</Badge>;
+            return <Badge className={cn(base, "bg-purple-50 text-purple-700 border-purple-200")}>{state}</Badge>;
         }
         if (lower.includes("pending")) {
-            return <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 font-medium">{state}</Badge>;
+            return <Badge className={cn(base, "bg-amber-50 text-amber-700 border-amber-200")}>{state}</Badge>;
         }
-        return <Badge variant="outline">{state}</Badge>;
+        return <Badge variant="outline" className={base}>{state}</Badge>;
     };
 
+    const thClass =
+        "px-3 py-2 h-9 whitespace-nowrap text-[11px] font-extrabold uppercase tracking-wider text-[#1E3A8A] dark:text-[#C7D2FE] border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25 last:border-r-0";
+    const tdClass = "px-3 py-2 text-[12px] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 last:border-r-0";
+
     return (
-        <div className="w-full space-y-8 p-4 md:p-8">
-            {/* Header Section */}
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                        <UserCheck className="h-8 w-8 text-primary" />
-                        Other PI Applications & Forms
-                    </h1>
-                    <p className="text-muted-foreground mt-1 text-sm md:text-base">
-                        Submit and track applications charged to another Principal Investigator's project without navigating through "My Projects".
-                    </p>
+        <div className="w-full space-y-3 animate-in fade-in duration-500">
+            {/* Header */}
+            <div className="overflow-hidden rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
+                <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
+                <div className="flex flex-col gap-2 px-4 py-2.5 md:flex-row md:items-center md:justify-between">
+                    <div className="flex items-start gap-3 min-w-0">
+                        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#EEF2FF] text-[#4A6CF7] dark:bg-[#4A6CF7]/15">
+                            <UserCheck className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                            <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">Other PI Projects</span>
+                            <h1 className="font-sans text-[18px] font-extrabold leading-tight text-[#3F3F46] dark:text-[#E4E4E7]">
+                                Other PI Applications &amp; Forms
+                            </h1>
+                            <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+                                Submit and track applications charged to another Principal Investigator's project.
+                            </p>
+                        </div>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRefreshAll}
+                        disabled={isLoading}
+                        className="h-8 self-start gap-2 text-[12px] md:self-auto"
+                    >
+                        <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} />
+                        Refresh
+                    </Button>
                 </div>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRefreshAll}
-                    disabled={isLoading}
-                    className="self-start md:self-auto gap-2"
-                >
-                    <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
-                    Refresh
-                </Button>
             </div>
 
-            {/* Quick Apply Action Cards */}
-            <div className="space-y-3">
-                <h2 className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
-                    <PlusCircle className="h-5 w-5 text-primary" />
-                    Create New "Other PI" Application
+            {/* Quick apply */}
+            <div className="space-y-2">
+                <h2 className="flex items-center gap-2 text-[13px] font-extrabold uppercase tracking-wide text-[#3F3F46] dark:text-[#E4E4E7]">
+                    <PlusCircle className="h-4 w-4 text-[#4A6CF7]" />
+                    Create new "Other PI" application
                 </h2>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                     {FORM_TYPES.map((item) => {
                         const Icon = item.icon;
                         return (
-                            <Card
+                            <button
                                 key={item.key}
-                                className={cn(
-                                    "relative overflow-hidden transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer border bg-gradient-to-br",
-                                    item.color
-                                )}
+                                type="button"
                                 onClick={() => navigate(item.route)}
+                                className={cn(
+                                    "group flex flex-col gap-2 rounded-lg border bg-gradient-to-br p-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md",
+                                    item.color,
+                                )}
                             >
-                                <CardHeader className="p-4 pb-2">
-                                    <div className="flex items-center justify-between">
-                                        <div className="p-2 rounded-lg bg-background/80 shadow-xs border">
-                                            <Icon className="h-5 w-5" />
-                                        </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded-md border bg-background/80">
+                                        <Icon className="h-4 w-4" />
                                     </div>
-                                    <CardTitle className="text-base font-semibold mt-3">{item.label}</CardTitle>
-                                </CardHeader>
-                                <CardContent className="p-4 pt-0 space-y-3">
-                                    <CardDescription className="text-xs line-clamp-2 text-muted-foreground">
-                                        {item.desc}
-                                    </CardDescription>
-                                    <Button
-                                        size="sm"
-                                        className={cn("w-full text-xs font-medium gap-1 shadow-xs", item.btnColor)}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            navigate(item.route);
-                                        }}
-                                    >
-                                        Apply Now
-                                        <ChevronRightIcon className="h-3.5 w-3.5" />
-                                    </Button>
-                                </CardContent>
-                            </Card>
+                                    <span className="text-[13px] font-bold leading-tight text-[#3F3F46] dark:text-[#E4E4E7]">{item.label}</span>
+                                </div>
+                                <p className="line-clamp-2 text-[12px] leading-snug text-[#52525B] dark:text-[#A1A1AA]">{item.desc}</p>
+                                <span className={cn("mt-auto inline-flex h-7 items-center justify-center gap-1 rounded-md px-2 text-[12px] font-semibold", item.btnColor)}>
+                                    Apply Now
+                                    <ChevronRightIcon className="h-3.5 w-3.5" />
+                                </span>
+                            </button>
                         );
                     })}
                 </div>
             </div>
 
-            {/* Applications Listing */}
-            <Card className="border shadow-xs">
-                <CardHeader className="p-6 border-b">
-                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                        <div>
-                            <CardTitle className="text-xl font-bold">Other PI Applications Registry</CardTitle>
-                            <CardDescription className="mt-1 text-xs">
-                                All forms submitted or pending approval where travel or expenditure is charged to another PI's project.
-                            </CardDescription>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-3">
-                            <div className="relative w-full sm:w-64">
-                                <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search by ID, applicant, or PI..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-8 text-xs"
-                                />
-                            </div>
-
-                            <Select value={selectedDocType} onValueChange={setSelectedDocType}>
-                                <SelectTrigger className="w-[160px] text-xs">
-                                    <SelectValue placeholder="Form Type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Form Types</SelectItem>
-                                    <SelectItem value="travel">Travel</SelectItem>
-                                    <SelectItem value="reimbursement">Reimbursement</SelectItem>
-                                    <SelectItem value="indent_general_form">General Indent</SelectItem>
-                                    <SelectItem value="indent_cum_sanction_sheet">ICSS Sheet</SelectItem>
-                                    <SelectItem value="direct_purchase">Direct Purchase</SelectItem>
-                                </SelectContent>
-                            </Select>
-
-                            <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                <SelectTrigger className="w-[140px] text-xs">
-                                    <SelectValue placeholder="Status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Statuses</SelectItem>
-                                    <SelectItem value="pending">Pending</SelectItem>
-                                    <SelectItem value="approved">Approved</SelectItem>
-                                    <SelectItem value="rejected">Rejected</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
+            {/* Registry */}
+            <div className="rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden">
+                <div className="flex flex-col gap-2 border-b border-[#E4E4E7] dark:border-[#3F3F46] px-3 py-2 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0">
+                        <h2 className="text-[14px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
+                            Other PI Applications Registry
+                            <span className="ml-2 rounded-full bg-[#EEF2FF] px-2 py-0.5 text-[11px] font-bold text-[#1E3A8A] dark:bg-[#4A6CF7]/15 dark:text-[#C7D2FE]">
+                                {filteredDocs.length}
+                            </span>
+                        </h2>
+                        <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
+                            Forms where travel or expenditure is charged to another PI's project.
+                        </p>
                     </div>
-                </CardHeader>
-                <CardContent className="p-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <div className="relative w-full sm:w-64">
+                            <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#71717A]" />
+                            <Input
+                                placeholder="Search by ID, applicant, or PI..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="h-8 bg-[#FAFAF9] pl-8 text-[12px] dark:bg-[#18181B]"
+                            />
+                        </div>
+                        <Select value={selectedDocType} onValueChange={setSelectedDocType}>
+                            <SelectTrigger className="h-8 w-[150px] bg-[#FAFAF9] text-[12px] dark:bg-[#18181B]">
+                                <SelectValue placeholder="Form Type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Form Types</SelectItem>
+                                <SelectItem value="travel">Travel</SelectItem>
+                                <SelectItem value="reimbursement">Reimbursement</SelectItem>
+                                <SelectItem value="indent_general_form">General Indent</SelectItem>
+                                <SelectItem value="indent_cum_sanction_sheet">ICSS Sheet</SelectItem>
+                                <SelectItem value="direct_purchase">Direct Purchase</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                            <SelectTrigger className="h-8 w-[130px] bg-[#FAFAF9] text-[12px] dark:bg-[#18181B]">
+                                <SelectValue placeholder="Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Statuses</SelectItem>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="approved">Approved</SelectItem>
+                                <SelectItem value="rejected">Rejected</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <div className="overflow-x-auto">
                     <Table>
-                        <TableHeader className="bg-muted/40">
-                            <TableRow>
-                                <TableHead className="w-[140px]">Document ID</TableHead>
-                                <TableHead className="w-[180px]">Form Type</TableHead>
-                                <TableHead>Applicant</TableHead>
-                                <TableHead>Designated Other PI</TableHead>
-                                <TableHead>Workflow Status</TableHead>
-                                <TableHead className="w-[140px]">Created Date</TableHead>
-                                <TableHead className="text-right w-[100px]">Action</TableHead>
+                        <TableHeader className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                            <TableRow className="border-b border-[#C7D2FE] hover:bg-transparent dark:border-[#4A6CF7]/30">
+                                <TableHead className={cn(thClass, "w-[140px]")}>Document ID</TableHead>
+                                <TableHead className={cn(thClass, "w-[180px]")}>Form Type</TableHead>
+                                <TableHead className={thClass}>Applicant</TableHead>
+                                <TableHead className={thClass}>Designated Other PI</TableHead>
+                                <TableHead className={thClass}>Workflow Status</TableHead>
+                                <TableHead className={cn(thClass, "w-[130px]")}>Created</TableHead>
+                                <TableHead className={cn(thClass, "w-[90px] text-right")}>Action</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
-                                        <div className="flex items-center justify-center gap-2">
-                                            <RefreshCw className="h-5 w-5 animate-spin text-primary" />
+                                    <TableCell colSpan={7} className="h-24 text-center text-[#71717A]">
+                                        <div className="flex items-center justify-center gap-2 text-[13px]">
+                                            <RefreshCw className="h-4 w-4 animate-spin text-[#4A6CF7]" />
                                             <span>Loading Other PI applications...</span>
                                         </div>
                                     </TableCell>
                                 </TableRow>
                             ) : filteredDocs.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
-                                        <div className="flex flex-col items-center justify-center gap-2 py-4">
-                                            <AlertCircle className="h-8 w-8 text-muted-foreground/60" />
-                                            <p className="font-medium text-sm">No "Other PI" applications found.</p>
-                                            <p className="text-xs text-muted-foreground">
+                                    <TableCell colSpan={7} className="h-28 text-center">
+                                        <div className="flex flex-col items-center justify-center gap-1">
+                                            <AlertCircle className="h-7 w-7 text-[#A1A1AA]" />
+                                            <p className="text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">No "Other PI" applications found.</p>
+                                            <p className="text-[12px] text-[#71717A]">
                                                 Use the cards above to submit a new Travel, Reimbursement, or Indent form under another PI.
                                             </p>
                                         </div>
@@ -443,25 +444,32 @@ export function OtherPIView() {
                                 </TableRow>
                             ) : (
                                 filteredDocs.map((doc) => (
-                                    <TableRow key={doc.name} className="hover:bg-muted/30">
-                                        <TableCell className="font-mono text-xs font-semibold">{doc.name}</TableCell>
-                                        <TableCell>
-                                            <Badge variant="secondary" className="font-normal text-xs">
+                                    <TableRow
+                                        key={doc.name}
+                                        className="cursor-pointer border-b border-[#E4E4E7] even:bg-[#FAFAFA] hover:bg-[#EEF2FF] dark:border-[#3F3F46] dark:even:bg-[#27272A]/60 dark:hover:bg-[#3F3F46]/40"
+                                        onClick={() => navigate(doc.detailRoute)}
+                                    >
+                                        <TableCell className={cn(tdClass, "font-mono font-semibold text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap")}>{doc.name}</TableCell>
+                                        <TableCell className={tdClass}>
+                                            <Badge variant="secondary" className="text-[11px] font-medium whitespace-nowrap">
                                                 {doc.doctype}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="text-xs font-medium">{doc.applicant}</TableCell>
-                                        <TableCell className="text-xs text-muted-foreground">{doc.other_pi}</TableCell>
-                                        <TableCell>{getStatusBadge(doc.workflow_state)}</TableCell>
-                                        <TableCell className="text-xs text-muted-foreground">
+                                        <TableCell className={cn(tdClass, "font-medium text-[#3F3F46] dark:text-[#E4E4E7]")}>{doc.applicant}</TableCell>
+                                        <TableCell className={cn(tdClass, "text-[#52525B] dark:text-[#A1A1AA]")}>{doc.other_pi}</TableCell>
+                                        <TableCell className={tdClass}>{getStatusBadge(doc.workflow_state)}</TableCell>
+                                        <TableCell className={cn(tdClass, "whitespace-nowrap text-[#52525B] dark:text-[#A1A1AA]")}>
                                             {doc.creation ? format(new Date(doc.creation), "dd MMM yyyy") : "N/A"}
                                         </TableCell>
-                                        <TableCell className="text-right">
+                                        <TableCell className={cn(tdClass, "text-right")}>
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                className="h-8 px-2 text-xs gap-1"
-                                                onClick={() => navigate(doc.detailRoute)}
+                                                className="h-7 gap-1 px-2 text-[12px] font-semibold text-[#4A6CF7]"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    navigate(doc.detailRoute);
+                                                }}
                                             >
                                                 View
                                                 <ChevronRightIcon className="h-3.5 w-3.5" />
@@ -472,8 +480,8 @@ export function OtherPIView() {
                             )}
                         </TableBody>
                     </Table>
-                </CardContent>
-            </Card>
+                </div>
+            </div>
         </div>
     );
 }
