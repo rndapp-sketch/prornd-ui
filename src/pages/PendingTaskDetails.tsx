@@ -1475,6 +1475,8 @@ function getOriginalApplicationRoute(refDoctype: string, refName: string): strin
             return `/loan-request/${name}`;
         case "Loan Settlement":
             return `/loan-settlement/${name}`;
+        case "Acc Head to Head Fund Transfer":
+            return `/head-to-head-transfer/${name}`;
         case "Miscellaneous Commit":
             return `/miscellaneous-commit/${name}`;
         case "Indent General Form":
@@ -2977,6 +2979,9 @@ const PendingTaskDetails: React.FC = () => {
         }
         if (doctype === "Loan Settlement" && name) {
             navigate(`/loan-settlement/${name}`, { replace: true });
+        }
+        if (doctype === "Acc Head to Head Fund Transfer" && name) {
+            navigate(`/head-to-head-transfer/${name}`, { replace: true });
         }
         if (doctype === "Miscellaneous Commit" && name) {
             navigate(`/miscellaneous-commit/${name}`, { replace: true });

@@ -100,6 +100,8 @@ import LoanSettlementDetails from './pages/application/LoanSettlementDetails.tsx
 import MiscellaneousCommit from './pages/application/MiscellaneousCommit.tsx';
 import MiscellaneousCommitForm from './pages/application/MiscellaneousCommitForm.tsx';
 import MiscellaneousCommitDetails from './pages/application/MiscellaneousCommitDetails.tsx';
+import AccHeadToHeadTransferForm from './pages/application/AccHeadToHeadTransferForm.tsx';
+import AccHeadToHeadTransferDetails from './pages/application/AccHeadToHeadTransferDetails.tsx';
 import DirectPurchase from './pages/DirectPurchase.tsx';
 import DirectPurchaseDetails from './pages/application/DirectPurchaseDetails.tsx';
 import P11Form from './pages/application/P11Form.tsx';
@@ -767,6 +769,22 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <MiscellaneousCommitDetails />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "head-to-head-transfer-form",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <AccHeadToHeadTransferForm />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "head-to-head-transfer/:id",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <AccHeadToHeadTransferDetails />
                         </AuthRouteWrapper>
                     )
                 },

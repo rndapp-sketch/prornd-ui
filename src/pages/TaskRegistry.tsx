@@ -586,6 +586,8 @@ const TaskRegistry: React.FC = () => {
                                                         navigate(`/disbursal-of-consultancy/${task.id}`);
                                                     } else if (task.doctype === "Travel") {
                                                         navigate(`/travel/${task.id}`);
+                                                    } else if (task.doctype === "Acc Head to Head Fund Transfer") {
+                                                        navigate(`/head-to-head-transfer/${task.id}`);
                                                     } else if (task.doctype === "Miscellaneous Commit") {
                                                         navigate(`/miscellaneous-commit/${task.id}`);
                                                     } else if (task.doctype === "Loan Request") {
@@ -688,6 +690,8 @@ const TaskRegistry: React.FC = () => {
                                                                 navigate(`/disbursal-of-consultancy/${task.id}`);
                                                             } else if (task.doctype === "Travel") {
                                                                 navigate(`/travel/${task.id}`);
+                                                            } else if (task.doctype === "Acc Head to Head Fund Transfer") {
+                                                                navigate(`/head-to-head-transfer/${task.id}`);
                                                             } else if (task.doctype === "Miscellaneous Commit") {
                                                                 navigate(`/miscellaneous-commit/${task.id}`);
                                                             } else if (task.doctype === "Loan Request") {
