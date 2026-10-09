@@ -187,12 +187,18 @@ export const useProjectBudget = (projectCode: string) => {
           // ProjectDetailsOverview uses the API's provided balance fields primarily for row display
           // but calculates totals in summary view using reduce. Let's do the same.
 
+          // What can still be committed is received − committed. A payment settles an existing
+          // commitment, so it must not be deducted a second time (the ledger's "Commit Bal"
+          // column ignores payments for the same reason). Cancelled commitments are already
+          // excluded from headCommitted above.
+          const headCommitable = headReceived - headCommitted;
+
           balances[head] = {
             received: headReceived,
             committed: headCommitted,
             payment: headPayment,
             actual: headReceived - headPayment, // Calculated Actual
-            commitable: headReceived - headCommitted - headPayment, // Calculated Commitable
+            commitable: headCommitable,
             id: headId,
           };
 

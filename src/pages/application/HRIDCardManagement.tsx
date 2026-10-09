@@ -100,13 +100,25 @@ const isVerifiedOrGeneratedState = (status?: string) => {
     return s.includes('verified') || s.includes('generated');
 };
 
+// The list opens on requests awaiting HR action; "All Statuses" is one click away.
+const DEFAULT_STATUS_FILTER = 'Submitted';
+
 const HRIDCardManagement: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState<string>('All');
+    const [statusFilter, setStatusFilter] = useState<string>(DEFAULT_STATUS_FILTER);
+    const [designationFilter, setDesignationFilter] = useState('All');
+    const [departmentFilter, setDepartmentFilter] = useState('All');
+    const [projectFilter, setProjectFilter] = useState('All');
+    const [dateFrom, setDateFrom] = useState('');
+    const [dateTo, setDateTo] = useState('');
     const [activeTab, setActiveTabState] = useState<ProjectTab>('research');
     const [page, setPage] = useState(1);
     const [pageSize, setPageSizeState] = useState<number>(PAGE_SIZE_OPTIONS[0]);
-    const setActiveTab = (tab: ProjectTab) => { setActiveTabState(tab); setPage(1); };
+    const setActiveTab = (tab: ProjectTab) => {
+        setActiveTabState(tab);
+        setDesignationFilter('All'); setDepartmentFilter('All'); setProjectFilter('All');
+        setPage(1);
+    };
     const setPageSize = (n: number) => { setPageSizeState(n); setPage(1); };
     const [selectedCard, setSelectedCard] = useState<IDCardRecord | null>(null);
     const [showPrintPreview, setShowPrintPreview] = useState(false);
@@ -151,6 +163,15 @@ const HRIDCardManagement: React.FC = () => {
             const cStatus = (card.workflow_state || '').trim();
             if (!cStatus || cStatus === 'Draft') return false;
             if (getProjectTab(card.project_number__) !== activeTab) return false;
+            if (designationFilter !== 'All' && (card.designation__ || '') !== designationFilter) return false;
+            if (departmentFilter !== 'All' && (card.department_name__ || '') !== departmentFilter) return false;
+            if (projectFilter !== 'All' && (card.project_number__ || '') !== projectFilter) return false;
+            if (dateFrom || dateTo) {
+                const modified = (card.modified || '').slice(0, 10);
+                if (!modified) return false;
+                if (dateFrom && modified < dateFrom) return false;
+                if (dateTo && modified > dateTo) return false;
+            }
 
             const matchesSearch = !term ||
                 (card.full_name__ || '').toLowerCase().includes(term) ||
@@ -170,7 +191,29 @@ const HRIDCardManagement: React.FC = () => {
 
             return matchesSearch && matchesStatus;
         });
-    }, [cardList, searchTerm, statusFilter, activeTab]);
+    }, [cardList, searchTerm, statusFilter, activeTab, designationFilter, departmentFilter, projectFilter, dateFrom, dateTo]);
+
+    // Dropdown options come from the active tab's non-draft requests
+    const filterOptions = useMemo(() => {
+        const rows = (cardList || []).filter(c =>
+            c.workflow_state && c.workflow_state !== 'Draft' && getProjectTab(c.project_number__) === activeTab
+        );
+        const uniq = (pick: (c: IDCardRecord) => string | undefined) =>
+            Array.from(new Set(rows.map(pick).filter((v): v is string => !!v))).sort((a, b) => a.localeCompare(b));
+        return {
+            designations: uniq(c => c.designation__),
+            departments: uniq(c => c.department_name__),
+            projects: uniq(c => c.project_number__),
+        };
+    }, [cardList, activeTab]);
+
+    const hasActiveFilters =
+        !!searchTerm || statusFilter !== DEFAULT_STATUS_FILTER || designationFilter !== 'All' || departmentFilter !== 'All' ||
+        projectFilter !== 'All' || !!dateFrom || !!dateTo;
+    const clearFilters = () => {
+        setSearchTerm(''); setStatusFilter(DEFAULT_STATUS_FILTER); setDesignationFilter('All');
+        setDepartmentFilter('All'); setProjectFilter('All'); setDateFrom(''); setDateTo(''); setPage(1);
+    };
 
     // Pagination (clamped so a shrinking list never leaves us on an empty page)
     const totalPages = Math.max(1, Math.ceil(filteredCards.length / pageSize));
@@ -647,29 +690,87 @@ const HRIDCardManagement: React.FC = () => {
                     ))}
                 </div>
 
-                {/* Search & Filter */}
-                <div className="flex flex-col sm:flex-row gap-2 mb-3">
-                    <div className="relative flex-1">
+                {/* Search & Filters */}
+                <div className="mb-3 space-y-2">
+                    <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
                         <input
                             type="text"
-                            placeholder="Search by name, ID, department..."
+                            placeholder="Search by name, ID, department, project..."
                             value={searchTerm}
                             onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
                             className="w-full pl-9 pr-3 py-1.5 text-[13px] rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 focus:border-[#4A6CF7]"
                         />
                     </div>
-                    <select
-                        value={statusFilter}
-                        onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-                        className="px-3 py-1.5 text-[13px] rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 min-w-[140px]"
-                    >
-                        <option value="All">All Statuses</option>
-                        <option value="Draft">Draft</option>
-                        <option value="Submitted">Submitted</option>
-                        <option value="HR Verified">HR Verified</option>
-                        <option value="ID Generated">ID Generated</option>
-                    </select>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+                            className="px-3 py-1.5 text-[13px] rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 min-w-[140px] max-w-[220px]"
+                            aria-label="Filter by status"
+                        >
+                            <option value="All">All Statuses</option>
+                            <option value="Submitted">Submitted</option>
+                            <option value="Verified">Verified</option>
+                            <option value="Generated">Generated</option>
+                        </select>
+                        <select
+                            value={designationFilter}
+                            onChange={(e) => { setDesignationFilter(e.target.value); setPage(1); }}
+                            className="px-3 py-1.5 text-[13px] rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 min-w-[140px] max-w-[220px]"
+                            aria-label="Filter by designation"
+                        >
+                            <option value="All">All Designations</option>
+                            {filterOptions.designations.map(v => <option key={v} value={v}>{v}</option>)}
+                        </select>
+                        <select
+                            value={departmentFilter}
+                            onChange={(e) => { setDepartmentFilter(e.target.value); setPage(1); }}
+                            className="px-3 py-1.5 text-[13px] rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 min-w-[140px] max-w-[220px]"
+                            aria-label="Filter by department"
+                        >
+                            <option value="All">All Departments</option>
+                            {filterOptions.departments.map(v => <option key={v} value={v}>{v}</option>)}
+                        </select>
+                        <select
+                            value={projectFilter}
+                            onChange={(e) => { setProjectFilter(e.target.value); setPage(1); }}
+                            className="px-3 py-1.5 text-[13px] rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30 min-w-[140px] max-w-[220px]"
+                            aria-label="Filter by project number"
+                        >
+                            <option value="All">All Projects</option>
+                            {filterOptions.projects.map(v => <option key={v} value={v}>{v}</option>)}
+                        </select>
+                        <div className="flex items-center gap-1.5 text-[12px] text-zinc-500 dark:text-zinc-400">
+                            <span>Modified</span>
+                            <input
+                                type="date"
+                                value={dateFrom}
+                                max={dateTo || undefined}
+                                onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+                                className="px-2 py-1 text-[13px] rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30"
+                                aria-label="Modified from"
+                            />
+                            <span>to</span>
+                            <input
+                                type="date"
+                                value={dateTo}
+                                min={dateFrom || undefined}
+                                onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+                                className="px-2 py-1 text-[13px] rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/30"
+                                aria-label="Modified to"
+                            />
+                        </div>
+                        {hasActiveFilters && (
+                            <button
+                                onClick={clearFilters}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[12px] font-semibold rounded-lg text-[#4A6CF7] hover:bg-[#4A6CF7]/10 transition-colors"
+                            >
+                                <X className="h-3 w-3" />
+                                Clear filters
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Request List */}

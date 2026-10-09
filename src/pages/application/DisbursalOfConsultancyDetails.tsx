@@ -24,6 +24,7 @@ import {
     type LinkOption,
 } from "@/components/forms/DynamicFormRenderer";
 import DisbursalOfConsultancyActionButtons from "@/components/DisbursalOfConsultancyActionButtons";
+import { ledgerService } from "@/services/ledgerService";
 import { CommitPayment } from "@/components/CommitPayment";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { useUserRoles } from "@/components/UserRole";
@@ -236,6 +237,40 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
     );
 
     const isCommitted = !!linkedCommitment || !!stagedCommit;
+
+    // Payments the ledger already holds against this application.
+    const paidEntries = budgetData.filter(
+        (e) =>
+            e.type === "transaction" &&
+            (e.payment || 0) > 0 &&
+            (e.frapAppId === (id || "") || e.ref === (id || "")),
+    );
+    const totalPaid = paidEntries.reduce((sum, e) => sum + (e.payment || 0), 0);
+    // A payment has been raised against this application's commit but Accounts hasn't settled it.
+    const [hasRaisedPayment, setHasRaisedPayment] = useState(false);
+    useEffect(() => {
+        if (!id) return;
+        let cancelled = false;
+        Promise.all([
+            Promise.all(["COMMITTED", "PARTIALLY_PAID", "OVERPAYMENT"].map((st) => ledgerService.getCommitsByStatus(st))),
+            ledgerService.getAllPayments(),
+        ])
+            .then(([commits, payments]) => {
+                if (cancelled) return;
+                const commit = commits.flat().find((c) => c?.frapAppId === id);
+                const raised =
+                    !!commit &&
+                    commit.transactionCommitNumber != null &&
+                    (Array.isArray(payments) ? payments : []).some(
+                        (p: any) => p.transactionCommitNumber === commit.transactionCommitNumber,
+                    );
+                setHasRaisedPayment(raised);
+            })
+            .catch(() => {});
+        return () => { cancelled = true; };
+    }, [id]);
+    const isPendingAccVerification =
+        hasRaisedPayment && formData.workflow_state === "Approved";
 
     // Unified commitment display: prefer ledger data (linkedCommitment), fall back to staged
     const displayCommitment = linkedCommitment
@@ -647,36 +682,33 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                                                    Payment Amount (₹)
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25"
-                                                    placeholder="e.g., 5000"
-                                                    value={paymentAmount}
-                                                    onChange={(e) => setPaymentAmount(e.target.value)}
-                                                    max={displayCommitment?.committed}
-                                                />
-                                                <p className="text-xs text-zinc-500 mt-1">
-                                                    Max: ₹{" "}
-                                                    {Number(displayCommitment?.committed || 0).toLocaleString("en-IN")}
-                                                </p>
-                                            </div>
-                                            <FrappeButton
-                                                className="w-full"
-                                                variant="outline"
-                                                onClick={handlePayment}
-                                                disabled={
-                                                    isPaying ||
-                                                    !paymentAmount ||
-                                                    parseFloat(paymentAmount) >
-                                                        (displayCommitment?.committed || 0)
-                                                }
-                                            >
-                                                {isPaying ? "Processing..." : "Submit Payment"}
-                                            </FrappeButton>
+                                            {isPendingAccVerification && (
+                                                <span className="inline-block px-2 py-0.5 rounded-md text-[11px] font-bold border bg-amber-100 text-amber-800 border-amber-300">
+                                                    Pending Acc. Verification
+                                                </span>
+                                            )}
+                                            {paidEntries.length > 0 && (
+                                                <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100 space-y-1">
+                                                    <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wide">
+                                                        Paid Details
+                                                    </p>
+                                                    {paidEntries.map((e, i) => (
+                                                        <div key={i} className="flex justify-between text-sm text-emerald-900">
+                                                            <span>
+                                                                {e.date ? new Date(e.date).toLocaleDateString("en-IN") : "-"}
+                                                                {e.bmr ? ` · BMR ${e.bmr}` : ""}
+                                                            </span>
+                                                            <span className="font-bold">
+                                                                ₹ {Number(e.payment).toLocaleString("en-IN")}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                    <div className="flex justify-between text-sm font-bold text-emerald-800 border-t border-emerald-200 pt-1">
+                                                        <span>Total Paid</span>
+                                                        <span>₹ {totalPaid.toLocaleString("en-IN")}</span>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     ) : (
                                         <div className="text-center py-6 px-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-dashed border-zinc-200 dark:border-zinc-700">

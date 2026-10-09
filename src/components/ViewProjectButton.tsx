@@ -1,5 +1,9 @@
 import { FRAPPE_BASE_URL } from "@/utils/frappeUrl";
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { usePersistentPopups } from '@/lib/persistentPopups';
+import { createPortal } from 'react-dom';
+import { useFloatingWindow } from '@/hooks/useFloatingWindow';
+import { ResizeEdges } from '@/components/ResizeEdges';
 import { FolderOpenIcon, XIcon } from 'lucide-react';
 import ProjectDetailsOverview from '@/pages/ProjectDetailsOverview';
 import { DOCTYPE_PR_LINKS, type PRLinkStrategy } from '@/utils/projectTypeMapping';
@@ -15,34 +19,43 @@ function extractPRName(doctype: string, data: Record<string, any>): string | nul
     return tryStrategy(mapping.primary) ?? (mapping.fallback ? tryStrategy(mapping.fallback) : null);
 }
 
-const ProjectPreviewModal = ({ projectName, onClose }: { projectName: string; onClose: () => void }) => (
-    <div
-        className="fixed inset-0 z-50 flex flex-col bg-black/60 backdrop-blur-sm"
-        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-        <div className="relative flex-1 mx-auto my-4 w-full max-w-7xl flex flex-col bg-claude-bg dark:bg-zinc-900 rounded-2xl shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
-                <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
-                    <FolderOpenIcon className="w-4 h-4 text-[#D97757]" />
-                    Project Registration Preview
-                    <span className="px-2 py-0.5 rounded-full text-xs bg-orange-50 dark:bg-zinc-800 text-[#D97757] font-mono border border-orange-100 dark:border-zinc-700">
-                        {projectName}
-                    </span>
-                </span>
-                <button
-                    onClick={onClose}
-                    className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
-                    aria-label="Close project preview"
+export const ProjectPreviewModal = ({ projectName, onClose }: { projectName: string; onClose: () => void }) => {
+    // Floating window: drag by the title bar, resize from the corner, page behind stays usable.
+    const { rect, moveHandlers, edgeHandlers } = useFloatingWindow({ isOpen: true, maxWidth: 1400, persistKey: 'project-preview' });
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] pointer-events-none" role="dialog" aria-modal="false">
+            <div
+                className="pointer-events-auto absolute flex flex-col bg-claude-bg dark:bg-zinc-900 rounded-2xl shadow-2xl overflow-hidden"
+                style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h, border: '2px solid #A1A1AA' }}
+            >
+                <div
+                    {...moveHandlers}
+                    className="flex items-center justify-between px-5 py-3 bg-white dark:bg-zinc-900 border-b border-zinc-300 dark:border-zinc-600 shrink-0 cursor-move select-none touch-none"
                 >
-                    <XIcon className="w-5 h-5" />
-                </button>
+                    <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+                        <FolderOpenIcon className="w-4 h-4 text-[#D97757]" />
+                        Project Registration Preview
+                        <span className="px-2 py-0.5 rounded-full text-xs bg-orange-50 dark:bg-zinc-800 text-[#D97757] font-mono border border-orange-100 dark:border-zinc-700">
+                            {projectName}
+                        </span>
+                    </span>
+                    <button
+                        onClick={onClose}
+                        className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
+                        aria-label="Close project preview"
+                    >
+                        <XIcon className="w-5 h-5" />
+                    </button>
+                </div>
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                    <ProjectDetailsOverview projectName={projectName} embedded hideActions />
+                </div>
+                <ResizeEdges edgeHandlers={edgeHandlers} />
             </div>
-            <div className="flex-1 overflow-y-auto">
-                <ProjectDetailsOverview projectName={projectName} embedded hideActions />
-            </div>
-        </div>
-    </div>
-);
+        </div>,
+        document.body,
+    );
+};
 
 const ViewProjectButton = ({
     doctype,
@@ -53,6 +66,19 @@ const ViewProjectButton = ({
 }) => {
     const [prPreviewName, setPrPreviewName] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+
+    // Keep the preview open across page navigation (see lib/persistentPopups).
+    const mountPath = useRef(window.location.pathname);
+    const openName = useRef<string | null>(null);
+    openName.current = prPreviewName;
+    useEffect(() => {
+        if (prPreviewName) usePersistentPopups.getState().setPreview(null);
+    }, [prPreviewName]);
+    useEffect(() => () => {
+        if (openName.current && window.location.pathname !== mountPath.current) {
+            usePersistentPopups.getState().setPreview(openName.current);
+        }
+    }, []);
 
     if (!data) return null;
 

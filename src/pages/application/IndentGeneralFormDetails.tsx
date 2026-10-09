@@ -26,7 +26,7 @@ import { useUserRoles } from "@/components/UserRole";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { ErrorModal } from "../../components/ErrorModal";
 import { parseFrappeError } from "../../utils/errorUtils";
-import { CommitPayment } from "@/components/CommitPayment";
+import { CommitPayment, ProjectBalanceList } from "@/components/CommitPayment";
 import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import { ProjectLedgerModal } from "@/components/ProjectLedgerModal";
 import IndentGeneralFormActionButtons from "@/components/IndentGeneralFormActionButtons";
@@ -958,70 +958,11 @@ const IndentGeneralFormDetails: React.FC = () => {
                         </div>
 
                         {/* Project Budget / Ledger */}
-                        <div className="bg-white dark:bg-zinc-900 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                                    Commitable Balance
-                                </span>
-                                <span className={`text-sm font-bold ${actualBalance < 0 ? "text-red-500" : "text-[#D97757]"}`}>
-                                    ₹ {(actualBalance || 0).toLocaleString("en-IN")}
-                                </span>
-                            </div>
-
-                            {/* Per-head breakdown */}
-                            {budgetHeads.filter((h) => headBalances[h]?.received !== 0).length > 0 && (
-                                <div className="mb-2 divide-y divide-zinc-100 dark:divide-zinc-800 border border-zinc-100 dark:border-zinc-800 rounded-lg overflow-hidden">
-                                    {budgetHeads
-                                        .filter((h) => headBalances[h]?.received !== 0)
-                                        .map((head) => {
-                                            const bal = headBalances[head];
-                                            if (!bal) return null;
-                                            const isNegative = bal.commitable < 0;
-                                            const isSelected = selectedCommitHead === head;
-                                            return (
-                                                <div key={head} className={cn(
-                                                    "flex items-center justify-between px-3 py-1.5",
-                                                    isSelected
-                                                        ? "bg-[#D97757]/10 dark:bg-[#D97757]/15 ring-inset ring-1 ring-[#D97757]/30"
-                                                        : "bg-zinc-50 dark:bg-zinc-900/50"
-                                                )}>
-                                                    <span className={cn(
-                                                        "text-[11px] truncate max-w-[130px]",
-                                                        isSelected ? "font-semibold text-zinc-700 dark:text-zinc-200" : "text-zinc-500 dark:text-zinc-400"
-                                                    )} title={head}>
-                                                        {head}
-                                                    </span>
-                                                    <span className={cn(
-                                                        "text-[11px] font-bold tabular-nums",
-                                                        isNegative ? "text-red-500" : "text-emerald-600 dark:text-emerald-400"
-                                                    )}>
-                                                        ₹ {bal.commitable.toLocaleString("en-IN")}
-                                                    </span>
-                                                </div>
-                                            );
-                                        })}
-                                    {/* Total row */}
-                                    <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 border-t border-zinc-200 dark:border-zinc-700">
-                                        <span className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-300 uppercase tracking-wide">
-                                            Total
-                                        </span>
-                                        <span className={cn(
-                                            "text-[11px] font-bold tabular-nums",
-                                            actualBalance < 0 ? "text-red-500" : "text-[#D97757]"
-                                        )}>
-                                            ₹ {(actualBalance || 0).toLocaleString("en-IN")}
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
-
-                            <button
-                                onClick={() => setIsLedgerOpen(true)}
-                                className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-[#D97757] font-semibold text-xs hover:bg-[#B2DFDB] transition-colors"
-                            >
-                                View Project Ledger
-                            </button>
-                        </div>
+                        <ProjectBalanceList
+                            balances={headBalances}
+                            selectedHead={selectedCommitHead}
+                            onViewLedger={() => setIsLedgerOpen(true)}
+                        />
 
                         {/* Other-PI approval: the assigned PI charges one of their own projects */}
                         {isIgfPiStep && (
@@ -1064,6 +1005,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                                 actualBalance={actualBalance}
                                 commitableBalance={commitableBalance}
                                 headBalances={headBalances}
+                                showBalanceList={false}
                                 defaultBudgetHead={igfAccountHeadLabel}
                                 onHeadChange={setSelectedCommitHead}
                                 onCommitSuccess={() => handleRefresh()}

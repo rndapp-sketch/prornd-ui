@@ -1,5 +1,6 @@
 // ======================================
 
+import { PersistentPopups } from "@/components/PersistentPopups";
 import { DomainReminder } from "@/components/DomainReminder";
 import { AnnouncementBell } from "@/components/AnnouncementBell";
 import { FRAPPE_BASE_URL, frappeUrl } from "@/utils/frappeUrl";
@@ -169,6 +170,7 @@ function AppContent() {
           shouldRetryOnError: false,
         }}
       >
+        <PersistentPopups />
         {isPublicPage ? (
           <Outlet />
         ) : (
