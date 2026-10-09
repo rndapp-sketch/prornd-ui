@@ -60,6 +60,8 @@ const formatDateSlash = (dateStr?: string) => {
 // not bundled, so Windows/macOS/Linux each substitute something else), so a
 // fixed px size can overflow on one machine and fit on another. The size
 // passed in is the design size and is only reduced when the text overflows.
+const EXPORT_HEADROOM = 1.08;
+
 const FitText: React.FC<{
   size: number;
   minScale?: number;
@@ -67,17 +69,20 @@ const FitText: React.FC<{
   children: React.ReactNode;
 }> = ({ size, minScale = 0.6, style, children }) => {
   const ref = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLSpanElement>(null);
 
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    const inner = innerRef.current;
+    if (!el || !inner) return;
 
     const fit = () => {
       const min = size * minScale;
       let current = size;
       el.style.fontSize = `${current}px`;
-      // 0.5px tolerance absorbs sub-pixel rounding differences between engines
-      while (el.scrollWidth - el.clientWidth > 0.5 && current > min) {
+      // The PNG/PDF export rasterises through an SVG foreignObject, where bold
+      // glyphs come out wider than in the live preview, so keep headroom.
+      while (inner.offsetWidth * EXPORT_HEADROOM > el.clientWidth && current > min) {
         current = Math.max(min, current - 0.25);
         el.style.fontSize = `${current}px`;
       }
@@ -99,7 +104,9 @@ const FitText: React.FC<{
       ref={ref}
       style={{ ...style, fontSize: `${size}px`, whiteSpace: "nowrap" }}
     >
-      {children}
+      <span ref={innerRef} style={{ display: "inline-block" }}>
+        {children}
+      </span>
     </div>
   );
 };
@@ -276,10 +283,10 @@ export const FrontIDCard: React.FC<{ data: IDCardData }> = ({ data }) => {
             gap: "8px",
           }}
         >
-          <FitText size={12} style={{ minWidth: 0, flex: "0 1 auto" }}>
+          <FitText size={12} style={{ flex: "0 0 auto" }}>
             ID No: {data.emp_id__ || "—"}
           </FitText>
-          <FitText size={12} style={{ minWidth: 0, flex: "0 1 auto" }}>
+          <FitText size={12} style={{ minWidth: 0, flex: "1 1 0", textAlign: "right" }}>
             Project No: {data.project_number__ || "—"}
           </FitText>
         </div>

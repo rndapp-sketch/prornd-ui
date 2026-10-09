@@ -512,6 +512,7 @@ const HRIDCardManagement: React.FC = () => {
             const options = {
                 pixelRatio: 4,
                 cacheBust: true,
+                includeQueryParams: true,
                 backgroundColor: '#ffffff',
             };
 
@@ -557,6 +558,7 @@ const HRIDCardManagement: React.FC = () => {
             const options = {
                 pixelRatio: 4,
                 cacheBust: true,
+                includeQueryParams: true,
                 backgroundColor: '#ffffff',
             };
 
