@@ -1,4 +1,5 @@
 import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
+import { usePutBack } from "@/components/PutBack";
 import { cn } from '@/lib/utils';
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -27,6 +28,8 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
     const actions: string[] = (actionsData?.message || []).map((a: any) =>
         typeof a === "string" ? a : a.action || a.workflow_action || a.label || ""
     ).filter(Boolean);
+
+    const putBack = usePutBack("Temporary Advance", docname, onActionComplete);
 
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
@@ -98,6 +101,9 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
         </div>
     );
 
+    // Put Back is only for users who can act on the current state
+    const canPutBack = putBack.hasPutBack && actions.length > 0;
+    const visibleActions = actions.filter((a) => !(canPutBack && /^put\s*back$/i.test(a)));
     if (!actions.length) return null;
 
     const categorise = (a: string) => {
@@ -126,9 +132,9 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
         };
     };
 
-    const forwardActions = actions.filter(a => categorise(a) === "forward");
-    const neutralActions = actions.filter(a => categorise(a) === "neutral");
-    const rejectActions  = actions.filter(a => categorise(a) === "reject");
+    const forwardActions = visibleActions.filter(a => categorise(a) === "forward");
+    const neutralActions = visibleActions.filter(a => categorise(a) === "neutral");
+    const rejectActions  = visibleActions.filter(a => categorise(a) === "reject");
     const groups = [forwardActions, neutralActions, rejectActions].filter(g => g.length > 0);
 
     return (
@@ -193,6 +199,7 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
                                     })}
                                 </React.Fragment>
                             ))}
+                            {canPutBack && putBack.menu(() => setDropdownOpen(false), groups.length > 0)}
                         </div>,
                         document.body,
                     )}
@@ -203,6 +210,8 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequir
                     </p>
                 )}
             </div>
+
+            {putBack.modal}
 
             {/* Inline comment modal */}
             {modalOpen && (

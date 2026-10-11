@@ -676,9 +676,11 @@ const ProjectStaffResignationForm: React.FC = () => {
                     Save Draft
                   </FrappeButton>
                 )}
-                {workflowActions.length > 0 && (
+                {(workflowActions.length > 0 || !!docName) && (
                   <ResignationActionButtons
                     actions={workflowActions}
+                    docname={docName || undefined}
+                    onPutBackComplete={() => docName && refreshActions(docName)}
                     onAction={handleWorkflowAction}
                     isBusy={isBusy}
                     commitRequired={commitRequired}

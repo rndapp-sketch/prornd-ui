@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
+import { usePutBack, putBackLabel } from "@/components/PutBack";
 import { cn } from "@/lib/utils";
 import { loanRequestAPI } from "@/services/apiService";
 import { ChevronRight, RotateCcw, CheckCircle2, XCircle } from "lucide-react";
@@ -113,6 +114,8 @@ const LoanRequestActionButtons = ({
         'rndopsapp.rndopsapp.api.add_project_comment',
     );
 
+    const putBack = usePutBack("Loan Request", docname, onActionComplete);
+
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedAction, setSelectedAction] = useState("");
     const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: "Action Failed", message: "" });
@@ -159,7 +162,10 @@ const LoanRequestActionButtons = ({
         }
     };
 
-    if (actionsLoading || !data?.message?.length) return null;
+    const actions = data?.message ?? [];
+    // Put Back is only for users who can act on the current state
+    const canPutBack = putBack.hasPutBack && actions.length > 0;
+    if (actionsLoading || !actions.length) return null;
 
     return (
         <>
@@ -167,7 +173,7 @@ const LoanRequestActionButtons = ({
                 <p className="w-full text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
                     Available Actions
                 </p>
-                {data.message.map((action) => (
+                {actions.map((action) => (
                     <button
                         key={action}
                         onClick={() => handleActionClick(action)}
@@ -183,7 +189,18 @@ const LoanRequestActionButtons = ({
                         {actionLoading ? "Processing..." : action}
                     </button>
                 ))}
+                {canPutBack && putBack.states.map((st) => (
+                    <button
+                        key={`pb-${st}`}
+                        onClick={() => putBack.begin(st)}
+                        disabled={putBack.loading}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 border border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Put to {putBackLabel(st)}
+                    </button>
+                ))}
             </div>
+            {putBack.modal}
             <CommentModal
                 isOpen={modalOpen}
                 onClose={() => setModalOpen(false)}

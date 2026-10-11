@@ -1,6 +1,6 @@
-import React from "react";
-import { useFrappeGetDocList } from "frappe-react-sdk";
+import React, { useEffect, useState } from "react";
 import { FileTextIcon } from "lucide-react";
+import { fetchDeclarationFields } from "@/utils/fetchDeclarationHtml";
 
 interface DeclarationFieldsProps {
     doctype: string;
@@ -12,16 +12,23 @@ interface DeclarationFieldsProps {
  * with the content stored in `options`. Field names can vary across doctypes.
  */
 export const DeclarationFields: React.FC<DeclarationFieldsProps> = ({ doctype }) => {
-    const { data } = useFrappeGetDocList("DocField", {
-        filters: [
-            ["parent", "=", doctype],
-            ["fieldtype", "=", "HTML"],
-        ],
-        fields: ["fieldname", "label", "options"],
-        limit_page_length: 0,
-    });
+    // Via the whitelisted method: a direct DocField get_list 403s for every
+    // role except System Manager, which left this section blank for most users.
+    const [fields, setFields] = useState<Record<string, string>>({});
 
-    const htmlFields = (data || []).filter((f: any) => f.options?.trim());
+    useEffect(() => {
+        let cancelled = false;
+        fetchDeclarationFields(doctype).then((f) => {
+            if (!cancelled) setFields(f);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [doctype]);
+
+    const htmlFields = Object.entries(fields)
+        .filter(([, html]) => html?.trim())
+        .map(([fieldname, options]) => ({ fieldname, options }));
 
     if (htmlFields.length === 0) return null;
 

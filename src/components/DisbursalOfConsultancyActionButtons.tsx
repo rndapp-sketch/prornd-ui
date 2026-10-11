@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, RotateCcw } from "lucide-react";
+import { usePutBack, putBackLabel } from "@/components/PutBack";
 import { cn } from "@/lib/utils";
 import { disbursalOfConsultancyAPI } from "@/services/apiService";
 import {
@@ -84,6 +85,8 @@ const DisbursalOfConsultancyActionButtons = ({
     "rndopsapp.rndopsapp.api.add_project_comment",
   );
 
+  const putBack = usePutBack("Disbursal of Consultancy", docname, onActionComplete);
+
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedAction, setSelectedAction] = useState("");
 
@@ -112,10 +115,14 @@ const DisbursalOfConsultancyActionButtons = ({
     }
   };
 
-  if (actionsLoading || !data?.message?.length) return null;
+  // The generic "Put Back" workflow action is replaced by the level-specific Put to … entries.
+  // Put Back is only for users who can act on the current state
+  const canPutBack = putBack.hasPutBack && (data?.message ?? []).length > 0;
+  const actions = (data?.message ?? []).filter((a) => !(canPutBack && /^put\s*back$/i.test(a)));
+  if (actionsLoading || (!actions.length && !canPutBack)) return null;
 
-  if (data.message.length === 1) {
-    const action = data.message[0];
+  if (actions.length === 1 && !canPutBack) {
+    const action = actions[0];
     return (
       <>
         <button
@@ -153,13 +160,24 @@ const DisbursalOfConsultancyActionButtons = ({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {data.message.map((action) => (
+          {actions.map((action) => (
             <DropdownMenuItem
               key={action}
               disabled={actionLoading}
               onSelect={() => handleActionClick(action)}
             >
               {action}
+            </DropdownMenuItem>
+          ))}
+          {canPutBack && putBack.states.map((st) => (
+            <DropdownMenuItem
+              key={`pb-${st}`}
+              disabled={putBack.loading}
+              onSelect={() => putBack.begin(st)}
+              className="text-amber-700 dark:text-amber-400"
+            >
+              <RotateCcw className="h-3.5 w-3.5 mr-2" />
+              Put to {putBackLabel(st)}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
@@ -171,6 +189,7 @@ const DisbursalOfConsultancyActionButtons = ({
         action={selectedAction}
         isLoading={actionLoading ?? false}
       />
+      {putBack.modal}
     </>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
+import { usePutBack } from "@/components/PutBack";
 import { cn } from "@/lib/utils";
 import { disbursalOfHonorariumAPI } from "@/services/apiService";
 import { ChevronDown, CheckCircle, XCircle, ChevronRight, Printer } from "lucide-react";
@@ -82,6 +83,7 @@ const DisbursalOfHonorariumActionButtons = ({
   const { call: addComment } = useFrappePostCall(
     "rndopsapp.rndopsapp.api.add_project_comment",
   );
+  const putBack = usePutBack("Disbursal of Honorarium", docname, onActionComplete);
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
@@ -171,8 +173,9 @@ const DisbursalOfHonorariumActionButtons = ({
     };
   };
 
-  const isLoading = actionsLoading || actionLoading;
-  const hasActions = forwardActions.length > 0 || neutralActions.length > 0 || rejectActions.length > 0;
+  const isLoading = actionsLoading || actionLoading || putBack.loading;
+  const hasWorkflowActions = forwardActions.length > 0 || neutralActions.length > 0 || rejectActions.length > 0;
+  const hasActions = hasWorkflowActions;
 
   if (!hasActions && !actionsLoading) return null;
 
@@ -261,6 +264,8 @@ const DisbursalOfHonorariumActionButtons = ({
                   })}
                 </React.Fragment>
               ))}
+
+            {hasWorkflowActions && putBack.menu(() => setDropdownOpen(false), hasWorkflowActions)}
           </div>,
           document.body,
         )}
@@ -273,6 +278,7 @@ const DisbursalOfHonorariumActionButtons = ({
         action={selectedAction}
         isLoading={actionLoading ?? false}
       />
+      {putBack.modal}
     </>
   );
 };

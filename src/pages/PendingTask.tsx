@@ -547,7 +547,7 @@ const PendingTask: React.FC = () => {
     }, [allTasks]);
 
     // Phase-3: fetch director_signed_pdf for all doctypes that support Director Approval flow
-    const DIRECTOR_PDF_DOCTYPES = ["Indent General Form", "Selection Committee Report", "Indent Cum Sanction Sheet", "Disbursal of Honorarium"];
+    const DIRECTOR_PDF_DOCTYPES = ["Travel", "Indent General Form", "Selection Committee Report", "Indent Cum Sanction Sheet", "Disbursal of Honorarium"];
     const [directorPdfStatus, setDirectorPdfStatus] = React.useState<Map<string, boolean>>(new Map());
     React.useEffect(() => {
         const byDoctype = new Map<string, string[]>();
@@ -576,6 +576,28 @@ const PendingTask: React.FC = () => {
                 .catch(() => {});
         });
         Promise.all(fetches).then(() => setDirectorPdfStatus(new Map(combined)));
+    }, [allTasks]);
+
+    // Top Up Fellowship: Faculty Admission's signed PDF, uploaded while still Pending Staff Approval
+    const [facultyPdfStatus, setFacultyPdfStatus] = React.useState<Map<string, boolean>>(new Map());
+    React.useEffect(() => {
+        const ids = allTasks
+            .filter(t => t.status === "Pending Staff Approval" && t.doctype === "Top Up Fellowship")
+            .map(t => t.id);
+        if (!ids.length) return;
+        const params = new URLSearchParams({
+            fields: JSON.stringify(["name", "faculty_admission_pdf"]),
+            filters: JSON.stringify([["name", "in", ids.join(",")]]),
+            limit: String(ids.length),
+        });
+        fetch(`${FRAPPE_BASE_URL}/api/resource/Top%20Up%20Fellowship?${params}`, { credentials: "include" })
+            .then(r => r.json())
+            .then(result => {
+                const m = new Map<string, boolean>();
+                (result?.data ?? []).forEach((rec: any) => m.set(rec.name, !!String(rec.faculty_admission_pdf || "").trim()));
+                setFacultyPdfStatus(m);
+            })
+            .catch(() => {});
     }, [allTasks]);
 
     const visibleTasks = React.useMemo(() =>
@@ -885,6 +907,14 @@ const PendingTask: React.FC = () => {
                                                     <span className="mt-1.5 flex items-center gap-1 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
                                                         <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
                                                         Director Approval Uploaded
+                                                    </span>
+                                                )}
+                                                {task.status === "Pending Staff Approval" &&
+                                                    task.doctype === "Top Up Fellowship" &&
+                                                    facultyPdfStatus.get(task.id) && (
+                                                    <span className="mt-1.5 flex items-center gap-1 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
+                                                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                        Faculty Admission Uploaded
                                                     </span>
                                                 )}
                                             </td>

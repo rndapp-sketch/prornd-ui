@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { CommentModal } from '@/components/CommentModal';
+import { usePutBack } from '@/components/PutBack';
 import { CheckCircleIcon, XCircleIcon, ChevronRight, ChevronDown } from 'lucide-react';
 
 interface ResignationActionButtonsProps {
@@ -11,6 +12,9 @@ interface ResignationActionButtonsProps {
     /** When true, forward-type actions are disabled until a commitment exists (Staff RnD gate) */
     commitRequired?: boolean;
     commitBlockedMessage?: string;
+    /** Enables the universal Put Back menu for this Project Staff Resignation */
+    docname?: string;
+    onPutBackComplete?: () => void;
 }
 
 // Same grouping/style convention as Travel/Project Registration's workflow actions dropdown
@@ -46,7 +50,10 @@ const ResignationActionButtons: React.FC<ResignationActionButtonsProps> = ({
     isBusy = false,
     commitRequired = false,
     commitBlockedMessage = 'A commitment must be submitted before forwarding this application.',
+    docname,
+    onPutBackComplete,
 }) => {
+    const putBack = usePutBack('Project Staff Resignation', docname, onPutBackComplete);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
     const toggleBtnRef = useRef<HTMLButtonElement>(null);
@@ -88,11 +95,14 @@ const ResignationActionButtons: React.FC<ResignationActionButtonsProps> = ({
         setSelectedAction(null);
     };
 
+    // Put Back is only for users who can act on the current state
+    const canPutBack = putBack.hasPutBack && actions.length > 0;
+    const visibleActions = actions.filter((a) => !(canPutBack && /^put\s*back$/i.test(a)));
     if (!actions.length) return null;
 
-    const forwardActions = actions.filter((a) => categorise(a) === 'forward');
-    const neutralActions = actions.filter((a) => categorise(a) === 'neutral');
-    const rejectActions = actions.filter((a) => categorise(a) === 'reject');
+    const forwardActions = visibleActions.filter((a) => categorise(a) === 'forward');
+    const neutralActions = visibleActions.filter((a) => categorise(a) === 'neutral');
+    const rejectActions = visibleActions.filter((a) => categorise(a) === 'reject');
     const groups = [forwardActions, neutralActions, rejectActions].filter((g) => g.length > 0);
 
     return (
@@ -158,6 +168,7 @@ const ResignationActionButtons: React.FC<ResignationActionButtonsProps> = ({
                                 })}
                             </React.Fragment>
                         ))}
+                        {canPutBack && putBack.menu(() => setDropdownOpen(false), groups.length > 0)}
                     </div>,
                     document.body,
                 )}
@@ -176,6 +187,7 @@ const ResignationActionButtons: React.FC<ResignationActionButtonsProps> = ({
                 isLoading={isBusy}
                 requireComment
             />
+            {putBack.modal}
         </div>
     );
 };
