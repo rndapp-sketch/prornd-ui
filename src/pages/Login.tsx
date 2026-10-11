@@ -521,9 +521,6 @@ const Login: React.FC = () => {
                       <label htmlFor="password" className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#243040] dark:text-[#E4E4E7]">
                         Password
                       </label>
-                      <a className="text-[12px] font-bold text-[#F97316] transition-colors hover:text-[#EA580C]" href="#">
-                        Forgot password?
-                      </a>
                     </div>
                     <div className="relative overflow-hidden rounded-xl border border-[#C2CEDB] bg-white/75 transition-colors focus-within:border-[#F97316] focus-within:ring-[3px] focus-within:ring-[#F97316]/15 dark:border-[#3F3F46] dark:bg-[#18181B]">
                       <div className="absolute inset-y-0 left-0 flex w-12 items-center justify-center border-r border-[#E2E8F0] bg-[#F8FAFC] text-[#64748B] dark:border-[#3F3F46] dark:bg-transparent dark:text-[#A1A1AA]">
