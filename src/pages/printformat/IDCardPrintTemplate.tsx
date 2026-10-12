@@ -1,5 +1,6 @@
 import React, { useLayoutEffect, useRef } from "react";
 import { getUploadedImageUrl } from "@/utils/fileUtils";
+import { loadIdCardFontsInDocument } from "@/utils/idCardFonts";
 
 // -----------------------------------------------------------------------
 // ID Card Print Template
@@ -93,6 +94,10 @@ const FitText: React.FC<{
     // Re-fit once web/system fonts have actually resolved
     let cancelled = false;
     document.fonts?.ready.then(() => {
+      if (!cancelled) fit();
+    });
+    // The bundled Noto files are what the export embeds; measure with them too
+    loadIdCardFontsInDocument().then(() => {
       if (!cancelled) fit();
     });
     // Refit when the box itself changes size (e.g. a sibling in the same row
