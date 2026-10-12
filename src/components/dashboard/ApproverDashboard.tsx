@@ -116,6 +116,7 @@ const pendingRoute = (doctype: string, id: string) => {
     if (doctype === "Project Staff Details") return `/project-staff-joining?docname=${encodeURIComponent(id)}`;
     if (doctype === "Miscellaneous Commit") return `/miscellaneous-commit/${id}`;
     if (doctype === "Loan Request") return `/loan-request/${id}`;
+    if (doctype === "Acc Head to Head Fund Transfer") return `/head-to-head-transfer/${id}`;
     if (doctype === "Proforma_Invoice") return `/proforma-invoice/${id}`;
     return `/pending-tasks/${doctype}/${id}`;
 };

@@ -342,6 +342,24 @@ export const miscellaneousCommitAPI = {
     performAction: `${API_BASE}.miscellaneous_commit.miscellaneous_commit.perform_miscellaneous_commit_action`,
 };
 
+// Account Head to Head Fund Transfer API endpoints
+const H2H_BASE = `${API_BASE}.acc_head_to_head_fund_transfer.acc_head_to_head_fund_transfer`;
+export const accHeadToHeadTransferAPI = {
+    getFields: `${H2H_BASE}.get_acc_head_to_head_fund_transfer_fields`,
+    get: `${H2H_BASE}.get_acc_head_to_head_fund_transfer`,
+    // NOTE: the save endpoint takes a single `data` argument (JSON string), not `doc_data`.
+    save: `${H2H_BASE}.save_acc_head_to_head_fund_transfer_data`,
+    submit: `${H2H_BASE}.submit_acc_head_to_head_fund_transfer`,
+    delete: `${H2H_BASE}.delete_acc_head_to_head_fund_transfer`,
+    list: `${H2H_BASE}.list_acc_head_to_head_fund_transfers`,
+    getPending: `${H2H_BASE}.get_pending_acc_head_to_head_fund_transfers`,
+    getWorkflowActions: `${H2H_BASE}.get_acc_head_to_head_fund_transfer_workflow_actions`,
+    performAction: `${H2H_BASE}.perform_acc_head_to_head_fund_transfer_action`,
+    getApplicantDetails: `${H2H_BASE}.get_applicant_details`,
+    getProjectAccountHeads: `${H2H_BASE}.get_project_account_heads`,
+    getAmountInWords: `${H2H_BASE}.get_amount_in_words`,
+};
+
 // Proforma Invoice API endpoints (HoS endorsement workflow)
 export const proformaInvoiceAPI = {
     get: `${API_BASE}.proforma_invoice.proforma_invoice.get_proforma_invoice`,

@@ -26,6 +26,7 @@ import FundDetails from "../components/FundDetails";
 // Disbursal of Honorarium moved to separate page
 import {
     ArrowLeftIcon,
+    ArrowLeftRight,
     FileTextIcon,
     UsersIcon,
     IndianRupeeIcon,
@@ -1158,6 +1159,11 @@ const QuickActions = ({
         ...(isOverheadProject
             ? []
             : [{ title: "Loan", icon: CreditCardIcon, items: ["Loan Request"] }]),
+        {
+            title: "Head to Head Transfer",
+            icon: ArrowLeftRight,
+            items: ["Head to Head Transfer"],
+        },
         ...(isStaffRnDForCommit ? [{
             title: "Commit / De-Commit",
             icon: CreditCardIcon,
@@ -1847,6 +1853,36 @@ const QuickActions = ({
                 } catch (fetchError) {
                     data = [];
                 }
+            } else if (selectedApplication === "Head to Head Transfer") {
+                try {
+                    const timestamp = Date.now();
+                    const apiUrl = `/api/v2/document/Acc%20Head%20to%20Head%20Fund%20Transfer?fields=["name","creation","workflow_state","docstatus","owner","h2h_app_webmail","h2h_proj_code","h2h_proj_num","h2h_transfer_from","h2h_transfer_to","h2h_amount"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    const fetchResponse = await fetch(apiUrl, {
+                        method: "GET",
+                        headers: { Accept: "application/json" },
+                        credentials: "include",
+                    });
+                    if (!fetchResponse.ok)
+                        throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+                    const result = await fetchResponse.json();
+                    const allItems = result?.data || [];
+                    data = allItems
+                        .filter((item: any) => {
+                            return (
+                                item.h2h_proj_code === projectName ||
+                                item.h2h_proj_num === projectNo ||
+                                item.h2h_proj_code === projectNo
+                            );
+                        })
+                        .map((item: any) => ({
+                            ...item,
+                            applicant_webmail: item.h2h_app_webmail,
+                            workflow_state: item.workflow_state || "Draft",
+                        }));
+                } catch (fetchError) {
+                    console.error("Head to Head Transfer fetch error:", fetchError);
+                    data = [];
+                }
             } else if (selectedApplication === "Miscellaneous Commit") {
                 try {
                     const timestamp = Date.now();
@@ -2025,6 +2061,12 @@ const QuickActions = ({
             case "Miscellaneous Commit":
                 onNavigate(
                     `/miscellaneous-commit-form?project=${projectName}`,
+                );
+                break;
+            case "Head to Head Transfer":
+                // h2h_proj_code links to the Project Registration doc name.
+                onNavigate(
+                    `/head-to-head-transfer-form?project=${projectName}`,
                 );
                 break;
             case "Direct Purchase":
@@ -2388,6 +2430,11 @@ const QuickActions = ({
                                                                 case "Miscellaneous Commit":
                                                                     onNavigate(
                                                                         `/miscellaneous-commit/${item.name}`,
+                                                                    );
+                                                                    break;
+                                                                case "Head to Head Transfer":
+                                                                    onNavigate(
+                                                                        `/head-to-head-transfer/${item.name}`,
                                                                     );
                                                                     break;
                                                                 case "Indent General Form":
