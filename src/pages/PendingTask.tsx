@@ -464,6 +464,10 @@ const PendingTask: React.FC = () => {
             if (record.doctype === "Disbursal of Consultancy" && record.status === "Pending PI Approval" && record.owner !== currentUser) {
                 return;
             }
+            // Awaiting a specific PI: never listed on this page
+            if (record.status === "Pending PI Approval" || record.status === "Pending Other PI") {
+                return;
+            }
             if (record.status === "Endorsement Approved") {
                 return;
             }

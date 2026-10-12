@@ -119,6 +119,16 @@ export interface CommitPaymentProps {
      * If it throws, the commit is aborted and the error is shown to the user.
      */
     resolveRefDetails?: (head: string, amount: number) => Promise<string | undefined>;
+    /** Optional: only treat staging rows whose payload trigger_state equals this as "the" commitment (duplicate check per trigger_state) */
+    stagingTriggerState?: string;
+    /** Optional: ignore staging rows whose payload trigger_state equals this (e.g. the first commit ignores the PO commit) */
+    excludeStagingTriggerState?: string;
+    /** Optional: older reference name to fall back to when nothing matches (commits staged before trigger_state scoping) */
+    legacyStagingReferenceName?: string;
+    /** Optional: initial value for the Particulars field */
+    defaultParticular?: string;
+    /** Optional: show only an existing commitment; render nothing when none exists (no submit form) */
+    readOnly?: boolean;
     /** Optional: class overrides for the outer container */
     className?: string;
 }
@@ -350,7 +360,18 @@ const CommittedDataCard: React.FC<CommittedDataCardProps> = ({ stagingRecord }) 
     const statusColor =
         displayStatus === "Committed"
             ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-            : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+            : displayStatus === "FAILED"
+                ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+
+    // The PO commit is labelled by its refDetails (e.g. "PO 10071 to …"); a bare numeric
+    // transaction id isn't descriptive, so fall back to the particulars in that case.
+    const refDetails = String(payloadObj.refDetails ?? payloadObj.ref_details ?? "").trim();
+    const particulars = String(payloadObj.commitParticular ?? payloadObj.commit_particular ?? "").trim();
+    const cardTitle =
+        (payloadObj.trigger_state === "POGenerated" || String(stagingRecord.reference_name ?? payloadObj.name ?? "").endsWith("-po"))
+            ? (refDetails && !/^\d+$/.test(refDetails) ? refDetails : particulars || "PO Commitment")
+            : "Commitment Details";
 
     return (
         <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
@@ -358,7 +379,7 @@ const CommittedDataCard: React.FC<CommittedDataCardProps> = ({ stagingRecord }) 
             <div className="flex items-center gap-2 mb-4">
                 <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
                 <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Commitment Details
+                    {cardTitle}
                 </h3>
             </div>
 
@@ -558,6 +579,11 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     budgetHeadIds,
     lockBudgetHead = false,
     stagingReferenceName,
+    readOnly = false,
+    stagingTriggerState,
+    excludeStagingTriggerState,
+    legacyStagingReferenceName,
+    defaultParticular = "",
     frapAppId,
     forcedRefDetails,
     includeBillAmount = false,
@@ -593,7 +619,11 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
         preferredCommitHead || budgetHeads[0] || "",
     );
     const [commitAmount, setCommitAmount] = useState(billAmount != null ? String(billAmount) : "");
-    const [commitParticular, setCommitParticular] = useState("");
+    const [commitParticular, setCommitParticular] = useState(defaultParticular);
+    const particularTouchedRef = useRef(false);
+    useEffect(() => {
+        if (!particularTouchedRef.current) setCommitParticular(defaultParticular);
+    }, [defaultParticular]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitSuccess, setSubmitSuccess] = useState<{ amount: number; head: string } | null>(null);
     const [submitError, setSubmitError] = useState<string | null>(null);
@@ -672,8 +702,22 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                 return;
             }
             const records: any[] = res?.message?.data ?? [];
+            const recordTriggerState = (record: any): string => {
+                try {
+                    const rawPayload = record.payload ?? record.commit_payload ?? "{}";
+                    const payload = typeof rawPayload === "string" ? JSON.parse(rawPayload) : rawPayload;
+                    return String(payload?.trigger_state ?? "");
+                } catch {
+                    return "";
+                }
+            };
+            const scopedRecords = records.filter((record) => {
+                if (stagingTriggerState && recordTriggerState(record) !== stagingTriggerState) return false;
+                if (excludeStagingTriggerState && recordTriggerState(record) === excludeStagingTriggerState) return false;
+                return true;
+            });
             const matchingRecords = payloadKeys.length
-                ? records.filter((record) => {
+                ? scopedRecords.filter((record) => {
                       try {
                           const rawPayload = record.payload ?? record.commit_payload ?? "{}";
                           const payload =
@@ -685,7 +729,17 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                           return false;
                       }
                   })
-                : records;
+                : scopedRecords;
+
+            if (matchingRecords.length === 0 && legacyStagingReferenceName) {
+                const legacyRes = await callGetStagingStatus({
+                    reference_name: legacyStagingReferenceName,
+                    statuses: statusFilters.length ? statusFilters : undefined,
+                });
+                if (legacyRes?.message?.status === "success") {
+                    matchingRecords.push(...(legacyRes.message.data ?? []));
+                }
+            }
 
             if (matchingRecords.length > 0) {
                 setStagingRecord(matchingRecords[0]);
@@ -704,6 +758,9 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
         commitReferenceName,
         requiredPayloadKeysKey,
         stagingStatusesKey,
+        stagingTriggerState,
+        excludeStagingTriggerState,
+        legacyStagingReferenceName,
         callGetStagingStatus,
     ]);
 
@@ -947,6 +1004,8 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
         );
     }
 
+    if (readOnly) return null;
+
     // ── Render: Success state (just submitted) ───────────────────────────────
     if (submitSuccess) {
         return (
@@ -1088,7 +1147,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                         rows={2}
                         maxLength={200}
                         value={commitParticular}
-                        onChange={(e) => setCommitParticular(e.target.value)}
+                        onChange={(e) => { particularTouchedRef.current = true; setCommitParticular(e.target.value); }}
                         disabled={disabled}
                         placeholder="Optional note about this commitment…"
                         className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] resize-none"

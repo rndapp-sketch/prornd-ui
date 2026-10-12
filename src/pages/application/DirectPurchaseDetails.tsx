@@ -1198,9 +1198,11 @@ const DirectPurchaseActionButtons = ({
     isOtherPiStep = false,
     otherPiProject = "",
     otherPiAccountHead = "",
+    workflowState = "",
 }: {
     docname: string;
     onActionComplete: () => void;
+    workflowState?: string;
     p11DocName?: string;
     onP11Missing?: () => void;
     commitRequired?: boolean;
@@ -1248,6 +1250,37 @@ const DirectPurchaseActionButtons = ({
     const { call: addComment } = useFrappePostCall(
         "rndopsapp.rndopsapp.api.add_project_comment",
     );
+    const { call: getCommitStaging } = useFrappePostCall(
+        "rndopsapp.rndopsapp.commitPayment.get_commit_staging_status",
+    );
+
+    // Names of the unpublished commits (first commit, then PO commit), oldest first.
+    // Returns null when no PO commit exists yet.
+    const collectCommitIds = async (): Promise<string[] | null> => {
+        const fetchRows = async (referenceName: string): Promise<any[]> => {
+            const res: any = await getCommitStaging({ reference_name: referenceName });
+            if (res?.message?.status !== "success") {
+                throw new Error(res?.message?.message || "Could not read the commitments for this application.");
+            }
+            return res?.message?.data ?? [];
+        };
+        const rows = await fetchRows(docname);
+        // PO commits staged before trigger_state scoping live under "<docname>-po"
+        const legacyPoRows = await fetchRows(`${docname}-po`).catch(() => [] as any[]);
+        const isPo = (r: any) => {
+            if (legacyPoRows.includes(r)) return true;
+            try {
+                const raw = r.payload ?? r.commit_payload ?? "{}";
+                return (typeof raw === "string" ? JSON.parse(raw) : raw)?.trigger_state === "POGenerated";
+            } catch { return false; }
+        };
+        const allRows = [...rows, ...legacyPoRows];
+        if (!allRows.some(isPo)) return null;
+        return allRows
+            .filter((r) => r.status === "PENDING_APPROVAL" || r.status === "FAILED")
+            .sort((a, b) => String(a.creation ?? "").localeCompare(String(b.creation ?? "")))
+            .map((r) => r.name);
+    };
 
     useEffect(() => {
         fetchActions({ docname })
@@ -1286,6 +1319,20 @@ const DirectPurchaseActionButtons = ({
                     project_name: otherPiProject,
                     account_head: otherPiAccountHead,
                 });
+            }
+            // The action that moves Sanction Approved -> POGenerated publishes the commits
+            if (workflowState === "Sanction Approved" && !/put\s*back|reject/i.test(action)) {
+                const commitIds = await collectCommitIds();
+                if (!commitIds) {
+                    setErrorModal({
+                        open: true,
+                        title: "PO commitment missing",
+                        message: "Submit the PO commitment before performing this action.",
+                    });
+                    setIsPerforming(false);
+                    return;
+                }
+                payload.extra_data = JSON.stringify({ commit_ids: commitIds });
             }
             const result: any = await performAction(payload);
             const success = result?.message?.status === "success" || (result?.message && result.message.status !== "error");
@@ -2934,7 +2981,13 @@ const DirectPurchaseDetails: React.FC = () => {
                 );
                 if (!stagingRes.ok || cancelled) return;
                 const stagingJson = await stagingRes.json();
-                const record = (stagingJson?.data ?? [])[0];
+                const isPoCommit = (r: any) => {
+                    try {
+                        const raw = r.payload ?? r.commit_payload ?? "{}";
+                        return (typeof raw === "string" ? JSON.parse(raw) : raw)?.trigger_state === "POGenerated";
+                    } catch { return false; }
+                };
+                const record = (stagingJson?.data ?? []).find((r: any) => !isPoCommit(r));
                 if (!record) return;
 
                 let payload: Record<string, any> = {};
@@ -3540,6 +3593,7 @@ const DirectPurchaseDetails: React.FC = () => {
                                 isOtherPiStep={isDpOtherPiStep}
                                 otherPiProject={selectedDpPiProject}
                                 otherPiAccountHead={selectedDpPiHead}
+                                workflowState={data.workflow_state}
                             />
                         )}
                     </div>
@@ -4029,9 +4083,10 @@ const DirectPurchaseDetails: React.FC = () => {
                                     {isStaffRnD && !!poSanctionData && ["Sanction Approved", "POGenerated"].includes(data?.workflow_state ?? "") && (
                                         <div className="min-w-0 space-y-4">
                                             <CommitPayment
-                                                key={`commit-main-${id}`}
+                                                key={`commit-main-${id}-${data?.workflow_state}`}
                                                 doctype="Direct Purchase"
                                                 docName={id || ""}
+                                                excludeStagingTriggerState="POGenerated"
                                                 projectName={projectTitle}
                                                 budgetHeads={budgetHeads}
                                                 actualBalance={actualBalance}
@@ -4040,11 +4095,13 @@ const DirectPurchaseDetails: React.FC = () => {
                                                 onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
                                             />
                                             <CommitPayment
-                                                key={`commit-po-${id}`}
+                                                key={`commit-po-${id}-${data?.workflow_state}`}
                                                 doctype="Direct Purchase"
                                                 docName={id || ""}
-                                                stagingReferenceName={`${id}-po`}
-                                                frapAppId={id}
+                                                triggerState="POGenerated"
+                                                stagingTriggerState="POGenerated"
+                                                legacyStagingReferenceName={`${id}-po`}
+                                                defaultParticular={poSanctionData?.po_number ? `PO ${poSanctionData.po_number}` : ""}
                                                 projectName={projectTitle}
                                                 budgetHeads={budgetHeads}
                                                 actualBalance={actualBalance}
@@ -4101,6 +4158,7 @@ const DirectPurchaseDetails: React.FC = () => {
                             actualBalance={actualBalance}
                             commitableBalance={commitableBalance}
                             displayHeadBalances={ledgerHeadBalances}
+                            excludeStagingTriggerState="POGenerated"
                             onCommitSuccess={() => loadData()}
                             onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
                         />
